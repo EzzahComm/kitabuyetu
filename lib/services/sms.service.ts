@@ -15,6 +15,7 @@
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { InsufficientSmsCreditsError, PaymentRequiredError } from '@/lib/utils/errors';
+import { logger } from '@/lib/logger';
 import { enqueue, QUEUES } from '@/lib/queue';
 import {
   sendSingleSms,
@@ -415,9 +416,9 @@ async function dispatchBatch(
       }
     }
 
-    console.log(`[sms] dispatched: ${sent} sent, ${failed} failed (group ${groupId})`);
+    logger.info(`[sms] dispatched: ${sent} sent, ${failed} failed (group ${groupId})`);
   } catch (err) {
-    console.error('[sms] dispatchBatch error:', err);
+    logger.error('[sms] dispatchBatch error:', err);
     const { pool } = await import('@/lib/db');
     const client = await pool.connect();
     try {

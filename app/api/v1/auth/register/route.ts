@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       const email = input.email === '' ? null : input.email ?? null;
 
-    const { rows: groupRows } = await client.query<{ id: string }>(
+      const { rows: groupRows } = await client.query<{ id: string }>(
         `INSERT INTO groups (name, "type", phone, email)
          VALUES ($1,$2,$3,$4) RETURNING id`,
         [input.groupName, input.groupType, phone, email],
@@ -52,14 +52,14 @@ export async function POST(req: NextRequest): Promise<Response> {
         [groupId, memberId, 'group_admin'],
       );
 
-      return { memberId, groupName: input.groupName, role: 'group_admin' };
+      return { memberId, groupId, groupName: input.groupName, role: 'group_admin' };
     });
 
     if ('error' in result) {
       return errorResponse(result.error ?? 'Registration failed', result.code ?? 'REG_ERROR', 409);
     }
 
-    const { memberId, groupName, role } = result;
+    const { memberId, groupId, groupName, role } = result;
 
     // Provision Starter subscription + chart of accounts for new groups
     const ctx: TenantContext = { userId: memberId, groupId, role };

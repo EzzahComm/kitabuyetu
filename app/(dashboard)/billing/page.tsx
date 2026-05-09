@@ -47,7 +47,7 @@ export default function BillingPage() {
       setPolling(false);
       toast({ variant: 'destructive', title: 'Payment failed', description: 'M-Pesa payment was not completed' });
     }
-  }, [mpesaStatus]);
+  }, [mpesaStatus, pendingPlan, toast, upgradePlan]);
 
   const handleSelectPlan = (planType: string) => {
     if (planType === 'starter') return;
