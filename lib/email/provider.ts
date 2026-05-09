@@ -5,6 +5,7 @@ import { SendGridAdapter } from './adapters/sendgrid';
 import { SesAdapter } from './adapters/ses';
 import { MailgunAdapter } from './adapters/mailgun';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 let _adapter: IEmailAdapter | null = null;
 
@@ -49,7 +50,7 @@ async function logDryRun(payload: EmailPayload): Promise<void> {
 export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
   if (process.env.EMAIL_DRY_RUN === 'true') {
     await logDryRun(payload);
-    console.log('[email:dry_run]', payload.to, payload.subject);
+    logger.info('[email:dry_run]', payload.to, payload.subject);
     return { success: true, provider: 'dry_run', dryRun: true };
   }
   return getAdapter().send(payload);
