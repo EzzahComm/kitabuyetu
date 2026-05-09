@@ -83,6 +83,13 @@ const envSchema = z.object({
 
   // ── Import limits ─────────────────────────────────────────────────────────
   CSV_MAX_ROWS: z.coerce.number().int().positive().default(5000),
+
+  // ── Supabase JS client (Storage + Realtime) ───────────────────────────────
+  // Not required for core auth/DB (which use raw pg), but needed for
+  // Storage uploads, Realtime subscriptions, and the Supabase SSR client.
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

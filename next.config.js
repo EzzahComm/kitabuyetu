@@ -11,16 +11,18 @@ const nextConfig = {
       'africastalking',
     ],
   },
-  // shared hosting: sharp native binary is unreliable on CloudLinux — skip optimization
+  // Vercel's CDN handles image optimization natively
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: '**.supabase.in' },
+    ],
   },
   reactStrictMode: true,
-  // standalone bundles only the files needed at runtime — smaller upload
-  output: 'standalone',
   // Remove X-Powered-By: Next.js header from all responses
   poweredByHeader: false,
-  // Gzip responses — no Nginx/CDN middleware on cPanel shared hosting
+  // Vercel handles compression at the CDN layer
   compress: true,
   // Security headers
   async headers() {
