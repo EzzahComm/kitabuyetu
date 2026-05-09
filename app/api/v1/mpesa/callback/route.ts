@@ -1,9 +1,10 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { handleSTKCallback, type StkCallbackBody } from '@/lib/services/mpesa.service';
 import { billingService } from '@/lib/services/billing.service';
 import { smsService } from '@/lib/services/sms.service';
 import { withAdminDb } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Safaricom's published egress IPs for Daraja callbacks.

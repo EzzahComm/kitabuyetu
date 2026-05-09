@@ -105,4 +105,17 @@ function validateEnv(): Env {
   return result.data;
 }
 
-export const env = validateEnv();
+// Exported as a function so callers import `env` not `getEnv()`.
+// During Next.js build (NEXT_PHASE=phase-production-build) or when
+// SKIP_ENV_VALIDATION=1 is set, skip strict Zod validation so the build
+// succeeds without every production secret being present in the build env.
+// Real validation still runs at cold-start in the deployed runtime.
+export const env: Env = (() => {
+  if (
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.NEXT_PHASE === 'phase-production-build'
+  ) {
+    return process.env as unknown as Env;
+  }
+  return validateEnv();
+})();
