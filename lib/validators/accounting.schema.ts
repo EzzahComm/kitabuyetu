@@ -1,0 +1,58 @@
+import { z } from 'zod';
+
+export const CreateAccountSchema = z.object({
+  accountCode: z.string().min(1).max(20),
+  name:        z.string().min(2).max(255),
+  type:        z.enum(['asset', 'liability', 'equity', 'income', 'expense']),
+  parentId:    z.string().uuid().optional().nullable(),
+  description: z.string().max(500).optional().nullable(),
+});
+
+export const UpdateAccountSchema = z.object({
+  name:        z.string().min(2).max(255).optional(),
+  description: z.string().max(500).optional().nullable(),
+  isActive:    z.boolean().optional(),
+});
+
+const JournalLineSchema = z.object({
+  accountId:   z.string().uuid(),
+  debit:       z.number().min(0).default(0),
+  credit:      z.number().min(0).default(0),
+  description: z.string().max(255).optional().nullable(),
+}).refine(
+  (l) => (l.debit > 0) !== (l.credit > 0),
+  { message: 'Each line must have either a debit or credit, not both' },
+);
+
+export const CreateJournalSchema = z.object({
+  entryDate:   z.string().date(),
+  reference:   z.string().max(100).optional().nullable(),
+  description: z.string().min(3).max(500),
+  lines:       z.array(JournalLineSchema).min(2, 'A journal entry needs at least 2 lines'),
+}).refine(
+  (e) => {
+    const debits  = e.lines.reduce((s, l) => s + l.debit,  0);
+    const credits = e.lines.reduce((s, l) => s + l.credit, 0);
+    return Math.abs(debits - credits) < 0.01;
+  },
+  { message: 'Journal entry is unbalanced: debits must equal credits' },
+);
+
+export const VoidJournalSchema = z.object({
+  reason: z.string().min(5).max(500),
+});
+
+export const ReportQuerySchema = z.object({
+  from: z.string().date(),
+  to:   z.string().date(),
+});
+
+export const BalanceSheetQuerySchema = z.object({
+  asOf: z.string().date().optional(),
+});
+
+export type CreateAccountInput  = z.infer<typeof CreateAccountSchema>;
+export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
+export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;
+export type VoidJournalInput    = z.infer<typeof VoidJournalSchema>;
+export type ReportQueryInput    = z.infer<typeof ReportQuerySchema>;
