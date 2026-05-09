@@ -1,0 +1,37 @@
+import { NextRequest } from 'next/server';
+import { withAuth, withRole } from '@/lib/auth/middleware';
+import { loansService } from '@/lib/services/loans.service';
+import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema } from '@/lib/validators/loan.schema';
+import { ok } from '@/lib/utils/response';
+
+type Ctx = { params: { id: string } };
+
+export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
+  return withAuth(req, async (auth) => {
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    return ok(await loansService.getById(ctx, params.id));
+  });
+}
+
+export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
+  return withRole(req, 'treasurer', async (auth) => {
+    const body   = await req.json();
+    const action = body.action as string;
+    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+
+    if (action === 'approve') {
+      const input = ApproveLoanSchema.parse(body);
+      return ok(await loansService.approve(ctx, params.id, input));
+    }
+    if (action === 'reject') {
+      const input = RejectLoanSchema.parse(body);
+      return ok(await loansService.reject(ctx, params.id, input));
+    }
+    if (action === 'disburse') {
+      const input = DisburseLoanSchema.parse(body);
+      return ok(await loansService.disburse(ctx, params.id, input));
+    }
+
+    return ok({ error: 'Unknown action. Use action: approve | reject | disburse' }, 400) as Response;
+  });
+}

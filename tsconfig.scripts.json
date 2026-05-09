@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".ts-scripts"
+  },
+  "include": ["scripts/**/*.ts", "lib/db/index.ts"]
+}

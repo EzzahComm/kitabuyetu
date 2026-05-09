@@ -1,0 +1,154 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
+  MessageSquare, BarChart2, Building2, Settings, LogOut, X,
+  Receipt, Mail,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/context';
+import { authApi } from '@/lib/api/endpoints';
+import { Button } from '@/components/ui/button';
+
+const navItems = [
+  { href: '/dashboard',      label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/members',        label: 'Members',        icon: Users },
+  { href: '/contributions',  label: 'Contributions',  icon: CreditCard },
+  { href: '/loans',          label: 'Loans',          icon: Landmark },
+  { href: '/accounting',     label: 'Accounting',     icon: BookOpen },
+  { href: '/sms',            label: 'SMS',            icon: MessageSquare },
+  { href: '/email',          label: 'Email',          icon: Mail },
+  { href: '/reports',        label: 'Reports',        icon: BarChart2 },
+  { href: '/billing',        label: 'Billing',        icon: Receipt },
+];
+
+const ngoItems = [
+  { href: '/ngo', label: 'NGO Portal', icon: Building2 },
+];
+
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
+  const pathname = usePathname();
+  const { user, logout, refreshToken } = useAuth();
+
+  const handleLogout = async () => {
+    try { await authApi.logout(refreshToken ?? undefined); } catch {}
+    logout();
+  };
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+
+  return (
+    <>
+      {open && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
+      )}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gray-900 text-white transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="flex items-center justify-between px-4 h-16 border-b border-gray-700">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="font-bold text-sm">Kitabu Yetu</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={onClose}
+            className="lg:hidden text-gray-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {user && (
+          <div className="px-4 py-3 border-b border-gray-700">
+            <p className="text-xs text-gray-400 truncate">{user.groupName}</p>
+            <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
+            <p className="text-xs text-gray-400 capitalize">{user.groupRole.replace('_', ' ')}</p>
+          </div>
+        )}
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive(item.href)
+                    ? 'bg-brand-500 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white',
+                )}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+
+          {user?.platformRole === 'ngo_coordinator' && (
+            <>
+              <div className="pt-4 pb-1 px-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">NGO</p>
+              </div>
+              {ngoItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      isActive(item.href)
+                        ? 'bg-brand-500 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white',
+                    )}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
+        </nav>
+
+        <div className="px-3 py-4 border-t border-gray-700 space-y-1">
+          <Link
+            href="/settings"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+          >
+            <Settings size={18} />
+            Settings
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+          >
+            <LogOut size={18} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}

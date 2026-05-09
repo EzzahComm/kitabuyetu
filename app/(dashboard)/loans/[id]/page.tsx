@@ -1,0 +1,192 @@
+'use client';
+
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, CheckCircle, XCircle, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useLoan, useLoanAction, useRecordRepayment } from '@/hooks/use-loans';
+import { useToast } from '@/hooks/use-toast';
+import { formatKES, formatDate } from '@/lib/utils';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const repaySchema = z.object({
+  amount:        z.coerce.number().positive(),
+  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']),
+  reference:     z.string().optional(),
+});
+
+const statusColor: Record<string, any> = {
+  pending: 'warning', approved: 'secondary', active: 'success', completed: 'outline', defaulted: 'destructive',
+};
+
+export default function LoanDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router  = useRouter();
+  const { toast } = useToast();
+  const [repayOpen, setRepayOpen] = useState(false);
+
+  const { data: loan, isLoading } = useLoan(id);
+  const loanAction   = useLoanAction(id);
+  const recordRepay  = useRecordRepayment(id);
+
+  type RepayForm = z.infer<typeof repaySchema>;
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RepayForm>({
+    resolver: zodResolver(repaySchema),
+    defaultValues: { paymentMethod: 'mpesa' as const },
+  });
+
+  const handleAction = async (action: string) => {
+    try {
+      await loanAction.mutateAsync({ action });
+      toast({ title: `Loan ${action}d successfully` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Action failed', description: err.message });
+    }
+  };
+
+  const onRepay = async (values: any) => {
+    try {
+      await recordRepay.mutateAsync(values);
+      toast({ title: 'Repayment recorded' });
+      setRepayOpen(false);
+      reset();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    }
+  };
+
+  if (isLoading) {
+    return <div className="space-y-4">{Array.from({length:4}).map((_,i)=><Skeleton key={i} className="h-24 w-full"/>)}</div>;
+  }
+
+  if (!loan) return <p className="text-muted-foreground">Loan not found</p>;
+
+  const l = loan as any;
+  const schedule: any[] = l.repaymentSchedule ?? [];
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft size={18}/></Button>
+        <div>
+          <h1 className="text-2xl font-bold">Loan Details</h1>
+          <p className="text-xs font-mono text-muted-foreground">{l.id}</p>
+        </div>
+        <Badge variant={statusColor[l.status] ?? 'secondary'} className="ml-auto capitalize">{l.status}</Badge>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card><CardContent className="p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Member</p>
+          <p className="font-semibold">{l.memberName ?? l.memberId}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Principal</p>
+          <p className="font-bold text-xl">{formatKES(l.principalAmount)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Interest rate / Term</p>
+          <p className="font-semibold">{l.interestRate}% /mo × {l.termMonths} months</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Outstanding balance</p>
+          <p className="font-bold text-xl text-red-600">{formatKES(l.outstandingBalance ?? l.principalAmount)}</p>
+        </CardContent></Card>
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        {l.status === 'pending' && (
+          <>
+            <Button variant="default" onClick={() => handleAction('approve')} loading={loanAction.isPending}>
+              <CheckCircle size={16} className="mr-2"/> Approve
+            </Button>
+            <Button variant="destructive" onClick={() => handleAction('reject')} loading={loanAction.isPending}>
+              <XCircle size={16} className="mr-2"/> Reject
+            </Button>
+          </>
+        )}
+        {l.status === 'approved' && (
+          <Button onClick={() => handleAction('disburse')} loading={loanAction.isPending}>
+            <DollarSign size={16} className="mr-2"/> Disburse
+          </Button>
+        )}
+        {l.status === 'active' && (
+          <Button onClick={() => setRepayOpen(true)}>
+            <DollarSign size={16} className="mr-2"/> Record repayment
+          </Button>
+        )}
+      </div>
+
+      {schedule.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Repayment Schedule</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  {['#','Due Date','Principal','Interest','EMI','Balance','Status'].map((h)=>(
+                    <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {schedule.map((s: any) => (
+                  <tr key={s.installmentNumber} className="border-t hover:bg-muted/20">
+                    <td className="px-4 py-2">{s.installmentNumber}</td>
+                    <td className="px-4 py-2">{formatDate(s.dueDate)}</td>
+                    <td className="px-4 py-2">{formatKES(s.principalComponent)}</td>
+                    <td className="px-4 py-2">{formatKES(s.interestComponent)}</td>
+                    <td className="px-4 py-2 font-semibold">{formatKES(s.emiAmount)}</td>
+                    <td className="px-4 py-2">{formatKES(s.openingBalance)}</td>
+                    <td className="px-4 py-2">
+                      <Badge variant={s.status === 'paid' ? 'success' : s.status === 'overdue' ? 'destructive' : 'secondary'} className="text-xs capitalize">
+                        {s.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={repayOpen} onOpenChange={setRepayOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Record repayment</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit(onRepay)} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input type="number" step="0.01" {...register('amount')} />
+              {errors.amount && <p className="text-xs text-destructive">{errors.amount?.message as string}</p>}
+            </div>
+            <div className="space-y-1">
+              <Label>Payment method</Label>
+              <select {...register('paymentMethod')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="mpesa">M-Pesa</option>
+                <option value="cash">Cash</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Reference (optional)</Label>
+              <Input {...register('reference')} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={()=>setRepayOpen(false)}>Cancel</Button>
+              <Button type="submit" loading={isSubmitting}>Record</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\logs\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\templates\\\\[id]\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\campaigns\\\\[id]\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\schedules\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\preferences\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\analytics\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\branding\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\webhooks\\\\resend\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\email\\\\webhooks\\\\sendgrid\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\workers\\\\email\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Poly\\\\Desktop\\\\kitabuyetu\\\\app\\\\api\\\\v1\\\\workers\\\\cron\")",
+      "Bash(Write-Host \"All directories created.\")",
+      "Bash(mkdir -p \"/c/Users/Poly/Desktop/kitabuyetu/app/api/v1/email/logs\" \\\\ *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Poly\\Desktop\\kitabuyetu\\app\\api\\v1\\email"
+    ]
+  }
+}
