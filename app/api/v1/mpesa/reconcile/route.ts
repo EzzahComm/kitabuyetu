@@ -1,7 +1,6 @@
-﻿export const dynamic = 'force-dynamic'
-/**
- * POST /api/v1/mpesa/reconcile â€” Trigger reconciliation (group_admin+)
- * GET  /api/v1/mpesa/reconcile â€” List reconciliation run history
+﻿/**
+ * POST /api/v1/mpesa/reconcile — Trigger reconciliation (group_admin+)
+ * GET  /api/v1/mpesa/reconcile — List reconciliation run history
  *
  * Reconciliation finds STK Push requests stuck in 'pending' for > 5 min,
  * queries Daraja for their actual status, and resolves mismatches.
@@ -15,6 +14,8 @@ import { withRole } from '@/lib/auth/middleware';
 import { runReconciliation } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;

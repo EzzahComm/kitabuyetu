@@ -34,5 +34,8 @@ Thumbs.db
 # Standalone output (built by CI, not source-controlled)
 .next/standalone/
 
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+
 .vercel
 .env*.local
