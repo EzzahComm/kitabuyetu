@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify, type JWTPayload } from 'jose';
 
-const ACCESS_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? '');
+// Fail fast on cold start if JWT_SECRET is absent or too short.
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret || rawSecret.length < 32) {
+  throw new Error('[middleware] JWT_SECRET must be set and at least 32 characters');
+}
+const ACCESS_SECRET = new TextEncoder().encode(rawSecret);
 
 interface KyJwtPayload extends JWTPayload {
   sub:     string;
@@ -49,7 +54,11 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   const token = authHeader.slice(7);
 
   try {
-    const { payload } = await jwtVerify(token, ACCESS_SECRET) as { payload: KyJwtPayload };
+    // algorithms: ['HS256'] pins the algorithm and prevents algorithm-confusion attacks
+    // (e.g. a token signed with RS256 or 'none' will be rejected).
+    const { payload } = await jwtVerify(token, ACCESS_SECRET, {
+      algorithms: ['HS256'],
+    }) as { payload: KyJwtPayload };
 
     if (!payload.sub || !payload.groupId || !payload.role) {
       return unauthorized('Incomplete token payload');

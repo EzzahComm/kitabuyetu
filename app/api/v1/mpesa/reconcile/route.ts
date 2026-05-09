@@ -10,6 +10,7 @@
  * Protected by either JWT (manual trigger) or CRON_SECRET header.
  */
 import { NextRequest } from 'next/server';
+import crypto from 'crypto';
 import { withRole } from '@/lib/auth/middleware';
 import { runReconciliation } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
@@ -18,7 +19,11 @@ import { withAdminDb } from '@/lib/db';
 function verifyCronSecret(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return req.headers.get('x-cron-secret') === secret;
+  const provided = req.headers.get('x-cron-secret') ?? '';
+  // Timing-safe comparison prevents secret leakage via timing side-channel.
+  const ha = crypto.createHash('sha256').update(provided).digest();
+  const hb = crypto.createHash('sha256').update(secret).digest();
+  return crypto.timingSafeEqual(ha, hb);
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
