@@ -4,16 +4,18 @@ import { loansService } from '@/lib/services/loans.service';
 import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
+  const { id } = await params;
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    return ok(await loansService.getById(ctx, params.id));
+    return ok(await loansService.getById(ctx, id));
   });
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
+  const { id } = await params;
   return withRole(req, 'treasurer', async (auth) => {
     const body   = await req.json();
     const action = body.action as string;
@@ -21,15 +23,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
 
     if (action === 'approve') {
       const input = ApproveLoanSchema.parse(body);
-      return ok(await loansService.approve(ctx, params.id, input));
+      return ok(await loansService.approve(ctx, id, input));
     }
     if (action === 'reject') {
       const input = RejectLoanSchema.parse(body);
-      return ok(await loansService.reject(ctx, params.id, input));
+      return ok(await loansService.reject(ctx, id, input));
     }
     if (action === 'disburse') {
       const input = DisburseLoanSchema.parse(body);
-      return ok(await loansService.disburse(ctx, params.id, input));
+      return ok(await loansService.disburse(ctx, id, input));
     }
 
     return ok({ error: 'Unknown action. Use action: approve | reject | disburse' }, 400) as Response;
