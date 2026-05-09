@@ -78,7 +78,7 @@ export default function RegisterPage() {
                 <option value="sacco">SACCO</option>
                 <option value="welfare">Welfare Group</option>
                 <option value="investment">Investment Club</option>
-                <option value="ngo">NGO</option>
+                <option value="ngo_group">NGO</option>
               </select>
             </div>
             <div className="space-y-2">
