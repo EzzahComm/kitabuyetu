@@ -13,7 +13,9 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "migrate": "tsx scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint"
+    "type-check": "tsc --noEmit",
+    "lint": "next lint",
+    "ci": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
