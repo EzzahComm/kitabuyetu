@@ -33,3 +33,6 @@ Thumbs.db
 
 # Standalone output (built by CI, not source-controlled)
 .next/standalone/
+
+.vercel
+.env*.local
