@@ -59,7 +59,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       return errorResponse(result.error ?? 'Registration failed', result.code ?? 'REG_ERROR', 409);
     }
 
-    const { memberId, groupId, groupName, role } = result;
+    const { memberId, groupId, groupName, role } = result as {
+      memberId: string;
+      groupId: string;
+      groupName: string;
+      role: string;
+    };
 
     // Provision Starter subscription + chart of accounts for new groups
     const ctx: TenantContext = { userId: memberId, groupId, role };
