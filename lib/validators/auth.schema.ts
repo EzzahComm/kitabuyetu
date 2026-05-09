@@ -8,14 +8,15 @@ export const LoginSchema = z.object({
 });
 
 export const RegisterSchema = z.object({
+  groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
+  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
   phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
   password:  z.string().min(8, 'Password must be at least 8 characters')
                .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
                .regex(/[0-9]/, 'Password must contain at least one number'),
   firstName: z.string().min(2).max(100),
   lastName:  z.string().min(2).max(100),
-  groupId:   z.string().uuid('Invalid group ID'),
-  email:     z.string().email().optional().nullable(),
+  email:     z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
 });
 
 export const RefreshSchema = z.object({

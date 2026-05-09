@@ -29,35 +29,30 @@ export async function POST(req: NextRequest): Promise<Response> {
         return { error: 'Phone number already registered', code: 'DUPLICATE_PHONE' };
       }
 
-      // Verify the group exists
-      const { rows: group } = await client.query<{ id: string; name: string }>(
-        'SELECT id, name FROM groups WHERE id = $1 AND is_active = true', [input.groupId],
+      const email = input.email === '' ? null : input.email ?? null;
+
+    const { rows: groupRows } = await client.query<{ id: string }>(
+        `INSERT INTO groups (name, "type", phone, email)
+         VALUES ($1,$2,$3,$4) RETURNING id`,
+        [input.groupName, input.groupType, phone, email],
       );
-      if (!group[0]) {
-        return { error: 'Group not found', code: 'GROUP_NOT_FOUND' };
-      }
+      const groupId = groupRows[0].id;
 
       const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
       const { rows: memberRows } = await client.query<{ id: string }>(
         `INSERT INTO members (phone, email, password_hash, first_name, last_name)
          VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [phone, input.email ?? null, passwordHash, input.firstName, input.lastName],
+        [phone, email, passwordHash, input.firstName, input.lastName],
       );
       const memberId = memberRows[0].id;
 
-      // Add to group as admin (first member = group_admin, others = member)
-      const { rows: existingMembers } = await client.query<{ count: string }>(
-        'SELECT COUNT(*) AS count FROM group_members WHERE group_id = $1', [input.groupId],
-      );
-      const role = parseInt(existingMembers[0].count, 10) === 0 ? 'group_admin' : 'member';
-
       await client.query(
         `INSERT INTO group_members (group_id, member_id, role) VALUES ($1,$2,$3)`,
-        [input.groupId, memberId, role],
+        [groupId, memberId, 'group_admin'],
       );
 
-      return { memberId, groupName: group[0].name, role };
+      return { memberId, groupName: input.groupName, role: 'group_admin' };
     });
 
     if ('error' in result) {
@@ -67,20 +62,20 @@ export async function POST(req: NextRequest): Promise<Response> {
     const { memberId, groupName, role } = result;
 
     // Provision Starter subscription + chart of accounts for new groups
-    const ctx: TenantContext = { userId: memberId, groupId: input.groupId, role };
+    const ctx: TenantContext = { userId: memberId, groupId, role };
     await withAdminDb(async (client) => {
       await billingService.createStarterSubscription(ctx, client);
     });
     await accountingService.seedDefaultAccounts(ctx);
 
-    const accessToken = signAccessToken({ sub: memberId, groupId: input.groupId, role: role as any });
+    const accessToken = signAccessToken({ sub: memberId, groupId, role: role as any });
     const { token: refreshToken } = signRefreshToken(memberId);
     await storeRefreshToken(hashToken(refreshToken), memberId, refreshTtlSeconds());
 
     return created({
       accessToken,
       refreshToken,
-      member: { id: memberId, firstName: input.firstName, lastName: input.lastName, phone, groupId: input.groupId, groupName, role },
+      member: { id: memberId, firstName: input.firstName, lastName: input.lastName, phone, groupId, groupName, role },
       registrationFee: REGISTRATION_FEE,
     });
   } catch (err) {
