@@ -6,12 +6,41 @@ import { smsService } from '@/lib/services/sms.service';
 import { withAdminDb } from '@/lib/db';
 
 /**
+ * Safaricom's published egress IPs for Daraja callbacks.
+ * Source: https://developer.safaricom.co.ke/docs#ip-addresses
+ * Reject any POST that does not originate from this set (production only).
+ */
+const SAFARICOM_IPS = new Set([
+  '196.201.214.200',
+  '196.201.214.206',
+  '196.201.213.114',
+  '196.201.214.207',
+  '196.201.214.208',
+  '196.201.213.44',
+  '196.201.212.127',
+  '196.201.212.138',
+  '196.201.212.129',
+  '196.201.212.136',
+  '196.201.212.74',
+  '196.201.212.69',
+]);
+
+/**
  * STK Push callback from Safaricom.
  * Must return HTTP 200 immediately — Safaricom retries on any other response.
- * IP validation is handled inside handleSTKCallback.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const callerIp = getCallerIp(req);
+
+  // Validate origin before parsing the body.
+  // In sandbox we skip IP validation (Safaricom sandbox uses different IPs).
+  if (process.env.MPESA_ENV === 'production' && !SAFARICOM_IPS.has(callerIp)) {
+    return NextResponse.json(
+      { ResultCode: 1, ResultDesc: 'Rejected' },
+      { status: 403 },
+    );
+  }
+
   const rawBody  = await req.text();
 
   let body: StkCallbackBody;

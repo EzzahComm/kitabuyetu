@@ -1,33 +1,33 @@
 import { Pool, PoolClient } from 'pg';
-
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
+import { env } from '@/lib/env';
 
 // Module-level singleton pool. Safe in Next.js API routes (Node.js runtime).
 // HMR in dev can create multiple instances — guard with globalThis.
 const globalWithPool = globalThis as typeof globalThis & { _kyPool?: Pool };
 
 if (!globalWithPool._kyPool) {
-  // SUPABASE NOTE: Use the DIRECT connection string (port 5432) from
-  // Dashboard > Settings > Database > URI.
-  // Do NOT use the pgBouncer transaction-mode pooler (port 6543) — it
-  // does not support SET LOCAL session variables required by our RLS policy.
+  // SUPABASE: Use the DIRECT connection string (port 5432), not pgBouncer (port 6543).
+  // pgBouncer transaction mode does not support SET LOCAL required by RLS policies.
+  const isRemote =
+    env.DATABASE_URL.includes('supabase.com') ||
+    env.DATABASE_URL.includes('supabase.co');
+
   globalWithPool._kyPool = new Pool({
-    connectionString:      process.env.DATABASE_URL,
-    // Shared hosting: keep the pool small to avoid exhausting Supabase connection limits
-    max:                   3,
-    idleTimeoutMillis:     10_000,
+    connectionString:        env.DATABASE_URL,
+    max:                     env.DB_POOL_MAX,
+    idleTimeoutMillis:       10_000,
     connectionTimeoutMillis: 8_000,
-    ssl: process.env.DATABASE_URL?.includes('supabase.com') ||
-         process.env.DATABASE_URL?.includes('supabase.co') ||
-         process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : false,
+    ssl: isRemote
+      ? { rejectUnauthorized: true }
+      : env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: true }
+        : false,
   });
 
   globalWithPool._kyPool.on('error', (err) => {
-    console.error('[pg pool] Unexpected error on idle client:', err);
+    if (env.NODE_ENV !== 'production') {
+      console.error('[pg pool] Idle client error:', err.message);
+    }
   });
 }
 
