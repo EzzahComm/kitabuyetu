@@ -1,0 +1,44 @@
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export type JobType =
+  | 'email_campaign_process'   // Process due email campaigns (every 5 min)
+  | 'email_retry_failed'       // Retry transiently-failed emails (every 5 min)
+  | 'email_birthday'           // Birthday emails (daily 07:00 UTC)
+  | 'email_overdue_invoices'   // Overdue invoice reminders (daily 09:00 UTC)
+  | 'email_recurring_invoices' // Process recurring invoices (daily 06:00 UTC)
+  | 'email_weekly_summary'     // Member weekly summary (Monday 08:00 UTC)
+  | 'mpesa_reconcile'          // Reconcile stuck M-Pesa transactions (every 5 min)
+  | 'cleanup_expired_tokens';  // Remove expired refresh tokens (daily 02:00 UTC)
+
+export interface Job {
+  id:           string;
+  type:         JobType;
+  payload:      Record<string, unknown>;
+  status:       JobStatus;
+  priority:     number;
+  attempts:     number;
+  max_attempts: number;
+  run_at:       Date;
+  last_error:   string | null;
+  dedup_key:    string | null;
+  created_at:   Date;
+  updated_at:   Date;
+}
+
+export interface EnqueueOptions {
+  /** Higher = processed first within the same 5-min tick. Default 0. */
+  priority?:     number;
+  /** ISO date or Date object — allows scheduling future jobs. Default now. */
+  run_at?:       Date;
+  /** Max retry attempts before the job is permanently failed. Default 5. */
+  max_attempts?: number;
+  /** Unique string that prevents duplicate jobs (partial index on non-terminal rows). */
+  dedup_key?:    string;
+}
+
+export interface ProcessResult {
+  processed: number;
+  succeeded: number;
+  failed:    number;
+  retried:   number;
+}

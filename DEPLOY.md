@@ -108,6 +108,7 @@ Required variables:
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `ENCRYPTION_KEY` | `openssl rand -hex 32` |
 | `WORKER_SECRET` | `openssl rand -hex 32` |
+| `CRON_SECRET` | `openssl rand -hex 32` (you choose — same value goes into Supabase pg_cron SQL) |
 | `MPESA_CONSUMER_KEY` | Safaricom Daraja portal |
 | `MPESA_CONSUMER_SECRET` | Safaricom Daraja portal |
 | `MPESA_SHORTCODE` | Safaricom Daraja portal |
@@ -117,9 +118,6 @@ Required variables:
 | `RESEND_API_KEY` | Resend dashboard |
 | `EMAIL_FROM` | Verified sender address in Resend |
 | `NEXT_PUBLIC_APP_URL` | Your Vercel deployment URL |
-
-> `CRON_SECRET` is generated automatically by Vercel once you deploy with `vercel.json`.  
-> Copy it from the dashboard and add it as an env var so the cron route can validate it.
 
 ### 4d. Deploy
 
@@ -133,21 +131,110 @@ vercel --prod
 # Health check
 curl -I https://your-app.vercel.app/api/v1/groups
 
-# Confirm cron is registered
-vercel cron ls
+# Manual cron trigger (replace YOUR_WORKER_SECRET)
+curl -X POST https://your-app.vercel.app/api/v1/workers/cron \
+  -H "Authorization: Bearer YOUR_WORKER_SECRET"
 ```
 
 ---
 
-## Part 5 — Vercel Cron
+## Part 5 — Supabase Scheduler (pg_cron + pg_net)
 
-`vercel.json` configures a cron job that calls `GET /api/v1/workers/cron` every 5 minutes.  
-Vercel automatically adds `Authorization: Bearer <CRON_SECRET>` to each request.
+> **Why not Vercel Cron?**  
+> Vercel Hobby plan limits cron jobs to once per day.  
+> Supabase pg_cron runs in the database itself — no plan restrictions.
 
-To verify cron is running:
+### 5a. Enable extensions
+
+In **Supabase Dashboard → Database → Extensions**, enable:
+
+- `pg_cron`
+- `pg_net`
+
+### 5b. Run the job queue migration
 
 ```bash
-vercel logs --prod | grep workers/cron
+supabase db push
+```
+
+This applies `migrations/013_job_queue.sql` which creates the `job_queue` and `job_logs` tables.
+
+### 5c. Schedule the cron job
+
+Open **Supabase Dashboard → SQL Editor** and run:
+
+```sql
+SELECT cron.schedule(
+  'kitabuyetu-every-5-min',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_post(
+    url     := 'https://YOUR-APP.vercel.app/api/cron',
+    headers := jsonb_build_object(
+                 'Content-Type',  'application/json',
+                 'Authorization', 'Bearer YOUR_CRON_SECRET'
+               ),
+    body    := jsonb_build_object('source', 'pg_cron')::text
+  );
+  $$
+);
+```
+
+Replace `YOUR-APP.vercel.app` with your actual Vercel domain and `YOUR_CRON_SECRET` with the value from Step 4c.
+
+### 5d. Verify the schedule
+
+```sql
+-- See all scheduled jobs
+SELECT * FROM cron.job;
+
+-- See recent execution history
+SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
+
+-- See job queue state
+SELECT status, count(*) FROM job_queue GROUP BY status;
+
+-- See recent job logs
+SELECT jq.type, jl.status, jl.message, jl.duration_ms, jl.created_at
+FROM job_logs jl
+JOIN job_queue jq ON jq.id = jl.job_id
+ORDER BY jl.created_at DESC LIMIT 50;
+```
+
+### 5e. Update the URL after redeployment
+
+If your Vercel domain changes:
+
+```sql
+SELECT cron.alter_job(
+  job_id  := (SELECT jobid FROM cron.job WHERE jobname = 'kitabuyetu-every-5-min'),
+  command := $$
+    SELECT net.http_post(
+      url     := 'https://NEW-DOMAIN.vercel.app/api/cron',
+      headers := jsonb_build_object(
+                   'Content-Type',  'application/json',
+                   'Authorization', 'Bearer YOUR_CRON_SECRET'
+                 ),
+      body    := jsonb_build_object('source', 'pg_cron')::text
+    );
+  $$
+);
+```
+
+### 5f. Pause / resume
+
+```sql
+-- Pause
+SELECT cron.alter_job(
+  job_id := (SELECT jobid FROM cron.job WHERE jobname = 'kitabuyetu-every-5-min'),
+  active := false
+);
+
+-- Resume
+SELECT cron.alter_job(
+  job_id := (SELECT jobid FROM cron.job WHERE jobname = 'kitabuyetu-every-5-min'),
+  active := true
+);
 ```
 
 ---
@@ -180,10 +267,20 @@ vercel logs --prod
 # Redeploy after a code change
 git push origin main   # auto-deploys if connected to GitHub
 
-# Re-run migrations after a schema change
+# Run migrations after a schema change (includes 013_job_queue.sql)
 supabase db push
 
-# Trigger cron manually (replace with your WORKER_SECRET)
+# Trigger cron manually (uses WORKER_SECRET — separate from CRON_SECRET)
 curl -X POST https://your-app.vercel.app/api/v1/workers/cron \
   -H "Authorization: Bearer YOUR_WORKER_SECRET"
+
+# Trigger via the pg_cron endpoint (uses CRON_SECRET)
+curl -X POST https://your-app.vercel.app/api/cron \
+  -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"manual"}'
+
+# Inspect job queue in Supabase SQL Editor
+# SELECT status, count(*) FROM job_queue GROUP BY status;
+# SELECT * FROM job_logs ORDER BY created_at DESC LIMIT 50;
 ```

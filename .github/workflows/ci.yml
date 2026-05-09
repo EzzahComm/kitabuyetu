@@ -1,0 +1,479 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Kitabu Yetu — CI/CD Pipeline
+#
+# Flow:
+#   [push / PR] → quality + security + migrations (parallel)
+#                 ↓ (all pass)
+#   [main only] → deploy to Vercel production → smoke test
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   VERCEL_TOKEN       — from vercel.com/account/tokens
+#   VERCEL_ORG_ID      — from .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID  — from .vercel/project.json after `vercel link`
+#
+# Optional secrets (only needed if you want Vercel to use a custom domain
+# or if your smoke test targets a specific URL):
+#   PRODUCTION_URL     — e.g. https://kitabuyetu.co.ke
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel redundant runs on the same branch/PR to save minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared env vars used for build validation only.
+# These are NOT real secrets — they exist solely so lib/env.ts validation
+# passes during `next build` in CI. Real secrets live in Vercel's dashboard.
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  NODE_VERSION: '20'
+
+  # ── App ────────────────────────────────────────────────────────────────────
+  NODE_ENV: production
+  NEXT_PUBLIC_APP_URL: https://kitabuyetu.vercel.app
+
+  # ── Database (fake URI — Pool.connect() is lazy, no real connection made) ──
+  DATABASE_URL: postgresql://postgres:ci_fake@db.ci.supabase.co:5432/postgres
+  DB_POOL_MAX: '3'
+
+  # ── Redis (fake — ioredis emits error events, never throws at import) ───────
+  REDIS_URL: rediss://default:ci_fake@ci.upstash.io:6379
+
+  # ── JWT / Encryption (32-char+ placeholders) ────────────────────────────────
+  JWT_SECRET:      ci_placeholder_secret_minimum_32_chars
+  ENCRYPTION_KEY:  ci_placeholder_enckey_minimum_32_chars
+  WORKER_SECRET:   ci_placeholder_worker_minimum_32_chars
+  CRON_SECRET:     ci_placeholder_cron__minimum_32_chars_
+
+  # ── M-Pesa ──────────────────────────────────────────────────────────────────
+  MPESA_ENV:             sandbox
+  MPESA_CONSUMER_KEY:    ci_fake
+  MPESA_CONSUMER_SECRET: ci_fake
+  MPESA_SHORTCODE:       '174379'
+  MPESA_PASSKEY:         ci_fake
+  MPESA_CALLBACK_URL:    https://kitabuyetu.vercel.app/api/v1/mpesa/callback
+
+  # ── SMS ─────────────────────────────────────────────────────────────────────
+  AT_API_KEY:    ci_fake
+  AT_USERNAME:   sandbox
+  AT_SENDER_ID:  KitabuYetu
+
+  # ── Email ───────────────────────────────────────────────────────────────────
+  EMAIL_PROVIDER: resend
+  EMAIL_FROM:     noreply@kitabuyetu.co.ke
+  EMAIL_DRY_RUN:  'true'
+  RESEND_API_KEY: re_ci_fake
+
+  # ── Policy defaults ─────────────────────────────────────────────────────────
+  CSV_MAX_ROWS:          '5000'
+  MAX_LOGIN_ATTEMPTS:    '5'
+  LOGIN_LOCKOUT_MINUTES: '30'
+
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  1. QUALITY GATE — Lint · Type-check · Build                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Lint ──────────────────────────────────────────────────────────────
+      - name: Lint (next lint)
+        run: npm run lint
+
+      # ── Type check ────────────────────────────────────────────────────────
+      - name: Type check (tsc --noEmit)
+        run: npm run typecheck
+
+      # ── Next.js build ─────────────────────────────────────────────────────
+      # Verifies the production bundle compiles without errors.
+      # Uses fake env vars (above) so lib/env.ts validation passes.
+      - name: Build (next build)
+        run: npm run build
+
+      # Cache the build output for the deploy job (main branch only)
+      - name: Cache build output
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: next-build-${{ github.sha }}
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  2. SECURITY SCAN — Gitleaks secret detection                          ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  security:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history for commit-level scanning)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Install gitleaks directly — works on both public and private repos
+      # without requiring a paid license
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION=8.18.4
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+
+      - name: Scan for secrets in codebase
+        run: |
+          gitleaks detect \
+            --source=. \
+            --log-level=warn \
+            --exit-code=1 \
+            --redact
+
+      # Scan only the commits introduced by this push/PR (faster on large repos)
+      - name: Scan commits in this push
+        if: github.event_name == 'push'
+        run: |
+          gitleaks detect \
+            --source=. \
+            --log-opts="--since=1 day ago" \
+            --log-level=warn \
+            --exit-code=1 \
+            --redact
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  3. MIGRATION VALIDATION — Schema integrity checks                     ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  migrations:
+    name: Migration Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify migration directory exists
+        run: |
+          if [ ! -d migrations ]; then
+            echo "ERROR: migrations/ directory not found"
+            exit 1
+          fi
+          echo "Found migrations/ directory"
+
+      - name: Validate sequential numbering & non-empty files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          files=(migrations/*.sql)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "ERROR: No migration files found in migrations/"
+            exit 1
+          fi
+
+          echo "Validating ${#files[@]} migration file(s)..."
+          prev_num=0
+          errors=0
+
+          for f in "${files[@]}"; do
+            filename=$(basename "$f")
+
+            # Must match NNN_description.sql
+            if [[ ! "$filename" =~ ^([0-9]{3})_.+\.sql$ ]]; then
+              echo "  FAIL: bad name — '$filename' (expected NNN_description.sql)"
+              ((errors++)) || true
+              continue
+            fi
+
+            num=$((10#${BASH_REMATCH[1]}))
+            expected=$((prev_num + 1))
+
+            if [ "$num" -ne "$expected" ]; then
+              echo "  FAIL: gap in sequence — expected ${expected}, got ${num} ('$filename')"
+              ((errors++)) || true
+            fi
+
+            if [ ! -s "$f" ]; then
+              echo "  FAIL: empty file — '$filename'"
+              ((errors++)) || true
+            fi
+
+            echo "  OK: $filename"
+            prev_num=$num
+          done
+
+          if [ "$errors" -gt 0 ]; then
+            echo ""
+            echo "Migration check failed with $errors error(s)"
+            exit 1
+          fi
+
+          echo ""
+          echo "All ${#files[@]} migration(s) passed"
+
+      - name: Detect destructive SQL (informational)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Scanning for destructive SQL patterns..."
+
+          # Patterns that could cause data loss — warn but don't block
+          WARN_PATTERNS=(
+            'DROP TABLE'
+            'DROP SCHEMA'
+            'TRUNCATE TABLE'
+            'DROP DATABASE'
+          )
+
+          for pattern in "${WARN_PATTERNS[@]}"; do
+            matches=$(grep -rn --include="*.sql" -i "$pattern" migrations/ || true)
+            if [ -n "$matches" ]; then
+              echo "  WARN ($pattern):"
+              echo "$matches" | sed 's/^/    /'
+            fi
+          done
+          echo "Scan complete"
+
+      - name: Verify cron job migration exists
+        run: |
+          if [ ! -f "migrations/013_job_queue.sql" ]; then
+            echo "ERROR: migrations/013_job_queue.sql not found"
+            echo "Run: supabase db push to apply the job queue schema"
+            exit 1
+          fi
+          echo "OK: 013_job_queue.sql present"
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  4. CRON & API CONTRACT CHECKS                                         ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  api-contracts:
+    name: API Contract Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify /api/cron route (POST handler + CRON_SECRET auth)
+        run: |
+          set -euo pipefail
+
+          FILE="app/api/cron/route.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: $FILE not found"
+            exit 1
+          fi
+          if ! grep -q "export async function POST" "$FILE"; then
+            echo "ERROR: $FILE must export a POST handler"
+            exit 1
+          fi
+          if ! grep -q "CRON_SECRET" "$FILE"; then
+            echo "ERROR: $FILE must validate CRON_SECRET"
+            exit 1
+          fi
+          echo "OK: /api/cron — POST handler and CRON_SECRET check present"
+
+      - name: Verify /api/health route (GET handler)
+        run: |
+          set -euo pipefail
+
+          FILE="app/api/health/route.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: $FILE not found"
+            exit 1
+          fi
+          if ! grep -q "export async function GET" "$FILE"; then
+            echo "ERROR: $FILE must export a GET handler"
+            exit 1
+          fi
+          echo "OK: /api/health — GET handler present"
+
+      - name: Verify middleware protects API routes
+        run: |
+          set -euo pipefail
+
+          FILE="middleware.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: middleware.ts not found"
+            exit 1
+          fi
+          if ! grep -q "JWT_SECRET" "$FILE"; then
+            echo "ERROR: middleware.ts must validate JWT_SECRET"
+            exit 1
+          fi
+          echo "OK: middleware.ts — JWT protection present"
+
+      - name: Verify no Vercel cron in vercel.json
+        run: |
+          set -euo pipefail
+
+          if [ -f "vercel.json" ]; then
+            if grep -q '"crons"' vercel.json; then
+              echo "ERROR: vercel.json still contains 'crons' — this fails on Vercel Hobby plan"
+              echo "Remove the crons key and use Supabase pg_cron instead"
+              exit 1
+            fi
+          fi
+          echo "OK: vercel.json has no cron configuration"
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  5. DEPLOY — Vercel production (main branch only)                      ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  deploy:
+    name: Deploy → Vercel Production
+    needs: [quality, security, migrations, api-contracts]
+    runs-on: ubuntu-latest
+
+    # Only deploy when a commit lands on main (not on PRs)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    # Ties this job to the "production" environment in GitHub
+    # (Dashboard → Settings → Environments → production)
+    # Enables required reviewers, protection rules, and the deployment log.
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.deployment_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      # Pull Vercel project settings (creates .vercel/project.json)
+      - name: Pull Vercel project settings
+        run: |
+          vercel pull --yes \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --environment=production
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Deploy to production — Vercel reads env vars from the dashboard
+      - name: Deploy to Vercel production
+        id: deploy
+        run: |
+          url=$(vercel deploy --prod \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --yes \
+            2>&1 | tail -1)
+
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $url"
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # ── Smoke test — runs against the live deployment ──────────────────────
+      - name: Smoke test — /api/health
+        run: |
+          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          echo "Smoke testing $BASE ..."
+
+          # Retry up to 6 times (Vercel cold start can take ~5 s)
+          for attempt in 1 2 3 4 5 6; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 \
+              "$BASE/api/health" || echo "000")
+
+            if [ "$status" = "200" ]; then
+              echo "OK: /api/health returned $status (attempt $attempt)"
+              break
+            fi
+
+            if [ "$attempt" = "6" ]; then
+              echo "FAIL: /api/health returned $status after $attempt attempts"
+              exit 1
+            fi
+
+            echo "  attempt $attempt: status=$status — retrying in 10 s..."
+            sleep 10
+          done
+
+      - name: Smoke test — /api/v1/groups (public endpoint)
+        run: |
+          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            "$BASE/api/v1/groups" || echo "000")
+
+          if [ "$status" = "200" ] || [ "$status" = "304" ]; then
+            echo "OK: /api/v1/groups returned $status"
+          else
+            echo "WARN: /api/v1/groups returned $status (expected 200/304)"
+            # Non-fatal — groups endpoint may need DB to be seeded
+          fi
+
+      - name: Smoke test — landing page renders
+        run: |
+          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            "$BASE/" || echo "000")
+
+          if [ "$status" = "200" ] || [ "$status" = "304" ]; then
+            echo "OK: / returned $status"
+          else
+            echo "FAIL: Landing page returned $status"
+            exit 1
+          fi
+
+      - name: Smoke test — /api/cron rejects unauthenticated requests
+        run: |
+          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            -X POST \
+            "$BASE/api/cron" || echo "000")
+
+          if [ "$status" = "401" ]; then
+            echo "OK: /api/cron correctly returned 401 (Unauthorized) without token"
+          else
+            echo "FAIL: /api/cron should return 401 without auth — got $status"
+            exit 1
+          fi
+
+      - name: Report deployment URL
+        run: |
+          echo "### Deployment successful" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** ${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Deployed at:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
