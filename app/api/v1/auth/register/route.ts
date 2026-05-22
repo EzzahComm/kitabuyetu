@@ -7,6 +7,7 @@ import { storeRefreshToken } from '@/lib/redis';
 import { RegisterSchema } from '@/lib/validators/auth.schema';
 import { normalizePhone } from '@/lib/utils/phone';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
+import { logger } from '@/lib/logger';
 import { billingService } from '@/lib/services/billing.service';
 import { accountingService } from '@/lib/services/accounting.service';
 import type { TenantContext } from '@/lib/db';
@@ -75,7 +76,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const accessToken = signAccessToken({ sub: memberId, groupId, role: role as any });
     const { token: refreshToken } = signRefreshToken(memberId);
-    await storeRefreshToken(hashToken(refreshToken), memberId, refreshTtlSeconds());
+    try {
+      await storeRefreshToken(hashToken(refreshToken), memberId, refreshTtlSeconds());
+    } catch (redisErr) {
+      // Non-fatal: user is registered. Access token is still valid for 15 min.
+      // Refresh token will not persist across restarts until Redis is healthy.
+      logger.error('[register] Failed to store refresh token', redisErr);
+    }
 
     return created({
       accessToken,

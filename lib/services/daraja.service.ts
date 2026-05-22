@@ -67,12 +67,11 @@ export async function getAccessToken(): Promise<string> {
   }
 
   // 2. Redis (shared across serverless instances)
-  const cached = await redis.get(REDIS_TOKEN_KEY);
+  const cached = await redis.get<TokenEntry>(REDIS_TOKEN_KEY);
   if (cached) {
-    const entry = JSON.parse(cached) as TokenEntry;
-    if (Date.now() < entry.expiresAt - 30_000) {
-      _memToken = entry;
-      return entry.token;
+    if (Date.now() < cached.expiresAt - 30_000) {
+      _memToken = cached;
+      return cached.token;
     }
   }
 
@@ -88,7 +87,7 @@ export async function getAccessToken(): Promise<string> {
 
   _memToken = entry;
   // Store in Redis with a 60-second safety margin so it expires before we think it does
-  await redis.set(REDIS_TOKEN_KEY, JSON.stringify(entry), 'PX', ttlMs - 60_000);
+  await redis.set(REDIS_TOKEN_KEY, JSON.stringify(entry), { px: ttlMs - 60_000 });
 
   return entry.token;
 }

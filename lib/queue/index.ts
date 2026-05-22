@@ -30,16 +30,15 @@ export const QUEUES = {
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
 export interface Job<T = Record<string, unknown>> {
-  id:         string;
-  queue:      string;
-  data:       T;
-  attempts:   number;
+  id:          string;
+  queue:       string;
+  data:        T;
+  attempts:    number;
   maxAttempts: number;
-  enqueuedAt: number;
-  processAt:  number;
+  enqueuedAt:  number;
+  processAt:   number;
 }
 
-// Key helpers — ioredis prepends the 'ky:' prefix automatically
 const Q   = (q: string) => `queue:${q}`;
 const DLQ = (q: string) => `dlq:${q}`;
 
@@ -61,7 +60,7 @@ export async function enqueue<T extends Record<string, unknown>>(
     enqueuedAt:  now,
     processAt:   now + (options.delayMs ?? 0),
   };
-  await redis.zadd(Q(queue), job.processAt, JSON.stringify(job));
+  await redis.zadd(Q(queue), { score: job.processAt, member: JSON.stringify(job) });
   return id;
 }
 
@@ -71,14 +70,17 @@ export async function dequeue<T = Record<string, unknown>>(
   queue: string,
   limit = 10,
 ): Promise<Job<T>[]> {
-  const members = await redis.zrangebyscore(Q(queue), '-inf', Date.now(), 'LIMIT', 0, limit);
+  const members = await redis.zrange<string[]>(
+    Q(queue), '-inf', Date.now(),
+    { byScore: true, offset: 0, count: limit },
+  );
   if (!members.length) return [];
 
   const pipeline = redis.pipeline();
-  members.forEach((m) => pipeline.zrem(Q(queue), m));
+  members.forEach((m: string) => pipeline.zrem(Q(queue), m));
   await pipeline.exec();
 
-  return members.map((m) => JSON.parse(m) as Job<T>);
+  return members.map((m: string) => JSON.parse(m) as Job<T>);
 }
 
 // ─── Re-queue (retry with backoff) ───────────────────────────────────────────
@@ -91,7 +93,7 @@ export async function requeueWithBackoff<T extends Record<string, unknown>>(
     attempts:  job.attempts + 1,
     processAt: Date.now() + 1_000 * 2 ** job.attempts, // 1s, 2s, 4s, …
   };
-  await redis.zadd(Q(job.queue), updated.processAt, JSON.stringify(updated));
+  await redis.zadd(Q(job.queue), { score: updated.processAt, member: JSON.stringify(updated) });
 }
 
 // ─── Dead-letter queue ────────────────────────────────────────────────────────
@@ -117,5 +119,5 @@ export async function peekDeadLetter(
   limit = 10,
 ): Promise<Job[]> {
   const items = await redis.lrange(DLQ(queue), 0, limit - 1);
-  return items.map((i) => JSON.parse(i) as Job);
+  return items.map((i) => JSON.parse(i as string) as Job);
 }
