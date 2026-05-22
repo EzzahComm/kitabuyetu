@@ -13,6 +13,7 @@
  *   This handles Vercel Hobby function timeouts (10 s limit).
  */
 import type { Job, ProcessResult } from './types';
+import { logger } from '@/lib/logger';
 import {
   claimPendingJobs,
   resetStuckJobs,
@@ -35,7 +36,7 @@ export async function processJobBatch(): Promise<ProcessResult> {
   // Reset any jobs stuck from a prior timeout before claiming new ones
   const reset = await resetStuckJobs(6);
   if (reset > 0) {
-    console.warn(`[jobs] Reset ${reset} stuck job(s) to pending`);
+    logger.warn(`[jobs] Reset ${reset} stuck job(s) to pending`);
   }
 
   const jobs = await claimPendingJobs(BATCH_SIZE);
@@ -76,7 +77,7 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
       );
       result.failed++;
 
-      console.error(`[jobs] Job ${job.id} (${job.type}) permanently failed:`, error);
+      logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, { jobId: job.id, type: job.type, error });
     } else {
       // Exponential backoff: 2^attempts * 60 seconds
       const delaySecs = Math.pow(2, newAttempts) * 60;
@@ -89,7 +90,7 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
       );
       result.retried++;
 
-      console.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s:`, error);
+      logger.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`, { jobId: job.id, type: job.type, delaySecs, error });
     }
   }
 }

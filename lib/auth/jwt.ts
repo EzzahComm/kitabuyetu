@@ -18,7 +18,9 @@ interface RefreshTokenPayload {
 
 // Validated at module load by lib/env.ts — no need for a second null check here.
 const ACCESS_SECRET  = env.JWT_SECRET;
-const REFRESH_SECRET = env.JWT_SECRET;
+// Prefer a dedicated refresh secret so access tokens cannot be accepted where
+// a refresh token is expected (and vice versa) even if one key leaks.
+const REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? env.JWT_SECRET;
 const ACCESS_TTL     = env.JWT_ACCESS_EXPIRES_IN;
 const REFRESH_TTL    = env.JWT_REFRESH_EXPIRES_IN;
 

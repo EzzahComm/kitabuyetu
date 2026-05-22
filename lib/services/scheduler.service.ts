@@ -1,5 +1,6 @@
 import { withAdminDb } from '@/lib/db';
 import { sendTemplatedEmail } from './email.service';
+import { logger } from '@/lib/logger';
 
 // Process all due email_schedules rows
 export async function processDueSchedules(): Promise<{ processed: number; failed: number }> {
@@ -48,7 +49,7 @@ export async function processDueSchedules(): Promise<{ processed: number; failed
 
       processed++;
     } catch (err) {
-      console.error('[scheduler] Failed to send scheduled email', sched.id, err);
+      logger.error('[scheduler] Failed to send scheduled email', sched.id, err);
       failed++;
     }
   }

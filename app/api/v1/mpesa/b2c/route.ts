@@ -11,6 +11,7 @@ import {
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 const B2CSchema = z.object({
   phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     setImmediate(async () => {
       try { await handleB2CResult(body, callerIp); } catch (err) {
-        console.error('[b2c result]', err);
+        logger.error('[b2c result]', err);
       }
     });
     return ack();
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     try { body = await req.json(); } catch { return ack(); }
     setImmediate(async () => {
       try { await handleBalanceResult(body, callerIp); } catch (err) {
-        console.error('[balance result]', err);
+        logger.error('[balance result]', err);
       }
     });
     return ack();

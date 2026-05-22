@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { env } from '@/lib/env';
 import { enqueueTimeBasedJobs, processJobBatch } from '@/lib/jobs';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[workers/cron] Error:', err);
+    logger.error('[workers/cron] Error:', err);
     return NextResponse.json(
       { success: false, error: message, timestamp: new Date().toISOString() },
       { status: 500 },

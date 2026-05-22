@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { createCampaign, launchCampaign } from '@/lib/services/campaign.service';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const auth = await getAuthContext(req);
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   if (body.launch) {
     await launchCampaign(id).catch((err: Error) => {
-      console.error('[campaigns] launch failed', err.message);
+      logger.error('[campaigns] launch failed', err.message);
     });
   }
 

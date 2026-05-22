@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { AppError } from './errors';
+import { logger } from '@/lib/logger';
 import type { ApiSuccess, ApiError } from '@/types/api.types';
 
 export function ok<T>(data: T, status = 200): NextResponse<ApiSuccess<T>> {
@@ -59,6 +60,6 @@ export function handleError(err: unknown): NextResponse<ApiError> {
     return errorResponse('Referenced record does not exist', 'FOREIGN_KEY', 400);
   }
 
-  console.error('[unhandled error]', err);
+  logger.error('[unhandled error]', err);
   return errorResponse('An unexpected error occurred', 'INTERNAL_ERROR', 500);
 }

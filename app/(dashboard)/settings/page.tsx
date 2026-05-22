@@ -17,21 +17,28 @@ const profileSchema = z.object({
   email:     z.string().email().optional().or(z.literal('')),
 });
 
+type ProfileForm = z.infer<typeof profileSchema>;
+
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword:     z.string().min(8),
   confirm:         z.string(),
 }).refine((d) => d.newPassword === d.confirm, { message: 'Passwords do not match', path: ['confirm'] });
 
+type PasswordForm = z.infer<typeof passwordSchema>;
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const { register: regProfile, handleSubmit: handleProfile, formState: { errors: profileErrors, isSubmitting: profileSubmitting } } =
-    useForm({ resolver: zodResolver(profileSchema), defaultValues: { firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '' } });
+    useForm<ProfileForm>({
+      resolver: zodResolver(profileSchema),
+      defaultValues: { firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '' },
+    });
 
   const { register: regPwd, handleSubmit: handlePwd, reset: resetPwd, formState: { errors: pwdErrors, isSubmitting: pwdSubmitting } } =
-    useForm({ resolver: zodResolver(passwordSchema) });
+    useForm<PasswordForm>({ resolver: zodResolver(passwordSchema) });
 
   const onProfileSave = async (values: any) => {
     if (!user) return;

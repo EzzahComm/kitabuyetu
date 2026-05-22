@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 // Module-level singleton pool. Safe in Next.js API routes (Node.js runtime).
 // HMR in dev can create multiple instances — guard with globalThis.
@@ -25,9 +26,7 @@ if (!globalWithPool._kyPool) {
   });
 
   globalWithPool._kyPool.on('error', (err) => {
-    if (env.NODE_ENV !== 'production') {
-      console.error('[pg pool] Idle client error:', err.message);
-    }
+    logger.error('[pg pool] Idle client error', err);
   });
 }
 

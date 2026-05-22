@@ -40,4 +40,5 @@ tsconfig.tsbuildinfo
 .vercel
 .env*.local
 
-/lib/generated/prisma
+# Jest coverage output
+coverage/

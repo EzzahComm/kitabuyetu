@@ -11,6 +11,7 @@ import { queryAccountBalance } from '@/lib/services/daraja.service';
 import { handleBalanceResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 function callerIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     setImmediate(async () => {
       try { await handleBalanceResult(body, ip); }
-      catch (err) { console.error('[balance result]', err); }
+      catch (err) { logger.error('[balance result]', err); }
     });
     return ack();
   }

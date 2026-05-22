@@ -6,6 +6,7 @@ import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
 import { smsService } from '@/lib/services/sms.service';
 import { ok, notFound } from '@/lib/utils/response';
 import { normalizePhone } from '@/lib/utils/phone';
+import { logger } from '@/lib/logger';
 
 // GET /api/v1/sms/campaign â€” list campaigns
 export async function GET(req: NextRequest): Promise<Response> {
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             sentBy:    auth.userId,
           });
         } catch (err) {
-          console.error('[campaign] send error:', err);
+          logger.error('[campaign] send error:', err);
         }
       });
     }

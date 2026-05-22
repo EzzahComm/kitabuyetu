@@ -1,5 +1,6 @@
 import { sendTemplatedEmail, queueEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import type { EmailResult } from '@/lib/email/provider';
 
 const SHORTCODE   = process.env.MPESA_SHORTCODE ?? '';
@@ -295,7 +296,7 @@ export async function processRecurringInvoices(): Promise<void> {
         ),
       );
       if (!baRows[0]) {
-        console.error('[billing] No billing account for group', sched.group_id);
+        logger.error('[billing] No billing account for group', { groupId: sched.group_id });
         continue;
       }
       const billingAccountId = baRows[0].id;
@@ -347,7 +348,7 @@ export async function processRecurringInvoices(): Promise<void> {
         ),
       );
     } catch (err) {
-      console.error('[billing] Failed to process invoice schedule', sched.id, err);
+      logger.error('[billing] Failed to process invoice schedule', { schedId: sched.id, error: err });
     }
   }
 }

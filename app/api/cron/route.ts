@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { enqueueTimeBasedJobs, processJobBatch } from '@/lib/jobs';
+import { logger } from '@/lib/logger';
 
 // Force Node.js runtime — pg driver requires it (not Edge-compatible)
 export const runtime = 'nodejs';
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[cron] Unhandled error:', err);
+    logger.error('[cron] Unhandled error:', err);
     return NextResponse.json(
       { error: 'Internal error', detail: message, timestamp: new Date().toISOString() },
       { status: 500 },

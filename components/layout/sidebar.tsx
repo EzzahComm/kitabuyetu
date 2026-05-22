@@ -5,23 +5,25 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
   MessageSquare, BarChart2, Building2, Settings, LogOut, X,
-  Receipt, Mail,
+  Receipt, Mail, Heart, TrendingUp, Calendar, Vault,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
-import { Button } from '@/components/ui/button';
-
 const navItems = [
-  { href: '/dashboard',      label: 'Dashboard',     icon: LayoutDashboard },
-  { href: '/members',        label: 'Members',        icon: Users },
-  { href: '/contributions',  label: 'Contributions',  icon: CreditCard },
-  { href: '/loans',          label: 'Loans',          icon: Landmark },
-  { href: '/accounting',     label: 'Accounting',     icon: BookOpen },
-  { href: '/sms',            label: 'SMS',            icon: MessageSquare },
-  { href: '/email',          label: 'Email',          icon: Mail },
-  { href: '/reports',        label: 'Reports',        icon: BarChart2 },
-  { href: '/billing',        label: 'Billing',        icon: Receipt },
+  { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/members',       label: 'Members',        icon: Users },
+  { href: '/contributions', label: 'Contributions',  icon: CreditCard },
+  { href: '/loans',         label: 'Loans',          icon: Landmark },
+  { href: '/welfare',       label: 'Welfare',        icon: Heart },
+  { href: '/investments',   label: 'Investments',    icon: TrendingUp },
+  { href: '/meetings',      label: 'Meetings',       icon: Calendar },
+  { href: '/accounting',    label: 'Accounting',     icon: BookOpen },
+  { href: '/treasury',      label: 'Treasury',       icon: Vault },
+  { href: '/reports',       label: 'Reports',        icon: BarChart2 },
+  { href: '/sms',           label: 'SMS',            icon: MessageSquare },
+  { href: '/email',         label: 'Email',          icon: Mail },
+  { href: '/billing',       label: 'Billing',        icon: Receipt },
 ];
 
 const ngoItems = [

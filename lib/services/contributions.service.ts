@@ -135,10 +135,12 @@ export const contributionsService = {
     });
   },
 
+  // Soft-delete only: financial records must never be physically removed.
+  // Only pending contributions can be cancelled; completed ones are immutable.
   async delete(ctx: TenantContext, id: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
       const { rowCount } = await client.query(
-        `DELETE FROM contributions WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
+        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
         [id, ctx.groupId],
       );
       if (!rowCount) throw new NotFoundError('Pending contribution', id);

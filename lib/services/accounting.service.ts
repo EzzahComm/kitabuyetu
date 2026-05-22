@@ -131,6 +131,8 @@ export const accountingService = {
 
   async getTrialBalance(ctx: TenantContext): Promise<TrialBalanceLine[]> {
     return withDb(ctx, async (client) => {
+      // netBalance: asset/expense accounts are debit-normal (positive balance stored as-is).
+      // Credit-normal accounts (liability, equity, income) are stored as negative; negate for display.
       const { rows } = await client.query<TrialBalanceLine>(
         `SELECT
            a.account_code  AS "accountCode",
@@ -138,7 +140,10 @@ export const accountingService = {
            a.type          AS "accountType",
            COALESCE(SUM(jl.debit),  0)::text AS "totalDebits",
            COALESCE(SUM(jl.credit), 0)::text AS "totalCredits",
-           a.balance::text                   AS "netBalance"
+           CASE WHEN a.type IN ('asset','expense')
+             THEN a.balance
+             ELSE -a.balance
+           END::text AS "netBalance"
          FROM accounts a
          LEFT JOIN journal_lines jl ON jl.account_id = a.id
          LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
@@ -160,7 +165,14 @@ export const accountingService = {
            a.account_code,
            a.name AS account_name,
            a.type,
-           COALESCE(SUM(jl.credit) - SUM(jl.debit), 0)::text AS total
+           -- Income accounts are credit-normal: credit - debit gives positive balance.
+           -- Expense accounts are debit-normal: debit - credit gives positive balance.
+           -- Using the correct sign per account type so both totals are positive numbers,
+           -- and netProfit = totalIncome - totalExpenses is computed correctly.
+           CASE WHEN a.type = 'expense'
+             THEN COALESCE(SUM(jl.debit) - SUM(jl.credit), 0)
+             ELSE COALESCE(SUM(jl.credit) - SUM(jl.debit), 0)
+           END::text AS total
          FROM accounts a
          LEFT JOIN journal_lines jl ON jl.account_id = a.id
          LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
@@ -174,7 +186,7 @@ export const accountingService = {
 
       const income   = rows.filter(r => r.type === 'income').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
       const expenses = rows.filter(r => r.type === 'expense').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
-      const totalIncome   = income.reduce((s, r)   => s + parseFloat(r.amount),   0);
+      const totalIncome   = income.reduce((s, r)   => s + parseFloat(r.amount), 0);
       const totalExpenses = expenses.reduce((s, r) => s + parseFloat(r.amount), 0);
 
       return {
@@ -189,10 +201,20 @@ export const accountingService = {
 
   async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
     return withDb(ctx, async (client) => {
+      // accounts.balance is stored as (SUM debit - SUM credit) uniformly by the update trigger.
+      // Assets (debit-normal) → positive balance displayed as-is.
+      // Liabilities/Equity (credit-normal) → stored as negative, negate for display.
       const { rows } = await client.query<{
         account_code: string; account_name: string; type: string; balance: string;
       }>(
-        `SELECT a.account_code, a.name AS account_name, a.type, a.balance::text
+        `SELECT
+           a.account_code,
+           a.name AS account_name,
+           a.type,
+           CASE WHEN a.type = 'asset'
+             THEN a.balance
+             ELSE -a.balance
+           END::text AS balance
          FROM accounts a
          WHERE a.group_id = $1 AND a.type IN ('asset','liability','equity') AND a.is_active = true
          ORDER BY a.account_code`,

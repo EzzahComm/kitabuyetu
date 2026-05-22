@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { logger } from '@/lib/logger';
 
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL environment variable is not set');
@@ -17,7 +18,7 @@ if (!globalWithRedis._kyRedis) {
   });
 
   globalWithRedis._kyRedis.on('error', (err: Error) => {
-    console.error('[redis] Connection error:', err.message);
+    logger.error('[redis] Connection error', err);
   });
 }
 

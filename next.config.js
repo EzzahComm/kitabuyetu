@@ -1,15 +1,18 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
+  serverExternalPackages: [
     // These packages use Node.js native modules / dynamic requires — exclude from bundling.
-    serverComponentsExternalPackages: [
-      'pg', 'pg-native',
-      'ioredis',
-      'jsonwebtoken',
-      'bcryptjs',
-      'nodemailer',
-      'africastalking',
-    ],
+    'pg', 'pg-native',
+    'ioredis',
+    'jsonwebtoken',
+    'bcryptjs',
+    'nodemailer',
+    'africastalking',
+  ],
+  turbopack: {
+    root: path.join(__dirname),
   },
   // Vercel's CDN handles image optimization natively
   images: {
@@ -45,12 +48,15 @@ const nextConfig = {
             key:   'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(), payment=(self), usb=()',
           },
-          // Tight CSP: same-origin scripts + Google Fonts + Supabase/Upstash API origins
+          // CSP: unsafe-eval is required by Next.js dev tooling (HMR/eval-source-maps)
+          // but must NOT appear in production — it opens XSS vectors.
           {
             key:   'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // Next.js requires unsafe-eval in dev; tighten in prod if no dynamic eval
+              isProd
+                ? "script-src 'self' 'unsafe-inline'"
+                : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob:",

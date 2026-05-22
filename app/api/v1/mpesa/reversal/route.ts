@@ -11,6 +11,7 @@ import { requestReversal } from '@/lib/services/daraja.service';
 import { handleReversalResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 const ReversalSchema = z.object({
   originalReceiptNumber: z.string().min(5).max(50),
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     setImmediate(async () => {
       try { await handleReversalResult(body, ip); }
-      catch (err) { console.error('[reversal result]', err); }
+      catch (err) { logger.error('[reversal result]', err); }
     });
     return ack();
   }

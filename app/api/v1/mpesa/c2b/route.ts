@@ -1,6 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server';
 import { handleC2BConfirmation, type C2BCallbackBody } from '@/lib/services/mpesa.service';
+import { logger } from '@/lib/logger';
 
 /**
  * C2B Paybill URL handler.
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
       await handleC2BConfirmation(body, callerIp);
     } catch (err) {
-      console.error('[c2b] Confirmation error:', err);
+      logger.error('[c2b] Confirmation error:', err);
     }
   });
 

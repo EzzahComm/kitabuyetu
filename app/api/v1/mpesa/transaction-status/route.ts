@@ -10,6 +10,7 @@ import { withAuth } from '@/lib/auth/middleware';
 import { queryTransactionStatus } from '@/lib/services/daraja.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 const QuerySchema = z.object({
   transactionId:  z.string().min(5).max(50),
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           ),
         );
       } catch (err) {
-        console.error('[tx-status result]', err);
+        logger.error('[tx-status result]', err);
       }
     });
 

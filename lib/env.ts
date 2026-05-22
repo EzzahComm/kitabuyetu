@@ -25,6 +25,10 @@ const envSchema = z.object({
 
   // ── JWT ───────────────────────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  // Optional dedicated refresh secret — prevents an access token from being
+  // reused as a refresh token if keys are ever shared or leaked separately.
+  // Falls back to JWT_SECRET when not set (backwards-compatible).
+  JWT_REFRESH_SECRET: z.string().min(32).optional(),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 

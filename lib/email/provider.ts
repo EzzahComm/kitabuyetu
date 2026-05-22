@@ -1,11 +1,11 @@
 import type { IEmailAdapter, EmailPayload, EmailResult } from './adapters/types';
+import { logger } from '@/lib/logger';
 import { ResendAdapter } from './adapters/resend';
 import { SmtpAdapter } from './adapters/smtp';
 import { SendGridAdapter } from './adapters/sendgrid';
 import { SesAdapter } from './adapters/ses';
 import { MailgunAdapter } from './adapters/mailgun';
 import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
 
 let _adapter: IEmailAdapter | null = null;
 
@@ -68,7 +68,7 @@ export async function sendEmailWithFallback(payload: EmailPayload): Promise<Emai
 
   // Fall back to SMTP when primary is not SMTP and SMTP is configured
   if (primary.name !== 'smtp' && process.env.SMTP_HOST) {
-    console.warn(`[email] ${primary.name} failed, falling back to SMTP:`, result.error);
+    logger.warn(`[email] ${primary.name} failed, falling back to SMTP`, { provider: primary.name, error: result.error });
     return new SmtpAdapter().send(payload);
   }
 

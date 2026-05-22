@@ -3,6 +3,7 @@ import { handleSTKCallback, type StkCallbackBody } from '@/lib/services/mpesa.se
 import { billingService } from '@/lib/services/billing.service';
 import { smsService } from '@/lib/services/sms.service';
 import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         await processFulfillment(result.paymentId, result.amount, result.mpesaReceiptNumber);
       }
     } catch (err) {
-      console.error('[mpesa/callback] Processing error:', err);
+      logger.error('[mpesa/callback] Processing error:', err);
     }
   });
 

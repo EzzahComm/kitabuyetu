@@ -13,6 +13,7 @@ import { handleB2BResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { toMpesaAmount } from '@/lib/utils/currency';
+import { logger } from '@/lib/logger';
 
 const B2BSchema = z.object({
   amount:             z.number().positive(),
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     setImmediate(async () => {
       try { await handleB2BResult(body, ip); }
-      catch (err) { console.error('[b2b result]', err); }
+      catch (err) { logger.error('[b2b result]', err); }
     });
     return ack();
   }
