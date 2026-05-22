@@ -17,7 +17,7 @@ import { useEffect } from 'react';
 
 const schema = z.object({
   groupName:  z.string().min(3, 'Group name must be at least 3 characters'),
-  groupType:  z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo']),
+  groupType:  z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
   firstName:  z.string().min(2),
   lastName:   z.string().min(2),
   phone:      z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Valid Kenyan phone required'),
