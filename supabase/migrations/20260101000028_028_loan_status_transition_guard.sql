@@ -18,6 +18,7 @@
 CREATE OR REPLACE FUNCTION public.validate_loan_status_transition()
   RETURNS TRIGGER
   LANGUAGE plpgsql
+  SET search_path = public
 AS $$
 BEGIN
   -- No-op when status hasn't changed
