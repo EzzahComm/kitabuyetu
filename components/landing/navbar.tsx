@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, X, BookOpen } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/branding/BrandLogo';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -34,10 +35,8 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 group-hover:bg-green-700 transition-colors">
-              <BookOpen className="h-5 w-5 text-white" />
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 group" aria-label="Kitabu Yetu home">
+            <BrandLogo size={36} priority alt="Kitabu Yetu" />
             <span
               className={cn(
                 'text-lg font-bold transition-colors',

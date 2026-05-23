@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { Input } from '@/components/ui/input';
+import { BrandLogo } from '@/components/branding/BrandLogo';
 
 type NavItem = {
   href:   string;
@@ -97,28 +98,31 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       >
         {/* Header */}
         <div className={cn(
-          'flex items-center h-14 border-b border-gray-200 px-3 shrink-0',
-          collapsed ? 'justify-center' : 'justify-between',
+          'border-b border-gray-200 shrink-0',
+          collapsed
+            ? 'flex flex-col items-center gap-1 py-2'
+            : 'flex items-center justify-between h-14 px-3',
         )}>
-          {!collapsed && (
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                    stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
+          {!collapsed ? (
+            <Link href="/admin" className="flex items-center gap-2.5 min-w-0" aria-label="Kitabu Yetu admin home">
+              <BrandLogo size={28} alt="Kitabu Yetu" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate leading-none">Kitabu Yetu</p>
-                <p className="text-[10px] text-blue-600 font-medium tracking-wide mt-0.5">ADMIN CONSOLE</p>
+                <p className="text-[10px] text-brand-blue-500 font-medium tracking-wide mt-0.5">ADMIN CONSOLE</p>
               </div>
-            </div>
+            </Link>
+          ) : (
+            <Link href="/admin" aria-label="Kitabu Yetu admin home" title="Kitabu Yetu admin home">
+              <BrandLogo size={32} alt="Kitabu Yetu" />
+            </Link>
           )}
 
-          <div className="flex items-center gap-1">
+          <div className={cn('flex items-center gap-1', collapsed && 'mt-0')}>
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close sidebar"
+              title="Close sidebar"
               className="lg:hidden p-1 rounded text-gray-400 hover:text-gray-600"
             >
               <X size={16} />
@@ -126,6 +130,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
             <button
               type="button"
               onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               className="hidden lg:flex p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >

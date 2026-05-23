@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { BookOpen, Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
+import { BrandLogo } from '@/components/branding/BrandLogo';
 
 const footerLinks = {
   Product: [
@@ -35,15 +36,16 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-6 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2.5 group w-fit">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 group-hover:bg-green-700 transition-colors">
-                <BookOpen className="h-5 w-5 text-white" />
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 group w-fit" aria-label="Kitabu Yetu home">
+              <BrandLogo size={40} alt="Kitabu Yetu" />
               <span className="text-lg font-bold text-slate-900">Kitabu Yetu</span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-500">
-              The complete financial management platform for Kenyan SACCOs, chamas, and
-              community savings groups.
+            <p className="mt-3 text-sm font-medium text-brand-600">
+              Simple Books. Stronger Groups.
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-500">
+              Digital bookkeeping for chamas, SACCOs, welfare groups, and investment
+              clubs across East Africa.
             </p>
 
             {/* Contact */}

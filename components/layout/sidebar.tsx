@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
+import { BrandLogo } from '@/components/branding/BrandLogo';
 const navItems = [
   { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
   { href: '/members',       label: 'Members',        icon: Users },
@@ -58,14 +59,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <div className="flex items-center justify-between px-4 h-16 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
+            {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
+            <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
+              <BrandLogo size={28} alt="Kitabu Yetu" />
             </div>
-            <span className="font-bold text-sm">Kitabu Yetu</span>
-          </div>
+            <span className="font-bold text-sm truncate">Kitabu Yetu</span>
+          </Link>
           <button
             type="button"
             aria-label="Close sidebar"
