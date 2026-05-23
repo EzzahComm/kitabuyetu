@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "icons": "tsx scripts/generate-icons.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -81,6 +82,7 @@
     "eslint-config-next": "^16.2.6",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
+    "sharp": "^0.34.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3"

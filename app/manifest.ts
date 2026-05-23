@@ -2,15 +2,15 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Kitabu Yetu',
+    name: 'Kitabu Yetu — Simple Books. Stronger Groups.',
     short_name: 'Kitabu Yetu',
-    description: 'Financial management platform for African community groups',
+    description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
     start_url: '/dashboard',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#2563eb',
+    background_color: '#F8FAFC', // neutral brand background
+    theme_color: '#0B3C88',      // brand navy
     orientation: 'portrait',
-    categories: ['finance', 'business'],
+    categories: ['finance', 'business', 'productivity'],
     icons: [
       {
         src: '/icons/icon-72.png',

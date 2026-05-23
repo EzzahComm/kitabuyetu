@@ -7,19 +7,23 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const viewport: Viewport = {
-  themeColor: '#2563eb',
+  themeColor: '#0B3C88', // Kitabu Yetu brand navy
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
 };
 
+const TAGLINE = 'Simple Books. Stronger Groups.';
+const LONG_DESCRIPTION =
+  'Kitabu Yetu — Simple Books. Stronger Groups. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.com'),
-  title:       { default: 'Kitabu Yetu', template: '%s | Kitabu Yetu' },
-  description: 'Financial management platform for African community groups — chamas, table banking, welfare, SACCOs, cooperatives.',
+  title:       { default: `Kitabu Yetu — ${TAGLINE}`, template: '%s | Kitabu Yetu' },
+  description: LONG_DESCRIPTION,
   applicationName: 'Kitabu Yetu',
-  keywords: ['chama', 'table banking', 'welfare', 'SACCO', 'cooperative', 'Kenya', 'financial management'],
+  keywords: ['chama', 'table banking', 'welfare', 'SACCO', 'cooperative', 'investment club', 'Kenya', 'East Africa', 'bookkeeping', 'community finance'],
   authors: [{ name: 'Kitabu Yetu' }],
   manifest: '/manifest.webmanifest',
   appleWebApp: {
@@ -38,6 +42,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: '/favicon.png',        sizes: '32x32',  type: 'image/png' },
       { url: '/icons/icon-72.png',  sizes: '72x72',  type: 'image/png' },
       { url: '/icons/icon-96.png',  sizes: '96x96',  type: 'image/png' },
       { url: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
@@ -47,19 +52,19 @@ export const metadata: Metadata = {
     apple: [
       { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/icons/icon-192.png',
+    shortcut: '/favicon.png',
   },
   openGraph: {
     type: 'website',
     siteName: 'Kitabu Yetu',
-    title: 'Kitabu Yetu — Community Finance Platform',
-    description: 'Financial management for African community groups',
-    images: [{ url: '/icons/icon-512.png', width: 512, height: 512 }],
+    title: `Kitabu Yetu — ${TAGLINE}`,
+    description: LONG_DESCRIPTION,
+    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'Kitabu Yetu logo' }],
   },
   twitter: {
     card: 'summary',
-    title: 'Kitabu Yetu',
-    description: 'Financial management for African community groups',
+    title: `Kitabu Yetu — ${TAGLINE}`,
+    description: LONG_DESCRIPTION,
     images: ['/icons/icon-512.png'],
   },
 };
