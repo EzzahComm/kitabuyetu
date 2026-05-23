@@ -34,9 +34,14 @@ export default function BillingPage() {
 
   const { data: mpesaStatus } = usePollMpesa(checkoutId, polling);
 
+  // Effect responds to M-Pesa polling result (external async system).
+  // The setState calls here stop polling and close the modal on terminal
+  // status — this is the "subscribe to external system" pattern, not the
+  // copy-data-to-state anti-pattern the rule normally guards against.
   useEffect(() => {
     if (!mpesaStatus) return;
     if (mpesaStatus.status === 'completed') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPolling(false);
       setMpesaOpen(false);
       upgradePlan.mutate(pendingPlan!, {

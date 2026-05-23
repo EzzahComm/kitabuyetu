@@ -1,3 +1,4 @@
+import { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
@@ -28,15 +29,21 @@ export const accountingService = {
 
   async seedDefaultAccounts(ctx: TenantContext): Promise<void> {
     return withTransaction(ctx, async (client) => {
-      for (const acct of DEFAULT_ACCOUNTS) {
-        await client.query(
-          `INSERT INTO accounts (group_id, account_code, name, type, is_system)
-           VALUES ($1,$2,$3,$4,true)
-           ON CONFLICT (group_id, account_code) DO NOTHING`,
-          [ctx.groupId, acct.code, acct.name, acct.type],
-        );
-      }
+      await accountingService.seedDefaultAccountsInTx(client, ctx.groupId);
     });
+  },
+
+  // Same as seedDefaultAccounts but participates in a caller-supplied transaction.
+  // Used by the registration endpoint to keep onboarding atomic.
+  async seedDefaultAccountsInTx(client: PoolClient, groupId: string): Promise<void> {
+    for (const acct of DEFAULT_ACCOUNTS) {
+      await client.query(
+        `INSERT INTO accounts (group_id, account_code, name, type, is_system)
+         VALUES ($1,$2,$3,$4,true)
+         ON CONFLICT (group_id, account_code) DO NOTHING`,
+        [groupId, acct.code, acct.name, acct.type],
+      );
+    }
   },
 
   async listAccounts(ctx: TenantContext): Promise<Account[]> {

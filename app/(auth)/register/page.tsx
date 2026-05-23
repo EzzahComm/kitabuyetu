@@ -22,7 +22,10 @@ const schema = z.object({
   lastName:   z.string().min(2),
   phone:      z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Valid Kenyan phone required'),
   email:      z.string().email().optional().or(z.literal('')),
-  password:   z.string().min(8, 'Password must be at least 8 characters'),
+  password:   z.string()
+                .min(8, 'Password must be at least 8 characters')
+                .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+                .regex(/[0-9]/, 'Password must contain at least one number'),
   confirm:    z.string(),
 }).refine((d) => d.password === d.confirm, { message: 'Passwords do not match', path: ['confirm'] });
 
@@ -50,7 +53,12 @@ export default function RegisterPage() {
       toast({ title: 'Welcome to Kitabu Yetu!', description: `Registration fee: KES ${data.registrationFee?.toLocaleString()}` });
       router.push('/dashboard');
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Registration failed', description: err.message });
+      const code = err?.code ? ` (${err.code})` : '';
+      toast({
+        variant:     'destructive',
+        title:       'Registration failed',
+        description: `${err?.message ?? 'Unknown error'}${code}`,
+      });
     }
   };
 

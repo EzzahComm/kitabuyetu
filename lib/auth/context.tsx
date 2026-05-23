@@ -38,11 +38,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: null, accessToken: null, refreshToken: null, isLoading: true,
   });
 
+  // Client-only hydration from localStorage. Cannot run in useState initializer
+  // because it would cause an SSR/client hydration mismatch. The setState here
+  // is a one-time hydration, not a cascading data-derived state.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as AuthState;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setState({ ...parsed, isLoading: false });
       } else {
         setState((s) => ({ ...s, isLoading: false }));

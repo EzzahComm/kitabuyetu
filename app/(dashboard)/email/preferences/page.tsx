@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,20 +32,20 @@ export default function EmailPreferencesPage() {
   const { data, isLoading }  = useEmailPreferences();
   const updateMutation        = useUpdatePreferences();
   const { toast }             = useToast();
-  const [prefs, setPrefs]     = useState<EmailPreference[]>([]);
-
-  useEffect(() => {
-    if (data) setPrefs(data);
-  }, [data]);
+  // Derived state: render server data unless the user has made local edits.
+  // This avoids the copy-props-to-state anti-pattern (no setState-in-effect).
+  const [edits, setEdits]     = useState<EmailPreference[] | null>(null);
+  const prefs: EmailPreference[] = edits ?? data ?? [];
 
   function togglePref(category: string, field: 'enabled' | 'frequency', value: string | boolean) {
-    setPrefs((prev) =>
-      prev.map((p) => p.category === category ? { ...p, [field]: value } : p),
+    setEdits(
+      prefs.map((p) => p.category === category ? { ...p, [field]: value } : p),
     );
   }
 
   async function handleSave() {
     await updateMutation.mutateAsync(prefs);
+    setEdits(null); // resync with server after a successful save
     toast({ title: 'Preferences saved' });
   }
 
