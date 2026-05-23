@@ -110,7 +110,10 @@ COMMENT ON TABLE group_member_counters IS
 
 CREATE TABLE person (
   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  national_id  VARCHAR(20)  NOT NULL UNIQUE,
+  -- TEXT (no length cap). National IDs vary across countries (KE 8 digits,
+  -- passport ~20 chars). Input-layer validation enforces real formats; here
+  -- we just need uniqueness so cross-group identity resolves cleanly.
+  national_id  TEXT         NOT NULL UNIQUE,
   full_name    VARCHAR(200) NOT NULL,
   dob          DATE         NOT NULL,
   phone        VARCHAR(20),
