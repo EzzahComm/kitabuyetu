@@ -7,9 +7,16 @@ import { logger } from '@/lib/logger';
 const globalWithPool = globalThis as typeof globalThis & { _kyPool?: Pool };
 
 if (!globalWithPool._kyPool) {
-  // SUPABASE: Use the DIRECT connection string (port 5432), not pgBouncer (port 6543).
-  // pgBouncer transaction mode does not support SET LOCAL required by RLS policies.
-  const isRemote =
+  // SUPABASE connection guidance:
+  //   • Use the Supavisor SESSION-mode pooler (aws-0-<region>.pooler.supabase.com:5432).
+  //     Direct connections (db.<ref>.supabase.co:5432) are IPv6-only and unreachable
+  //     from AWS Lambda's IPv4-only outbound networking.
+  //   • Do NOT use transaction-mode pooler (port 6543) — it doesn't preserve
+  //     SET LOCAL across queries, which our RLS context relies on.
+  //   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
+  //     isn't fully present in Node's default CA bundle on Lambda. The connection
+  //     remains TLS-encrypted; we just stop pinning the chain.
+  const isSupabase =
     env.DATABASE_URL.includes('supabase.com') ||
     env.DATABASE_URL.includes('supabase.co');
 
@@ -18,8 +25,8 @@ if (!globalWithPool._kyPool) {
     max:                     env.DB_POOL_MAX,
     idleTimeoutMillis:       10_000,
     connectionTimeoutMillis: 8_000,
-    ssl: isRemote
-      ? { rejectUnauthorized: true }
+    ssl: isSupabase
+      ? { rejectUnauthorized: false }
       : env.NODE_ENV === 'production'
         ? { rejectUnauthorized: true }
         : false,
