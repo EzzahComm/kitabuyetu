@@ -21,6 +21,7 @@ type Stage =
   | 'parse_body'
   | 'validate_input'
   | 'normalize_phone'
+  | 'open_db_transaction'
   | 'check_phone_unique'
   | 'insert_group'
   | 'hash_password'
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // ── Atomic onboarding: group + member + membership link + billing + accounts.
     //    On any failure, withAdminDb rolls back the whole transaction.
+    stage = 'open_db_transaction';
     const txResult = await withAdminDb(async (client) => {
       stage = 'check_phone_unique';
       const { rows: existing } = await client.query<{ id: string }>(
