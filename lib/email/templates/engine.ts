@@ -1,14 +1,15 @@
 import { withAdminDb } from '@/lib/db';
+import { BRAND, getBrandLogoUrl, brandFooterLine } from '@/lib/brand';
 
 export interface TemplateVars {
   [key: string]: string | number | boolean | null | undefined;
 }
 
 export interface BrandingContext {
-  senderName?: string;
-  logoUrl?: string;
+  senderName?:   string;
+  logoUrl?:      string;
   primaryColor?: string;
-  footerText?: string;
+  footerText?:   string;
 }
 
 // Simple {{variable}} substitution
@@ -83,39 +84,41 @@ export async function loadBranding(groupId: string | null): Promise<BrandingCont
   }
 }
 
-// Wrap body content in branded HTML shell
+// Wrap body content in a branded HTML shell. Designed for email clients —
+// inline styles, table-based layout, no JS, no external CSS.
 export function wrapWithBranding(content: string, branding: BrandingContext): string {
-  const primary = branding.primaryColor ?? '#16a34a';
-  const footer = branding.footerText ?? 'Kitabu Yetu — Community Finance Management';
-  const logo = branding.logoUrl
-    ? `<img src="${branding.logoUrl}" alt="Logo" style="height:40px;margin-bottom:16px;">`
-    : `<div style="font-size:20px;font-weight:700;color:${primary};margin-bottom:16px;">Kitabu Yetu</div>`;
+  const primary    = branding.primaryColor ?? BRAND.colors.green;
+  const logoUrl    = branding.logoUrl      ?? getBrandLogoUrl();
+  const footerText = branding.footerText   ?? brandFooterLine();
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Email</title>
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<title>${BRAND.name}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 0;">
+<body style="margin:0;padding:0;background:${BRAND.colors.neutralBg};font-family:${BRAND.fontFamily};color:${BRAND.colors.text};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.colors.neutralBg};padding:32px 0;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.colors.surface};border-radius:12px;overflow:hidden;max-width:600px;width:100%;border:1px solid ${BRAND.colors.border};">
         <tr>
-          <td style="background:${primary};padding:24px 32px;text-align:center;">
-            ${logo}
+          <td style="background:${BRAND.colors.surface};padding:28px 32px 20px;text-align:center;border-bottom:1px solid ${BRAND.colors.border};">
+            <img src="${logoUrl}" alt="${BRAND.name}" width="72" height="72" style="display:inline-block;height:72px;width:72px;object-fit:contain;" />
+            <p style="margin:8px 0 0;font-size:12px;font-weight:600;letter-spacing:0.04em;color:${primary};text-transform:uppercase;">${BRAND.tagline}</p>
           </td>
         </tr>
         <tr>
-          <td style="padding:32px;">
+          <td style="padding:32px;line-height:1.55;color:${BRAND.colors.text};">
             ${content}
           </td>
         </tr>
         <tr>
-          <td style="background:#f9fafb;padding:20px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;font-size:12px;color:#6b7280;">${footer}</p>
-            <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">
+          <td style="background:${BRAND.colors.greenLight};padding:20px 32px;text-align:center;border-top:1px solid ${BRAND.colors.border};">
+            <p style="margin:0;font-size:12px;color:${BRAND.colors.text};font-weight:600;">${footerText}</p>
+            <p style="margin:6px 0 0;font-size:11px;color:${BRAND.colors.textMuted};">
               If you did not expect this email, you can safely ignore it.
             </p>
           </td>

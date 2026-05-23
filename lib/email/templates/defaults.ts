@@ -6,10 +6,10 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   welcome: {
     subject: 'Welcome to Kitabu Yetu, {{name}}!',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Welcome, {{name}}!</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome, {{name}}!</h2>
       <p style="margin:0 0 12px;color:#374151;">Your account has been created for <strong>{{groupName}}</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">You can now log in and start managing your group's finances.</p>
-      <a href="{{loginUrl}}" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Log In Now</a>
+      <a href="{{loginUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Log In Now</a>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">Your temporary password is: <strong>{{tempPassword}}</strong><br>Please change it after first login.</p>
     `,
   },
@@ -17,10 +17,10 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   otp: {
     subject: 'Your Kitabu Yetu verification code: {{otp}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Verification Code</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Verification Code</h2>
       <p style="margin:0 0 20px;color:#374151;">Use the code below to verify your identity. It expires in <strong>{{expiresIn}}</strong>.</p>
       <div style="background:#f3f4f6;border-radius:8px;padding:24px;text-align:center;margin:0 0 20px;">
-        <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#111827;">{{otp}}</span>
+        <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#0B3C88;">{{otp}}</span>
       </div>
       <p style="margin:0;font-size:13px;color:#6b7280;">If you did not request this code, please ignore this email.</p>
     `,
@@ -29,9 +29,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   password_reset: {
     subject: 'Reset your Kitabu Yetu password',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Password Reset Request</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Password Reset Request</h2>
       <p style="margin:0 0 20px;color:#374151;">Click the button below to reset your password. This link expires in <strong>{{expiresIn}}</strong>.</p>
-      <a href="{{resetUrl}}" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a>
+      <a href="{{resetUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">If you did not request a password reset, please ignore this email.</p>
     `,
   },
@@ -39,7 +39,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   account_update: {
     subject: 'Your Kitabu Yetu account has been updated',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Account Updated</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Account Updated</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{name}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Your account details have been updated: <strong>{{changeDescription}}</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">If you did not make this change, please contact your group administrator immediately.</p>
@@ -51,13 +51,13 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   contribution_received: {
     subject: 'Contribution received — KES {{amount}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Contribution Confirmed</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Contribution Confirmed</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">We have received your contribution of <strong>KES {{amount}}</strong> for <strong>{{periodLabel}}</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Reference</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">{{reference}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Date</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">{{date}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Payment Method</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">{{paymentMethod}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Reference</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{reference}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Date</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{date}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Payment Method</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{paymentMethod}}</td></tr>
       </table>
       <p style="margin:0;font-size:13px;color:#6b7280;">Your total contributions to date: <strong>KES {{totalContributions}}</strong></p>
     `,
@@ -66,7 +66,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   contribution_reminder: {
     subject: 'Reminder: {{periodLabel}} contribution due {{dueDate}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Contribution Reminder</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Contribution Reminder</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">This is a friendly reminder that your <strong>{{periodLabel}}</strong> contribution of <strong>KES {{amount}}</strong> is due on <strong>{{dueDate}}</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">Please use M-Pesa Paybill <strong>{{shortcode}}</strong>, Account Number: <strong>{{accountNumber}}</strong>.</p>
@@ -78,14 +78,14 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   loan_approved: {
     subject: 'Your loan application has been approved',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Loan Approved</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Approved</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
-      <p style="margin:0 0 20px;color:#374151;">Your loan application has been <strong style="color:#16a34a;">approved</strong>.</p>
+      <p style="margin:0 0 20px;color:#374151;">Your loan application has been <strong style="color:#3CB043;">approved</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Principal</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">KES {{principal}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Interest Rate</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">{{interestRate}}% per month</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Term</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">{{termMonths}} months</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Monthly Repayment</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;">KES {{monthlyRepayment}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Principal</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">KES {{principal}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Interest Rate</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{interestRate}}% per month</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Term</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{termMonths}} months</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Monthly Repayment</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">KES {{monthlyRepayment}}</td></tr>
       </table>
       <p style="margin:0;font-size:13px;color:#6b7280;">Disbursement will be processed shortly. You will receive an M-Pesa notification.</p>
     `,
@@ -94,7 +94,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   loan_rejected: {
     subject: 'Your loan application was not approved',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Loan Application Update</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Application Update</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">We regret to inform you that your loan application for <strong>KES {{principal}}</strong> has not been approved at this time.</p>
       <p style="margin:0 0 20px;color:#374151;"><strong>Reason:</strong> {{reason}}</p>
@@ -106,7 +106,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   loan_disbursed: {
     subject: 'Loan of KES {{amount}} disbursed to your M-Pesa',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Loan Disbursed</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Disbursed</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">KES <strong>{{amount}}</strong> has been sent to your M-Pesa number <strong>{{phone}}</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">M-Pesa Transaction ID: <strong>{{mpesaRef}}</strong></p>
@@ -133,7 +133,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   loan_repayment_received: {
     subject: 'Loan repayment of KES {{amount}} received',
     body: `
-      <h2 style="margin:0 0 16px;color:#16a34a;">Repayment Received</h2>
+      <h2 style="margin:0 0 16px;color:#3CB043;">Repayment Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">We have received your loan repayment of <strong>KES {{amount}}</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
@@ -149,12 +149,12 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   invoice: {
     subject: 'Invoice {{invoiceNumber}} — KES {{amountDue}} due {{dueDate}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Invoice {{invoiceNumber}}</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 20px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Invoice Date</td><td style="padding:8px;border:1px solid #e5e7eb;">{{invoiceDate}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Due Date</td><td style="padding:8px;border:1px solid #e5e7eb;color:#dc2626;font-weight:600;">{{dueDate}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Amount Due</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;font-size:18px;color:#111827;">KES {{amountDue}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Amount Due</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;font-size:18px;color:#0B3C88;">KES {{amountDue}}</td></tr>
       </table>
       <p style="margin:0 0 16px;color:#374151;font-style:italic;">{{notes}}</p>
       <p style="margin:0 0 8px;color:#374151;font-weight:600;">Payment Instructions:</p>
@@ -199,15 +199,15 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   payment_receipt: {
     subject: 'Payment received — KES {{amountPaid}} (Receipt {{receiptNumber}})',
     body: `
-      <h2 style="margin:0 0 16px;color:#16a34a;">Payment Received</h2>
+      <h2 style="margin:0 0 16px;color:#3CB043;">Payment Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Thank you! We have received your payment of <strong>KES {{amountPaid}}</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Receipt Number</td><td style="padding:8px;border:1px solid #e5e7eb;color:#111827;font-weight:700;">{{receiptNumber}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Receipt Number</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;font-weight:700;">{{receiptNumber}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Invoice</td><td style="padding:8px;border:1px solid #e5e7eb;">{{invoiceNumber}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Payment Date</td><td style="padding:8px;border:1px solid #e5e7eb;">{{paymentDate}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Method</td><td style="padding:8px;border:1px solid #e5e7eb;">{{paymentMethod}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Amount Paid</td><td style="padding:8px;border:1px solid #e5e7eb;color:#16a34a;font-weight:700;">KES {{amountPaid}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Amount Paid</td><td style="padding:8px;border:1px solid #e5e7eb;color:#3CB043;font-weight:700;">KES {{amountPaid}}</td></tr>
       </table>
       <p style="margin:0;font-size:13px;color:#6b7280;">A PDF receipt is attached for your records.</p>
     `,
@@ -217,7 +217,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   meeting_invite: {
     subject: '{{groupName}}: Meeting on {{meetingDate}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Meeting Invitation</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Meeting Invitation</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">You are invited to the <strong>{{meetingType}}</strong> meeting for <strong>{{groupName}}</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
@@ -233,7 +233,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   meeting_reminder: {
     subject: 'Reminder: {{groupName}} meeting tomorrow at {{meetingTime}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Meeting Reminder</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Meeting Reminder</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">This is a reminder for tomorrow's <strong>{{meetingType}}</strong> meeting.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
@@ -248,11 +248,11 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   monthly_statement: {
     subject: '{{groupName}}: Your {{month}} Statement',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Monthly Statement — {{month}}</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Monthly Statement — {{month}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Please find your statement for <strong>{{month}}</strong> attached.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Total Contributions</td><td style="padding:8px;border:1px solid #e5e7eb;color:#16a34a;font-weight:600;">KES {{totalContributions}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Total Contributions</td><td style="padding:8px;border:1px solid #e5e7eb;color:#3CB043;font-weight:600;">KES {{totalContributions}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Loan Balance</td><td style="padding:8px;border:1px solid #e5e7eb;">KES {{loanBalance}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Group Fund Share</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;">KES {{fundShare}}</td></tr>
       </table>
@@ -263,10 +263,10 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   financial_report: {
     subject: '{{groupName}}: {{reportType}} — {{period}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">{{reportType}}</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">{{reportType}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">The <strong>{{reportType}}</strong> for <strong>{{period}}</strong> is attached.</p>
-      <p style="margin:0 0 20px;color:#374151;background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid #16a34a;">
+      <p style="margin:0 0 20px;color:#374151;background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid #3CB043;">
         <strong>Confidential:</strong> This report contains sensitive financial data. Please keep it secure and do not forward to unauthorized recipients.
       </p>
       <p style="margin:0;font-size:13px;color:#6b7280;">Generated: {{generatedAt}} — {{groupName}}</p>
@@ -276,11 +276,11 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   weekly_summary: {
     subject: '{{groupName}}: Weekly Summary — {{weekLabel}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Weekly Summary</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Weekly Summary</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Here's a quick snapshot of <strong>{{groupName}}</strong> activity for the week of <strong>{{weekLabel}}</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Contributions Collected</td><td style="padding:8px;border:1px solid #e5e7eb;color:#16a34a;font-weight:600;">KES {{weekContributions}}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Contributions Collected</td><td style="padding:8px;border:1px solid #e5e7eb;color:#3CB043;font-weight:600;">KES {{weekContributions}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Loans Disbursed</td><td style="padding:8px;border:1px solid #e5e7eb;">KES {{weekLoans}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Repayments Received</td><td style="padding:8px;border:1px solid #e5e7eb;">KES {{weekRepayments}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">New Members</td><td style="padding:8px;border:1px solid #e5e7eb;">{{newMembers}}</td></tr>
@@ -294,7 +294,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     body: `
       <div style="text-align:center;margin:0 0 24px;">
         <div style="font-size:48px;">🎂</div>
-        <h2 style="margin:8px 0 0;color:#111827;">Happy Birthday, {{memberName}}!</h2>
+        <h2 style="margin:8px 0 0;color:#0B3C88;">Happy Birthday, {{memberName}}!</h2>
       </div>
       <p style="margin:0 0 20px;color:#374151;text-align:center;">Your <strong>{{groupName}}</strong> family wishes you a wonderful birthday and a prosperous year ahead.</p>
       <p style="margin:0 0 20px;color:#374151;text-align:center;">May this new year bring you joy, health, and financial prosperity.</p>
@@ -306,7 +306,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   announcement: {
     subject: '{{groupName}}: {{subject}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">{{subject}}</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">{{subject}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <div style="margin:0 0 20px;color:#374151;line-height:1.6;">{{body}}</div>
       <p style="margin:0;font-size:13px;color:#6b7280;">— <strong>{{senderName}}</strong>, {{groupName}}</p>
@@ -317,9 +317,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   newsletter_confirm: {
     subject: 'Confirm your subscription to Kitabu Yetu updates',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Confirm Your Subscription</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Confirm Your Subscription</h2>
       <p style="margin:0 0 20px;color:#374151;">You recently subscribed to receive updates from Kitabu Yetu. Please confirm your email address by clicking the button below.</p>
-      <a href="{{confirmUrl}}" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Confirm Subscription</a>
+      <a href="{{confirmUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Confirm Subscription</a>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">If you did not subscribe, please ignore this email. This link expires in 24 hours.</p>
     `,
   },
@@ -327,7 +327,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   newsletter_welcome: {
     subject: 'You\'re subscribed to Kitabu Yetu updates',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Welcome to Kitabu Yetu Updates!</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome to Kitabu Yetu Updates!</h2>
       <p style="margin:0 0 20px;color:#374151;">Thank you for confirming your subscription. You will receive updates about new features, community finance tips, and product announcements.</p>
       <p style="margin:0;font-size:13px;color:#6b7280;">You can unsubscribe at any time by clicking the unsubscribe link in any future email.</p>
     `,
@@ -337,7 +337,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   contact_confirmation: {
     subject: 'We received your message — Kitabu Yetu',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">Message Received</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Message Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{name}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Thank you for contacting us. We have received your message and will respond within <strong>2 business days</strong>.</p>
       <div style="background:#f3f4f6;border-radius:6px;padding:16px;margin:0 0 20px;">
@@ -351,7 +351,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   contact_admin: {
     subject: 'New contact form submission from {{name}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#111827;">New Contact Submission</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">New Contact Submission</h2>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Name</td><td style="padding:8px;border:1px solid #e5e7eb;">{{name}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Email</td><td style="padding:8px;border:1px solid #e5e7eb;">{{email}}</td></tr>
@@ -360,7 +360,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       </table>
       <div style="background:#f3f4f6;border-radius:6px;padding:16px;">
         <p style="margin:0;font-weight:600;font-size:13px;color:#374151;">Message:</p>
-        <p style="margin:8px 0 0;font-size:14px;color:#111827;line-height:1.6;">{{message}}</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#0B3C88;line-height:1.6;">{{message}}</p>
       </div>
     `,
   },
