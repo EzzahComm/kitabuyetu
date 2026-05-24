@@ -188,8 +188,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     await withAdminDb((client) =>
       client.query(
+        // make_interval(secs => N) returns INTERVAL 'N seconds'. Cleaner than
+        // the previous `$3::interval * INTERVAL '1 second'` which evaluated to
+        // `interval * interval` (an invalid operator in Postgres) — that bug
+        // existed in the original code too but only surfaced after the data
+        // wipe forced the first cold login of the session.
         `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address)
-         VALUES ($1, $2, NOW() + $3::interval * INTERVAL '1 second', $4)`,
+         VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4)`,
         [member.id, rtHash, refreshTtlSeconds(), req.headers.get('x-forwarded-for') ?? null],
       ),
     );
