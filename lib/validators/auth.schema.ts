@@ -1,10 +1,24 @@
 import { z } from 'zod';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 
+// Identifier may be either a Kenyan phone number or an email address.
+// The login route detects which by the presence of '@'.
+//
+// groupCode is OPTIONAL: when a member belongs to a single group, the route
+// resolves it automatically. When the member is in multiple groups, the route
+// responds with `needsGroupSelection` and the client re-submits with the
+// chosen groupCode. This avoids leaking group memberships in the schema.
 export const LoginSchema = z.object({
-  phone:   z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  groupId: z.string().uuid('Invalid group ID'),
+  identifier: z.string()
+                .min(1, 'Phone number or email is required')
+                .refine(
+                  (v) => v.includes('@') || isValidKenyanPhone(v),
+                  'Enter a valid Kenyan phone number or email address',
+                ),
+  password:   z.string().min(1, 'Password is required'),
+  groupCode:  z.string()
+                .regex(/^KY[0-9]{7}$/i, 'Group code looks like KY0000001')
+                .optional(),
 });
 
 // Mirrors the public.register_group RPC signature + the v2 workflow spec.

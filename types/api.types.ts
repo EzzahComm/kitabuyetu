@@ -42,7 +42,31 @@ export interface LoginResponse {
     groupRole:    MemberRole;
     groupId:      string;
     groupName:    string;
+    // ── Phase A additions: human-readable IDs + shared identity ──
+    groupCode?:   string;   // e.g. KY0000003
+    memberCode?:  string;   // e.g. KY000000300001
+    personId?:    string;   // cross-group identity (person table)
+    officerRole?: string;   // formal governance role from group_officers (chair/sec/treas/etc.)
   };
+}
+
+// Returned by /auth/login when the member belongs to more than one group.
+// The client shows the user a chooser and re-submits with `groupCode`.
+export interface NeedsGroupSelection {
+  needsGroupSelection: true;
+  groups: Array<{
+    groupId:    string;
+    groupCode:  string;
+    groupName:  string;
+    groupRole:  MemberRole;
+    officerRole?: string;
+  }>;
+}
+
+export type LoginResult = LoginResponse | NeedsGroupSelection;
+
+export function isGroupSelectionNeeded(r: LoginResult): r is NeedsGroupSelection {
+  return (r as NeedsGroupSelection).needsGroupSelection === true;
 }
 
 export interface RefreshResponse {

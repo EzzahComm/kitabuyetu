@@ -14,6 +14,11 @@ interface AuthUser {
   groupRole:    MemberRole;
   groupId:      string;
   groupName:    string;
+  // Phase A additions — optional so legacy localStorage payloads still parse.
+  groupCode?:   string;
+  memberCode?:  string;
+  personId?:    string;
+  officerRole?: string;
 }
 
 interface AuthState {

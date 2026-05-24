@@ -4,10 +4,12 @@ import { env } from '@/lib/env';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
 interface AccessTokenPayload {
-  sub:     string;  // userId
-  groupId: string;
-  role:    MemberRole | PlatformRole;
-  ngoId?:  string;
+  sub:        string;  // member id (auth identity)
+  groupId:    string;  // active group context (one of the member's group_members rows)
+  role:       MemberRole | PlatformRole;
+  personId?:  string;  // shared cross-group identity (since Phase A); optional for
+                       // pre-Phase-A tokens still in circulation
+  ngoId?:     string;
 }
 
 interface RefreshTokenPayload {

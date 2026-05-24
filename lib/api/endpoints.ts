@@ -1,25 +1,31 @@
 import { api } from './client';
 import { buildQuery } from '@/lib/utils';
-import type { LoginResponse, RefreshResponse, MemberPublic, SubscriptionPublic, NgoGroupSummary } from '@/types/api.types';
+import type {
+  LoginResponse, LoginResult, RefreshResponse,
+  MemberPublic, SubscriptionPublic, NgoGroupSummary,
+} from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
-
-// ------------------------------------------------------------------
-// Public (no auth required)
-// ------------------------------------------------------------------
-export const publicApi = {
-  groups: () => api.get<{ id: string; name: string; type: string }[]>('/groups'),
-};
 
 // ------------------------------------------------------------------
 // Auth
 // ------------------------------------------------------------------
 export const authApi = {
-  login:   (body: { phone: string; password: string; groupId: string }) =>
-    api.post<LoginResponse>('/auth/login', body),
+  // Identifier may be a phone (07XX… / +254…) or an email address. When the
+  // member is in multiple groups, the response is NeedsGroupSelection and the
+  // client re-submits with `groupCode`.
+  login: (body: { identifier: string; password: string; groupCode?: string }) =>
+    api.post<LoginResult>('/auth/login', body),
+
   register: (body: unknown) =>
-    api.post<LoginResponse & { registrationFee: number }>('/auth/register', body),
+    api.post<LoginResponse & {
+      registrationFee: number;
+      groupCode?:      string;
+      memberCode?:     string;
+    }>('/auth/register', body),
+
   refresh: (refreshToken: string) =>
     api.post<RefreshResponse>('/auth/refresh', { refreshToken }),
+
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),
 };
