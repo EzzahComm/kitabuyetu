@@ -46,6 +46,22 @@ export const membersApi = {
     api.put<unknown>(`/members/${id}`, { role }),
   deactivate: (id: string) =>
     api.delete<void>(`/members/${id}`),
+  // Phase E2 — explicit state-machine transition with optional reason.
+  // Use this instead of `deactivate()` so the audit columns are stamped.
+  transitionStatus: (id: string, status: string, reason?: string) =>
+    api.post<unknown>(`/members/${id}/status`, { status, reason }),
+};
+
+// Phase E2 — next-of-kin emergency contacts, scoped to a member.
+export const nextOfKinApi = {
+  list:   (memberId: string) =>
+    api.get<unknown[]>(`/members/${memberId}/next-of-kin`),
+  create: (memberId: string, body: unknown) =>
+    api.post<unknown>(`/members/${memberId}/next-of-kin`, body),
+  update: (memberId: string, kinId: string, body: unknown) =>
+    api.patch<unknown>(`/members/${memberId}/next-of-kin/${kinId}`, body),
+  remove: (memberId: string, kinId: string) =>
+    api.delete<void>(`/members/${memberId}/next-of-kin/${kinId}`),
 };
 
 // ------------------------------------------------------------------

@@ -7,7 +7,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface PaginatedTableProps<T> {
   data?:         { items: T[]; total: number; page: number; pageSize: number; totalPages: number } | null;
   isLoading:     boolean;
-  columns:       { key: string; header: string; render?: (row: T) => React.ReactNode; className?: string }[];
+  // header is React.ReactNode so callers can pass a JSX element (e.g. a
+  // "select all" checkbox in a selection column) — runtime already supports it.
+  columns:       { key: string; header: React.ReactNode; render?: (row: T) => React.ReactNode; className?: string }[];
   onPageChange:  (page: number) => void;
   emptyMessage?: string;
 }
