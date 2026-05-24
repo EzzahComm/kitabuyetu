@@ -2,16 +2,41 @@
 
 import type { ApiResponse } from '@/types/api.types';
 
-const BASE = '/api/v1';
+const BASE        = '/api/v1';
+const STORAGE_KEY = 'ky_auth';  // mirrors lib/auth/context.tsx
 
-let _getToken: (() => string | null) | null = null;
+// Read the access token directly from localStorage on every request. This
+// avoids a closure/timing race we used to have where pages would call
+// `configureApiClient({ getToken: () => accessToken })` inside a useEffect —
+// React runs child effects BEFORE parent effects, so the first API call from
+// a dashboard child fired with the stale `getToken` from the previous (login)
+// page and shipped no Authorization header → 401 → bounce back to /login.
+//
+// Reading from localStorage on each call keeps the api client decoupled from
+// React rendering order. localStorage is updated synchronously by the auth
+// context before router.push, so the dashboard's first request sees the new
+// token.
+function readAccessTokenFromStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { accessToken?: string | null };
+    return parsed.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
 let _onUnauthorized: (() => void) | null = null;
 
+// Backwards-compatible signature: still accepts the old `getToken` field but
+// silently ignores it (the api client now reads localStorage). Pages can drop
+// the `getToken` arg in a follow-up cleanup without breaking anything.
 export function configureApiClient(opts: {
-  getToken:      () => string | null;
+  getToken?:      () => string | null;
   onUnauthorized: () => void;
 }) {
-  _getToken       = opts.getToken;
   _onUnauthorized = opts.onUnauthorized;
 }
 
@@ -23,7 +48,7 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
 
-  const token = _getToken?.();
+  const token = readAccessTokenFromStorage();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   if (!options?.multipart && body) {
