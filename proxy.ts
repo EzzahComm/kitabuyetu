@@ -93,6 +93,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // These paths are intentionally unauthenticated
   if (
     pathname.startsWith('/api/v1/auth/') ||
+    pathname.startsWith('/api/v1/jurisdictions/') ||  // public reference data (counties/sub-counties/wards) for registration dropdowns
     isMpesaCallback ||
     pathname === '/api/v1/groups'  // public group listing used on the login page
   ) {

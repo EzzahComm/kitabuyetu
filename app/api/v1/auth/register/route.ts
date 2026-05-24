@@ -10,8 +10,6 @@ import { normalizePhone } from '@/lib/utils/phone';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
-import { billingService } from '@/lib/services/billing.service';
-import { accountingService } from '@/lib/services/accounting.service';
 import type { LoginResponse } from '@/types/api.types';
 
 const BCRYPT_ROUNDS    = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
@@ -21,17 +19,23 @@ type Stage =
   | 'parse_body'
   | 'validate_input'
   | 'normalize_phone'
-  | 'open_db_transaction'
-  | 'check_phone_unique'
-  | 'insert_group'
   | 'hash_password'
-  | 'insert_member'
-  | 'link_group_member'
-  | 'create_subscription'
-  | 'seed_chart_of_accounts'
-  | 'commit_transaction'
+  | 'open_db_transaction'
+  | 'call_register_group_rpc'
   | 'sign_tokens'
   | 'persist_refresh_token';
+
+interface RegisterGroupResult {
+  success:        true;
+  group_id:       string;
+  group_code:     string;
+  group_name:     string;
+  member_id:      string;
+  member_code:    string;
+  person_id:      string;
+  platform_role:  string;
+  creator_role:   string;
+}
 
 export async function POST(req: NextRequest): Promise<Response> {
   let stage: Stage = 'parse_body';
@@ -45,99 +49,87 @@ export async function POST(req: NextRequest): Promise<Response> {
     const phone = normalizePhone(input.phone);
     const email = input.email && input.email !== '' ? input.email : null;
 
-    // ── Atomic onboarding: group + member + membership link + billing + accounts.
-    //    On any failure, withAdminDb rolls back the whole transaction.
+    stage = 'hash_password';
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+
+    // ── Single atomic RPC. Everything (group + person + member + officer +
+    //    billing + chart of accounts) lives inside register_group(); on any
+    //    failure the whole transaction rolls back.
     stage = 'open_db_transaction';
-    const txResult = await withAdminDb(async (client) => {
-      stage = 'check_phone_unique';
-      const { rows: existing } = await client.query<{ id: string }>(
-        'SELECT id FROM members WHERE phone = $1', [phone],
+    const rpcPayload = {
+      groupName:        input.groupName,
+      groupType:        input.groupType,
+      firstName:        input.firstName,
+      lastName:         input.lastName,
+      phone,
+      email,
+      passwordHash,
+      creatorRole:      input.creatorRole,
+      countyId:         input.countyId,
+      subCountyText:    input.subCountyText ?? '',
+      wardText:         input.wardText ?? '',
+      villageEstate:    input.villageEstate ?? '',
+      primaryObjective: input.primaryObjective ?? '',
+      meetingFrequency: input.meetingFrequency ?? '',
+      meetingDay:       input.meetingDay ?? '',
+      meetingTime:      input.meetingTime ?? '',
+      nationalId:       input.nationalId ?? '',
+      dateOfBirth:      input.dateOfBirth ?? '',
+      gender:           input.gender ?? '',
+    };
+
+    stage = 'call_register_group_rpc';
+    const result = await withAdminDb(async (client) => {
+      const { rows } = await client.query<{ register_group: RegisterGroupResult }>(
+        'SELECT register_group($1::jsonb) AS register_group',
+        [JSON.stringify(rpcPayload)],
       );
-      if (existing[0]) return { duplicate: true as const };
-
-      stage = 'insert_group';
-      const { rows: groupRows } = await client.query<{ id: string }>(
-        `INSERT INTO groups (name, "type", phone, email)
-         VALUES ($1,$2,$3,$4) RETURNING id`,
-        [input.groupName, input.groupType, phone, email],
-      );
-      const groupId = groupRows[0].id;
-
-      stage = 'hash_password';
-      const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-
-      stage = 'insert_member';
-      const { rows: memberRows } = await client.query<{ id: string; platform_role: string }>(
-        `INSERT INTO members (phone, email, password_hash, first_name, last_name)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id, platform_role`,
-        [phone, email, passwordHash, input.firstName, input.lastName],
-      );
-      const memberId     = memberRows[0].id;
-      const platformRole = memberRows[0].platform_role;
-
-      stage = 'link_group_member';
-      await client.query(
-        `INSERT INTO group_members (group_id, member_id, role) VALUES ($1,$2,$3)`,
-        [groupId, memberId, 'group_admin'],
-      );
-
-      const ctx = { userId: memberId, groupId, role: 'group_admin' };
-
-      stage = 'create_subscription';
-      await billingService.createStarterSubscription(ctx, client);
-
-      stage = 'seed_chart_of_accounts';
-      await accountingService.seedDefaultAccountsInTx(client, groupId);
-
-      return {
-        duplicate:    false as const,
-        memberId, groupId, platformRole,
-        groupName:    input.groupName,
-      };
+      return rows[0].register_group;
     });
 
-    stage = 'commit_transaction';
-    if (txResult.duplicate) {
-      return errorResponse('Phone number already registered', 'DUPLICATE_PHONE', 409);
-    }
-
-    const { memberId, groupId, groupName, platformRole } = txResult;
-
     stage = 'sign_tokens';
-    const accessToken = signAccessToken({ sub: memberId, groupId, role: 'group_admin' as any });
-    const { token: refreshToken } = signRefreshToken(memberId);
+    const accessToken = signAccessToken({
+      sub:     result.member_id,
+      groupId: result.group_id,
+      role:    'group_admin' as any,
+    });
+    const { token: refreshToken } = signRefreshToken(result.member_id);
 
     stage = 'persist_refresh_token';
     try {
-      await storeRefreshToken(hashToken(refreshToken), memberId, refreshTtlSeconds());
+      await storeRefreshToken(hashToken(refreshToken), result.member_id, refreshTtlSeconds());
     } catch (redisErr) {
-      // Non-fatal: user is registered. Access token is valid for 15 min;
-      // refresh-token rotation will degrade until Redis is healthy again.
+      // Non-fatal: user is registered. Access token works for 15 min.
       logger.error('[register] failed to persist refresh token (non-fatal)', redisErr);
     }
 
-    const response: LoginResponse & { registrationFee: number } = {
+    const response: LoginResponse & {
+      registrationFee: number;
+      groupCode:       string;
+      memberCode:      string;
+    } = {
       accessToken,
       refreshToken,
       member: {
-        id:           memberId,
+        id:           result.member_id,
         firstName:    input.firstName,
         lastName:     input.lastName,
         phone,
         email,
-        platformRole: platformRole as any,
+        platformRole: result.platform_role as any,
         groupRole:    'group_admin' as any,
-        groupId,
-        groupName,
+        groupId:      result.group_id,
+        groupName:    result.group_name,
       },
       registrationFee: REGISTRATION_FEE,
+      groupCode:       result.group_code,
+      memberCode:      result.member_code,
     };
 
     return created(response);
   } catch (err) {
     const e = err as { code?: string; message?: string; detail?: string; hint?: string; constraint?: string; stack?: string };
 
-    // Full structured log for the operator — includes Postgres error metadata.
     logger.error('[register] failed', {
       stage,
       pg_code:    e?.code,
@@ -148,11 +140,30 @@ export async function POST(req: NextRequest): Promise<Response> {
       stack:      e?.stack,
     });
 
-    // Preserve standard envelopes for known typed errors (validation, app errors, common PG codes).
+    // Known typed errors → standard envelopes
     if (err instanceof ZodError || err instanceof AppError) return handleError(err);
-    if (e?.code === '23505' || e?.code === '23503')         return handleError(err);
 
-    // Unknown failure — surface the stage so the user (and support) knows which step broke.
+    // PG unique violation: most likely duplicate phone (members.phone is UNIQUE).
+    // Tell the user precisely.
+    if (e?.code === '23505') {
+      if (e.constraint?.includes('phone')) {
+        return errorResponse('Phone number already registered', 'DUPLICATE_PHONE', 409);
+      }
+      if (e.constraint?.includes('group_code')) {
+        return errorResponse('Group code collision — please retry', 'GROUP_CODE_COLLISION', 500);
+      }
+      return handleError(err);
+    }
+
+    // PG FK violation (e.g. invalid county_id)
+    if (e?.code === '23503') return handleError(err);
+
+    // RPC-raised invalid-input errors (SQLSTATE 22023)
+    if (e?.code === '22023') {
+      return errorResponse(e.message ?? 'Invalid input', 'INVALID_INPUT', 400);
+    }
+
+    // Unknown failure — surface the stage so the user (and support) know.
     return errorResponse(
       `Registration failed at step '${stage}'. Please try again or contact support.`,
       `REG_FAIL_${stage}`,
