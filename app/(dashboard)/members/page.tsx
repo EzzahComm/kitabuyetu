@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Plus, Search, Archive, RotateCcw, Loader2 } from 'lucide-react';
+import { Plus, Search, Archive, RotateCcw, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -224,9 +224,16 @@ export default function MembersPage() {
             {(data as any)?.total ?? 0} total{status ? ` (${MEMBER_STATUSES.find((s) => s.value === status)?.label.toLowerCase()})` : ' (excluding archived)'}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} className="mr-2" /> Add member
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/members/import">
+              <Upload size={16} className="mr-2" /> Import
+            </Link>
+          </Button>
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} className="mr-2" /> Add member
+          </Button>
+        </div>
       </div>
 
       {/* Filters row */}

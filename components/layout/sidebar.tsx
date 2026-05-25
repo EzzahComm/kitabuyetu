@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
   MessageSquare, BarChart2, Building2, Settings, LogOut, X,
-  Receipt, Mail, Heart, TrendingUp, Calendar, Vault,
+  Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
@@ -17,12 +18,18 @@ const navItems = [
   { href: '/contributions', label: 'Contributions',  icon: CreditCard },
   { href: '/loans',         label: 'Loans',          icon: Landmark },
   { href: '/welfare',       label: 'Welfare',        icon: Heart },
+  { href: '/shares',        label: 'Shares',         icon: Coins },
+  { href: '/dividends',     label: 'Dividends',      icon: ReceiptText },
+  { href: '/credit-scores', label: 'Credit scores',  icon: Gauge },
+  { href: '/analytics',     label: 'Analytics',      icon: BarChart2 },
   { href: '/investments',   label: 'Investments',    icon: TrendingUp },
   { href: '/meetings',      label: 'Meetings',       icon: Calendar },
   { href: '/accounting',    label: 'Accounting',     icon: BookOpen },
   { href: '/treasury',      label: 'Treasury',       icon: Vault },
   { href: '/reports',       label: 'Reports',        icon: BarChart2 },
+  { href: '/data-import',   label: 'Data import',    icon: Upload },
   { href: '/sms',           label: 'SMS',            icon: MessageSquare },
+  { href: '/whatsapp',      label: 'WhatsApp',       icon: MessageSquare },
   { href: '/email',         label: 'Email',          icon: Mail },
   { href: '/billing',       label: 'Billing',        icon: Receipt },
 ];

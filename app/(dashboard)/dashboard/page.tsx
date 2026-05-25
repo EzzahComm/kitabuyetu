@@ -1,15 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Users, TrendingUp, Landmark, DollarSign, Heart, Calendar,
-  ArrowRight, AlertCircle, CheckCircle2, Clock, BarChart2,
+  Users, TrendingUp, Landmark, Heart, Calendar,
+  ArrowRight, AlertCircle, CheckCircle2, BarChart2,
+  Coins, ReceiptText, Gauge,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useMembers } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
 import { useLoans } from '@/hooks/use-loans';
@@ -17,6 +18,7 @@ import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useMeetings } from '@/hooks/use-meetings';
 import { useInvestmentSummary } from '@/hooks/use-investments';
 import { useAuth } from '@/lib/auth/context';
+import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
 
 function QuickStat({ label, value, sub, color = 'default' }: {
@@ -51,6 +53,24 @@ export default function DashboardPage() {
   const { data: upcomingMeetings }  = useMeetings({ status: 'scheduled', limit: 3 });
   const { data: investSummary }     = useInvestmentSummary();
 
+  // Lightweight tiles for E4–E6 surfaces (shares, dividends, credit). Each
+  // endpoint is cheap; the full breakdown lives on /analytics.
+  const { data: sharesSummary } = useQuery<{ totalShareCapital: string; totalShareholders: number }>({
+    queryKey: ['dashboard', 'shares-summary'],
+    queryFn:  () => api.get('/shares/summary'),
+    staleTime: 60_000,
+  });
+  const { data: dividendsList } = useQuery<{ items: { total_paid: string; status: string; period_label: string }[] }>({
+    queryKey: ['dashboard', 'dividends-recent'],
+    queryFn:  () => api.get('/dividends?limit=5'),
+    staleTime: 60_000,
+  });
+  const { data: creditSummary } = useQuery<{ averageOverall: string; scoredMembers: number }>({
+    queryKey: ['dashboard', 'credit-summary'],
+    queryFn:  () => api.get('/credit-scores/summary'),
+    staleTime: 60_000,
+  });
+
   const totalMembers    = membersData?.total ?? 0;
   const recentContribs  = (contributionsData?.items ?? []) as any[];
   const activeLoans     = (loansData?.items ?? []) as any[];
@@ -67,6 +87,10 @@ export default function DashboardPage() {
   const welfareBalance = poolData?.summary?.balance ?? 0;
 
   const pendingActions = pendingLoanList.length + pendingWelfareList.length;
+
+  const dividendsPaidRecent = (dividendsList?.items ?? [])
+    .reduce((sum, d) => sum + Number(d.total_paid ?? 0), 0);
+  const lastDividend = dividendsList?.items?.[0];
 
   return (
     <div className="space-y-6">
@@ -115,6 +139,52 @@ export default function DashboardPage() {
           description={`${pendingWelfareList.length} pending requests`}
           iconClass="bg-red-50"
         />
+      </div>
+
+      {/* E4–E6 tiles: shares, dividends, credit. Click through to dedicated pages. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Link href="/shares" className="block group">
+          <Card className="transition-colors group-hover:border-primary/40">
+            <CardContent className="pt-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Share capital</p>
+                <p className="mt-1 text-xl font-bold">{formatKES(sharesSummary?.totalShareCapital ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{sharesSummary?.totalShareholders ?? 0} shareholders</p>
+              </div>
+              <Coins className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dividends" className="block group">
+          <Card className="transition-colors group-hover:border-primary/40">
+            <CardContent className="pt-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Dividends paid (recent)</p>
+                <p className="mt-1 text-xl font-bold">{formatKES(dividendsPaidRecent)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {lastDividend ? `Last: ${lastDividend.period_label}` : 'No declarations yet'}
+                </p>
+              </div>
+              <ReceiptText className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/credit-scores" className="block group">
+          <Card className="transition-colors group-hover:border-primary/40">
+            <CardContent className="pt-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Avg credit score</p>
+                <p className="mt-1 text-xl font-bold">
+                  {creditSummary?.scoredMembers
+                    ? Number(creditSummary.averageOverall).toFixed(0)
+                    : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{creditSummary?.scoredMembers ?? 0} scored</p>
+              </div>
+              <Gauge className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Secondary KPI row */}
