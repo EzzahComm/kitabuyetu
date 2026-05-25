@@ -157,7 +157,7 @@ In **Supabase Dashboard → Database → Extensions**, enable:
 supabase db push
 ```
 
-This applies `migrations/013_job_queue.sql` which creates the `job_queue` and `job_logs` tables.
+This applies `supabase/migrations/20260526120000_041_job_queue.sql` which creates the `job_queue` and `job_logs` tables.
 
 ### 5c. Schedule the cron job
 

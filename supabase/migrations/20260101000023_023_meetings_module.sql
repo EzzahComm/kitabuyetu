@@ -1,5 +1,11 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 023: Meetings module — meetings, attendance, resolutions, RLS
+--
+-- Amended 2026-05-26: actor FKs changed from public.users(id) to
+-- public.members(id). The original file referenced a non-existent public.users
+-- table; the live DB was hand-fixed at deploy time. This rewrite makes the
+-- repo file match what's actually on Supabase, so fresh deploys produce the
+-- same schema. No data migration needed.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Enums
@@ -29,9 +35,9 @@ CREATE TABLE public.meetings (
   minutes          text,
   quorum_required  integer CHECK (quorum_required > 0),
   quorum_achieved  integer CHECK (quorum_achieved >= 0),
-  created_by       uuid NOT NULL REFERENCES public.users(id),
-  chaired_by       uuid REFERENCES public.users(id),
-  secretary_id     uuid REFERENCES public.users(id),
+  created_by       uuid NOT NULL REFERENCES public.members(id),
+  chaired_by       uuid REFERENCES public.members(id),
+  secretary_id     uuid REFERENCES public.members(id),
   attachments      jsonb NOT NULL DEFAULT '[]',
   notes            text,
   created_at       timestamptz NOT NULL DEFAULT now(),
@@ -58,7 +64,7 @@ CREATE TABLE public.meeting_attendance (
   fine_amount  numeric NOT NULL DEFAULT 0,
   fine_waived  boolean NOT NULL DEFAULT false,
   marked_at    timestamptz NOT NULL DEFAULT now(),
-  marked_by    uuid REFERENCES public.users(id),
+  marked_by    uuid REFERENCES public.members(id),
   UNIQUE (meeting_id, member_id)
 );
 
@@ -73,14 +79,14 @@ CREATE TABLE public.meeting_resolutions (
   group_id               uuid NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
   sort_order             integer NOT NULL DEFAULT 0,
   resolution_text        text NOT NULL,
-  proposed_by            uuid REFERENCES public.users(id),
-  seconded_by            uuid REFERENCES public.users(id),
+  proposed_by            uuid REFERENCES public.members(id),
+  seconded_by            uuid REFERENCES public.members(id),
   votes_for              integer NOT NULL DEFAULT 0,
   votes_against          integer NOT NULL DEFAULT 0,
   votes_abstain          integer NOT NULL DEFAULT 0,
   status                 varchar(20) NOT NULL DEFAULT 'carried',
   implementation_deadline date,
-  responsible_party      uuid REFERENCES public.users(id),
+  responsible_party      uuid REFERENCES public.members(id),
   implemented            boolean NOT NULL DEFAULT false,
   implemented_at         timestamptz,
   notes                  text,

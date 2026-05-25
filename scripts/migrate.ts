@@ -23,11 +23,15 @@ async function main() {
         .rows.map((r) => r.version)
     );
 
-    const migrationsDir = path.join(process.cwd(), 'migrations');
+    // supabase/migrations/ is the single source of truth (matches the live
+    // Supabase project's applied set). Filenames are <timestamp>_<seq>_<name>.sql.
+    const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
     const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
 
     let ran = 0;
     for (const file of files) {
+      // Use the timestamp prefix as the version key so it matches what the
+      // Supabase CLI records in supabase_migrations.schema_migrations.
       const version = file.split('_')[0];
       if (applied.has(version)) continue;
 

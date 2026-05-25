@@ -1,5 +1,11 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 022: Investments module — investments, returns, RLS
+--
+-- Amended 2026-05-26: actor FKs changed from public.users(id) to
+-- public.members(id). The original file referenced a non-existent public.users
+-- table; the live DB was hand-fixed at deploy time. This rewrite makes the
+-- repo file match what's actually on Supabase, so fresh deploys produce the
+-- same schema. No data migration needed.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Enums
@@ -33,13 +39,13 @@ CREATE TABLE public.investments (
   registration_number  varchar(100),
   location             text,
   documents            jsonb NOT NULL DEFAULT '[]',
-  approved_by          uuid REFERENCES public.users(id),
+  approved_by          uuid REFERENCES public.members(id),
   approved_at          timestamptz,
-  liquidated_by        uuid REFERENCES public.users(id),
+  liquidated_by        uuid REFERENCES public.members(id),
   liquidated_at        timestamptz,
   liquidation_value    numeric,
   notes                text,
-  created_by           uuid NOT NULL REFERENCES public.users(id),
+  created_by           uuid NOT NULL REFERENCES public.members(id),
   created_at           timestamptz NOT NULL DEFAULT now(),
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
@@ -63,7 +69,7 @@ CREATE TABLE public.investment_returns (
   return_date    date NOT NULL,
   receipt_number varchar(100),
   notes          text,
-  recorded_by    uuid NOT NULL REFERENCES public.users(id),
+  recorded_by    uuid NOT NULL REFERENCES public.members(id),
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 

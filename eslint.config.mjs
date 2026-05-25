@@ -5,7 +5,6 @@ const config = [
     ignores: [
       'node_modules/**',
       '.next/**',
-      'migrations/**',
       'scripts/**',
       'supabase/**',
       'tmp-*',
