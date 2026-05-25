@@ -7,8 +7,10 @@ export type JobType =
   | 'email_overdue_invoices'   // Overdue invoice reminders (daily 09:00 UTC)
   | 'email_recurring_invoices' // Process recurring invoices (daily 06:00 UTC)
   | 'email_weekly_summary'     // Member weekly summary (Monday 08:00 UTC)
-  | 'mpesa_reconcile'          // Reconcile stuck M-Pesa transactions (every 5 min)
-  | 'cleanup_expired_tokens';  // Remove expired refresh tokens (daily 02:00 UTC)
+  | 'mpesa_reconcile'             // Reconcile stuck M-Pesa transactions (every 5 min)
+  | 'cleanup_expired_tokens'      // Remove expired refresh tokens (daily 02:00 UTC)
+  | 'notify_loan_due_alerts'      // Loan repayment due/overdue alerts (daily 06:00 UTC)
+  | 'notify_contribution_reminders'; // Missed-contribution nudge (1st of month, 08:00 UTC)
 
 export interface Job {
   id:           string;

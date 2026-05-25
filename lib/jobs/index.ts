@@ -93,10 +93,30 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── Daily 06:00 UTC (09:00 EAT) — loan-due alerts ─────────────
+  // Members in Kenya are most likely to act on a reminder mid-morning;
+  // 09:00 EAT lands their notification just before they head to work.
+  if (hour === 6) {
+    queued.notify_loan_due_alerts = await safe('notify_loan_due_alerts', {}, {
+      priority:  6,
+      dedup_key: `notify_loan_due_alerts:${dateStr}`,
+    });
+  }
+
   // ── 1st of month 08:00 UTC — prune old jobs ───────────────────
   if (date === 1 && hour === 8) {
     const { pruneOldJobs } = await import('./db');
     await pruneOldJobs(30).catch(() => {}); // fire and forget
+
+    // ── 1st of month 08:00 UTC (11:00 EAT) — contribution-reminders ──
+    // Nudge members who didn't contribute in the previous calendar
+    // month. Dedup keyed at month granularity so even repeated
+    // 5-min ticks within the same hour won't re-enqueue.
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.notify_contribution_reminders = await safe('notify_contribution_reminders', {}, {
+      priority:  5,
+      dedup_key: `notify_contribution_reminders:${monthStr}`,
+    });
   }
 
   return queued;

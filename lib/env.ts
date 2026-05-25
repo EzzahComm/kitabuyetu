@@ -55,11 +55,15 @@ const envSchema = z.object({
   TEXTSMS_PARTNER_ID: z.string().optional(),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────
-  // All three optional so the service falls back to dry_run mode when unset.
+  // All five optional so the service falls back to dry_run mode when unset.
   WHATSAPP_PHONE_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_BUSINESS_ID: z.string().optional(),
   WHATSAPP_GRAPH_VERSION: z.string().default('v18.0'),
+  // Webhook (E10.2): VERIFY_TOKEN echoed back during the Meta subscribe handshake;
+  // APP_SECRET signs the POST payload as X-Hub-Signature-256: sha256=<hex(hmac)>.
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
 
   // ── Email ─────────────────────────────────────────────────────────────────
   EMAIL_PROVIDER: z
