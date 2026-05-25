@@ -16,21 +16,27 @@ async function checkRateLimit(ip: string): Promise<boolean> {
     const base  = `https://${url.hostname}`;
     const key   = `rl:api:${ip}`;
 
-    const countRes = await fetch(`${base}/incr/${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+    // INCR + EXPIRE NX in a single atomic pipeline call. EXPIRE NX only
+    // sets the TTL when the key has no TTL yet — so subsequent hits within
+    // the same window don't reset the clock (fixed-window behaviour) and
+    // the previous "stuck counter" failure mode (where a fire-and-forget
+    // EXPIRE silently failed and the key lived forever without TTL,
+    // permanently blocking the IP) is eliminated.
+    const res = await fetch(`${base}/pipeline`, {
+      method:  'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([
+        ['INCR',   key],
+        ['EXPIRE', key, String(RL_WINDOW), 'NX'],
+      ]),
     });
-    if (!countRes.ok) return true;
+    if (!res.ok) return true;
 
-    const { result: count } = await countRes.json() as { result: number };
-
-    if (count === 1) {
-      // Set TTL on the first hit of a new window — fire and forget
-      fetch(`${base}/expire/${encodeURIComponent(key)}/${RL_WINDOW}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
+    const body = await res.json() as Array<{ result?: number; error?: string }>;
+    const count = body[0]?.result ?? 0;
 
     return count <= RL_LIMIT;
   } catch {
@@ -90,11 +96,19 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
-  // These paths are intentionally unauthenticated
+  // These paths are intentionally unauthenticated.
+  // Webhooks are authenticated by their own signatures (HMAC-SHA256 for
+  // WhatsApp, svix for Resend, etc.) — NOT by JWT — because external
+  // providers don't have access tokens.
+  const isWebhook =
+    pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (e.g. WhatsApp Meta Cloud API)
+    pathname.startsWith('/api/v1/email/webhooks/');     // email provider callbacks (Resend, SendGrid)
+
   if (
     pathname.startsWith('/api/v1/auth/') ||
     pathname.startsWith('/api/v1/jurisdictions/') ||  // public reference data (counties/sub-counties/wards) for registration dropdowns
-    isMpesaCallback
+    isMpesaCallback ||
+    isWebhook
   ) {
     return NextResponse.next();
   }
