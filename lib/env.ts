@@ -76,8 +76,13 @@ const envSchema = z.object({
     .transform((v) => v === 'true')
     .default('false'),
   RESEND_API_KEY: z.string().optional(),
+  // Format from Resend dashboard: whsec_<base64>. Used by svix HMAC verify.
   RESEND_WEBHOOK_SECRET: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
+  // ECDSA P-256 public key from SendGrid Event Webhook settings.
+  // Either the raw base64 the dashboard shows, or the full PEM block —
+  // the verify helper accepts both.
+  SENDGRID_WEBHOOK_VERIFICATION_KEY: z.string().optional(),
 
   // ── Encryption ────────────────────────────────────────────────────────────
   ENCRYPTION_KEY: z
