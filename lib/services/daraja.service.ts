@@ -2,8 +2,32 @@
  * Safaricom Daraja Production API Client
  *
  * Covers every API required for production:
- *   OAuth, STK Push + Query, C2B v1/v2, B2C, B2B,
+ *   OAuth, STK Push + Query, C2B v1/v2, B2C, B2B, Dynamic QR,
  *   Reversal, Transaction Status, Account Balance, Bill Manager.
+ *
+ * Production endpoint map (verified against the Daraja "Go Live" portal
+ * URL list 2026-05-26). Sandbox swaps the host to `sandbox.safaricom.co.ke`
+ * but keeps the same paths.
+ *   OAuth                  POST  /oauth/v1/generate?grant_type=client_credentials
+ *   STK Push               POST  /mpesa/stkpush/v1/processrequest
+ *   STK Push Query         POST  /mpesa/stkpushquery/v1/query
+ *   C2B v1 Register URLs   POST  /mpesa/c2b/v1/registerurl
+ *   C2B v2 Register URLs   POST  /mpesa/c2b/v2/registerurl
+ *   B2C                    POST  /mpesa/b2c/v1/paymentrequest
+ *   B2B (all 3 commandIds) POST  /mpesa/b2b/v1/paymentrequest
+ *   Reversal               POST  /mpesa/reversal/v1/request
+ *   Transaction Status     POST  /mpesa/transactionstatus/v1/query
+ *   Account Balance        POST  /mpesa/accountbalance/v1/query
+ *   Dynamic QR Code        POST  /mpesa/qrcode/v1/generate
+ *   Bill Manager Optin     POST  /v1/billmanager-invoice/v1/billmanager-invoice/optin
+ *   Bill Manager Single    POST  /v1/billmanager-invoice/v1/billmanager-invoice/single-invoicing
+ *   Bill Manager Bulk      POST  /v1/billmanager-invoice/v1/billmanager-invoice/bulk-invoicing
+ *   Bill Manager Update    POST  /v1/billmanager-invoice/v1/billmanager-invoice/change-invoice
+ *   Bill Manager Update*N  POST  /v1/billmanager-invoice/v1/billmanager-invoice/change-invoices
+ *   Bill Manager Cancel    POST  /v1/billmanager-invoice/v1/billmanager-invoice/cancel-single-invoice
+ *   Bill Manager Cancel*N  POST  /v1/billmanager-invoice/v1/billmanager-invoice/cancel-bulk-invoice
+ *   Bill Manager Reconcile POST  /v1/billmanager-invoice/v1/billmanager-invoice/reconciliation
+ *   Bill Manager Onboard   POST  /v1/billmanager-invoice/v1/billmanager-invoice/change-optin-details
  *
  * Design:
  *  - OAuth token is cached in Redis (shared across instances) + in-memory
@@ -654,4 +678,55 @@ export async function reconcileBillManagerPayment(
       msisdn: normalizePhone(input.msisdn),
     }),
   );
+}
+
+// ─── Dynamic QR Code ─────────────────────────────────────────────────────────
+
+/**
+ * TrxCode — transaction type the QR encodes.
+ *   BG — Buy Goods (Till)
+ *   PB — PayBill (account-style)
+ *   WA — Withdraw at Agent
+ *   SB — Send to Business (paybill, no account)
+ *   SM — Send to Mobile (M-Pesa to M-Pesa)
+ *   SS — Send to Sortcode (bank-to-M-Pesa)
+ */
+export type QrTransactionCode = 'BG' | 'PB' | 'WA' | 'SB' | 'SM' | 'SS';
+
+export interface DynamicQrInput {
+  /** Display name shown in the customer's M-Pesa app on scan. Max 22 chars per Daraja. */
+  merchantName:    string;
+  /** Reference shown alongside the merchant name (e.g. invoice no., contribution period). */
+  refNo:           string;
+  /** Amount in KES (whole shillings, integer). 0 = customer enters amount. */
+  amount:          number;
+  /** Which M-Pesa flow to encode. */
+  trxCode:         QrTransactionCode;
+  /** Credit Party Identifier. For PB/SB this is the paybill; for BG it's the till; for SM it's a phone. */
+  cpi:             string;
+  /** Size in pixels. Daraja documents 300 as the default. */
+  size?:           number;
+}
+
+export interface DynamicQrResponse {
+  ResponseCode:        string;  // '00' = success
+  RequestID:           string;
+  ResponseDescription: string;
+  /** Base64-encoded PNG of the QR. UI renders via <img src="data:image/png;base64,…" />. */
+  QRCode:              string;
+}
+
+export async function generateDynamicQr(input: DynamicQrInput): Promise<DynamicQrResponse> {
+  const c = await makeClient();
+  const { data } = await withRetry(() =>
+    c.post<DynamicQrResponse>('/mpesa/qrcode/v1/generate', {
+      MerchantName: input.merchantName.slice(0, 22),
+      RefNo:        input.refNo,
+      Amount:       String(toMpesaAmount(input.amount)),
+      TrxCode:      input.trxCode,
+      CPI:          input.cpi,
+      Size:         String(input.size ?? 300),
+    }),
+  );
+  return data;
 }
