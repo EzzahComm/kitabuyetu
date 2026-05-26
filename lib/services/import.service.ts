@@ -19,6 +19,7 @@ import {
   type ImportKind,
 } from '@/lib/validators/import.schema';
 import type { PoolClient } from 'pg';
+import { linkMemberToGroup } from './group-membership';
 
 const MAX_ROWS    = parseInt(process.env.CSV_MAX_ROWS    ?? '5000', 10);
 const BCRYPT_RND  = parseInt(process.env.BCRYPT_ROUNDS   ?? '10',   10);
@@ -361,11 +362,22 @@ export const importService = {
             createdIds.push(memberId);
           }
 
-          await client.query(
-            `INSERT INTO group_members (group_id, member_id, role, joined_at, invited_by, status)
-             VALUES ($1, $2, $3, COALESCE($4::date, CURRENT_DATE), $5, 'active')`,
-            [ctx.groupId, memberId, row.role, row.joined_at, ctx.userId],
-          );
+          // Use the shared helper so person_id + member_code (both NOT NULL
+          // on group_members since mig 030) get populated the same way the
+          // register_group RPC does it.
+          await linkMemberToGroup(client, {
+            memberId,
+            groupId:     ctx.groupId,
+            role:        row.role,
+            joinedAt:    row.joined_at,
+            invitedBy:   ctx.userId,
+            firstName:   row.first_name,
+            lastName:    row.last_name,
+            phone:       row.phone,
+            nationalId:  row.national_id,
+            dateOfBirth: row.date_of_birth,
+            gender:      row.gender,
+          });
           imported++;
         } catch (err) {
           errors.push({

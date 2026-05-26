@@ -11,6 +11,7 @@ import type {
   MemberStatus, CreateNextOfKinInput, UpdateNextOfKinInput,
 } from '@/lib/validators/member.schema';
 import { billingService } from './billing.service';
+import { linkMemberToGroup } from './group-membership';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 
@@ -155,11 +156,21 @@ export const membersService = {
         memberId = rows[0].id;
       }
 
-      await client.query(
-        `INSERT INTO group_members (group_id, member_id, role, invited_by)
-         VALUES ($1, $2, $3, $4)`,
-        [ctx.groupId, memberId, data.role ?? 'member', ctx.userId],
-      );
+      // Use the shared helper so person_id + member_code (both NOT NULL
+      // on group_members since mig 030) get populated atomically, matching
+      // what the register_group RPC does for the first member of a group.
+      await linkMemberToGroup(client, {
+        memberId,
+        groupId:     ctx.groupId,
+        role:        data.role ?? 'member',
+        invitedBy:   ctx.userId,
+        firstName:   data.firstName,
+        lastName:    data.lastName,
+        phone,
+        nationalId:  data.nationalId,
+        dateOfBirth: data.dateOfBirth,
+        gender:      data.gender,
+      });
 
       const { rows } = await client.query<Member>(
         'SELECT * FROM members WHERE id = $1',
