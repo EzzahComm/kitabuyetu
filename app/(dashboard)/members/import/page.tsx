@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import { downloadAuthenticated } from '@/lib/utils/download';
 
 /**
  * Bulk-import wizard for members. Three states drive the UI:
@@ -167,10 +168,29 @@ export default function MembersImportPage() {
 // ── Idle: drag-drop + template download ─────────────────────────────────
 
 function IdleView({ onUpload }: { onUpload: (file: File) => void }) {
-  const [drag, setDrag] = useState(false);
-  const inputEl         = useRef<HTMLInputElement>(null);
+  const [drag, setDrag]         = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const inputEl                 = useRef<HTMLInputElement>(null);
+  const { toast }               = useToast();
 
   const handleFile = (f: File | undefined) => { if (f) onUpload(f); };
+
+  const downloadTemplate = async () => {
+    setDownloading(true);
+    try {
+      await downloadAuthenticated('/api/v1/import/template?type=members', {
+        fallbackFilename: 'kitabuyetu-members-template.csv',
+      });
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not download template',
+        description: (err as Error).message,
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -212,10 +232,15 @@ function IdleView({ onUpload }: { onUpload: (file: File) => void }) {
             <code className="ml-1 rounded bg-muted px-1">firstName</code>).
           </p>
           <p className="text-muted-foreground"><strong>Required:</strong> phone, first_name, last_name</p>
-          <Button asChild variant="outline" className="w-full">
-            <a href="/api/v1/import/template?type=members" download>
-              <Download className="mr-2 h-4 w-4" /> Download template
-            </a>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={downloadTemplate}
+            disabled={downloading}
+          >
+            {downloading
+              ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading…</>
+              : <><Download className="mr-2 h-4 w-4" /> Download template</>}
           </Button>
         </CardContent>
       </Card>

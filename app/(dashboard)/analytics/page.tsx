@@ -18,6 +18,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { api } from '@/lib/api/client';
+import { downloadAuthenticated } from '@/lib/utils/download';
+import { useToast } from '@/hooks/use-toast';
 
 type Period = '30d' | '90d' | '12mo' | 'all';
 type Tier   = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
@@ -72,6 +74,8 @@ const PORTFOLIO_COLORS = ['#16a34a', '#2563eb', '#a16207'];
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('12mo');
+  const [exporting, setExporting] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const summaryQ = useQuery<ExecutiveSummary>({
     queryKey: ['analytics', 'executive', period],
@@ -79,6 +83,25 @@ export default function AnalyticsPage() {
   });
 
   const s = summaryQ.data;
+
+  // Auth'd CSV download. A plain <a href download> would 401 because the
+  // JWT lives in localStorage and isn't sent on navigation requests.
+  const exportCsv = async (kind: string) => {
+    setExporting(kind);
+    try {
+      await downloadAuthenticated(`/api/v1/analytics/export?type=${kind}`, {
+        fallbackFilename: `${kind}-${new Date().toISOString().slice(0, 10)}.csv`,
+      });
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: `Export failed`,
+        description: (err as Error).message,
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -95,16 +118,18 @@ export default function AnalyticsPage() {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export CSV
+              <Button variant="outline" size="sm" disabled={exporting !== null}>
+                {exporting
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Exporting…</>
+                  : <><Download className="mr-2 h-4 w-4" /> Export CSV</>}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild><a href="/api/v1/analytics/export?type=members"        download>Members</a></DropdownMenuItem>
-              <DropdownMenuItem asChild><a href="/api/v1/analytics/export?type=contributions"  download>Contributions</a></DropdownMenuItem>
-              <DropdownMenuItem asChild><a href="/api/v1/analytics/export?type=loans"          download>Loans</a></DropdownMenuItem>
-              <DropdownMenuItem asChild><a href="/api/v1/analytics/export?type=share_holdings" download>Share holdings</a></DropdownMenuItem>
-              <DropdownMenuItem asChild><a href="/api/v1/analytics/export?type=credit_scores"  download>Credit scores</a></DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportCsv('members')}>Members</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportCsv('contributions')}>Contributions</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportCsv('loans')}>Loans</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportCsv('share_holdings')}>Share holdings</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportCsv('credit_scores')}>Credit scores</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <label htmlFor="period" className="text-xs text-muted-foreground ml-2">Period</label>

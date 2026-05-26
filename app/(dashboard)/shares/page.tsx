@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import { downloadAuthenticated } from '@/lib/utils/download';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -262,15 +263,26 @@ export default function SharesPage() {
                           <td className="px-4 py-2 text-right font-mono">{fmtMoney(t.total_amount)}</td>
                           <td className="px-4 py-2 font-mono text-xs">
                             {t.certificate_serial ? (
-                              <a
-                                href={`/api/v1/shares/transactions/${t.id}/certificate`}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Auth'd download — JWT is in localStorage,
+                                  // a plain <a target=_blank> would 401.
+                                  downloadAuthenticated(
+                                    `/api/v1/shares/transactions/${t.id}/certificate`,
+                                    {
+                                      fallbackFilename: `share-certificate-${t.certificate_serial}.pdf`,
+                                      openInNewTab: true,
+                                    },
+                                  ).catch((err: Error) =>
+                                    toast({ variant: 'destructive', title: 'Could not open certificate', description: err.message }),
+                                  );
+                                }}
                                 className="text-primary hover:underline"
                                 title="Open share certificate PDF"
                               >
                                 {t.certificate_serial}
-                              </a>
+                              </button>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
