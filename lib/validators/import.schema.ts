@@ -65,10 +65,80 @@ const blankableString = (max: number) =>
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
     z.string().max(max).optional(),
   );
+
+/**
+ * Normalise common date formats to ISO `YYYY-MM-DD`. Returns the original
+ * value unchanged if it doesn't match a known shape, so downstream
+ * `z.string().date()` produces a clear error on truly garbled input.
+ *
+ * Kenya locale convention is DD/MM/YYYY — disambiguation logic picks
+ * DD/MM in ambiguous cases (e.g. 03/04/2026 → 3 April), but switches to
+ * MM/DD when the first part is unambiguously > 12.
+ *
+ * Accepted shapes:
+ *   2026-05-26               (already ISO; passthrough)
+ *   26/05/2026  26-05-2026   (DD/MM/YYYY with / - or . as separator)
+ *   05/26/2026               (MM/DD/YYYY — only when day > 12 disambiguates)
+ *   26/05/26                 (DD/MM/YY — 2-digit year; >=70 → 19YY else 20YY)
+ *   2026/05/26               (YYYY/MM/DD)
+ */
+function normaliseDate(input: unknown): unknown {
+  if (typeof input !== 'string') return input;
+  const s = input.trim();
+  if (s === '') return undefined;
+
+  // Already ISO — let strict validator confirm calendar validity.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // YYYY/MM/DD (or - .): canonicalise separator.
+  const ymdMatch = /^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/.exec(s);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // DD/MM/YYYY or MM/DD/YYYY (4-digit year)
+  const dmyMatch = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/.exec(s);
+  if (dmyMatch) {
+    const a = parseInt(dmyMatch[1], 10);
+    const b = parseInt(dmyMatch[2], 10);
+    const y = dmyMatch[3];
+    // If a > 12 it must be a day; if b > 12 it must be a day; otherwise
+    // default to Kenya convention (DD/MM/YYYY).
+    const [day, month] = a > 12 && b <= 12 ? [a, b]
+                       : b > 12 && a <= 12 ? [b, a]
+                       : [a, b]; // DD/MM default
+    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  // DD/MM/YY (2-digit year)
+  const dmy2 = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/.exec(s);
+  if (dmy2) {
+    const a = parseInt(dmy2[1], 10);
+    const b = parseInt(dmy2[2], 10);
+    const yy = parseInt(dmy2[3], 10);
+    const fullYear = yy >= 70 ? 1900 + yy : 2000 + yy;
+    const [day, month] = a > 12 && b <= 12 ? [a, b]
+                       : b > 12 && a <= 12 ? [b, a]
+                       : [a, b];
+    return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  // Unknown shape — return as-is so the strict validator produces a clear
+  // error citing what was actually in the file.
+  return s;
+}
+
 const blankableDate =
   z.preprocess(
-    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
-    z.string().date('Date must be YYYY-MM-DD').optional(),
+    normaliseDate,
+    z.string().date('Date must be YYYY-MM-DD or DD/MM/YYYY').optional(),
+  );
+
+const requiredDate = (fieldName: string) =>
+  z.preprocess(
+    normaliseDate,
+    z.string().date(`${fieldName} must be a date in YYYY-MM-DD or DD/MM/YYYY format`),
   );
 
 const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
@@ -76,7 +146,7 @@ const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_o
 export const ContributionCsvRowSchema = z.object({
   member_phone:      z.string().min(1, 'member_phone is required'),
   amount:            z.coerce.number().positive('amount must be greater than zero'),
-  contribution_date: z.string().date('contribution_date must be YYYY-MM-DD'),
+  contribution_date: requiredDate('contribution_date'),
   payment_method:    z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
     z.enum(PAYMENT_METHODS).optional(),
@@ -150,7 +220,7 @@ export const LoanCsvRowSchema = z.object({
   principal_amount:  z.coerce.number().positive('principal_amount must be greater than zero'),
   interest_rate:     z.coerce.number().nonnegative('interest_rate must be ≥ 0').max(200, 'interest_rate is unrealistically high'),
   term_months:       z.coerce.number().int().positive('term_months must be a positive integer'),
-  disbursement_date: z.string().date('disbursement_date must be YYYY-MM-DD'),
+  disbursement_date: requiredDate('disbursement_date'),
   status:            z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
     z.enum(LOAN_HISTORICAL_STATUSES).default('active'),
@@ -316,9 +386,42 @@ export const MemberCsvRowSchema = z.object({
   alternative_phone: blankableString(20),
   county_name:       blankableString(60),
   occupation:        blankableString(150),
+  // Group-officer terms (chairperson, chair, president) all collapse to
+  // 'group_admin' since the membership role-set has no 'chair' equivalent.
+  // Common spelling variants are absorbed here so CSVs from existing
+  // committee paper records "just work".
   role:              z
-    .preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
-                z.enum(['group_admin', 'treasurer', 'secretary', 'member']).default('member')),
+    .preprocess(
+      (v) => {
+        if (typeof v !== 'string') return v;
+        const raw = v.trim().toLowerCase();
+        if (raw === '') return undefined;
+        const ROLE_ALIASES: Record<string, string> = {
+          // group_admin synonyms
+          chairperson:  'group_admin',
+          chairman:     'group_admin',
+          chairwoman:   'group_admin',
+          chair:        'group_admin',
+          president:    'group_admin',
+          admin:        'group_admin',
+          administrator:'group_admin',
+          leader:       'group_admin',
+          'vice-chair': 'group_admin',
+          vicechair:    'group_admin',
+          // treasurer synonyms
+          treasury:     'treasurer',
+          finance:      'treasurer',
+          // secretary synonyms
+          secretarial:  'secretary',
+          // member synonyms
+          regular:      'member',
+          ordinary:     'member',
+          standard:     'member',
+        };
+        return ROLE_ALIASES[raw] ?? raw;
+      },
+      z.enum(['group_admin', 'treasurer', 'secretary', 'member']).default('member'),
+    ),
   joined_at:         blankableDate,
 });
 
