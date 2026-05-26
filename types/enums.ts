@@ -33,23 +33,29 @@ export const PLAN_FEATURES: Record<PlanType, {
   apiAccess: boolean;
   multiGroup: boolean;
 }> = {
+  // ALL features unlocked on ALL plans. Pricing tiers are kept for
+  // billing/SMS-rate purposes only; product features are not gated.
+  // If feature gating is reintroduced later, this is the single place
+  // to edit. The original audit (2026-05-22) flagged the previous
+  // inverted matrix; opting for full-access blanket is the simplest
+  // consistent posture.
   starter: {
     maxMembers:       null,
-    historicalImport: false,
-    loanTracking:     false,
-    analytics:        false,
-    advancedReports:  false,
-    apiAccess:        false,
-    multiGroup:       false,
-  },
-  growth: {
-    maxMembers:       30,
     historicalImport: true,
     loanTracking:     true,
     analytics:        true,
-    advancedReports:  false,
-    apiAccess:        false,
-    multiGroup:       false,
+    advancedReports:  true,
+    apiAccess:        true,
+    multiGroup:       true,
+  },
+  growth: {
+    maxMembers:       null,
+    historicalImport: true,
+    loanTracking:     true,
+    analytics:        true,
+    advancedReports:  true,
+    apiAccess:        true,
+    multiGroup:       true,
   },
   enterprise: {
     maxMembers:       null,
