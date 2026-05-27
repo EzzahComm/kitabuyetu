@@ -30,6 +30,7 @@ interface RegisterGroupResult {
   group_id:       string;
   group_code:     string;
   group_name:     string;
+  group_status:   string;     // Phase D Part 2 — always 'pending_verification' now
   member_id:      string;
   member_code:    string;
   person_id:      string;
@@ -96,10 +97,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     // creator_role so a treasurer / secretary gets their role-appropriate JWT
     // instead of being elevated to group_admin.
     const accessToken = signAccessToken({
-      sub:      result.member_id,
-      groupId:  result.group_id,
-      role:     result.group_role as any,
-      personId: result.person_id,
+      sub:         result.member_id,
+      groupId:     result.group_id,
+      role:        result.group_role as any,
+      personId:    result.person_id,
+      groupStatus: result.group_status,
     });
     const { token: refreshToken } = signRefreshToken(result.member_id);
 
@@ -115,6 +117,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       registrationFee: number;
       groupCode:       string;
       memberCode:      string;
+      groupStatus:     string;
     } = {
       accessToken,
       refreshToken,
@@ -132,10 +135,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode:   result.member_code,
         personId:     result.person_id,
         officerRole:  result.creator_role,
+        groupStatus:  result.group_status,
       },
       registrationFee: REGISTRATION_FEE,
       groupCode:       result.group_code,
       memberCode:      result.member_code,
+      groupStatus:     result.group_status,
     };
 
     return created(response);

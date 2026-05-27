@@ -26,6 +26,17 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     `,
   },
 
+  group_verification_link: {
+    subject: 'Verify your Kitabu Yetu group',
+    body: `
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Verify your group</h2>
+      <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{name}}</strong>,</p>
+      <p style="margin:0 0 20px;color:#374151;">Click the button below to verify <strong>{{groupName}}</strong> ({{groupCode}}) and activate your Kitabu Yetu account.</p>
+      <a href="{{verifyUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify group</a>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 24 hours. If you did not register a group on Kitabu Yetu, please ignore this email.</p>
+    `,
+  },
+
   password_reset: {
     subject: 'Reset your Kitabu Yetu password',
     body: `

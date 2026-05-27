@@ -60,6 +60,8 @@ interface KyJwtPayload extends JWTPayload {
   // Tenant claims
   groupId?:      string;
   role?:         string;
+  // Phase D Part 2 — lifecycle gate. Missing = legacy token, treat as 'active'.
+  groupStatus?:  string;
   // Backoffice claims
   platformRole?: string;
   ngoId?:        string;
@@ -177,7 +179,30 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
     requestHeaders.set('x-group-id', payload.groupId);
     requestHeaders.set('x-role',     payload.role);
+    const groupStatus = payload.groupStatus ?? 'active';
+    requestHeaders.set('x-group-status', groupStatus);
     if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
+
+    // Phase D Part 2 — gate feature routes while group is awaiting
+    // verification. The verify endpoints + minimal session-management
+    // endpoints stay open so the registrant can complete the flow.
+    if (groupStatus === 'pending_verification') {
+      const allowedPending =
+        pathname.startsWith('/api/v1/auth/me')      ||
+        pathname.startsWith('/api/v1/auth/refresh') ||
+        pathname.startsWith('/api/v1/auth/logout')  ||
+        pathname.startsWith('/api/v1/auth/verify/');
+      if (!allowedPending) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:   'Group not verified yet — complete verification at /verify-group',
+            code:    'PENDING_VERIFICATION',
+          },
+          { status: 403 },
+        );
+      }
+    }
   } else {
     if (!payload.platformRole) {
       return unauthorized('Incomplete backoffice token payload');

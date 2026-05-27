@@ -47,6 +47,8 @@ export interface LoginResponse {
     memberCode?:  string;   // e.g. KY000000300001
     personId?:    string;   // cross-group identity (person table)
     officerRole?: string;   // formal governance role from group_officers (chair/sec/treas/etc.)
+    // ── Phase D Part 2: group lifecycle ──
+    groupStatus?: string;   // 'pending_verification' | 'active' | …
   };
 }
 

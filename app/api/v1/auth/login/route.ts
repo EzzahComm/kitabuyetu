@@ -176,10 +176,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       : chosen.group_role;
 
     const accessToken = signAccessToken({
-      sub:       member.id,
-      groupId:   chosen.group_id,
-      role:      effectiveRole as any,
-      personId:  chosen.person_id,
+      sub:         member.id,
+      groupId:     chosen.group_id,
+      role:        effectiveRole as any,
+      personId:    chosen.person_id,
+      groupStatus: chosen.group_status,
     });
 
     const { token: refreshToken } = signRefreshToken(member.id);
@@ -216,6 +217,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode:   chosen.member_code,
         personId:     chosen.person_id,
         officerRole:  chosen.officer_role ?? undefined,
+        groupStatus:  chosen.group_status,
       },
     };
 

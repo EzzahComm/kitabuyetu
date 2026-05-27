@@ -28,17 +28,18 @@ export function extractVars(template: string): string[] {
 // ─── Built-in template keys ───────────────────────────────────────────────────
 
 export const TEMPLATE_KEYS = {
-  CONTRIBUTION_RECEIVED: 'contribution_received',
-  LOAN_APPROVED:         'loan_approved',
-  LOAN_DISBURSED:        'loan_disbursed',
-  LOAN_REPAYMENT_DUE:    'loan_repayment_due',
-  LOAN_OVERDUE:          'loan_overdue',
-  MEETING_REMINDER:      'meeting_reminder',
-  BIRTHDAY:              'birthday',
-  PAYMENT_CONFIRMED:     'payment_confirmed',
-  WELCOME:               'welcome',
-  OTP:                   'otp',
-  GROUP_ANNOUNCEMENT:    'group_announcement',
+  CONTRIBUTION_RECEIVED:   'contribution_received',
+  LOAN_APPROVED:           'loan_approved',
+  LOAN_DISBURSED:          'loan_disbursed',
+  LOAN_REPAYMENT_DUE:      'loan_repayment_due',
+  LOAN_OVERDUE:            'loan_overdue',
+  MEETING_REMINDER:        'meeting_reminder',
+  BIRTHDAY:                'birthday',
+  PAYMENT_CONFIRMED:       'payment_confirmed',
+  WELCOME:                 'welcome',
+  OTP:                     'otp',
+  GROUP_ANNOUNCEMENT:      'group_announcement',
+  GROUP_VERIFICATION_OTP:  'group_verification_otp',
 } as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[keyof typeof TEMPLATE_KEYS];

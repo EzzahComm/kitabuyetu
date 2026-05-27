@@ -87,6 +87,22 @@ export const AdminLoginMfaVerifySchema = z.object({
   label:     z.string().max(80).optional(),
 });
 
+// Phase D Part 2 — registrant verification.
+export const VerifyStartSchema = z.object({
+  channel:     z.enum(['email', 'sms']),
+  destination: z.string().min(5).max(255),
+});
+
+// Only the SMS path goes through /verify/complete — email links are consumed
+// by the public GET /verify/email route since the token itself is the proof.
+export const VerifyCompleteSchema = z.object({
+  channel: z.literal('sms'),
+  code:    z.string().length(6).regex(/^\d{6}$/, 'OTP must be 6 digits'),
+});
+
+export type VerifyStartInput    = z.infer<typeof VerifyStartSchema>;
+export type VerifyCompleteInput = z.infer<typeof VerifyCompleteSchema>;
+
 export const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });

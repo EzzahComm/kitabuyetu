@@ -13,12 +13,16 @@ import type { MemberRole, PlatformRole } from '@/types/enums';
 export type TokenAudience = 'tenant' | 'backoffice';
 
 export interface TenantAccessTokenPayload {
-  sub:        string;            // member id
-  aud?:       'tenant';          // optional for backward compat
-  groupId:    string;            // active group context
-  role:       MemberRole | PlatformRole;
-  personId?:  string;            // shared cross-group identity (since Phase A)
-  ngoId?:     string;
+  sub:         string;            // member id
+  aud?:        'tenant';          // optional for backward compat
+  groupId:     string;            // active group context
+  role:        MemberRole | PlatformRole;
+  personId?:   string;            // shared cross-group identity (since Phase A)
+  ngoId?:      string;
+  // Phase D Part 2 — group lifecycle. The proxy gates non-verify routes when
+  // this is 'pending_verification'. Optional for backward compatibility with
+  // tokens issued before this field existed (they're treated as 'active').
+  groupStatus?: string;
 }
 
 export interface BackofficeAccessTokenPayload {
