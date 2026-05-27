@@ -69,6 +69,8 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
     'Your KitabuYetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
   group_announcement:
     '{{group_name}}: {{message}}',
+  group_verification_otp:
+    'KitabuYetu: Verify your group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
 };
 
 /** Render a named built-in template with the given variables. */

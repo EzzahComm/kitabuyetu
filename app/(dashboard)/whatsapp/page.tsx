@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -77,10 +77,10 @@ export default function WhatsAppPage() {
   const log     = logQ.data?.items ?? [];
   const configured = statusQ.data?.configured ?? false;
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<ComposeForm>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<ComposeForm>({
     resolver: zodResolver(composeSchema),
   });
-  const bodyVal = watch('body') ?? '';
+  const bodyVal = useWatch({ control, name: 'body' }) ?? '';
 
   const onSubmit = async (v: ComposeForm) => {
     try {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -374,11 +374,11 @@ function NewTransactionDialog({ open, onOpenChange, classes, onPosted }: {
   classes: ShareClass[]; onPosted: () => void;
 }) {
   const { toast } = useToast();
-  const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm<TxnForm>({
+  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<TxnForm>({
     resolver: zodResolver(txnSchema),
     defaultValues: { type: 'purchase' },
   });
-  const type = watch('type');
+  const type = useWatch({ control, name: 'type' });
 
   // Member list for picker. Cap at 200 active members — typeahead is a P2 feature.
   const membersQ = useQuery<{ items: MemberRow[] }>({

@@ -44,21 +44,38 @@ const envSchema = z.object({
   MPESA_CONSUMER_SECRET: z.string().min(1, 'MPESA_CONSUMER_SECRET is required'),
   MPESA_SHORTCODE: z.string().min(1, 'MPESA_SHORTCODE is required'),
   MPESA_PASSKEY: z.string().min(1, 'MPESA_PASSKEY is required'),
-  MPESA_CALLBACK_URL: z.string().url('MPESA_CALLBACK_URL must be a valid URL'),
+  // Base URL of the deployment (no trailing slash, no path).
+  // All callback paths are derived as `${MPESA_CALLBACK_BASE_URL}/api/v1/mpesa/...`
+  // Safaricom rejects http:// for production shortcodes — HTTPS enforced below
+  // when MPESA_ENV=production.
+  MPESA_CALLBACK_BASE_URL: z
+    .string()
+    .url('MPESA_CALLBACK_BASE_URL must be a valid URL')
+    .refine((u) => !u.endsWith('/'), 'MPESA_CALLBACK_BASE_URL must not end with a slash'),
   MPESA_B2C_INITIATOR_NAME: z.string().optional(),
+  // Plaintext initiator password — RSA-encrypted at boot against Safaricom's
+  // public cert by lib/utils/mpesa-credential.ts. Operators who prefer to
+  // pre-encrypt and paste a static SecurityCredential blob can still do so
+  // via MPESA_B2C_SECURITY_CREDENTIAL.
   MPESA_B2C_INITIATOR_PASSWORD: z.string().optional(),
-  MPESA_B2C_QUEUE_TIMEOUT_URL: z.string().url().optional(),
-  MPESA_B2C_RESULT_URL: z.string().url().optional(),
+  // Sub-account shortcodes (Safaricom Daraja "Organization Accounts").
+  // Used for reconciliation tracing — the API call still uses MPESA_SHORTCODE
+  // as PartyA, but every B2C row records which sub-account funded it.
+  MPESA_WORKING_SHORTCODE:           z.string().optional(),
+  MPESA_UTILITY_SHORTCODE:           z.string().optional(),
+  MPESA_LOAN_DISBURSEMENT_SHORTCODE: z.string().optional(),
+  MPESA_CHARGES_SHORTCODE:           z.string().optional(),
+  MPESA_SETTLEMENT_SHORTCODE:        z.string().optional(),
+  MPESA_AIRTIME_SHORTCODE:           z.string().optional(),
+  // Pre-encrypted SecurityCredential (optional). When set, takes precedence
+  // over the runtime RSA encryption of MPESA_B2C_INITIATOR_PASSWORD.
+  MPESA_B2C_SECURITY_CREDENTIAL: z.string().optional(),
 
-  // ── SMS (Africa's Talking) ────────────────────────────────────────────────
-  AT_API_KEY: z.string().min(1, 'AT_API_KEY is required'),
-  AT_USERNAME: z.string().default('sandbox'),
-  AT_SENDER_ID: z.string().default('KitabuYetu'),
-
-  // ── SMS (TextSMS Kenya — alternative provider) ────────────────────────────
-  TEXTSMS_API_KEY: z.string().optional(),
-  TEXTSMS_SENDER_ID: z.string().optional(),
-  TEXTSMS_PARTNER_ID: z.string().optional(),
+  // ── SMS (TextSMS Kenya — primary provider) ────────────────────────────────
+  // All three required for production. Service falls back to dry_run when unset.
+  TEXTSMS_API_KEY:    z.string().min(1, 'TEXTSMS_API_KEY is required'),
+  TEXTSMS_SENDER_ID: z.string().default('KitabuYetu'),
+  TEXTSMS_PARTNER_ID: z.string().min(1, 'TEXTSMS_PARTNER_ID is required'),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────
   // All five optional so the service falls back to dry_run mode when unset.
@@ -116,6 +133,31 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // Production Daraja shortcodes ONLY accept HTTPS callback URLs.
+  // Sandbox tolerates http:// (and ngrok plaintext tunnels), so we only
+  // gate this in production.
+  if (data.MPESA_ENV === 'production' && !data.MPESA_CALLBACK_BASE_URL.startsWith('https://')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['MPESA_CALLBACK_BASE_URL'],
+      message: 'Must use https:// when MPESA_ENV=production (Safaricom rejects plaintext callbacks)',
+    });
+  }
+  // Production B2C needs either a pre-encrypted SecurityCredential blob
+  // OR the plaintext initiator password (we RSA-encrypt at boot).
+  if (
+    data.MPESA_ENV === 'production' &&
+    data.MPESA_B2C_INITIATOR_NAME &&
+    !data.MPESA_B2C_SECURITY_CREDENTIAL &&
+    !data.MPESA_B2C_INITIATOR_PASSWORD
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['MPESA_B2C_SECURITY_CREDENTIAL'],
+      message: 'Set MPESA_B2C_INITIATOR_PASSWORD (auto-encrypted) or MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) for production B2C',
+    });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

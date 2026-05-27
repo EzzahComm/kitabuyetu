@@ -250,7 +250,7 @@ Rotate ALL credentials that may have been exposed in `.env`/`.env.local`:
 - [ ] Confirm `welfare_requests` table FK constraints now reference `members`
 - [ ] Test M-Pesa STK push in production sandbox before go-live
 - [ ] Set `NEXT_PUBLIC_APP_URL` to production domain
-- [ ] Verify `MPESA_CALLBACK_URL` points to production HTTPS URL
+- [ ] Verify `MPESA_CALLBACK_BASE_URL` points to production HTTPS URL (no trailing slash)
 
 ### Pre-Deployment (Recommended)
 

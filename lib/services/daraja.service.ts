@@ -41,6 +41,7 @@ import axios, { AxiosInstance } from 'axios';
 import { redis } from '@/lib/redis';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import { normalizePhone } from '@/lib/utils/phone';
+import { getSecurityCredential } from '@/lib/utils/mpesa-credential';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -50,14 +51,13 @@ const BASE_URL = IS_SANDBOX
   ? 'https://sandbox.safaricom.co.ke'
   : 'https://api.safaricom.co.ke';
 
-const CONSUMER_KEY        = process.env.MPESA_CONSUMER_KEY!;
-const CONSUMER_SECRET     = process.env.MPESA_CONSUMER_SECRET!;
-const PASSKEY             = process.env.MPESA_PASSKEY!;
-const SHORTCODE           = process.env.MPESA_SHORTCODE!;
-const B2C_SHORTCODE       = process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHORTCODE!;
-const CALLBACK_BASE       = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/, '');
-const INITIATOR_NAME      = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
-const SECURITY_CREDENTIAL = process.env.MPESA_B2C_SECURITY_CREDENTIAL ?? '';
+const CONSUMER_KEY    = process.env.MPESA_CONSUMER_KEY!;
+const CONSUMER_SECRET = process.env.MPESA_CONSUMER_SECRET!;
+const PASSKEY         = process.env.MPESA_PASSKEY!;
+const SHORTCODE       = process.env.MPESA_SHORTCODE!;
+const B2C_SHORTCODE   = process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHORTCODE!;
+const CALLBACK_BASE   = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/, '');
+const INITIATOR_NAME  = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
 
 // Safaricom's published production IP ranges for callback validation
 const DEFAULT_SAFARICOM_IPS = [
@@ -310,7 +310,7 @@ export async function initiateB2C(input: B2CInput): Promise<B2CResponse & { orig
     }>('/mpesa/b2c/v1/paymentrequest', {
       OriginatorConversationID: origId,
       InitiatorName:            INITIATOR_NAME,
-      SecurityCredential:       SECURITY_CREDENTIAL,
+      SecurityCredential:       getSecurityCredential(),
       CommandID:                input.commandId,
       Amount:                   amount,
       PartyA:                   B2C_SHORTCODE,
@@ -362,7 +362,7 @@ export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
   const payload: Record<string, unknown> = {
     OriginatorConversationID: origId,
     Initiator:                INITIATOR_NAME,
-    SecurityCredential:       SECURITY_CREDENTIAL,
+    SecurityCredential:       getSecurityCredential(),
     CommandID:                input.commandId,
     SenderIdentifierType:     '4',
     RecieverIdentifierType:   input.receiverIdentifier,
@@ -426,7 +426,7 @@ export async function requestReversal(input: ReversalInput): Promise<ReversalRes
       ResponseDescription:      string;
     }>('/mpesa/reversal/v1/request', {
       Initiator:              INITIATOR_NAME,
-      SecurityCredential:     SECURITY_CREDENTIAL,
+      SecurityCredential:     getSecurityCredential(),
       CommandID:              'TransactionReversal',
       TransactionID:          input.transactionId,
       Amount:                 amount,
@@ -482,7 +482,7 @@ export async function queryTransactionStatus(
       ResponseDescription:      string;
     }>('/mpesa/transactionstatus/v1/query', {
       Initiator:                INITIATOR_NAME,
-      SecurityCredential:       SECURITY_CREDENTIAL,
+      SecurityCredential:       getSecurityCredential(),
       CommandID:                'TransactionStatusQuery',
       TransactionID:            input.transactionId,
       OriginatorConversationID: origId,
@@ -526,7 +526,7 @@ export async function queryAccountBalance(shortcode = SHORTCODE): Promise<Balanc
       ResponseDescription:      string;
     }>('/mpesa/accountbalance/v1/query', {
       Initiator:          INITIATOR_NAME,
-      SecurityCredential: SECURITY_CREDENTIAL,
+      SecurityCredential: getSecurityCredential(),
       CommandID:          'AccountBalance',
       PartyA:             shortcode,
       IdentifierType:     '4',

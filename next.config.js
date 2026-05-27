@@ -9,7 +9,6 @@ const nextConfig = {
     'jsonwebtoken',
     'bcryptjs',
     'nodemailer',
-    'africastalking',
   ],
   turbopack: {
     root: path.join(__dirname),

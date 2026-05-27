@@ -56,17 +56,17 @@ env:
   CRON_SECRET:     ci_placeholder_cron__minimum_32_chars_
 
   # ── M-Pesa ──────────────────────────────────────────────────────────────────
-  MPESA_ENV:             sandbox
-  MPESA_CONSUMER_KEY:    ci_fake
-  MPESA_CONSUMER_SECRET: ci_fake
-  MPESA_SHORTCODE:       '174379'
-  MPESA_PASSKEY:         ci_fake
-  MPESA_CALLBACK_URL:    https://kitabuyetu.vercel.app/api/v1/mpesa/callback
+  MPESA_ENV:               sandbox
+  MPESA_CONSUMER_KEY:      ci_fake
+  MPESA_CONSUMER_SECRET:   ci_fake
+  MPESA_SHORTCODE:         '174379'
+  MPESA_PASSKEY:           ci_fake
+  MPESA_CALLBACK_BASE_URL: https://kitabuyetu.vercel.app
 
-  # ── SMS ─────────────────────────────────────────────────────────────────────
-  AT_API_KEY:    ci_fake
-  AT_USERNAME:   sandbox
-  AT_SENDER_ID:  KitabuYetu
+  # ── SMS (TextSMS Kenya) ─────────────────────────────────────────────────────
+  TEXTSMS_API_KEY:    ci_fake
+  TEXTSMS_SENDER_ID:  KitabuYetu
+  TEXTSMS_PARTNER_ID: ci_fake
 
   # ── Email ───────────────────────────────────────────────────────────────────
   EMAIL_PROVIDER: resend

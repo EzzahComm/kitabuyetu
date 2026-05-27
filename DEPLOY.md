@@ -113,8 +113,9 @@ Required variables:
 | `MPESA_CONSUMER_SECRET` | Safaricom Daraja portal |
 | `MPESA_SHORTCODE` | Safaricom Daraja portal |
 | `MPESA_PASSKEY` | Safaricom Daraja portal |
-| `MPESA_CALLBACK_URL` | `https://your-app.vercel.app/api/v1/mpesa/callback` |
-| `AT_API_KEY` | Africa's Talking dashboard |
+| `MPESA_CALLBACK_BASE_URL` | `https://your-app.vercel.app` (no trailing slash, callback paths derived) |
+| `TEXTSMS_API_KEY` | TextSMS Kenya dashboard |
+| `TEXTSMS_PARTNER_ID` | TextSMS Kenya dashboard |
 | `RESEND_API_KEY` | Resend dashboard |
 | `EMAIL_FROM` | Verified sender address in Resend |
 | `NEXT_PUBLIC_APP_URL` | Your Vercel deployment URL |
@@ -243,7 +244,7 @@ SELECT cron.alter_job(
 
 - [ ] Set `MPESA_ENV=production` in Vercel env vars
 - [ ] Update shortcode + passkey to production values
-- [ ] Ensure `MPESA_CALLBACK_URL` is your production Vercel URL
+- [ ] Ensure `MPESA_CALLBACK_BASE_URL` is your production Vercel URL (HTTPS, no trailing slash)
 - [ ] Register callback URL (one-time): `POST /api/v1/mpesa/register-urls` with your Bearer token
 - [ ] Vercel deployment IPs are dynamic — do NOT whitelist Vercel IPs at Safaricom.  
       Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).

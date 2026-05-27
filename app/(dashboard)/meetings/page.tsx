@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting } from '@/hooks/use-meetings';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,7 @@ export default function MeetingsPage() {
     resolver: zodResolver(createSchema),
     defaultValues: { meetingType: 'regular', isVirtual: false },
   });
+  const isVirtual = useWatch({ control: form.control, name: 'isVirtual' });
 
   const onSubmit = async (values: any) => {
     // Convert datetime-local value to ISO string
@@ -202,7 +203,7 @@ export default function MeetingsPage() {
               <input type="checkbox" id="isVirtual" {...form.register('isVirtual')} className="rounded" />
               <Label htmlFor="isVirtual" className="cursor-pointer">Virtual meeting</Label>
             </div>
-            {form.watch('isVirtual') ? (
+            {isVirtual ? (
               <div className="space-y-1">
                 <Label>Meeting Link</Label>
                 <Input type="url" placeholder="https://zoom.us/j/..." {...form.register('meetingLink')} />

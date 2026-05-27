@@ -319,6 +319,7 @@ export interface B2CParams {
   groupId:     string;
   loanId?:     string;
   disbursedBy?: string;
+  remarks?:    string;
 }
 
 export interface B2CResult {
@@ -330,12 +331,14 @@ export interface B2CResult {
 export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
   const phone     = normalizePhone(params.phone);
   const amountStr = toMpesaAmount(params.amount).toFixed(2);
+  const remarks   = params.remarks ?? params.occasion;
 
   const res = await _b2c({
     phone,
     amount:    params.amount,
     commandId: params.commandId,
-    remarks:   params.occasion,
+    remarks,
+    occasion:  params.occasion,
   });
 
   await withAdminDb(async (db) => {
@@ -346,7 +349,7 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
        VALUES ($1,'b2c','outbound',$2,$3,'initiated',$4,$5,$6)
        RETURNING id`,
       [
-        params.groupId, phone, amountStr, params.occasion,
+        params.groupId, phone, amountStr, remarks,
         res.conversationId, res.originatorConversationId,
       ],
     );
@@ -356,11 +359,12 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
          (group_id, mpesa_transaction_id, conversation_id,
           originator_conversation_id, phone, amount, command_id,
           occasion, remarks, status, loan_id, disbursed_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,'initiated',$9,$10)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'initiated',$10,$11)`,
       [
         params.groupId, txRows[0]?.id ?? null,
         res.conversationId, res.originatorConversationId,
-        phone, amountStr, params.commandId, params.occasion,
+        phone, amountStr, params.commandId,
+        params.occasion, remarks,
         params.loanId ?? null, params.disbursedBy ?? null,
       ],
     );
