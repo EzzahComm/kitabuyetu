@@ -238,6 +238,19 @@ COMMENT ON COLUMN groups.mpesa_paybill_prefix IS
   'BillRefNumber prefix that routes payments to this group. Default KYT- for the platform; customisable for white-label deployments.';
 
 -- ---------------------------------------------------------------------------
+-- 7b. Allow system-posted journal entries (created_by IS NULL)
+-- ---------------------------------------------------------------------------
+-- M-Pesa callbacks post journal entries with no authenticated user. The
+-- previous NOT NULL on created_by forced every poster to be a real member.
+-- We relax this so system postings (callbacks, cron jobs) can write directly.
+-- Audit views that expect created_by must now COALESCE to a 'system' label.
+ALTER TABLE journal_entries
+  ALTER COLUMN created_by DROP NOT NULL;
+
+COMMENT ON COLUMN journal_entries.created_by IS
+  'Member who created the entry. NULL when created by the system (M-Pesa callback, cron, etc.).';
+
+-- ---------------------------------------------------------------------------
 -- 8. is_test sandbox parity flags
 -- ---------------------------------------------------------------------------
 -- When MPESA_ENV=sandbox, all auto-generated M-Pesa rows and the journal

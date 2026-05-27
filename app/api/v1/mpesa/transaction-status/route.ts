@@ -89,14 +89,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       });
 
       // Record in master ledger
+      const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
       await withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_transactions
              (group_id, transaction_type, direction, amount,
-              status, description, originator_conversation_id, conversation_id)
-           VALUES ($1,'transaction_status','inbound',0,'initiated',$2,$3,$4)
+              status, description, originator_conversation_id, conversation_id, is_test)
+           VALUES ($1,'transaction_status','inbound',0,'initiated',$2,$3,$4,$5)
            ON CONFLICT (originator_conversation_id) DO NOTHING`,
-          [auth.groupId, input.remarks, res.originatorConversationId, res.conversationId],
+          [auth.groupId, input.remarks, res.originatorConversationId, res.conversationId, isSandbox],
         ),
       );
 

@@ -113,7 +113,7 @@ Required variables:
 | `MPESA_CONSUMER_SECRET` | Safaricom Daraja portal |
 | `MPESA_SHORTCODE` | Safaricom Daraja portal |
 | `MPESA_PASSKEY` | Safaricom Daraja portal |
-| `MPESA_CALLBACK_BASE_URL` | `https://your-app.vercel.app` (no trailing slash, callback paths derived) |
+| `MPESA_CALLBACK_BASE_URL` | `https://kitabuyetu.vercel.app` (no trailing slash, callback paths derived) |
 | `TEXTSMS_API_KEY` | TextSMS Kenya dashboard |
 | `TEXTSMS_PARTNER_ID` | TextSMS Kenya dashboard |
 | `RESEND_API_KEY` | Resend dashboard |
@@ -130,10 +130,10 @@ vercel --prod
 
 ```bash
 # Health check
-curl -I https://your-app.vercel.app/api/v1/groups
+curl -I https://kitabuyetu.vercel.app/api/v1/groups
 
 # Manual cron trigger (replace YOUR_WORKER_SECRET)
-curl -X POST https://your-app.vercel.app/api/v1/workers/cron \
+curl -X POST https://kitabuyetu.vercel.app/api/v1/workers/cron \
   -H "Authorization: Bearer YOUR_WORKER_SECRET"
 ```
 
@@ -272,11 +272,11 @@ git push origin main   # auto-deploys if connected to GitHub
 supabase db push
 
 # Trigger cron manually (uses WORKER_SECRET — separate from CRON_SECRET)
-curl -X POST https://your-app.vercel.app/api/v1/workers/cron \
+curl -X POST https://kitabuyetu.vercel.app/api/v1/workers/cron \
   -H "Authorization: Bearer YOUR_WORKER_SECRET"
 
 # Trigger via the pg_cron endpoint (uses CRON_SECRET)
-curl -X POST https://your-app.vercel.app/api/cron \
+curl -X POST https://kitabuyetu.vercel.app/api/cron \
   -H "Authorization: Bearer YOUR_CRON_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"source":"manual"}'

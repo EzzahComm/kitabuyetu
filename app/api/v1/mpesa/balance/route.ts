@@ -51,14 +51,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       const res = await queryAccountBalance(shortcode);
 
       // Record the query in master ledger so we can correlate the callback
+      const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
       await withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_transactions
              (group_id, transaction_type, direction, amount, status, description,
-              originator_conversation_id, conversation_id)
-           VALUES ($1,'balance_query','outbound',0,'initiated','Account balance query',$2,$3)
+              originator_conversation_id, conversation_id, is_test)
+           VALUES ($1,'balance_query','outbound',0,'initiated','Account balance query',$2,$3,$4)
            ON CONFLICT (originator_conversation_id) DO NOTHING`,
-          [auth.groupId, res.originatorConversationId, res.conversationId],
+          [auth.groupId, res.originatorConversationId, res.conversationId, isSandbox],
         ),
       );
 

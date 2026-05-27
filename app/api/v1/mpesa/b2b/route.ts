@@ -72,14 +72,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       const amountStr = toMpesaAmount(input.amount).toFixed(2);
 
       // Persist in both master ledger and B2B-specific table
+      const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
       await withAdminDb(async (db) => {
         const { rows: txRows } = await db.query<{ id: string }>(
           `INSERT INTO mpesa_transactions
              (group_id, transaction_type, direction, amount, status,
-              description, conversation_id, originator_conversation_id)
-           VALUES ($1,'b2b','outbound',$2,'initiated',$3,$4,$5)
+              description, conversation_id, originator_conversation_id, is_test)
+           VALUES ($1,'b2b','outbound',$2,'initiated',$3,$4,$5,$6)
            RETURNING id`,
-          [auth.groupId, amountStr, input.remarks, res.conversationId, res.originatorConversationId],
+          [auth.groupId, amountStr, input.remarks, res.conversationId, res.originatorConversationId, isSandbox],
         );
         await db.query(
           `INSERT INTO mpesa_b2b_transactions
