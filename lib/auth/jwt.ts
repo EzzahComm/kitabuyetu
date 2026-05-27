@@ -3,19 +3,38 @@ import crypto from 'crypto';
 import { env } from '@/lib/env';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
-interface AccessTokenPayload {
-  sub:        string;  // member id (auth identity)
-  groupId:    string;  // active group context (one of the member's group_members rows)
+// ── Audience marker (Phase 1 of backoffice isolation) ──────────────────
+// Tenant tokens are issued by /api/v1/auth/login and carry group context.
+// Backoffice tokens are issued by /api/v1/auth/admin/login and carry
+// platform-staff context (no group). The proxy enforces audience per URL
+// prefix: /api/v1/* requires 'tenant', /api/admin/* requires 'backoffice'.
+// Legacy tokens without an `aud` claim are treated as 'tenant' for backward
+// compatibility (will be phased out as TTLs expire).
+export type TokenAudience = 'tenant' | 'backoffice';
+
+export interface TenantAccessTokenPayload {
+  sub:        string;            // member id
+  aud?:       'tenant';          // optional for backward compat
+  groupId:    string;            // active group context
   role:       MemberRole | PlatformRole;
-  personId?:  string;  // shared cross-group identity (since Phase A); optional for
-                       // pre-Phase-A tokens still in circulation
+  personId?:  string;            // shared cross-group identity (since Phase A)
   ngoId?:     string;
 }
 
+export interface BackofficeAccessTokenPayload {
+  sub:          string;          // member id
+  aud:          'backoffice';
+  platformRole: PlatformRole;    // super_admin | support | ngo_coordinator
+  ngoId?:       string;          // scope for ngo_coordinator
+}
+
+export type AccessTokenPayload = TenantAccessTokenPayload | BackofficeAccessTokenPayload;
+
 interface RefreshTokenPayload {
-  sub:  string;  // userId
+  sub:  string;
   type: 'refresh';
-  jti:  string;  // unique token ID for revocation
+  jti:  string;
+  aud?: TokenAudience;           // mirror access-token audience so refreshes don't cross
 }
 
 // Validated at module load by lib/env.ts — no need for a second null check here.
@@ -25,15 +44,29 @@ const ACCESS_SECRET  = env.JWT_SECRET;
 const REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? env.JWT_SECRET;
 const ACCESS_TTL     = env.JWT_ACCESS_EXPIRES_IN;
 const REFRESH_TTL    = env.JWT_REFRESH_EXPIRES_IN;
+// Backoffice tokens have a tighter TTL to bound stolen-token blast radius
+// for the highest-privilege accounts. Phase 1 default; revisit if it hurts UX.
+const BACKOFFICE_ACCESS_TTL  = env.BACKOFFICE_ACCESS_EXPIRES_IN  ?? '15m';
+const BACKOFFICE_REFRESH_TTL = env.BACKOFFICE_REFRESH_EXPIRES_IN ?? '8h';
 
 // Algorithm is pinned explicitly to prevent algorithm-confusion attacks.
 // Tokens signed with RS256/none/other will be rejected by verify().
 const ALGORITHM = 'HS256' as const;
 
-export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, {
+/** Sign a tenant-audience access token (consumer login flow). */
+export function signAccessToken(payload: TenantAccessTokenPayload): string {
+  const withAud: TenantAccessTokenPayload = { ...payload, aud: 'tenant' };
+  return jwt.sign(withAud, ACCESS_SECRET, {
     algorithm: ALGORITHM,
     expiresIn: ACCESS_TTL,
+  } as jwt.SignOptions);
+}
+
+/** Sign a backoffice-audience access token (platform staff login flow). */
+export function signBackofficeAccessToken(payload: BackofficeAccessTokenPayload): string {
+  return jwt.sign(payload, ACCESS_SECRET, {
+    algorithm: ALGORITHM,
+    expiresIn: BACKOFFICE_ACCESS_TTL,
   } as jwt.SignOptions);
 }
 
@@ -43,12 +76,16 @@ export function verifyAccessToken(token: string): AccessTokenPayload & { iat: nu
   }) as AccessTokenPayload & { iat: number; exp: number };
 }
 
-export function signRefreshToken(userId: string): { token: string; jti: string } {
+export function signRefreshToken(
+  userId: string,
+  audience: TokenAudience = 'tenant',
+): { token: string; jti: string } {
   const jti = crypto.randomUUID();
+  const ttl = audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL;
   const token = jwt.sign(
-    { sub: userId, type: 'refresh', jti } satisfies RefreshTokenPayload,
+    { sub: userId, type: 'refresh', jti, aud: audience } satisfies RefreshTokenPayload,
     REFRESH_SECRET,
-    { algorithm: ALGORITHM, expiresIn: REFRESH_TTL } as jwt.SignOptions,
+    { algorithm: ALGORITHM, expiresIn: ttl } as jwt.SignOptions,
   );
   return { token, jti };
 }
@@ -68,11 +105,15 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/** Parse refresh TTL string into seconds. */
-export function refreshTtlSeconds(): number {
-  const ttl = REFRESH_TTL;
+/** Parse a TTL string ("15m" / "8h" / "7d") into seconds. */
+function ttlToSeconds(ttl: string): number {
   if (ttl.endsWith('d')) return parseInt(ttl) * 86400;
   if (ttl.endsWith('h')) return parseInt(ttl) * 3600;
   if (ttl.endsWith('m')) return parseInt(ttl) * 60;
   return parseInt(ttl);
+}
+
+/** Refresh TTL for tenant tokens, in seconds. */
+export function refreshTtlSeconds(audience: TokenAudience = 'tenant'): number {
+  return ttlToSeconds(audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL);
 }

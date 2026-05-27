@@ -1,7 +1,7 @@
 import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
-  LoginResponse, LoginResult, RefreshResponse,
+  LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse,
   MemberPublic, SubscriptionPublic, NgoGroupSummary,
 } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -28,6 +28,12 @@ export const authApi = {
 
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),
+
+  // Backoffice login — separate endpoint for platform staff
+  // (super_admin / support / ngo_coordinator). Email-only identifier;
+  // returns a backoffice-audience JWT that only works on /api/admin/*.
+  adminLogin: (body: { email: string; password: string }) =>
+    api.post<AdminLoginResponse>('/auth/admin/login', body),
 };
 
 // ------------------------------------------------------------------

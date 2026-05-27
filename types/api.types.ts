@@ -69,6 +69,22 @@ export function isGroupSelectionNeeded(r: LoginResult): r is NeedsGroupSelection
   return (r as NeedsGroupSelection).needsGroupSelection === true;
 }
 
+// Backoffice login (super_admin / support / ngo_coordinator). No group
+// context — these accounts operate cross-tenant or NGO-scoped.
+export interface AdminLoginResponse {
+  accessToken:  string;
+  refreshToken: string;
+  audience:     'backoffice';
+  member: {
+    id:           string;
+    firstName:    string;
+    lastName:     string;
+    email:        string;
+    platformRole: Exclude<PlatformRole, 'member'>;
+    ngoId?:       string;
+  };
+}
+
 export interface RefreshResponse {
   accessToken: string;
 }

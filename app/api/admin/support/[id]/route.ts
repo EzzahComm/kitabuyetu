@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest } from '@/lib/utils/response';
 import { updateTicketStatus } from '@/lib/services/admin.service';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ const schema = z.object({
 });
 
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withRole(req, 'super_admin', async (auth) => {
+  return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;
     const body   = await req.json();
     const parsed = schema.safeParse(body);

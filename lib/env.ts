@@ -31,6 +31,12 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32).optional(),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  // Backoffice tokens are issued to platform staff (super_admin/support/
+  // ngo_coordinator) by /api/v1/auth/admin/login. Tighter TTLs than tenant
+  // tokens because the blast radius of a stolen platform token is much
+  // larger (cross-tenant access).
+  BACKOFFICE_ACCESS_EXPIRES_IN:  z.string().default('15m'),
+  BACKOFFICE_REFRESH_EXPIRES_IN: z.string().default('8h'),
 
   // ── M-Pesa (Safaricom Daraja) ─────────────────────────────────────────────
   MPESA_ENV: z.enum(['sandbox', 'production']).default('sandbox'),

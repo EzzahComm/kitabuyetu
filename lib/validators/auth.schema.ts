@@ -65,6 +65,15 @@ export const RegisterSchema = z.object({
   gender:        z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
+// Backoffice login (super_admin / support / ngo_coordinator).
+// Email-only on purpose — staff identities are issued + recovered via email,
+// never phone. No group code field because backoffice context isn't
+// group-scoped.
+export const AdminLoginSchema = z.object({
+  email:    z.string().email('Enter a valid work email'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
@@ -83,6 +92,7 @@ export const ResetPasswordSchema = z.object({
 });
 
 export type LoginInput            = z.infer<typeof LoginSchema>;
+export type AdminLoginInput       = z.infer<typeof AdminLoginSchema>;
 export type RegisterInput         = z.infer<typeof RegisterSchema>;
 export type RefreshInput          = z.infer<typeof RefreshSchema>;
 export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;

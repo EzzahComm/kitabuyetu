@@ -1,10 +1,11 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { LoginResponse } from '@/types/api.types';
+import type { LoginResponse, AdminLoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
-interface AuthUser {
+// Tenant (consumer) user shape — group context required.
+interface TenantUser {
   id:           string;
   firstName:    string;
   lastName:     string;
@@ -21,17 +22,46 @@ interface AuthUser {
   officerRole?: string;
 }
 
+// Backoffice (platform staff) user shape — no group context.
+interface BackofficeUser {
+  id:           string;
+  firstName:    string;
+  lastName:     string;
+  email:        string;
+  platformRole: Exclude<PlatformRole, 'member'>;
+  ngoId?:       string;
+}
+
+export type AuthUser = TenantUser | BackofficeUser;
+
+// Audience is the source of truth for which surface this user is signed
+// in to. `tenant` → consumer dashboard; `backoffice` → admin portal.
+// Defaults to 'tenant' when missing for backward compat with existing
+// localStorage payloads.
+export type AuthAudience = 'tenant' | 'backoffice';
+
 interface AuthState {
   user:         AuthUser | null;
   accessToken:  string | null;
   refreshToken: string | null;
+  audience:     AuthAudience;
   isLoading:    boolean;
 }
 
 interface AuthContextValue extends AuthState {
-  login:  (data: LoginResponse) => void;
-  logout: () => void;
+  login:      (data: LoginResponse) => void;
+  loginAdmin: (data: AdminLoginResponse) => void;
+  logout:     () => void;
   setAccessToken: (token: string) => void;
+}
+
+// Narrowing helpers so consumers can guard on shape without importing the
+// interface internals.
+export function isBackofficeUser(u: AuthUser | null): u is BackofficeUser {
+  return !!u && !('groupId' in u);
+}
+export function isTenantUser(u: AuthUser | null): u is TenantUser {
+  return !!u && 'groupId' in u;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -40,7 +70,7 @@ const STORAGE_KEY = 'ky_auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
-    user: null, accessToken: null, refreshToken: null, isLoading: true,
+    user: null, accessToken: null, refreshToken: null, audience: 'tenant', isLoading: true,
   });
 
   // Client-only hydration from localStorage. Cannot run in useState initializer
@@ -50,9 +80,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as AuthState;
+        const parsed = JSON.parse(raw) as Partial<AuthState>;
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setState({ ...parsed, isLoading: false });
+        setState({
+          user:         parsed.user ?? null,
+          accessToken:  parsed.accessToken ?? null,
+          refreshToken: parsed.refreshToken ?? null,
+          audience:     parsed.audience ?? 'tenant', // legacy payloads default to tenant
+          isLoading:    false,
+        });
       } else {
         setState((s) => ({ ...s, isLoading: false }));
       }
@@ -66,6 +102,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user:         data.member,
       accessToken:  data.accessToken,
       refreshToken: data.refreshToken,
+      audience:     'tenant',
+      isLoading:    false,
+    };
+    setState(next);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }, []);
+
+  const loginAdmin = useCallback((data: AdminLoginResponse) => {
+    const next: AuthState = {
+      user:         data.member,
+      accessToken:  data.accessToken,
+      refreshToken: data.refreshToken,
+      audience:     'backoffice',
       isLoading:    false,
     };
     setState(next);
@@ -73,7 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    const next: AuthState = { user: null, accessToken: null, refreshToken: null, isLoading: false };
+    const next: AuthState = {
+      user: null, accessToken: null, refreshToken: null, audience: 'tenant', isLoading: false,
+    };
     setState(next);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
@@ -87,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, setAccessToken }}>
+    <AuthContext.Provider value={{ ...state, login, loginAdmin, logout, setAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

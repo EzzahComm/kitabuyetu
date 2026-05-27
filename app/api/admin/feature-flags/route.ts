@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest } from '@/lib/utils/response';
 import { listFeatureFlags, toggleFeatureFlag } from '@/lib/services/admin.service';
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, 'super_admin', async () => {
     const flags = await listFeatureFlags();
     return ok(flags);
   });
@@ -19,7 +19,7 @@ const toggleSchema = z.object({
 });
 
 export function PATCH(req: NextRequest) {
-  return withRole(req, 'super_admin', async (auth) => {
+  return withPlatformRole(req, 'super_admin', async (auth) => {
     const body   = await req.json();
     const parsed = toggleSchema.safeParse(body);
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);

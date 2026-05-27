@@ -17,7 +17,7 @@ import { useLoans } from '@/hooks/use-loans';
 import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useMeetings } from '@/hooks/use-meetings';
 import { useInvestmentSummary } from '@/hooks/use-investments';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
 
@@ -101,7 +101,7 @@ export default function DashboardPage() {
             {user ? `Welcome back, ${user.firstName}` : 'Dashboard'}
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {user?.groupName} — Financial overview
+            {isTenantUser(user) ? `${user.groupName} — Financial overview` : 'Financial overview'}
           </p>
         </div>
         {pendingActions > 0 && (

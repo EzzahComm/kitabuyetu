@@ -51,17 +51,31 @@ if (!rawSecret || rawSecret.length < 32) {
 }
 const ACCESS_SECRET = new TextEncoder().encode(rawSecret);
 
+// Union: tokens issued by /auth/login (tenant) carry groupId+role;
+// tokens issued by /auth/admin/login (backoffice) carry platformRole.
+// Legacy tokens without `aud` are treated as tenant for backward compat.
 interface KyJwtPayload extends JWTPayload {
-  sub:     string;
-  groupId: string;
-  role:    string;
-  ngoId?:  string;
+  sub:           string;
+  aud?:          'tenant' | 'backoffice' | string;
+  // Tenant claims
+  groupId?:      string;
+  role?:         string;
+  // Backoffice claims
+  platformRole?: string;
+  ngoId?:        string;
 }
 
 function unauthorized(message: string): NextResponse {
   return NextResponse.json(
     { success: false, error: message, code: 'UNAUTHORIZED' },
     { status: 401 },
+  );
+}
+
+function forbidden(message: string): NextResponse {
+  return NextResponse.json(
+    { success: false, error: message, code: 'FORBIDDEN' },
+    { status: 403 },
   );
 }
 
@@ -91,56 +105,88 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // JWT verification is only required for /api/v1/* routes
-  if (!pathname.startsWith('/api/v1/')) {
+  // ── Audience matters only for /api/v1/* and /api/admin/* ───────────────
+  // Everything else falls through (static, health, etc.).
+  const isTenantApi     = pathname.startsWith('/api/v1/');
+  const isBackofficeApi = pathname.startsWith('/api/admin/');
+  if (!isTenantApi && !isBackofficeApi) {
     return NextResponse.next();
   }
 
-  // These paths are intentionally unauthenticated.
-  // Webhooks are authenticated by their own signatures (HMAC-SHA256 for
-  // WhatsApp, svix for Resend, etc.) — NOT by JWT — because external
-  // providers don't have access tokens.
+  // These tenant paths are intentionally unauthenticated.
+  // Webhooks authenticate via signed payloads (HMAC-SHA256, svix, ECDSA),
+  // NOT by JWT, because external providers don't have access tokens.
   const isWebhook =
-    pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (e.g. WhatsApp Meta Cloud API)
+    pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
     pathname.startsWith('/api/v1/email/webhooks/');     // email provider callbacks (Resend, SendGrid)
 
   if (
-    pathname.startsWith('/api/v1/auth/') ||
-    pathname.startsWith('/api/v1/jurisdictions/') ||  // public reference data (counties/sub-counties/wards) for registration dropdowns
-    isMpesaCallback ||
-    isWebhook
+    isTenantApi && (
+      pathname.startsWith('/api/v1/auth/') ||         // login / register / refresh / admin-login
+      pathname.startsWith('/api/v1/jurisdictions/') || // public reference data (counties etc.)
+      isMpesaCallback ||
+      isWebhook
+    )
   ) {
     return NextResponse.next();
   }
 
+  // ── JWT required from here on ─────────────────────────────────────────
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return unauthorized('Missing or malformed Authorization header');
   }
-
   const token = authHeader.slice(7);
 
+  let payload: KyJwtPayload;
   try {
-    // algorithms: ['HS256'] pins the algorithm and prevents confusion attacks
-    const { payload } = await jwtVerify(token, ACCESS_SECRET, {
+    const verified = await jwtVerify(token, ACCESS_SECRET, {
       algorithms: ['HS256'],
     }) as { payload: KyJwtPayload };
-
-    if (!payload.sub || !payload.groupId || !payload.role) {
-      return unauthorized('Incomplete token payload');
-    }
-
-    // Stamp verified claims as request headers — API routes read these without re-verifying
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set('x-user-id',  payload.sub);
-    requestHeaders.set('x-group-id', payload.groupId);
-    requestHeaders.set('x-role',     payload.role);
-    if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
-
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    payload = verified.payload;
   } catch {
     return unauthorized('Invalid or expired token');
   }
+
+  if (!payload.sub) {
+    return unauthorized('Incomplete token payload');
+  }
+
+  // Default to 'tenant' for legacy tokens that pre-date Phase 1.
+  const aud: 'tenant' | 'backoffice' =
+    payload.aud === 'backoffice' ? 'backoffice' : 'tenant';
+
+  // ── Enforce audience match per URL prefix ────────────────────────────
+  if (isBackofficeApi && aud !== 'backoffice') {
+    return forbidden('This route requires a backoffice session. Sign in at /admin-login.');
+  }
+  if (isTenantApi && aud !== 'tenant') {
+    return forbidden('This route requires a tenant session. Sign in at /login.');
+  }
+
+  // ── Stamp verified claims as request headers ─────────────────────────
+  // API routes read these via getAuthContext / getBackofficeContext
+  // without re-verifying the JWT.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-user-id', payload.sub);
+  requestHeaders.set('x-aud',     aud);
+
+  if (aud === 'tenant') {
+    if (!payload.groupId || !payload.role) {
+      return unauthorized('Incomplete tenant token payload');
+    }
+    requestHeaders.set('x-group-id', payload.groupId);
+    requestHeaders.set('x-role',     payload.role);
+    if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
+  } else {
+    if (!payload.platformRole) {
+      return unauthorized('Incomplete backoffice token payload');
+    }
+    requestHeaders.set('x-platform-role', payload.platformRole);
+    if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
+  }
+
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

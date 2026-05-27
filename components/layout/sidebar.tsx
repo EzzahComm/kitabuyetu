@@ -9,7 +9,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 const navItems = [
@@ -83,7 +83,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {user && (
+        {isTenantUser(user) && (
           <div className="px-4 py-3 border-b border-gray-700">
             <p className="text-xs text-gray-400 truncate">{user.groupName}</p>
             <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>

@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok } from '@/lib/utils/response';
 import { getPlatformAnalytics } from '@/lib/services/admin.service';
 
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, 'super_admin', async () => {
     const data = await getPlatformAnalytics();
     return ok(data);
   });
