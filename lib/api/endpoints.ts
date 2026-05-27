@@ -1,7 +1,7 @@
 import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
-  LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse,
+  LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
   MemberPublic, SubscriptionPublic, NgoGroupSummary,
 } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -29,11 +29,25 @@ export const authApi = {
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),
 
-  // Backoffice login — separate endpoint for platform staff
-  // (super_admin / support / ngo_coordinator). Email-only identifier;
-  // returns a backoffice-audience JWT that only works on /api/admin/*.
+  // Step 1 of backoffice login. Returns one of:
+  //   - AdminLoginEnrollmentChallenge (first-time staff: QR + recovery codes)
+  //   - AdminLoginMfaChallenge        (enrolled staff: just prompt for code)
+  //   - AdminLoginResponse            (legacy path; not reachable with MFA on)
+  // The client narrows via isAdminEnrollment / isAdminMfaChallenge.
   adminLogin: (body: { email: string; password: string }) =>
-    api.post<AdminLoginResponse>('/auth/admin/login', body),
+    api.post<AdminLoginResult>('/auth/admin/login', body),
+
+  // Step 2 of backoffice login: submit the 6-digit TOTP code (or a recovery
+  // code) + the challenge token from step 1. On first-time enrollment the
+  // client also echoes back the 10 plaintext recoveryCodes so they get
+  // bcrypt-hashed + stored alongside the secret.
+  adminLoginVerify: (body: {
+    challenge:      string;
+    code:           string;
+    label?:         string;
+    recoveryCodes?: string[];
+  }) =>
+    api.post<AdminLoginResponse>('/auth/admin/login/verify', body),
 };
 
 // ------------------------------------------------------------------

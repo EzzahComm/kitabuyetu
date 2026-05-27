@@ -1,46 +1,51 @@
 /**
- * POST /api/v1/auth/admin/login
+ * POST /api/v1/auth/admin/login — Step 1 of the backoffice login flow.
  *
- * Backoffice login for platform staff (super_admin / support /
- * ngo_coordinator). Separate from the consumer /auth/login flow because:
+ * Validates email + password + platform role. Then branches on MFA state:
  *
- *  - Email-only identity (staff don't authenticate by Kenyan phone).
- *  - No group-membership requirement (platform staff don't belong to a
- *    Chama; the consumer flow 403s them at the "no active memberships"
- *    check).
- *  - Issues a backoffice-audience JWT that the proxy enforces ONLY for
- *    /api/admin/* routes, while explicitly rejecting it on /api/v1/*.
- *  - Tighter token TTL (15m access / 8h refresh by default) — the blast
- *    radius of a stolen platform token is much larger than a member's.
+ *  - Member has NEVER enrolled an authenticator:
+ *      Generate a fresh TOTP secret, build a QR data URL + 10 recovery
+ *      codes, sign a 5-minute "enrollment challenge" JWT that carries the
+ *      plaintext secret inside it. Return all of the above to the UI. The
+ *      UI shows the QR, the user scans it, then re-submits the code +
+ *      challenge to /admin/login/verify, which persists the enrollment
+ *      and issues the real backoffice access token.
  *
- * NOT INCLUDED in Phase 1:
- *  - MFA (Phase 2 — adds a second TOTP step before token issuance).
- *  - IP allowlist (Phase 6 — env-driven BACKOFFICE_ALLOWED_IPS).
- *  - Step-up auth for destructive actions (Phase 6).
+ *  - Member IS enrolled:
+ *      Sign a 5-minute "verify challenge" JWT (sub-only). Return it. UI
+ *      prompts for the current TOTP code (or a recovery code) and
+ *      re-submits to /admin/login/verify.
+ *
+ * Tokens are never issued from this endpoint — only from /verify after
+ * the MFA step completes.
+ *
+ * Lockout namespace is `admin:<email>` so consumer attackers can't burn
+ * an admin's lockout budget by guessing their phone. Decoy bcrypt
+ * compare prevents email enumeration.
  */
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
+import { signMfaChallenge } from '@/lib/auth/jwt';
 import {
-  signBackofficeAccessToken, signRefreshToken,
-  hashToken, refreshTtlSeconds,
-} from '@/lib/auth/jwt';
+  generateTotpSecret, buildOtpAuthQrCode,
+  generateRecoveryCodes,
+} from '@/lib/auth/mfa';
 import {
-  storeRefreshToken, incrementLoginAttempts, clearLoginAttempts,
+  incrementLoginAttempts, clearLoginAttempts,
   isAccountLocked, lockAccount,
 } from '@/lib/redis';
 import { AdminLoginSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
-import type { AdminLoginResponse } from '@/types/api.types';
+import type {
+  AdminLoginEnrollmentChallenge, AdminLoginMfaChallenge, AdminLoginResult,
+} from '@/types/api.types';
 
 const MAX_ATTEMPTS    = parseInt(process.env.MAX_LOGIN_ATTEMPTS    ?? '5',  10);
 const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
 
-// Constant-time decoy hash: bcrypt.compare against this when the member
-// lookup fails so the response timing doesn't reveal whether the email
-// exists in the platform_role pool.
 const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
 
 const PLATFORM_ROLES = ['super_admin', 'support', 'ngo_coordinator'] as const;
@@ -62,15 +67,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     const input = AdminLoginSchema.parse(body);
     const email = input.email.trim().toLowerCase();
 
-    // Lockout key is the email; one shared key with the consumer flow would
-    // let a tenant attacker exhaust an admin's lockout budget by guessing
-    // their phone. Different namespaces, different limiters.
     const lockKey = `admin:${email}`;
     if (await isAccountLocked(lockKey)) {
       return errorResponse(
         `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`,
-        'ACCOUNT_LOCKED',
-        429,
+        'ACCOUNT_LOCKED', 429,
       );
     }
 
@@ -87,9 +88,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       const hashToVerify = member?.password_hash ?? DECOY_HASH;
       const passwordOk   = await bcrypt.compare(input.password, hashToVerify);
 
-      // Three failure modes collapsed into one ambiguous error so an
-      // attacker can't distinguish: no member, deactivated, wrong password,
-      // wrong platform role.
+      // Collapse "member missing / deactivated / wrong password / not a
+      // platform role" into a single ambiguous failure so an attacker
+      // can't enumerate emails or platform-role assignments.
       if (!member
           || !member.is_active
           || !passwordOk
@@ -97,23 +98,13 @@ export async function POST(req: NextRequest): Promise<Response> {
         return { kind: 'invalid' as const };
       }
 
-      // ngo_coordinator scope lookup — find their NGO id so the JWT can
-      // carry it. Other platform roles have no ngo scope.
-      let ngoId: string | undefined;
-      if (member.platform_role === 'ngo_coordinator') {
-        const { rows: ngo } = await client.query<{ id: string }>(
-          `SELECT id FROM ngos WHERE coordinator_member_id = $1 AND is_active = TRUE LIMIT 1`,
-          [member.id],
-        );
-        ngoId = ngo[0]?.id;
-        if (!ngoId) {
-          // Coordinator account without an active NGO row = misconfigured.
-          // Treat as invalid login rather than minting a useless token.
-          return { kind: 'invalid' as const };
-        }
-      }
-
-      return { kind: 'ok' as const, member, ngoId };
+      // Look up existing MFA enrollment, if any.
+      const { rows: mfa } = await client.query<{ member_id: string }>(
+        `SELECT member_id FROM member_mfa_secrets WHERE member_id = $1`,
+        [member.id],
+      );
+      const enrolled = mfa.length > 0;
+      return { kind: 'ok' as const, member, enrolled };
     });
 
     if (result.kind === 'invalid') {
@@ -124,46 +115,42 @@ export async function POST(req: NextRequest): Promise<Response> {
       return errorResponse('Invalid email or password', 'INVALID_CREDENTIALS', 401);
     }
 
-    const { member, ngoId } = result;
+    const { member, enrolled } = result;
+    // Reset the password-attempt counter; the user still has to pass MFA,
+    // but we don't want a transient TOTP retry counting against the
+    // password-attempt budget.
     await clearLoginAttempts(lockKey);
 
-    void withAdminDb((client) =>
-      client.query('UPDATE members SET last_login_at = NOW() WHERE id = $1', [member.id]),
-    ).catch(() => {});
+    if (enrolled) {
+      // Step-1 done. UI prompts for a TOTP / recovery code next.
+      const challenge = signMfaChallenge({ sub: member.id, kind: 'verify' });
+      const response: AdminLoginMfaChallenge = { needsMfaCode: true, challenge };
+      return ok<AdminLoginResult>(response);
+    }
 
-    const accessToken = signBackofficeAccessToken({
-      sub:          member.id,
-      aud:          'backoffice',
-      platformRole: member.platform_role as AdminPlatformRole,
-      ngoId,
+    // First-time enrollment: generate secret + QR + recovery codes. The
+    // plaintext secret rides inside the signed challenge JWT so the verify
+    // endpoint can persist it after the code confirms.
+    const secret        = generateTotpSecret();
+    const accountLabel  = member.email ?? email;
+    const qrCodeDataUrl = await buildOtpAuthQrCode(accountLabel, secret);
+    const recoveryCodes = generateRecoveryCodes();
+
+    const challenge = signMfaChallenge({
+      sub:    member.id,
+      kind:   'enrollment',
+      secret,
     });
 
-    const { token: refreshToken } = signRefreshToken(member.id, 'backoffice');
-    const rtHash = hashToken(refreshToken);
-    await storeRefreshToken(rtHash, member.id, refreshTtlSeconds('backoffice'));
-
-    await withAdminDb((client) =>
-      client.query(
-        `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address)
-         VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4)`,
-        [member.id, rtHash, refreshTtlSeconds('backoffice'), req.headers.get('x-forwarded-for') ?? null],
-      ),
-    );
-
-    const response: AdminLoginResponse = {
-      accessToken,
-      refreshToken,
-      audience: 'backoffice',
-      member: {
-        id:           member.id,
-        firstName:    member.first_name,
-        lastName:     member.last_name,
-        email:        member.email ?? email,
-        platformRole: member.platform_role as AdminPlatformRole,
-        ngoId,
-      },
+    const response: AdminLoginEnrollmentChallenge = {
+      needsMfaEnrollment: true,
+      challenge,
+      secret,
+      qrCodeDataUrl,
+      recoveryCodes,
+      accountLabel,
     };
-    return ok(response);
+    return ok<AdminLoginResult>(response);
   } catch (err) {
     return handleError(err);
   }

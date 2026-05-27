@@ -85,6 +85,39 @@ export interface AdminLoginResponse {
   };
 }
 
+// Step-1 response when the member has never enrolled an authenticator.
+// The frontend shows the QR + recovery codes, then re-submits the
+// 6-digit code along with the `challenge` token to /admin/login/verify
+// which performs the enrollment write + issues the real access token.
+export interface AdminLoginEnrollmentChallenge {
+  needsMfaEnrollment: true;
+  challenge:          string;   // short-lived JWT (5 min)
+  secret:             string;   // base32 — shown so user can paste manually
+  qrCodeDataUrl:      string;   // PNG data URL for inline rendering
+  recoveryCodes:      string[]; // 10 codes; shown ONCE, never returned again
+  accountLabel:       string;   // e.g. "alice@kitabuyetu.co.ke"
+}
+
+// Step-1 response when the member is already enrolled. The frontend
+// prompts for the current 6-digit code (or a recovery code) and re-submits
+// to /admin/login/verify with the same challenge token.
+export interface AdminLoginMfaChallenge {
+  needsMfaCode: true;
+  challenge:    string;   // short-lived JWT (5 min)
+}
+
+export type AdminLoginResult =
+  | AdminLoginEnrollmentChallenge
+  | AdminLoginMfaChallenge
+  | AdminLoginResponse;
+
+export function isAdminEnrollment(r: AdminLoginResult): r is AdminLoginEnrollmentChallenge {
+  return (r as AdminLoginEnrollmentChallenge).needsMfaEnrollment === true;
+}
+export function isAdminMfaChallenge(r: AdminLoginResult): r is AdminLoginMfaChallenge {
+  return (r as AdminLoginMfaChallenge).needsMfaCode === true;
+}
+
 export interface RefreshResponse {
   accessToken: string;
 }

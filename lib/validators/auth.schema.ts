@@ -74,6 +74,19 @@ export const AdminLoginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Step 2 of the backoffice login flow (Phase 2 — MFA). The `challenge`
+// token is short-lived (5 min) and identifies the in-flight session;
+// `code` is either a 6-digit TOTP or a recovery code (10 hex chars with
+// optional dash). `label` is set ONLY during enrollment-confirm and gets
+// persisted as the authenticator nickname.
+export const AdminLoginMfaVerifySchema = z.object({
+  challenge: z.string().min(1, 'MFA challenge token is required'),
+  code:      z.string()
+               .min(6, 'Enter the 6-digit code from your authenticator')
+               .max(20),
+  label:     z.string().max(80).optional(),
+});
+
 export const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
@@ -93,6 +106,7 @@ export const ResetPasswordSchema = z.object({
 
 export type LoginInput            = z.infer<typeof LoginSchema>;
 export type AdminLoginInput       = z.infer<typeof AdminLoginSchema>;
+export type AdminLoginMfaVerifyInput = z.infer<typeof AdminLoginMfaVerifySchema>;
 export type RegisterInput         = z.infer<typeof RegisterSchema>;
 export type RefreshInput          = z.infer<typeof RefreshSchema>;
 export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;

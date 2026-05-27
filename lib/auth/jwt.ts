@@ -117,3 +117,43 @@ function ttlToSeconds(ttl: string): number {
 export function refreshTtlSeconds(audience: TokenAudience = 'tenant'): number {
   return ttlToSeconds(audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL);
 }
+
+// ── MFA challenge token (Phase 2) ───────────────────────────────────────
+// Issued at step 1 of backoffice login (after password OK). Carries:
+//   - sub:       member id
+//   - aud:       'backoffice_mfa' (distinct audience so it CANNOT be used
+//                anywhere except /admin/login/verify)
+//   - kind:      'enrollment' (first-time enroll) or 'verify' (existing user)
+//   - secret:    plaintext base32 secret — ONLY on enrollment challenges
+//                so the verify route can persist it after the code confirms
+//   - exp:       5 minutes
+// TTL is short to bound the window where a stolen step-1 response is useful.
+
+const MFA_CHALLENGE_TTL_SECONDS = 5 * 60;
+
+export type MfaChallengeKind = 'enrollment' | 'verify';
+
+interface MfaChallengePayload {
+  sub:    string;
+  aud:    'backoffice_mfa';
+  kind:   MfaChallengeKind;
+  secret?: string; // only present when kind === 'enrollment'
+}
+
+export function signMfaChallenge(payload: Omit<MfaChallengePayload, 'aud'>): string {
+  return jwt.sign(
+    { ...payload, aud: 'backoffice_mfa' } satisfies MfaChallengePayload,
+    ACCESS_SECRET,
+    { algorithm: ALGORITHM, expiresIn: MFA_CHALLENGE_TTL_SECONDS } as jwt.SignOptions,
+  );
+}
+
+export function verifyMfaChallenge(token: string): MfaChallengePayload & { iat: number; exp: number } {
+  const decoded = jwt.verify(token, ACCESS_SECRET, {
+    algorithms: [ALGORITHM],
+  }) as MfaChallengePayload & { iat: number; exp: number };
+  if (decoded.aud !== 'backoffice_mfa') {
+    throw new Error('Invalid MFA challenge audience');
+  }
+  return decoded;
+}
