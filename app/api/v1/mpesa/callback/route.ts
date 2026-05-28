@@ -21,13 +21,15 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const callerIp = getCallerIp(req);
 
-  // Validate origin against the consolidated Safaricom allow-list
-  // (isSafaricomIp returns true in sandbox where the source IPs differ).
+  // Origin check is advisory only — behind Vercel's edge + custom domains the
+  // forwarded client IP is not a reliable Safaricom IP, so hard-blocking here
+  // drops legitimate callbacks (every payment silently stays pending).
+  // Integrity instead comes from: the append-only mpesa_callbacks audit, the
+  // UNIQUE(mpesa_receipt_number) idempotency, callbacks only acting on rows the
+  // app itself initiated, and reconciliation/STK-Query as source of truth.
+  // We log the caller IP so the allow-list can be re-tightened with real values.
   if (!isSafaricomIp(callerIp)) {
-    return NextResponse.json(
-      { ResultCode: 1, ResultDesc: 'Rejected' },
-      { status: 403 },
-    );
+    logger.warn('[mpesa/callback] caller IP not in Safaricom allow-list — processing anyway', { callerIp });
   }
 
   const rawBody  = await req.text();

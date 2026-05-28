@@ -39,6 +39,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { redis } from '@/lib/redis';
+import { logger } from '@/lib/logger';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import { normalizePhone } from '@/lib/utils/phone';
 import { getSecurityCredential } from '@/lib/utils/mpesa-credential';
@@ -178,8 +179,13 @@ export function getMpesaPassword(timestamp: string, shortcode = SHORTCODE): stri
 }
 
 export function assertSafaricomIp(ip: string): void {
+  // Advisory only. Behind Vercel/custom domains the forwarded client IP isn't a
+  // reliable Safaricom IP, and hard-blocking drops legitimate callbacks.
+  // Integrity is enforced downstream via idempotency (UNIQUE receipt), matching
+  // only app-initiated rows, and reconciliation as source of truth. We log the
+  // IP so the allow-list can be re-tightened with observed values later.
   if (!isSafaricomIp(ip)) {
-    throw new Error(`Rejected callback from unauthorized IP: ${ip}`);
+    logger.warn('[daraja] callback IP not in Safaricom allow-list — processing anyway', { ip });
   }
 }
 
