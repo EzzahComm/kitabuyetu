@@ -64,10 +64,34 @@ export function _resetCredentialCacheForTests(): void {
 
 // ─── Resolution ──────────────────────────────────────────────────────────────
 
+/**
+ * Sanity check for a pre-encrypted SecurityCredential: base64 charset and a
+ * minimum length consistent with RSA ciphertext. Catches placeholder strings
+ * before they reach Safaricom.
+ */
+function looksLikeRealCredential(value: string): boolean {
+  return /^[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length >= 300;
+}
+
 function resolveCredential(): string {
-  // 1. Operator-supplied pre-encrypted blob — take as-is
+  // 1. Operator-supplied pre-encrypted blob — take as-is, but guard against
+  //    placeholders. A real Safaricom SecurityCredential is RSA ciphertext
+  //    encoded as base64 (~344 chars for RSA-2048, ~684 for RSA-4096). A short
+  //    or non-base64 value is almost certainly a dummy like
+  //    "your_security_credential" — fail loudly rather than ship it to
+  //    Safaricom and get a cryptic InvalidInitiatorInformation at call time.
   const preEncrypted = process.env.MPESA_B2C_SECURITY_CREDENTIAL?.trim();
-  if (preEncrypted) return preEncrypted;
+  if (preEncrypted) {
+    if (!looksLikeRealCredential(preEncrypted)) {
+      throw new Error(
+        '[mpesa-credential] MPESA_B2C_SECURITY_CREDENTIAL is set but does not look ' +
+        'like a valid Safaricom credential (expected base64 RSA output, ~344+ chars). ' +
+        'Replace the placeholder with the encrypted blob from the Daraja portal, or ' +
+        'unset it and use MPESA_B2C_INITIATOR_PASSWORD + the public cert.',
+      );
+    }
+    return preEncrypted;
+  }
 
   // 2. Plaintext password + cert → RSA encrypt at runtime
   const password = process.env.MPESA_B2C_INITIATOR_PASSWORD?.trim();
