@@ -291,11 +291,14 @@ export type C2BApiVersion = 'v1' | 'v2';
 export async function registerC2BUrls(version: C2BApiVersion = 'v2'): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
+    // Registration-safe paths: Safaricom's registerurl API rejects URLs that
+    // contain the keyword "mpesa" or a query string, so the registered C2B
+    // endpoints live under /api/v1/daraja/ as distinct paths (no `?type=`).
     c.post(`/mpesa/c2b/${version}/registerurl`, {
       ShortCode:       SHORTCODE,
       ResponseType:    'Completed',
-      ConfirmationURL: `${CALLBACK_BASE}/api/v1/mpesa/c2b?type=confirmation`,
-      ValidationURL:   `${CALLBACK_BASE}/api/v1/mpesa/c2b?type=validation`,
+      ConfirmationURL: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm`,
+      ValidationURL:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
     }),
   );
 }

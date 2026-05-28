@@ -89,7 +89,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/mpesa/callback') ||
     pathname.startsWith('/api/v1/mpesa/c2b') ||
     pathname.startsWith('/api/v1/mpesa/b2c') ||
-    pathname.startsWith('/api/v1/mpesa/b2b');
+    pathname.startsWith('/api/v1/mpesa/b2b') ||
+    pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths
 
   // Rate-limit all API routes except M-Pesa callbacks (Safaricom retries on non-200)
   if (pathname.startsWith('/api/') && !isMpesaCallback) {
