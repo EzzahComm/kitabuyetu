@@ -3,120 +3,113 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
-  ArrowRight,
-  Smartphone,
-  Shield,
-  TrendingUp,
-  CheckCircle,
-  Users,
+  ArrowRight, Smartphone, ShieldCheck, RefreshCw, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-green-950 via-green-900 to-emerald-800 pb-20 pt-28 md:pb-28 md:pt-36">
-      {/* Decorative orbs */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-1/4 -top-1/2 h-[600px] w-[600px] rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -right-16 top-1/3 h-[500px] w-[500px] rounded-full bg-green-400/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 h-[300px] w-[700px] -translate-x-1/2 rounded-full bg-teal-500/10 blur-3xl" />
+    <section className="relative overflow-hidden bg-brand-blue-900 pb-24 pt-28 md:pb-32 md:pt-36">
+      {/* Warm ledger glow + green accent light */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-1/4 -top-1/3 h-[640px] w-[640px] rounded-full bg-brand-500/15 blur-[120px]" />
+        <div className="absolute -right-24 top-1/4 h-[520px] w-[520px] rounded-full bg-brand-blue-400/20 blur-[120px]" />
       </div>
 
-      {/* Grid pattern overlay */}
+      {/* Ruled-ledger texture — horizontal lines like an account book */}
       <div
         aria-hidden
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.06]"
         style={{
-          backgroundImage:
-            'linear-gradient(white 1px, transparent 1px), linear-gradient(to right, white 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
+          backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 39px, #ffffff 39px, #ffffff 40px)',
         }}
       />
+      {/* The ledger's red margin rule */}
+      <div aria-hidden className="absolute left-[8%] top-0 hidden h-full w-px bg-brand-500/20 lg:block" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-          {/* ── Text content ── */}
+        <div className="grid gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          {/* ── Copy ── */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: 'easeOut' }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
           >
-            {/* Badge */}
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-emerald-300 backdrop-blur-sm">
-              <span>🇰🇪</span>
-              <span className="font-medium">Built for Kenyan Community Groups</span>
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-4 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-brand-300">
+              <span className="text-sm">🇰🇪</span>
+              Powered by Safaricom Daraja
             </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.5rem] xl:text-6xl">
-              Your Chama&apos;s Finances,{' '}
-              <span className="text-emerald-400">Finally Under Control</span>
+            <h1 className="font-display text-5xl font-light leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Simple books.
+              <br />
+              <span className="font-normal italic text-brand-400">Stronger&nbsp;groups.</span>
             </h1>
 
-            {/* Sub-headline */}
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-green-200/80">
-              Track contributions, manage loans, send SMS updates, and receive M-Pesa
-              payments — all in one platform built for Kenya&apos;s SACCOs, chamas, and
-              community groups.
+            <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/80">
+              Kitabu Yetu is the digital ledger for Kenya&apos;s chamas, SACCOs, and
+              welfare groups. Members pay by M-Pesa, contributions reconcile
+              themselves, loans disburse straight to phones — and every shilling
+              lands in the right account.
             </p>
 
-            {/* CTAs */}
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button
                 asChild
                 size="lg"
-                className="bg-emerald-500 px-8 font-semibold text-white hover:bg-emerald-400 focus-visible:ring-emerald-400"
+                className="bg-brand-500 px-8 font-semibold text-white shadow-lg shadow-brand-500/25 hover:bg-brand-400"
               >
                 <Link href="/register">
-                  Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
+                  Open your ledger <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
-                className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 hover:text-white focus-visible:ring-white/50"
+                className="border-white/25 bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 hover:text-white"
               >
-                <a href="#how-it-works">See How It Works</a>
+                <a href="#how-it-works">See how it works</a>
               </Button>
             </div>
 
-            {/* Trust indicators */}
-            <div className="mt-10 flex flex-wrap gap-6">
+            <div className="mt-11 flex flex-wrap gap-x-7 gap-y-3">
               {[
-                { icon: Smartphone, label: 'M-Pesa Integrated' },
-                { icon: Shield, label: 'Bank-grade Security' },
-                { icon: TrendingUp, label: 'Real-time Reports' },
+                { icon: Smartphone, label: 'STK · PayBill · B2C' },
+                { icon: RefreshCw, label: 'Auto-reconciliation' },
+                { icon: ShieldCheck, label: 'Double-entry ledger' },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 text-emerald-300">
-                  <Icon className="h-4 w-4 text-emerald-400" />
-                  <span className="text-sm font-medium">{label}</span>
+                <div key={label} className="flex items-center gap-2 text-brand-blue-100/70">
+                  <Icon className="h-4 w-4 text-brand-400" />
+                  <span className="font-mono text-xs uppercase tracking-wider">{label}</span>
                 </div>
               ))}
             </div>
           </motion.div>
 
-          {/* ── Dashboard preview mockup ── */}
+          {/* ── Receipt / ledger mockup ── */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.75, delay: 0.2, ease: 'easeOut' }}
+            transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
             className="relative hidden lg:block"
           >
-            <DashboardPreview />
+            <LedgerMockup />
           </motion.div>
         </div>
 
-        {/* ── Floating social proof bar ── */}
+        {/* ── Footprint bar ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-16 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 border-t border-white/10 pt-8 text-sm text-white/60"
+          className="mt-20 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-white/10 pt-8"
         >
-          <span className="font-medium text-white/80">Trusted by 500+ groups across Kenya</span>
+          <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/50">
+            Keeping books across
+          </span>
           {['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'].map((city) => (
-            <span key={city} className="rounded-full bg-white/10 px-3 py-0.5 text-xs text-white/70">
+            <span key={city} className="font-mono text-xs text-white/70">
               {city}
             </span>
           ))}
@@ -126,113 +119,99 @@ export default function Hero() {
   );
 }
 
-function DashboardPreview() {
-  const bars = [42, 68, 51, 83, 60, 91, 74, 96, 63, 88, 79, 100];
-
+function LedgerMockup() {
   return (
-    <div className="relative ml-8">
-      {/* Main dashboard card */}
-      <div className="rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
-        {/* Header row */}
-        <div className="mb-5 flex items-start justify-between">
+    <div className="relative ml-6">
+      {/* Receipt card — warm paper */}
+      <div className="rounded-2xl border border-black/5 bg-[#FBFAF5] p-6 shadow-2xl shadow-black/40">
+        {/* Receipt header */}
+        <div className="flex items-start justify-between border-b border-dashed border-brand-blue-900/15 pb-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-white/50">
-              Group Balance
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand-blue-900/50">
+              Contribution received
             </p>
-            <p className="mt-1 text-3xl font-bold text-white">KSh 2,450,000</p>
-            <p className="mt-1 text-xs text-emerald-400">↑ 12.4% this month</p>
+            <p className="mt-1 font-display text-4xl font-normal text-brand-blue-900">
+              KSh 3,000
+            </p>
           </div>
-          <div className="rounded-xl bg-emerald-500/20 p-3">
-            <TrendingUp className="h-6 w-6 text-emerald-400" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50">
+            <CheckCircle2 className="h-6 w-6 text-brand-600" />
           </div>
         </div>
 
-        {/* Mini bar chart */}
-        <div className="mb-5 flex h-16 items-end gap-1.5">
-          {bars.map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-t-sm bg-emerald-400/50 transition-all"
-              style={{ height: `${h}%` }}
-            />
-          ))}
+        {/* M-Pesa meta */}
+        <div className="space-y-2 py-4 font-mono text-xs">
+          <Row k="Member" v="Wanjiku N. · KY0001042" />
+          <Row k="M-Pesa receipt" v="SKE3X9QW12" accent />
+          <Row k="Account ref" v="KYT-CONTR-KY0000019" />
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Split allocation — the standout feature */}
+        <div className="rounded-xl bg-brand-blue-900/[0.04] p-4">
+          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-brand-blue-900/50">
+            Auto-split to ledger
+          </p>
           {[
-            { label: 'Members', value: '48' },
-            { label: 'Active Loans', value: '12' },
-            { label: 'Repaid', value: '95%' },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl bg-white/5 p-3 text-center">
-              <p className="text-lg font-bold text-white">{value}</p>
-              <p className="text-xs text-white/40">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent transactions */}
-        <div className="mt-4 space-y-2">
-          {[
-            { name: 'James K.', amount: '+KSh 5,000', type: 'Contribution', color: 'text-emerald-400' },
-            { name: 'Aisha M.', amount: '+KSh 5,000', type: 'Contribution', color: 'text-emerald-400' },
-            { name: 'Loan Disbursement', amount: '-KSh 50,000', type: 'Loan', color: 'text-amber-400' },
-          ].map((tx, i) => (
-            <div key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-              <div>
-                <p className="text-xs font-medium text-white">{tx.name}</p>
-                <p className="text-[10px] text-white/40">{tx.type}</p>
+            { label: 'Savings', amount: '2,000', pct: 'w-[66%]' },
+            { label: 'Welfare fund', amount: '500', pct: 'w-[17%]' },
+            { label: 'Loan repayment', amount: '500', pct: 'w-[17%]' },
+          ].map((s) => (
+            <div key={s.label} className="mb-2.5 last:mb-0">
+              <div className="mb-1 flex items-center justify-between font-mono text-[11px]">
+                <span className="text-brand-blue-900/70">{s.label}</span>
+                <span className="font-medium text-brand-blue-900">KSh {s.amount}</span>
               </div>
-              <span className={`text-xs font-semibold ${tx.color}`}>{tx.amount}</span>
+              <div className="h-1.5 rounded-full bg-brand-blue-900/10">
+                <div className={`h-full rounded-full bg-brand-500 ${s.pct}`} />
+              </div>
             </div>
           ))}
         </div>
+
+        <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-brand-blue-900/40">
+          Journal posted · receipt sent
+        </p>
       </div>
 
-      {/* Floating M-Pesa notification */}
+      {/* Floating STK-push chip */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.9 }}
-        className="absolute -bottom-6 -left-10 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-xl"
+        className="absolute -left-12 top-8 rounded-xl border border-black/5 bg-white px-4 py-3 shadow-xl"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">M-Pesa received</p>
-          <p className="text-xs text-slate-500">James N. · KSh 5,000</p>
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-500" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-brand-blue-900">STK prompt sent</p>
+            <p className="font-mono text-[10px] text-brand-blue-900/50">Awaiting PIN · 0712••• 042</p>
+          </div>
         </div>
       </motion.div>
 
-      {/* Floating members badge */}
+      {/* Floating B2C disbursement chip */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 1.0 }}
-        className="absolute -right-8 -top-5 rounded-xl bg-white px-4 py-2.5 shadow-xl"
+        transition={{ duration: 0.5, delay: 1.05 }}
+        className="absolute -bottom-7 -right-8 rounded-xl border border-black/5 bg-white px-4 py-3 shadow-xl"
       >
-        <div className="flex items-center gap-2">
-          <div className="flex -space-x-1.5">
-            {['J', 'A', 'F', 'M'].map((l) => (
-              <div
-                key={l}
-                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-xs font-bold text-white"
-              >
-                {l}
-              </div>
-            ))}
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-800">48 members</p>
-            <p className="text-[10px] text-slate-400">
-              <Users className="mr-0.5 inline h-2.5 w-2.5" />
-              All active
-            </p>
-          </div>
-        </div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-amber-600">B2C disbursed</p>
+        <p className="mt-0.5 text-sm font-semibold text-brand-blue-900">Loan → KSh 50,000</p>
+        <p className="font-mono text-[10px] text-brand-blue-900/50">Sent to member&apos;s phone</p>
       </motion.div>
+    </div>
+  );
+}
+
+function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-brand-blue-900/50">{k}</span>
+      <span className={accent ? 'font-medium text-brand-600' : 'text-brand-blue-900/80'}>{v}</span>
     </div>
   );
 }

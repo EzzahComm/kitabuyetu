@@ -1,10 +1,28 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Fraunces, DM_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+
+// Editorial display serif for the marketing surface ("Kitabu Yetu" = "our
+// ledger"). Scoped via the `font-display` utility — the dashboard keeps Inter.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  axes: ['opsz', 'SOFT'],
+});
+
+// Monospace for figures, account references, and receipt numbers — the ledger
+// detail that makes financial data feel precise.
+const dmMono = DM_Mono({
+  subsets: ['latin'],
+  variable: '--font-dm-mono',
+  weight: ['400', '500'],
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   themeColor: '#0B3C88', // Kitabu Yetu brand navy
@@ -72,7 +90,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${fraunces.variable} ${dmMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
         <SpeedInsights />
       </body>

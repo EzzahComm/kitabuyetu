@@ -2,166 +2,134 @@
 
 import { motion } from 'framer-motion';
 import {
-  Smartphone,
-  TrendingUp,
-  Users,
-  FileText,
-  MessageSquare,
-  ShieldCheck,
-  CreditCard,
-  RefreshCcw,
-  Upload,
+  Smartphone, Landmark, Send, RefreshCw, SplitSquareHorizontal,
+  BookOpenCheck, ReceiptText, MessageSquare, Users,
 } from 'lucide-react';
 
 const features = [
   {
     icon: Smartphone,
-    title: 'M-Pesa Integration',
+    title: 'STK Push collections',
     description:
-      'Members pay contributions via STK Push directly from their phones. Payments reconcile automatically — no manual entry needed.',
-    color: 'text-green-700',
-    bg: 'bg-green-50',
-    border: 'group-hover:border-green-200',
+      'Prompt any member to pay straight from their phone. They enter their M-Pesa PIN, the contribution posts itself, and a receipt goes out.',
   },
   {
-    icon: TrendingUp,
-    title: 'Loan Management',
+    icon: Landmark,
+    title: 'PayBill & C2B routing',
     description:
-      'Track loan applications, approvals, repayment schedules, and outstanding balances with full audit trails.',
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    border: 'group-hover:border-blue-200',
+      'Members pay your PayBill with an account reference like KYT-CONTR-KY0001. Kitabu Yetu matches the payer and books it — no manual entry.',
   },
   {
-    icon: Users,
-    title: 'Member Management',
+    icon: Send,
+    title: 'B2C disbursements',
     description:
-      'Manage all group members, assign roles, track contribution history, and handle member onboarding in one place.',
-    color: 'text-violet-700',
-    bg: 'bg-violet-50',
-    border: 'group-hover:border-violet-200',
+      'Send approved loans, welfare payouts, and dividends directly to members’ phones. The loan flips to disbursed the moment Safaricom confirms.',
   },
   {
-    icon: FileText,
-    title: 'Financial Reports',
+    icon: SplitSquareHorizontal,
+    title: 'Auto-split allocation',
     description:
-      'Generate balance sheets, contribution reports, and loan summaries. Export to PDF for board meetings.',
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'group-hover:border-amber-200',
+      'One KSh 3,000 contribution, split your way — savings, welfare, loan repayment — across the ledger automatically, down to the last cent.',
+  },
+  {
+    icon: RefreshCw,
+    title: 'Self-healing reconciliation',
+    description:
+      'Stuck or silent payments are swept every few minutes, queried against Daraja, and resolved. Unmatched receipts wait in a review queue, never lost.',
+  },
+  {
+    icon: BookOpenCheck,
+    title: 'Double-entry ledger',
+    description:
+      'Every shilling lands as a balanced journal entry. Trial balance, P&L, and balance sheet are always audit-ready — not a spreadsheet afterthought.',
+  },
+  {
+    icon: ReceiptText,
+    title: 'Receipts & fee tracking',
+    description:
+      'Members get branded PDF receipts. Safaricom transaction charges are booked to the cent and reconciled nightly against your statement.',
   },
   {
     icon: MessageSquare,
-    title: 'SMS Notifications',
+    title: 'SMS & WhatsApp',
     description:
-      'Automatically notify members about contributions due, loan approvals, and payment confirmations via Africa\'s Talking.',
-    color: 'text-rose-700',
-    bg: 'bg-rose-50',
-    border: 'group-hover:border-rose-200',
+      'Confirmations, contribution reminders, and loan-due alerts go out over WhatsApp with SMS fallback. A failed STK nudges the member to PayBill.',
   },
   {
-    icon: ShieldCheck,
-    title: 'Role-Based Access',
+    icon: Users,
+    title: 'Members, loans & shares',
     description:
-      'Separate dashboards for members, treasurers, and admins. Row-level security ensures members see only their own data.',
-    color: 'text-teal-700',
-    bg: 'bg-teal-50',
-    border: 'group-hover:border-teal-200',
-  },
-  {
-    icon: CreditCard,
-    title: 'Double-Entry Accounting',
-    description:
-      'Full general ledger with journal entries. Every transaction is balanced and auditable — meeting accounting standards.',
-    color: 'text-indigo-700',
-    bg: 'bg-indigo-50',
-    border: 'group-hover:border-indigo-200',
-  },
-  {
-    icon: RefreshCcw,
-    title: 'Automated Billing',
-    description:
-      'Set up recurring invoices for monthly contributions. Overdue reminders sent automatically via SMS and email.',
-    color: 'text-orange-700',
-    bg: 'bg-orange-50',
-    border: 'group-hover:border-orange-200',
-  },
-  {
-    icon: Upload,
-    title: 'Bulk CSV Import',
-    description:
-      'Migrate from spreadsheets in minutes. Import up to 5,000 members, contributions, or loans from a single CSV file.',
-    color: 'text-cyan-700',
-    bg: 'bg-cyan-50',
-    border: 'group-hover:border-cyan-200',
+      'Onboarding, roles, reducing-balance loan schedules, share certificates, dividends, and credit scores — the whole group, in one book.',
   },
 ];
 
 const container = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
-
 const card = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 18 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 export default function Features() {
   return (
-    <section id="features" className="py-20 md:py-32">
+    <section id="features" className="relative bg-[#FBFAF5] py-20 md:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Section header */}
-        <div className="mb-16 text-center">
+        <div className="mb-16 max-w-2xl">
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-3 text-sm font-semibold uppercase tracking-widest text-green-600"
+            className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.22em] text-brand-600"
           >
-            Everything you need
+            The whole book
           </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl"
+            className="font-display text-4xl font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl"
           >
-            Built for the way chamas
-            <br className="hidden sm:block" /> actually work
+            From the M-Pesa prompt to the
+            {' '}
+            <span className="italic text-brand-600">posted journal entry</span>.
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="mx-auto mt-4 max-w-2xl text-lg text-slate-600"
+            className="mt-5 text-lg leading-relaxed text-brand-blue-900/60"
           >
-            From monthly contributions to complex loan portfolios, Kitabu Yetu handles
-            the financial complexity so you can focus on growing your group.
+            Kitabu Yetu carries a payment all the way through — collection,
+            matching, allocation, accounting, and notification — so your
+            treasurer doesn&apos;t have to.
           </motion.p>
         </div>
 
-        {/* Feature grid */}
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-80px' }}
-          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-px overflow-hidden rounded-2xl border border-brand-blue-900/10 bg-brand-blue-900/10 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {features.map((feature) => (
+          {features.map((feature, i) => (
             <motion.div
               key={feature.title}
               variants={card}
-              className={`group relative rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition-all duration-300 hover:shadow-md ${feature.border}`}
+              className="group relative bg-[#FBFAF5] p-8 transition-colors duration-300 hover:bg-white"
             >
-              <div className={`mb-5 inline-flex rounded-xl p-3 ${feature.bg}`}>
-                <feature.icon className={`h-6 w-6 ${feature.color}`} />
+              <span className="absolute right-6 top-6 font-mono text-xs text-brand-blue-900/25">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <div className="mb-5 inline-flex rounded-xl bg-brand-50 p-3 ring-1 ring-brand-500/15 transition-transform duration-300 group-hover:-translate-y-0.5">
+                <feature.icon className="h-6 w-6 text-brand-600" />
               </div>
-              <h3 className="mb-3 text-lg font-bold text-slate-900">{feature.title}</h3>
-              <p className="leading-relaxed text-slate-600">{feature.description}</p>
+              <h3 className="mb-2.5 text-lg font-bold text-brand-blue-900">{feature.title}</h3>
+              <p className="leading-relaxed text-brand-blue-900/60">{feature.description}</p>
             </motion.div>
           ))}
         </motion.div>

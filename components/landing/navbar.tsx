@@ -54,7 +54,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'text-sm font-medium transition-colors hover:text-green-600',
+                  'text-sm font-medium transition-colors hover:text-brand-600',
                   scrolled ? 'text-slate-600' : 'text-white/80 hover:text-white',
                 )}
               >
@@ -80,9 +80,9 @@ export default function Navbar() {
             <Button
               asChild
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-5"
+              className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5"
             >
-              <Link href="/register">Get Started Free</Link>
+              <Link href="/register">Open your ledger</Link>
             </Button>
           </div>
 
@@ -109,7 +109,7 @@ export default function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="block rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-green-600"
+              className="block rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600"
               onClick={() => setOpen(false)}
             >
               {link.label}
@@ -121,9 +121,9 @@ export default function Navbar() {
             </Button>
             <Button
               asChild
-              className="w-full justify-center bg-green-600 hover:bg-green-700 text-white"
+              className="w-full justify-center bg-brand-600 hover:bg-brand-700 text-white"
             >
-              <Link href="/register">Get Started Free</Link>
+              <Link href="/register">Open your ledger</Link>
             </Button>
           </div>
         </div>

@@ -2,81 +2,84 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const bullets = [
-  'Free for groups with up to 20 members',
-  'M-Pesa integration included',
-  'SMS notifications for every transaction',
-  'No credit card required',
+  'Free for groups up to 20 members',
+  'Daraja M-Pesa included — STK, PayBill & B2C',
+  'Auto-reconciliation & double-entry ledger',
+  'No card required',
 ];
 
 export default function CtaSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-emerald-700 py-20 md:py-28">
-      {/* Decorative orbs */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
-      </div>
+    <section className="relative overflow-hidden bg-brand-600 py-20 md:py-28">
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 39px, #ffffff 39px, #ffffff 40px)',
+        }}
+      />
+      <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
 
-      <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-emerald-300">
-            Start today
+          <p className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.22em] text-white/70">
+            Balance carried forward
           </p>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Ready to digitize your chama?
+          <h2 className="font-display text-4xl font-light leading-[1.05] tracking-tight text-white sm:text-5xl">
+            Retire the spreadsheet.
+            <br />
+            <span className="italic">Keep a real book.</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-green-200/80">
-            Join 500+ community groups across Kenya who have replaced spreadsheets and
-            WhatsApp chaos with Kitabu Yetu.
+          <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
+            Join the chamas, SACCOs, and welfare groups across Kenya who let
+            Kitabu Yetu collect, reconcile, and account for every shilling.
           </p>
 
-          {/* Benefits list */}
-          <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+          <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
             {bullets.map((b) => (
-              <div key={b} className="flex items-center gap-2 text-sm text-emerald-200">
-                <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+              <div key={b} className="flex items-center gap-2 text-sm text-white/85">
+                <Check className="h-4 w-4 flex-shrink-0 text-white" />
                 <span>{b}</span>
               </div>
             ))}
           </div>
 
-          {/* CTA buttons */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button
               asChild
               size="lg"
-              className="bg-white px-10 text-green-800 font-bold hover:bg-green-50 focus-visible:ring-white shadow-lg"
+              className="bg-white px-10 font-bold text-brand-700 shadow-lg hover:bg-brand-50"
             >
               <Link href="/register">
-                Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
+                Open your ledger <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 hover:text-white"
+              className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
             >
-              <Link href="/login">Sign In to Your Account</Link>
+              <Link href="/login">Sign in</Link>
             </Button>
           </div>
 
-          <p className="mt-6 text-sm text-green-300/70">
+          <p className="mt-6 font-mono text-xs text-white/60">
             Questions?{' '}
             <a
               href="mailto:support@kitabuyetu.co.ke"
-              className="underline underline-offset-4 hover:text-white transition-colors"
+              className="underline underline-offset-4 transition-colors hover:text-white"
             >
-              Contact our support team
+              support@kitabuyetu.co.ke
             </a>
           </p>
         </motion.div>

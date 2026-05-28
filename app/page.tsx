@@ -9,30 +9,33 @@ import CtaSection from '@/components/landing/cta';
 import Footer from '@/components/landing/footer';
 
 export const metadata: Metadata = {
-  title: 'Kitabu Yetu — Chama & SACCO Financial Management',
+  title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
   description:
-    'The complete financial management platform for Kenyan SACCOs, chamas, and community groups. Track contributions, manage loans, and receive M-Pesa payments — all in one place.',
+    'The digital ledger for Kenya\'s chamas, SACCOs, and welfare groups. Collect by M-Pesa (STK, PayBill, B2C), auto-reconcile every payment, split contributions across accounts, and keep an audit-ready double-entry book.',
   keywords: [
     'chama management',
     'SACCO software',
     'Kenya',
-    'M-Pesa integration',
+    'M-Pesa Daraja integration',
+    'STK push',
+    'PayBill reconciliation',
+    'B2C disbursement',
     'community group finance',
-    'contribution tracking',
+    'double-entry accounting',
     'loan management',
   ],
   openGraph: {
     type: 'website',
-    title: 'Kitabu Yetu — Chama & SACCO Financial Management',
+    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
     description:
-      'Track contributions, manage loans, and receive M-Pesa payments — all in one platform built for Kenya.',
+      'Collect by M-Pesa, auto-reconcile every shilling, and keep an audit-ready ledger — built for Kenya\'s community groups.',
     siteName: 'Kitabu Yetu',
     locale: 'en_KE',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kitabu Yetu',
-    description: 'The complete financial management platform for Kenyan community groups.',
+    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+    description: 'The digital ledger for Kenya\'s chamas, SACCOs, and welfare groups.',
   },
   alternates: {
     canonical: process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke',

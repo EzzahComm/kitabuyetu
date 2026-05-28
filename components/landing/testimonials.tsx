@@ -1,67 +1,62 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star, Quote } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 const testimonials = [
   {
     quote:
-      'Before Kitabu Yetu we were tracking everything in WhatsApp groups and spreadsheets. Now our treasurer spends 30 minutes a month instead of the whole weekend. M-Pesa integration is a game changer.',
+      'We tracked everything in WhatsApp and spreadsheets. Now contributions reconcile themselves and our treasurer spends 30 minutes a month, not the whole weekend.',
     name: 'Grace Wanjiku',
     title: 'Chairperson, Umoja Savings Group',
     location: 'Nairobi',
     initials: 'GW',
-    color: 'bg-green-500',
     rating: 5,
   },
   {
     quote:
-      'Managing 80 members and their loan repayments was overwhelming. Kitabu Yetu sends SMS reminders automatically and the loan tracking is crystal clear. Our recovery rate went from 70% to 98%.',
+      'Eighty members, every loan repayment by M-Pesa, alerts going out on their own. Our recovery rate went from 70% to 98% — and disbursing loans to phones takes one click.',
     name: 'David Otieno',
     title: 'Treasurer, Nyota SACCO',
     location: 'Kisumu',
     initials: 'DO',
-    color: 'bg-blue-500',
     rating: 5,
   },
   {
     quote:
-      'The reports we generate from Kitabu Yetu are professional enough to present to our bank when applying for credit facilities. It has completely transformed how we operate as a group.',
+      'The double-entry reports are clean enough to put in front of our bank for a credit facility. Auto-splitting each contribution into savings and welfare was the feature we didn\'t know we needed.',
     name: 'Fatuma Hassan',
     title: 'Secretary, Pwani Women\'s Chama',
     location: 'Mombasa',
     initials: 'FH',
-    color: 'bg-violet-500',
     rating: 5,
   },
 ];
 
 export default function Testimonials() {
   return (
-    <section id="testimonials" className="py-20 md:py-32">
+    <section id="testimonials" className="bg-[#FBFAF5] py-20 md:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-16 text-center">
+        <div className="mb-16 max-w-2xl">
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-3 text-sm font-semibold uppercase tracking-widest text-green-600"
+            className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.22em] text-brand-600"
           >
-            Loved by group leaders
+            Signed off by
           </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl"
+            className="font-display text-4xl font-light tracking-tight text-brand-blue-900 sm:text-5xl"
           >
-            Trusted across Kenya
+            Group leaders who closed the book on chaos.
           </motion.h2>
         </div>
 
-        {/* Cards */}
         <div className="grid gap-6 md:grid-cols-3">
           {testimonials.map((t, i) => (
             <motion.div
@@ -70,31 +65,25 @@ export default function Testimonials() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.55, delay: i * 0.12 }}
-              className="relative flex flex-col rounded-2xl border border-slate-100 bg-white p-8 shadow-sm"
+              className="flex flex-col rounded-2xl border border-brand-blue-900/10 bg-white p-8"
             >
-              {/* Quote icon */}
-              <Quote className="mb-4 h-8 w-8 text-green-100" />
-
-              {/* Stars */}
-              <div className="mb-4 flex gap-0.5">
+              <div className="mb-5 flex gap-0.5">
                 {Array.from({ length: t.rating }).map((_, j) => (
-                  <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <Star key={j} className="h-4 w-4 fill-brand-500 text-brand-500" />
                 ))}
               </div>
 
-              {/* Quote text */}
-              <p className="flex-1 text-slate-700 leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+              <p className="flex-1 font-display text-lg font-light leading-snug text-brand-blue-900/90">
+                &ldquo;{t.quote}&rdquo;
+              </p>
 
-              {/* Author */}
-              <div className="mt-6 flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white ${t.color}`}
-                >
+              <div className="mt-7 flex items-center gap-3 border-t border-dashed border-brand-blue-900/15 pt-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue-900 font-mono text-xs font-medium text-white">
                   {t.initials}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-brand-blue-900">{t.name}</p>
+                  <p className="font-mono text-[11px] text-brand-blue-900/50">
                     {t.title} · {t.location}
                   </p>
                 </div>
