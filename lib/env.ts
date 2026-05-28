@@ -67,6 +67,12 @@ const envSchema = z.object({
   MPESA_CHARGES_SHORTCODE:           z.string().optional(),
   MPESA_SETTLEMENT_SHORTCODE:        z.string().optional(),
   MPESA_AIRTIME_SHORTCODE:           z.string().optional(),
+  // Airtime purchase is operator-specific on Daraja — the exact CommandID and
+  // request path are provisioned per shortcode. The wrapper stays inert (throws
+  // NotImplementedError) until MPESA_AIRTIME_COMMAND_ID is set. ENDPOINT
+  // defaults to the documented path but is overridable.
+  MPESA_AIRTIME_COMMAND_ID:          z.string().optional(),
+  MPESA_AIRTIME_ENDPOINT:            z.string().optional(),
   // Pre-encrypted SecurityCredential (optional). When set, takes precedence
   // over the runtime RSA encryption of MPESA_B2C_INITIATOR_PASSWORD.
   MPESA_B2C_SECURITY_CREDENTIAL: z.string().optional(),

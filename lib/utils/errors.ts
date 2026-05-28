@@ -83,3 +83,10 @@ export class InsufficientSmsCreditsError extends AppError {
     this.name = 'InsufficientSmsCreditsError';
   }
 }
+
+export class NotImplementedError extends AppError {
+  constructor(message = 'This feature is not configured yet.') {
+    super(message, 'NOT_IMPLEMENTED', 501);
+    this.name = 'NotImplementedError';
+  }
+}

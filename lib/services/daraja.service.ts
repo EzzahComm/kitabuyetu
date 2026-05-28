@@ -353,6 +353,86 @@ export async function initiateB2C(input: B2CInput): Promise<B2CResponse & { orig
   };
 }
 
+// ─── Airtime purchase ─────────────────────────────────────────────────────────
+
+export interface AirtimeInput {
+  phone:    string;
+  amount:   number;
+  remarks?: string;
+}
+
+export interface AirtimeResponse {
+  originatorId:             string;
+  conversationId:           string;
+  originatorConversationId: string;
+  responseCode:             string;
+  responseDescription:      string;
+}
+
+/**
+ * Buys airtime for a recipient, funded from the Airtime Purchase sub-account.
+ *
+ * Daraja's airtime product is provisioned per-shortcode — the CommandID and
+ * request path differ between organisations and aren't part of the standard
+ * public sandbox. To avoid shipping a guessed endpoint that fails on the first
+ * production call, the wrapper stays inert until the operator supplies
+ * MPESA_AIRTIME_COMMAND_ID (and optionally MPESA_AIRTIME_ENDPOINT) from their
+ * Daraja portal "Airtime" configuration.
+ */
+export async function buyAirtime(input: AirtimeInput): Promise<AirtimeResponse> {
+  const commandId = process.env.MPESA_AIRTIME_COMMAND_ID;
+  if (!commandId) {
+    // NotImplementedError lives in lib/utils/errors; import lazily to keep this
+    // module free of app-layer deps for the pure API-call surface.
+    const { NotImplementedError } = await import('@/lib/utils/errors');
+    throw new NotImplementedError(
+      'Airtime purchase is not configured. Set MPESA_AIRTIME_COMMAND_ID (and ' +
+      'MPESA_AIRTIME_ENDPOINT if your shortcode uses a non-default path) from ' +
+      'the Daraja portal Airtime configuration.',
+    );
+  }
+
+  const phone     = normalizePhone(input.phone);
+  const amount    = toMpesaAmount(input.amount);
+  const origId    = originatorId();
+  const endpoint  = process.env.MPESA_AIRTIME_ENDPOINT ?? '/mpesa/airtime/v1/purchase';
+  const partyA    = process.env.MPESA_AIRTIME_SHORTCODE ?? SHORTCODE;
+  const c = await makeClient();
+
+  const { data } = await withRetry(() =>
+    c.post<{
+      ConversationID:           string;
+      OriginatorConversationID: string;
+      ResponseCode:             string;
+      ResponseDescription:      string;
+    }>(endpoint, {
+      OriginatorConversationID: origId,
+      InitiatorName:            INITIATOR_NAME,
+      SecurityCredential:       getSecurityCredential(),
+      CommandID:                commandId,
+      Amount:                   amount,
+      PartyA:                   partyA,
+      PartyB:                   phone,
+      Remarks:                  (input.remarks ?? 'Airtime purchase').slice(0, 100),
+      QueueTimeOutURL:          `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=timeout`,
+      ResultURL:                `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=result`,
+    }),
+  );
+
+  return {
+    originatorId:             origId,
+    conversationId:           data.ConversationID,
+    originatorConversationId: data.OriginatorConversationID,
+    responseCode:             data.ResponseCode,
+    responseDescription:      data.ResponseDescription,
+  };
+}
+
+/** True when the airtime feature has been configured by the operator. */
+export function isAirtimeConfigured(): boolean {
+  return Boolean(process.env.MPESA_AIRTIME_COMMAND_ID);
+}
+
 // ─── B2B (Business to Business) ───────────────────────────────────────────────
 
 export type B2BCommandId        = 'BusinessBuyGoods' | 'BusinessPayBill' | 'B2CAccountTopUp';
