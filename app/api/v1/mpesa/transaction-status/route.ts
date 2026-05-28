@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
 import { queryTransactionStatus } from '@/lib/services/daraja.service';
+import { handleTransactionStatusResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -45,28 +46,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     setImmediate(async () => {
       try {
-        type RawResult = {
-          Result?: {
-            ResultCode?: number;
-            OriginatorConversationID?: string;
-            ConversationID?: string;
-          };
-        };
-        const r = (body as RawResult).Result;
-        if (!r) return;
-        await withAdminDb((client) =>
-          client.query(
-            `UPDATE mpesa_transactions
-             SET status=$1, raw_response=$2, completed_at=NOW()
-             WHERE originator_conversation_id=$3 OR conversation_id=$4`,
-            [
-              r.ResultCode === 0 ? 'completed' : 'failed',
-              JSON.stringify(body),
-              r.OriginatorConversationID ?? '',
-              r.ConversationID ?? '',
-            ],
-          ),
-        );
+        await handleTransactionStatusResult(body, ip);
       } catch (err) {
         logger.error('[tx-status result]', err);
       }

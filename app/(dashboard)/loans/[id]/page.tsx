@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle, XCircle, DollarSign } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone } from 'lucide-react';
+import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,10 @@ export default function LoanDetailPage() {
   const router  = useRouter();
   const { toast } = useToast();
   const [repayOpen, setRepayOpen] = useState(false);
+  const [mpesaOpen, setMpesaOpen] = useState(false);
+  const [b2cPhone,  setB2cPhone]  = useState('');
+  const [b2cAmount, setB2cAmount] = useState('');
+  const [b2cBusy,   setB2cBusy]   = useState(false);
 
   const { data: loan, isLoading } = useLoan(id);
   const loanAction   = useLoanAction(id);
@@ -114,9 +119,18 @@ export default function LoanDetailPage() {
           </>
         )}
         {l.status === 'approved' && (
-          <Button onClick={() => handleAction('disburse')} loading={loanAction.isPending}>
-            <DollarSign size={16} className="mr-2"/> Disburse
-          </Button>
+          <>
+            <Button onClick={() => handleAction('disburse')} loading={loanAction.isPending} variant="outline">
+              <DollarSign size={16} className="mr-2"/> Mark disbursed
+            </Button>
+            <Button onClick={() => {
+              setB2cPhone(l.memberPhone ?? l.member_phone ?? '');
+              setB2cAmount(String(Math.round(Number(l.principalAmount ?? 0))));
+              setMpesaOpen(true);
+            }}>
+              <Smartphone size={16} className="mr-2"/> Disburse via M-Pesa
+            </Button>
+          </>
         )}
         {l.status === 'active' && (
           <Button onClick={() => setRepayOpen(true)}>
@@ -185,6 +199,55 @@ export default function LoanDetailPage() {
               <Button type="submit" loading={isSubmitting}>Record</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mpesaOpen} onOpenChange={setMpesaOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Disburse via M-Pesa (B2C)</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Sends the loan amount straight to the member&apos;s phone. The loan flips to
+              <span className="font-medium text-foreground"> disbursed</span> when Safaricom confirms.
+            </p>
+            <div className="space-y-1">
+              <Label>Recipient phone</Label>
+              <Input value={b2cPhone} onChange={(e) => setB2cPhone(e.target.value)} placeholder="2547…" />
+            </div>
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input type="number" min={1} step={1} value={b2cAmount} onChange={(e) => setB2cAmount(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMpesaOpen(false)}>Cancel</Button>
+            <Button
+              loading={b2cBusy}
+              onClick={async () => {
+                const amt = parseInt(b2cAmount, 10);
+                if (!b2cPhone.trim()) { toast({ variant: 'destructive', title: 'Enter the recipient phone' }); return; }
+                if (!amt || amt <= 0) { toast({ variant: 'destructive', title: 'Enter a whole-shilling amount' }); return; }
+                setB2cBusy(true);
+                try {
+                  await api.post('/mpesa/b2c', {
+                    phone:     b2cPhone.trim(),
+                    amount:    amt,
+                    occasion:  'Loan disbursement',
+                    commandId: 'BusinessPayment',
+                    loanId:    l.id,
+                  });
+                  toast({ title: 'Disbursement initiated', description: 'Loan will update when Safaricom confirms.' });
+                  setMpesaOpen(false);
+                } catch (err) {
+                  toast({ variant: 'destructive', title: 'Disbursement failed', description: err instanceof ApiError ? err.message : '' });
+                } finally {
+                  setB2cBusy(false);
+                }
+              }}
+            >
+              Send KES {b2cAmount || '0'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

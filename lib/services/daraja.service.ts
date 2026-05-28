@@ -59,14 +59,22 @@ const B2C_SHORTCODE   = process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHO
 const CALLBACK_BASE   = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/, '');
 const INITIATOR_NAME  = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
 
-// Safaricom's published production IP ranges for callback validation
-const DEFAULT_SAFARICOM_IPS = [
-  '196.201.214.200', '196.201.214.206', '196.201.213.150', '196.201.214.115',
-  '196.201.214.128', '196.201.214.129', '196.201.214.130', '196.201.214.131',
-  '196.201.214.132', '196.201.213.128', '196.201.213.129', '196.201.213.130',
-  '196.201.213.131', '196.201.213.132', '196.201.213.140', '196.201.213.141',
-  '196.201.213.142', '196.201.213.143', '196.201.213.144', '196.201.213.145',
-  '196.201.213.146', '196.201.213.147', '196.201.213.148', '196.201.213.149',
+// Safaricom's published production egress IPs for Daraja callbacks.
+// Single source of truth — every callback route validates against this set
+// via isSafaricomIp(). Override with MPESA_ALLOWED_IPS (comma-separated) when
+// Safaricom rotates the range.
+// Source: https://developer.safaricom.co.ke/docs#ip-addresses (merged with the
+// ranges previously hard-coded in the STK callback route).
+export const DEFAULT_SAFARICOM_IPS = [
+  '196.201.214.200', '196.201.214.206', '196.201.214.207', '196.201.214.208',
+  '196.201.214.115', '196.201.214.128', '196.201.214.129', '196.201.214.130',
+  '196.201.214.131', '196.201.214.132', '196.201.213.150', '196.201.213.114',
+  '196.201.213.44',  '196.201.212.127', '196.201.212.128', '196.201.212.129',
+  '196.201.212.136', '196.201.212.138', '196.201.212.74',  '196.201.212.69',
+  '196.201.213.128', '196.201.213.129', '196.201.213.130', '196.201.213.131',
+  '196.201.213.132', '196.201.213.140', '196.201.213.141', '196.201.213.142',
+  '196.201.213.143', '196.201.213.144', '196.201.213.145', '196.201.213.146',
+  '196.201.213.147', '196.201.213.148', '196.201.213.149',
 ];
 
 const ALLOWED_IPS = new Set<string>(
@@ -74,6 +82,21 @@ const ALLOWED_IPS = new Set<string>(
     ? process.env.MPESA_ALLOWED_IPS.split(',').map((s) => s.trim()).filter(Boolean)
     : DEFAULT_SAFARICOM_IPS,
 );
+
+// Fail fast: a production deployment with an empty allow-list would accept
+// callbacks from anywhere. Catch the misconfiguration at module load.
+if (!IS_SANDBOX && ALLOWED_IPS.size === 0) {
+  throw new Error(
+    '[daraja] MPESA_ENV=production but the Safaricom IP allow-list is empty. ' +
+    'Set MPESA_ALLOWED_IPS or restore DEFAULT_SAFARICOM_IPS.',
+  );
+}
+
+/** True when `ip` is an authorised Safaricom callback source (always true in sandbox). */
+export function isSafaricomIp(ip: string): boolean {
+  if (IS_SANDBOX) return true;
+  return ALLOWED_IPS.has(ip);
+}
 
 // ─── OAuth Token ─────────────────────────────────────────────────────────────
 
@@ -155,8 +178,7 @@ export function getMpesaPassword(timestamp: string, shortcode = SHORTCODE): stri
 }
 
 export function assertSafaricomIp(ip: string): void {
-  if (IS_SANDBOX) return;
-  if (!ALLOWED_IPS.has(ip)) {
+  if (!isSafaricomIp(ip)) {
     throw new Error(`Rejected callback from unauthorized IP: ${ip}`);
   }
 }

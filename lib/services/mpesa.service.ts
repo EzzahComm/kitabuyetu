@@ -9,12 +9,16 @@
  */
 
 import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withTransaction, withDb, type TenantContext } from '@/lib/db';
+import { NotFoundError } from '@/lib/utils/errors';
 import { cacheMpesaStatus } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { normalizePhone } from '@/lib/utils/phone';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/lib/utils/mpesa-bill-ref';
+import { allocateSplit } from '@/lib/utils/split-allocator';
+import { loadActiveSplitRules } from './contribution-splits.service';
+import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,
   initiateB2C        as _b2c,
@@ -31,6 +35,12 @@ export { assertSafaricomIp };
 // Sandbox env stamps `is_test=true` on every M-Pesa row + downstream journal
 // entry so a single DELETE WHERE is_test wipes test data pre-production.
 const IS_SANDBOX = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
+
+// Safaricom B2C/B2B transaction fees (debited from the Charges Paid sub-account)
+// are booked against this expense code. The seeded chart (mig 032) has no
+// dedicated charges account, so we use Administrative Expenses. The exact fee
+// per transaction is recorded separately in mpesa_charges for reconciliation.
+const CHARGE_EXPENSE_CODE = '5001';
 
 // ─── C2B registration ─────────────────────────────────────────────────────────
 
@@ -166,30 +176,44 @@ interface StkRequestRow {
 export async function handleSTKCallback(
   body: StkCallbackBody,
   callerIp: string,
+  opts?: { skipIpCheck?: boolean },
 ): Promise<StkCallbackResult> {
-  assertSafaricomIp(callerIp);
+  if (!opts?.skipIpCheck) assertSafaricomIp(callerIp);
 
   const cb       = body.Body.stkCallback;
   const rawBody  = JSON.stringify(body);
 
   // ── Failure branch ─────────────────────────────────────────────────────────
   if (cb.ResultCode !== 0) {
-    await withAdminDb(async (db) => {
-      // Capture group_id for the failed_payment_logs FK before we lose context.
-      const { rows: stkRows } = await db.query<{ group_id: string | null }>(
+    // The STK request row carries everything the fallback SMS needs. The
+    // status-guarded UPDATE … RETURNING also acts as a first-transition latch
+    // so a duplicate/ replayed failure callback won't re-send the SMS.
+    const failed = await withAdminDb(async (db) => {
+      const { rows: stkRows } = await db.query<{
+        group_id:          string;
+        phone:             string;
+        amount:            string;
+        account_reference: string;
+        purpose:           string | null;
+      }>(
+        `UPDATE mpesa_stk_requests
+         SET    status='failed', completed_at=NOW(), raw_callback=$2
+         WHERE  checkout_request_id=$1 AND status NOT IN ('failed','completed')
+         RETURNING group_id, phone, amount, account_reference, purpose`,
+        [cb.CheckoutRequestID, rawBody],
+      );
+      const stk = stkRows[0] ?? null;
+
+      // Fall back to a plain SELECT for group_id if the row already transitioned
+      // (so failed_payment_logs still gets the FK on a duplicate callback).
+      const groupId = stk?.group_id ?? (await db.query<{ group_id: string | null }>(
         `SELECT group_id FROM mpesa_stk_requests WHERE checkout_request_id=$1 LIMIT 1`,
         [cb.CheckoutRequestID],
-      );
-      const groupId = stkRows[0]?.group_id ?? null;
+      )).rows[0]?.group_id ?? null;
 
       await db.query(
         `UPDATE payments SET status='failed'
          WHERE mpesa_checkout_request_id=$1 AND status='pending'`,
-        [cb.CheckoutRequestID],
-      );
-      await db.query(
-        `UPDATE mpesa_stk_requests SET status='failed', completed_at=NOW()
-         WHERE checkout_request_id=$1`,
         [cb.CheckoutRequestID],
       );
       await db.query(
@@ -205,8 +229,19 @@ export async function handleSTKCallback(
          VALUES ($1,'stk_push',$2,$3,$4,$5)`,
         [groupId, cb.CheckoutRequestID, cb.ResultDesc, String(cb.ResultCode), rawBody],
       );
+
+      return stk; // null when this is a duplicate/replayed failure
     });
+
     await cacheMpesaStatus(cb.CheckoutRequestID, 'failed');
+
+    // First-transition only: nudge the member toward the PayBill fallback.
+    if (failed) {
+      await sendStkFallback(failed, cb.ResultCode).catch((err) =>
+        logger.error('[mpesa] STK fallback SMS failed', { err: String(err) }),
+      );
+    }
+
     return { success: false, mpesaReceiptNumber: null, amount: null, paymentId: null };
   }
 
@@ -467,29 +502,116 @@ async function routeToUnrouted(
   });
 }
 
+// ─── STK failure → PayBill fallback nudge ─────────────────────────────────────
+
+interface FailedStkRow {
+  group_id:          string;
+  phone:             string;
+  amount:            string;
+  account_reference: string;
+  purpose:           string | null;
+}
+
+/**
+ * Human-readable reason for the common Daraja STK result codes. Drives the
+ * fallback SMS copy. We deliberately do NOT auto-retry the STK — that
+ * surprises members and risks duplicate charges; we point them to PayBill.
+ */
+function stkFailureReason(code: number): string {
+  switch (code) {
+    case 1032: return 'was cancelled';
+    case 1037: return 'timed out with no response';
+    case 1:    return 'failed due to insufficient M-Pesa balance';
+    case 2001: return 'failed due to an incorrect M-Pesa PIN';
+    default:   return 'could not be completed';
+  }
+}
+
+/**
+ * Sends a one-off SMS/WhatsApp nudge after a failed STK prompt, pointing the
+ * member at the PayBill fallback with their account reference pre-filled.
+ * Only fires for payment-collection purposes (contribution / loan repayment);
+ * billing flows (registration, subscription, sms_topup) have their own UX.
+ */
+async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<void> {
+  if (stk.purpose && !['contribution', 'loan_repayment'].includes(stk.purpose)) return;
+
+  const member = await withAdminDb((db) =>
+    db.query<{ id: string }>(
+      `SELECT m.id
+       FROM   members m
+       JOIN   group_members gm ON gm.member_id = m.id
+       WHERE  m.phone = $1 AND gm.group_id = $2
+         AND  gm.is_active = true AND m.is_active = true
+       LIMIT  1`,
+      [stk.phone, stk.group_id],
+    ).then((r) => r.rows[0] ?? null),
+  );
+  if (!member) return; // can't attribute the nudge — skip
+
+  const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
+  const amount  = Math.round(parseFloat(stk.amount));
+  const body =
+    `KitabuYetu: Your M-Pesa payment of KES ${amount} ${stkFailureReason(resultCode)}. ` +
+    `To complete it, pay via PayBill ${paybill}, Account ${stk.account_reference}. ` +
+    `Reply HELP for support.`;
+
+  await notifyMember({
+    groupId:       stk.group_id,
+    memberId:      member.id,
+    phone:         stk.phone,
+    body,
+    referenceType: 'stk_fallback',
+  });
+}
+
 // ─── Journal posting helpers ─────────────────────────────────────────────────
 
 async function postContributionJournal(
   db:   PoolClient,
   args: { groupId: string; contributionId: string; amount: number; reference: string },
 ): Promise<void> {
-  const cashCode    = '1001';
-  const incomeCode  = '4001';
+  const cashCode        = '1001';   // Cash:M-Pesa (debit)
+  const defaultIncome   = '4001';   // Member savings / contribution income (credit)
 
+  // Run the split engine. Empty rule set → 100% to defaultIncome.
+  const rules       = await loadActiveSplitRules(db, args.groupId);
+  const allocations = allocateSplit(args.amount, rules, defaultIncome);
+  if (allocations.length === 0) return; // amount <= 0 guard
+
+  // Resolve account ids for cash + every allocation target in one query.
+  const neededCodes = Array.from(new Set([cashCode, ...allocations.map((a) => a.account_code)]));
   const { rows: accts } = await db.query<{ code: string; id: string }>(
     `SELECT account_code AS code, id
      FROM   accounts
      WHERE  group_id = $1 AND is_active = true
-       AND  account_code IN ($2, $3)`,
-    [args.groupId, cashCode, incomeCode],
+       AND  account_code = ANY($2)`,
+    [args.groupId, neededCodes],
   );
-  const cashId   = accts.find((a) => a.code === cashCode)?.id;
-  const incomeId = accts.find((a) => a.code === incomeCode)?.id;
-  if (!cashId || !incomeId) {
-    logger.warn('[mpesa] skipped contribution journal — chart of accounts missing 1001/4001', {
+  const idByCode = new Map(accts.map((a) => [a.code, a.id]));
+
+  const cashId = idByCode.get(cashCode);
+  if (!cashId) {
+    logger.warn('[mpesa] skipped contribution journal — missing cash account 1001', {
       groupId: args.groupId,
     });
     return;
+  }
+
+  // Build credit lines. Any allocation targeting a code that doesn't exist in
+  // the chart is redirected to the default income account so the entry still
+  // balances. If the default itself is missing, we can't post — bail.
+  const creditByAccountId = new Map<string, number>();
+  const defaultId = idByCode.get(defaultIncome);
+  for (const alloc of allocations) {
+    const targetId = idByCode.get(alloc.account_code) ?? defaultId;
+    if (!targetId) {
+      logger.warn('[mpesa] skipped contribution journal — split target + default both missing', {
+        groupId: args.groupId, code: alloc.account_code,
+      });
+      return;
+    }
+    creditByAccountId.set(targetId, (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents);
   }
 
   const { rows: jeRows } = await db.query<{ id: string }>(
@@ -506,11 +628,20 @@ async function postContributionJournal(
   );
   const jeId = jeRows[0].id;
 
+  // Debit cash for the full amount.
   await db.query(
     `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-    [args.groupId, jeId, cashId, args.amount.toFixed(2), incomeId],
+     VALUES ($1,$2,$3,$4,0)`,
+    [args.groupId, jeId, cashId, args.amount.toFixed(2)],
   );
+  // Credit each allocation target.
+  for (const [accountId, cents] of creditByAccountId) {
+    await db.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+       VALUES ($1,$2,$3,0,$4)`,
+      [args.groupId, jeId, accountId, (cents / 100).toFixed(2)],
+    );
+  }
 
   await db.query(
     `UPDATE contributions SET journal_entry_id=$1 WHERE id=$2`,
@@ -523,7 +654,7 @@ async function postLoanRepaymentJournal(
   args: { groupId: string; repaymentId: string; loanId: string; amount: number; reference: string },
 ): Promise<void> {
   const cashCode = '1001';
-  const loanRecvCode = '1201';   // Loans Receivable
+  const loanRecvCode = '1101';   // Loans Receivable (per default chart, mig 032)
 
   const { rows: accts } = await db.query<{ code: string; id: string }>(
     `SELECT account_code AS code, id
@@ -535,7 +666,7 @@ async function postLoanRepaymentJournal(
   const cashId = accts.find((a) => a.code === cashCode)?.id;
   const recvId = accts.find((a) => a.code === loanRecvCode)?.id;
   if (!cashId || !recvId) {
-    logger.warn('[mpesa] skipped loan repayment journal — chart of accounts missing 1001/1201', {
+    logger.warn('[mpesa] skipped loan repayment journal — chart of accounts missing 1001/1101', {
       groupId: args.groupId,
     });
     return;
@@ -588,8 +719,9 @@ export interface C2BCallbackBody {
 export async function handleC2BConfirmation(
   body: C2BCallbackBody,
   callerIp: string,
+  opts?: { skipIpCheck?: boolean },
 ): Promise<void> {
-  assertSafaricomIp(callerIp);
+  if (!opts?.skipIpCheck) assertSafaricomIp(callerIp);
 
   const phone   = normalizePhone(body.MSISDN);
   const amount  = parseFloat(body.TransAmount);
@@ -876,6 +1008,240 @@ async function c2bToUnrouted(
   });
 }
 
+// ─── Callback audit + DLQ replay ──────────────────────────────────────────────
+
+/**
+ * Inserts a raw inbound callback into the audit log and returns its id so the
+ * route can mark it processed/errored after handling. Callback bodies are the
+ * source of truth for the DLQ replay job.
+ */
+export async function logMpesaCallback(
+  callbackType: string,
+  callerIp: string,
+  rawBody: string,
+): Promise<string | null> {
+  try {
+    return await withAdminDb(async (db) => {
+      const { rows } = await db.query<{ id: string }>(
+        `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
+         VALUES ($1,$2,$3::jsonb)
+         RETURNING id`,
+        [callbackType, callerIp, rawBody],
+      );
+      return rows[0]?.id ?? null;
+    });
+  } catch {
+    return null; // audit logging must never block the 200 ACK to Safaricom
+  }
+}
+
+export async function markCallbackProcessed(id: string): Promise<void> {
+  await withAdminDb((db) =>
+    db.query(`UPDATE mpesa_callbacks SET processed=true, processing_error=NULL WHERE id=$1`, [id]),
+  ).catch(() => {});
+}
+
+export async function markCallbackError(id: string, message: string): Promise<void> {
+  await withAdminDb((db) =>
+    db.query(`UPDATE mpesa_callbacks SET processing_error=$2 WHERE id=$1`, [id, message.slice(0, 2000)]),
+  ).catch(() => {});
+}
+
+/**
+ * Dead-letter replay for inbound money callbacks. Picks unprocessed
+ * stk_push / c2b_confirmation rows older than 2 minutes (giving the inline
+ * setImmediate handler time to land) and re-runs the idempotent handler.
+ * The original validated caller IP is reused, and the IP check is skipped
+ * (these bodies were already authenticated when first received).
+ */
+export async function replayUnprocessedCallbacks(): Promise<{
+  examined: number; replayed: number; failed: number;
+}> {
+  const rows = await withAdminDb((db) =>
+    db.query<{ id: string; callback_type: string; caller_ip: string | null; body: unknown }>(
+      `SELECT id, callback_type, caller_ip::text AS caller_ip, body
+       FROM   mpesa_callbacks
+       WHERE  processed = false
+         AND  callback_type IN ('stk_push','c2b_confirmation')
+         AND  created_at < NOW() - INTERVAL '2 minutes'
+       ORDER  BY created_at ASC
+       LIMIT  100`,
+    ).then((r) => r.rows),
+  );
+
+  let replayed = 0;
+  let failed   = 0;
+  for (const row of rows) {
+    const ip = row.caller_ip ?? '0.0.0.0';
+    try {
+      if (row.callback_type === 'stk_push') {
+        await handleSTKCallback(row.body as StkCallbackBody, ip, { skipIpCheck: true });
+      } else {
+        await handleC2BConfirmation(row.body as C2BCallbackBody, ip, { skipIpCheck: true });
+      }
+      await markCallbackProcessed(row.id);
+      replayed++;
+    } catch (err) {
+      await markCallbackError(row.id, String(err));
+      failed++;
+    }
+  }
+  return { examined: rows.length, replayed, failed };
+}
+
+/**
+ * Charge-backfill reconciliation. Catches B2C transactions that completed but
+ * never got an mpesa_charges row (e.g. the inline charge step failed). Computes
+ * the deterministic fee, posts a standalone charge journal, and records it.
+ */
+export async function reconcileCharges(): Promise<{ examined: number; backfilled: number }> {
+  const rows = await withAdminDb((db) =>
+    db.query<{ id: string; group_id: string; amount: string }>(
+      `SELECT t.id, t.group_id, t.amount
+       FROM   mpesa_transactions t
+       WHERE  t.transaction_type = 'b2c'
+         AND  t.status = 'completed'
+         AND  t.completed_at < NOW() - INTERVAL '10 minutes'
+         AND  NOT EXISTS (
+                SELECT 1 FROM mpesa_charges c WHERE c.mpesa_transaction_id = t.id
+              )
+       LIMIT  200`,
+    ).then((r) => r.rows),
+  );
+
+  let backfilled = 0;
+  for (const row of rows) {
+    await withAdminDb(async (db) => {
+      const charge = await computeB2CCharge(db, parseFloat(row.amount));
+      if (charge <= 0) {
+        // No fee for this tier — record a zero-charge row so we stop re-examining it.
+        await insertMpesaCharge(db, {
+          groupId: row.group_id, mpesaTransactionId: row.id,
+          chargeType: 'b2c', amount: 0, journalEntryId: null,
+        });
+        return;
+      }
+      await postStandaloneChargeJournal(db, {
+        groupId:            row.group_id,
+        amount:             charge,
+        reference:          `backfill-${row.id}`,
+        mpesaTransactionId: row.id,
+        chargeType:         'b2c',
+      });
+    }).then(() => { backfilled++; }).catch((err) => {
+      logger.error('[mpesa] charge backfill failed', { txId: row.id, err: String(err) });
+    });
+  }
+  return { examined: rows.length, backfilled };
+}
+
+// ─── Unrouted receipt review (treasurer) ──────────────────────────────────────
+
+export interface UnroutedRow {
+  id:                 string;
+  receipt:            string;
+  phone:              string;
+  amount:             string;
+  bill_ref:           string | null;
+  reason:             string;
+  candidate_group_id: string | null;
+  resolved:           boolean;
+  created_at:         string;
+}
+
+/** Lists unresolved receipts awaiting manual allocation for the group. */
+export async function listUnrouted(ctx: TenantContext): Promise<UnroutedRow[]> {
+  return withDb(ctx, async (db) => {
+    const { rows } = await db.query<UnroutedRow>(
+      `SELECT id, receipt, phone, amount, bill_ref, reason,
+              candidate_group_id, resolved, created_at
+       FROM   mpesa_unrouted
+       WHERE  resolved = false
+       ORDER  BY created_at DESC
+       LIMIT  200`,
+    );
+    return rows;
+  });
+}
+
+/**
+ * Resolves an unrouted receipt. Two actions:
+ *   - 'allocate': create a completed contribution for `memberId` in the group,
+ *     post the split journal, and mark the receipt resolved.
+ *   - 'dismiss': mark resolved with a note and no contribution (e.g. a
+ *     mistaken payment handled out-of-band / reversed).
+ */
+export async function resolveUnrouted(
+  ctx: TenantContext,
+  id: string,
+  action: 'allocate' | 'dismiss',
+  opts: { memberId?: string; notes?: string },
+): Promise<void> {
+  return withTransaction(ctx, async (db) => {
+    const { rows } = await db.query<{
+      id: string; receipt: string; phone: string; amount: string;
+      bill_ref: string | null; resolved: boolean;
+    }>(
+      `SELECT id, receipt, phone, amount, bill_ref, resolved
+       FROM   mpesa_unrouted
+       WHERE  id = $1
+         AND  (candidate_group_id = $2 OR resolved_to_group_id = $2)
+       FOR UPDATE`,
+      [id, ctx.groupId],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundError('Unrouted receipt', id);
+    if (row.resolved) return; // already handled
+
+    if (action === 'dismiss') {
+      await db.query(
+        `UPDATE mpesa_unrouted
+         SET resolved=true, resolved_by=$2, resolved_at=NOW(),
+             resolved_to_group_id=$3, resolution_notes=$4
+         WHERE id=$1`,
+        [id, ctx.userId, ctx.groupId, opts.notes ?? 'Dismissed'],
+      );
+      return;
+    }
+
+    // allocate → create contribution + journal
+    if (!opts.memberId) throw new NotFoundError('Member', 'required for allocate');
+
+    const amount = parseFloat(row.amount);
+    const { rows: contribRows } = await db.query<{ id: string }>(
+      `INSERT INTO contributions
+         (group_id, member_id, amount, contribution_date,
+          status, payment_method, mpesa_receipt_number, notes, recorded_by)
+       VALUES ($1,$2,$3,CURRENT_DATE,'completed','mpesa',$4,$5,$6)
+       ON CONFLICT (mpesa_receipt_number) DO NOTHING
+       RETURNING id`,
+      [
+        ctx.groupId, opts.memberId, amount.toFixed(2), row.receipt,
+        `Manually routed from unrouted receipt (${row.bill_ref ?? 'no ref'})`,
+        ctx.userId,
+      ],
+    );
+    const contributionId = contribRows[0]?.id ?? null;
+    if (contributionId) {
+      await postContributionJournal(db, {
+        groupId:        ctx.groupId,
+        contributionId,
+        amount,
+        reference:      row.receipt,
+      });
+    }
+
+    await db.query(
+      `UPDATE mpesa_unrouted
+       SET resolved=true, resolved_by=$2, resolved_at=NOW(),
+           resolved_to_group_id=$3, resolved_to_contribution=$4,
+           resolution_notes=$5
+       WHERE id=$1`,
+      [id, ctx.userId, ctx.groupId, contributionId, opts.notes ?? 'Allocated to member'],
+    );
+  });
+}
+
 // ─── B2C ─────────────────────────────────────────────────────────────────────
 
 export interface B2CParams {
@@ -976,14 +1342,15 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
   await withAdminDb(async (db) => {
     // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
-      id:           string;
-      group_id:     string;
-      loan_id:      string | null;
-      amount:       string;
-      phone:        string;
-      disbursed_by: string | null;
+      id:                   string;
+      group_id:             string;
+      loan_id:              string | null;
+      amount:               string;
+      phone:                string;
+      disbursed_by:         string | null;
+      mpesa_transaction_id: string | null;
     }>(
-      `SELECT id, group_id, loan_id, amount, phone, disbursed_by
+      `SELECT id, group_id, loan_id, amount, phone, disbursed_by, mpesa_transaction_id
        FROM   mpesa_b2c_transactions
        WHERE  originator_conversation_id=$1
        FOR UPDATE`,
@@ -1035,22 +1402,131 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
       [receipt, rawBody, IS_SANDBOX, r.OriginatorConversationID],
     );
 
-    // ── Loan disbursement side-effect ────────────────────────────────────
-    if (b2c?.loan_id && receipt) {
-      await applyLoanDisbursement(db, {
-        groupId:      b2c.group_id,
-        loanId:       b2c.loan_id,
-        amount:       parseFloat(b2c.amount),
-        receipt,
-        disbursedBy:  b2c.disbursed_by,
-      });
+    // ── Charges + loan disbursement side-effect ──────────────────────────
+    if (b2c) {
+      const grossAmount = parseFloat(b2c.amount);
+      const charge      = await computeB2CCharge(db, grossAmount);
+
+      if (b2c.loan_id && receipt) {
+        // Combined journal: DR loan receivable + DR charges expense / CR cash.
+        await applyLoanDisbursement(db, {
+          groupId:            b2c.group_id,
+          loanId:             b2c.loan_id,
+          amount:             grossAmount,
+          charge,
+          receipt,
+          disbursedBy:        b2c.disbursed_by,
+          mpesaTransactionId: b2c.mpesa_transaction_id,
+        });
+      } else if (charge > 0 && b2c.mpesa_transaction_id) {
+        // Non-loan B2C (welfare payout, dividend): the disbursement journal
+        // is posted by its own module, but the Safaricom fee still needs to
+        // hit the books. Post a standalone charge entry.
+        await postStandaloneChargeJournal(db, {
+          groupId:            b2c.group_id,
+          amount:             charge,
+          reference:          receipt ?? r.OriginatorConversationID,
+          mpesaTransactionId: b2c.mpesa_transaction_id,
+          chargeType:         'b2c',
+        });
+      }
     }
   });
 }
 
+/** Deterministic Safaricom fee lookup via the seeded tier table (mig 047). */
+async function computeB2CCharge(db: PoolClient, amount: number): Promise<number> {
+  const { rows } = await db.query<{ charge: string | null }>(
+    `SELECT mpesa_charge_for_amount($1, 'b2c') AS charge`,
+    [amount.toFixed(2)],
+  );
+  const raw = rows[0]?.charge;
+  return raw != null ? parseFloat(raw) : 0;
+}
+
+/**
+ * Records the Safaricom fee in mpesa_charges. Idempotent — the UNIQUE
+ * (mpesa_transaction_id) constraint makes a duplicate callback a no-op.
+ */
+async function insertMpesaCharge(
+  db:   PoolClient,
+  args: {
+    groupId:            string;
+    mpesaTransactionId: string;
+    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
+    amount:             number;
+    journalEntryId:     string | null;
+  },
+): Promise<void> {
+  await db.query(
+    `INSERT INTO mpesa_charges
+       (group_id, mpesa_transaction_id, charge_type, amount, source, journal_entry_id)
+     VALUES ($1,$2,$3,$4,'tier_table',$5)
+     ON CONFLICT (mpesa_transaction_id) DO NOTHING`,
+    [args.groupId, args.mpesaTransactionId, args.chargeType, args.amount.toFixed(2), args.journalEntryId],
+  );
+}
+
+/**
+ * Posts a charge-only journal entry (DR admin expense / CR cash) for B2C/B2B
+ * flows whose principal disbursement journal lives in another module.
+ */
+async function postStandaloneChargeJournal(
+  db:   PoolClient,
+  args: {
+    groupId:            string;
+    amount:             number;
+    reference:          string;
+    mpesaTransactionId: string;
+    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
+  },
+): Promise<void> {
+  const cashCode   = '1001';
+  const expenseCode = CHARGE_EXPENSE_CODE;
+
+  const { rows: accts } = await db.query<{ code: string; id: string }>(
+    `SELECT account_code AS code, id FROM accounts
+     WHERE group_id = $1 AND is_active = true AND account_code IN ($2, $3)`,
+    [args.groupId, cashCode, expenseCode],
+  );
+  const cashId    = accts.find((a) => a.code === cashCode)?.id;
+  const expenseId = accts.find((a) => a.code === expenseCode)?.id;
+  if (!cashId || !expenseId) {
+    logger.warn('[mpesa] skipped charge journal — chart missing 1001/5001', { groupId: args.groupId });
+    // Still record the charge for reconciliation even if we can't post it.
+    await insertMpesaCharge(db, { ...args, journalEntryId: null });
+    return;
+  }
+
+  const { rows: jeRows } = await db.query<{ id: string }>(
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test)
+     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4)
+     RETURNING id`,
+    [args.groupId, args.reference, `M-Pesa ${args.chargeType.toUpperCase()} transaction charge`, IS_SANDBOX],
+  );
+  const jeId = jeRows[0].id;
+
+  await db.query(
+    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
+    [args.groupId, jeId, expenseId, args.amount.toFixed(2), cashId],
+  );
+
+  await insertMpesaCharge(db, { ...args, journalEntryId: jeId });
+}
+
 async function applyLoanDisbursement(
   db:   PoolClient,
-  args: { groupId: string; loanId: string; amount: number; receipt: string; disbursedBy: string | null },
+  args: {
+    groupId:            string;
+    loanId:             string;
+    amount:             number;
+    charge:             number;
+    receipt:            string;
+    disbursedBy:        string | null;
+    mpesaTransactionId: string | null;
+  },
 ): Promise<void> {
   // Flip the loan to disbursed (state-machine guard in mig 028 enforces the
   // transition: approved → disbursed). Idempotent — re-runs no-op when the
@@ -1074,25 +1550,33 @@ async function applyLoanDisbursement(
     return;
   }
 
-  // Journal: DR loans_receivable / CR cash
+  // Combined journal (per locked decision):
+  //   DR Loans Receivable (1101)   principal
+  //   DR Admin/Charges Expense     Safaricom fee   (only when charge > 0)
+  //   CR Cash:M-Pesa (1001)        principal + fee
   const cashCode = '1001';
-  const recvCode = '1201';
+  const recvCode = '1101';   // Loans Receivable (per default chart, mig 032)
 
   const { rows: accts } = await db.query<{ code: string; id: string }>(
     `SELECT account_code AS code, id
      FROM   accounts
      WHERE  group_id = $1 AND is_active = true
-       AND  account_code IN ($2, $3)`,
-    [args.groupId, cashCode, recvCode],
+       AND  account_code = ANY($2)`,
+    [args.groupId, [cashCode, recvCode, CHARGE_EXPENSE_CODE]],
   );
-  const cashId = accts.find((a) => a.code === cashCode)?.id;
-  const recvId = accts.find((a) => a.code === recvCode)?.id;
+  const cashId    = accts.find((a) => a.code === cashCode)?.id;
+  const recvId    = accts.find((a) => a.code === recvCode)?.id;
+  const expenseId = accts.find((a) => a.code === CHARGE_EXPENSE_CODE)?.id;
   if (!cashId || !recvId) {
-    logger.warn('[mpesa] skipped loan disbursement journal — chart of accounts missing 1001/1201', {
+    logger.warn('[mpesa] skipped loan disbursement journal — chart of accounts missing 1001/1101', {
       groupId: args.groupId,
     });
     return;
   }
+
+  // Only fold the charge in if we have an expense account to debit it to.
+  const postCharge = args.charge > 0 && !!expenseId;
+  const cashCredit = postCharge ? args.amount + args.charge : args.amount;
 
   const { rows: jeRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_entries
@@ -1109,16 +1593,36 @@ async function applyLoanDisbursement(
   );
   const jeId = jeRows[0].id;
 
+  // DR loans receivable (principal) + CR cash (principal + fee)
   await db.query(
     `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-    [args.groupId, jeId, recvId, args.amount.toFixed(2), cashId],
+     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$6)`,
+    [args.groupId, jeId, recvId, args.amount.toFixed(2), cashId, cashCredit.toFixed(2)],
   );
+  // DR charges expense (fee)
+  if (postCharge) {
+    await db.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+       VALUES ($1,$2,$3,$4,0)`,
+      [args.groupId, jeId, expenseId, args.charge.toFixed(2)],
+    );
+  }
 
   await db.query(
     `UPDATE loans SET journal_entry_id = $1 WHERE id = $2`,
     [jeId, args.loanId],
   );
+
+  // Record the fee for reconciliation against the Charges Paid sub-account.
+  if (args.charge > 0 && args.mpesaTransactionId) {
+    await insertMpesaCharge(db, {
+      groupId:            args.groupId,
+      mpesaTransactionId: args.mpesaTransactionId,
+      chargeType:         'b2c',
+      amount:             args.charge,
+      journalEntryId:     postCharge ? jeId : null,
+    });
+  }
 }
 
 // ─── Reversal handling ────────────────────────────────────────────────────────
@@ -1230,6 +1734,80 @@ export async function handleBalanceResult(
       [
         r.ResultCode === 0 ? 'completed' : 'failed',
         JSON.stringify(body),
+        r.OriginatorConversationID ?? '',
+        r.ConversationID ?? '',
+      ],
+    );
+  });
+}
+
+// ─── Transaction Status result ────────────────────────────────────────────────
+
+/**
+ * Handles the async Transaction Status query result. Unlike the previous
+ * status-only flip, this parses ResultParameters and persists the structured
+ * fields Safaricom returns (receipt, amount, party names, reason) so the
+ * reconciliation engine can cross-check a queried transaction against our
+ * ledger. `skipIpCheck` lets the DLQ replay reuse it.
+ */
+export async function handleTransactionStatusResult(
+  body: Record<string, unknown>,
+  callerIp: string,
+  opts?: { skipIpCheck?: boolean },
+): Promise<void> {
+  if (!opts?.skipIpCheck) assertSafaricomIp(callerIp);
+
+  type ResultParam = { Key: string; Value: unknown };
+  type RawResult = {
+    Result?: {
+      ResultCode?: number;
+      OriginatorConversationID?: string;
+      ConversationID?: string;
+      ResultParameters?: { ResultParameter?: ResultParam[] };
+    };
+  };
+  const r = (body as RawResult).Result;
+  if (!r) return;
+
+  const params = r.ResultParameters?.ResultParameter ?? [];
+  const get = (k: string): string | null => {
+    const v = params.find((p) => p.Key === k)?.Value;
+    return v == null ? null : String(v);
+  };
+
+  const receipt = get('ReceiptNo');
+  const amountStr = get('Amount');
+  const amount = amountStr != null ? parseFloat(amountStr) : null;
+
+  // Merge a parsed summary alongside the raw body for easy querying later.
+  const parsed = {
+    receiptNo:         receipt,
+    transactionStatus: get('TransactionStatus'),
+    amount,
+    debitPartyName:    get('DebitPartyName'),
+    creditPartyName:   get('CreditPartyName'),
+    transactionReason: get('TransactionReason') ?? get('ReasonType'),
+    finalisedTime:     get('FinalisedTime'),
+  };
+  const stored = JSON.stringify({ ...body, _parsed: parsed });
+
+  const success = r.ResultCode === 0;
+
+  await withAdminDb(async (db) => {
+    await db.query(
+      `UPDATE mpesa_transactions
+       SET status               = $1,
+           raw_response         = $2::jsonb,
+           mpesa_receipt_number = COALESCE(mpesa_receipt_number, $3),
+           amount               = CASE WHEN amount = 0 AND $4::numeric IS NOT NULL
+                                       THEN $4::numeric ELSE amount END,
+           completed_at         = NOW()
+       WHERE originator_conversation_id = $5 OR conversation_id = $6`,
+      [
+        success ? 'completed' : 'failed',
+        stored,
+        receipt,
+        amount != null ? amount.toFixed(2) : null,
         r.OriginatorConversationID ?? '',
         r.ConversationID ?? '',
       ],

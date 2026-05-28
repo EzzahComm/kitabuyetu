@@ -90,6 +90,38 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Fetches a binary endpoint (e.g. a PDF) with the Bearer header and opens the
+ * resulting blob in a new tab. Plain <a href> links can't be used for API
+ * routes because the middleware requires an Authorization header, which anchor
+ * navigations don't send.
+ */
+async function openBlob(path: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  const token = readAccessTokenFromStorage();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, { headers });
+  if (res.status === 401) {
+    _onUnauthorized?.();
+    throw new Error('Session expired. Please log in again.');
+  }
+  if (!res.ok) {
+    // Binary endpoints still return JSON errors via handleError.
+    let msg = `Request failed (${res.status})`;
+    try {
+      const j = await res.json() as { error?: string };
+      if (j.error) msg = j.error;
+    } catch { /* non-JSON body */ }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  // Revoke after a tick so the new tab has time to load the blob.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export const api = {
   get:    <T>(path: string)                           => request<T>('GET',    path),
   post:   <T>(path: string, body: unknown)            => request<T>('POST',   path, body),
@@ -97,4 +129,5 @@ export const api = {
   put:    <T>(path: string, body: unknown)            => request<T>('PUT',    path, body),
   delete: <T>(path: string)                           => request<T>('DELETE', path),
   upload: <T>(path: string, formData: FormData)       => request<T>('POST',   path, formData, { multipart: true }),
+  openBlob,
 };

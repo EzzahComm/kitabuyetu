@@ -53,6 +53,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `mpesa_reconcile:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  // DLQ replay — re-runs inbound money callbacks whose effect didn't land.
+  queued.mpesa_replay_callbacks = await safe('mpesa_replay_callbacks', {}, {
+    priority:  9,
+    dedup_key: `mpesa_replay_callbacks:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
   // ── Daily 06:00 UTC — recurring invoices ──────────────────────
   if (hour === 6) {
     queued.email_recurring_invoices = await safe('email_recurring_invoices', {}, {
@@ -90,6 +96,31 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     queued.cleanup_expired_tokens = await safe('cleanup_expired_tokens', {}, {
       priority:  1,
       dedup_key: `cleanup_expired_tokens:${dateStr}`,
+    });
+  }
+
+  // ── Daily 03:00 UTC (06:00 EAT) — M-Pesa charge backfill ──────
+  // Catches B2C transactions that completed without an mpesa_charges row.
+  if (hour === 3) {
+    queued.mpesa_reconcile_charges = await safe('mpesa_reconcile_charges', {}, {
+      priority:  4,
+      dedup_key: `mpesa_reconcile_charges:${dateStr}`,
+    });
+  }
+
+  // ── Daily 05:00 UTC (08:00 EAT) — sub-account balance snapshot ─
+  if (hour === 5) {
+    queued.mpesa_balance_snapshot = await safe('mpesa_balance_snapshot', {}, {
+      priority:  3,
+      dedup_key: `mpesa_balance_snapshot:${dateStr}`,
+    });
+  }
+
+  // ── Daily 20:00 UTC (23:00 EAT) — M-Pesa daily report email ───
+  if (hour === 20) {
+    queued.mpesa_daily_report = await safe('mpesa_daily_report', {}, {
+      priority:  3,
+      dedup_key: `mpesa_daily_report:${dateStr}`,
     });
   }
 

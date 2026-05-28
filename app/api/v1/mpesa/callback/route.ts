@@ -1,31 +1,18 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { handleSTKCallback, type StkCallbackBody } from '@/lib/services/mpesa.service';
+import {
+  handleSTKCallback,
+  logMpesaCallback,
+  markCallbackProcessed,
+  markCallbackError,
+  type StkCallbackBody,
+} from '@/lib/services/mpesa.service';
 import { billingService } from '@/lib/services/billing.service';
 import { smsService } from '@/lib/services/sms.service';
+import { isSafaricomIp } from '@/lib/services/daraja.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * Safaricom's published egress IPs for Daraja callbacks.
- * Source: https://developer.safaricom.co.ke/docs#ip-addresses
- * Reject any POST that does not originate from this set (production only).
- */
-const SAFARICOM_IPS = new Set([
-  '196.201.214.200',
-  '196.201.214.206',
-  '196.201.213.114',
-  '196.201.214.207',
-  '196.201.214.208',
-  '196.201.213.44',
-  '196.201.212.127',
-  '196.201.212.138',
-  '196.201.212.129',
-  '196.201.212.136',
-  '196.201.212.74',
-  '196.201.212.69',
-]);
 
 /**
  * STK Push callback from Safaricom.
@@ -34,9 +21,9 @@ const SAFARICOM_IPS = new Set([
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const callerIp = getCallerIp(req);
 
-  // Validate origin before parsing the body.
-  // In sandbox we skip IP validation (Safaricom sandbox uses different IPs).
-  if (process.env.MPESA_ENV === 'production' && !SAFARICOM_IPS.has(callerIp)) {
+  // Validate origin against the consolidated Safaricom allow-list
+  // (isSafaricomIp returns true in sandbox where the source IPs differ).
+  if (!isSafaricomIp(callerIp)) {
     return NextResponse.json(
       { ResultCode: 1, ResultDesc: 'Rejected' },
       { status: 403 },
@@ -52,25 +39,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return ack();
   }
 
-  // Log raw callback for audit trail — fire and forget
-  setImmediate(() => {
-    withAdminDb((db) =>
-      db.query(
-        `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
-         VALUES ('stk_push',$1,$2)`,
-        [callerIp, rawBody],
-      ),
-    ).catch(() => {});
-  });
-
+  // Audit-log the raw callback, process it, then mark the audit row
+  // processed/errored so the DLQ replay job can pick up genuine failures.
   setImmediate(async () => {
+    const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
     try {
       const result = await handleSTKCallback(body, callerIp);
       if (result.success && result.paymentId && result.amount) {
         await processFulfillment(result.paymentId, result.amount, result.mpesaReceiptNumber);
       }
+      if (callbackId) await markCallbackProcessed(callbackId);
     } catch (err) {
       logger.error('[mpesa/callback] Processing error:', err);
+      if (callbackId) await markCallbackError(callbackId, String(err));
     }
   });
 

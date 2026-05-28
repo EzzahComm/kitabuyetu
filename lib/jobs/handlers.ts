@@ -40,6 +40,18 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'mpesa_reconcile':
       return handleMpesaReconcile();
 
+    case 'mpesa_replay_callbacks':
+      return handleMpesaReplayCallbacks();
+
+    case 'mpesa_reconcile_charges':
+      return handleMpesaReconcileCharges();
+
+    case 'mpesa_daily_report':
+      return handleMpesaDailyReport();
+
+    case 'mpesa_balance_snapshot':
+      return handleMpesaBalanceSnapshot();
+
     case 'cleanup_expired_tokens':
       return handleCleanupExpiredTokens();
 
@@ -102,6 +114,33 @@ async function handleMpesaReconcile(): Promise<HandlerResult> {
   const { runReconciliation } = await import('@/lib/services/mpesa.service');
   const result = await runReconciliation(null, null);
   return { message: 'M-Pesa reconciliation complete', ...flattenResult(result) };
+}
+
+async function handleMpesaReplayCallbacks(): Promise<HandlerResult> {
+  const { replayUnprocessedCallbacks } = await import('@/lib/services/mpesa.service');
+  const result = await replayUnprocessedCallbacks();
+  return { message: 'M-Pesa callback DLQ replay complete', ...flattenResult(result) };
+}
+
+async function handleMpesaReconcileCharges(): Promise<HandlerResult> {
+  const { reconcileCharges } = await import('@/lib/services/mpesa.service');
+  const result = await reconcileCharges();
+  return { message: 'M-Pesa charge backfill complete', ...flattenResult(result) };
+}
+
+async function handleMpesaDailyReport(): Promise<HandlerResult> {
+  const { sendDailyMpesaReconReports } = await import('@/lib/services/mpesa-reports.service');
+  const result = await sendDailyMpesaReconReports();
+  return { message: 'M-Pesa daily report sent', ...flattenResult(result) };
+}
+
+async function handleMpesaBalanceSnapshot(): Promise<HandlerResult> {
+  // One Account Balance query returns every sub-account balance via the async
+  // callback (handleBalanceResult persists it). Fired once daily per group that
+  // has officers; here we trigger a single org-level query.
+  const { queryAccountBalance } = await import('@/lib/services/daraja.service');
+  await queryAccountBalance();
+  return { message: 'M-Pesa balance snapshot requested' };
 }
 
 // ── Cleanup handler ───────────────────────────────────────────

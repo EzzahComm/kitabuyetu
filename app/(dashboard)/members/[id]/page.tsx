@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Shield, CreditCard, Landmark, Users, Plus, Trash2, Briefcase, Archive, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, Shield, CreditCard, Landmark, Users, Plus, Trash2, Briefcase, Archive, RotateCcw, AlertTriangle, Smartphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
   const [kinDialogOpen, setKinDialogOpen] = useState(false);
   const [statusDialog,  setStatusDialog]  = useState<null | { target: string }>(null);
+  const [stkOpen,       setStkOpen]       = useState(false);
 
   if (loadingMember) {
     return (
@@ -155,6 +156,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             {/* Status action buttons (visible to caller with manage rights;
                 RLS will reject the request server-side if not authorised). */}
             <div className="flex gap-2 flex-shrink-0">
+              {m.phone && (
+                <Button size="sm" onClick={() => setStkOpen(true)}>
+                  <Smartphone size={14} className="mr-1" /> Request payment
+                </Button>
+              )}
               {currentStatus === 'archived' ? (
                 <Button size="sm" variant="outline" onClick={() => setStatusDialog({ target: 'active' })}>
                   <RotateCcw size={14} className="mr-1" /> Restore
@@ -340,8 +346,94 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         onClose={() => setStatusDialog(null)}
         onApplied={() => qc.invalidateQueries({ queryKey: memberKeys.detail(id) })}
       />
+
+      <StkPromptDialog
+        open={stkOpen}
+        onClose={() => setStkOpen(false)}
+        phone={m.phone ?? ''}
+        memberName={fullName}
+      />
     </div>
   );
+}
+
+// ─── STK push prompt ────────────────────────────────────────────────────
+
+function StkPromptDialog({
+  open, onClose, phone, memberName,
+}: { open: boolean; onClose: () => void; phone: string; memberName: string }) {
+  const { toast } = useToast();
+  const [amount, setAmount]   = useState('');
+  const [sending, setSending] = useState(false);
+  const [status, setStatus]   = useState<string | null>(null);
+
+  const send = async () => {
+    const amt = parseInt(amount, 10);
+    if (!amt || amt <= 0) { toast({ variant: 'destructive', title: 'Enter a whole-shilling amount' }); return; }
+    setSending(true);
+    setStatus(null);
+    try {
+      const res = await fetchStk(amt, phone);
+      const checkoutId = res?.checkoutRequestId;
+      toast({ title: 'STK push sent', description: 'Ask the member to enter their M-Pesa PIN.' });
+      if (checkoutId) void pollStatus(checkoutId, setStatus);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'STK push failed', description: err?.message });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { setAmount(''); setStatus(null); onClose(); } }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Request M-Pesa payment</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Prompt <span className="font-medium text-foreground">{memberName}</span> ({phone}) to pay a contribution.
+          </p>
+          <div className="space-y-1">
+            <Label>Amount (KES)</Label>
+            <Input type="number" min={1} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="500" />
+          </div>
+          {status && (
+            <p className={`text-sm ${status === 'completed' ? 'text-green-600' : status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>
+              Status: {status}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button onClick={send} loading={sending}>Send prompt</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function fetchStk(amount: number, phone: string): Promise<{ checkoutRequestId?: string }> {
+  const { api } = await import('@/lib/api/client');
+  return api.post<{ checkoutRequestId?: string }>('/mpesa/stk-push', {
+    phone,
+    amount,
+    accountReference: 'CONTRIB',
+    description:      'Contribution',
+    purpose:          'contribution',
+  });
+}
+
+async function pollStatus(checkoutId: string, setStatus: (s: string) => void): Promise<void> {
+  const { api } = await import('@/lib/api/client');
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const res = await api.get<{ status: string }>(`/mpesa/status?checkoutRequestId=${encodeURIComponent(checkoutId)}`);
+      setStatus(res.status);
+      if (res.status === 'completed' || res.status === 'failed') return;
+    } catch {
+      // keep polling — transient
+    }
+  }
 }
 
 // ─── Next-of-kin row + delete ───────────────────────────────────────────

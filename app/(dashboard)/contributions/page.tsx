@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useContributions, useRecordContribution } from '@/hooks/use-contributions';
 import { useMembers } from '@/hooks/use-members';
+import { api } from '@/lib/api/client';
+import { FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -64,6 +66,20 @@ export default function ContributionsPage() {
     { key: 'paymentMethod', header: 'Method', render: (row: any) => <Badge variant="outline" className="capitalize">{row.paymentMethod?.replace('_',' ')}</Badge> },
     { key: 'status', header: 'Status', render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'}>{row.status}</Badge> },
     { key: 'createdAt', header: 'Date', render: (row: any) => formatDate(row.createdAt) },
+    {
+      key: 'receipt', header: '',
+      render: (row: any) =>
+        (row.status === 'completed' || row.status === 'confirmed') ? (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+            onClick={() => api.openBlob(`/contributions/${row.id}/receipt`).catch((e) =>
+              toast({ variant: 'destructive', title: 'Receipt failed', description: e.message }))}
+          >
+            <FileText size={13} /> Receipt
+          </button>
+        ) : null,
+    },
   ];
 
   return (

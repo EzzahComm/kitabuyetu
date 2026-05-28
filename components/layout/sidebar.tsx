@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
   MessageSquare, BarChart2, Building2, Settings, LogOut, X,
   Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
-  Upload,
+  Upload, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/members',       label: 'Members',        icon: Users },
   { href: '/contributions', label: 'Contributions',  icon: CreditCard },
   { href: '/loans',         label: 'Loans',          icon: Landmark },
+  { href: '/mpesa',         label: 'M-Pesa',         icon: Smartphone },
   { href: '/welfare',       label: 'Welfare',        icon: Heart },
   { href: '/shares',        label: 'Shares',         icon: Coins },
   { href: '/dividends',     label: 'Dividends',      icon: ReceiptText },

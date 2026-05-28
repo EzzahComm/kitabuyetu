@@ -4,6 +4,8 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
 import { generateDynamicQr } from '@/lib/services/daraja.service';
+import { withAdminDb } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
@@ -32,16 +34,38 @@ const Schema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withAuth(req, async () => {
+  return withAuth(req, async (auth) => {
     try {
       const input = Schema.parse(await req.json());
       const resp  = await generateDynamicQr(input);
       if (resp.ResponseCode !== '00') {
         return handleError(new Error(`Daraja QR error: ${resp.ResponseDescription}`));
       }
+
+      // Persist for audit / reprint. Non-blocking — a logging failure must not
+      // deny the caller the QR they successfully generated.
+      const qrId = await withAdminDb((db) =>
+        db.query<{ id: string }>(
+          `INSERT INTO mpesa_qr_codes
+             (group_id, merchant_name, ref_no, amount, trx_code, cpi, size_px,
+              daraja_request_id, generated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           RETURNING id`,
+          [
+            auth.groupId, input.merchantName, input.refNo, input.amount,
+            input.trxCode, input.cpi, input.size ?? 300,
+            resp.RequestID ?? null, auth.userId,
+          ],
+        ).then((r) => r.rows[0]?.id ?? null),
+      ).catch((err) => {
+        logger.error('[mpesa/qr] failed to persist QR record', { err: String(err) });
+        return null;
+      });
+
       return ok({
-        qrCodePng:  `data:image/png;base64,${resp.QRCode}`,
-        requestId:  resp.RequestID,
+        id:          qrId,
+        qrCodePng:   `data:image/png;base64,${resp.QRCode}`,
+        requestId:   resp.RequestID,
         description: resp.ResponseDescription,
       });
     } catch (err) {

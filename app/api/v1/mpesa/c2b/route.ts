@@ -1,6 +1,12 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server';
-import { handleC2BConfirmation, type C2BCallbackBody } from '@/lib/services/mpesa.service';
+import {
+  handleC2BConfirmation,
+  logMpesaCallback,
+  markCallbackProcessed,
+  markCallbackError,
+  type C2BCallbackBody,
+} from '@/lib/services/mpesa.service';
 import { logger } from '@/lib/logger';
 
 /**
@@ -28,18 +34,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // confirmation
+  const rawBody = await req.text();
   let body: C2BCallbackBody;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody) as C2BCallbackBody;
   } catch {
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
   }
 
   setImmediate(async () => {
+    const callbackId = await logMpesaCallback('c2b_confirmation', callerIp, rawBody);
     try {
       await handleC2BConfirmation(body, callerIp);
+      if (callbackId) await markCallbackProcessed(callbackId);
     } catch (err) {
       logger.error('[c2b] Confirmation error:', err);
+      if (callbackId) await markCallbackError(callbackId, String(err));
     }
   });
 
