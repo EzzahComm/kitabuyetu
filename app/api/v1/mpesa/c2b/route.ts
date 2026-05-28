@@ -1,5 +1,5 @@
 ﻿export const dynamic = 'force-dynamic'
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import {
   handleC2BConfirmation,
   logMpesaCallback,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
   }
 
-  setImmediate(async () => {
+  after(async () => {
     const callbackId = await logMpesaCallback('c2b_confirmation', callerIp, rawBody);
     try {
       await handleC2BConfirmation(body, callerIp);

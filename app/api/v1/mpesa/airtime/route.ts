@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * The underlying Daraja airtime product is operator-provisioned; the call is
  * gated behind MPESA_AIRTIME_COMMAND_ID and returns 501 until configured.
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import { initiateAirtime, handleAirtimeResult } from '@/lib/services/mpesa.service';
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
-    setImmediate(() => {
+    after(() => {
       withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    setImmediate(async () => {
+    after(async () => {
       try { await handleAirtimeResult(body, ip); }
       catch (err) { logger.error('[airtime result]', err); }
     });

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse, after } from 'next/server';
 import {
   handleSTKCallback,
   logMpesaCallback,
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Audit-log the raw callback, process it, then mark the audit row
   // processed/errored so the DLQ replay job can pick up genuine failures.
-  setImmediate(async () => {
+  after(async () => {
     const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
     try {
       const result = await handleSTKCallback(body, callerIp);

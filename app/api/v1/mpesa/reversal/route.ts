@@ -4,7 +4,7 @@
  * POST /api/v1/mpesa/reversal?type=result  â€” Safaricom callback (no JWT)
  * POST /api/v1/mpesa/reversal?type=timeout â€” Safaricom timeout  (no JWT)
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import { requestReversal } from '@/lib/services/daraja.service';
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
-    setImmediate(() => {
+    after(() => {
       withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    setImmediate(async () => {
+    after(async () => {
       try { await handleReversalResult(body, ip); }
       catch (err) { logger.error('[reversal result]', err); }
     });

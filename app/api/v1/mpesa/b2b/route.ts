@@ -5,7 +5,7 @@
  * POST /api/v1/mpesa/b2b?type=timeout â€” Safaricom timeout callback
  * GET  /api/v1/mpesa/b2b              â€” List B2B transactions for the group
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import { initiateB2B } from '@/lib/services/daraja.service';
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
-    setImmediate(() => {
+    after(() => {
       withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body) VALUES ($1,$2,$3)`,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    setImmediate(async () => {
+    after(async () => {
       try { await handleB2BResult(body, ip); }
       catch (err) { logger.error('[b2b result]', err); }
     });

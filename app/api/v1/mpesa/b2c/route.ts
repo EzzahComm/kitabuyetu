@@ -1,5 +1,5 @@
 ﻿export const dynamic = 'force-dynamic'
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       return ack();
     }
     // Log callback
-    setImmediate(() => {
+    after(() => {
       withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    setImmediate(async () => {
+    after(async () => {
       try { await handleB2CResult(body, callerIp); } catch (err) {
         logger.error('[b2c result]', err);
       }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (type === 'balance_result' || type === 'balance_timeout') {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
-    setImmediate(async () => {
+    after(async () => {
       try { await handleBalanceResult(body, callerIp); } catch (err) {
         logger.error('[balance result]', err);
       }

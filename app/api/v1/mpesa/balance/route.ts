@@ -5,7 +5,7 @@
  * POST /api/v1/mpesa/balance?type=result  â€” Safaricom async result callback
  * POST /api/v1/mpesa/balance?type=timeout â€” Safaricom timeout callback
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { withRole } from '@/lib/auth/middleware';
 import { queryAccountBalance } from '@/lib/services/daraja.service';
 import { handleBalanceResult } from '@/lib/services/mpesa.service';
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
-    setImmediate(() => {
+    after(() => {
       withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body)
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    setImmediate(async () => {
+    after(async () => {
       try { await handleBalanceResult(body, ip); }
       catch (err) { logger.error('[balance result]', err); }
     });
