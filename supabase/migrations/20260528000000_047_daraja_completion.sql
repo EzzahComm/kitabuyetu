@@ -57,7 +57,7 @@ CREATE INDEX idx_mpesa_charges_created   ON mpesa_charges (created_at DESC);
 
 CREATE TRIGGER trg_mpesa_charges_updated_at
   BEFORE UPDATE ON mpesa_charges
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- 3. mpesa_b2c_charge_tiers — deterministic Safaricom B2C fee schedule
@@ -158,7 +158,7 @@ CREATE INDEX idx_group_splits_active  ON group_contribution_splits (group_id, pr
 
 CREATE TRIGGER trg_group_splits_updated_at
   BEFORE UPDATE ON group_contribution_splits
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- 5. mpesa_qr_codes — audit of generated dynamic QRs
@@ -223,7 +223,7 @@ CREATE INDEX idx_unrouted_candidate    ON mpesa_unrouted (candidate_group_id) WH
 
 CREATE TRIGGER trg_unrouted_updated_at
   BEFORE UPDATE ON mpesa_unrouted
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- 7. groups.mpesa_paybill_prefix — per-group BillRef prefix override
