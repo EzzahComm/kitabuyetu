@@ -391,10 +391,21 @@ jobs:
       - name: Deploy to Vercel production
         id: deploy
         run: |
+          set -euo pipefail
+
+          # Vercel prints the deployment URL to stdout; progress/status lines
+          # (e.g. "✓ Ready in 3m") go to stderr. Capture stdout ONLY — merging
+          # 2>&1 would let `tail -1` grab a progress line instead of the URL.
           url=$(vercel deploy --prod \
             --token=${{ secrets.VERCEL_TOKEN }} \
-            --yes \
-            2>&1 | tail -1)
+            --yes | tail -1)
+
+          # Guard: fail loudly if we didn't capture a real URL, rather than
+          # letting downstream smoke tests curl a garbage host.
+          if [[ "$url" != https://* ]]; then
+            echo "ERROR: deploy did not return a valid URL (got: '$url')"
+            exit 1
+          fi
 
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to: $url"
