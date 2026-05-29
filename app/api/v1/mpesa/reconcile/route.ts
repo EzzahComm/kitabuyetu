@@ -38,7 +38,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  return withRole(req, 'group_admin', async (auth) => {
+  // Treasurer+ — matches the rest of the M-Pesa ops surface (the /mpesa
+  // dashboard that links here is treasurer-accessible). Reconciliation is
+  // idempotent (queries Daraja, resolves stuck STKs).
+  return withRole(req, 'treasurer', async (auth) => {
     try {
       const result = await runReconciliation(auth.groupId, auth.userId);
       return ok({ ...result, trigger: 'manual' });
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'treasurer', async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(
