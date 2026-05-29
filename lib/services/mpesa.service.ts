@@ -1940,6 +1940,87 @@ export interface ReconciliationResult {
   resolvedCount:       number;
 }
 
+interface ReconStkRow {
+  id:                string;
+  checkout_request_id: string;
+  group_id:          string;
+  purpose:           string | null;
+  loan_repayment_id: string | null;
+  account_reference: string;
+  amount:            string;
+  contribution_id:   string | null;
+  phone:             string;
+}
+
+/**
+ * Creates the contribution + journal for an STK that the reconciliation sweep
+ * resolved to completed but whose callback never landed. Idempotent: the
+ * contribution_id guard (under the caller's FOR UPDATE lock) prevents a double
+ * create, and a late callback short-circuits on the already-completed payment.
+ *
+ * The M-Pesa receipt is unavailable here — STK Push Query doesn't return it —
+ * so the contribution is recorded with a NULL receipt and a note explaining the
+ * provenance. Unmatched phones still route to the unrouted queue.
+ */
+async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): Promise<void> {
+  if (row.contribution_id) return;            // already fulfilled
+  if (row.purpose !== 'contribution') return; // only contributions auto-fulfil here
+
+  const amount = parseFloat(row.amount);
+
+  const { rows: memRows } = await db.query<{ id: string }>(
+    `SELECT m.id
+     FROM   members m
+     JOIN   group_members gm ON gm.member_id = m.id
+     WHERE  m.phone = $1 AND gm.group_id = $2
+       AND  gm.is_active = true AND m.is_active = true
+     LIMIT  1`,
+    [row.phone, row.group_id],
+  );
+  const memberId = memRows[0]?.id ?? null;
+
+  if (!memberId) {
+    // Surrogate receipt = checkout id (mpesa_unrouted.receipt is NOT NULL/UNIQUE).
+    await routeToUnrouted(
+      db,
+      {
+        id: row.id, group_id: row.group_id, purpose: row.purpose, invoice_id: null,
+        loan_repayment_id: row.loan_repayment_id, account_reference: row.account_reference,
+        amount: row.amount,
+      },
+      {
+        receipt: row.checkout_request_id, amount, phone: row.phone,
+        rawBody: JSON.stringify({ reconciled: true, checkout: row.checkout_request_id }),
+      },
+      { reason: 'unknown_member', candidateGroupId: row.group_id },
+    );
+    return;
+  }
+
+  const { rows: cRows } = await db.query<{ id: string }>(
+    `INSERT INTO contributions
+       (group_id, member_id, amount, contribution_date,
+        status, payment_method, mpesa_receipt_number, notes, recorded_by)
+     VALUES ($1,$2,$3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL)
+     RETURNING id`,
+    [
+      row.group_id, memberId, amount.toFixed(2),
+      `Reconciled from STK ${row.account_reference} — callback not received; M-Pesa receipt unavailable`,
+    ],
+  );
+  const contributionId = cRows[0].id;
+
+  await postContributionJournal(db, {
+    groupId:        row.group_id,
+    contributionId,
+    amount,
+    reference:      row.checkout_request_id,
+  });
+
+  await db.query(`UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`, [contributionId, row.id]);
+  logger.warn('[mpesa] reconcile self-healed a lost contribution callback', { stkId: row.id, contributionId });
+}
+
 export async function runReconciliation(
   groupId: string | null,
   initiatedBy: string | null,
@@ -1986,6 +2067,15 @@ export async function runReconciliation(
         const newStatus = statusRes.resultCode === '0' ? 'completed' : 'failed';
 
         await withAdminDb(async (db) => {
+          // Lock the STK row so a late callback and this sweep can't both fulfil.
+          const { rows: full } = await db.query<ReconStkRow>(
+            `SELECT id, checkout_request_id, group_id, purpose, loan_repayment_id,
+                    account_reference, amount, contribution_id::text AS contribution_id, phone
+             FROM   mpesa_stk_requests WHERE id=$1 FOR UPDATE`,
+            [req.id],
+          );
+          const row = full[0];
+
           await db.query(
             `UPDATE mpesa_stk_requests SET status=$1, completed_at=NOW() WHERE id=$2`,
             [newStatus, req.id],
@@ -1995,6 +2085,12 @@ export async function runReconciliation(
              WHERE mpesa_checkout_request_id=$2 AND status='pending'`,
             [newStatus, req.checkout_request_id],
           );
+
+          // Self-heal: a payment that completed but whose callback was lost
+          // (e.g. 403'd / dropped) gets its contribution + journal created here.
+          if (newStatus === 'completed' && row) {
+            await fulfilReconciledContribution(db, row);
+          }
         });
         await cacheMpesaStatus(req.checkout_request_id, newStatus as 'completed' | 'failed');
         resolved++;
