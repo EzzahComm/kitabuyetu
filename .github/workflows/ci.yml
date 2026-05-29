@@ -413,10 +413,15 @@ jobs:
           VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # ── Smoke test — runs against the live deployment ──────────────────────
+      # ── Smoke tests ─────────────────────────────────────────────────────────
+      # Hit the production alias (NEXT_PUBLIC_APP_URL), NOT the per-deployment
+      # *.vercel.app URL. The deployment URL is gated by Vercel Deployment
+      # Protection and returns 401 to unauthenticated CI requests; the
+      # production domain is public. `vercel deploy --prod` updates this alias
+      # atomically before returning, so it already points at this deployment.
       - name: Smoke test — /api/health
         run: |
-          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           echo "Smoke testing $BASE ..."
 
           # Retry up to 6 times (Vercel cold start can take ~5 s)
@@ -441,7 +446,7 @@ jobs:
 
       - name: Smoke test — /api/v1/groups (public endpoint)
         run: |
-          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           status=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 15 \
             "$BASE/api/v1/groups" || echo "000")
@@ -455,7 +460,7 @@ jobs:
 
       - name: Smoke test — landing page renders
         run: |
-          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           status=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 15 \
             "$BASE/" || echo "000")
@@ -469,7 +474,7 @@ jobs:
 
       - name: Smoke test — /api/cron rejects unauthenticated requests
         run: |
-          BASE="${{ steps.deploy.outputs.deployment_url }}"
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           status=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 15 \
             -X POST \
