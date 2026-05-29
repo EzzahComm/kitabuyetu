@@ -120,13 +120,13 @@ function loadCertificate(): string {
   if (explicitPath) {
     const resolved = path.isAbsolute(explicitPath)
       ? explicitPath
-      : path.join(process.cwd(), explicitPath);
+      : path.join(/* turbopackIgnore: true */ process.cwd(), explicitPath);
     return readCertFile(resolved);
   }
 
   // c. Convention: lib/certs/{sandbox,production}.cer
   const conventional = path.join(
-    process.cwd(),
+    /* turbopackIgnore: true */ process.cwd(),
     'lib',
     'certs',
     IS_SANDBOX ? 'sandbox.cer' : 'production.cer',
@@ -137,7 +137,7 @@ function loadCertificate(): string {
 function readCertFile(filePath: string): string {
   let raw: string;
   try {
-    raw = fs.readFileSync(filePath, 'utf8');
+    raw = fs.readFileSync(/* turbopackIgnore: true */ filePath, 'utf8');
   } catch (err) {
     throw new Error(
       `[mpesa-credential] Cannot read Safaricom public cert from ${filePath}. ` +
