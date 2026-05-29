@@ -1,0 +1,18 @@
+# Gitleaks configuration for Kitabu Yetu.
+# Auto-loaded by `gitleaks detect --source=.` (CI Secret Scan job).
+#
+# Inherits all of gitleaks' default rules, then allowlists the single
+# publicly-documented Safaricom Daraja SANDBOX passkey. That value is published
+# by Safaricom for every developer to use and carries no real secret — but its
+# 64-char hex entropy trips the generic high-entropy rule. It lives only in the
+# first commit's .env.example; this allowlist keeps history scans green without
+# rewriting history. Real production passkeys live in the Vercel env, never here.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public Safaricom Daraja sandbox passkey (not a real secret)"
+regexes = [
+  '''bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919''',
+]

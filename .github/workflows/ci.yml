@@ -180,54 +180,47 @@ jobs:
 
       - name: Verify migration directory exists
         run: |
-          if [ ! -d migrations ]; then
-            echo "ERROR: migrations/ directory not found"
+          if [ ! -d supabase/migrations ]; then
+            echo "ERROR: supabase/migrations/ directory not found"
             exit 1
           fi
-          echo "Found migrations/ directory"
+          echo "Found supabase/migrations/ directory"
 
-      - name: Validate sequential numbering & non-empty files
+      - name: Validate migration file naming & non-empty files
         shell: bash
         run: |
           set -euo pipefail
 
           shopt -s nullglob
-          files=(migrations/*.sql)
+          files=(supabase/migrations/*.sql)
 
           if [ ${#files[@]} -eq 0 ]; then
-            echo "ERROR: No migration files found in migrations/"
+            echo "ERROR: No migration files found in supabase/migrations/"
             exit 1
           fi
 
           echo "Validating ${#files[@]} migration file(s)..."
-          prev_num=0
           errors=0
 
           for f in "${files[@]}"; do
             filename=$(basename "$f")
 
-            # Must match NNN_description.sql
-            if [[ ! "$filename" =~ ^([0-9]{3})_.+\.sql$ ]]; then
-              echo "  FAIL: bad name — '$filename' (expected NNN_description.sql)"
+            # Supabase convention: <14-digit UTC timestamp>_<NNN>_<description>.sql
+            # (NNN is a human-readable sequence label; the timestamp prefix is the
+            # real ordering key, so we don't enforce a gap-free NNN sequence here.)
+            if [[ ! "$filename" =~ ^[0-9]{14}_[0-9]{3}_.+\.sql$ ]]; then
+              echo "  FAIL: bad name — '$filename' (expected <timestamp>_NNN_description.sql)"
               ((errors++)) || true
               continue
-            fi
-
-            num=$((10#${BASH_REMATCH[1]}))
-            expected=$((prev_num + 1))
-
-            if [ "$num" -ne "$expected" ]; then
-              echo "  FAIL: gap in sequence — expected ${expected}, got ${num} ('$filename')"
-              ((errors++)) || true
             fi
 
             if [ ! -s "$f" ]; then
               echo "  FAIL: empty file — '$filename'"
               ((errors++)) || true
+              continue
             fi
 
             echo "  OK: $filename"
-            prev_num=$num
           done
 
           if [ "$errors" -gt 0 ]; then
@@ -254,7 +247,7 @@ jobs:
           )
 
           for pattern in "${WARN_PATTERNS[@]}"; do
-            matches=$(grep -rn --include="*.sql" -i "$pattern" migrations/ || true)
+            matches=$(grep -rn --include="*.sql" -i "$pattern" supabase/migrations/ || true)
             if [ -n "$matches" ]; then
               echo "  WARN ($pattern):"
               echo "$matches" | sed 's/^/    /'
@@ -262,14 +255,18 @@ jobs:
           done
           echo "Scan complete"
 
-      - name: Verify cron job migration exists
+      - name: Verify cron job-queue migration exists
+        shell: bash
         run: |
-          if [ ! -f "migrations/013_job_queue.sql" ]; then
-            echo "ERROR: migrations/013_job_queue.sql not found"
+          set -euo pipefail
+          shopt -s nullglob
+          matches=(supabase/migrations/*_job_queue.sql)
+          if [ ${#matches[@]} -eq 0 ]; then
+            echo "ERROR: no *_job_queue.sql migration found in supabase/migrations/"
             echo "Run: supabase db push to apply the job queue schema"
             exit 1
           fi
-          echo "OK: 013_job_queue.sql present"
+          echo "OK: job-queue migration present — ${matches[*]}"
 
   # ╔══════════════════════════════════════════════════════════════════════════╗
   # ║  4. CRON & API CONTRACT CHECKS                                         ║
@@ -316,20 +313,21 @@ jobs:
           fi
           echo "OK: /api/health — GET handler present"
 
-      - name: Verify middleware protects API routes
+      - name: Verify proxy middleware protects API routes
         run: |
           set -euo pipefail
 
-          FILE="middleware.ts"
+          # Next.js 16 renamed the root `middleware.ts` convention to `proxy.ts`.
+          FILE="proxy.ts"
           if [ ! -f "$FILE" ]; then
-            echo "ERROR: middleware.ts not found"
+            echo "ERROR: proxy.ts not found"
             exit 1
           fi
           if ! grep -q "JWT_SECRET" "$FILE"; then
-            echo "ERROR: middleware.ts must validate JWT_SECRET"
+            echo "ERROR: proxy.ts must validate JWT_SECRET"
             exit 1
           fi
-          echo "OK: middleware.ts — JWT protection present"
+          echo "OK: proxy.ts — JWT protection present"
 
       - name: Verify no Vercel cron in vercel.json
         run: |
