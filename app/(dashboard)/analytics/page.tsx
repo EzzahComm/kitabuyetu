@@ -20,6 +20,7 @@ import {
 import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import { useToast } from '@/hooks/use-toast';
+import { chartPalette, chartTheme, tone, brandNavy, brandOrange } from '@/lib/ui/tokens';
 
 type Period = '30d' | '90d' | '12mo' | 'all';
 type Tier   = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
@@ -60,17 +61,18 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'all',  label: 'All time' },
 ];
 
+// Semantic tier colours, sourced from the design tokens (not loose hex).
 const TIER_COLOR: Record<Tier, string> = {
-  excellent: '#16a34a',
-  good:      '#2563eb',
-  fair:      '#a16207',
-  poor:      '#ea580c',
-  high_risk: '#dc2626',
+  excellent: tone.positive.solid,
+  good:      brandNavy[500],
+  fair:      tone.warning.solid,
+  poor:      brandOrange[500],
+  high_risk: tone.negative.solid,
 };
 const TIER_LABEL: Record<Tier, string> = {
   excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
 };
-const PORTFOLIO_COLORS = ['#16a34a', '#2563eb', '#a16207'];
+const PORTFOLIO_COLORS = [chartPalette[0], chartPalette[1], chartPalette[2]];
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('12mo');
@@ -196,11 +198,11 @@ export default function AnalyticsPage() {
                         bucket: fmtBucket(b.bucket, s.grain),
                         amount: Number(b.amount),
                       }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
                         <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
                         <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-                        <Line type="monotone" dataKey="amount" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} name="Amount" />
+                        <Line type="monotone" dataKey="amount" stroke={tone.positive.solid} strokeWidth={2} dot={{ r: 3 }} name="Amount" />
                       </LineChart>
                     </ResponsiveContainer>
                   )}
@@ -220,11 +222,11 @@ export default function AnalyticsPage() {
                         bucket: fmtBucket(b.bucket, s.grain),
                         amount: Number(b.amount),
                       }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
                         <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
                         <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-                        <Bar dataKey="amount" fill="#2563eb" name="Repaid" />
+                        <Bar dataKey="amount" fill={brandNavy[500]} name="Repaid" />
                       </BarChart>
                     </ResponsiveContainer>
                   )}

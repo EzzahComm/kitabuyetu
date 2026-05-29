@@ -4,11 +4,10 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Building2, Users, CreditCard, Receipt,
-  Landmark, Heart, TrendingUp, Calendar,
-  Headphones, Bell, FileBarChart, ScrollText,
-  BarChart3, Sparkles, Puzzle, Flag,
-  UserCog, ShieldCheck, ClipboardList, Settings,
+  LayoutDashboard, Building2, Users, CreditCard,
+  Headphones, ScrollText,
+  BarChart3, Flag, ShieldAlert, Activity,
+  Settings,
   ChevronLeft, ChevronRight, Search, LogOut, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,6 +37,13 @@ const NAV: NavSection[] = [
       { href: '/admin/users',       label: 'Members',        icon: Users },
       { href: '/admin/billing-admin', label: 'Billing',      icon: CreditCard },
       { href: '/admin/analytics',   label: 'Analytics',      icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Risk & Compliance',
+    items: [
+      { href: '/admin/risk',        label: 'Risk & Fraud',   icon: ShieldAlert },
+      { href: '/admin/monitoring',  label: 'Monitoring',     icon: Activity },
     ],
   },
   {

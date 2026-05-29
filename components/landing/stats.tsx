@@ -3,10 +3,10 @@
 import { motion } from 'framer-motion';
 
 const stats = [
-  { value: '500+',     label: 'Groups',        description: 'Chamas, SACCOs & welfare groups' },
+  { value: '500+',     label: 'Groups',         description: 'Chamas, SACCOs, NGOs & federations' },
   { value: 'KSh 50M+', label: 'Reconciled / mo', description: 'Contributions, loans & payouts' },
-  { value: '10,000+',  label: 'Members',       description: 'Each with their own ledger view' },
-  { value: '< 5 min',  label: 'To go live',    description: 'Register, add members, collect' },
+  { value: '10,000+',  label: 'Members',        description: 'Each with a wallet on their phone' },
+  { value: '99.9%',    label: 'Daraja uptime',  description: 'Monitored live, end to end' },
 ];
 
 export default function Stats() {

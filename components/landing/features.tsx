@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Smartphone, Landmark, Send, RefreshCw, SplitSquareHorizontal,
   BookOpenCheck, ReceiptText, MessageSquare, Users,
+  Wallet, ShieldAlert, Activity, KeyRound,
 } from 'lucide-react';
 
 const features = [
@@ -60,6 +61,30 @@ const features = [
     title: 'Members, loans & shares',
     description:
       'Onboarding, roles, reducing-balance loan schedules, share certificates, dividends, and credit scores — the whole group, in one book.',
+  },
+  {
+    icon: Wallet,
+    title: 'Member self-service app',
+    description:
+      'Every member gets a mobile-first wallet — digital passbook, savings goals, loan balance, and one-tap M-Pesa pay. Offline-ready, with sync indicators.',
+  },
+  {
+    icon: ShieldAlert,
+    title: 'Fraud, risk & KYC',
+    description:
+      'Platform-wide risk heatmaps, a live fraud feed, and a KYC verification queue — every money action confirmed and logged before funds move.',
+  },
+  {
+    icon: Activity,
+    title: 'Real-time monitoring',
+    description:
+      'Live Daraja, SMS, and API health with a real-time transaction feed, so operations sees a degraded STK push or failing webhook the moment it happens.',
+  },
+  {
+    icon: KeyRound,
+    title: 'API, webhooks & white-label',
+    description:
+      'Programmatic access with scoped API keys, event webhooks, multi-branch portfolios, and white-label branding for federations and enterprise partners.',
   },
 ];
 

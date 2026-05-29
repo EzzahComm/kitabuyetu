@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -26,11 +26,6 @@ const applySchema = z.object({
   purpose:        z.string().min(3),
 });
 type ApplyValues = z.infer<typeof applySchema>;
-
-const statusVariant: Record<string, any> = {
-  pending: 'warning', approved: 'secondary', disbursed: 'default', active: 'success',
-  completed: 'outline', defaulted: 'destructive', rejected: 'destructive',
-};
 
 export default function LoansPage() {
   const [page, setPage]   = useState(1);
@@ -71,7 +66,7 @@ export default function LoansPage() {
     { key: 'principalAmount', header: 'Principal', render: (row: any) => <span className="font-semibold">{formatKES(row.principalAmount)}</span> },
     { key: 'interestRate', header: 'Rate', render: (row: any) => `${row.interestRate}%` },
     { key: 'termMonths', header: 'Term', render: (row: any) => `${row.termMonths}m` },
-    { key: 'status', header: 'Status', render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize">{row.status}</Badge> },
+    { key: 'status', header: 'Status', render: (row: any) => <StatusPill status={row.status} /> },
     { key: 'disbursedAt', header: 'Disbursed', render: (row: any) => row.disbursedAt ? formatDate(row.disbursedAt) : '—' },
   ];
 

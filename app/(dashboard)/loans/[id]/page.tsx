@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone } from 'lucide-
 import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -23,10 +23,6 @@ const repaySchema = z.object({
   paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']),
   reference:     z.string().optional(),
 });
-
-const statusColor: Record<string, any> = {
-  pending: 'warning', approved: 'secondary', active: 'success', completed: 'outline', defaulted: 'destructive',
-};
 
 export default function LoanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -85,7 +81,7 @@ export default function LoanDetailPage() {
           <h1 className="text-2xl font-bold">Loan Details</h1>
           <p className="text-xs font-mono text-muted-foreground">{l.id}</p>
         </div>
-        <Badge variant={statusColor[l.status] ?? 'secondary'} className="ml-auto capitalize">{l.status}</Badge>
+        <StatusPill status={l.status} className="ml-auto" />
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -161,9 +157,7 @@ export default function LoanDetailPage() {
                     <td className="px-4 py-2 font-semibold">{formatKES(s.emiAmount)}</td>
                     <td className="px-4 py-2">{formatKES(s.openingBalance)}</td>
                     <td className="px-4 py-2">
-                      <Badge variant={s.status === 'paid' ? 'success' : s.status === 'overdue' ? 'destructive' : 'secondary'} className="text-xs capitalize">
-                        {s.status}
-                      </Badge>
+                      <StatusPill status={s.status} size="sm" />
                     </td>
                   </tr>
                 ))}

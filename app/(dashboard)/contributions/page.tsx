@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -28,10 +29,6 @@ const schema = z.object({
   notes:         z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
-
-const statusVariant: Record<string, any> = {
-  confirmed: 'success', pending: 'warning', failed: 'destructive', reversed: 'secondary',
-};
 
 export default function ContributionsPage() {
   const [page, setPage]   = useState(1);
@@ -64,7 +61,7 @@ export default function ContributionsPage() {
     { key: 'amount', header: 'Amount', render: (row: any) => <span className="font-semibold text-green-600">{formatKES(row.amount)}</span> },
     { key: 'period', header: 'Period', render: (row: any) => `${row.periodYear}-${String(row.periodMonth).padStart(2,'0')}` },
     { key: 'paymentMethod', header: 'Method', render: (row: any) => <Badge variant="outline" className="capitalize">{row.paymentMethod?.replace('_',' ')}</Badge> },
-    { key: 'status', header: 'Status', render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'}>{row.status}</Badge> },
+    { key: 'status', header: 'Status', render: (row: any) => <StatusPill status={row.status} /> },
     { key: 'createdAt', header: 'Date', render: (row: any) => formatDate(row.createdAt) },
     {
       key: 'receipt', header: '',

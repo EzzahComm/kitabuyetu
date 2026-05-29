@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Button } from '@/components/ui/button';
 import { useMembers } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
@@ -272,9 +273,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-green-600">{formatKES(c.amount)}</p>
-                    <Badge variant={c.status === 'completed' ? 'success' : 'warning'} className="text-xs">
-                      {c.status}
-                    </Badge>
+                    <StatusPill status={c.status} size="sm" />
                   </div>
                 </div>
               ))}

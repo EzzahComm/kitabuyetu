@@ -3,20 +3,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useEmailLogs } from '@/hooks/use-email';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const STATUS_COLORS: Record<string, string> = {
-  sent:    'bg-green-100 text-green-800',
-  queued:  'bg-blue-100 text-blue-800',
-  failed:  'bg-red-100 text-red-800',
-  dry_run: 'bg-gray-100 text-gray-800',
-  bounced: 'bg-amber-100 text-amber-800',
-};
 
 export default function EmailLogsPage() {
   const [status, setStatus]   = useState('');
@@ -114,9 +107,7 @@ export default function EmailLogsPage() {
                           : '—'}
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[log.status] ?? 'bg-gray-100 text-gray-800'}`}>
-                          {log.status}
-                        </span>
+                        <StatusPill status={log.status} size="sm" />
                       </TableCell>
                       <TableCell className="text-xs text-gray-500">{log.provider ?? '—'}</TableCell>
                       <TableCell className="text-xs">{fmt(log.sent_at)}</TableCell>

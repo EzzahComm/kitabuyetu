@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Bell, Search, Menu, ChevronDown,
@@ -10,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
+import { openCommandPalette } from '@/components/admin/command-palette';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,7 +29,6 @@ interface AdminTopbarProps {
 export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const router = useRouter();
   const { user, logout, refreshToken } = useAuth();
-  const [search, setSearch] = useState('');
 
   const handleLogout = async () => {
     try { await authApi.logout(refreshToken ?? undefined); } catch {}
@@ -47,20 +46,19 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
         <Menu size={18} />
       </button>
 
-      {/* Global search */}
+      {/* Global search — opens the ⌘K command palette */}
       <div className="flex-1 max-w-md">
-        <div className="relative">
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          className="group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+        >
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search organizations, users, tickets…"
-            className="w-full h-8 pl-8 pr-3 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
-          />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-gray-200 bg-white px-1 text-[10px] font-mono text-gray-400">
+          <span className="text-gray-400 truncate">Search organizations, users, tickets…</span>
+          <kbd className="ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-gray-200 bg-white px-1 text-[10px] font-mono text-gray-400">
             ⌘K
           </kbd>
-        </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-2 ml-auto">

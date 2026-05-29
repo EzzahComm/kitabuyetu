@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
-  ArrowRight, Smartphone, ShieldCheck, RefreshCw, CheckCircle2,
+  ArrowRight, Smartphone, ShieldCheck, RefreshCw, CheckCircle2, Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -47,10 +47,10 @@ export default function Hero() {
             </h1>
 
             <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/80">
-              Kitabu Yetu is the digital ledger for Kenya&apos;s chamas, SACCOs, and
-              welfare groups. Members pay by M-Pesa, contributions reconcile
-              themselves, loans disburse straight to phones — and every shilling
-              lands in the right account.
+              Kitabu Yetu is the financial operating system for Kenya&apos;s community
+              groups. Members save and pay from a wallet on their phone, treasurers run
+              the whole book, and SACCO federations oversee hundreds of branches — with
+              every M-Pesa shilling reconciled automatically.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -77,6 +77,7 @@ export default function Hero() {
               {[
                 { icon: Smartphone, label: 'STK · PayBill · B2C' },
                 { icon: RefreshCw, label: 'Auto-reconciliation' },
+                { icon: Wallet, label: 'Member wallet app' },
                 { icon: ShieldCheck, label: 'Double-entry ledger' },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-2 text-brand-blue-100/70">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,14 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEmailCampaigns, useCreateCampaign, useCampaignAction } from '@/hooks/use-email';
 import { Plus, Play, X, Users, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const STATUS_COLORS: Record<string, string> = {
-  draft:     'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  sending:   'bg-yellow-100 text-yellow-700',
-  sent:      'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-};
 
 export default function EmailCampaignsPage() {
   const { data, isLoading } = useEmailCampaigns();
@@ -97,9 +89,7 @@ export default function EmailCampaignsPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold">{c.name}</span>
-                        <span className={`text-xs rounded-full px-2 py-0.5 font-medium ${STATUS_COLORS[c.status] ?? ''}`}>
-                          {c.status}
-                        </span>
+                        <StatusPill status={c.status} size="sm" />
                       </div>
                       <p className="text-sm text-gray-500">{c.subject}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">

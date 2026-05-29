@@ -5,6 +5,7 @@ import { Plus, Search, Archive, RotateCcw, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useMembers, useCreateMember } from '@/hooks/use-members';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -30,17 +31,6 @@ const MEMBER_STATUSES = [
   { value: 'exited',               label: 'Exited' },
   { value: 'archived',             label: 'Archived' },
 ] as const;
-
-const STATUS_BADGE: Record<string, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  pending_verification: 'warning',
-  active:               'success',
-  inactive:             'secondary',
-  suspended:            'warning',
-  rejected:             'destructive',
-  blacklisted:          'destructive',
-  exited:               'secondary',
-  archived:             'outline',
-};
 
 const schema = z.object({
   firstName:        z.string().min(2),
@@ -205,11 +195,7 @@ export default function MembersPage() {
       key: 'status', header: 'Status',
       render: (row: any) => {
         const s = row.groupStatus ?? row.group_status ?? (row.isActive ?? row.is_active ? 'active' : 'inactive');
-        return (
-          <Badge variant={STATUS_BADGE[s] ?? 'outline'} className="capitalize">
-            {s.replace('_', ' ')}
-          </Badge>
-        );
+        return <StatusPill status={s} />;
       },
     },
     { key: 'joinedAt', header: 'Joined', render: (row: any) => formatDate(row.joinedAt ?? row.joined_at ?? row.createdAt ?? row.created_at) },

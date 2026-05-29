@@ -3,6 +3,12 @@ import { Mail, Phone, MapPin } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 
 const footerLinks = {
+  Solutions: [
+    { label: 'Member app', href: '/me' },
+    { label: 'Group dashboard', href: '/register' },
+    { label: 'Enterprise', href: '/enterprise' },
+    { label: 'Backoffice', href: '/admin-login' },
+  ],
   Product: [
     { label: 'Features', href: '#features' },
     { label: 'How It Works', href: '#how-it-works' },
@@ -33,7 +39,7 @@ export default function Footer() {
     <footer className="border-t border-slate-100 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         {/* Top row */}
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-6 lg:gap-8">
+        <div className="grid gap-10 md:grid-cols-3 lg:grid-cols-7 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2.5 group w-fit" aria-label="Kitabu Yetu home">

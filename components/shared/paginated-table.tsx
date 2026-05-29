@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ChevronLeft, ChevronRight, Inbox, type LucideIcon } from 'lucide-react';
 
 interface PaginatedTableProps<T> {
   data?:         { items: T[]; total: number; page: number; pageSize: number; totalPages: number } | null;
@@ -12,10 +13,14 @@ interface PaginatedTableProps<T> {
   columns:       { key: string; header: React.ReactNode; render?: (row: T) => React.ReactNode; className?: string }[];
   onPageChange:  (page: number) => void;
   emptyMessage?: string;
+  /** Icon for the empty state; defaults to an inbox. */
+  emptyIcon?:    LucideIcon;
+  /** Supporting line under the empty title. */
+  emptyDescription?: string;
 }
 
 export function PaginatedTable<T extends { id: string }>({
-  data, isLoading, columns, onPageChange, emptyMessage = 'No data found',
+  data, isLoading, columns, onPageChange, emptyMessage = 'No data found', emptyIcon, emptyDescription,
 }: PaginatedTableProps<T>) {
   if (isLoading) {
     return (
@@ -45,8 +50,8 @@ export function PaginatedTable<T extends { id: string }>({
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-muted-foreground">
-                  {emptyMessage}
+                <td colSpan={columns.length} className="px-4 py-2">
+                  <EmptyState icon={emptyIcon ?? Inbox} title={emptyMessage} description={emptyDescription} size="sm" />
                 </td>
               </tr>
             ) : (
