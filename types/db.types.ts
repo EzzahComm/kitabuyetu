@@ -248,8 +248,10 @@ export interface SmsUsageLog {
   recipient_phone:  string;
   message_text:     string;
   status:           SmsStatus;
-  at_message_id:    string | null;
-  at_cost:          string | null;
+  provider:         string;
+  provider_msg_id:  string | null;
+  network_id:       string | null;
+  campaign_id:      string | null;
   credits_deducted: string;
   sent_at:          Date | null;
   delivered_at:     Date | null;

@@ -48,6 +48,21 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `email_retry_failed:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  queued.sms_retry_failed = await safe('sms_retry_failed', {}, {
+    priority:  6, // SMS retries are time-sensitive (transactional receipts/OTPs)
+    dedup_key: `sms_retry_failed:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  queued.sms_process_schedules = await safe('sms_process_schedules', {}, {
+    priority:  5,
+    dedup_key: `sms_process_schedules:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  queued.sms_poll_dlr = await safe('sms_poll_dlr', {}, {
+    priority:  4,
+    dedup_key: `sms_poll_dlr:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
   queued.mpesa_reconcile = await safe('mpesa_reconcile', {}, {
     priority:  10, // highest — payments are time-sensitive
     dedup_key: `mpesa_reconcile:${dateStr}T${hour}:${fiveMinBucket}`,

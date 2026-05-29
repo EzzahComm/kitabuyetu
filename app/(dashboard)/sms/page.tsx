@@ -125,7 +125,7 @@ function ComposeTab() {
   const sendMutation = useMutation({
     mutationFn: (body: unknown) => smsApi.bulk(body),
     onSuccess: (res: any) => {
-      toast({ title: `Sent ${res?.data?.sent ?? 0} messages` });
+      toast({ title: `Queued ${res?.data?.queued ?? 0} messages for delivery` });
       setMessage(''); setSelected([]); setPhones('');
     },
     onError: (err: any) => toast({ variant: 'destructive', title: 'Send failed', description: err.message }),

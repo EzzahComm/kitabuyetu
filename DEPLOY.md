@@ -8,7 +8,7 @@
 | Database (PostgreSQL + RLS) | Supabase |
 | Redis (sessions, rate-limit, M-Pesa cache) | Upstash |
 | Email | Resend |
-| SMS | Africa's Talking |
+| SMS | TextSMS (textsms.co.ke) |
 | Payments | Safaricom Daraja (M-Pesa) |
 
 ---

@@ -173,7 +173,7 @@ npm run ci            # lint + typecheck + test:ci + build
 
 ### Pre-launch (Required)
 - [ ] Provision Supabase project (PostgreSQL 16)
-- [ ] Run all 28 migrations in order: `npm run db:migrate`
+- [ ] Apply all migrations via the Supabase CLI: `supabase db push`
 - [ ] Set all environment variables in Vercel Dashboard (see `.env.example`)
 - [ ] Verify `DATABASE_URL` uses direct connection port 5432, NOT pgBouncer 6543
 - [ ] Generate and set: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, `WORKER_SECRET`

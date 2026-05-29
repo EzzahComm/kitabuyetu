@@ -14,7 +14,11 @@ export type JobType =
   | 'mpesa_balance_snapshot'      // Trigger an Account Balance query for the sub-accounts (daily 05:00 UTC)
   | 'cleanup_expired_tokens'      // Remove expired refresh tokens (daily 02:00 UTC)
   | 'notify_loan_due_alerts'      // Loan repayment due/overdue alerts (daily 06:00 UTC)
-  | 'notify_contribution_reminders'; // Missed-contribution nudge (1st of month, 08:00 UTC)
+  | 'notify_contribution_reminders' // Missed-contribution nudge (1st of month, 08:00 UTC)
+  | 'sms_bulk_send'               // Ad-hoc: bill + dispatch a bulk/campaign SMS send (enqueued on demand)
+  | 'sms_retry_failed'            // Retry due rows in sms_failures (every 5 min)
+  | 'sms_process_schedules'       // Fire due sms_schedules + scheduled campaigns (every 5 min)
+  | 'sms_poll_dlr';               // Poll provider for delivery status of sent messages (every 5 min)
 
 export interface Job {
   id:           string;

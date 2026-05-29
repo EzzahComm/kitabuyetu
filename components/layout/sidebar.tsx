@@ -12,27 +12,47 @@ import { cn } from '@/lib/utils';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { BrandLogo } from '@/components/branding/BrandLogo';
-const navItems = [
-  { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-  { href: '/members',       label: 'Members',        icon: Users },
-  { href: '/contributions', label: 'Contributions',  icon: CreditCard },
-  { href: '/loans',         label: 'Loans',          icon: Landmark },
-  { href: '/mpesa',         label: 'M-Pesa',         icon: Smartphone },
-  { href: '/welfare',       label: 'Welfare',        icon: Heart },
-  { href: '/shares',        label: 'Shares',         icon: Coins },
-  { href: '/dividends',     label: 'Dividends',      icon: ReceiptText },
-  { href: '/credit-scores', label: 'Credit scores',  icon: Gauge },
-  { href: '/analytics',     label: 'Analytics',      icon: BarChart2 },
-  { href: '/investments',   label: 'Investments',    icon: TrendingUp },
-  { href: '/meetings',      label: 'Meetings',       icon: Calendar },
-  { href: '/accounting',    label: 'Accounting',     icon: BookOpen },
-  { href: '/treasury',      label: 'Treasury',       icon: Vault },
-  { href: '/reports',       label: 'Reports',        icon: BarChart2 },
-  { href: '/data-import',   label: 'Data import',    icon: Upload },
-  { href: '/sms',           label: 'SMS',            icon: MessageSquare },
-  { href: '/whatsapp',      label: 'WhatsApp',       icon: MessageSquare },
-  { href: '/email',         label: 'Email',          icon: Mail },
-  { href: '/billing',       label: 'Billing',        icon: Receipt },
+const navSections = [
+  {
+    label: null,
+    items: [
+      { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
+      { href: '/contributions', label: 'Contributions',  icon: CreditCard },
+      { href: '/loans',         label: 'Loans',          icon: Landmark },
+      { href: '/mpesa',         label: 'M-Pesa',         icon: Smartphone },
+      { href: '/members',       label: 'Members',        icon: Users },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { href: '/welfare',    label: 'Welfare',    icon: Heart },
+      { href: '/shares',     label: 'Shares',     icon: Coins },
+      { href: '/dividends',  label: 'Dividends',  icon: ReceiptText },
+      { href: '/treasury',   label: 'Treasury',   icon: Vault },
+      { href: '/accounting', label: 'Accounting', icon: BookOpen },
+      { href: '/billing',    label: 'Billing',    icon: Receipt },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { href: '/analytics',     label: 'Analytics',     icon: BarChart2 },
+      { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
+      { href: '/investments',   label: 'Investments',   icon: TrendingUp },
+      { href: '/reports',       label: 'Reports',       icon: BarChart2 },
+    ],
+  },
+  {
+    label: 'Engage',
+    items: [
+      { href: '/meetings',    label: 'Meetings',    icon: Calendar },
+      { href: '/sms',         label: 'SMS',         icon: MessageSquare },
+      { href: '/whatsapp',    label: 'WhatsApp',    icon: MessageSquare },
+      { href: '/email',       label: 'Email',       icon: Mail },
+      { href: '/data-import', label: 'Data import', icon: Upload },
+    ],
+  },
 ];
 
 const ngoItems = [
@@ -93,25 +113,34 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive(item.href)
-                    ? 'bg-brand-500 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white',
-                )}
-              >
-                <Icon size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
+          {navSections.map((section, si) => (
+            <div key={si} className={cn(section.label && 'pt-3')}>
+              {section.label && (
+                <p className="px-3 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {section.label}
+                </p>
+              )}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      isActive(item.href)
+                        ? 'bg-brand-500 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white',
+                    )}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
 
           {user?.platformRole === 'ngo_coordinator' && (
             <>

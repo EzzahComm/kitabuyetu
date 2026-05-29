@@ -37,8 +37,27 @@ export interface NotifyRecipient {
 
 export interface NotifyOutcome {
   channel: 'whatsapp' | 'sms' | 'none';
-  status:  'sent' | 'dry_run' | 'failed';
+  status:  'sent' | 'dry_run' | 'failed' | 'suppressed';
   detail?: string;
+}
+
+/**
+ * Returns true when the recipient phone is on the group's opt-out list.
+ * Mirrors the suppression enforced on the tenant send paths
+ * (smsService.send / sendBulkCampaign) so automated cron reminders honour
+ * the same consent signal — they previously bypassed it entirely.
+ */
+async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
+  try {
+    const { rows } = await pool.query<{ opt_out_phones: string[] }>(
+      `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
+    );
+    return rows[0]?.opt_out_phones?.includes(phone) ?? false;
+  } catch (err) {
+    // Fail closed: if we can't confirm consent, don't send.
+    logger.error('[notifications] opt-out lookup failed; suppressing', { groupId, err });
+    return true;
+  }
 }
 
 /**
@@ -51,6 +70,14 @@ export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome
     return { channel: 'none', status: 'failed', detail: 'invalid phone' };
   }
   const phone = normalizePhone(rcpt.phone);
+
+  // ── Consent gate ─────────────────────────────────────────────────────
+  // Suppress on either channel if the number opted out. This is a
+  // compliance requirement, not a delivery failure, so it is reported as
+  // 'suppressed' and not counted against the failure tally.
+  if (await isPhoneOptedOut(rcpt.groupId, phone)) {
+    return { channel: 'none', status: 'suppressed', detail: 'recipient opted out' };
+  }
 
   // ── WhatsApp attempt ─────────────────────────────────────────────────
   if (isWhatsAppConfigured()) {
@@ -98,18 +125,21 @@ export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome
  * cap concurrency with a small worker pool here.
  */
 export async function notifyMany(rcpts: NotifyRecipient[]): Promise<{
-  attempted: number;
-  whatsapp:  number;
-  sms:       number;
-  failed:    number;
+  attempted:  number;
+  whatsapp:   number;
+  sms:        number;
+  failed:     number;
+  suppressed: number;
 }> {
-  const tally = { attempted: 0, whatsapp: 0, sms: 0, failed: 0 };
+  const tally = { attempted: 0, whatsapp: 0, sms: 0, failed: 0, suppressed: 0 };
   for (const r of rcpts) {
     tally.attempted += 1;
     const out = await notifyMember(r);
     if (out.status === 'sent') {
       if (out.channel === 'whatsapp') tally.whatsapp += 1;
       else if (out.channel === 'sms') tally.sms += 1;
+    } else if (out.status === 'suppressed') {
+      tally.suppressed += 1;
     } else {
       tally.failed += 1;
     }
@@ -156,14 +186,14 @@ async function writeSmsLog(
   rcpt:    NotifyRecipient,
   toPhone: string,
   status:  'sent' | 'failed',
-  atMessageId?: string | null,
+  providerMsgId?: string | null,
   failedReason?: string | null,
 ): Promise<void> {
   try {
     await pool.query(
       `INSERT INTO sms_usage_logs (
          group_id, recipient_phone, message_text, status,
-         at_message_id, credits_deducted, failed_reason,
+         provider_msg_id, credits_deducted, failed_reason,
          reference_type, reference_id, sent_at
        ) VALUES (
          $1, $2, $3, $4::sms_status,
@@ -173,7 +203,7 @@ async function writeSmsLog(
        )`,
       [
         rcpt.groupId, toPhone, rcpt.body, status,
-        atMessageId ?? null, failedReason ?? null,
+        providerMsgId ?? null, failedReason ?? null,
         rcpt.referenceType ?? null, rcpt.referenceId ?? null,
       ],
     );

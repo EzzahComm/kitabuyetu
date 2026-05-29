@@ -61,6 +61,18 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'notify_contribution_reminders':
       return handleContributionReminders();
 
+    case 'sms_bulk_send':
+      return handleSmsBulkSend(job.payload);
+
+    case 'sms_retry_failed':
+      return handleSmsRetryFailed();
+
+    case 'sms_process_schedules':
+      return handleSmsProcessSchedules();
+
+    case 'sms_poll_dlr':
+      return handleSmsPollDlr();
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -300,6 +312,69 @@ async function handleContributionReminders(): Promise<HandlerResult> {
   return {
     message: `Contribution reminders processed (${rows.length} candidates)`,
     ...tally,
+  };
+}
+
+// ── SMS dispatch handler ──────────────────────────────────────
+
+/**
+ * Durable bulk/campaign SMS dispatch. Enqueued by /sms/bulk and /sms/campaign
+ * so the provider calls survive serverless instance termination (the old
+ * setImmediate path silently dropped them). Billing + opt-out + log creation
+ * + provider dispatch all happen here, inside the retry-managed job.
+ *
+ * NOTE: a very large campaign still runs in a single job invocation. If that
+ * invocation times out it is reset to pending and re-run, which can re-bill and
+ * re-send (no per-recipient checkpoint yet) — chunking + idempotency is tracked
+ * as SMS-015/SMS-007. For current group sizes a single job is well within the
+ * function budget.
+ */
+async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const { smsService } = await import('@/lib/services/sms.service');
+  const phones = Array.isArray(payload.phones) ? (payload.phones as string[]) : [];
+  if (!payload.groupId || phones.length === 0) {
+    return { message: 'SMS bulk send skipped: no recipients', sent: 0, failed: 0 };
+  }
+
+  const result = await smsService.sendBulkCampaign({
+    campaignId:    payload.campaignId    ? String(payload.campaignId)    : undefined,
+    phones,
+    message:       String(payload.message ?? ''),
+    senderId:      payload.senderId      ? String(payload.senderId)      : undefined,
+    timeToSend:    payload.timeToSend    ? String(payload.timeToSend)    : undefined,
+    groupId:       String(payload.groupId),
+    sentBy:        String(payload.sentBy ?? ''),
+    referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
+    referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
+  });
+
+  return { message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
+}
+
+async function handleSmsRetryFailed(): Promise<HandlerResult> {
+  const { smsService } = await import('@/lib/services/sms.service');
+  const result = await smsService.retryFailures();
+  return { message: `SMS failures retried (${result.resolved} resolved, ${result.failed} still failing)`, ...flattenResult(result) };
+}
+
+async function handleSmsProcessSchedules(): Promise<HandlerResult> {
+  const { processDueSmsSchedules, processDueScheduledCampaigns } = await import('@/lib/services/sms-scheduler.service');
+  const schedules = await processDueSmsSchedules();
+  const campaigns = await processDueScheduledCampaigns();
+  return {
+    message:          `SMS schedules processed (${schedules.processed} schedules, ${campaigns.processed} campaigns)`,
+    schedules:        schedules.processed,
+    schedulesSkipped: schedules.skipped,
+    campaigns:        campaigns.processed,
+  };
+}
+
+async function handleSmsPollDlr(): Promise<HandlerResult> {
+  const { smsService } = await import('@/lib/services/sms.service');
+  const result = await smsService.pollPendingDlrs();
+  return {
+    message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked})`,
+    ...flattenResult(result),
   };
 }
 

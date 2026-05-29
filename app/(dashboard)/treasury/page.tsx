@@ -2,8 +2,16 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Wallet, Landmark, Receipt, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { StatCard } from '@/components/shared/stat-card';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { api } from '@/lib/api/client';
-import { formatKES } from '@/lib/utils/currency';
+import { formatKES, formatDate, formatDateTime } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,53 +72,79 @@ interface ReconcileResult {
 
 // ─── API helpers — api.get / api.post return T directly ──────────────────────
 
-const fetchBalance       = () => api.get<BalanceResult | null>('/mpesa/balance');
-const triggerBalance     = () => api.post<{ message: string }>('/mpesa/balance', {});
-const fetchTransactions  = (page: number) =>
+const fetchBalance      = () => api.get<BalanceResult | null>('/mpesa/balance');
+const triggerBalance    = () => api.post<{ message: string }>('/mpesa/balance', {});
+const fetchTransactions = (page: number) =>
   api.get<TransactionPage>(`/mpesa/transactions?page=${page}&limit=20`);
-const fetchReversals     = () => api.get<ReversalRecord[]>('/mpesa/reversal');
-const fetchReconciles    = () => api.get<ReconciliationRun[]>('/mpesa/reconcile');
-const triggerReconcile   = () => api.post<ReconcileResult>('/mpesa/reconcile', {});
+const fetchReversals    = () => api.get<ReversalRecord[]>('/mpesa/reversal');
+const fetchReconciles   = () => api.get<ReconciliationRun[]>('/mpesa/reconcile');
+const triggerReconcile  = () => api.post<ReconcileResult>('/mpesa/reconcile', {});
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Shared display helpers ──────────────────────────────────────────────────
+
+const statusVariant: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+  completed: 'success',
+  resolved:  'success',
+  pending:   'warning',
+  initiated: 'warning',
+  running:   'warning',
+  failed:    'destructive',
+  timeout:   'destructive',
+  reversed:  'secondary',
+  cancelled: 'secondary',
+};
 
 function StatusBadge({ status }: { status: string }) {
-  const cls: Record<string, string> = {
-    completed: 'bg-green-100 text-green-800',
-    pending:   'bg-yellow-100 text-yellow-800',
-    initiated: 'bg-blue-100 text-blue-800',
-    failed:    'bg-red-100 text-red-800',
-    timeout:   'bg-orange-100 text-orange-800',
-    reversed:  'bg-purple-100 text-purple-800',
-    cancelled: 'bg-gray-100 text-gray-600',
-    running:   'bg-blue-100 text-blue-700',
-  };
+  return <Badge variant={statusVariant[status] ?? 'secondary'}>{status}</Badge>;
+}
+
+const typeLabels: Record<string, string> = {
+  stk_push:           'STK Push',
+  c2b:                'C2B',
+  b2c:                'B2C',
+  b2b:                'B2B',
+  reversal:           'Reversal',
+  balance_query:      'Balance',
+  transaction_status: 'TX Status',
+};
+
+function TypeBadge({ type, direction }: { type: string; direction: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls[status] ?? 'bg-gray-100 text-gray-600'}`}>
-      {status}
-    </span>
+    <div className="flex items-center gap-1.5">
+      <Badge variant="outline" className="uppercase text-[10px]">{typeLabels[type] ?? type}</Badge>
+      <span className={`text-xs ${direction === 'inbound' ? 'text-green-600' : 'text-amber-600'}`}>
+        {direction === 'inbound' ? '↓' : '↑'}
+      </span>
+    </div>
   );
 }
 
-function TypeBadge({ type, direction }: { type: string; direction: string }) {
-  const labels: Record<string, string> = {
-    stk_push:           'STK Push',
-    c2b:                'C2B',
-    b2c:                'B2C',
-    b2b:                'B2B',
-    reversal:           'Reversal',
-    balance_query:      'Balance',
-    transaction_status: 'TX Status',
-  };
-  const arrow  = direction === 'inbound' ? '↓' : '↑';
-  const colour = direction === 'inbound' ? 'text-green-600' : 'text-blue-600';
-  return (
-    <span className="text-sm">
-      <span className={`font-medium mr-1 ${colour}`}>{arrow}</span>
-      {labels[type] ?? type}
-    </span>
-  );
-}
+const accounts = [
+  { label: 'Working Account', key: 'workingAccountBalance', icon: Wallet },
+  { label: 'Utility Account', key: 'utilityAccountBalance', icon: Landmark },
+  { label: 'Charges Account', key: 'chargesAccountBalance', icon: Receipt },
+] as const;
+
+const txColumns = [
+  { key: 'type',    header: 'Type',    render: (r: MpesaTransaction) => <TypeBadge type={r.transaction_type} direction={r.direction} /> },
+  { key: 'amount',  header: 'Amount',  render: (r: MpesaTransaction) => <span className="font-medium">{formatKES(r.amount)}</span> },
+  { key: 'phone',   header: 'Phone',   render: (r: MpesaTransaction) => r.phone_number ?? '—' },
+  { key: 'receipt', header: 'Receipt', render: (r: MpesaTransaction) => <span className="font-mono text-xs">{r.mpesa_receipt_number ?? '—'}</span> },
+  {
+    key: 'status', header: 'Status',
+    render: (r: MpesaTransaction) => (
+      <div>
+        <StatusBadge status={r.status} />
+        {r.failure_reason && (
+          <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate" title={r.failure_reason}>
+            {r.failure_reason}
+          </p>
+        )}
+      </div>
+    ),
+  },
+  { key: 'date', header: 'Date', render: (r: MpesaTransaction) => formatDate(r.created_at) },
+];
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
@@ -120,44 +154,20 @@ export default function TreasuryPage() {
   const [tab, setTab]   = useState<'transactions' | 'reconciliation' | 'reversals'>('transactions');
   const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
 
-  const balanceQ = useQuery({
-    queryKey: ['mpesa-balance'],
-    queryFn:  fetchBalance,
-    staleTime: 60_000,
-  });
-
-  const txQ = useQuery({
-    queryKey: ['mpesa-transactions', page],
-    queryFn:  () => fetchTransactions(page),
-    staleTime: 30_000,
-  });
-
-  const reversalQ = useQuery({
-    queryKey: ['mpesa-reversals'],
-    queryFn:  fetchReversals,
-    staleTime: 30_000,
-    enabled:   tab === 'reversals',
-  });
-
-  const reconcileQ = useQuery({
-    queryKey: ['mpesa-reconciliations'],
-    queryFn:  fetchReconciles,
-    staleTime: 30_000,
-    enabled:   tab === 'reconciliation',
-  });
+  const balanceQ = useQuery({ queryKey: ['mpesa-balance'], queryFn: fetchBalance, staleTime: 60_000 });
+  const txQ      = useQuery({ queryKey: ['mpesa-transactions', page], queryFn: () => fetchTransactions(page), staleTime: 30_000 });
+  const reversalQ = useQuery({ queryKey: ['mpesa-reversals'], queryFn: fetchReversals, staleTime: 30_000, enabled: tab === 'reversals' });
+  const reconcileQ = useQuery({ queryKey: ['mpesa-reconciliations'], queryFn: fetchReconciles, staleTime: 30_000, enabled: tab === 'reconciliation' });
 
   const balanceMut = useMutation({
     mutationFn: triggerBalance,
-    onSuccess:  () =>
-      setTimeout(() => qc.invalidateQueries({ queryKey: ['mpesa-balance'] }), 35_000),
+    onSuccess:  () => setTimeout(() => qc.invalidateQueries({ queryKey: ['mpesa-balance'] }), 35_000),
   });
 
   const reconcileMut = useMutation({
     mutationFn: triggerReconcile,
     onSuccess: (res) => {
-      setReconcileMsg(
-        `Checked ${res.transactionsChecked} transactions — ${res.mismatchesFound} mismatches, ${res.resolvedCount} resolved.`,
-      );
+      setReconcileMsg(`Checked ${res.transactionsChecked} transactions — ${res.mismatchesFound} mismatches, ${res.resolvedCount} resolved.`);
       qc.invalidateQueries({ queryKey: ['mpesa-transactions'] });
       qc.invalidateQueries({ queryKey: ['mpesa-reconciliations'] });
     },
@@ -166,50 +176,28 @@ export default function TreasuryPage() {
   const balance = balanceQ.data;
 
   return (
-    <div className="space-y-6 p-6">
-
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Treasury</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            M-Pesa shortcode balance, transactions, and reconciliation
-          </p>
+          <h1 className="text-2xl font-bold">Treasury</h1>
+          <p className="text-sm text-muted-foreground">M-Pesa balance, transactions, and reconciliation</p>
         </div>
-        <button
-          type="button"
-          onClick={() => balanceMut.mutate()}
-          disabled={balanceMut.isPending}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-        >
-          {balanceMut.isPending ? 'Querying…' : 'Refresh Balance'}
-        </button>
+        <Button variant="outline" size="sm" onClick={() => balanceMut.mutate()} loading={balanceMut.isPending}>
+          <RefreshCw size={15} /> Refresh balance
+        </Button>
       </div>
 
       {/* Balance cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {(
-          [
-            { label: 'Working Account', key: 'workingAccountBalance' },
-            { label: 'Utility Account', key: 'utilityAccountBalance' },
-            { label: 'Charges Account', key: 'chargesAccountBalance' },
-          ] as { label: string; key: keyof BalanceResult }[]
-        ).map(({ label, key }) => (
-          <div key={key} className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">
-              {balanceQ.isLoading
-                ? '…'
-                : balance
-                  ? formatKES(balance[key] as number)
-                  : 'KES —'}
-            </p>
-            {balance?.queriedAt && (
-              <p className="text-xs text-gray-400 mt-1">
-                {new Date(balance.queriedAt).toLocaleString('en-KE')}
-              </p>
-            )}
-          </div>
+        {accounts.map(({ label, key, icon }) => (
+          <StatCard
+            key={key}
+            title={label}
+            icon={icon}
+            value={balanceQ.isLoading ? '…' : balance ? formatKES(balance[key]) : '—'}
+            description={balance?.queriedAt ? `As of ${formatDateTime(balance.queriedAt)}` : undefined}
+          />
         ))}
       </div>
 
@@ -220,245 +208,132 @@ export default function TreasuryPage() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {(['transactions', 'reconciliation', 'reversals'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
-                tab === t
-                  ? 'border-green-600 text-green-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <TabsList>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+          <TabsTrigger value="reversals">Reversals</TabsTrigger>
+        </TabsList>
 
-      {/* Transactions */}
-      {tab === 'transactions' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800">All M-Pesa Transactions</h2>
-            <span className="text-sm text-gray-500">
-              {txQ.data ? `${txQ.data.total.toLocaleString()} total` : ''}
-            </span>
-          </div>
+        {/* Transactions */}
+        <TabsContent value="transactions">
+          <PaginatedTable
+            data={txQ.data ? { items: txQ.data.items, total: txQ.data.total, page, pageSize: 20, totalPages: txQ.data.totalPages } : null}
+            isLoading={txQ.isLoading}
+            columns={txColumns}
+            onPageChange={setPage}
+            emptyMessage="No transactions yet."
+          />
+        </TabsContent>
 
-          {txQ.isLoading ? (
-            <div className="p-8 text-center text-gray-400">Loading transactions…</div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {['Type', 'Amount', 'Phone', 'Receipt', 'Status', 'Date'].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {txQ.data?.items.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <TypeBadge type={tx.transaction_type} direction={tx.direction} />
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {formatKES(parseFloat(tx.amount))}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {tx.phone_number ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
-                          {tx.mpesa_receipt_number ?? '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={tx.status} />
-                          {tx.failure_reason && (
-                            <p className="text-xs text-red-600 mt-0.5 max-w-[180px] truncate" title={tx.failure_reason}>
-                              {tx.failure_reason}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                          {new Date(tx.created_at).toLocaleDateString('en-KE')}
-                        </td>
-                      </tr>
-                    ))}
-                    {txQ.data?.items.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
-                          No transactions yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {txQ.data && txQ.data.totalPages > 1 && (
-                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Page {page} of {txQ.data.totalPages}</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
-                      className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      disabled={page >= txQ.data.totalPages}
-                      onClick={() => setPage((p) => p + 1)}
-                      className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Reconciliation */}
-      {tab === 'reconciliation' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-800">Run Reconciliation</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Finds STK Push requests pending for &gt;5 minutes, queries Daraja for their
-                actual status, and resolves mismatches automatically.
-              </p>
-              {reconcileMsg && (
-                <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2 mt-2">
-                  {reconcileMsg}
+        {/* Reconciliation */}
+        <TabsContent value="reconciliation" className="space-y-4">
+          <Card>
+            <CardContent className="p-5 flex items-start justify-between gap-4">
+              <div className="flex-1 space-y-1">
+                <h3 className="font-semibold">Run reconciliation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Finds STK Push requests pending for &gt;5 minutes, queries Daraja for their
+                  actual status, and resolves mismatches automatically.
                 </p>
-              )}
-              {reconcileMut.isError && (
-                <p className="text-sm text-red-600 mt-2">
-                  Reconciliation failed — check logs.
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => reconcileMut.mutate()}
-              disabled={reconcileMut.isPending}
-              className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {reconcileMut.isPending ? 'Running…' : 'Run Now'}
-            </button>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-800">History</h3>
-            </div>
-            {reconcileQ.isLoading ? (
-              <div className="p-8 text-center text-gray-400">Loading…</div>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-100">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {['Started', 'Status', 'Checked', 'Mismatches', 'Resolved', 'Duration'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {reconcileQ.data?.map((run) => {
-                    const durSec = run.completed_at
-                      ? Math.round(
-                          (new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000,
-                        )
-                      : null;
-                    return (
-                      <tr key={run.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {new Date(run.started_at).toLocaleString('en-KE')}
-                        </td>
-                        <td className="px-4 py-3"><StatusBadge status={run.status} /></td>
-                        <td className="px-4 py-3 text-sm">{run.transactions_checked}</td>
-                        <td className="px-4 py-3 text-sm">{run.mismatches_found}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-green-700">{run.resolved_count}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {durSec !== null ? `${durSec}s` : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {reconcileQ.data?.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
-                        No reconciliation runs yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Reversals */}
-      {tab === 'reversals' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-800">Reversal History</h3>
-          </div>
-          {reversalQ.isLoading ? (
-            <div className="p-8 text-center text-gray-400">Loading…</div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Original Receipt', 'Amount', 'Remarks', 'Status', 'Requested By', 'Date'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {reversalQ.data?.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-xs font-mono text-gray-700">{r.original_receipt_number}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{formatKES(parseFloat(r.amount))}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate">{r.remarks}</td>
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{r.requested_by_name}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {new Date(r.created_at).toLocaleDateString('en-KE')}
-                    </td>
-                  </tr>
-                ))}
-                {reversalQ.data?.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
-                      No reversals recorded.
-                    </td>
-                  </tr>
+                {reconcileMsg && (
+                  <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2 mt-2">{reconcileMsg}</p>
                 )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                {reconcileMut.isError && (
+                  <p className="text-sm text-destructive mt-2">Reconciliation failed — check logs.</p>
+                )}
+              </div>
+              <Button className="shrink-0" onClick={() => reconcileMut.mutate()} loading={reconcileMut.isPending}>
+                Run now
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4"><CardTitle className="text-base">History</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {reconcileQ.isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading…</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {['Started', 'Status', 'Checked', 'Mismatches', 'Resolved', 'Duration'].map((h) => (
+                        <TableHead key={h}>{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reconcileQ.data?.map((run) => {
+                      const durSec = run.completed_at
+                        ? Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000)
+                        : null;
+                      return (
+                        <TableRow key={run.id}>
+                          <TableCell>{formatDateTime(run.started_at)}</TableCell>
+                          <TableCell><StatusBadge status={run.status} /></TableCell>
+                          <TableCell>{run.transactions_checked}</TableCell>
+                          <TableCell>{run.mismatches_found}</TableCell>
+                          <TableCell className="font-medium text-green-700">{run.resolved_count}</TableCell>
+                          <TableCell className="text-muted-foreground">{durSec !== null ? `${durSec}s` : '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {reconcileQ.data?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                          No reconciliation runs yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reversals */}
+        <TabsContent value="reversals">
+          <Card>
+            <CardHeader className="py-4"><CardTitle className="text-base">Reversal history</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {reversalQ.isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading…</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {['Original Receipt', 'Amount', 'Remarks', 'Status', 'Requested By', 'Date'].map((h) => (
+                        <TableHead key={h}>{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reversalQ.data?.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono text-xs">{r.original_receipt_number}</TableCell>
+                        <TableCell className="font-medium">{formatKES(r.amount)}</TableCell>
+                        <TableCell className="max-w-[180px] truncate">{r.remarks}</TableCell>
+                        <TableCell><StatusBadge status={r.status} /></TableCell>
+                        <TableCell>{r.requested_by_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {reversalQ.data?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                          No reversals recorded.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

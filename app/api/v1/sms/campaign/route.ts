@@ -2,11 +2,10 @@
 import { NextRequest } from 'next/server';
 import { withRole } from '@/lib/auth/middleware';
 import { withDb, withAdminDb } from '@/lib/db';
+import { enqueueJob } from '@/lib/jobs';
 import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
-import { smsService } from '@/lib/services/sms.service';
+import { resolveSmsRecipients } from '@/lib/services/sms.service';
 import { ok, notFound } from '@/lib/utils/response';
-import { normalizePhone } from '@/lib/utils/phone';
-import { logger } from '@/lib/logger';
 
 // GET /api/v1/sms/campaign â€” list campaigns
 export async function GET(req: NextRequest): Promise<Response> {
@@ -47,34 +46,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withRole(req, 'secretary', async (auth) => {
     const body  = await req.json();
     const input = CampaignCreateSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    // Resolve recipient phones
-    let phones: string[] = [];
-    if (input.recipientType === 'all_members' || input.recipientType === 'active_members') {
-      const activeOnly = input.recipientType === 'active_members';
-      const { rows } = await withDb(ctx, (client) =>
-        client.query<{ phone: string }>(
-          `SELECT phone FROM members WHERE group_id=$1 ${activeOnly ? "AND status='active'" : ''} AND phone IS NOT NULL`,
-          [auth.groupId],
-        ),
-      );
-      phones = rows.map((r) => normalizePhone(r.phone));
-    } else if (input.recipientType === 'custom_phones') {
-      const raw = (input.rawRecipients as { phones?: string[] })?.phones ?? [];
-      phones = raw.map(normalizePhone);
-    } else if (input.recipientType === 'selected') {
-      const ids = (input.rawRecipients as { memberIds?: string[] })?.memberIds ?? [];
-      if (ids.length) {
-        const { rows } = await withDb(ctx, (client) =>
-          client.query<{ phone: string }>(
-            `SELECT phone FROM members WHERE id=ANY($1::uuid[]) AND group_id=$2`,
-            [ids, auth.groupId],
-          ),
-        );
-        phones = rows.map((r) => normalizePhone(r.phone));
-      }
-    }
+    // Resolve recipient phones (shared with the scheduler so scheduled and
+    // immediate campaigns resolve membership identically).
+    const phones = await resolveSmsRecipients(auth.groupId, input.recipientType, input.rawRecipients);
 
     // Insert campaign row
     const { rows: [campaign] } = await withAdminDb((db) =>
@@ -94,22 +69,21 @@ export async function POST(req: NextRequest): Promise<Response> {
       ),
     );
 
-    // Send immediately if not scheduled
+    // Send immediately if not scheduled — enqueue a durable dispatch job
+    // (dedup-keyed on the campaign id so a retried request can't double-send).
     if (!input.scheduledAt && phones.length > 0) {
-      setImmediate(async () => {
-        try {
-          await smsService.sendBulkCampaign({
-            campaignId: campaign.id,
-            phones,
-            message:   input.message,
-            senderId:  (input as any).senderId,
-            groupId:   auth.groupId,
-            sentBy:    auth.userId,
-          });
-        } catch (err) {
-          logger.error('[campaign] send error:', err);
-        }
-      });
+      await enqueueJob(
+        'sms_bulk_send',
+        {
+          campaignId: campaign.id,
+          phones,
+          message:    input.message,
+          senderId:   input.senderId,
+          groupId:    auth.groupId,
+          sentBy:     auth.userId,
+        },
+        { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${campaign.id}` },
+      );
     }
 
     return ok(campaign, 201);

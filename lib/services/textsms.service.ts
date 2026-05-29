@@ -114,6 +114,7 @@ export async function sendSingleSms(input: SingleSmsInput): Promise<SmsResponse>
     message:   input.message,
     shortcode: input.senderId ?? SENDER_ID,
     mobile:    phone,
+    pass_type: 'plain',  // required on the POST sendsms body, per the TextSMS spec
   };
   if (input.timeToSend) payload.timeToSend = input.timeToSend;
 
@@ -192,10 +193,15 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
 // ─── DLR ─────────────────────────────────────────────────────────────────────
 
 export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
+  // The DLR endpoint reads the message id from the `messageID` query param
+  // (capital ID, per the TextSMS spec/Postman collection). Query params are
+  // case-sensitive, so the previous lowercase `messageid` was never matched
+  // server-side and every DLR lookup came back empty — leaving messages stuck
+  // 'sent'/'pending' and delivered_at unset.
   const { data } = await axios.get<Record<string, unknown>>(
     `${BASE_URL}/api/services/getdlr/`,
     {
-      params:  { apikey: API_KEY, partnerID: PARTNER_ID, messageid: messageId },
+      params:  { apikey: API_KEY, partnerID: PARTNER_ID, messageID: messageId },
       timeout: 15_000,
     },
   );

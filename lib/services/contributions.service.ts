@@ -43,6 +43,31 @@ export const contributionsService = {
     });
   },
 
+  // Active members with no completed contribution in the current calendar month.
+  // Powers the treasurer home "needs you now" list — small per group, so we
+  // return the full set and let the caller cap the preview.
+  async nonContributors(ctx: TenantContext): Promise<{ count: number; sample: { id: string; name: string }[] }> {
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<{ id: string; name: string }>(
+        `SELECT m.id, m.first_name || ' ' || m.last_name AS name
+         FROM group_members gm
+         JOIN members m ON m.id = gm.member_id
+         WHERE gm.group_id = $1
+           AND gm.status = 'active'
+           AND NOT EXISTS (
+             SELECT 1 FROM contributions c
+             WHERE c.member_id = m.id
+               AND c.group_id = $1
+               AND c.status = 'completed'
+               AND c.contribution_date >= date_trunc('month', CURRENT_DATE)
+           )
+         ORDER BY m.first_name, m.last_name`,
+        [ctx.groupId],
+      );
+      return { count: rows.length, sample: rows.slice(0, 5) };
+    });
+  },
+
   async getById(ctx: TenantContext, id: string): Promise<Contribution & { member_name: string }> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<Contribution & { member_name: string }>(
