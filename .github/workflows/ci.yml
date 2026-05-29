@@ -99,11 +99,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # --include=dev is required: the job-level NODE_ENV=production (set for
+      # build-time env validation) would otherwise make `npm ci` omit
+      # devDependencies — eslint, typescript, jest — and the lint/typecheck/
+      # build steps would fail with "<tool>: not found".
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       # ── Lint ──────────────────────────────────────────────────────────────
-      - name: Lint (next lint)
+      - name: Lint (eslint)
         run: npm run lint
 
       # ── Type check ────────────────────────────────────────────────────────
