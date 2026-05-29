@@ -53,7 +53,8 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        {/* 65px bar on small screens → 84px on desktop (mirrors the Safaricom header spec) */}
+        <div className="flex h-[65px] items-center justify-between lg:h-[84px]">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group" aria-label="Kitabu Yetu home">
             <BrandLogo size={36} priority alt="Kitabu Yetu" />
@@ -62,20 +63,20 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Desktop nav — shown at lg+ (like Safaricom hiding its menu on smaller screens) */}
+          <nav className="hidden lg:flex items-center gap-7">
             {/* Solutions menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    'group flex items-center gap-1 text-sm font-medium transition-colors focus:outline-none',
+                    'group flex items-center gap-1 text-[16px] font-semibold uppercase tracking-wide transition-colors focus:outline-none xl:text-[18px]',
                     linkColor,
                   )}
                 >
                   Solutions
-                  <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" sideOffset={10} className="w-72">
@@ -100,14 +101,18 @@ export default function Navbar() {
             </DropdownMenu>
 
             {navLinks.map((link) => (
-              <a key={link.href} href={link.href} className={cn('text-sm font-medium transition-colors', linkColor)}>
+              <a
+                key={link.href}
+                href={link.href}
+                className={cn('text-[16px] font-semibold uppercase tracking-wide transition-colors xl:text-[18px]', linkColor)}
+              >
                 {link.label}
               </a>
             ))}
           </nav>
 
           {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             <Button
               asChild
               variant="ghost"
@@ -125,7 +130,7 @@ export default function Navbar() {
           <button
             type="button"
             className={cn(
-              'md:hidden rounded-md p-2 transition-colors',
+              'lg:hidden rounded-md p-2 transition-colors',
               scrolled ? 'text-slate-700 hover:bg-slate-100' : 'text-white hover:bg-white/10',
             )}
             onClick={() => setOpen(!open)}
@@ -138,7 +143,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4">
+        <div className="lg:hidden bg-white border-t border-slate-100 px-4 py-4">
           <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Solutions</p>
           <div className="space-y-0.5">
             {solutionLinks.map((s) => (
