@@ -11,11 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Area, AreaChart,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { useAdminDashboard, useAdminRevenueTrend } from '@/hooks/use-admin';
+
+// Lazy-load Recharts so the ~360 KB library stays out of the dashboard's
+// first-load bundle and only downloads when the chart actually renders.
+const RevenueChart = dynamic(() => import('./_revenue-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[200px] w-full animate-pulse rounded bg-gray-100" />,
+});
 import { formatKES, formatDate } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -153,33 +157,7 @@ export default function AdminDashboardPage() {
                 No revenue data yet
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={trend} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
-                  <defs>
-                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#6b7280' }}
-                    tickLine={false} axisLine={false}
-                    tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip
-                    formatter={(v: any) => [formatKES(v), 'Revenue']}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                  />
-                  <Area
-                    type="monotone" dataKey="revenue"
-                    stroke="#2563eb" strokeWidth={2}
-                    fill="url(#revGrad)"
-                    dot={false} activeDot={{ r: 4, fill: '#2563eb' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <RevenueChart data={trend} />
             )}
           </CardContent>
         </Card>
