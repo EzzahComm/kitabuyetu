@@ -1,8 +1,16 @@
+import { createElement } from 'react';
 import { sendTemplatedEmail, queueEmail } from './email.service';
+import { sendReactEmail } from '@/lib/email/react/send';
+import ContributionReceipt from '@/emails/contribution-receipt';
 import type { EmailResult } from '@/lib/email/provider';
+
+const kesFromString = (v: string): number => Number(String(v).replace(/[^0-9.]/g, '')) || 0;
 
 // ─── Contribution Notifications ───────────────────────────────────────────────
 
+// Renders the React Email contribution receipt (emails/contribution-receipt.tsx)
+// and sends it through the existing pipeline via sendReactEmail. New fields are
+// optional so existing callers keep working.
 export async function sendContributionConfirmation(opts: {
   email: string;
   memberName: string;
@@ -15,21 +23,31 @@ export async function sendContributionConfirmation(opts: {
   groupId: string;
   memberId: string;
   contributionId: string;
+  groupName?: string;
+  accountRef?: string;
+  status?: 'completed' | 'pending';
 }): Promise<EmailResult> {
-  return sendTemplatedEmail({
-    templateKey: 'contribution_received',
+  const amount = kesFromString(opts.amount);
+  const isCash = opts.paymentMethod?.toLowerCase().includes('cash');
+  return sendReactEmail({
     to: opts.email,
-    vars: {
+    subject: `Receipt — ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)} contribution received`,
+    element: createElement(ContributionReceipt, {
       memberName: opts.memberName,
-      amount: opts.amount,
-      periodLabel: opts.periodLabel,
-      reference: opts.reference,
+      amount,
       date: opts.date,
+      groupName: opts.groupName,
+      periodLabel: opts.periodLabel,
       paymentMethod: opts.paymentMethod,
-      totalContributions: opts.totalContributions,
-    },
+      mpesaRef: isCash ? undefined : opts.reference || undefined,
+      accountRef: opts.accountRef,
+      totalContributions: opts.totalContributions || undefined,
+      status: opts.status ?? 'completed',
+    }),
     groupId: opts.groupId,
     userId: opts.memberId,
+    templateKey: 'contribution_received',
+    category: 'contribution',
     referenceId: opts.contributionId,
     referenceType: 'contribution',
   });

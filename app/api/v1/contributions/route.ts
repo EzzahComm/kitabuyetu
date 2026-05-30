@@ -17,6 +17,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withRole(req, 'treasurer', async (auth) => {
     const input = CreateContributionSchema.parse(await req.json());
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    return created(await contributionsService.create(ctx, input));
+    const contribution = await contributionsService.create(ctx, input);
+    // Fire the member's emailed receipt (best-effort; never blocks the response on failure).
+    await contributionsService.notifyReceipt(ctx, contribution);
+    return created(contribution);
   });
 }

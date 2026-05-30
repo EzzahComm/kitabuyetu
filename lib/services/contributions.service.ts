@@ -3,6 +3,8 @@ import { NotFoundError, ConflictError } from '@/lib/utils/errors';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
 import { accountingService } from './accounting.service';
+import { sendContributionConfirmation } from './notification-email.service';
+import { logger } from '@/lib/logger';
 
 export const contributionsService = {
 
@@ -118,6 +120,52 @@ export const contributionsService = {
 
       return contribution;
     });
+  },
+
+  /**
+   * Best-effort: email the member their React Email contribution receipt.
+   * Never throws — a missing/failed email must never affect the contribution.
+   * Only fires for completed contributions.
+   */
+  async notifyReceipt(ctx: TenantContext, contribution: Contribution): Promise<void> {
+    if (contribution.status !== 'completed') return;
+    try {
+      const data = await withDb(ctx, async (client) => {
+        const { rows } = await client.query<{
+          email: string | null; member_name: string; group_name: string; total: string;
+        }>(
+          `SELECT m.email,
+                  m.first_name || ' ' || m.last_name AS member_name,
+                  g.name AS group_name,
+                  COALESCE((SELECT SUM(amount) FROM contributions c
+                            WHERE c.member_id = m.id AND c.group_id = $2 AND c.status = 'completed'), 0) AS total
+           FROM members m JOIN groups g ON g.id = $2
+           WHERE m.id = $1 AND m.group_id = $2`,
+          [contribution.member_id, ctx.groupId],
+        );
+        return rows[0];
+      });
+      if (!data?.email) return;
+
+      const when = new Date(contribution.contribution_date);
+      await sendContributionConfirmation({
+        email: data.email,
+        memberName: data.member_name,
+        amount: String(contribution.amount),
+        periodLabel: when.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' }),
+        reference: contribution.mpesa_receipt_number ?? '',
+        date: when.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' }),
+        paymentMethod: contribution.payment_method ?? 'mpesa',
+        totalContributions: String(data.total),
+        groupId: ctx.groupId,
+        memberId: contribution.member_id,
+        contributionId: contribution.id,
+        groupName: data.group_name,
+        status: 'completed',
+      });
+    } catch (err) {
+      logger.warn('[contributions] receipt email failed', { contributionId: contribution.id, error: (err as Error).message });
+    }
   },
 
   async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
