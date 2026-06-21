@@ -2121,3 +2121,175 @@ export async function runReconciliation(
 
   return { reconciliationId: runId, transactionsChecked: checked, mismatchesFound: mismatches, resolvedCount: resolved };
 }
+
+/**
+ * Paybill sweep reconciliation — queries recent C2B transactions and matches
+ * them against unreconciled payments/contributions using account reference.
+ *
+ * Workflow:
+ *  1. Find C2B transactions recorded since last sweep (via callbacks)
+ *  2. Query unreconciled payments/contributions in the same window
+ *  3. Match by amount + account_reference
+ *  4. Auto-fulfil matched contributions (create journal entries, update status)
+ *  5. Log results in mpesa_reconciliations table
+ */
+export async function sweepPaybillTransactions(
+  groupId: string | null,
+  initiatedBy: string | null,
+): Promise<ReconciliationResult> {
+  const { rows: runRows } = await withAdminDb((db) =>
+    db.query<{ id: string }>(
+      `INSERT INTO mpesa_reconciliations (group_id, initiated_by, status, reconciliation_type)
+       VALUES ($1,$2,'running','paybill_sweep') RETURNING id`,
+      [groupId, initiatedBy],
+    ),
+  );
+  const runId = runRows[0].id;
+
+  let checked = 0, matched = 0, resolved = 0;
+  const details: unknown[] = [];
+
+  try {
+    // Fetch recent C2B transactions from the past 24 hours that haven't been matched yet
+    const c2bTransactions = await withAdminDb(async (db) => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60_000); // 24 hours
+      const query = groupId
+        ? `SELECT id, mpesa_receipt_number, amount, account_reference, phone_number,
+                  transaction_timestamp, group_id
+           FROM mpesa_transactions
+           WHERE transaction_type='c2b' AND direction='inbound' 
+           AND created_at > $1 AND group_id=$2
+           AND status IN ('completed','pending')
+           ORDER BY created_at DESC LIMIT 100`
+        : `SELECT id, mpesa_receipt_number, amount, account_reference, phone_number,
+                  transaction_timestamp, group_id
+           FROM mpesa_transactions
+           WHERE transaction_type='c2b' AND direction='inbound'
+           AND created_at > $1 AND status IN ('completed','pending')
+           ORDER BY created_at DESC LIMIT 100`;
+      
+      const { rows } = groupId
+        ? await db.query(query, [cutoff, groupId])
+        : await db.query(query, [cutoff]);
+      return rows;
+    });
+
+    checked = c2bTransactions.length;
+
+    // For each C2B transaction, try to match it with unreconciled contributions
+    for (const txn of c2bTransactions) {
+      try {
+        await withAdminDb(async (db) => {
+          // Find unreconciled contributions matching this transaction
+          const { rows: matchingContribs } = await db.query<{
+            id: string;
+            group_id: string;
+            account_reference: string;
+            amount_cents: number;
+            member_id: string;
+            mpesa_receipt_number: string | null;
+          }>(
+            `SELECT id, group_id, account_reference, amount_cents, member_id, mpesa_receipt_number
+             FROM contributions
+             WHERE status='pending' 
+             AND account_reference=$1 
+             AND amount_cents=$2
+             AND mpesa_receipt_number IS NULL
+             AND group_id=$3
+             LIMIT 1`,
+            [txn.account_reference, Math.round(txn.amount * 100), txn.group_id],
+          );
+
+          if (matchingContribs.length === 0) {
+            details.push({
+              txn_id: txn.mpesa_receipt_number,
+              amount: txn.amount,
+              action: 'no_match',
+              reason: 'No unreconciled contribution found',
+            });
+            return;
+          }
+
+          const contrib = matchingContribs[0];
+          matched++;
+
+          // Lock and update contribution
+          const { rows: contrib_full } = await db.query<{
+            id: string;
+            member_id: string;
+            account_reference: string;
+            amount_cents: number;
+            period: string;
+            contribution_type: string;
+          }>(
+            `SELECT id, member_id, account_reference, amount_cents, period, contribution_type
+             FROM contributions WHERE id=$1 FOR UPDATE`,
+            [contrib.id],
+          );
+
+          if (contrib_full.length === 0) return;
+          const contribRecord = contrib_full[0];
+
+          // Update contribution with receipt
+          await db.query(
+            `UPDATE contributions 
+             SET status='completed', mpesa_receipt_number=$1, completed_at=NOW()
+             WHERE id=$2`,
+            [txn.mpesa_receipt_number, contrib.id],
+          );
+
+          // Create journal entries (same as fulfilReconciledContribution)
+          await fulfilReconciledContribution(db, {
+            id: contrib.id,
+            checkout_request_id: '',
+            group_id: contrib.group_id,
+            purpose: 'contribution',
+            loan_repayment_id: null,
+            account_reference: contribRecord.account_reference,
+            amount: txn.amount,
+            contribution_id: contrib.id,
+            phone: txn.phone_number || '',
+          });
+
+          resolved++;
+          details.push({
+            txn_id: txn.mpesa_receipt_number,
+            contrib_id: contrib.id,
+            amount: txn.amount,
+            action: 'matched_and_fulfilled',
+          });
+        });
+      } catch (err) {
+        details.push({
+          txn_id: txn.mpesa_receipt_number,
+          action: 'process_error',
+          error: String(err),
+        });
+      }
+    }
+
+    // Update reconciliation run with results
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE mpesa_reconciliations
+         SET status='completed', transactions_checked=$1, mismatches_found=$2,
+             resolved_count=$3, details=$4, completed_at=NOW()
+         WHERE id=$5`,
+        [checked, matched, resolved, JSON.stringify(details), runId],
+      ),
+    );
+
+    logger.info('[mpesa] paybill sweep complete', { runId, checked, matched, resolved });
+  } catch (err) {
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE mpesa_reconciliations SET status='failed', notes=$1 WHERE id=$2`,
+        [String(err), runId],
+      ),
+    );
+    logger.error('[mpesa] paybill sweep failed', { runId, error: err });
+    throw err;
+  }
+
+  return { reconciliationId: runId, transactionsChecked: checked, mismatchesFound: matched, resolvedCount: resolved };
+}

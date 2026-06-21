@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Play } from 'lucide-react';
+import { ArrowLeft, Play, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,8 @@ export default function ReconciliationsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
+  const [reconType, setReconType] = useState<'stk' | 'paybill'>('stk');
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
 
   const { data, isLoading } = useQuery<ReconRun[]>({
     queryKey: ['mpesa', 'reconciliations'],
@@ -40,13 +42,16 @@ export default function ReconciliationsPage() {
   const runNow = async () => {
     setRunning(true);
     try {
-      const res = await api.post<{ transactionsChecked: number; resolvedCount: number }>('/mpesa/reconcile', {});
-      toast({ title: 'Reconciliation complete', description: `${res.transactionsChecked} checked, ${res.resolvedCount} resolved` });
+      const url = reconType === 'paybill' ? '/mpesa/reconcile?type=paybill' : '/mpesa/reconcile';
+      const res = await api.post<{ transactionsChecked: number; resolvedCount: number }>(url, {});
+      const typeLabel = reconType === 'paybill' ? 'Paybill sweep' : 'STK reconciliation';
+      toast({ title: `${typeLabel} complete`, description: `${res.transactionsChecked} checked, ${res.resolvedCount} resolved` });
       await qc.invalidateQueries({ queryKey: ['mpesa', 'reconciliations'] });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Reconciliation failed', description: err instanceof ApiError ? err.message : '' });
     } finally {
       setRunning(false);
+      setShowTypeMenu(false);
     }
   };
 
@@ -59,10 +64,42 @@ export default function ReconciliationsPage() {
           <Link href="/mpesa"><Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft size={16} /></Button></Link>
           <div>
             <h1 className="text-2xl font-bold">Reconciliation runs</h1>
-            <p className="text-sm text-muted-foreground">Sweeps stuck STK requests and resolves their real status with Daraja.</p>
+            <p className="text-sm text-muted-foreground">
+              {reconType === 'paybill' 
+                ? 'Sweeps paybill payments and reconciles them with pending contributions.'
+                : 'Sweeps stuck STK requests and resolves their real status with Daraja.'}
+            </p>
           </div>
         </div>
-        <Button onClick={runNow} loading={running}><Play size={15} className="mr-2" /> Run now</Button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Button 
+              variant="outline"
+              onClick={() => setShowTypeMenu(!showTypeMenu)}
+              className="gap-2"
+            >
+              {reconType === 'paybill' ? 'Paybill Sweep' : 'STK Sweep'} 
+              <ChevronDown size={14} />
+            </Button>
+            {showTypeMenu && (
+              <div className="absolute top-full right-0 mt-1 bg-white border rounded-md shadow-md z-10 min-w-[150px]">
+                <button
+                  onClick={() => { setReconType('stk'); setShowTypeMenu(false); }}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'stk' ? 'bg-muted font-medium' : ''}`}
+                >
+                  STK Sweep
+                </button>
+                <button
+                  onClick={() => { setReconType('paybill'); setShowTypeMenu(false); }}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'paybill' ? 'bg-muted font-medium' : ''}`}
+                >
+                  Paybill Sweep
+                </button>
+              </div>
+            )}
+          </div>
+          <Button onClick={runNow} loading={running}><Play size={15} className="mr-2" /> Run now</Button>
+        </div>
       </div>
 
       {isLoading ? (

@@ -1,9 +1,13 @@
 ﻿/**
  * POST /api/v1/mpesa/reconcile — Trigger reconciliation (group_admin+)
+ * POST /api/v1/mpesa/reconcile?type=paybill — Trigger paybill sweep (group_admin+)
  * GET  /api/v1/mpesa/reconcile — List reconciliation run history
  *
- * Reconciliation finds STK Push requests stuck in 'pending' for > 5 min,
- * queries Daraja for their actual status, and resolves mismatches.
+ * Reconciliation types:
+ *  - stk (default): finds STK Push requests stuck in 'pending' for > 5 min,
+ *    queries Daraja for their actual status, and resolves mismatches.
+ *  - paybill: sweeps recent C2B/paybill transactions and matches them against
+ *    unreconciled contributions using account_reference. Auto-fulfils matches.
  *
  * Can be triggered by Upstash QStash, a Vercel Cron, or manually.
  * Protected by either JWT (manual trigger) or CRON_SECRET header.
@@ -11,7 +15,7 @@
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { withRole } from '@/lib/auth/middleware';
-import { runReconciliation } from '@/lib/services/mpesa.service';
+import { runReconciliation, sweepPaybillTransactions } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 
@@ -28,11 +32,15 @@ function verifyCronSecret(req: NextRequest): boolean {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const type = req.nextUrl.searchParams.get('type') ?? 'stk';
+  
   // Allow cron-triggered calls without JWT
   if (verifyCronSecret(req)) {
     try {
-      const result = await runReconciliation(null, null);
-      return ok({ ...result, trigger: 'cron' });
+      const result = type === 'paybill'
+        ? await sweepPaybillTransactions(null, null)
+        : await runReconciliation(null, null);
+      return ok({ ...result, trigger: 'cron', reconciliationType: type });
     } catch (err) {
       return handleError(err);
     }
@@ -40,11 +48,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Treasurer+ — matches the rest of the M-Pesa ops surface (the /mpesa
   // dashboard that links here is treasurer-accessible). Reconciliation is
-  // idempotent (queries Daraja, resolves stuck STKs).
+  // idempotent (queries Daraja or sweeps C2B).
   return withRole(req, 'treasurer', async (auth) => {
     try {
-      const result = await runReconciliation(auth.groupId, auth.userId);
-      return ok({ ...result, trigger: 'manual' });
+      const result = type === 'paybill'
+        ? await sweepPaybillTransactions(auth.groupId, auth.userId)
+        : await runReconciliation(auth.groupId, auth.userId);
+      return ok({ ...result, trigger: 'manual', reconciliationType: type });
     } catch (err) {
       return handleError(err);
     }
