@@ -9,82 +9,58 @@ import {
 
 const features = [
   {
-    icon: Smartphone,
-    title: 'STK Push collections',
-    description:
-      'Prompt any member to pay straight from their phone. They enter their M-Pesa PIN, the contribution posts itself, and a receipt goes out.',
-  },
-  {
-    icon: Landmark,
-    title: 'PayBill & C2B routing',
-    description:
-      'Members pay your PayBill with an account reference like KYT-CONTR-KY0001. Kitabu Yetu matches the payer and books it — no manual entry.',
-  },
-  {
-    icon: Send,
-    title: 'B2C disbursements',
-    description:
-      'Send approved loans, welfare payouts, and dividends directly to members’ phones. The loan flips to disbursed the moment Safaricom confirms.',
-  },
-  {
-    icon: SplitSquareHorizontal,
-    title: 'Auto-split allocation',
-    description:
-      'One KSh 3,000 contribution, split your way — savings, welfare, loan repayment — across the ledger automatically, down to the last cent.',
-  },
-  {
-    icon: RefreshCw,
-    title: 'Self-healing reconciliation',
-    description:
-      'Stuck or silent payments are swept every few minutes, queried against Daraja, and resolved. Unmatched receipts wait in a review queue, never lost.',
-  },
-  {
-    icon: BookOpenCheck,
-    title: 'Double-entry ledger',
-    description:
-      'Every shilling lands as a balanced journal entry. Trial balance, P&L, and balance sheet are always audit-ready — not a spreadsheet afterthought.',
-  },
-  {
-    icon: ReceiptText,
-    title: 'Receipts & fee tracking',
-    description:
-      'Members get branded PDF receipts. Safaricom transaction charges are booked to the cent and reconciled nightly against your statement.',
-  },
-  {
-    icon: MessageSquare,
-    title: 'SMS & WhatsApp',
-    description:
-      'Confirmations, contribution reminders, and loan-due alerts go out over WhatsApp with SMS fallback. A failed STK nudges the member to PayBill.',
-  },
-  {
-    icon: Users,
-    title: 'Members, loans & shares',
-    description:
-      'Onboarding, roles, reducing-balance loan schedules, share certificates, dividends, and credit scores — the whole group, in one book.',
-  },
-  {
     icon: Wallet,
-    title: 'Member self-service app',
+    title: 'Member Experience',
     description:
-      'Every member gets a mobile-first wallet — digital passbook, savings goals, loan balance, and one-tap M-Pesa pay. Offline-ready, with sync indicators.',
-  },
-  {
-    icon: ShieldAlert,
-    title: 'Fraud, risk & KYC',
-    description:
-      'Platform-wide risk heatmaps, a live fraud feed, and a KYC verification queue — every money action confirmed and logged before funds move.',
+      'Individual digital wallets with USSD and app access. Financial inclusion that removes the need for members to travel or hand over physical cash, so participation works from anywhere.',
   },
   {
     icon: Activity,
-    title: 'Real-time monitoring',
+    title: 'Treasurer Experience',
     description:
-      'Live Daraja, SMS, and API health with a real-time transaction feed, so operations sees a degraded STK push or failing webhook the moment it happens.',
+      'Centralized group dashboards and automated journal entries. Eliminate human error with a fully digital book, avoiding lost ledgers, math mistakes, and recording delays.',
+  },
+  {
+    icon: Send,
+    title: 'Payment Processing',
+    description:
+      'Direct M-Pesa integration for frictionless collections. Members contribute and pay fees without typing codes or exchanging cash, improving fund security and speed.',
+  },
+  {
+    icon: RefreshCw,
+    title: 'Accounting',
+    description:
+      'Real-time, automated M-Pesa reconciliation. Instant reporting and compliance with 100% certainty on payments, zero end-of-month catch-up, and trusted audit trails.',
+  },
+  {
+    icon: Landmark,
+    title: 'SACCO Federation',
+    description:
+      'Multi-tier branch hierarchy management. Get a real-time, bird’s-eye view of cash flow, liquidity, and member liabilities across every branch and region.',
   },
   {
     icon: KeyRound,
-    title: 'API, webhooks & white-label',
+    title: 'Credit Marketplace',
     description:
-      'Programmatic access with scoped API keys, event webhooks, multi-branch portfolios, and white-label branding for federations and enterprise partners.',
+      'Third-party API integration and credit scoring dashboards for lenders. Enable data-driven capital access with de-risked loans based on verifiable M-Pesa history.',
+  },
+  {
+    icon: ShieldAlert,
+    title: 'Micro-Insurance Distribution',
+    description:
+      'B2B embedded insurance portals and premium checkout links for agents. Automate risk mitigation with group policies tailored to community needs and zero admin overhead.',
+  },
+  {
+    icon: BookOpenCheck,
+    title: 'Investment Portfolio Management',
+    description:
+      'Multi-ledger setup, asset tracking accounts, and project bookkeeping. Track separate ventures in one app so asset performance stays clear and operational funds never mix.',
+  },
+  {
+    icon: ReceiptText,
+    title: 'Grant & Donor Governance',
+    description:
+      'Read-only permissions, transparent audit logs, and project-specific finance exports. Donors track funds in real time, cutting manual impact reporting and boosting funding confidence.',
   },
 ];
 

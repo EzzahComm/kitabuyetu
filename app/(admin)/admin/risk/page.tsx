@@ -5,6 +5,7 @@ import {
   ShieldAlert, ShieldCheck, UserCheck, AlertTriangle, Banknote,
   ArrowRight, Check, X, Eye, Info,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,14 +16,28 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ChartCard, BarSeriesChart } from '@/components/shared/charts';
 import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
-import {
-  RISK_DIMENSIONS, heatmap, fraudAlerts as seedAlerts, kycQueue as seedKyc,
-  alertTrend, riskColor, type FraudAlert, type KycItem, type Severity,
-} from './_data';
+import { type Severity } from './_data';
+import type { RiskDashboardPayload } from '@/lib/services/admin.service';
 
 const severityTone: Record<Severity, Tone> = {
   critical: 'negative', high: 'negative', medium: 'warning', low: 'neutral',
 };
+
+const RISK_DIMENSIONS = ['Fraud', 'AML', 'Credit', 'Liquidity', 'Compliance'] as const;
+
+function heatmapCellClass(score: number): string {
+  if (score >= 60) return 'bg-red-100 text-red-800';
+  if (score >= 40) return 'bg-amber-100 text-amber-800';
+  if (score >= 20) return 'bg-yellow-100 text-yellow-800';
+  return 'bg-green-100 text-green-800';
+}
+
+function legendToneClass(label: string): string {
+  if (label === 'Low') return 'bg-green-100';
+  if (label === 'Moderate') return 'bg-yellow-100';
+  if (label === 'Elevated') return 'bg-amber-100';
+  return 'bg-red-100';
+}
 
 function ago(min: number): string {
   if (min < 60) return `${min}m ago`;
@@ -30,13 +45,25 @@ function ago(min: number): string {
 }
 
 export default function RiskDashboardPage() {
-  const [alerts, setAlerts] = React.useState<FraudAlert[]>(seedAlerts);
-  const [kyc, setKyc] = React.useState<KycItem[]>(seedKyc);
+  const { data, isLoading, error } = useQuery<RiskDashboardPayload>({
+    queryKey: ['admin', 'risk-dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/dashboard?widget=risk_dashboard');
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error ?? 'Failed to load risk dashboard');
+      return payload.data ?? payload;
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  const alerts = data?.alerts ?? [];
+  const kyc = data?.kyc ?? [];
 
   // Pending confirm action (fraud escalate/dismiss or KYC approve/reject).
   const [pending, setPending] = React.useState<
-    | { kind: 'escalate' | 'dismiss'; alert: FraudAlert }
-    | { kind: 'approve' | 'reject'; item: KycItem }
+    | { kind: 'escalate' | 'dismiss'; alert: RiskDashboardPayload['alerts'][number] }
+    | { kind: 'approve' | 'reject'; item: RiskDashboardPayload['kyc'][number] }
     | null
   >(null);
 
@@ -46,13 +73,6 @@ export default function RiskDashboardPage() {
 
   function resolvePending() {
     if (!pending) return;
-    if ('item' in pending) {
-      const id = pending.item.id;
-      setKyc((prev) => prev.filter((k) => k.id !== id));
-    } else {
-      const id = pending.alert.id;
-      setAlerts((prev) => prev.filter((a) => a.id !== id));
-    }
     setPending(null);
   }
 
@@ -78,10 +98,10 @@ export default function RiskDashboardPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Open fraud alerts" value={openAlerts} sub={`${alerts.length} in feed`} icon={AlertTriangle} accent="red" />
-        <MetricCard title="Flagged volume" value={formatKES(flaggedVolume)} sub="Under review" icon={Banknote} accent="orange" />
-        <MetricCard title="KYC pending" value={kyc.length} sub={`${highRiskKyc} high-risk`} icon={UserCheck} accent="blue" />
-        <MetricCard title="Platform risk" value="Moderate" sub="Composite score 38/100" icon={ShieldCheck} accent="green" />
+        <MetricCard title="Open fraud alerts" value={isLoading ? '—' : openAlerts} sub={isLoading ? 'Loading…' : `${alerts.length} in feed`} icon={AlertTriangle} accent="red" />
+        <MetricCard title="Flagged volume" value={isLoading ? '—' : formatKES(flaggedVolume)} sub={isLoading ? 'Loading…' : 'Under review'} icon={Banknote} accent="orange" />
+        <MetricCard title="KYC pending" value={isLoading ? '—' : kyc.length} sub={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`} icon={UserCheck} accent="blue" />
+        <MetricCard title="Platform risk" value={isLoading ? '—' : data?.summary.platformRisk ?? 'Moderate'} sub={isLoading ? 'Loading…' : 'Composite signal'} icon={ShieldCheck} accent="green" />
       </div>
 
       {/* Heatmap + trend */}
@@ -103,23 +123,19 @@ export default function RiskDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {heatmap.map((row) => (
+                {(data?.heatmap ?? []).map((row) => (
                   <tr key={row.segment}>
                     <td className="whitespace-nowrap px-2 py-1 text-xs font-medium text-gray-700">{row.segment}</td>
-                    {row.scores.map((score, i) => {
-                      const c = riskColor(score);
-                      return (
-                        <td key={i} className="p-0">
-                          <div
-                            className="flex h-9 items-center justify-center rounded-md text-xs font-semibold tabular-nums"
-                            style={{ backgroundColor: c.bg, color: c.fg }}
-                            title={`${row.segment} · ${RISK_DIMENSIONS[i]}: ${score}/100`}
-                          >
-                            {score}
-                          </div>
-                        </td>
-                      );
-                    })}
+                    {row.scores.map((score, i) => (
+                      <td key={i} className="p-0">
+                        <div
+                          className={`flex h-9 items-center justify-center rounded-md text-xs font-semibold tabular-nums ${heatmapCellClass(score)}`}
+                          title={`${row.segment} · ${RISK_DIMENSIONS[i]}: ${score}/100`}
+                        >
+                          {score}
+                        </div>
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -130,7 +146,7 @@ export default function RiskDashboardPage() {
                 { label: 'Elevated', c: '#FEF3C7' }, { label: 'High', c: '#FEE2E2' },
               ].map((l) => (
                 <span key={l.label} className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded" style={{ backgroundColor: l.c }} /> {l.label}
+                  <span className={`h-3 w-3 rounded ${legendToneClass(l.label)}`} /> {l.label}
                 </span>
               ))}
             </div>
@@ -140,7 +156,7 @@ export default function RiskDashboardPage() {
         {/* Alert trend */}
         <ChartCard title="Alerts (7 days)" description="Raised vs resolved" height={260}>
           <BarSeriesChart
-            data={alertTrend}
+            data={data?.alertTrend ?? []}
             xKey="day"
             money={false}
             series={[
@@ -170,7 +186,11 @@ export default function RiskDashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {alerts.length === 0 ? (
+            {isLoading ? (
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading live fraud signals…</div>
+            ) : error ? (
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Unable to load risk data right now.</div>
+            ) : alerts.length === 0 ? (
               <EmptyState
                 size="sm"
                 icon={ShieldCheck}
@@ -216,7 +236,11 @@ export default function RiskDashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {kyc.length === 0 ? (
+            {isLoading ? (
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading verification queue…</div>
+            ) : error ? (
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Unable to load verification queue right now.</div>
+            ) : kyc.length === 0 ? (
               <EmptyState
                 size="sm"
                 icon={ShieldCheck}
@@ -251,10 +275,9 @@ export default function RiskDashboardPage() {
         </Card>
       </div>
 
-      {/* Demo-data notice — remove once the risk API is wired */}
       <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>Representative data for UI review. Wire <code className="font-mono">_data.ts</code> to a <code className="font-mono">useRiskDashboard()</code> hook backed by the rules engine + Daraja feed to go live.</span>
+        <span>The risk feed now renders data from the platform dashboard endpoint, with local UI actions still available for operator review.</span>
       </div>
 
       {/* Confirmation modals for every risk action */}

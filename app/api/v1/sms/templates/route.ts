@@ -6,6 +6,13 @@ import { TemplateCreateSchema, TemplateUpdateSchema } from '@/lib/validators/sms
 import { extractVars } from '@/lib/sms/templates';
 import { ok, notFound } from '@/lib/utils/response';
 
+function normalizeTemplatePayload(row: any) {
+  return {
+    ...row,
+    variables: row.variables ?? extractVars(row.body ?? ''),
+  };
+}
+
 // GET /api/v1/sms/templates â€” list group + system templates
 export async function GET(req: NextRequest): Promise<Response> {
   return withRole(req, 'secretary', async (auth) => {
@@ -17,7 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
          ORDER BY is_system DESC, created_at DESC`,
         [auth.groupId],
       );
-      return ok(rows);
+      return ok(rows.map(normalizeTemplatePayload));
     });
   });
 }
@@ -37,7 +44,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         [auth.groupId, input.templateKey, input.name, input.body, vars, input.category, auth.userId],
       ),
     );
-    return ok(tpl, 201);
+    return ok(normalizeTemplatePayload(tpl), 201);
   });
 }
 
@@ -68,7 +75,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       ),
     );
     if (!rows.length) return notFound();
-    return ok(rows[0]);
+    return ok(normalizeTemplatePayload(rows[0]));
   });
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Activity, Play, Pause, Server, Smartphone, MessageSquare,
   ArrowDownLeft, ArrowUpRight, Zap, Info, RefreshCw,
@@ -14,25 +15,22 @@ import { MoneyDisplay } from '@/components/shared/money-display';
 import { ChartCard, TrendChart } from '@/components/shared/charts';
 import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
-import {
-  services, hourlyVolume, smsUsage,
-  seedTransactions, makeTransaction, relativeTime,
-  type ServiceStatus, type ServiceHealth, type Transaction, type TxnType, type TxnStatus,
-} from './_data';
+import type { MonitoringDashboardPayload } from '@/lib/services/admin.service';
+import { relativeTime } from './_data';
 
-const statusToneMap: Record<ServiceStatus, Tone> = {
+const statusToneMap: Record<'operational' | 'degraded' | 'down', Tone> = {
   operational: 'positive', degraded: 'warning', down: 'negative',
 };
-const txnStatusTone: Record<TxnStatus, Tone> = {
+const txnStatusTone: Record<'success' | 'pending' | 'failed', Tone> = {
   success: 'positive', pending: 'pending', failed: 'negative',
 };
-const typeStyle: Record<TxnType, { label: string; cls: string; Icon: React.ElementType }> = {
+const typeStyle: Record<'C2B' | 'B2C' | 'STK', { label: string; cls: string; Icon: React.ElementType }> = {
   C2B: { label: 'C2B', cls: 'bg-green-50 text-green-700', Icon: ArrowDownLeft },
   B2C: { label: 'B2C', cls: 'bg-blue-50 text-blue-700', Icon: ArrowUpRight },
   STK: { label: 'STK', cls: 'bg-purple-50 text-purple-700', Icon: Zap },
 };
 
-const SERVICE_GROUPS: { title: ServiceHealth['group']; Icon: React.ElementType }[] = [
+const SERVICE_GROUPS: { title: MonitoringDashboardPayload['services'][number]['group']; Icon: React.ElementType }[] = [
   { title: 'M-Pesa / Daraja', Icon: Smartphone },
   { title: 'Messaging', Icon: MessageSquare },
   { title: 'Platform', Icon: Server },
@@ -41,26 +39,30 @@ const SERVICE_GROUPS: { title: ServiceHealth['group']; Icon: React.ElementType }
 const FEED_CAP = 40;
 
 export default function MonitoringPage() {
-  const [feed, setFeed] = React.useState<Transaction[]>(() => seedTransactions(10));
-  const [live, setLive] = React.useState(true);
-  const seqRef = React.useRef(1001);
+  const { data, isLoading, error } = useQuery<MonitoringDashboardPayload>({
+    queryKey: ['admin', 'monitoring-dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/dashboard?widget=monitoring_dashboard');
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error ?? 'Failed to load monitoring dashboard');
+      return payload.data ?? payload;
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
-  // Live feed: push a new transaction every ~2.4s while live. setState here runs
-  // in an interval callback (a subscription), not synchronously in the effect.
-  React.useEffect(() => {
-    if (!live) return;
-    const t = setInterval(() => {
-      setFeed((prev) => [makeTransaction(seqRef.current++), ...prev].slice(0, FEED_CAP));
-    }, 2400);
-    return () => clearInterval(t);
-  }, [live]);
+  const services = data?.services ?? [];
+  const hourlyVolume = data?.hourlyVolume ?? [];
+  const smsUsage = data?.smsUsage ?? { sentToday: 0, delivered: 0, failed: 0, pending: 0, creditsRemaining: 0, creditsTotal: 0 };
+  const feed = data?.transactions ?? [];
+  const [live, setLive] = React.useState(true);
 
   const mpesa = services.filter((s) => s.group === 'M-Pesa / Daraja');
-  const mpesaSuccess = mpesa.reduce((a, s) => a + s.success, 0) / mpesa.length;
+  const mpesaSuccess = mpesa.length ? mpesa.reduce((a, s) => a + s.success, 0) / mpesa.length : 0;
   const txnsToday = hourlyVolume.reduce((a, h) => a + h.count, 0);
   const valueToday = hourlyVolume.reduce((a, h) => a + h.value, 0);
   const stk = services.find((s) => s.id === 'stk');
-  const smsRate = (smsUsage.delivered / smsUsage.sentToday) * 100;
+  const smsRate = smsUsage.sentToday ? (smsUsage.delivered / smsUsage.sentToday) * 100 : 0;
   const degraded = services.filter((s) => s.status !== 'operational');
 
   return (
@@ -98,10 +100,10 @@ export default function MonitoringPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Transactions today" value={txnsToday.toLocaleString()} sub={formatKES(valueToday)} icon={Activity} accent="blue" />
-        <MetricCard title="M-Pesa success" value={`${mpesaSuccess.toFixed(1)}%`} sub="C2B · B2C · STK avg" icon={Smartphone} accent="green" />
-        <MetricCard title="STK Push p95" value={`${stk?.latency ?? 0}ms`} sub={stk?.note} icon={Zap} accent={stk?.status === 'operational' ? 'green' : 'orange'} />
-        <MetricCard title="SMS delivered" value={`${smsRate.toFixed(1)}%`} sub={`${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`} icon={MessageSquare} accent="purple" />
+        <MetricCard title="Transactions today" value={isLoading ? '—' : txnsToday.toLocaleString()} sub={isLoading ? 'Loading…' : formatKES(valueToday)} icon={Activity} accent="blue" />
+        <MetricCard title="M-Pesa success" value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`} sub={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'} icon={Smartphone} accent="green" />
+        <MetricCard title="STK Push p95" value={isLoading ? '—' : `${stk?.latency ?? 0}ms`} sub={isLoading ? 'Loading…' : stk?.note} icon={Zap} accent={stk?.status === 'operational' ? 'green' : 'orange'} />
+        <MetricCard title="SMS delivered" value={isLoading ? '—' : `${smsRate.toFixed(1)}%`} sub={isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`} icon={MessageSquare} accent="purple" />
       </div>
 
       {/* Service health grid */}
@@ -208,7 +210,15 @@ export default function MonitoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {feed.map((tx, i) => {
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Loading live transaction feed…</td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Unable to load monitoring data right now.</td>
+                  </tr>
+                ) : feed.map((tx, i) => {
                   const ts = typeStyle[tx.type];
                   return (
                     <tr key={tx.id} className={`border-t transition-colors hover:bg-muted/30 ${i === 0 && live ? 'animate-in fade-in slide-in-from-top-1' : ''}`}>
@@ -236,10 +246,9 @@ export default function MonitoringPage() {
         </CardContent>
       </Card>
 
-      {/* Demo-data notice */}
       <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>Representative data for UI review. Wire <code className="font-mono">_data.ts</code> to a Supabase Realtime channel on the transactions table plus Daraja/SMS health checks to go live. The feed simulates ~1 txn / 2.4s while running. <span style={{ color: tone.positive.fg }}>●</span></span>
+        <span>The monitoring page now uses the live admin dashboard payload for service health, SMS usage, and recent M-Pesa activity. <span className="text-green-600">●</span></span>
       </div>
     </div>
   );

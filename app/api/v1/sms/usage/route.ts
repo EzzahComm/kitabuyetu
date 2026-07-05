@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { withRole } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';
 import { SmsUsageQuerySchema } from '@/lib/validators/sms.schema';
+import { summarizeUsageRows } from '@/lib/sms/analytics';
 import { ok } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       smsService.listUsage(ctx, params),
       smsService.getBalance(ctx),
     ]);
-    return ok({ ...usage, balance });
+    const summary = summarizeUsageRows(usage.items);
+    return ok({ ...usage, balance, summary });
   });
 }

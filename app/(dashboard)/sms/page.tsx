@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { StatusPill } from '@/components/shared/status-pill';
+import { EmptyState, SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,6 @@ function ComposeTab() {
   const { toast } = useToast();
   const [message, setMessage]   = useState('');
   const [target, setTarget]     = useState<'all' | 'active' | 'custom'>('all');
-  const [selected, setSelected] = useState<string[]>([]);
   const [phones, setPhones]     = useState('');
   const [templateId, setTemplateId] = useState('');
 
@@ -112,7 +112,7 @@ function ComposeTab() {
     mutationFn: (body: unknown) => smsApi.bulk(body),
     onSuccess: (res: any) => {
       toast({ title: `Queued ${res?.data?.queued ?? 0} messages for delivery` });
-      setMessage(''); setSelected([]); setPhones('');
+      setMessage(''); setPhones('');
     },
     onError: (err: any) => toast({ variant: 'destructive', title: 'Send failed', description: err.message }),
   });
@@ -307,16 +307,18 @@ function CampaignsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">SMS Campaigns</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={13} /> New Campaign
-        </button>
-      </div>
+      <SectionHeader
+        title="SMS Campaigns"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm(!showForm)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={13} /> New Campaign
+          </button>
+        }
+      />
 
       {showForm && (
         <div className="bg-white rounded-xl border p-5 space-y-3">
@@ -358,9 +360,9 @@ function CampaignsTab() {
 
       <div className="bg-white rounded-xl border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-gray-400">Loading campaigns…</div>
+          <EmptyState title="Loading campaigns…" />
         ) : campaigns.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">No campaigns yet</div>
+          <EmptyState title="No campaigns yet" />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
@@ -441,16 +443,18 @@ function TemplatesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">SMS Templates</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={13} /> New Template
-        </button>
-      </div>
+      <SectionHeader
+        title="SMS Templates"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm(!showForm)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={13} /> New Template
+          </button>
+        }
+      />
 
       {showForm && (
         <div className="bg-white rounded-xl border p-5 space-y-3">
@@ -502,7 +506,7 @@ function TemplatesTab() {
 
       <div className="bg-white rounded-xl border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-gray-400">Loading templates…</div>
+          <EmptyState title="Loading templates…" />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
@@ -593,16 +597,18 @@ function SchedulesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">SMS Schedules</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={13} /> New Schedule
-        </button>
-      </div>
+      <SectionHeader
+        title="SMS Schedules"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm(!showForm)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={13} /> New Schedule
+          </button>
+        }
+      />
 
       {showForm && (
         <div className="bg-white rounded-xl border p-5 space-y-3">
@@ -664,9 +670,9 @@ function SchedulesTab() {
 
       <div className="bg-white rounded-xl border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-gray-400">Loading schedules…</div>
+          <EmptyState title="Loading schedules…" />
         ) : schedules.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">No schedules yet</div>
+          <EmptyState title="No schedules yet" />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
@@ -734,6 +740,13 @@ function LogsTab() {
   const result = (data as any)?.data;
   const logs: SmsLog[] = result?.items ?? [];
   const totalPages     = result?.totalPages ?? 1;
+  const summary = result?.summary;
+  const usageStats = useMemo(() => [
+    { label: 'Delivered', value: summary?.delivered ?? 0, tone: 'text-emerald-600' },
+    { label: 'Sent', value: summary?.sent ?? 0, tone: 'text-blue-600' },
+    { label: 'Failed', value: summary?.failed ?? 0, tone: 'text-rose-600' },
+    { label: 'Queued', value: summary?.queued ?? 0, tone: 'text-amber-600' },
+  ], [summary]);
 
   const checkDlr = async (msgId: string) => {
     try {
@@ -746,14 +759,16 @@ function LogsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h2 className="text-sm font-semibold text-gray-900">SMS Logs</h2>
-        <select
-          aria-label="Filter by status"
-          className="text-xs border rounded-lg px-2.5 py-1.5"
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-        >
+      <SectionHeader
+        title="SMS Logs"
+        subtitle={summary ? `${summary.totalMessages} total • ${summary.totalCredits} credits` : undefined}
+        action={
+          <select
+            aria-label="Filter by status"
+            className="text-xs border rounded-lg px-2.5 py-1.5"
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+          >
           <option value="">All statuses</option>
           {['queued', 'sent', 'delivered', 'failed', 'rejected'].map((s) => (
             <option key={s} value={s}>{s}</option>

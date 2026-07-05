@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok } from '@/lib/utils/response';
-import { getPlatformStats, getRevenueTrend } from '@/lib/services/admin.service';
+import {
+  getPlatformStats,
+  getRevenueTrend,
+  getRiskDashboardData,
+  getMonitoringDashboardData,
+} from '@/lib/services/admin.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +17,16 @@ export function GET(req: NextRequest) {
 
     if (widget === 'revenue_trend') {
       const data = await getRevenueTrend();
+      return ok(data);
+    }
+
+    if (widget === 'risk_dashboard') {
+      const data = await getRiskDashboardData();
+      return ok(data);
+    }
+
+    if (widget === 'monitoring_dashboard') {
+      const data = await getMonitoringDashboardData();
       return ok(data);
     }
 

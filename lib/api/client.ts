@@ -40,29 +40,30 @@ export function configureApiClient(opts: {
   _onUnauthorized = opts.onUnauthorized;
 }
 
+function buildHeaders(body: unknown, multipart = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = readAccessTokenFromStorage();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (!multipart && body) headers['Content-Type'] = 'application/json';
+  return headers;
+}
+
+function buildRequestBody(body: unknown, multipart = false): BodyInit | undefined {
+  if (multipart) return body as FormData;
+  return body !== undefined ? JSON.stringify(body) : undefined;
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
   options?: { multipart?: boolean },
 ): Promise<T> {
-  const headers: Record<string, string> = {};
-
-  const token = readAccessTokenFromStorage();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  if (!options?.multipart && body) {
-    headers['Content-Type'] = 'application/json';
-  }
-
+  const headers = buildHeaders(body, options?.multipart);
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
-    body: options?.multipart
-      ? (body as FormData)
-      : body !== undefined
-        ? JSON.stringify(body)
-        : undefined,
+    body: buildRequestBody(body, options?.multipart),
   });
 
   if (res.status === 401) {
@@ -97,10 +98,7 @@ export class ApiError extends Error {
  * navigations don't send.
  */
 async function openBlob(path: string): Promise<void> {
-  const headers: Record<string, string> = {};
-  const token = readAccessTokenFromStorage();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
+  const headers = buildHeaders(undefined);
   const res = await fetch(`${BASE}${path}`, { headers });
   if (res.status === 401) {
     _onUnauthorized?.();

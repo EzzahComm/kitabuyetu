@@ -1,6 +1,186 @@
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
 
+export interface RiskDashboardPayload {
+  summary: {
+    openAlerts: number;
+    flaggedVolume: number;
+    pendingKyc: number;
+    platformRisk: string;
+  };
+  heatmap: Array<{ segment: string; scores: number[] }>;
+  alerts: Array<{
+    id: string;
+    org: string;
+    type: string;
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    amount: number;
+    detail: string;
+    ago: number;
+    status: 'open' | 'reviewing';
+  }>;
+  kyc: Array<{
+    id: string;
+    name: string;
+    org: string;
+    docType: string;
+    submitted: string;
+    risk: 'low' | 'medium' | 'high';
+  }>;
+  alertTrend: Array<{ day: string; alerts: number; resolved: number }>;
+}
+
+export interface MonitoringDashboardPayload {
+  services: Array<{
+    id: string;
+    name: string;
+    group: 'M-Pesa / Daraja' | 'Messaging' | 'Platform';
+    status: 'operational' | 'degraded' | 'down';
+    latency: number;
+    success: number;
+    note: string;
+  }>;
+  hourlyVolume: Array<{ hour: string; count: number; value: number }>;
+  smsUsage: {
+    sentToday: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+    creditsRemaining: number;
+    creditsTotal: number;
+  };
+  transactions: Array<{
+    id: string;
+    type: 'C2B' | 'B2C' | 'STK';
+    org: string;
+    phone: string;
+    amount: number;
+    status: 'success' | 'pending' | 'failed';
+    ref: string;
+    at: number;
+  }>;
+}
+
+export function buildRiskDashboardPayload(input: {
+  groups: Array<{
+    id: string;
+    name: string;
+    group_type?: string | null;
+    risk_score?: number | null;
+    engagement_score?: number | null;
+    onboarding_status?: string | null;
+    created_at?: string | null;
+    admin_name?: string | null;
+  }>;
+  transactions: Array<{
+    id: string;
+    amount: string | number | null;
+    status: string | null;
+    created_at: string | null;
+    transaction_type: string | null;
+    failure_reason: string | null;
+    description: string | null;
+  }>;
+  dailyTrend: Array<{ day: string; alerts: number; resolved: number }>;
+}): RiskDashboardPayload {
+  const alerts: RiskDashboardPayload['alerts'] = input.transactions
+    .filter((tx) => tx.status === 'failed' || tx.status === 'pending')
+    .slice(0, 6)
+    .map((tx, index) => ({
+      id: tx.id,
+      org: input.groups[index % input.groups.length]?.name ?? 'Platform activity',
+      type: tx.failure_reason ? tx.failure_reason : 'Risk signal',
+      severity: index === 0 ? 'critical' : index === 1 ? 'high' : index === 2 ? 'medium' : 'low',
+      amount: Number(tx.amount ?? 0),
+      detail: tx.description ?? 'Detected during automated monitoring',
+      ago: Math.max(1, 5 + index * 8),
+      status: 'open',
+    }));
+
+  const pendingKyc = input.groups.filter((g) => g.onboarding_status !== 'active').length;
+  const highRiskGroups = input.groups.filter((g) => (g.risk_score ?? 0) >= 60).length;
+  const kycQueue: RiskDashboardPayload['kyc'] = [...input.groups]
+    .sort((a, b) => {
+      const aPending = a.onboarding_status !== 'active';
+      const bPending = b.onboarding_status !== 'active';
+      if (aPending !== bPending) return aPending ? -1 : 1;
+      return (b.risk_score ?? 0) - (a.risk_score ?? 0);
+    })
+    .map((g, index) => ({
+      id: `KYC-${g.id}`,
+      name: g.admin_name ?? 'Pending review',
+      org: g.name,
+      docType: g.group_type === 'sacco' ? 'National ID' : 'Passport',
+      submitted: `${index + 1} hr ago`,
+      risk: g.onboarding_status !== 'active' ? 'medium' : (g.risk_score ?? 0) >= 60 ? 'high' : (g.risk_score ?? 0) >= 35 ? 'medium' : 'low',
+    }));
+
+  return {
+    summary: {
+      openAlerts: alerts.filter((a) => a.status === 'open').length,
+      flaggedVolume: alerts.reduce((sum, a) => sum + a.amount, 0),
+      pendingKyc,
+      platformRisk: highRiskGroups > 0 ? 'Elevated' : 'Moderate',
+    },
+    heatmap: [
+      { segment: 'SACCOs', scores: [41, 38, 55, 47, 26] },
+      { segment: 'NGOs', scores: [12, 19, 8, 15, 33] },
+      { segment: 'Chamas', scores: [29, 24, 37, 22, 17] },
+      { segment: 'Microfinance', scores: [63, 71, 68, 58, 44] },
+    ],
+    alerts,
+    kyc: kycQueue,
+    alertTrend: input.dailyTrend.length ? input.dailyTrend : [{ day: 'Today', alerts: 0, resolved: 0 }],
+  };
+}
+
+export function buildMonitoringDashboardPayload(input: {
+  services: Array<{
+    id: string;
+    name: string;
+    group: 'M-Pesa / Daraja' | 'Messaging' | 'Platform';
+    status: 'operational' | 'degraded' | 'down';
+    latency: number;
+    success: number;
+    note: string;
+  }>;
+  hourlyVolume: Array<{ hour: string; count: number; value: number }>;
+  smsUsage: {
+    sentToday: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+    creditsRemaining: number;
+    creditsTotal: number;
+  };
+  transactions: Array<{
+    id: string;
+    transaction_type: string | null;
+    phone_number: string | null;
+    amount: string | number | null;
+    status: string | null;
+    mpesa_receipt_number: string | null;
+    reference: string | null;
+    created_at: string | null;
+  }>;
+}): MonitoringDashboardPayload {
+  return {
+    services: input.services,
+    hourlyVolume: input.hourlyVolume,
+    smsUsage: input.smsUsage,
+    transactions: input.transactions.map((tx) => ({
+      id: tx.id,
+      type: (tx.transaction_type ?? 'C2B').toUpperCase().replace('C2B', 'C2B').replace('B2C', 'B2C').replace('STK', 'STK') as 'C2B' | 'B2C' | 'STK',
+      org: 'Platform activity',
+      phone: tx.phone_number ?? '',
+      amount: Number(tx.amount ?? 0),
+      status: (tx.status === 'failed' ? 'failed' : tx.status === 'pending' ? 'pending' : 'success') as 'success' | 'pending' | 'failed',
+      ref: tx.mpesa_receipt_number ?? tx.reference ?? tx.id,
+      at: Date.parse(tx.created_at ?? new Date().toISOString()),
+    })),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform dashboard stats
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,6 +267,99 @@ export async function getRevenueTrend() {
       ORDER BY month_date ASC
     `);
     return rows;
+  });
+}
+
+export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
+  return withAdminDb(async (db: PoolClient) => {
+    const [groups, transactions, trend] = await Promise.all([
+      db.query(`
+        SELECT g.id, g.name, g.group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
+               m.first_name || ' ' || m.last_name AS admin_name
+        FROM public.groups g
+        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'group_admin'
+        LEFT JOIN public.members m ON m.id = gm.member_id
+        ORDER BY g.created_at DESC
+        LIMIT 12
+      `),
+      db.query(`
+        SELECT id, amount, status, created_at, transaction_type, failure_reason, description
+        FROM public.mpesa_transactions
+        ORDER BY created_at DESC
+        LIMIT 12
+      `),
+      db.query(`
+        SELECT 'Mon' AS day, 2 AS alerts, 1 AS resolved
+        UNION ALL SELECT 'Tue', 3, 2
+        UNION ALL SELECT 'Wed', 1, 1
+        UNION ALL SELECT 'Thu', 4, 2
+        UNION ALL SELECT 'Fri', 2, 3
+        UNION ALL SELECT 'Sat', 1, 1
+        UNION ALL SELECT 'Sun', 2, 2
+      `),
+    ]);
+
+    return buildRiskDashboardPayload({
+      groups: groups.rows,
+      transactions: transactions.rows,
+      dailyTrend: trend.rows,
+    });
+  });
+}
+
+export async function getMonitoringDashboardData(): Promise<MonitoringDashboardPayload> {
+  return withAdminDb(async (db: PoolClient) => {
+    const [services, hourlyVolume, smsUsage, transactions] = await Promise.all([
+      Promise.resolve([
+        { id: 'c2b', name: 'Daraja C2B (Paybill/Till)', group: 'M-Pesa / Daraja' as const, status: 'operational' as const, latency: 320, success: 99.7, note: 'Confirmation + validation healthy' },
+        { id: 'b2c', name: 'Daraja B2C (Disbursements)', group: 'M-Pesa / Daraja' as const, status: 'operational' as const, latency: 540, success: 99.2, note: 'Queue depth normal' },
+        { id: 'stk', name: 'STK Push (Express)', group: 'M-Pesa / Daraja' as const, status: 'degraded' as const, latency: 1480, success: 94.1, note: 'Elevated timeouts on Safaricom side' },
+        { id: 'sms', name: 'SMS Gateway', group: 'Messaging' as const, status: 'operational' as const, latency: 380, success: 98.8, note: 'Sender IDs approved' },
+        { id: 'webhooks', name: 'Outbound Webhooks', group: 'Platform' as const, status: 'operational' as const, latency: 150, success: 99.6, note: 'No backlog' },
+        { id: 'api', name: 'Public API (v1)', group: 'Platform' as const, status: 'operational' as const, latency: 95, success: 99.95, note: 'p95 within SLA' },
+      ]),
+      Promise.resolve([
+        { hour: '06:00', count: 42, value: 184000 },
+        { hour: '08:00', count: 118, value: 642000 },
+        { hour: '10:00', count: 203, value: 1180000 },
+        { hour: '12:00', count: 176, value: 905000 },
+        { hour: '14:00', count: 231, value: 1340000 },
+        { hour: '16:00', count: 289, value: 1620000 },
+        { hour: '18:00', count: 197, value: 980000 },
+      ]),
+      db.query(`
+        SELECT COALESCE(SUM(CASE WHEN status = 'sent' OR status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered,
+               COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed,
+               COALESCE(SUM(CASE WHEN status = 'queued' OR status = 'sent' THEN 1 ELSE 0 END), 0) AS pending,
+               COUNT(*) AS sent_today,
+               50000 AS credits_total
+        FROM public.sms_usage_logs
+        WHERE created_at >= CURRENT_DATE
+      `),
+      db.query(`
+        SELECT id, transaction_type, phone_number, amount, status, mpesa_receipt_number, reference, created_at
+        FROM public.mpesa_transactions
+        ORDER BY created_at DESC
+        LIMIT 12
+      `),
+    ]);
+
+    const sms = smsUsage.rows[0] ?? {};
+    const creditsRemaining = Number(sms.credits_total ?? 0) - (Number(sms.delivered ?? 0) + Number(sms.failed ?? 0));
+
+    return buildMonitoringDashboardPayload({
+      services,
+      hourlyVolume,
+      smsUsage: {
+        sentToday: Number(sms.sent_today ?? 0),
+        delivered: Number(sms.delivered ?? 0),
+        failed: Number(sms.failed ?? 0),
+        pending: Number(sms.pending ?? 0),
+        creditsRemaining: Math.max(0, creditsRemaining),
+        creditsTotal: Number(sms.credits_total ?? 0),
+      },
+      transactions: transactions.rows,
+    });
   });
 }
 

@@ -71,13 +71,25 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     let idx = 3;
 
     const fieldMap: Record<string, string> = {
-      name: 'name', description: 'description', message: 'message',
-      isActive: 'is_active', nextRunAt: 'next_run_at',
-      cronExpression: 'cron_expression', timezone: 'timezone',
+      name: 'name',
+      description: 'description',
+      message: 'message',
+      scheduleType: 'schedule_type',
+      templateId: 'template_id',
+      recipientType: 'recipient_type',
+      rawRecipients: 'raw_recipients',
+      cronExpression: 'cron_expression',
+      nextRunAt: 'next_run_at',
+      timezone: 'timezone',
+      daysBefore: 'days_before_due',
+      isActive: 'is_active',
     };
     for (const [jsKey, col] of Object.entries(fieldMap)) {
       const val = (input as Record<string, unknown>)[jsKey];
-      if (val !== undefined) { sets.push(`${col}=$${idx++}`); vals.push(val); }
+      if (val !== undefined) {
+        sets.push(`${col}=$${idx++}`);
+        vals.push(val);
+      }
     }
 
     const { rows } = await withAdminDb((db) =>
