@@ -1,7 +1,55 @@
 # Kitabu Yetu — Full Technical Audit Report
-**Date:** 2026-05-22  
+**Date:** 2026-05-22 (original) · **Re-audit:** 2026-07-12
 **Auditor:** Claude Code (Senior Full-Stack & Security Audit)  
 **Scope:** Complete codebase, database schema, security posture, financial integrity, CI/CD  
+
+---
+
+## 0. Re-Audit — 2026-07-12
+
+Follow-up pass covering dependency hygiene, a security spot-review of code added
+since the original audit (SMS trigger engine, org rename, landing page), and
+verification that the original open items were closed. Branch: `chore/audit-update-2026-07`.
+
+### Verification gates (all green after updates)
+| Gate | Result |
+|------|--------|
+| `tsc --noEmit` (typecheck) | ✅ Pass |
+| `eslint .` (lint) | ✅ Pass |
+| `jest` (125 tests, 15 suites) | ✅ Pass |
+
+### Dependencies updated
+- Applied `npm audit fix` + in-range `npm update` across the tree.
+- **npm audit: 10 → 3 vulnerabilities.** All 5 high-severity issues resolved:
+  - `nodemailer` 8.0.7 → **9.x** (CRLF header injection, jsonTransport / raw-option file-read & SSRF). Used by the SES + SMTP email adapters. `createTransport` API unchanged; typecheck + tests pass.
+  - `form-data`, `ws` (engine.io/socket.io transitive), `@babel/core`, `js-yaml` — all patched in-range via `audit fix`.
+- **Remaining 3 (accepted, not fixable without breaking or false positives):**
+  - `esbuild` (low) — dev-server-only arbitrary file read on Windows; reaches us via `react-email` / `tsx` dev tooling, not production runtime.
+  - `postcss` (moderate) — flagged inside **Next.js's bundled copy**; the "fix" downgrades `next` to 9.3.3. False positive — do not force.
+  - (one moderate rolls up from the same bundled-postcss chain.)
+- **Major bumps deliberately NOT applied** (breaking, need a dedicated migration): React 18→19, Tailwind 3→4, `zod` 3→4, `date-fns` 3→4, `jose` 5→6, `@hookform/resolvers` 3→5, `csv-parse` 5→7, `bcryptjs` 2→3, `lucide-react` 0.4x→1.x, `eslint` 9→10, `typescript` 5→7. Tracked as future work.
+
+### Original open items — status now
+| Item | Prior status | Now |
+|------|--------------|-----|
+| M-4 Prisma installed but unused | ⚠️ Open | ✅ Removed from `package.json` |
+| M-5 `SKIP_ENV_VALIDATION=1` in build | ⚠️ Open | ✅ Gone — `vercel.json` is now just `{ "buildCommand": "npm run build" }` |
+| C-1 middleware entry point | ✅ Fixed (was `middleware.ts`) | ✅ Now `proxy.ts` (Next.js 16 renamed middleware→proxy); still does JWT + audience + rate limit |
+| Secrets committed to `.env` in git | ⚠️ Review | ✅ `.env`/`.env.local` untracked and absent from git history; `.gitignore` correct |
+
+> Still open (unchanged, product/ops decisions): M-2 balance reconciliation job, M-3 starter-plan member cap, L-2 SMS top-up text matching, L-3 STK idempotency key. **Credential rotation (Section C) remains a launch prerequisite** — the original `.env` values were exposed on the local machine and should be rotated regardless of git status.
+
+### Security spot-review — code since original audit
+| Check | Result |
+|-------|--------|
+| Dynamic SQL (`${where}` / `${col}`) | ✅ Safe — placeholders parameterized (`$idx`), column names are hardcoded literals/whitelisted, no user input concatenated |
+| `dangerouslySetInnerHTML` / `eval` / `new Function` | ✅ None in source |
+| Hardcoded secrets in source | ✅ None (all via `process.env`) |
+| SMS trigger engine (`lib/sms/trigger-engine.ts`) | ✅ Solid — claim-before-send idempotency (`UNIQUE(rule_id,event_id)`), fail-open emit, exactly-once terminal transitions |
+| Auth context (`lib/auth/middleware.ts` + `proxy.ts`) | ✅ Sound — proxy overwrites `x-*` claim headers from the verified JWT for all authenticated routes; audience enforced per URL prefix |
+| Stray `console.log` / TODO / FIXME in source | ✅ Effectively zero (2 `console.log` are the logger impl itself) |
+
+**Low / defense-in-depth note:** `proxy.ts` copies request headers before stamping and overwrites `x-user-id`/`x-role`/etc. for authenticated routes, so client spoofing can't reach `getAuthContext`. For the intentionally-unauthenticated fall-through routes (auth, webhooks, M-Pesa callbacks) client-supplied `x-*` headers pass through untouched — harmless today since those handlers don't read auth context, but stripping inbound `x-user-id`/`x-role`/`x-aud`/`x-group-id` on **every** request would be a cheap belt-and-suspenders hardening.
 
 ---
 
