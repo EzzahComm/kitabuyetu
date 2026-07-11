@@ -22,7 +22,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const input = UpgradePlanSchema.parse(await req.json());
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await billingService.upgradePlan(ctx, input.planType));

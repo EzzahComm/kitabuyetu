@@ -14,7 +14,7 @@ export interface NotificationRule {
 export interface NotificationAction {
   type: 'email';
   templateKey: string;
-  recipients: 'member' | 'group_admin' | 'treasurer' | 'all_officers' | 'admin_email';
+  recipients: 'member' | 'chairperson' | 'treasurer' | 'all_officers' | 'admin_email';
   vars?: Record<string, string>;
 }
 
@@ -135,9 +135,9 @@ async function resolveRecipients(
   }
 
   const roleFilter =
-    recipients === 'group_admin' ? `role = 'group_admin'`
-    : recipients === 'treasurer'  ? `role IN ('treasurer','group_admin')`
-    : `role IN ('group_admin','treasurer','secretary')`;
+    recipients === 'chairperson' ? `role = 'chairperson'`
+    : recipients === 'treasurer'  ? `role IN ('treasurer','chairperson')`
+    : `role IN ('chairperson','treasurer','secretary')`;
 
   const { rows } = await withAdminDb((db) =>
     db.query(

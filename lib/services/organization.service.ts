@@ -1,23 +1,23 @@
 import { withDb, type TenantContext } from '@/lib/db';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
-import type { NgoGroupSummary } from '@/types/api.types';
+import type { OrganizationGroupSummary } from '@/types/api.types';
 
-export const ngoService = {
+export const organizationService = {
 
-  async assertNgoCoordinator(ctx: TenantContext): Promise<void> {
-    if (ctx.role !== 'ngo_coordinator' && ctx.role !== 'super_admin') {
-      throw new ForbiddenError('Only NGO coordinators can access this resource');
+  async assertOrganizationCoordinator(ctx: TenantContext): Promise<void> {
+    if (ctx.role !== 'organization_coordinator' && ctx.role !== 'super_admin') {
+      throw new ForbiddenError('Only Organization coordinators can access this resource');
     }
-    if (ctx.role === 'ngo_coordinator' && !ctx.ngoId) {
-      throw new ForbiddenError('NGO context is required');
+    if (ctx.role === 'organization_coordinator' && !ctx.organizationId) {
+      throw new ForbiddenError('Organization context is required');
     }
   },
 
-  async listGroupSummaries(ctx: TenantContext): Promise<NgoGroupSummary[]> {
-    await this.assertNgoCoordinator(ctx);
+  async listGroupSummaries(ctx: TenantContext): Promise<OrganizationGroupSummary[]> {
+    await this.assertOrganizationCoordinator(ctx);
 
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<NgoGroupSummary>(
+      const { rows } = await client.query<OrganizationGroupSummary>(
         `SELECT
            g.id                                                      AS "groupId",
            g.name                                                    AS "groupName",
@@ -31,9 +31,9 @@ export const ngoService = {
            sub.status                                               AS "subscriptionStatus",
            g.created_at::text                                       AS "groupCreatedAt"
          FROM groups g
-         JOIN ngo_group_access nga
+         JOIN organization_group_access nga
            ON nga.group_id = g.id
-           AND nga.ngo_id  = $1
+           AND nga.organization_id  = $1
            AND nga.is_active = true
          LEFT JOIN group_members gm ON gm.group_id = g.id
          LEFT JOIN contributions c  ON c.group_id  = g.id
@@ -43,25 +43,25 @@ export const ngoService = {
          WHERE g.is_active = true
          GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at
          ORDER BY g.name`,
-        [ctx.ngoId ?? ctx.groupId],
+        [ctx.organizationId ?? ctx.groupId],
       );
       return rows;
     });
   },
 
-  async getGroupDetail(ctx: TenantContext, groupId: string): Promise<NgoGroupSummary & { monthlyTrend: unknown[] }> {
-    await this.assertNgoCoordinator(ctx);
+  async getGroupDetail(ctx: TenantContext, groupId: string): Promise<OrganizationGroupSummary & { monthlyTrend: unknown[] }> {
+    await this.assertOrganizationCoordinator(ctx);
 
     return withDb(ctx, async (client) => {
-      // Verify NGO has access to this specific group
+      // Verify Organization has access to this specific group
       const { rows: access } = await client.query<{ id: string }>(
-        `SELECT id FROM ngo_group_access
-         WHERE ngo_id = $1 AND group_id = $2 AND is_active = true`,
-        [ctx.ngoId, groupId],
+        `SELECT id FROM organization_group_access
+         WHERE organization_id = $1 AND group_id = $2 AND is_active = true`,
+        [ctx.organizationId, groupId],
       );
       if (!access[0]) throw new NotFoundError('Group access', groupId);
 
-      const { rows: summary } = await client.query<NgoGroupSummary>(
+      const { rows: summary } = await client.query<OrganizationGroupSummary>(
         `SELECT
            g.id          AS "groupId",
            g.name        AS "groupName",

@@ -41,7 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
   sacco:      'SACCO',
   welfare:    'Welfare',
   investment: 'Investment',
-  ngo_group:  'NGO Group',
+  organization_group:  'Organization Group',
 };
 
 const ACTION_DOT: Record<string, string> = {

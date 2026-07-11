@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 const ctx      = { groupId: 'grp-1', userId: 'usr-1', role: 'member' };
-const adminCtx = { groupId: 'grp-1', userId: 'admin-1', role: 'group_admin' };
+const adminCtx = { groupId: 'grp-1', userId: 'admin-1', role: 'chairperson' };
 
 const applyInput = {
   principalAmount:  50000,

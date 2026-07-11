@@ -41,17 +41,17 @@ export const ROLES = {
     hasRole(role, 'treasurer'),
 
   canManageSubscription: (role: AnyRole) =>
-    hasRole(role, 'group_admin'),
+    hasRole(role, 'chairperson'),
 
   canViewPII: (role: AnyRole) =>
     hasRole(role, 'treasurer') || role === 'super_admin',
 
   canAdminGroup: (role: AnyRole) =>
-    hasRole(role, 'group_admin'),
+    hasRole(role, 'chairperson'),
 
   isSuperAdmin: (role: AnyRole) =>
     role === 'super_admin',
 
-  isNgoCoordinator: (role: AnyRole) =>
-    role === 'ngo_coordinator',
+  isOrganizationCoordinator: (role: AnyRole) =>
+    role === 'organization_coordinator',
 };

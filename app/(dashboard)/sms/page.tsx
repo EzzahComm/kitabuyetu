@@ -773,8 +773,9 @@ function LogsTab() {
           {['queued', 'sent', 'delivered', 'failed', 'rejected'].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
-        </select>
-      </div>
+          </select>
+        }
+      />
 
       <div className="bg-white rounded-xl border overflow-hidden">
         {isLoading ? (

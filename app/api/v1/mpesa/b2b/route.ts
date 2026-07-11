@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 /**
- * POST /api/v1/mpesa/b2b              â€” Initiate B2B transfer (group_admin+)
+ * POST /api/v1/mpesa/b2b              â€” Initiate B2B transfer (chairperson+)
  * POST /api/v1/mpesa/b2b?type=result  â€” Safaricom result callback
  * POST /api/v1/mpesa/b2b?type=timeout â€” Safaricom timeout callback
  * GET  /api/v1/mpesa/b2b              â€” List B2B transactions for the group
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated B2B initiation
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     try {
       const input = B2BSchema.parse(await req.json());
       const res   = await initiateB2B({

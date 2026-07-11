@@ -47,7 +47,7 @@ export interface TenantContext {
   userId:  string;
   groupId: string;
   role:    string;
-  ngoId?:  string;
+  organizationId?:  string;
 }
 
 async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<void> {
@@ -57,8 +57,8 @@ async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<
   await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_user_id',  ctx.userId]);
   await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_group_id', ctx.groupId]);
   await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_role',     ctx.role]);
-  if (ctx.ngoId) {
-    await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_ngo_id', ctx.ngoId]);
+  if (ctx.organizationId) {
+    await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_organization_id', ctx.organizationId]);
   }
 }
 

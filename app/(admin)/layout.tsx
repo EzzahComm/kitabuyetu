@@ -17,14 +17,14 @@ import { configureApiClient } from '@/lib/api/client';
  *    consumer side, is NOT accepted here — that's enforced server-side by
  *    the proxy too; this guard just renders a clean redirect.
  * 2. The token's platform role must be one of super_admin / support /
- *    ngo_coordinator. The proxy already validates this on /api/admin/*,
+ *    organization_coordinator. The proxy already validates this on /api/admin/*,
  *    but checking client-side avoids a flash of forbidden UI.
  *
  * Visual treatment is intentionally distinct (red accent + persistent
  * "BACKOFFICE" badge) so staff never mistake the privileged context for
  * a tenant dashboard.
  */
-const ADMIN_ROLES = ['super_admin', 'support', 'ngo_coordinator'] as const;
+const ADMIN_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

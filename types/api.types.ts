@@ -23,7 +23,7 @@ export interface AuthContext {
   userId:   string;
   groupId:  string;
   role:     MemberRole | PlatformRole;
-  ngoId?:   string;
+  organizationId?:   string;
 }
 
 // ------------------------------------------------------------------
@@ -71,8 +71,8 @@ export function isGroupSelectionNeeded(r: LoginResult): r is NeedsGroupSelection
   return (r as NeedsGroupSelection).needsGroupSelection === true;
 }
 
-// Backoffice login (super_admin / support / ngo_coordinator). No group
-// context — these accounts operate cross-tenant or NGO-scoped.
+// Backoffice login (super_admin / support / organization_coordinator). No group
+// context — these accounts operate cross-tenant or Organization-scoped.
 export interface AdminLoginResponse {
   accessToken:  string;
   refreshToken: string;
@@ -83,7 +83,7 @@ export interface AdminLoginResponse {
     lastName:     string;
     email:        string;
     platformRole: Exclude<PlatformRole, 'member'>;
-    ngoId?:       string;
+    organizationId?:       string;
   };
 }
 
@@ -242,9 +242,9 @@ export interface SubscriptionPublic {
 }
 
 // ------------------------------------------------------------------
-// NGO responses
+// Organization responses
 // ------------------------------------------------------------------
-export interface NgoGroupSummary {
+export interface OrganizationGroupSummary {
   groupId:          string;
   groupName:        string;
   groupType:        string;

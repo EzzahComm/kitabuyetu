@@ -76,7 +76,7 @@ interface PreparedMemberRow {
   alternative_phone: string | null;   // already E.164 or null
   county_id:         string | null;
   occupation:        string | null;
-  role:              'group_admin' | 'treasurer' | 'secretary' | 'member';
+  role:              'chairperson' | 'treasurer' | 'secretary' | 'member';
   joined_at:         string | null;   // YYYY-MM-DD
   warnings:          string[];
 }

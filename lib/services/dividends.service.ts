@@ -271,7 +271,7 @@ export const dividendsService = {
 
   /**
    * Snapshot eligible holdings, compute allocations, persist them, mark the
-   * declaration approved. Restricted to group_admin at the API layer.
+   * declaration approved. Restricted to chairperson at the API layer.
    */
   async approve(ctx: TenantContext, declarationId: string): Promise<{ declaration: DividendDeclaration; allocations: DividendAllocation[] }> {
     return withTransaction(ctx, async (client) => {

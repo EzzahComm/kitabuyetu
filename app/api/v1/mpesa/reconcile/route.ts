@@ -1,6 +1,6 @@
 ﻿/**
- * POST /api/v1/mpesa/reconcile — Trigger reconciliation (group_admin+)
- * POST /api/v1/mpesa/reconcile?type=paybill — Trigger paybill sweep (group_admin+)
+ * POST /api/v1/mpesa/reconcile — Trigger reconciliation (chairperson+)
+ * POST /api/v1/mpesa/reconcile?type=paybill — Trigger paybill sweep (chairperson+)
  * GET  /api/v1/mpesa/reconcile — List reconciliation run history
  *
  * Reconciliation types:

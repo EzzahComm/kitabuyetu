@@ -5,6 +5,7 @@ import { withDb, withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
+import { ForbiddenError } from '@/lib/utils/errors';
 import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/campaign â€” list campaigns
@@ -47,6 +48,15 @@ export async function POST(req: NextRequest): Promise<Response> {
     const body  = await req.json();
     const input = CampaignCreateSchema.parse(body);
 
+    // Only a coordinator of an organization may spend that organization's SMS
+    // credits. debit_organization_sms_credits() independently re-checks that the
+    // group holds active access under the organization, so a forged header
+    // cannot bill an unrelated organization.
+    if (input.fundedBy === 'organization' && auth.organizationId !== input.organizationId) {
+      throw new ForbiddenError('You cannot fund a campaign from this organization.');
+    }
+    const payerOrgId = input.fundedBy === 'organization' ? input.organizationId! : null;
+
     // Resolve recipient phones (shared with the scheduler so scheduled and
     // immediate campaigns resolve membership identically).
     const phones = await resolveSmsRecipients(auth.groupId, input.recipientType, input.rawRecipients);
@@ -56,15 +66,17 @@ export async function POST(req: NextRequest): Promise<Response> {
       db.query(
         `INSERT INTO sms_campaigns
            (group_id, name, description, message, template_id, recipient_type,
-            recipient_count, raw_recipients, scheduled_at, created_by, status)
+            recipient_count, raw_recipients, scheduled_at, created_by, status,
+            payer_type, payer_organization_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-           CASE WHEN $9 IS NOT NULL THEN 'scheduled' ELSE 'draft' END)
+           CASE WHEN $9 IS NOT NULL THEN 'scheduled' ELSE 'draft' END, $11, $12)
          RETURNING *`,
         [
           auth.groupId, input.name, input.description ?? null,
           input.message, input.templateId ?? null, input.recipientType,
           phones.length, input.rawRecipients ? JSON.stringify(input.rawRecipients) : null,
           input.scheduledAt ?? null, auth.userId,
+          input.fundedBy, payerOrgId,
         ],
       ),
     );
@@ -81,6 +93,8 @@ export async function POST(req: NextRequest): Promise<Response> {
           senderId:   input.senderId,
           groupId:    auth.groupId,
           sentBy:     auth.userId,
+          fundedBy:   input.fundedBy,
+          payerOrganizationId: payerOrgId,
         },
         { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${campaign.id}` },
       );
@@ -92,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/campaign?id=xxx â€” cancel
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
 

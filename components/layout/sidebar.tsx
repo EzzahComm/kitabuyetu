@@ -55,8 +55,8 @@ const navSections = [
   },
 ];
 
-const ngoItems = [
-  { href: '/ngo', label: 'NGO Portal', icon: Building2 },
+const organizationItems = [
+  { href: '/organization', label: 'Organization Portal', icon: Building2 },
 ];
 
 interface SidebarProps {
@@ -142,12 +142,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
           ))}
 
-          {user?.platformRole === 'ngo_coordinator' && (
+          {user?.platformRole === 'organization_coordinator' && (
             <>
               <div className="pt-4 pb-1 px-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">NGO</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Organization</p>
               </div>
-              {ngoItems.map((item) => {
+              {organizationItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link

@@ -25,8 +25,8 @@ export function applyMemberMask<T extends {
   date_of_birth: Date | null;
   address: string | null;
 }>(member: T, role: string): T {
-  const privileged = ['super_admin', 'group_admin', 'treasurer'].includes(role);
-  const adminOnly  = ['super_admin', 'group_admin'].includes(role);
+  const privileged = ['super_admin', 'chairperson', 'treasurer'].includes(role);
+  const adminOnly  = ['super_admin', 'chairperson'].includes(role);
 
   return {
     ...member,

@@ -36,6 +36,8 @@ interface CampaignRow {
   recipient_type: string;
   raw_recipients: unknown;
   created_by:     string;
+  payer_type:             string;
+  payer_organization_id:  string | null;
 }
 
 /** Process due sms_schedules. Enqueues a send per schedule, then advances it. */
@@ -125,7 +127,8 @@ function computeNextRun(scheduleType: string, current: Date): Date {
 export async function processDueScheduledCampaigns(): Promise<{ processed: number }> {
   const rows = await withAdminDb((db) =>
     db.query<CampaignRow>(
-      `SELECT id, group_id, message, recipient_type, raw_recipients, created_by
+      `SELECT id, group_id, message, recipient_type, raw_recipients, created_by,
+              payer_type, payer_organization_id
        FROM sms_campaigns
        WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()
        ORDER BY scheduled_at ASC
@@ -162,6 +165,10 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
         message:    c.message,
         groupId:    c.group_id,
         sentBy:     c.created_by,
+        // Carried from the campaign row so a scheduled organization campaign
+        // still bills the organization when it eventually fires.
+        fundedBy:            c.payer_type,
+        payerOrganizationId: c.payer_organization_id,
       },
       { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${c.id}` },
     );

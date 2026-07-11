@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  platformRole: z.enum(['super_admin', 'support', 'ngo_coordinator', 'member']),
+  platformRole: z.enum(['super_admin', 'support', 'organization_coordinator', 'member']),
 });
 
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

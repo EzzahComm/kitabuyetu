@@ -51,6 +51,20 @@ export function classifyDlrStatus(raw: string): DlrClass {
   return 'pending';
 }
 
+/**
+ * Who pays for a send.
+ *
+ * A group may be overseen by several organizations, so the payer can never be
+ * inferred from the group — it is stated by the caller and recorded on every
+ * sms_usage_logs row. Organization-scoped trigger rules and organization
+ * campaigns bill the organization; everything else bills the group.
+ */
+export type SmsPayer =
+  | { type: 'group' }
+  | { type: 'organization'; organizationId: string };
+
+export const GROUP_PAYER: SmsPayer = { type: 'group' };
+
 export interface BulkCampaignInput {
   campaignId?: string;
   phones:      string[];
@@ -61,9 +75,82 @@ export interface BulkCampaignInput {
   sentBy:      string;
   referenceType?: string;
   referenceId?:   string;
+  payer?:      SmsPayer;
 }
 
 // ─── Credit helpers ───────────────────────────────────────────────────────────
+
+/** Postgres SQLSTATEs raised by debit_organization_sms_credits (migration 051). */
+const PG_INSUFFICIENT_CREDITS = '22003';
+const PG_NO_BILLING_ACCOUNT   = '22023';
+const PG_NOT_AUTHORIZED       = '42501';
+
+interface DebitResult {
+  /** KES per SMS actually applied — stamped onto each log row. */
+  rate: number;
+}
+
+/**
+ * Charge `count` messages to the payer, inside the caller's transaction.
+ *
+ * Group path: locks billing_accounts and requires an active subscription.
+ * Organization path: delegates to a SECURITY DEFINER function, because the
+ * acting role is a group officer who has no RLS grant on the organization's
+ * balance. That function re-checks that the group has active access under the
+ * organization before debiting.
+ */
+async function debitPayer(
+  client:  import('pg').PoolClient,
+  groupId: string,
+  payer:   SmsPayer,
+  count:   number,
+): Promise<DebitResult> {
+  if (payer.type === 'organization') {
+    try {
+      const { rows } = await client.query<{ rate: string }>(
+        `SELECT rate FROM debit_organization_sms_credits($1,$2,$3)`,
+        [payer.organizationId, groupId, count],
+      );
+      return { rate: parseFloat(rows[0].rate) };
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === PG_INSUFFICIENT_CREDITS) throw new InsufficientSmsCreditsError();
+      if (code === PG_NO_BILLING_ACCOUNT || code === PG_NOT_AUTHORIZED) {
+        throw new PaymentRequiredError(
+          `Organization ${payer.organizationId} cannot fund SMS for this group.`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  const { rows: sub } = await client.query<{ status: string }>(
+    `SELECT status FROM subscriptions WHERE group_id=$1 AND status='active' LIMIT 1`,
+    [groupId],
+  );
+  if (!sub[0]) throw new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
+
+  const billing = await fetchBillingRow(client, groupId);
+  if (!billing) throw new PaymentRequiredError('No billing account found.');
+
+  const rate      = parseFloat(billing.sms_rate);
+  const credits   = parseFloat(billing.sms_credits);
+  const totalCost = rate * count;
+  if (credits < totalCost) throw new InsufficientSmsCreditsError();
+
+  await client.query(
+    `UPDATE billing_accounts SET sms_credits=sms_credits-$1 WHERE group_id=$2`,
+    [totalCost.toFixed(4), groupId],
+  );
+  return { rate };
+}
+
+/** payer_type / payer_organization_id columns for an sms_usage_logs insert. */
+function payerCols(payer: SmsPayer): [string, string | null] {
+  return payer.type === 'organization'
+    ? ['organization', payer.organizationId]
+    : ['group', null];
+}
 
 async function fetchBillingRow(client: import('pg').PoolClient, groupId: string) {
   const { rows } = await client.query<{ sms_credits: string; sms_rate: string }>(
@@ -100,8 +187,9 @@ export async function resolveSmsRecipients(
     const activeOnly = recipientType === 'active_members';
     const { rows } = await withAdminDb((db) =>
       db.query<{ phone: string }>(
-        `SELECT phone FROM members
-         WHERE group_id=$1 ${activeOnly ? "AND status='active'" : ''} AND phone IS NOT NULL`,
+        `SELECT m.phone FROM members m
+         JOIN group_members gm ON gm.member_id = m.id
+         WHERE gm.group_id=$1 ${activeOnly ? 'AND gm.is_active' : ''} AND m.phone IS NOT NULL`,
         [groupId],
       ),
     );
@@ -118,9 +206,27 @@ export async function resolveSmsRecipients(
     if (!ids.length) return [];
     const { rows } = await withAdminDb((db) =>
       db.query<{ phone: string }>(
-        `SELECT phone FROM members
-         WHERE id=ANY($1::uuid[]) AND group_id=$2 AND phone IS NOT NULL`,
+        `SELECT m.phone FROM members m
+         JOIN group_members gm ON gm.member_id = m.id
+         WHERE m.id=ANY($1::uuid[]) AND gm.group_id=$2 AND m.phone IS NOT NULL`,
         [ids, groupId],
+      ),
+    );
+    return rows.map((r) => normalizePhone(r.phone));
+  }
+
+  // Officers holding one of the given group roles — used by trigger rules that
+  // notify approvers (e.g. withdrawal requests to treasurer + chairperson).
+  if (recipientType === 'roles') {
+    const roles = (rawRecipients as { roles?: string[] })?.roles ?? [];
+    if (!roles.length) return [];
+    const { rows } = await withAdminDb((db) =>
+      db.query<{ phone: string }>(
+        `SELECT m.phone FROM members m
+         JOIN group_members gm ON gm.member_id = m.id
+         WHERE gm.group_id=$1 AND gm.is_active
+           AND gm.role = ANY($2::member_role[]) AND m.phone IS NOT NULL`,
+        [groupId, roles],
       ),
     );
     return rows.map((r) => normalizePhone(r.phone));
@@ -139,6 +245,7 @@ export const smsService = {
     message: string,
     referenceType?: string | null,
     referenceId?: string | null,
+    payer: SmsPayer = GROUP_PAYER,
   ): Promise<SmsUsageLog[]> {
     const raw        = Array.isArray(phones) ? phones : [phones];
     const normalized = raw.map(normalizePhone);
@@ -150,38 +257,24 @@ export const smsService = {
     // were already debited. This path is single/few recipients (transactional
     // receipts, manual sends); large fan-out goes through sendBulkCampaign.
     const logs = await withTransaction(ctx, async (client) => {
-      // Active subscription guard
-      const { rows: sub } = await client.query<{ status: string }>(
-        `SELECT status FROM subscriptions WHERE group_id=$1 AND status='active' LIMIT 1`,
-        [ctx.groupId],
-      );
-      if (!sub[0]) throw new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
-
-      const billing = await fetchBillingRow(client, ctx.groupId);
-      if (!billing) throw new PaymentRequiredError('No billing account found.');
-
+      // Opt-outs are resolved before billing so a fully-suppressed send costs
+      // nothing — for either payer.
       const optOuts  = await fetchOptOuts(client, ctx.groupId);
       const eligible = normalized.filter((p) => !optOuts.has(p));
       if (!eligible.length) return [] as SmsUsageLog[];
 
-      const rate       = parseFloat(billing.sms_rate);
-      const totalCost  = rate * eligible.length;
-      const credits    = parseFloat(billing.sms_credits);
-      if (credits < totalCost) throw new InsufficientSmsCreditsError();
-
-      await client.query(
-        `UPDATE billing_accounts SET sms_credits=sms_credits-$1 WHERE group_id=$2`,
-        [totalCost.toFixed(4), ctx.groupId],
-      );
+      const { rate } = await debitPayer(client, ctx.groupId, payer, eligible.length);
+      const [payerType, payerOrgId] = payerCols(payer);
 
       const rows: SmsUsageLog[] = [];
       for (const phone of eligible) {
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
              (group_id, recipient_phone, message_text, credits_deducted,
-              reference_type, reference_id, provider)
-           VALUES ($1,$2,$3,$4,$5,$6,'textsms') RETURNING *`,
-          [ctx.groupId, phone, message, rate.toFixed(4), referenceType ?? null, referenceId ?? null],
+              reference_type, reference_id, provider, payer_type, payer_organization_id)
+           VALUES ($1,$2,$3,$4,$5,$6,'textsms',$7,$8) RETURNING *`,
+          [ctx.groupId, phone, message, rate.toFixed(4),
+           referenceType ?? null, referenceId ?? null, payerType, payerOrgId],
         );
         rows.push(inserted[0]);
       }
@@ -230,6 +323,7 @@ export const smsService = {
 
   async sendBulkCampaign(input: BulkCampaignInput): Promise<SendSmsResult> {
     const phones = input.phones.map(normalizePhone);
+    const payer  = input.payer ?? GROUP_PAYER;
 
     // Billing + log creation happen in ONE transaction so credits can never be
     // debited without the matching log rows (and vice-versa). The provider
@@ -250,26 +344,10 @@ export const smsService = {
       const logIds: string[] = [];
       if (!eligible.length) return { eligible, logIds };
 
-      // Active subscription guard (mirrors send())
-      const { rows: sub } = await db.query<{ status: string }>(
-        `SELECT status FROM subscriptions WHERE group_id=$1 AND status='active' LIMIT 1`,
-        [input.groupId],
-      );
-      if (!sub[0]) throw new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
-
-      // Lock billing row, verify sufficient credits, debit
-      const billing = await fetchBillingRow(db, input.groupId);
-      if (!billing) throw new PaymentRequiredError('No billing account found.');
-
-      const rate      = parseFloat(billing.sms_rate);
-      const credits   = parseFloat(billing.sms_credits);
-      const totalCost = rate * eligible.length;
-      if (credits < totalCost) throw new InsufficientSmsCreditsError();
-
-      await db.query(
-        `UPDATE billing_accounts SET sms_credits=sms_credits-$1 WHERE group_id=$2`,
-        [totalCost.toFixed(4), input.groupId],
-      );
+      // Bill the stated payer: the group, or the organization running the
+      // campaign. Mirrors send()'s guards for each path.
+      const { rate } = await debitPayer(db, input.groupId, payer, eligible.length);
+      const [payerType, payerOrgId] = payerCols(payer);
 
       // Insert log rows in batches, each carrying its per-message credit cost
       for (let i = 0; i < eligible.length; i += batchSize) {
@@ -278,13 +356,15 @@ export const smsService = {
           const { rows } = await db.query<{ id: string }>(
             `INSERT INTO sms_usage_logs
                (group_id, recipient_phone, message_text, credits_deducted,
-                reference_type, reference_id, campaign_id, provider)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,'textsms') RETURNING id`,
+                reference_type, reference_id, campaign_id, provider,
+                payer_type, payer_organization_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'textsms',$8,$9) RETURNING id`,
             [
               input.groupId, phone, input.message, rate.toFixed(4),
               input.referenceType ?? 'campaign',
               input.referenceId ?? input.campaignId ?? null,
               input.campaignId ?? null,
+              payerType, payerOrgId,
             ],
           );
           logIds.push(rows[0].id);

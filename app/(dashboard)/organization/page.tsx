@@ -1,27 +1,27 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ngoApi } from '@/lib/api/endpoints';
+import { organizationApi } from '@/lib/api/endpoints';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatKES } from '@/lib/utils';
 import { useState } from 'react';
 
-export default function NgoPage() {
+export default function OrganizationPage() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
-  const { data: groups, isLoading } = useQuery({ queryKey: ['ngo','groups'], queryFn: ngoApi.groups });
+  const { data: groups, isLoading } = useQuery({ queryKey: ['organization','groups'], queryFn: organizationApi.groups });
   const { data: detail, isLoading: loadingDetail } = useQuery({
-    queryKey: ['ngo','detail', selectedGroup],
-    queryFn:  () => ngoApi.detail(selectedGroup!),
+    queryKey: ['organization','detail', selectedGroup],
+    queryFn:  () => organizationApi.detail(selectedGroup!),
     enabled:  !!selectedGroup,
   });
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">NGO Portal</h1>
+        <h1 className="text-2xl font-bold">Organization Portal</h1>
         <p className="text-sm text-muted-foreground">Monitor affiliated groups</p>
       </div>
 
@@ -31,8 +31,8 @@ export default function NgoPage() {
           {isLoading ? (
             Array.from({length:3}).map((_,i)=><Skeleton key={i} className="h-16 w-full"/>)
           ) : (
-            (groups ?? []).flatMap((ngo: any) =>
-              (ngo.groups ?? []).map((g: any) => (
+            (groups ?? []).flatMap((organization: any) =>
+              (organization.groups ?? []).map((g: any) => (
                 <Card
                   key={g.groupId}
                   className={`cursor-pointer transition-colors ${selectedGroup === g.groupId ? 'ring-2 ring-brand-500' : 'hover:bg-muted/50'}`}

@@ -16,7 +16,7 @@ import { cn, formatKES } from '@/lib/utils';
 const PLANS = [
   { type: 'starter',    label: 'Starter',    price: 0,     maxMembers: 10,   features: ['Basic reporting', 'M-Pesa integration', 'SMS (50/mo)'] },
   { type: 'growth',     label: 'Growth',     price: 2500,  maxMembers: 100,  features: ['All Starter features', 'Advanced reports', 'SMS (500/mo)', 'Accounting module'] },
-  { type: 'enterprise', label: 'Enterprise', price: 8000,  maxMembers: 9999, features: ['All Growth features', 'Unlimited SMS', 'NGO portal', 'API access', 'Priority support'] },
+  { type: 'enterprise', label: 'Enterprise', price: 8000,  maxMembers: 9999, features: ['All Growth features', 'Unlimited SMS', 'Organization portal', 'API access', 'Priority support'] },
 ];
 
 export default function BillingPage() {

@@ -21,14 +21,14 @@ import { formatDate } from '@/lib/utils';
 const PLATFORM_ROLE_BADGE: Record<string, any> = {
   super_admin:     'destructive',
   support:         'warning',
-  ngo_coordinator: 'default',
+  organization_coordinator: 'default',
   member:          'secondary',
 };
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin:     'Super Admin',
   support:         'Support',
-  ngo_coordinator: 'NGO Coordinator',
+  organization_coordinator: 'Organization Coordinator',
   member:          'Member',
 };
 
@@ -88,8 +88,8 @@ export default function UsersPage() {
               <option value="">All roles</option>
               <option value="super_admin">Super Admin</option>
               <option value="support">Support</option>
-              <option value="ngo_coordinator">NGO Coordinator</option>
-              <option value="group_admin">Group Admin</option>
+              <option value="organization_coordinator">Organization Coordinator</option>
+              <option value="chairperson">Group Admin</option>
               <option value="member">Member</option>
             </select>
             {(search || roleFilter) && (
@@ -212,7 +212,7 @@ export default function UsersPage() {
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="member">Member (no platform access)</option>
               <option value="support">Support Officer</option>
-              <option value="ngo_coordinator">NGO Coordinator</option>
+              <option value="organization_coordinator">Organization Coordinator</option>
               <option value="super_admin">Super Admin</option>
             </select>
           </div>

@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 const schema = z.object({
   // Identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
+  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
 
   // Registrant
   firstName: z.string().min(2, 'Required'),
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                 <option value="sacco">SACCO</option>
                 <option value="welfare">Welfare Group</option>
                 <option value="investment">Investment Club</option>
-                <option value="ngo_group">NGO</option>
+                <option value="organization_group">Organization</option>
               </select>
             </div>
             <div className="space-y-1.5">

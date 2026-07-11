@@ -22,7 +22,7 @@ export const CreateMemberSchema = z.object({
   dateOfBirth:      z.string().date().optional().nullable(),
   gender:           z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional().nullable(),
   address:          z.string().max(500).optional().nullable(),
-  role:             z.enum(['group_admin', 'treasurer', 'secretary', 'member']).default('member'),
+  role:             z.enum(['chairperson', 'treasurer', 'secretary', 'member']).default('member'),
   // Phase E1 additions
   ...memberFields,
 });
@@ -41,7 +41,7 @@ export const UpdateMemberSchema = z.object({
 });
 
 export const UpdateMemberRoleSchema = z.object({
-  role: z.enum(['group_admin', 'treasurer', 'secretary', 'member']),
+  role: z.enum(['chairperson', 'treasurer', 'secretary', 'member']),
 });
 
 // All UI-facing member statuses. Mirrors the public.member_status enum
@@ -62,7 +62,7 @@ export const MemberQuerySchema = z.object({
   page:           z.coerce.number().int().min(1).default(1),
   limit:          z.coerce.number().int().min(1).max(100).default(20),
   search:         z.string().optional(),
-  role:           z.enum(['group_admin', 'treasurer', 'secretary', 'member']).optional(),
+  role:           z.enum(['chairperson', 'treasurer', 'secretary', 'member']).optional(),
   status:         z.enum(MEMBER_STATUSES).optional(),
   includeArchived: z.coerce.boolean().default(false),
   countyId:       z.string().uuid().optional(),

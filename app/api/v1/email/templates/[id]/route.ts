@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const auth = await getAuthContext(req);
   if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  if (!['group_admin', 'super_admin'].includes(auth.role)) {
+  if (!['chairperson', 'super_admin'].includes(auth.role)) {
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
   }
 
@@ -41,7 +41,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   const auth = await getAuthContext(req);
   if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  if (!['group_admin', 'super_admin'].includes(auth.role)) {
+  if (!['chairperson', 'super_admin'].includes(auth.role)) {
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
   }
 

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  // Authenticated balance query trigger â€” treasurer, group_admin, or super_admin
+  // Authenticated balance query trigger â€” treasurer, chairperson, or super_admin
   return withRole(req, 'treasurer', async (auth) => {
     try {
       const shortcode = process.env.MPESA_SHORTCODE ?? '';

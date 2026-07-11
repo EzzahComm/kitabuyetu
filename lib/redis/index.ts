@@ -63,6 +63,35 @@ export async function revokeRefreshToken(tokenHash: string): Promise<void> {
   await redis.del(k(keys.refreshToken(tokenHash)));
 }
 
+/**
+ * Delete every stored refresh token, forcing all users to log in again.
+ *
+ * Redis — not the refresh_tokens table — is what POST /auth/refresh consults,
+ * so this is the only place a refresh token can actually be invalidated.
+ * Used at release boundaries where a token's claims become unusable (e.g. the
+ * member_role rename in migration 050).
+ *
+ * SCAN rather than KEYS: the token namespace can be large and KEYS blocks.
+ * Returns the number of keys removed.
+ */
+export async function revokeAllRefreshTokens(): Promise<number> {
+  const pattern = k(keys.refreshToken('*'));
+  let cursor = '0';
+  let deleted = 0;
+
+  do {
+    const [next, batch] = await redis.scan(cursor, { match: pattern, count: 500 });
+    cursor = String(next);
+    if (batch.length) {
+      await redis.del(...batch);
+      deleted += batch.length;
+    }
+  } while (cursor !== '0');
+
+  logger.info(`[redis] revoked ${deleted} refresh tokens`);
+  return deleted;
+}
+
 export async function incrementLoginAttempts(phone: string): Promise<number> {
   const key = k(keys.loginAttempts(phone));
   const count = await redis.incr(key);

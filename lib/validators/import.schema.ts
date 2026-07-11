@@ -268,7 +268,7 @@ export const MEMBER_CSV_COLUMNS = [
   'alternative_phone',
   'county_name',        // human-readable; service resolves to county_id
   'occupation',
-  'role',                // group_admin | treasurer | secretary | member (default: member)
+  'role',                // chairperson | treasurer | secretary | member (default: member)
   'joined_at',           // YYYY-MM-DD, optional (defaults to today at commit)
 ] as const;
 
@@ -386,10 +386,9 @@ export const MemberCsvRowSchema = z.object({
   alternative_phone: blankableString(20),
   county_name:       blankableString(60),
   occupation:        blankableString(150),
-  // Group-officer terms (chairperson, chair, president) all collapse to
-  // 'group_admin' since the membership role-set has no 'chair' equivalent.
-  // Common spelling variants are absorbed here so CSVs from existing
-  // committee paper records "just work".
+  // Group-officer terms (chair, president, admin) all collapse to the
+  // 'chairperson' member_role. Common spelling variants are absorbed here so
+  // CSVs from existing committee paper records "just work".
   role:              z
     .preprocess(
       (v) => {
@@ -397,17 +396,17 @@ export const MemberCsvRowSchema = z.object({
         const raw = v.trim().toLowerCase();
         if (raw === '') return undefined;
         const ROLE_ALIASES: Record<string, string> = {
-          // group_admin synonyms
-          chairperson:  'group_admin',
-          chairman:     'group_admin',
-          chairwoman:   'group_admin',
-          chair:        'group_admin',
-          president:    'group_admin',
-          admin:        'group_admin',
-          administrator:'group_admin',
-          leader:       'group_admin',
-          'vice-chair': 'group_admin',
-          vicechair:    'group_admin',
+          // chairperson synonyms
+          chairperson:  'chairperson',
+          chairman:     'chairperson',
+          chairwoman:   'chairperson',
+          chair:        'chairperson',
+          president:    'chairperson',
+          admin:        'chairperson',
+          administrator:'chairperson',
+          leader:       'chairperson',
+          'vice-chair': 'chairperson',
+          vicechair:    'chairperson',
           // treasurer synonyms
           treasury:     'treasurer',
           finance:      'treasurer',
@@ -420,7 +419,7 @@ export const MemberCsvRowSchema = z.object({
         };
         return ROLE_ALIASES[raw] ?? raw;
       },
-      z.enum(['group_admin', 'treasurer', 'secretary', 'member']).default('member'),
+      z.enum(['chairperson', 'treasurer', 'secretary', 'member']).default('member'),
     ),
   joined_at:         blankableDate,
 });

@@ -14,7 +14,7 @@ import { errorResponse } from '@/lib/utils/response';
  * ledger — those reveal financial details about other members.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withOneOf(req, ['group_admin', 'treasurer', 'secretary', 'super_admin'], async (auth) => {
+  return withOneOf(req, ['chairperson', 'treasurer', 'secretary', 'super_admin'], async (auth) => {
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const type = (req.nextUrl.searchParams.get('type') ?? '') as ExportKind;
     if (!EXPORT_KINDS.includes(type)) {

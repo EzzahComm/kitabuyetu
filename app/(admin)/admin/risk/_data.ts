@@ -35,7 +35,7 @@ export const RISK_DIMENSIONS = ['Fraud', 'AML', 'Credit', 'Liquidity', 'Complian
 export const heatmap: { segment: string; scores: number[] }[] = [
   { segment: 'VSLAs',          scores: [22, 14, 31, 18, 9] },
   { segment: 'SACCOs',         scores: [41, 38, 55, 47, 26] },
-  { segment: 'NGOs',           scores: [12, 19, 8, 15, 33] },
+  { segment: 'Organizations',           scores: [12, 19, 8, 15, 33] },
   { segment: 'Microfinance',   scores: [63, 71, 68, 58, 44] },
   { segment: 'Cooperatives',   scores: [29, 24, 37, 22, 17] },
   { segment: 'Enterprise',     scores: [18, 27, 14, 11, 21] },

@@ -4,21 +4,21 @@
  * ⚠️ No enterprise/portfolio API yet — this is the seam for the real hooks:
  *   • portfolio + branches → `usePortfolio()` aggregating across child groups
  *   • API keys / webhooks  → developer-settings endpoints
- * The enterprise tier aggregates many groups (a federation, NGO programme, or
+ * The enterprise tier aggregates many groups (a federation, Organization programme, or
  * microfinance branch network), so every figure here is a roll-up.
  */
 
 export interface Organization {
   id: string;
   name: string;
-  type: 'Federation' | 'NGO Programme' | 'Microfinance' | 'Cooperative Union';
+  type: 'Federation' | 'Organization Programme' | 'Microfinance' | 'Cooperative Union';
   branches: number;
 }
 
 export const organizations: Organization[] = [
   { id: 'org1', name: 'Hisa Africa Federation', type: 'Federation', branches: 12 },
   { id: 'org2', name: 'Imani Microfinance', type: 'Microfinance', branches: 8 },
-  { id: 'org3', name: 'Jenga Mashinani Programme', type: 'NGO Programme', branches: 21 },
+  { id: 'org3', name: 'Jenga Mashinani Programme', type: 'Organization Programme', branches: 21 },
 ];
 
 export const portfolio = {
@@ -80,7 +80,7 @@ export const savingsByRegion = [
   { name: 'Other', value: 47_900_000 },
 ];
 
-/** Program / impact analytics — the metrics NGOs & funders report on. */
+/** Program / impact analytics — the metrics Organizations & funders report on. */
 export const impact = [
   { label: 'Women members', value: 68, hint: '12,525 women' },
   { label: 'Youth (18–35)', value: 41, hint: '7,552 members' },

@@ -5,7 +5,7 @@ import { billingService } from '@/lib/services/billing.service';
 import { ok } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await billingService.listInvoices(ctx));
   });

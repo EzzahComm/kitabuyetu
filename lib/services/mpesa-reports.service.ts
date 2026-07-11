@@ -78,7 +78,7 @@ export async function sendDailyMpesaReconReports(): Promise<{ groups: number; em
         `SELECT m.email FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
          WHERE m.email IS NOT NULL AND m.email <> ''
-           AND gm.role IN ('group_admin','treasurer')
+           AND gm.role IN ('chairperson','treasurer')
            AND gm.is_active = true`,
         [group.id],
       ).then((r) => r.rows.map((x) => x.email)),
@@ -103,7 +103,7 @@ export async function sendDailyMpesaReconReports(): Promise<{ groups: number; em
         html,
         groupId:       group.id,
         userId:        'system',
-        requesterRole: 'group_admin',
+        requesterRole: 'chairperson',
       }).catch((err) => {
         logger.error('[mpesa-reports] email send failed', { groupId: group.id, err: String(err) });
         return { success: false } as { success: boolean };

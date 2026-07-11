@@ -23,10 +23,10 @@ const PLANS = [
   },
   {
     type: 'enterprise', label: 'Enterprise', price: 8000, period: 'month',
-    description: 'For large groups and NGOs managing multiple chapters',
+    description: 'For large groups and Organizations managing multiple chapters',
     features: [
       'Unlimited members', 'Everything in Growth',
-      'Unlimited SMS', 'NGO multi-group portal', 'API access',
+      'Unlimited SMS', 'Organization multi-group portal', 'API access',
       'Bulk data import', 'Priority support', 'Custom branding',
     ],
   },

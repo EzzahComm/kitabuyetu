@@ -36,7 +36,14 @@ export const CampaignCreateSchema = z.object({
   rawRecipients:  z.record(z.unknown()).optional(),
   scheduledAt:    z.string().datetime({ offset: true }).optional().nullable(),
   senderId:       z.string().max(20).optional(),
-});
+  // Who pays. Defaults to the group, preserving prior behaviour. An
+  // organization-funded campaign debits organization_billing_accounts instead.
+  fundedBy:       z.enum(['group', 'organization']).default('group'),
+  organizationId: z.string().uuid().optional(),
+}).refine(
+  (v) => v.fundedBy === 'group' || !!v.organizationId,
+  { message: 'organizationId is required when fundedBy is "organization"', path: ['organizationId'] },
+);
 
 export const TemplateCreateSchema = z.object({
   templateKey: z.string().min(1).max(50).regex(/^[a-z0-9_]+$/),

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await getAuthContext(req);
   if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  if (!['group_admin', 'treasurer', 'super_admin'].includes(auth.role)) {
+  if (!['chairperson', 'treasurer', 'super_admin'].includes(auth.role)) {
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
   }
 

@@ -94,7 +94,7 @@ export async function scheduleEmail(opts: {
   return rows[0].id;
 }
 
-// Send a financial report — restricted to treasurer / group_admin roles
+// Send a financial report — restricted to treasurer / chairperson roles
 export async function sendFinancialReport(opts: {
   to: string;
   subject: string;
@@ -104,7 +104,7 @@ export async function sendFinancialReport(opts: {
   requesterRole: string;
   attachments?: EmailPayload['attachments'];
 }): Promise<EmailResult> {
-  const allowed = ['treasurer', 'group_admin', 'superadmin', 'ngo_coordinator'];
+  const allowed = ['treasurer', 'chairperson', 'superadmin', 'organization_coordinator'];
   if (!allowed.includes(opts.requesterRole)) {
     return { success: false, provider: 'denied', error: 'Insufficient role to send financial reports' };
   }

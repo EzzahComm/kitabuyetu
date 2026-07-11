@@ -73,6 +73,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_poll_dlr':
       return handleSmsPollDlr();
 
+    case 'sms_trigger_fire':
+      return handleSmsTriggerFire(job.payload);
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -336,6 +339,12 @@ async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<Hand
     return { message: 'SMS bulk send skipped: no recipients', sent: 0, failed: 0 };
   }
 
+  // An organization-funded campaign carries its payer through the queue, so a
+  // job retried after a restart still bills the organization, not the group.
+  const payer = payload.fundedBy === 'organization' && payload.payerOrganizationId
+    ? { type: 'organization' as const, organizationId: String(payload.payerOrganizationId) }
+    : undefined;
+
   const result = await smsService.sendBulkCampaign({
     campaignId:    payload.campaignId    ? String(payload.campaignId)    : undefined,
     phones,
@@ -346,6 +355,7 @@ async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<Hand
     sentBy:        String(payload.sentBy ?? ''),
     referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
     referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
+    payer,
   });
 
   return { message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
@@ -376,6 +386,20 @@ async function handleSmsPollDlr(): Promise<HandlerResult> {
     message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked})`,
     ...flattenResult(result),
   };
+}
+
+/**
+ * Dispatch one trigger-rule execution that was deferred (delay_seconds > 0) or
+ * re-queued after a transient failure. dispatchExecution() is a no-op once the
+ * execution row leaves 'pending', so a duplicated job cannot double-send.
+ */
+async function handleSmsTriggerFire(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const executionId = payload.executionId ? String(payload.executionId) : '';
+  if (!executionId) return { message: 'SMS trigger fire skipped: no executionId' };
+
+  const { dispatchExecution } = await import('@/lib/sms/trigger-engine');
+  await dispatchExecution(executionId);
+  return { message: `SMS trigger execution ${executionId} dispatched`, executionId };
 }
 
 // ── Helpers ───────────────────────────────────────────────────

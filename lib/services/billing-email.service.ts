@@ -46,7 +46,7 @@ interface ReceiptRow {
 // ---------------------------------------------------------------------------
 // Re-usable CTE: resolves recipient email+name for an invoice.
 //
-// Priority: group_admin member with email → treasurer with email → group.email
+// Priority: chairperson member with email → treasurer with email → group.email
 // ---------------------------------------------------------------------------
 const INVOICE_RECIPIENT_CTE = `
   WITH admin_contact AS (
@@ -56,10 +56,10 @@ const INVOICE_RECIPIENT_CTE = `
     FROM group_members gm
     JOIN members m ON m.id = gm.member_id
     WHERE gm.is_active = true
-      AND gm.role IN ('group_admin','treasurer')
+      AND gm.role IN ('chairperson','treasurer')
       AND m.email IS NOT NULL
     ORDER BY
-      CASE gm.role WHEN 'group_admin' THEN 0 ELSE 1 END,
+      CASE gm.role WHEN 'chairperson' THEN 0 ELSE 1 END,
       gm.joined_at ASC
   )
 `;

@@ -4,7 +4,7 @@ import { withAdminDb } from '@/lib/db';
 import type { EmailResult } from '@/lib/email/provider';
 import type { EmailPayload } from '@/lib/email/provider';
 
-const ALLOWED_REPORT_ROLES = ['treasurer', 'group_admin', 'super_admin', 'ngo_coordinator'];
+const ALLOWED_REPORT_ROLES = ['treasurer', 'chairperson', 'super_admin', 'organization_coordinator'];
 
 export async function emailPnlReport(opts: {
   groupId: string;
@@ -139,7 +139,7 @@ export async function sendWeeklySummaries(): Promise<void> {
       db.query(
         `SELECT m.email, m.full_name FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
-         WHERE m.email IS NOT NULL AND gm.role IN ('group_admin','treasurer')`,
+         WHERE m.email IS NOT NULL AND gm.role IN ('chairperson','treasurer')`,
         [group.id],
       ),
     );

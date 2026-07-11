@@ -59,7 +59,7 @@ export function CommandPalette() {
       heading: 'Go to',
       commands: [
         { id: 'dash', label: 'Dashboard', icon: LayoutDashboard, keywords: 'home overview platform', run: go('/admin') },
-        { id: 'orgs', label: 'Organizations', icon: Building2, keywords: 'tenants groups saccos ngos', run: go('/admin/organizations') },
+        { id: 'orgs', label: 'Organizations', icon: Building2, keywords: 'tenants groups saccos organizations', run: go('/admin/organizations') },
         { id: 'members', label: 'Members', icon: Users, keywords: 'users people accounts', run: go('/admin/users') },
         { id: 'billing', label: 'Billing', icon: CreditCard, keywords: 'revenue subscriptions invoices mrr', run: go('/admin/billing-admin') },
         { id: 'analytics', label: 'Analytics', icon: BarChart3, keywords: 'charts reports insights', run: go('/admin/analytics') },

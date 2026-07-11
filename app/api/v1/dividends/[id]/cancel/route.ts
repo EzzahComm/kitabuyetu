@@ -9,7 +9,7 @@ interface RouteParams { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { id } = await params;
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const body   = await req.json();
     const parsed = CancelDeclarationSchema.parse(body);
     const decl   = await dividendsService.cancel(

@@ -7,7 +7,8 @@ import {
   type StkCallbackBody,
 } from '@/lib/services/mpesa.service';
 import { billingService } from '@/lib/services/billing.service';
-import { smsService } from '@/lib/services/sms.service';
+import { emitBusinessEvent } from '@/lib/sms/trigger-engine';
+import { SMS_EVENTS } from '@/lib/sms/events';
 import { isSafaricomIp } from '@/lib/services/daraja.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -73,7 +74,7 @@ async function processFulfillment(
   });
   if (!payment) return;
 
-  const ctx = { userId: 'system', groupId: payment.group_id, role: 'group_admin' };
+  const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
 
   // Credit SMS balance if this was an SMS top-up invoice
   if (payment.invoice_id) {
@@ -90,19 +91,20 @@ async function processFulfillment(
     }
   }
 
-  if (payment.mpesa_phone) {
-    try {
-      await smsService.send(
-        ctx,
-        payment.mpesa_phone,
-        `KitabuYetu: Payment of KES ${amount} received. Receipt: ${receipt ?? 'N/A'}. Thank you.`,
-        'payment',
-        paymentId,
-      );
-    } catch {
-      // SMS failure must never block payment completion
-    }
-  }
+  // Notification is decided by sms_trigger_rules, not hardcoded here. The
+  // seeded 'payment_received_receipt' rule reproduces the previous message.
+  // emitBusinessEvent never throws, and re-emits are idempotent per (rule,
+  // paymentId) — so a replayed callback cannot send a second receipt.
+  await emitBusinessEvent({
+    eventType: SMS_EVENTS.PAYMENT_RECEIVED,
+    eventId:   paymentId,
+    groupId:   payment.group_id,
+    payload: {
+      amount,
+      receipt: receipt ?? 'N/A',
+      phone:   payment.mpesa_phone,
+    },
+  });
 }
 
 function getCallerIp(req: NextRequest): string {

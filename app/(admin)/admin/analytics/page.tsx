@@ -16,7 +16,7 @@ const GROUP_TYPE_COLORS: Record<string, string> = {
   sacco:       '#7c3aed',
   welfare:     '#f43f5e',
   investment:  '#10b981',
-  ngo_group:   '#f59e0b',
+  organization_group:   '#f59e0b',
 };
 
 export default function AnalyticsPage() {

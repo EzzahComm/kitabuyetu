@@ -31,7 +31,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // POST /api/v1/sms/templates â€” create custom template
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const body  = await req.json();
     const input = TemplateCreateSchema.parse(body);
     const vars  = extractVars(input.body);
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // PATCH /api/v1/sms/templates?id=xxx â€” update template
 export async function PATCH(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const id   = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
     const body  = await req.json();
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/templates?id=xxx â€” soft delete
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
 

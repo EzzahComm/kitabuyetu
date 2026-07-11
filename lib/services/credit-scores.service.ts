@@ -764,7 +764,7 @@ async function componentWelfareParticipation(
 
 /**
  * Leadership role — is the member currently holding an officer role?
- * Officers (group_admin / treasurer / secretary) get 100; regular members
+ * Officers (chairperson / treasurer / secretary) get 100; regular members
  * get 50. We don't penalise non-officers because position is appointed,
  * not earned alone — but holding a role demonstrates active engagement.
  */
@@ -779,7 +779,7 @@ async function componentLeadershipRole(
   );
 
   const role = rows[0]?.role ?? 'member';
-  const isOfficer = role === 'group_admin' || role === 'treasurer' || role === 'secretary';
+  const isOfficer = role === 'chairperson' || role === 'treasurer' || role === 'secretary';
   const score = isOfficer ? 100 : 50;
 
   return {

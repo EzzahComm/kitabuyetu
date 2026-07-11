@@ -48,7 +48,7 @@ const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
 
 const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
 
-const PLATFORM_ROLES = ['super_admin', 'support', 'ngo_coordinator'] as const;
+const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 
 interface AdminMemberRow {

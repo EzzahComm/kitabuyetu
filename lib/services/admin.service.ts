@@ -124,7 +124,7 @@ export function buildRiskDashboardPayload(input: {
     },
     heatmap: [
       { segment: 'SACCOs', scores: [41, 38, 55, 47, 26] },
-      { segment: 'NGOs', scores: [12, 19, 8, 15, 33] },
+      { segment: 'Organizations', scores: [12, 19, 8, 15, 33] },
       { segment: 'Chamas', scores: [29, 24, 37, 22, 17] },
       { segment: 'Microfinance', scores: [63, 71, 68, 58, 44] },
     ],
@@ -277,7 +277,7 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         SELECT g.id, g.name, g.group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
                m.first_name || ' ' || m.last_name AS admin_name
         FROM public.groups g
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'group_admin'
+        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
         LEFT JOIN public.members m ON m.id = gm.member_id
         ORDER BY g.created_at DESC
         LIMIT 12
@@ -440,7 +440,7 @@ export async function getOrganizationById(groupId: string) {
                m.phone_number AS admin_phone, m.email AS admin_email
         FROM public.groups g
         LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status IN ('active','trial')
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'group_admin'
+        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
         LEFT JOIN public.members m ON m.id = gm.member_id
         WHERE g.id = $1
         LIMIT 1

@@ -1,7 +1,7 @@
 import type {
   PlanType, SubscriptionStatus, ContributionStatus, LoanStatus,
   PaymentMethod, PaymentStatus, MemberRole, PlatformRole,
-  AccountType, JournalStatus, SmsStatus, Gender, GroupType, NgoAccessLevel,
+  AccountType, JournalStatus, SmsStatus, Gender, GroupType, OrganizationAccessLevel,
 } from './enums';
 
 export interface Group {
@@ -258,11 +258,14 @@ export interface SmsUsageLog {
   failed_reason:    string | null;
   reference_type:   string | null;
   reference_id:     string | null;
+  /** Who was billed. 'organization' rows always carry payer_organization_id (migration 051). */
+  payer_type:            'group' | 'organization';
+  payer_organization_id: string | null;
   created_at:       Date;
   updated_at:       Date;
 }
 
-export interface Ngo {
+export interface Organization {
   id:                    string;
   name:                  string;
   registration_number:   string | null;
@@ -276,11 +279,11 @@ export interface Ngo {
   updated_at:            Date;
 }
 
-export interface NgoGroupAccess {
+export interface OrganizationGroupAccess {
   id:           string;
-  ngo_id:       string;
+  organization_id:       string;
   group_id:     string;
-  access_level: NgoAccessLevel;
+  access_level: OrganizationAccessLevel;
   granted_by:   string;
   granted_at:   Date;
   revoked_at:   Date | null;

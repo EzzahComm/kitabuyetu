@@ -17,7 +17,7 @@ export function getAuthContext(req: NextRequest): AuthContext {
   const userId  = req.headers.get('x-user-id');
   const groupId = req.headers.get('x-group-id');
   const role    = req.headers.get('x-role') as MemberRole | PlatformRole | null;
-  const ngoId   = req.headers.get('x-ngo-id') ?? undefined;
+  const organizationId   = req.headers.get('x-organization-id') ?? undefined;
   const aud     = req.headers.get('x-aud');
 
   if (aud === 'backoffice') {
@@ -27,7 +27,7 @@ export function getAuthContext(req: NextRequest): AuthContext {
     throw new UnauthorizedError('Missing authentication context');
   }
 
-  return { userId, groupId, role, ngoId };
+  return { userId, groupId, role, organizationId };
 }
 
 /**
@@ -78,7 +78,7 @@ export type AdminPlatformRole = Exclude<PlatformRole, 'member'>;
 export interface BackofficeContext {
   userId:       string;
   platformRole: AdminPlatformRole;
-  ngoId?:       string;
+  organizationId?:       string;
 }
 
 /**
@@ -89,7 +89,7 @@ export interface BackofficeContext {
 export function getBackofficeContext(req: NextRequest): BackofficeContext {
   const userId       = req.headers.get('x-user-id');
   const platformRole = req.headers.get('x-platform-role') as AdminPlatformRole | null;
-  const ngoId        = req.headers.get('x-ngo-id') ?? undefined;
+  const organizationId        = req.headers.get('x-organization-id') ?? undefined;
   const aud          = req.headers.get('x-aud');
 
   if (aud !== 'backoffice') {
@@ -98,10 +98,10 @@ export function getBackofficeContext(req: NextRequest): BackofficeContext {
   if (!userId || !platformRole) {
     throw new UnauthorizedError('Missing backoffice authentication context');
   }
-  if (platformRole !== 'super_admin' && platformRole !== 'support' && platformRole !== 'ngo_coordinator') {
+  if (platformRole !== 'super_admin' && platformRole !== 'support' && platformRole !== 'organization_coordinator') {
     throw new ForbiddenError(`Role '${platformRole}' is not a valid backoffice role`);
   }
-  return { userId, platformRole, ngoId };
+  return { userId, platformRole, organizationId };
 }
 
 /** Higher-order handler for backoffice routes. Mirrors withAuth's shape. */

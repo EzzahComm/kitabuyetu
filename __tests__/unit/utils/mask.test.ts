@@ -58,8 +58,8 @@ describe('applyMemberMask', () => {
     address: '123 Main St, Nairobi',
   };
 
-  it('exposes all PII for group_admin', () => {
-    const result = applyMemberMask(member, 'group_admin');
+  it('exposes all PII for chairperson', () => {
+    const result = applyMemberMask(member, 'chairperson');
     expect(result.phone).toBe(member.phone);
     expect(result.email).toBe(member.email);
     expect(result.national_id).toBe(member.national_id);

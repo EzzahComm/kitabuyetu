@@ -17,12 +17,12 @@ interface RouteParams { params: Promise<{ jobId: string }> }
  *  - loans:         hard DELETE; blocked per-id if the loan has any
  *                   completed repayments.
  *
- * Body: { reason?: string }. Restricted to group_admin — rollback is a
+ * Body: { reason?: string }. Restricted to chairperson — rollback is a
  * destructive bulk operation and shouldn't be available to secretaries.
  */
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { jobId } = await params;
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const body   = await req.json().catch(() => ({}));
     const parsed = RollbackBodySchema.parse(body);

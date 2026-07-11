@@ -47,7 +47,7 @@ import type { AdminLoginResponse } from '@/types/api.types';
 const MAX_ATTEMPTS    = parseInt(process.env.MAX_LOGIN_ATTEMPTS    ?? '5',  10);
 const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
 
-const PLATFORM_ROLES = ['super_admin', 'support', 'ngo_coordinator'] as const;
+const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 
 interface MemberRow {
@@ -89,23 +89,23 @@ export async function POST(req: NextRequest): Promise<Response> {
           || !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)) {
         return null;
       }
-      // ngo_coordinator scope
-      let ngoId: string | undefined;
-      if (member.platform_role === 'ngo_coordinator') {
-        const { rows: ngo } = await client.query<{ id: string }>(
-          `SELECT id FROM ngos WHERE coordinator_member_id = $1 AND is_active = TRUE LIMIT 1`,
+      // organization_coordinator scope
+      let organizationId: string | undefined;
+      if (member.platform_role === 'organization_coordinator') {
+        const { rows: organization } = await client.query<{ id: string }>(
+          `SELECT id FROM organizations WHERE coordinator_member_id = $1 AND is_active = TRUE LIMIT 1`,
           [member.id],
         );
-        ngoId = ngo[0]?.id;
-        if (!ngoId) return null;
+        organizationId = organization[0]?.id;
+        if (!organizationId) return null;
       }
-      return { member, ngoId };
+      return { member, organizationId };
     });
 
     if (!memberLookup) {
       return errorResponse('Sign-in session is no longer valid.', 'MFA_CHALLENGE_INVALID', 401);
     }
-    const { member, ngoId } = memberLookup;
+    const { member, organizationId } = memberLookup;
     const lockKey = `admin:${(member.email ?? '').toLowerCase()}`;
 
     if (await isAccountLocked(lockKey)) {
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
       });
 
-      return issueBackofficeTokens(req, member, ngoId);
+      return issueBackofficeTokens(req, member, organizationId);
     }
 
     // ── challenge.kind === 'verify' ────────────────────────────────────
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
     });
 
-    return issueBackofficeTokens(req, member, ngoId);
+    return issueBackofficeTokens(req, member, organizationId);
   } catch (err) {
     return handleError(err);
   }
@@ -240,13 +240,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 async function issueBackofficeTokens(
   req:     NextRequest,
   member:  MemberRow,
-  ngoId:   string | undefined,
+  organizationId:   string | undefined,
 ): Promise<Response> {
   const accessToken = signBackofficeAccessToken({
     sub:          member.id,
     aud:          'backoffice',
     platformRole: member.platform_role as AdminPlatformRole,
-    ngoId,
+    organizationId,
   });
   const { token: refreshToken } = signRefreshToken(member.id, 'backoffice');
   const rtHash = hashToken(refreshToken);
@@ -271,7 +271,7 @@ async function issueBackofficeTokens(
       lastName:     member.last_name,
       email:        member.email ?? '',
       platformRole: member.platform_role as AdminPlatformRole,
-      ngoId,
+      organizationId,
     },
   };
   return ok(response);

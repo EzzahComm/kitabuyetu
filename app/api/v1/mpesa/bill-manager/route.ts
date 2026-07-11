@@ -50,7 +50,7 @@ function callerIp(req: NextRequest): string {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     try {
       const status = req.nextUrl.searchParams.get('status');
       const rows = await withAdminDb(async (db) => {
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'invoice') {
-    return withRole(req, 'group_admin', async (auth) => {
+    return withRole(req, 'chairperson', async (auth) => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await sendSingleInvoice(input as BillManagerInvoice);
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'bulk') {
-    return withRole(req, 'group_admin', async (auth) => {
+    return withRole(req, 'chairperson', async (auth) => {
       try {
         const invoices = z.array(InvoiceSchema).min(1).max(100).parse(await req.json());
         await sendBulkInvoices(invoices as BillManagerInvoice[]);
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'cancel') {
-    return withRole(req, 'group_admin', async (auth) => {
+    return withRole(req, 'chairperson', async (auth) => {
       try {
         const { externalReferences } = z.object({
           externalReferences: z.array(z.string()).min(1),
@@ -216,7 +216,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   const action = req.nextUrl.searchParams.get('action');
 
   if (action === 'invoice') {
-    return withRole(req, 'group_admin', async () => {
+    return withRole(req, 'chairperson', async () => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await updateSingleInvoice(input as BillManagerInvoice);
@@ -228,7 +228,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'bulk') {
-    return withRole(req, 'group_admin', async () => {
+    return withRole(req, 'chairperson', async () => {
       try {
         const invoices = z.array(InvoiceSchema).min(1).parse(await req.json());
         await updateBulkInvoices(invoices as BillManagerInvoice[]);

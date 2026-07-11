@@ -18,7 +18,7 @@ export interface TenantAccessTokenPayload {
   groupId:     string;            // active group context
   role:        MemberRole | PlatformRole;
   personId?:   string;            // shared cross-group identity (since Phase A)
-  ngoId?:      string;
+  organizationId?:      string;
   // Phase D Part 2 — group lifecycle. The proxy gates non-verify routes when
   // this is 'pending_verification'. Optional for backward compatibility with
   // tokens issued before this field existed (they're treated as 'active').
@@ -28,8 +28,8 @@ export interface TenantAccessTokenPayload {
 export interface BackofficeAccessTokenPayload {
   sub:          string;          // member id
   aud:          'backoffice';
-  platformRole: PlatformRole;    // super_admin | support | ngo_coordinator
-  ngoId?:       string;          // scope for ngo_coordinator
+  platformRole: PlatformRole;    // super_admin | support | organization_coordinator
+  organizationId?:       string;          // scope for organization_coordinator
 }
 
 export type AccessTokenPayload = TenantAccessTokenPayload | BackofficeAccessTokenPayload;

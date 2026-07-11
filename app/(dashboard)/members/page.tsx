@@ -42,7 +42,7 @@ const schema = z.object({
   nationalId:       z.string().optional(),
   occupation:       z.string().max(150).optional().or(z.literal('')),
   countyId:         z.string().uuid('Pick a county').optional().or(z.literal('')),
-  role:             z.enum(['member', 'secretary', 'treasurer', 'group_admin']),
+  role:             z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -347,7 +347,7 @@ export default function MembersPage() {
                   <option value="member">Member</option>
                   <option value="secretary">Secretary</option>
                   <option value="treasurer">Treasurer</option>
-                  <option value="group_admin">Chairperson / Admin</option>
+                  <option value="chairperson">Chairperson</option>
                 </select>
               </div>
             </div>

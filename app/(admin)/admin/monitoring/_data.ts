@@ -69,7 +69,7 @@ export interface Transaction {
   at: number;
 }
 
-const ORGS = ['Mwangaza SACCO', 'Umoja Women Group', 'Tujenge Microfinance', 'Baraka Chama', 'Faraja Cooperative', 'Jenga NGO'];
+const ORGS = ['Mwangaza SACCO', 'Umoja Women Group', 'Tujenge Microfinance', 'Baraka Chama', 'Faraja Cooperative', 'Jenga Organization'];
 const TYPES: TxnType[] = ['C2B', 'C2B', 'C2B', 'STK', 'B2C']; // C2B most common
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 

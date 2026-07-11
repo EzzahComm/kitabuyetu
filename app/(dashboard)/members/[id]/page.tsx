@@ -22,14 +22,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 
 const roleVariant: Record<string, any> = {
-  group_admin: 'default',
+  chairperson: 'default',
   treasurer:   'success',
   secretary:   'secondary',
   member:      'outline',
 };
 
 const roleLabels: Record<string, string> = {
-  group_admin: 'Admin / Chairperson',
+  chairperson: 'Chairperson',
   treasurer:   'Treasurer',
   secretary:   'Secretary',
   auditor:     'Auditor',

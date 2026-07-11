@@ -64,7 +64,7 @@ interface KyJwtPayload extends JWTPayload {
   groupStatus?:  string;
   // Backoffice claims
   platformRole?: string;
-  ngoId?:        string;
+  organizationId?:        string;
 }
 
 function unauthorized(message: string): NextResponse {
@@ -182,7 +182,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     requestHeaders.set('x-role',     payload.role);
     const groupStatus = payload.groupStatus ?? 'active';
     requestHeaders.set('x-group-status', groupStatus);
-    if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
+    if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
 
     // Phase D Part 2 — gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management
@@ -209,7 +209,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       return unauthorized('Incomplete backoffice token payload');
     }
     requestHeaders.set('x-platform-role', payload.platformRole);
-    if (payload.ngoId) requestHeaders.set('x-ngo-id', payload.ngoId);
+    if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });

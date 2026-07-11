@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/airtime              — Buy airtime for a phone (group_admin+)
+ * POST /api/v1/mpesa/airtime              — Buy airtime for a phone (chairperson+)
  * POST /api/v1/mpesa/airtime?type=result  — Safaricom result callback (no JWT)
  * POST /api/v1/mpesa/airtime?type=timeout — Safaricom timeout callback (no JWT)
  *
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  // Authenticated airtime purchase (group_admin or above)
-  return withRole(req, 'group_admin', async (auth) => {
+  // Authenticated airtime purchase (chairperson or above)
+  return withRole(req, 'chairperson', async (auth) => {
     try {
       const input = AirtimeSchema.parse(await req.json());
       const res   = await initiateAirtime({

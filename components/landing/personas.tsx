@@ -28,7 +28,7 @@ const personas = [
   },
   {
     icon: Building2,
-    kicker: 'For SACCOs, NGOs & federations',
+    kicker: 'For SACCOs, Organizations & federations',
     title: 'Portfolios across every branch',
     description:
       'Roll up savings, loans, and impact across hundreds of groups. Switch organizations, compare branches, run bulk disbursements, and integrate via API, webhooks, and white-label branding.',

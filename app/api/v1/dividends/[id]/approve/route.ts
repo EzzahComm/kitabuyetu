@@ -13,7 +13,7 @@ interface RouteParams { params: Promise<{ id: string }> }
  */
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { id } = await params;
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const result = await dividendsService.approve(
       { userId: auth.userId, groupId: auth.groupId, role: auth.role }, id,
     );

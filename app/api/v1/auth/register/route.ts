@@ -37,7 +37,7 @@ interface RegisterGroupResult {
   platform_role:  string;
   creator_role:   string;     // officer position chosen at signup
   group_role:     string;     // group_members.role derived from creator_role
-                              // (chairperson→group_admin, secretary→secretary,
+                              // (chairperson→chairperson, secretary→secretary,
                               // treasurer→treasurer). All three can onboard
                               // members per ROLES.canManageMembers.
 }
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     stage = 'sign_tokens';
     // role mirrors what the RPC actually wrote to group_members — derived from
     // creator_role so a treasurer / secretary gets their role-appropriate JWT
-    // instead of being elevated to group_admin.
+    // instead of being elevated to chairperson.
     const accessToken = signAccessToken({
       sub:         result.member_id,
       groupId:     result.group_id,

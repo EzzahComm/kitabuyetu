@@ -29,7 +29,7 @@ interface BackofficeUser {
   lastName:     string;
   email:        string;
   platformRole: Exclude<PlatformRole, 'member'>;
-  ngoId?:       string;
+  organizationId?:       string;
 }
 
 export type AuthUser = TenantUser | BackofficeUser;

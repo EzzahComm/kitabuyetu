@@ -114,8 +114,8 @@ TRUNCATE TABLE
   public.notification_rules,
   public.audit_logs,
 
-  -- NGO links (NGO accounts themselves preserved)
-  public.ngo_group_access,
+  -- Organization links (organization accounts themselves preserved)
+  public.organization_group_access,
 
   -- Support
   public.support_tickets,

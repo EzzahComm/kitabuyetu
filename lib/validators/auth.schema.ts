@@ -26,7 +26,7 @@ export const LoginSchema = z.object({
 export const RegisterSchema = z.object({
   // Group identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
+  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
 
   // Registrant identity
   firstName: z.string().min(2).max(100),
@@ -65,7 +65,7 @@ export const RegisterSchema = z.object({
   gender:        z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
-// Backoffice login (super_admin / support / ngo_coordinator).
+// Backoffice login (super_admin / support / organization_coordinator).
 // Email-only on purpose — staff identities are issued + recovered via email,
 // never phone. No group code field because backoffice context isn't
 // group-scoped.

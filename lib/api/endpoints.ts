@@ -2,7 +2,7 @@ import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
-  MemberPublic, SubscriptionPublic, NgoGroupSummary,
+  MemberPublic, SubscriptionPublic, OrganizationGroupSummary,
 } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
@@ -201,11 +201,11 @@ export const reportsApi = {
 };
 
 // ------------------------------------------------------------------
-// NGO
+// Organization
 // ------------------------------------------------------------------
-export const ngoApi = {
-  groups:  () => api.get<NgoGroupSummary[]>('/ngo/groups'),
-  detail:  (groupId: string) => api.get<unknown>(`/ngo/reports?groupId=${groupId}`),
+export const organizationApi = {
+  groups:  () => api.get<OrganizationGroupSummary[]>('/organization/groups'),
+  detail:  (groupId: string) => api.get<unknown>(`/organization/reports?groupId=${groupId}`),
 };
 
 // ------------------------------------------------------------------

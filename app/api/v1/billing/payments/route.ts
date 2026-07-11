@@ -6,7 +6,7 @@ import { RecordManualPaymentSchema, SmsTopupSchema } from '@/lib/validators/bill
 import { ok, created } from '@/lib/utils/response';
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'group_admin', async (auth) => {
+  return withRole(req, 'chairperson', async (auth) => {
     const body = await req.json();
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
