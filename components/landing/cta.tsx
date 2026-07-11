@@ -60,7 +60,7 @@ export default function CtaSection() {
               className="bg-white px-10 font-bold text-brand-700 shadow-lg hover:bg-brand-50"
             >
               <Link href="/register">
-                Open your ledger <ArrowRight className="ml-2 h-5 w-5" />
+                Register/Sign-Up <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button

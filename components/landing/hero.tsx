@@ -60,7 +60,7 @@ export default function Hero() {
                 className="bg-brand-500 px-8 font-semibold text-white shadow-lg shadow-brand-500/25 hover:bg-brand-400"
               >
                 <Link href="/register">
-                  Open your ledger <ArrowRight className="ml-2 h-5 w-5" />
+                  Register/Sign-Up <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button

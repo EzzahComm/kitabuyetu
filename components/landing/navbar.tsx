@@ -123,7 +123,7 @@ export default function Navbar() {
               <Link href="/login">Sign In</Link>
             </Button>
             <Button asChild size="sm" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5">
-              <Link href="/register">Open your ledger</Link>
+              <Link href="/register">Register/Sign-Up</Link>
             </Button>
           </div>
 
@@ -182,7 +182,7 @@ export default function Navbar() {
               <Link href="/login">Sign In</Link>
             </Button>
             <Button asChild className="w-full justify-center bg-brand-600 hover:bg-brand-700 text-white">
-              <Link href="/register">Open your ledger</Link>
+              <Link href="/register">Register/Sign-Up</Link>
             </Button>
           </div>
         </div>
