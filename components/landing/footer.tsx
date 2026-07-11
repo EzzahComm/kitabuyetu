@@ -11,6 +11,7 @@ const footerLinks = {
   ],
   Product: [
     { label: 'Features', href: '#features' },
+    { label: 'Ecosystem', href: '#ecosystem' },
     { label: 'How It Works', href: '#how-it-works' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'Security', href: '/security' },

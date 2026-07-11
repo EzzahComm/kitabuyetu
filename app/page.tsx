@@ -4,6 +4,7 @@ import Hero from '@/components/landing/hero';
 import Stats from '@/components/landing/stats';
 import Personas from '@/components/landing/personas';
 import Features from '@/components/landing/features';
+import Ecosystem from '@/components/landing/ecosystem';
 import HowItWorks from '@/components/landing/how-it-works';
 import Testimonials from '@/components/landing/testimonials';
 import CtaSection from '@/components/landing/cta';
@@ -52,6 +53,7 @@ export default function HomePage() {
         <Stats />
         <Personas />
         <Features />
+        <Ecosystem />
         <HowItWorks />
         <Testimonials />
         <CtaSection />
