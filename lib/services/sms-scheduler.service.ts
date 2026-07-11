@@ -12,6 +12,7 @@
  * than a fixed next_run_at cadence, and loan_due overlaps the existing
  * notify_loan_due_alerts job. They are left for a dedicated follow-up.
  */
+import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { logger } from '@/lib/logger';
@@ -40,7 +41,24 @@ interface CampaignRow {
   payer_organization_id:  string | null;
 }
 
-/** Process due sms_schedules. Enqueues a send per schedule, then advances it. */
+/**
+ * Process due sms_schedules — exactly one send per occurrence.
+ *
+ * Each due schedule is handled in its own transaction that (1) *claims* the
+ * occurrence — advancing next_run_at (or deactivating a one_time) under a
+ * FOR UPDATE SKIP LOCKED row lock — and (2) enqueues the send on that same
+ * transaction. Both commit together, which is what makes a reminder fire once:
+ *
+ *   - Concurrent ticks / a resetStuckJobs re-run can't double-send: the claim
+ *     advances next_run_at, so any other runner's re-check (next_run_at <= NOW)
+ *     misses the row and enqueues nothing.
+ *   - A crash mid-way rolls back both the advance and the enqueue, so the next
+ *     tick re-selects the still-due schedule and sends it — never lost, never
+ *     duplicated.
+ *
+ * The dedup_key (schedule id + the exact claimed occurrence) is belt-and-braces
+ * on top of the claim.
+ */
 export async function processDueSmsSchedules(): Promise<{ processed: number; skipped: number }> {
   const rows = await withAdminDb((db) =>
     db.query<ScheduleRow>(
@@ -64,63 +82,83 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
 
   for (const s of rows) {
     const message = s.template_body ?? s.message;
-    if (!message) {
-      logger.warn('[sms-scheduler] schedule has no message/template, skipping', { id: s.id });
-      await advanceSchedule(s);
-      skipped++;
-      continue;
-    }
+    // Resolve recipients (reads only) before opening the claim transaction, so
+    // membership changes since scheduling are respected and the row lock is
+    // held for as short a time as possible.
+    const phones = message
+      ? await resolveSmsRecipients(s.group_id, s.recipient_type, s.raw_recipients)
+      : [];
 
-    const phones = await resolveSmsRecipients(s.group_id, s.recipient_type, s.raw_recipients);
-    if (phones.length === 0) {
-      await advanceSchedule(s);
-      skipped++;
-      continue;
-    }
+    const outcome = await withAdminDb(async (client) => {
+      const occurrence = await claimOccurrence(client, s.id);
+      if (occurrence === null) return 'raced';   // another tick already claimed it
 
-    await enqueueJob(
-      'sms_bulk_send',
-      {
-        phones,
-        message,
-        groupId:       s.group_id,
-        sentBy:        s.created_by,
-        referenceType: 'schedule',
-        referenceId:   s.id,
-      },
-      { priority: 6, max_attempts: 3 },
-    );
+      if (!message) {
+        logger.warn('[sms-scheduler] schedule has no message/template, skipping', { id: s.id });
+        return 'skipped';
+      }
+      if (phones.length === 0) return 'skipped';
 
-    await advanceSchedule(s);
-    processed++;
+      await enqueueJob(
+        'sms_bulk_send',
+        {
+          phones,
+          message,
+          groupId:       s.group_id,
+          sentBy:        s.created_by,
+          referenceType: 'schedule',
+          referenceId:   s.id,
+        },
+        {
+          priority:  6,
+          max_attempts: 3,
+          // One send per (schedule, occurrence). The occurrence advances each
+          // run, so tomorrow's daily reminder is a distinct key and still sends.
+          dedup_key: `sms_bulk_send:schedule:${s.id}:${occurrence}`,
+        },
+        client,
+      );
+      return 'processed';
+    });
+
+    if (outcome === 'processed') processed++;
+    else if (outcome === 'skipped') skipped++;
+    // 'raced' → neither; another concurrent tick owns this occurrence.
   }
 
   return { processed, skipped };
 }
 
-/** Deactivate one-time schedules; advance recurring ones to their next run. */
-async function advanceSchedule(s: ScheduleRow): Promise<void> {
-  if (s.schedule_type === 'one_time') {
-    await withAdminDb((db) =>
-      db.query(`UPDATE sms_schedules SET is_active=false, last_run_at=NOW() WHERE id=$1`, [s.id]),
-    );
-    return;
-  }
-  const next = computeNextRun(s.schedule_type, new Date(s.next_run_at));
-  await withAdminDb((db) =>
-    db.query(`UPDATE sms_schedules SET last_run_at=NOW(), next_run_at=$1 WHERE id=$2`, [next.toISOString(), s.id]),
+/**
+ * Atomically claim a due occurrence on the caller's transaction: advance a
+ * recurring schedule to its next run (or deactivate a one_time), but only while
+ * it is still due and unlocked. Returns the occurrence just consumed (the
+ * pre-advance next_run_at, used to key the send) or null if another transaction
+ * already holds the row or advanced it past due.
+ */
+async function claimOccurrence(client: PoolClient, id: string): Promise<string | null> {
+  const { rows } = await client.query<{ occurrence: string }>(
+    `WITH claimed AS (
+       SELECT id, schedule_type, next_run_at AS occurrence
+       FROM   sms_schedules
+       WHERE  id = $1 AND is_active = true AND next_run_at <= NOW()
+       FOR UPDATE SKIP LOCKED
+     )
+     UPDATE sms_schedules s
+     SET    last_run_at = NOW(),
+            is_active   = CASE WHEN c.schedule_type = 'one_time' THEN false ELSE s.is_active END,
+            next_run_at = CASE c.schedule_type
+                            WHEN 'weekly'  THEN c.occurrence + INTERVAL '7 days'
+                            WHEN 'monthly' THEN c.occurrence + INTERVAL '1 month'
+                            WHEN 'daily'   THEN c.occurrence + INTERVAL '1 day'
+                            ELSE c.occurrence
+                          END
+     FROM   claimed c
+     WHERE  s.id = c.id
+     RETURNING c.occurrence`,
+    [id],
   );
-}
-
-function computeNextRun(scheduleType: string, current: Date): Date {
-  const d = new Date(current);
-  switch (scheduleType) {
-    case 'weekly':  d.setDate(d.getDate() + 7);   break;
-    case 'monthly': d.setMonth(d.getMonth() + 1); break;
-    case 'daily':
-    default:        d.setDate(d.getDate() + 1);   break;
-  }
-  return d;
+  return rows[0]?.occurrence ?? null;
 }
 
 /** Dispatch sms_campaigns whose scheduled_at has arrived. */

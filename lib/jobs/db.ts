@@ -3,8 +3,12 @@
  * Uses the shared pg Pool directly (no RLS context needed — job queue
  * is admin-only; the postgres superuser has BYPASSRLS).
  */
+import type { PoolClient } from 'pg';
 import { pool } from '@/lib/db';
 import type { Job, JobStatus, JobType, EnqueueOptions } from './types';
+
+/** A pg Pool or a transaction-bound PoolClient — anything with `.query`. */
+type Queryable = Pick<PoolClient, 'query'>;
 
 /**
  * Atomically claim the next batch of pending jobs using
@@ -108,11 +112,18 @@ export async function logJob(
 /**
  * Enqueue a job, silently skipping duplicates via the dedup_key partial index.
  * Returns the new job's ID, or null if skipped (duplicate).
+ *
+ * Pass `executor` to run the INSERT on a caller's open transaction (a
+ * PoolClient) instead of the shared pool. This lets a producer commit the
+ * enqueue atomically with its own state change — e.g. the SMS scheduler
+ * advances a schedule and enqueues its send in one transaction, so neither can
+ * happen without the other. Defaults to the shared pool (its own connection).
  */
 export async function insertJob(
-  type:    JobType,
-  payload: Record<string, unknown>,
-  opts:    EnqueueOptions = {},
+  type:     JobType,
+  payload:  Record<string, unknown>,
+  opts:     EnqueueOptions = {},
+  executor: Queryable = pool,
 ): Promise<string | null> {
   const {
     priority     = 0,
@@ -121,7 +132,7 @@ export async function insertJob(
     dedup_key,
   } = opts;
 
-  const { rows } = await pool.query<{ id: string }>(
+  const { rows } = await executor.query<{ id: string }>(
     `INSERT INTO job_queue (type, payload, priority, run_at, max_attempts, dedup_key)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (dedup_key)
