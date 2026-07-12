@@ -37,6 +37,7 @@ describe('admin dashboard payload builders', () => {
         },
       ],
       dailyTrend: [{ day: 'Mon', alerts: 2, resolved: 1 }],
+      heatmap: [{ segment: 'SACCOs', scores: [41, 38, 55, 47, 26] }],
     });
 
     expect(payload.summary.openAlerts).toBe(1);

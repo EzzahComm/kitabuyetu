@@ -82,6 +82,7 @@ export function buildRiskDashboardPayload(input: {
     description: string | null;
   }>;
   dailyTrend: Array<{ day: string; alerts: number; resolved: number }>;
+  heatmap: Array<{ segment: string; scores: number[] }>;
 }): RiskDashboardPayload {
   const alerts: RiskDashboardPayload['alerts'] = input.transactions
     .filter((tx) => tx.status === 'failed' || tx.status === 'pending')
@@ -122,12 +123,9 @@ export function buildRiskDashboardPayload(input: {
       pendingKyc,
       platformRisk: highRiskGroups > 0 ? 'Elevated' : 'Moderate',
     },
-    heatmap: [
-      { segment: 'SACCOs', scores: [41, 38, 55, 47, 26] },
-      { segment: 'Organizations', scores: [12, 19, 8, 15, 33] },
-      { segment: 'Chamas', scores: [29, 24, 37, 22, 17] },
-      { segment: 'Microfinance', scores: [63, 71, 68, 58, 44] },
-    ],
+    heatmap: input.heatmap?.length
+      ? input.heatmap
+      : [{ segment: 'All groups', scores: [0, 0, 0, 0, 0] }],
     alerts,
     kyc: kycQueue,
     alertTrend: input.dailyTrend.length ? input.dailyTrend : [{ day: 'Today', alerts: 0, resolved: 0 }],
@@ -198,7 +196,7 @@ export async function getPlatformStats() {
       db.query(`
         SELECT
           COUNT(*) AS total,
-          COUNT(*) FILTER (WHERE status = 'active') AS active,
+          COUNT(*) FILTER (WHERE is_active = true) AS active,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.members
       `),
@@ -207,8 +205,7 @@ export async function getPlatformStats() {
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE status = 'active') AS active,
           COUNT(*) FILTER (WHERE status = 'expired' OR status = 'suspended') AS at_risk,
-          SUM(CASE WHEN status = 'active' AND plan = 'growth' THEN 1000
-                   WHEN status = 'active' AND plan = 'enterprise' THEN 8000 ELSE 0 END) AS mrr
+          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr
         FROM public.subscriptions
       `),
       db.query(`
@@ -229,7 +226,7 @@ export async function getPlatformStats() {
       `),
       db.query(`
         SELECT
-          action, table_name, created_at,
+          al.action, al.resource_type AS table_name, al.created_at,
           g.name AS group_name
         FROM public.audit_logs al
         LEFT JOIN public.groups g ON g.id = al.group_id
@@ -272,9 +269,9 @@ export async function getRevenueTrend() {
 
 export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
   return withAdminDb(async (db: PoolClient) => {
-    const [groups, transactions, trend] = await Promise.all([
+    const [groups, transactions, trend, heatmap] = await Promise.all([
       db.query(`
-        SELECT g.id, g.name, g.group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
+        SELECT g.id, g.name, g.type AS group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
                m.first_name || ' ' || m.last_name AS admin_name
         FROM public.groups g
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
@@ -289,44 +286,92 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         LIMIT 12
       `),
       db.query(`
-        SELECT 'Mon' AS day, 2 AS alerts, 1 AS resolved
-        UNION ALL SELECT 'Tue', 3, 2
-        UNION ALL SELECT 'Wed', 1, 1
-        UNION ALL SELECT 'Thu', 4, 2
-        UNION ALL SELECT 'Fri', 2, 3
-        UNION ALL SELECT 'Sat', 1, 1
-        UNION ALL SELECT 'Sun', 2, 2
+        SELECT TO_CHAR(d.day, 'Dy') AS day,
+               COUNT(t.id) FILTER (WHERE t.status IN ('failed','pending'))     AS alerts,
+               COUNT(t.id) FILTER (WHERE t.status NOT IN ('failed','pending')) AS resolved
+        FROM generate_series((CURRENT_DATE - INTERVAL '6 days')::date, CURRENT_DATE::date, INTERVAL '1 day') d(day)
+        LEFT JOIN public.mpesa_transactions t ON t.created_at::date = d.day
+        GROUP BY d.day
+        ORDER BY d.day
+      `),
+      db.query(`
+        WITH txn AS (
+          SELECT g.type::text AS segment,
+                 COUNT(*) AS total,
+                 COUNT(*) FILTER (WHERE t.status IN ('failed','pending')) AS risky
+          FROM public.mpesa_transactions t
+          JOIN public.groups g ON g.id = t.group_id
+          GROUP BY g.type
+        ),
+        lo AS (
+          SELECT g.type::text AS segment,
+                 COUNT(*) AS total,
+                 COUNT(*) FILTER (WHERE COALESCE(l.days_in_arrears, 0) > 0) AS arrears
+          FROM public.loans l
+          JOIN public.groups g ON g.id = l.group_id
+          GROUP BY g.type
+        )
+        SELECT g.type::text AS segment,
+               ROUND(100.0 * COALESCE(MAX(txn.risky), 0) / NULLIF(MAX(txn.total), 0))::int AS fraud,
+               ROUND(AVG(COALESCE(g.risk_score, 0)))::int                                  AS aml,
+               ROUND(100.0 * COALESCE(MAX(lo.arrears), 0) / NULLIF(MAX(lo.total), 0))::int  AS credit,
+               ROUND(AVG(COALESCE(g.risk_score, 0)))::int                                  AS liquidity,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE g.kyc_verified_at IS NULL) / NULLIF(COUNT(*), 0))::int AS compliance
+        FROM public.groups g
+        LEFT JOIN txn ON txn.segment = g.type::text
+        LEFT JOIN lo  ON lo.segment  = g.type::text
+        GROUP BY g.type
+        ORDER BY g.type
       `),
     ]);
+
+    const prettySegment = (s: string) =>
+      s === 'sacco' ? 'SACCOs'
+      : s === 'chama' ? 'Chamas'
+      : s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') + 's';
 
     return buildRiskDashboardPayload({
       groups: groups.rows,
       transactions: transactions.rows,
       dailyTrend: trend.rows,
+      heatmap: heatmap.rows.map((r: Record<string, unknown>) => ({
+        segment: prettySegment(String(r.segment)),
+        scores: [r.fraud, r.aml, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
+      })),
     });
   });
 }
 
 export async function getMonitoringDashboardData(): Promise<MonitoringDashboardPayload> {
   return withAdminDb(async (db: PoolClient) => {
-    const [services, hourlyVolume, smsUsage, transactions] = await Promise.all([
-      Promise.resolve([
-        { id: 'c2b', name: 'Daraja C2B (Paybill/Till)', group: 'M-Pesa / Daraja' as const, status: 'operational' as const, latency: 320, success: 99.7, note: 'Confirmation + validation healthy' },
-        { id: 'b2c', name: 'Daraja B2C (Disbursements)', group: 'M-Pesa / Daraja' as const, status: 'operational' as const, latency: 540, success: 99.2, note: 'Queue depth normal' },
-        { id: 'stk', name: 'STK Push (Express)', group: 'M-Pesa / Daraja' as const, status: 'degraded' as const, latency: 1480, success: 94.1, note: 'Elevated timeouts on Safaricom side' },
-        { id: 'sms', name: 'SMS Gateway', group: 'Messaging' as const, status: 'operational' as const, latency: 380, success: 98.8, note: 'Sender IDs approved' },
-        { id: 'webhooks', name: 'Outbound Webhooks', group: 'Platform' as const, status: 'operational' as const, latency: 150, success: 99.6, note: 'No backlog' },
-        { id: 'api', name: 'Public API (v1)', group: 'Platform' as const, status: 'operational' as const, latency: 95, success: 99.95, note: 'p95 within SLA' },
-      ]),
-      Promise.resolve([
-        { hour: '06:00', count: 42, value: 184000 },
-        { hour: '08:00', count: 118, value: 642000 },
-        { hour: '10:00', count: 203, value: 1180000 },
-        { hour: '12:00', count: 176, value: 905000 },
-        { hour: '14:00', count: 231, value: 1340000 },
-        { hour: '16:00', count: 289, value: 1620000 },
-        { hour: '18:00', count: 197, value: 980000 },
-      ]),
+    const [channels, smsHealth, hourly, smsUsage, transactions] = await Promise.all([
+      // Per-channel M-Pesa health from real transactions (last 24h): success
+      // rate + average round-trip latency (completed_at − initiated_at).
+      db.query(`
+        SELECT transaction_type,
+               COUNT(*)                                                 AS total,
+               COUNT(*) FILTER (WHERE status NOT IN ('failed','pending')) AS ok,
+               COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - initiated_at)) * 1000)
+                 FILTER (WHERE completed_at IS NOT NULL AND initiated_at IS NOT NULL)), 0)::int AS latency_ms
+        FROM public.mpesa_transactions
+        WHERE created_at >= NOW() - INTERVAL '24 hours'
+        GROUP BY transaction_type
+      `),
+      db.query(`
+        SELECT COUNT(*) AS total,
+               COUNT(*) FILTER (WHERE status IN ('sent','delivered')) AS ok
+        FROM public.sms_usage_logs
+        WHERE created_at >= NOW() - INTERVAL '24 hours'
+      `),
+      // Today's transaction volume by hour (real).
+      db.query(`
+        SELECT TO_CHAR(DATE_TRUNC('hour', created_at), 'HH24:00') AS hour,
+               COUNT(*) AS count, COALESCE(SUM(amount), 0) AS value
+        FROM public.mpesa_transactions
+        WHERE created_at >= CURRENT_DATE
+        GROUP BY DATE_TRUNC('hour', created_at)
+        ORDER BY DATE_TRUNC('hour', created_at)
+      `),
       db.query(`
         SELECT COALESCE(SUM(CASE WHEN status = 'sent' OR status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered,
                COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed,
@@ -344,12 +389,53 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
       `),
     ]);
 
+    // ── Build real service-health rows from the channel aggregates ──────
+    type SvcStatus = 'operational' | 'degraded' | 'down';
+    const statusFor = (successPct: number, total: number): SvcStatus =>
+      total === 0 ? 'operational' : successPct >= 98 ? 'operational' : successPct >= 90 ? 'degraded' : 'down';
+
+    const chanRows = channels.rows as Array<{ transaction_type: string | null; total: string; ok: string; latency_ms: number }>;
+    const chan = (k: string) => chanRows.find((r) => (r.transaction_type ?? '').toLowerCase().includes(k));
+
+    const mpesaChannels: Array<{ id: string; name: string; key: string }> = [
+      { id: 'c2b', name: 'Daraja C2B (Paybill/Till)', key: 'c2b' },
+      { id: 'b2c', name: 'Daraja B2C (Disbursements)', key: 'b2c' },
+      { id: 'stk', name: 'STK Push (Express)', key: 'stk' },
+    ];
+
+    const services: MonitoringDashboardPayload['services'] = mpesaChannels.map((c) => {
+      const row = chan(c.key);
+      const total = Number(row?.total ?? 0);
+      const ok = Number(row?.ok ?? 0);
+      const success = total ? (ok / total) * 100 : 100;
+      return {
+        id: c.id, name: c.name, group: 'M-Pesa / Daraja' as const,
+        status: statusFor(success, total),
+        latency: Number(row?.latency_ms ?? 0),
+        success: Math.round(success * 10) / 10,
+        note: total ? `${total} txns in last 24h` : 'No traffic in last 24h',
+      };
+    });
+
+    const smsRow = smsHealth.rows[0] ?? {};
+    const smsTotal = Number(smsRow.total ?? 0);
+    const smsSuccess = smsTotal ? (Number(smsRow.ok ?? 0) / smsTotal) * 100 : 100;
+    services.push({
+      id: 'sms', name: 'SMS Gateway', group: 'Messaging' as const,
+      status: statusFor(smsSuccess, smsTotal),
+      latency: 0,
+      success: Math.round(smsSuccess * 10) / 10,
+      note: smsTotal ? `${smsTotal} sent in last 24h` : 'No SMS in last 24h',
+    });
+
     const sms = smsUsage.rows[0] ?? {};
     const creditsRemaining = Number(sms.credits_total ?? 0) - (Number(sms.delivered ?? 0) + Number(sms.failed ?? 0));
 
     return buildMonitoringDashboardPayload({
       services,
-      hourlyVolume,
+      hourlyVolume: hourly.rows.map((r: Record<string, unknown>) => ({
+        hour: String(r.hour), count: Number(r.count ?? 0), value: Number(r.value ?? 0),
+      })),
       smsUsage: {
         sentToday: Number(sms.sent_today ?? 0),
         delivered: Number(sms.delivered ?? 0),
@@ -391,7 +477,7 @@ export async function listOrganizations(params: OrgListParams) {
       values.push(status); idx++;
     }
     if (plan) {
-      conditions.push(`s.plan = $${idx}`);
+      conditions.push(`s.plan_type = $${idx}`);
       values.push(plan); idx++;
     }
 
@@ -400,10 +486,10 @@ export async function listOrganizations(params: OrgListParams) {
     const [data, count] = await Promise.all([
       db.query(`
         SELECT
-          g.id, g.name, g.group_type, g.onboarding_status,
+          g.id, g.name, g.type AS group_type, g.onboarding_status,
           g.risk_score, g.engagement_score, g.created_at,
           g.suspended_at, g.suspended_reason,
-          COALESCE(s.plan, 'starter') AS plan,
+          COALESCE(s.plan_type, 'starter') AS plan,
           COALESCE(s.status, 'active') AS subscription_status,
           COUNT(DISTINCT gm.id)   AS member_count,
           COALESCE(SUM(DISTINCT c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions,
@@ -414,7 +500,7 @@ export async function listOrganizations(params: OrgListParams) {
         LEFT JOIN public.contributions c ON c.group_id = g.id
         LEFT JOIN public.loans l ON l.group_id = g.id
         ${where}
-        GROUP BY g.id, s.plan, s.status
+        GROUP BY g.id, s.plan_type, s.status
         ORDER BY g.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...values, limit, offset]),
@@ -434,10 +520,10 @@ export async function getOrganizationById(groupId: string) {
   return withAdminDb(async (db: PoolClient) => {
     const [group, stats, recentActivity] = await Promise.all([
       db.query(`
-        SELECT g.*, s.plan, s.status AS subscription_status,
-               s.current_period_end, s.trial_ends_at,
+        SELECT g.*, g.type AS group_type, s.plan_type AS plan, s.status AS subscription_status,
+               s.expires_at AS current_period_end, s.next_billing_date AS trial_ends_at,
                m.first_name || ' ' || m.last_name AS admin_name,
-               m.phone_number AS admin_phone, m.email AS admin_email
+               m.phone AS admin_phone, m.email AS admin_email
         FROM public.groups g
         LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status IN ('active','trial')
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
@@ -463,7 +549,7 @@ export async function getOrganizationById(groupId: string) {
         GROUP BY g.id
       `, [groupId]),
       db.query(`
-        SELECT action, table_name, created_at
+        SELECT action, resource_type AS table_name, created_at
         FROM public.audit_logs
         WHERE group_id = $1
         ORDER BY created_at DESC
@@ -586,16 +672,15 @@ export async function getBillingOverview() {
           COUNT(*) FILTER (WHERE status = 'active')  AS active_subscriptions,
           COUNT(*) FILTER (WHERE status = 'expired') AS expired_subscriptions,
           COUNT(*) FILTER (WHERE status = 'trial')   AS trial_subscriptions,
-          SUM(CASE WHEN status = 'active' AND plan = 'growth'     THEN 1000
-                   WHEN status = 'active' AND plan = 'enterprise' THEN 8000 ELSE 0 END) AS mrr,
-          COUNT(*) FILTER (WHERE current_period_end < NOW() AND status = 'active') AS overdue_count
+          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
+          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
         FROM public.subscriptions
       `),
       db.query(`
-        SELECT plan, COUNT(*) AS count,
-          SUM(CASE WHEN plan = 'growth' THEN 1000 WHEN plan = 'enterprise' THEN 8000 ELSE 0 END) AS revenue
+        SELECT plan_type AS plan, COUNT(*) AS count,
+          COALESCE(SUM(monthly_fee), 0) AS revenue
         FROM public.subscriptions WHERE status = 'active'
-        GROUP BY plan ORDER BY revenue DESC
+        GROUP BY plan_type ORDER BY revenue DESC
       `),
       db.query(`
         SELECT p.id, p.amount, p.status, p.payment_method, p.created_at,
@@ -606,11 +691,14 @@ export async function getBillingOverview() {
         ORDER BY p.created_at DESC LIMIT 20
       `),
       db.query(`
-        SELECT i.id, i.invoice_number, i.amount_due, i.due_date, i.status,
+        SELECT i.id, i.invoice_number,
+               (i.total_amount - COALESCE(i.paid_amount, 0)) AS amount_due,
+               i.due_date, i.status,
+               (i.status = 'pending' AND i.due_date < NOW()) AS is_overdue,
                g.name AS group_name
         FROM public.invoices i
         LEFT JOIN public.groups g ON g.id = i.group_id
-        WHERE i.status IN ('pending','overdue')
+        WHERE i.status = 'pending'
         ORDER BY i.due_date ASC LIMIT 20
       `),
     ]);
@@ -726,8 +814,8 @@ export async function listAuditLogs(params: {
 
     if (groupId) { conds.push(`al.group_id = $${idx}`);                   vals.push(groupId); idx++; }
     if (action)  { conds.push(`al.action = $${idx}`);                      vals.push(action);  idx++; }
-    if (tbl)     { conds.push(`al.table_name = $${idx}`);                  vals.push(tbl);     idx++; }
-    if (search)  { conds.push(`al.table_name ILIKE $${idx}`);              vals.push(`%${search}%`); idx++; }
+    if (tbl)     { conds.push(`al.resource_type = $${idx}`);               vals.push(tbl);     idx++; }
+    if (search)  { conds.push(`al.resource_type ILIKE $${idx}`);           vals.push(`%${search}%`); idx++; }
     if (from)    { conds.push(`al.created_at >= $${idx}`);                 vals.push(from);    idx++; }
     if (to)      { conds.push(`al.created_at <= $${idx}`);                 vals.push(to);      idx++; }
 
@@ -735,11 +823,11 @@ export async function listAuditLogs(params: {
 
     const [data, count] = await Promise.all([
       db.query(`
-        SELECT al.*, g.name AS group_name,
+        SELECT al.*, al.resource_type AS table_name, g.name AS group_name,
                m.first_name || ' ' || m.last_name AS actor_name
         FROM public.audit_logs al
         LEFT JOIN public.groups g ON g.id = al.group_id
-        LEFT JOIN public.members m ON m.id = al.performed_by
+        LEFT JOIN public.members m ON m.id = al.actor_id
         ${where}
         ORDER BY al.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
@@ -789,7 +877,7 @@ export async function getPlatformAnalytics() {
         ORDER BY month ASC
       `),
       db.query(`
-        SELECT g.id, g.name, g.group_type,
+        SELECT g.id, g.name, g.type AS group_type,
                COUNT(DISTINCT gm.id) AS members,
                COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS contributions,
                COALESCE(SUM(l.principal_amount) FILTER (WHERE l.status IN ('active','disbursed')), 0) AS loan_book
