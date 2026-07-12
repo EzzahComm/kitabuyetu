@@ -153,7 +153,7 @@ export default function MonitoringPage() {
                   {smsUsage.creditsRemaining.toLocaleString()} / {smsUsage.creditsTotal.toLocaleString()}
                 </span>
               </div>
-              <Progress value={(smsUsage.creditsRemaining / smsUsage.creditsTotal) * 100} />
+              <Progress value={smsUsage.creditsTotal > 0 ? (smsUsage.creditsRemaining / smsUsage.creditsTotal) * 100 : 0} />
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
@@ -215,7 +215,7 @@ export default function MonitoringPage() {
                     <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Unable to load monitoring data right now.</td>
                   </tr>
                 ) : feed.map((tx, i) => {
-                  const ts = typeStyle[tx.type];
+                  const ts = typeStyle[tx.type] ?? typeStyle.C2B;
                   return (
                     <tr key={tx.id} className={`border-t transition-colors hover:bg-muted/30 ${i === 0 && live ? 'animate-in fade-in slide-in-from-top-1' : ''}`}>
                       <td className="px-4 py-2.5">

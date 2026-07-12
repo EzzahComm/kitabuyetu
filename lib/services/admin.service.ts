@@ -168,7 +168,12 @@ export function buildMonitoringDashboardPayload(input: {
     smsUsage: input.smsUsage,
     transactions: input.transactions.map((tx) => ({
       id: tx.id,
-      type: (tx.transaction_type ?? 'C2B').toUpperCase().replace('C2B', 'C2B').replace('B2C', 'B2C').replace('STK', 'STK') as 'C2B' | 'B2C' | 'STK',
+      // DB values are 'stk_push' / 'c2b' / 'b2c' (+ others filtered out at the
+      // query). Normalize to the three feed badges; anything unexpected renders
+      // as C2B rather than crashing the page on an unknown key.
+      type: ((t: string) =>
+        t.includes('stk') ? 'STK' : t.includes('b2c') ? 'B2C' : 'C2B'
+      )((tx.transaction_type ?? '').toLowerCase()) as 'C2B' | 'B2C' | 'STK',
       org: 'Platform activity',
       phone: tx.phone_number ?? '',
       amount: Number(tx.amount ?? 0),
@@ -384,6 +389,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
       db.query(`
         SELECT id, transaction_type, phone_number, amount, status, mpesa_receipt_number, reference, created_at
         FROM public.mpesa_transactions
+        WHERE transaction_type IN ('c2b', 'b2c', 'stk_push')
         ORDER BY created_at DESC
         LIMIT 12
       `),
