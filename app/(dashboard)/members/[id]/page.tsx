@@ -20,6 +20,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nextOfKinApi, membersApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
+import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
 
 const roleVariant: Record<string, any> = {
   chairperson: 'default',
@@ -350,90 +351,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       <StkPromptDialog
         open={stkOpen}
         onClose={() => setStkOpen(false)}
-        phone={m.phone ?? ''}
-        memberName={fullName}
+        member={{ name: fullName, phone: m.phone ?? '' }}
       />
     </div>
   );
-}
-
-// ─── STK push prompt ────────────────────────────────────────────────────
-
-function StkPromptDialog({
-  open, onClose, phone, memberName,
-}: { open: boolean; onClose: () => void; phone: string; memberName: string }) {
-  const { toast } = useToast();
-  const [amount, setAmount]   = useState('');
-  const [sending, setSending] = useState(false);
-  const [status, setStatus]   = useState<string | null>(null);
-
-  const send = async () => {
-    const amt = parseInt(amount, 10);
-    if (!amt || amt <= 0) { toast({ variant: 'destructive', title: 'Enter a whole-shilling amount' }); return; }
-    setSending(true);
-    setStatus(null);
-    try {
-      const res = await fetchStk(amt, phone);
-      const checkoutId = res?.checkoutRequestId;
-      toast({ title: 'STK push sent', description: 'Ask the member to enter their M-Pesa PIN.' });
-      if (checkoutId) void pollStatus(checkoutId, setStatus);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'STK push failed', description: err?.message });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { setAmount(''); setStatus(null); onClose(); } }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Request M-Pesa payment</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Prompt <span className="font-medium text-foreground">{memberName}</span> ({phone}) to pay a contribution.
-          </p>
-          <div className="space-y-1">
-            <Label>Amount (KES)</Label>
-            <Input type="number" min={1} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="500" />
-          </div>
-          {status && (
-            <p className={`text-sm ${status === 'completed' ? 'text-green-600' : status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>
-              Status: {status}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={send} loading={sending}>Send prompt</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-async function fetchStk(amount: number, phone: string): Promise<{ checkoutRequestId?: string }> {
-  const { api } = await import('@/lib/api/client');
-  return api.post<{ checkoutRequestId?: string }>('/mpesa/stk-push', {
-    phone,
-    amount,
-    accountReference: 'CONTRIB',
-    description:      'Contribution',
-    purpose:          'contribution',
-  });
-}
-
-async function pollStatus(checkoutId: string, setStatus: (s: string) => void): Promise<void> {
-  const { api } = await import('@/lib/api/client');
-  for (let i = 0; i < 12; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
-    try {
-      const res = await api.get<{ status: string }>(`/mpesa/status?checkoutRequestId=${encodeURIComponent(checkoutId)}`);
-      setStatus(res.status);
-      if (res.status === 'completed' || res.status === 'failed') return;
-    } catch {
-      // keep polling — transient
-    }
-  }
 }
 
 // ─── Next-of-kin row + delete ───────────────────────────────────────────

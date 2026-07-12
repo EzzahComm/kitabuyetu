@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users, Heart, ArrowRight, AlertCircle, CheckCircle2,
@@ -17,6 +18,7 @@ import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
+import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
 
 interface TaskRowProps {
   icon: React.ElementType;
@@ -84,6 +86,7 @@ function MoneyTile({ label, value, sub, href, icon: Icon }: {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [stkOpen, setStkOpen] = useState(false);
 
   const { data: membersData }       = useMembers({ page: 1, limit: 1 });
   const { data: contributionsData } = useContributions({ page: 1, limit: 5 });
@@ -136,11 +139,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Link href="/mpesa">
-            <Button size="sm" className="gap-1.5 h-9">
-              <Smartphone size={15} /> Request payment
-            </Button>
-          </Link>
+          {/* Opens the in-dashboard STK Push flow — no page navigation. */}
+          <Button size="sm" className="gap-1.5 h-9" onClick={() => setStkOpen(true)}>
+            <Smartphone size={15} /> Request payment
+          </Button>
           <Link href="/contributions">
             <Button size="sm" variant="outline" className="gap-1.5 h-9">
               <Plus size={15} /> Record
@@ -279,6 +281,8 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <StkPromptDialog open={stkOpen} onClose={() => setStkOpen(false)} />
     </div>
   );
 }

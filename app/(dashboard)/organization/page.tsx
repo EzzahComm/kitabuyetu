@@ -1,73 +1,510 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { organizationApi } from '@/lib/api/endpoints';
+/**
+ * Organization Ecosystem Portal.
+ *
+ * An Organization is not a group — it is a funder/monitor that oversees many
+ * groups. This dashboard gives its coordinators:
+ *   - the wallet position (capital in / committed / deployed)
+ *   - funding programs (budget envelopes) with create/pause controls
+ *   - one-click disbursement into a linked group (dual-ledger, atomic)
+ *   - portfolio metrics aggregated ONLY over linked groups (RLS-enforced)
+ */
+
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Wallet, Landmark, Users, TrendingUp, PiggyBank, ArrowDownToLine,
+  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatKES } from '@/lib/utils';
-import { useState } from 'react';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api/client';
+import { organizationApi } from '@/lib/api/endpoints';
+import { formatKES, formatDate } from '@/lib/utils';
+
+// ─── Data hooks ───────────────────────────────────────────────────────────────
+
+interface DashboardPayload {
+  financial: {
+    walletBalance: string; committedFunds: string; totalDeposited: string;
+    totalDisbursed: string; totalReturned: string;
+  };
+  portfolio: {
+    linkedGroups: number; activeMembers: number; totalSavings: string;
+    loanPortfolio: string; activeLoans: number; loanRepayments: string;
+    activePrograms: number;
+  };
+  programs: Program[];
+}
+
+interface Program {
+  id: string; name: string; program_type: string; budget: string;
+  disbursed_total: string; status: string; funding_source: string | null;
+}
+
+interface Disbursement {
+  id: string; group_name?: string; program_name?: string | null;
+  disbursement_type: string; amount: string; status: string;
+  reference: string; created_at: string;
+}
+
+const PROGRAM_TYPES = [
+  ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
+  ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
+  ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
+  ['scholarship', 'Scholarship'],
+] as const;
+
+const DISBURSEMENT_TYPES = [
+  ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
+  ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
+  ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
+] as const;
+
+function Metric({ label, value, sub, icon: Icon }: {
+  label: string; value: string; sub?: string; icon: React.ElementType;
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase text-muted-foreground tracking-wide">{label}</p>
+          <p className="mt-1 text-xl font-bold truncate">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        </div>
+        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function OrganizationPage() {
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [depositOpen, setDepositOpen]   = useState(false);
+  const [programOpen, setProgramOpen]   = useState(false);
+  const [disburseOpen, setDisburseOpen] = useState(false);
 
-  const { data: groups, isLoading } = useQuery({ queryKey: ['organization','groups'], queryFn: organizationApi.groups });
-  const { data: detail, isLoading: loadingDetail } = useQuery({
-    queryKey: ['organization','detail', selectedGroup],
-    queryFn:  () => organizationApi.detail(selectedGroup!),
-    enabled:  !!selectedGroup,
+  const { data: dash, isLoading } = useQuery<DashboardPayload>({
+    queryKey: ['organization', 'dashboard'],
+    queryFn:  () => api.get('/organization/dashboard'),
+    staleTime: 30_000,
+    refetchInterval: 120_000,
   });
+
+  const { data: groups } = useQuery<{ groupId: string; groupName: string }[]>({
+    queryKey: ['organization', 'groups'],
+    queryFn:  organizationApi.groups as () => Promise<{ groupId: string; groupName: string }[]>,
+    staleTime: 60_000,
+  });
+
+  const { data: disb } = useQuery<{ items: Disbursement[] }>({
+    queryKey: ['organization', 'disbursements'],
+    queryFn:  () => api.get('/organization/disbursements?limit=10'),
+    staleTime: 30_000,
+  });
+
+  const toggleProgram = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch(`/organization/programs/${id}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organization'] });
+      toast({ title: 'Program updated' });
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
+  });
+
+  const f = dash?.financial;
+  const p = dash?.portfolio;
+  const linkedGroups = groups ?? [];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Organization Portal</h1>
-        <p className="text-sm text-muted-foreground">Monitor affiliated groups</p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Organization Portal</h1>
+          <p className="text-sm text-muted-foreground">
+            Fund, monitor and support your linked groups
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
+            <ArrowDownToLine size={15} /> Deposit
+          </Button>
+          <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
+            <ArrowRightLeft size={15} /> Disburse funds
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Groups</h2>
-          {isLoading ? (
-            Array.from({length:3}).map((_,i)=><Skeleton key={i} className="h-16 w-full"/>)
-          ) : (
-            (groups ?? []).flatMap((organization: any) =>
-              (organization.groups ?? []).map((g: any) => (
-                <Card
-                  key={g.groupId}
-                  className={`cursor-pointer transition-colors ${selectedGroup === g.groupId ? 'ring-2 ring-brand-500' : 'hover:bg-muted/50'}`}
-                  onClick={() => setSelectedGroup(g.groupId)}
-                >
-                  <CardContent className="p-4">
-                    <p className="font-medium">{g.groupName}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs capitalize">{g.groupType}</Badge>
-                      <span className="text-xs text-muted-foreground">{g.memberCount ?? '?'} members</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )
-          )}
+      {/* Financial position */}
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
         </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label="Wallet balance" value={formatKES(parseFloat(f?.walletBalance ?? '0'))}
+                  sub={`${formatKES(parseFloat(f?.committedFunds ?? '0'))} committed`} icon={Wallet} />
+          <Metric label="Total deposited" value={formatKES(parseFloat(f?.totalDeposited ?? '0'))} icon={ArrowDownToLine} />
+          <Metric label="Total disbursed" value={formatKES(parseFloat(f?.totalDisbursed ?? '0'))}
+                  sub={`${formatKES(parseFloat(f?.totalReturned ?? '0'))} returned`} icon={ArrowRightLeft} />
+          <Metric label="Active programs" value={String(p?.activePrograms ?? 0)} icon={FolderKanban} />
+        </div>
+      )}
 
-        <div className="lg:col-span-2">
-          {!selectedGroup ? (
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm border rounded-lg">
-              Select a group to view details
+      {/* Portfolio */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Metric label="Linked groups" value={String(p?.linkedGroups ?? 0)} icon={Landmark} />
+        <Metric label="Active members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users} />
+        <Metric label="Savings mobilized" value={formatKES(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
+        <Metric label="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
+                sub={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Funding programs */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Funding programs</CardTitle>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setProgramOpen(true)}>
+                <Plus size={13} /> New program
+              </Button>
             </div>
-          ) : loadingDetail ? (
-            <Skeleton className="h-64 w-full"/>
-          ) : (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Group Report</CardTitle></CardHeader>
-              <CardContent>
-                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">{JSON.stringify(detail, null, 2)}</pre>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {(dash?.programs ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No programs yet — create a funding envelope to start disbursing.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {(dash?.programs ?? []).map((pr) => {
+                  const spent = parseFloat(pr.disbursed_total);
+                  const budget = parseFloat(pr.budget);
+                  const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+                  return (
+                    <div key={pr.id} className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{pr.name}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {pr.program_type.replace(/_/g, ' ')}
+                            {pr.funding_source ? ` · ${pr.funding_source}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant={pr.status === 'active' ? 'success' : 'outline'} className="text-xs capitalize">
+                            {pr.status}
+                          </Badge>
+                          <Button
+                            size="sm" variant="ghost" className="h-7 w-7 p-0"
+                            title={pr.status === 'active' ? 'Pause program' : 'Reactivate program'}
+                            onClick={() => toggleProgram.mutate({
+                              id: pr.id,
+                              status: pr.status === 'active' ? 'paused' : 'active',
+                            })}
+                          >
+                            {pr.status === 'active' ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded bg-muted">
+                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatKES(spent)} of {formatKES(budget)} disbursed
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent disbursements */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Recent disbursements</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(disb?.items ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No disbursements yet.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {(disb?.items ?? []).map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{d.group_name ?? d.id}</p>
+                      <p className="text-xs text-muted-foreground capitalize truncate">
+                        {d.disbursement_type.replace(/_/g, ' ')}
+                        {d.program_name ? ` · ${d.program_name}` : ''} · {formatDate(d.created_at)}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold">{formatKES(parseFloat(d.amount))}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground">{d.reference}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Linked groups */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Linked groups</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {linkedGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No groups linked yet. Group links are managed by the platform team.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {linkedGroups.map((g: any) => (
+                <div key={g.groupId} className="rounded-lg border p-3">
+                  <p className="font-medium text-sm truncate">{g.groupName}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {g.groupType && <Badge variant="outline" className="text-xs capitalize">{g.groupType}</Badge>}
+                    <span>{g.activeMemberCount ?? 0} members</span>
+                    <span>{formatKES(parseFloat(g.totalContributions ?? '0'))} saved</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <DepositDialog open={depositOpen} onClose={() => setDepositOpen(false)} />
+      <ProgramDialog open={programOpen} onClose={() => setProgramOpen(false)} />
+      <DisburseDialog
+        open={disburseOpen}
+        onClose={() => setDisburseOpen(false)}
+        groups={linkedGroups}
+        programs={(dash?.programs ?? []).filter((pr) => pr.status === 'active')}
+      />
     </div>
+  );
+}
+
+// ─── Deposit dialog ───────────────────────────────────────────────────────────
+
+function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [amount, setAmount] = useState('');
+  const [source, setSource] = useState('');
+
+  const deposit = useMutation({
+    mutationFn: () => api.post('/organization/wallet', {
+      amount: parseFloat(amount),
+      source: source || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organization'] });
+      toast({ title: 'Deposit recorded', description: 'Wallet balance updated.' });
+      setAmount(''); setSource('');
+      onClose();
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Deposit failed', description: e.message }),
+  });
+
+  const ok = parseFloat(amount) > 0;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Record a deposit</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Amount (KES)</Label>
+            <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1000000" />
+          </div>
+          <div className="space-y-1">
+            <Label>Funding source <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. World Bank FY26 tranche" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Recorded on the organization ledger. Bank/M-Pesa settlement is reconciled separately.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => deposit.mutate()} disabled={!ok || deposit.isPending}>Record deposit</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── New program dialog ───────────────────────────────────────────────────────
+
+function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [name, setName]     = useState('');
+  const [type, setType]     = useState<string>('grant');
+  const [budget, setBudget] = useState('');
+  const [source, setSource] = useState('');
+
+  const create = useMutation({
+    mutationFn: () => api.post('/organization/programs', {
+      name,
+      programType: type,
+      budget: parseFloat(budget),
+      fundingSource: source || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organization'] });
+      toast({ title: 'Program created' });
+      setName(''); setBudget(''); setSource(''); setType('grant');
+      onClose();
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Create failed', description: e.message }),
+  });
+
+  const ok = name.trim().length >= 3 && parseFloat(budget) > 0;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>New funding program</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Program name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Women Empowerment Fund" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Type</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={type} onChange={(e) => setType(e.target.value)}
+              >
+                {PROGRAM_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Budget (KES)</Label>
+              <Input type="number" min={1} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="5000000" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Funding source <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Donor / internal budget line" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => create.mutate()} disabled={!ok || create.isPending}>Create program</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Disburse dialog ──────────────────────────────────────────────────────────
+
+function DisburseDialog({ open, onClose, groups, programs }: {
+  open: boolean; onClose: () => void;
+  groups: { groupId: string; groupName: string }[];
+  programs: Program[];
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [groupId, setGroupId]   = useState('');
+  const [amount, setAmount]     = useState('');
+  const [type, setType]         = useState<string>('grant');
+  const [programId, setProgramId] = useState('');
+  const [notes, setNotes]       = useState('');
+
+  const disburse = useMutation({
+    mutationFn: () => api.post('/organization/disbursements', {
+      groupId,
+      amount: parseFloat(amount),
+      disbursementType: type,
+      fundingProgramId: programId || undefined,
+      notes: notes || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organization'] });
+      toast({ title: 'Funds disbursed', description: 'Both ledgers updated.' });
+      setGroupId(''); setAmount(''); setNotes(''); setProgramId(''); setType('grant');
+      onClose();
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Disbursement failed', description: e.message }),
+  });
+
+  const ok = !!groupId && parseFloat(amount) > 0;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Disburse funds to a group</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Group</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={groupId} onChange={(e) => setGroupId(e.target.value)}
+            >
+              <option value="">Select a linked group…</option>
+              {groups.map((g) => <option key={g.groupId} value={g.groupId}>{g.groupName}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Type</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={type} onChange={(e) => setType(e.target.value)}
+              >
+                {DISBURSEMENT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="250000" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Fund from program <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={programId} onChange={(e) => setProgramId(e.target.value)}
+            >
+              <option value="">Wallet (no program)</option>
+              {programs.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Purpose / milestone" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Debits the organization wallet and posts a balanced journal entry
+            (Cash / External Funding) in the group&apos;s own books — atomically.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => disburse.mutate()} disabled={!ok || disburse.isPending}>Disburse</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
