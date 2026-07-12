@@ -377,7 +377,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
                COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed,
                COALESCE(SUM(CASE WHEN status = 'queued' OR status = 'sent' THEN 1 ELSE 0 END), 0) AS pending,
                COUNT(*) AS sent_today,
-               50000 AS credits_total
+               (SELECT COALESCE(SUM(sms_credits), 0) FROM public.billing_accounts) AS credits_remaining
         FROM public.sms_usage_logs
         WHERE created_at >= CURRENT_DATE
       `),
@@ -429,7 +429,11 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
     });
 
     const sms = smsUsage.rows[0] ?? {};
-    const creditsRemaining = Number(sms.credits_total ?? 0) - (Number(sms.delivered ?? 0) + Number(sms.failed ?? 0));
+    // Real balance from billing_accounts (the table SMS top-ups credit and
+    // sends debit). "Total" = what the platform started today with, so the
+    // usage bar reflects today's actual burn — no invented pool size.
+    const creditsRemaining = Math.max(0, Number(sms.credits_remaining ?? 0));
+    const sentToday        = Number(sms.sent_today ?? 0);
 
     return buildMonitoringDashboardPayload({
       services,
@@ -437,12 +441,12 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         hour: String(r.hour), count: Number(r.count ?? 0), value: Number(r.value ?? 0),
       })),
       smsUsage: {
-        sentToday: Number(sms.sent_today ?? 0),
+        sentToday,
         delivered: Number(sms.delivered ?? 0),
         failed: Number(sms.failed ?? 0),
         pending: Number(sms.pending ?? 0),
-        creditsRemaining: Math.max(0, creditsRemaining),
-        creditsTotal: Number(sms.credits_total ?? 0),
+        creditsRemaining,
+        creditsTotal: creditsRemaining + sentToday,
       },
       transactions: transactions.rows,
     });

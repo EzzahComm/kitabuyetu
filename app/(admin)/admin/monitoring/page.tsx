@@ -16,6 +16,7 @@ import { ChartCard, TrendChart } from '@/components/shared/charts';
 import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import type { MonitoringDashboardPayload } from '@/lib/services/admin.service';
+import { adminFetch } from '@/hooks/use-admin';
 import { relativeTime } from './_data';
 
 const statusToneMap: Record<'operational' | 'degraded' | 'down', Tone> = {
@@ -41,12 +42,7 @@ const FEED_CAP = 40;
 export default function MonitoringPage() {
   const { data, isLoading, error } = useQuery<MonitoringDashboardPayload>({
     queryKey: ['admin', 'monitoring-dashboard'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/dashboard?widget=monitoring_dashboard');
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error ?? 'Failed to load monitoring dashboard');
-      return payload.data ?? payload;
-    },
+    queryFn: () => adminFetch<MonitoringDashboardPayload>('/api/admin/dashboard?widget=monitoring_dashboard'),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });

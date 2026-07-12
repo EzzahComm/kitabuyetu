@@ -18,6 +18,7 @@ import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import { type Severity } from './_data';
 import type { RiskDashboardPayload } from '@/lib/services/admin.service';
+import { adminFetch } from '@/hooks/use-admin';
 
 const severityTone: Record<Severity, Tone> = {
   critical: 'negative', high: 'negative', medium: 'warning', low: 'neutral',
@@ -47,12 +48,7 @@ function ago(min: number): string {
 export default function RiskDashboardPage() {
   const { data, isLoading, error } = useQuery<RiskDashboardPayload>({
     queryKey: ['admin', 'risk-dashboard'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/dashboard?widget=risk_dashboard');
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error ?? 'Failed to load risk dashboard');
-      return payload.data ?? payload;
-    },
+    queryFn: () => adminFetch<RiskDashboardPayload>('/api/admin/dashboard?widget=risk_dashboard'),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });

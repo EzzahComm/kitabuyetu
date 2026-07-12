@@ -28,6 +28,14 @@ function readAccessTokenFromStorage(): string | null {
   }
 }
 
+/**
+ * The current session's access token, for callers that build their own fetch
+ * (e.g. the admin portal's adminFetch). Same source of truth as this client.
+ */
+export function getStoredAccessToken(): string | null {
+  return readAccessTokenFromStorage();
+}
+
 let _onUnauthorized: (() => void) | null = null;
 
 // Backwards-compatible signature: still accepts the old `getToken` field but

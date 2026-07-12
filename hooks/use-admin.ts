@@ -1,14 +1,23 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getStoredAccessToken } from '@/lib/api/client';
 
-async function adminFetch<T>(
+export async function adminFetch<T>(
   path: string,
   opts?: { method?: string; json?: unknown },
 ): Promise<T> {
+  // The proxy rejects every /api/admin/* request without a Bearer token, so
+  // the backoffice session token MUST ride along. Without this header every
+  // admin widget 401s and the portal renders zeros instead of live data.
+  const headers: Record<string, string> = {};
+  const token = getStoredAccessToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (opts?.json) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(path, {
     method: opts?.method ?? 'GET',
-    headers: opts?.json ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: opts?.json ? JSON.stringify(opts.json) : undefined,
   });
   const json = await res.json();
