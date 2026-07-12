@@ -5,6 +5,51 @@
 
 ---
 
+## 0a. Hardening Pass — 2026-07-12 (follow-up, same day)
+
+Closed the remaining open code-level items from the re-audit and fixed one
+newly-discovered broken workflow. All verification gates re-run green after
+the changes (lint, typecheck, 125 tests, production build).
+
+### New finding — paybill sweep reconciliation was non-functional (HIGH)
+- **File:** `lib/services/mpesa.service.ts` → `sweepPaybillTransactions()`
+- **Impact:** `POST /api/v1/mpesa/reconcile?type=paybill` (manual or cron) failed
+  on every run. The function referenced columns that do not exist anywhere in the
+  schema — `contributions.amount_cents`, `contributions.account_reference`,
+  `contributions.period`, `mpesa_transactions.account_reference`,
+  `transaction_timestamp` — and `mpesa_reconciliations.reconciliation_type`,
+  which no migration ever created. Postgres rejected the very first INSERT, so
+  the sweep had never executed successfully. It also passed `contribution_id`
+  into a helper that immediately no-ops on that field, so even with valid SQL it
+  could never have posted a journal.
+- **Fix:** Rewrote the sweep against the real schema. It now detects **orphaned
+  paybill payments** — completed inbound C2B transactions with no domain record
+  (no contribution, loan repayment, or invoice payment for the receipt) and not
+  already queued — and routes them into `mpesa_unrouted` for treasurer
+  resolution. Idempotent via the `UNIQUE(receipt)` constraint. Added migration
+  `054_mpesa_reconciliation_type.sql` creating the missing column
+  (`stk` / `paybill_sweep` / `balance_drift`).
+
+### Open items closed
+| Item | Fix |
+|------|-----|
+| **L-3** STK Push duplicate prompts | `initiateSTKPush` now takes a 30-second Redis `SET NX` lock keyed on (groupId, phone, amount, purpose). A double-submit returns HTTP 409 with a friendly message instead of sending a second M-Pesa prompt. Lock released immediately if the Daraja call itself fails; fail-open on Redis outage so payments are never blocked. |
+| **M-2** `accounts.balance` drift risk | New daily job `accounting_balance_drift` (04:00 UTC via the existing pg_cron tick) compares the denormalized `accounts.balance` against `SUM(debit−credit)` of posted `journal_lines` — the exact convention the balance trigger maintains. Drifts are logged at error level and recorded as a `balance_drift` run in `mpesa_reconciliations` (visible in the reconciliation history endpoint). Detection only — no silent rewriting of financial balances. |
+| **L-2** Fragile SMS top-up detection | The STK callback now reads `mpesa_stk_requests.purpose = 'sms_topup'` (set explicitly at initiation) as the authoritative signal for crediting SMS balances. The `description ILIKE '%sms%'` match survives only as a fallback for legacy rows without a purpose. |
+| Proxy header spoofing (defense-in-depth) | `proxy.ts` now strips inbound `x-user-id` / `x-aud` / `x-group-id` / `x-role` / `x-group-status` / `x-organization-id` / `x-platform-role` on **every** request — including the intentionally-unauthenticated fall-throughs (auth, webhooks, M-Pesa callbacks) — so client-supplied claims can never reach a handler. |
+
+### Cleanup
+- Removed unused dependencies `ioredis` (superseded by `@upstash/redis`) and
+  `date-fns` (zero imports in source). No other dead modules found; `console.log`
+  usage confined to CLI scripts and the logger implementation.
+
+### Still open (unchanged — product/ops decisions, not code defects)
+- **M-3** starter-plan member cap (product decision; documented in `types/enums.ts`)
+- **Credential rotation** (Section C) remains a launch prerequisite.
+- Nonce-based CSP to drop `unsafe-inline` (long-term).
+
+---
+
 ## 0. Re-Audit — 2026-07-12
 
 Follow-up pass covering dependency hygiene, a security spot-review of code added

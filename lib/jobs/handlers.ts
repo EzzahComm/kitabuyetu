@@ -52,6 +52,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'mpesa_balance_snapshot':
       return handleMpesaBalanceSnapshot();
 
+    case 'accounting_balance_drift':
+      return handleAccountingBalanceDrift();
+
     case 'cleanup_expired_tokens':
       return handleCleanupExpiredTokens();
 
@@ -156,6 +159,12 @@ async function handleMpesaBalanceSnapshot(): Promise<HandlerResult> {
   const { queryAccountBalance } = await import('@/lib/services/daraja.service');
   await queryAccountBalance();
   return { message: 'M-Pesa balance snapshot requested' };
+}
+
+async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
+  const { detectBalanceDrift } = await import('@/lib/services/accounting.service');
+  const result = await detectBalanceDrift();
+  return { message: 'Balance drift audit complete', ...result };
 }
 
 // ── Cleanup handler ───────────────────────────────────────────

@@ -76,9 +76,24 @@ async function processFulfillment(
 
   const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
 
-  // Credit SMS balance if this was an SMS top-up invoice
+  // Credit SMS balance if this was an SMS top-up payment. The STK request's
+  // purpose enum is authoritative — it's set explicitly at initiation and
+  // can't drift the way invoice-item wording can. The description ILIKE match
+  // survives only as a fallback for legacy rows initiated without a purpose.
   if (payment.invoice_id) {
     const isTopup = await withAdminDb(async (db) => {
+      const { rows: stkRows } = await db.query<{ purpose: string | null }>(
+        `SELECT s.purpose
+         FROM   mpesa_stk_requests s
+         JOIN   payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
+         WHERE  p.id = $1
+         LIMIT  1`,
+        [paymentId],
+      );
+      const purpose = stkRows[0]?.purpose ?? null;
+      if (purpose !== null) return purpose === 'sms_topup';
+
+      // Legacy fallback: no purpose recorded — infer from the invoice line.
       const { rows } = await db.query<{ description: string }>(
         `SELECT ii.description FROM invoice_items ii
          WHERE ii.invoice_id=$1 AND ii.description ILIKE '%sms%' LIMIT 1`,

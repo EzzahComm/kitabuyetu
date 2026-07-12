@@ -81,6 +81,21 @@ function forbidden(message: string): NextResponse {
   );
 }
 
+// Claim headers stamped by this proxy after JWT verification. Inbound copies
+// are stripped from EVERY request (including unauthenticated fall-throughs)
+// so a client can never smuggle its own claims to a handler — belt-and-
+// suspenders even though the unauthenticated handlers don't read them.
+const CLAIM_HEADERS = [
+  'x-user-id', 'x-aud', 'x-group-id', 'x-role',
+  'x-group-status', 'x-organization-id', 'x-platform-role',
+] as const;
+
+function sanitizedHeaders(req: NextRequest): Headers {
+  const headers = new Headers(req.headers);
+  for (const h of CLAIM_HEADERS) headers.delete(h);
+  return headers;
+}
+
 // ─── Main proxy: rate limiting + JWT verification ─────────────────────────────
 export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
@@ -113,7 +128,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const isTenantApi     = pathname.startsWith('/api/v1/');
   const isBackofficeApi = pathname.startsWith('/api/admin/');
   if (!isTenantApi && !isBackofficeApi) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
   }
 
   // These tenant paths are intentionally unauthenticated.
@@ -131,7 +146,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       isWebhook
     )
   ) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
   }
 
   // ── JWT required from here on ─────────────────────────────────────────
@@ -169,8 +184,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   // ── Stamp verified claims as request headers ─────────────────────────
   // API routes read these via getAuthContext / getBackofficeContext
-  // without re-verifying the JWT.
-  const requestHeaders = new Headers(req.headers);
+  // without re-verifying the JWT. Start from sanitized headers so only
+  // proxy-stamped claims can ever reach a handler.
+  const requestHeaders = sanitizedHeaders(req);
   requestHeaders.set('x-user-id', payload.sub);
   requestHeaders.set('x-aud',     aud);
 

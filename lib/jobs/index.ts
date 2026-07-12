@@ -123,6 +123,16 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── Daily 04:00 UTC (07:00 EAT) — accounts.balance drift audit ─
+  // Compares the denormalized balance column against journal_lines sums
+  // and records any drift for finance review (detection only, no rewrite).
+  if (hour === 4) {
+    queued.accounting_balance_drift = await safe('accounting_balance_drift', {}, {
+      priority:  4,
+      dedup_key: `accounting_balance_drift:${dateStr}`,
+    });
+  }
+
   // ── Daily 05:00 UTC (08:00 EAT) — sub-account balance snapshot ─
   if (hour === 5) {
     queued.mpesa_balance_snapshot = await safe('mpesa_balance_snapshot', {}, {

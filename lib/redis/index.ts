@@ -36,6 +36,7 @@ export const keys = {
   accountLock:   (phone: string)           => `account_lock:${phone}`,
   smsQueue:      (groupId: string)         => `sms_queue:${groupId}`,
   mpesaStatus:   (checkoutReqId: string)   => `mpesa:${checkoutReqId}`,
+  stkLock:       (fingerprint: string)     => `stk_lock:${fingerprint}`,
   rateLimit:     (ip: string)              => `rl:${ip}`,
   sessionCache:  (userId: string)          => `session:${userId}`,
 };
@@ -131,4 +132,32 @@ export async function getMpesaStatus(
   checkoutRequestId: string,
 ): Promise<'pending' | 'completed' | 'failed' | null> {
   return redis.get<'pending' | 'completed' | 'failed'>(k(keys.mpesaStatus(checkoutRequestId)));
+}
+
+/**
+ * STK Push duplicate-submit guard. Acquires a short-lived lock keyed on
+ * (groupId, phone, amount, purpose) via SET NX. Returns true when acquired;
+ * false when an identical prompt was initiated within the TTL window.
+ * Fail-open: a Redis outage must never block payments, only dedup.
+ */
+export async function acquireStkLock(
+  fingerprint: string,
+  ttlSeconds = 30,
+): Promise<boolean> {
+  try {
+    const res = await redis.set(k(keys.stkLock(fingerprint)), '1', { nx: true, ex: ttlSeconds });
+    return res === 'OK';
+  } catch (err) {
+    logger.warn('[redis] STK lock unavailable — allowing request', { err: String(err) });
+    return true;
+  }
+}
+
+/** Releases the STK lock early (e.g. the Daraja call itself failed). */
+export async function releaseStkLock(fingerprint: string): Promise<void> {
+  try {
+    await redis.del(k(keys.stkLock(fingerprint)));
+  } catch {
+    // TTL will expire it anyway
+  }
 }

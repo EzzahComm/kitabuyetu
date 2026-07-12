@@ -1,5 +1,6 @@
 import { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
+import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
 import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
@@ -243,3 +244,71 @@ export const accountingService = {
     });
   },
 };
+
+// ─── Balance drift reconciliation (platform-wide scheduled job) ──────────────
+
+export interface BalanceDriftResult {
+  accountsChecked: number;
+  driftsFound:     number;
+}
+
+interface DriftRow {
+  account_id:   string;
+  group_id:     string;
+  account_code: string;
+  name:         string;
+  stored:       string;
+  computed:     string;
+}
+
+/**
+ * Audits the denormalized accounts.balance column against the source of
+ * truth — SUM(debit - credit) over journal_lines of POSTED entries (the
+ * exact convention the trg_journal_lines_update_balance trigger maintains).
+ *
+ * Detection only, no auto-remediation: silently rewriting a financial
+ * balance would mask whatever caused the drift. Each drifted account is
+ * logged and the full list is recorded as a 'balance_drift' run in
+ * mpesa_reconciliations, which surfaces in the reconciliation history UI.
+ */
+export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
+  return withAdminDb(async (db) => {
+    const { rows: countRows } = await db.query<{ n: string }>(
+      `SELECT COUNT(*) AS n FROM accounts WHERE is_active = true`,
+    );
+    const accountsChecked = parseInt(countRows[0]?.n ?? '0', 10);
+
+    const { rows: drifts } = await db.query<DriftRow>(
+      `SELECT a.id AS account_id, a.group_id, a.account_code, a.name,
+              a.balance::text AS stored,
+              COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted'), 0)::text AS computed
+       FROM   accounts a
+       LEFT JOIN journal_lines   jl ON jl.account_id = a.id
+       LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+       WHERE  a.is_active = true
+       GROUP  BY a.id, a.group_id, a.account_code, a.name, a.balance
+       HAVING ABS(a.balance - COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted'), 0)) > 0.005
+       LIMIT  200`,
+    );
+
+    for (const d of drifts) {
+      logger.error('[accounting] balance drift detected', {
+        groupId:     d.group_id,
+        accountCode: d.account_code,
+        account:     d.name,
+        stored:      d.stored,
+        computed:    d.computed,
+      });
+    }
+
+    await db.query(
+      `INSERT INTO mpesa_reconciliations
+         (group_id, initiated_by, status, reconciliation_type,
+          transactions_checked, mismatches_found, resolved_count, details, completed_at)
+       VALUES (NULL, NULL, 'completed', 'balance_drift', $1, $2, 0, $3, NOW())`,
+      [accountsChecked, drifts.length, JSON.stringify(drifts)],
+    );
+
+    return { accountsChecked, driftsFound: drifts.length };
+  });
+}
