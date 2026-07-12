@@ -53,6 +53,39 @@ function buildRequestBody(body: unknown, multipart = false): BodyInit | undefine
   return body !== undefined ? JSON.stringify(body) : undefined;
 }
 
+/**
+ * A 401 means different things depending on whether the request was
+ * authenticated:
+ *
+ *  - We SENT a token → it was rejected → the session really is gone. Fire
+ *    onUnauthorized (bounce to login) and show the session-expired message.
+ *  - We sent NO token (login / register / refresh / MFA verify) → this is a
+ *    credential or challenge error, not an expired session. Surface the
+ *    server's real message ("Invalid email or password", "Sign-in session
+ *    expired. Start again.", …) instead of the misleading generic one.
+ */
+async function handle401(res: Response, hadToken: boolean): Promise<never> {
+  let serverError: { error?: string; code?: string } | null = null;
+  try {
+    serverError = await res.json() as { error?: string; code?: string };
+  } catch { /* non-JSON body */ }
+
+  if (hadToken) {
+    _onUnauthorized?.();
+    throw new ApiError(
+      serverError?.error ?? 'Session expired. Please log in again.',
+      serverError?.code  ?? 'SESSION_EXPIRED',
+      401,
+    );
+  }
+
+  throw new ApiError(
+    serverError?.error ?? 'Authentication failed',
+    serverError?.code  ?? 'UNAUTHORIZED',
+    401,
+  );
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -67,8 +100,7 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    _onUnauthorized?.();
-    throw new Error('Session expired. Please log in again.');
+    return handle401(res, Boolean(headers['Authorization']));
   }
 
   const json = await res.json() as ApiResponse<T>;
@@ -101,8 +133,7 @@ async function openBlob(path: string): Promise<void> {
   const headers = buildHeaders(undefined);
   const res = await fetch(`${BASE}${path}`, { headers });
   if (res.status === 401) {
-    _onUnauthorized?.();
-    throw new Error('Session expired. Please log in again.');
+    await handle401(res, Boolean(headers['Authorization']));
   }
   if (!res.ok) {
     // Binary endpoints still return JSON errors via handleError.

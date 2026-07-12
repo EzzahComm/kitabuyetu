@@ -76,10 +76,10 @@ export default function CtaSection() {
           <p className="mt-6 font-mono text-xs text-white/60">
             Questions?{' '}
             <a
-              href="mailto:support@kitabuyetu.co.ke"
+              href="mailto:kitabuyetu@gmail.com"
               className="underline underline-offset-4 transition-colors hover:text-white"
             >
-              support@kitabuyetu.co.ke
+              kitabuyetu@gmail.com
             </a>
           </p>
         </motion.div>

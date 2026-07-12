@@ -60,17 +60,22 @@ export default function Footer() {
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
                 <a
-                  href="mailto:support@kitabuyetu.co.ke"
+                  href="mailto:kitabuyetu@gmail.com"
                   className="hover:text-green-600 transition-colors"
                 >
-                  support@kitabuyetu.co.ke
+                  kitabuyetu@gmail.com
                 </a>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                <a href="tel:+254700000000" className="hover:text-green-600 transition-colors">
-                  +254 700 000 000
-                </a>
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                <div className="flex flex-col">
+                  <a href="tel:+254717548646" className="hover:text-green-600 transition-colors">
+                    +254 717 548 646
+                  </a>
+                  <a href="tel:+254738692698" className="hover:text-green-600 transition-colors">
+                    +254 738 692 698
+                  </a>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-slate-400 flex-shrink-0" />
