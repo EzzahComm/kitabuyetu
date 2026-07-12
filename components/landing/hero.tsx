@@ -47,10 +47,9 @@ export default function Hero() {
             </h1>
 
             <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/80">
-              Kitabu Yetu is the financial operating system for Kenya&apos;s community
-              groups. Members save and pay from a wallet on their phone, treasurers run
-              the whole book, and SACCO federations oversee hundreds of branches — with
-              every M-Pesa shilling reconciled automatically.
+              Kitabu Yetu helps Kenya&apos;s savings groups manage money in one place.
+              Members save and pay with M-Pesa from their phone, treasurers keep the
+              books, and every shilling is matched automatically.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">

@@ -14,15 +14,15 @@ import {
 const tiers = [
   {
     icon: Wallet,
-    title: 'Member Experience',
-    feature: 'Individual digital wallets, accessible from the mobile app.',
+    title: 'Members',
+    feature: 'A wallet on every member’s phone.',
     solution:
       'Financial inclusion. No need to physically meet or travel to hand over cash — members participate from anywhere, on any phone.',
   },
   {
     icon: LayoutDashboard,
-    title: 'Treasurer Experience',
-    feature: 'Centralized group dashboard with automated journal entries.',
+    title: 'Treasurers',
+    feature: 'One dashboard that records every entry for you.',
     solution:
       'Human error, eliminated. Treasurers run the whole book digitally — no lost ledgers, no arithmetic mistakes, no lag in recording transactions.',
   },
@@ -36,42 +36,42 @@ const tiers = [
   {
     icon: RefreshCw,
     title: 'Accounting',
-    feature: 'Real-time, automated M-Pesa reconciliation.',
+    feature: 'Every M-Pesa payment matched automatically.',
     solution:
       'Instant reporting and compliance. 100% certainty on who has paid, zero end-of-month reconciliation, and an audit trail everyone trusts.',
   },
   {
     icon: Building2,
     title: 'SACCO Federation',
-    feature: 'Multi-tier branch hierarchy management.',
+    feature: 'Manage every branch from one place.',
     solution:
       "Institutional visibility. A real-time, bird's-eye view of cash flow, liquidity, and member liabilities across every branch — not delayed, fragmented reports.",
   },
   {
     icon: Handshake,
     title: 'Credit Marketplace',
-    feature: 'Third-party API integration and credit scoring dashboards for external lenders.',
+    feature: 'Credit scores and lender access built in.',
     solution:
       'Data-driven capital access. Groups skip the paperwork; lenders issue de-risked loans against verified M-Pesa transaction history.',
   },
   {
     icon: ShieldCheck,
     title: 'Micro-Insurance Distribution',
-    feature: 'B2B embedded insurance portals and group policy premium checkout links for agents.',
+    feature: 'Offer insurance cover to members in a few taps.',
     solution:
       'Automated risk mitigation. Members get health, agricultural, or life cover fit to community risk — with zero admin overhead for agents.',
   },
   {
     icon: TrendingUp,
     title: 'Investment Portfolio Management',
-    feature: 'Multi-ledger setup, asset tracking accounts, and sub-project investment bookkeeping.',
+    feature: 'Track investments and assets, each in its own book.',
     solution:
       'Asset diversification and growth. Groups track real estate, agriculture, or money market ventures separately, out of a single app — no mixing with operational funds.',
   },
   {
     icon: ClipboardCheck,
     title: 'Grant & Donor Governance',
-    feature: 'Read-only access permissions, transparent audit logs, and project-specific financial reporting exports.',
+    feature: 'Give donors read-only access and clear reports.',
     solution:
       "Institutional trust. Donors track fund utilization in real time, cutting manual impact reporting and raising the group's odds of future funding.",
   },

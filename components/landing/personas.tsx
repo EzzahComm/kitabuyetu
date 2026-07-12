@@ -11,8 +11,8 @@ const personas = [
     kicker: 'For members',
     title: 'A wallet in every pocket',
     description:
-      'Members get a mobile-first app — savings balance, digital passbook, savings goals, and one-tap M-Pesa contributions. Works offline, syncs when signal returns.',
-    points: ['Digital passbook & receipts', 'Savings goals', 'Loan balance & repay'],
+      'Members get an app with their savings balance, passbook, goals, and one-tap M-Pesa payments. It works offline too.',
+    points: ['Passbook & receipts', 'Savings goals', 'Loan balance & repay'],
     cta: 'Open the member app',
     href: '/me',
   },
@@ -21,8 +21,8 @@ const personas = [
     kicker: 'For group leaders',
     title: 'Chairperson, treasurer & secretary',
     description:
-      'Run the whole group from one dashboard — contributions, loans, welfare, shares, and dividends. A "Needs you now" queue surfaces every approval, unrouted receipt, and overdue member.',
-    points: ['Contributions & loans', 'M-Pesa reconciliation', 'Members & meetings'],
+      'Run your whole group from one dashboard — contributions, loans, welfare, shares, and dividends. A simple to-do list shows what needs your attention.',
+    points: ['Contributions & loans', 'M-Pesa matching', 'Members & meetings'],
     cta: 'Start your group',
     href: '/register',
   },
@@ -31,8 +31,8 @@ const personas = [
     kicker: 'For SACCOs, Organizations & federations',
     title: 'Portfolios across every branch',
     description:
-      'Roll up savings, loans, and impact across hundreds of groups. Switch organizations, compare branches, run bulk disbursements, and integrate via API, webhooks, and white-label branding.',
-    points: ['Multi-branch portfolios', 'Program impact analytics', 'API, webhooks & white-label'],
+      'See savings, loans, and impact across all your groups. Compare branches, pay out in bulk, and add your own branding.',
+    points: ['Multi-branch view', 'Impact reports', 'API & your own branding'],
     cta: 'Explore Enterprise',
     href: '/enterprise',
   },
@@ -41,8 +41,8 @@ const personas = [
     kicker: 'For platform & operations teams',
     title: 'A control room for the network',
     description:
-      'Backoffice queues, risk & fraud heatmaps, KYC review, and live Daraja health with a real-time transaction feed — plus a ⌘K command palette to jump anywhere in seconds.',
-    points: ['Risk & fraud monitoring', 'KYC verification queues', 'Live Daraja & SMS health'],
+      'Review queues, risk and fraud alerts, member checks, and live payment health — all in one place.',
+    points: ['Risk & fraud monitoring', 'Member verification', 'Live payment & SMS health'],
     cta: 'Backoffice sign in',
     href: '/admin-login',
   },

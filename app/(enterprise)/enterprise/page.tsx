@@ -30,7 +30,7 @@ export default function EnterpriseDashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Portfolio Overview"
-        description="Consolidated performance across all branches and affiliated groups"
+        description="Performance across all your branches and groups"
         actions={
           <>
             <Button variant="outline" size="sm"><Download className="h-4 w-4" /> Export</Button>

@@ -56,7 +56,7 @@ const navSections = [
 ];
 
 const organizationItems = [
-  { href: '/organization', label: 'Organization Portal', icon: Building2 },
+  { href: '/organization', label: 'Organization', icon: Building2 },
 ];
 
 interface SidebarProps {

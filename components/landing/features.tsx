@@ -10,81 +10,81 @@ import {
 const features = [
   {
     icon: Smartphone,
-    title: 'STK Push collections',
+    title: 'M-Pesa payment prompts',
     description:
-      'Prompt any member to pay straight from their phone. They enter their M-Pesa PIN, the contribution posts itself, and a receipt goes out.',
+      'Send a payment request to any member’s phone. They enter their M-Pesa PIN, and the contribution records itself.',
   },
   {
     icon: Landmark,
-    title: 'PayBill & C2B routing',
+    title: 'PayBill payments',
     description:
-      'Members pay your PayBill with an account reference like KYT-CONTR-KY0001. Kitabu Yetu matches the payer and books it — no manual entry.',
+      'Members pay your PayBill and we match each payment to the right person — no manual entry.',
   },
   {
     icon: Send,
-    title: 'B2C disbursements',
+    title: 'Send money out',
     description:
-      'Send approved loans, welfare payouts, and dividends directly to members’ phones. The loan flips to disbursed the moment Safaricom confirms.',
+      'Send approved loans, welfare payouts, and dividends straight to members’ phones.',
   },
   {
     icon: SplitSquareHorizontal,
-    title: 'Auto-split allocation',
+    title: 'Auto-split contributions',
     description:
-      'One KSh 3,000 contribution, split your way — savings, welfare, loan repayment — across the ledger automatically, down to the last cent.',
+      'Split each payment across savings, welfare, and loans automatically — down to the last cent.',
   },
   {
     icon: RefreshCw,
-    title: 'Self-healing reconciliation',
+    title: 'Payments that reconcile themselves',
     description:
-      'Stuck or silent payments are swept every few minutes, queried against Daraja, and resolved. Unmatched receipts wait in a review queue, never lost.',
+      'We check for stuck or missing payments every few minutes and sort them out. Anything unmatched waits safely in a review queue.',
   },
   {
     icon: BookOpenCheck,
-    title: 'Double-entry ledger',
+    title: 'Books that stay balanced',
     description:
-      'Every shilling lands as a balanced journal entry. Trial balance, P&L, and balance sheet are always audit-ready — not a spreadsheet afterthought.',
+      'Every shilling is recorded correctly, so your reports are always ready — no spreadsheets to chase.',
   },
   {
     icon: ReceiptText,
-    title: 'Receipts & fee tracking',
+    title: 'Receipts & fees',
     description:
-      'Members get branded PDF receipts. Safaricom transaction charges are booked to the cent and reconciled nightly against your statement.',
+      'Members get branded PDF receipts, and every M-Pesa charge is tracked to the cent.',
   },
   {
     icon: MessageSquare,
-    title: 'SMS & WhatsApp',
+    title: 'SMS & WhatsApp alerts',
     description:
-      'Confirmations, contribution reminders, and loan-due alerts go out over WhatsApp with SMS fallback. A failed STK nudges the member to PayBill.',
+      'Send confirmations, contribution reminders, and loan-due alerts by WhatsApp or SMS.',
   },
   {
     icon: Users,
     title: 'Members, loans & shares',
     description:
-      'Onboarding, roles, reducing-balance loan schedules, share certificates, dividends, and credit scores — the whole group, in one book.',
+      'Manage members, roles, loans, shares, dividends, and credit scores — all in one place.',
   },
   {
     icon: Wallet,
-    title: 'Member self-service app',
+    title: 'Member app',
     description:
-      'Every member gets a mobile-first wallet — digital passbook, savings goals, loan balance, and one-tap M-Pesa pay. Offline-ready, with sync indicators.',
+      'Every member gets a phone wallet with their passbook, savings goals, loan balance, and one-tap M-Pesa pay.',
   },
   {
     icon: ShieldAlert,
-    title: 'Fraud, risk & KYC',
+    title: 'Fraud & member checks',
     description:
-      'Platform-wide risk heatmaps, a live fraud feed, and a KYC verification queue — every money action confirmed and logged before funds move.',
+      'Risk alerts, fraud checks, and member verification — every payment confirmed and logged before money moves.',
   },
   {
     icon: Activity,
-    title: 'Real-time monitoring',
+    title: 'Live monitoring',
     description:
-      'Live Daraja, SMS, and API health with a real-time transaction feed, so operations sees a degraded STK push or failing webhook the moment it happens.',
+      'See the health of payments and messaging live, and spot any problem the moment it happens.',
   },
   {
     icon: KeyRound,
-    title: 'API, webhooks & white-label',
+    title: 'API & branding',
     description:
-      'Programmatic access with scoped API keys, event webhooks, multi-branch portfolios, and white-label branding for federations and enterprise partners.',
+      'API access, multi-branch views, and your own branding for larger networks.',
   },
 ];
 

@@ -228,7 +228,6 @@ export default function DashboardPage() {
         <MoneyTile
           label="Cash / M-Pesa"
           value={formatKES(cashBalance)}
-          sub="Available balance"
           href="/accounting"
           icon={Wallet}
         />
@@ -242,7 +241,6 @@ export default function DashboardPage() {
         <MoneyTile
           label="Members"
           value={String(totalMembers)}
-          sub="Active group members"
           href="/members"
           icon={Users}
         />
