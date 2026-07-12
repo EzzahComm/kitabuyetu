@@ -4,13 +4,19 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, isBackofficeUser } from '@/lib/auth/context';
 import { configureApiClient } from '@/lib/api/client';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isLoading, accessToken, logout } = useAuth();
+  const { user, isLoading, accessToken, audience, logout } = useAuth();
   const router = useRouter();
+
+  // A backoffice (staff) session must never render the tenant dashboard —
+  // otherwise a super-admin who follows a stray link lands in the consumer
+  // shell and appears to be "inside a group called Kitabu Yetu". Send them
+  // back to the backoffice portal instead.
+  const isBackoffice = audience === 'backoffice' || isBackofficeUser(user);
 
   useEffect(() => {
     configureApiClient({
@@ -20,10 +26,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [accessToken, logout, router]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
-    }
-  }, [isLoading, user, router]);
+    if (isLoading) return;
+    if (!user) { router.push('/login'); return; }
+    if (isBackoffice) { router.replace('/admin'); }
+  }, [isLoading, user, isBackoffice, router]);
 
   if (isLoading) {
     return (
@@ -33,7 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!user) return null;
+  if (!user || isBackoffice) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

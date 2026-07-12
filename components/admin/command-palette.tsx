@@ -68,7 +68,7 @@ export function CommandPalette() {
         { id: 'support', label: 'Support Center', icon: Headphones, keywords: 'tickets help sla', run: go('/admin/support') },
         { id: 'audit', label: 'Audit Logs', icon: ScrollText, keywords: 'activity history changes', run: go('/admin/audit-logs') },
         { id: 'flags', label: 'Feature Flags', icon: Flag, keywords: 'toggles rollout experiments', run: go('/admin/feature-flags') },
-        { id: 'settings', label: 'Settings', icon: Settings, keywords: 'preferences config', run: go('/settings') },
+        { id: 'settings', label: 'Settings', icon: Settings, keywords: 'preferences config', run: go('/admin/settings') },
       ],
     },
     {

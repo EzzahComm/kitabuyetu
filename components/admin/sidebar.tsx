@@ -57,7 +57,7 @@ const NAV: NavSection[] = [
   {
     title: 'System',
     items: [
-      { href: '/settings',          label: 'Settings',       icon: Settings },
+      { href: '/admin/settings',    label: 'Settings',       icon: Settings },
     ],
   },
 ];

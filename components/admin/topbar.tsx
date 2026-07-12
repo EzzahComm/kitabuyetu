@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
   Bell, Search, Menu, ChevronDown,
   CircleCheck, CircleAlert, Activity,
-  LogOut, Settings, User,
+  LogOut, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
@@ -124,11 +124,8 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
               {user?.firstName} {user?.lastName}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/settings')}>
+            <DropdownMenuItem onClick={() => router.push('/admin/settings')}>
               <Settings size={14} className="mr-2" /> Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-              <User size={14} className="mr-2" /> Group Dashboard
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
