@@ -212,8 +212,10 @@ jobs:
             # Supabase convention: <14-digit UTC timestamp>_<NNN>_<description>.sql
             # (NNN is a human-readable sequence label; the timestamp prefix is the
             # real ordering key, so we don't enforce a gap-free NNN sequence here.)
-            if [[ ! "$filename" =~ ^[0-9]{14}_[0-9]{3}_.+\.sql$ ]]; then
-              echo "  FAIL: bad name — '$filename' (expected <timestamp>_NNN_description.sql)"
+            # An optional single lowercase letter suffix (e.g. 046b) is allowed for
+            # follow-up migrations slotted between two existing sequence numbers.
+            if [[ ! "$filename" =~ ^[0-9]{14}_[0-9]{3}[a-z]?_.+\.sql$ ]]; then
+              echo "  FAIL: bad name — '$filename' (expected <timestamp>_NNN[x]_description.sql)"
               ((errors++)) || true
               continue
             fi
