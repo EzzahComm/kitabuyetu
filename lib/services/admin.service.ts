@@ -518,7 +518,7 @@ export async function listPlatformUsers(params: {
     let idx = 1;
 
     if (search) {
-      conds.push(`(m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx} OR m.email ILIKE $${idx} OR m.phone_number ILIKE $${idx})`);
+      conds.push(`(m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx} OR m.email ILIKE $${idx} OR m.phone ILIKE $${idx})`);
       vals.push(`%${search}%`); idx++;
     }
     if (role) {
@@ -531,17 +531,31 @@ export async function listPlatformUsers(params: {
     const [data, count] = await Promise.all([
       db.query(`
         SELECT
-          m.id, m.first_name, m.last_name, m.email, m.phone_number,
-          m.platform_role, m.status, m.created_at, m.last_login_at,
-          gm.role AS group_role, g.name AS group_name
+          m.id, m.first_name, m.last_name, m.email,
+          m.phone AS phone_number,
+          m.platform_role, m.created_at, m.last_login_at,
+          gm.group_id, gm.member_code, gm.role AS group_role, gm.role_id,
+          gm.status AS status, gm.joined_at,
+          g.name AS group_name,
+          r.name AS role_name,
+          org.name AS organization_name
         FROM public.members m
         LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active'
         LEFT JOIN public.groups g ON g.id = gm.group_id
+        LEFT JOIN public.roles r ON r.id = gm.role_id
+        LEFT JOIN LATERAL (
+          SELECT o.name
+          FROM public.organization_group_access nga
+          JOIN public.organizations o ON o.id = nga.organization_id
+          WHERE nga.group_id = gm.group_id AND nga.is_active
+          ORDER BY nga.created_at ASC
+          LIMIT 1
+        ) org ON true
         ${where}
         ORDER BY m.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...vals, limit, offset]),
-      db.query(`SELECT COUNT(DISTINCT m.id) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id ${where}`, vals),
+      db.query(`SELECT COUNT(DISTINCT m.id) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`, vals),
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };

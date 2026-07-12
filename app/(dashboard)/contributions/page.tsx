@@ -37,7 +37,14 @@ export default function ContributionsPage() {
 
   const now = new Date();
   const { data, isLoading } = useContributions({ page, pageSize: 20 });
-  const { data: membersData } = useMembers({ pageSize: 200 });
+  // Only active members can receive a contribution. `limit` (not `pageSize`) is
+  // the param the members API reads; its max is 100.
+  const {
+    data: membersData,
+    isLoading: membersLoading,
+    isError: membersError,
+  } = useMembers({ limit: 100, status: 'active' });
+  const memberOptions = membersData?.items ?? [];
   const record = useRecordContribution();
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
@@ -99,12 +106,35 @@ export default function ContributionsPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <Label>Member</Label>
-              <select {...register('memberId')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">Select member…</option>
-                {(membersData?.items ?? []).map((m: any) => (
-                  <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
-                ))}
+              <select
+                {...register('memberId')}
+                disabled={membersLoading || memberOptions.length === 0}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {membersLoading
+                    ? 'Loading members…'
+                    : memberOptions.length === 0
+                      ? 'No active members found'
+                      : 'Select member…'}
+                </option>
+                {memberOptions.map((m: any) => {
+                  // The members API returns raw DB rows (snake_case); keep a
+                  // camelCase fallback in case a masked/mapped shape is used.
+                  const first = m.first_name ?? m.firstName ?? '';
+                  const last  = m.last_name ?? m.lastName ?? '';
+                  const phone = m.phone ?? '';
+                  const label = `${first} ${last}`.trim() || m.member_code || m.id;
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {label}{phone ? ` — ${phone}` : ''}
+                    </option>
+                  );
+                })}
               </select>
+              {membersError && (
+                <p className="text-xs text-destructive">Couldn&apos;t load members. Refresh and try again.</p>
+              )}
               {errors.memberId && <p className="text-xs text-destructive">{errors.memberId.message}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">

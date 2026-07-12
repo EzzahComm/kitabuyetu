@@ -11,9 +11,14 @@ async function adminFetch<T>(
     headers: opts?.json ? { 'Content-Type': 'application/json' } : {},
     body: opts?.json ? JSON.stringify(opts.json) : undefined,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error ?? 'Request failed');
-  return data;
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error ?? 'Request failed');
+  // Admin routes return the standard { success, data } envelope. Unwrap it so
+  // callers get the payload directly (pages read `data.items`, not
+  // `data.data.items`). Fall back to the raw body for any un-enveloped route.
+  return (json && typeof json === 'object' && 'success' in json && 'data' in json)
+    ? (json.data as T)
+    : (json as T);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,6 +106,31 @@ export function useUpdateUserRole() {
     mutationFn: ({ id, platformRole }: { id: string; platformRole: string }) =>
       adminFetch<any>(`/api/admin/users/${id}`, { method: 'PATCH', json: { platformRole } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  });
+}
+
+// ── Group-level role assignment (Super Admin) ──────────────────────────────
+export function useAssignableRoles(groupId?: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'assignable-roles', groupId],
+    queryFn:  () => adminFetch<{ items: any[] }>(`/api/admin/roles?groupId=${groupId}`),
+    enabled:  !!groupId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAssignGroupRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, groupId, roleId }: { memberId: string; groupId: string; roleId: string }) =>
+      adminFetch<any>(`/api/admin/members/${memberId}/role`, {
+        method: 'POST',
+        json: { groupId, roleId },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+    },
   });
 }
 
