@@ -70,6 +70,24 @@ interface ReconcileResult {
   resolvedCount:       number;
 }
 
+interface ExternalFundingItem {
+  id:                string;
+  organization_name: string;
+  program_name:      string | null;
+  disbursement_type: string;
+  amount:            string;
+  status:            string;
+  reference:         string;
+  notes:             string | null;
+  created_at:        string;
+}
+
+interface ExternalFundingPage {
+  items:         ExternalFundingItem[];
+  total:         number;
+  totalReceived: string;
+}
+
 // ─── API helpers — api.get / api.post return T directly ──────────────────────
 
 const fetchBalance      = () => api.get<BalanceResult | null>('/mpesa/balance');
@@ -79,6 +97,7 @@ const fetchTransactions = (page: number) =>
 const fetchReversals    = () => api.get<ReversalRecord[]>('/mpesa/reversal');
 const fetchReconciles   = () => api.get<ReconciliationRun[]>('/mpesa/reconcile');
 const triggerReconcile  = () => api.post<ReconcileResult>('/mpesa/reconcile', {});
+const fetchFunding      = () => api.get<ExternalFundingPage>('/treasury/external-funding?limit=50');
 
 // ─── Shared display helpers ──────────────────────────────────────────────────
 
@@ -151,13 +170,14 @@ const txColumns = [
 export default function TreasuryPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const [tab, setTab]   = useState<'transactions' | 'reconciliation' | 'reversals'>('transactions');
+  const [tab, setTab]   = useState<'transactions' | 'reconciliation' | 'reversals' | 'funding'>('transactions');
   const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
 
   const balanceQ = useQuery({ queryKey: ['mpesa-balance'], queryFn: fetchBalance, staleTime: 60_000 });
   const txQ      = useQuery({ queryKey: ['mpesa-transactions', page], queryFn: () => fetchTransactions(page), staleTime: 30_000 });
   const reversalQ = useQuery({ queryKey: ['mpesa-reversals'], queryFn: fetchReversals, staleTime: 30_000, enabled: tab === 'reversals' });
   const reconcileQ = useQuery({ queryKey: ['mpesa-reconciliations'], queryFn: fetchReconciles, staleTime: 30_000, enabled: tab === 'reconciliation' });
+  const fundingQ   = useQuery({ queryKey: ['treasury-external-funding'], queryFn: fetchFunding, staleTime: 60_000, enabled: tab === 'funding' });
 
   const balanceMut = useMutation({
     mutationFn: triggerBalance,
@@ -213,6 +233,7 @@ export default function TreasuryPage() {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
           <TabsTrigger value="reversals">Reversals</TabsTrigger>
+          <TabsTrigger value="funding">External funding</TabsTrigger>
         </TabsList>
 
         {/* Transactions */}
@@ -324,6 +345,69 @@ export default function TreasuryPage() {
                       <TableRow>
                         <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                           No reversals recorded.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* External funding — org → group disbursements received */}
+        <TabsContent value="funding" className="space-y-4">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold">Funding received from partner organizations</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Grants, revolving funds and other capital injected by organizations linked
+                    to this group. Each receipt is posted to your books automatically
+                    (Cash / External Funding).
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs uppercase text-muted-foreground tracking-wide">Total received</p>
+                  <p className="text-xl font-bold text-green-700">
+                    {fundingQ.isLoading ? '…' : formatKES(fundingQ.data?.totalReceived ?? 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              {fundingQ.isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading…</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {['Organization', 'Program', 'Type', 'Amount', 'Status', 'Reference', 'Date'].map((h) => (
+                        <TableHead key={h}>{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(fundingQ.data?.items ?? []).map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="font-medium">{d.organization_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{d.program_name ?? '—'}</TableCell>
+                        <TableCell className="capitalize">{d.disbursement_type.replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="font-medium">{formatKES(d.amount)}</TableCell>
+                        <TableCell><StatusBadge status={d.status} /></TableCell>
+                        <TableCell className="font-mono text-xs">{d.reference}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(d.created_at)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(fundingQ.data?.items ?? []).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                          No external funding received yet. When a partner organization
+                          disburses funds to this group, it appears here.
                         </TableCell>
                       </TableRow>
                     )}

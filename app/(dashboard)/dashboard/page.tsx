@@ -122,6 +122,11 @@ export default function DashboardPage() {
   const cashBalance = Number(
     (trialBalance ?? []).find((l) => l.accountCode === '1001')?.netBalance ?? 0,
   );
+  // 4005 External Funding — capital received from partner organizations
+  // (income-type, so the trial balance already presents it as a positive).
+  const externalFunding = Number(
+    (trialBalance ?? []).find((l) => l.accountCode === '4005')?.netBalance ?? 0,
+  );
 
   const taskCount =
     unroutedList.length + pendingLoanList.length + pendingWelfareList.length + (nonContrib?.count ?? 0);
@@ -226,7 +231,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Zone 2 — Money at a glance */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile
           label="Cash / M-Pesa"
           value={formatKES(cashBalance)}
@@ -239,6 +244,13 @@ export default function DashboardPage() {
           sub={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
           href="/welfare"
           icon={Heart}
+        />
+        <MoneyTile
+          label="External funding"
+          value={formatKES(externalFunding)}
+          sub="From partner organizations"
+          href="/treasury"
+          icon={Landmark}
         />
         <MoneyTile
           label="Members"

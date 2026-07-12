@@ -56,7 +56,7 @@ const navSections = [
 ];
 
 const organizationItems = [
-  { href: '/organization', label: 'Organization', icon: Building2 },
+  { href: '/organization', label: 'Organization Portal', icon: Building2 },
 ];
 
 interface SidebarProps {
@@ -145,7 +145,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           {user?.platformRole === 'organization_coordinator' && (
             <>
               <div className="pt-4 pb-1 px-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Organization</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ecosystem</p>
               </div>
               {organizationItems.map((item) => {
                 const Icon = item.icon;
