@@ -46,7 +46,7 @@ ALTER VIEW vw_ngo_group_summary RENAME TO vw_organization_group_summary;
 
 -- Rename preserves the OID, so every policy already bound to this function
 -- keeps working; CREATE OR REPLACE then repoints the body at the new GUC.
-ALTER FUNCTION app_current_ngo_id() RENAME TO app_current_organization_id();
+ALTER FUNCTION app_current_ngo_id() RENAME TO app_current_organization_id;
 
 CREATE OR REPLACE FUNCTION app_current_organization_id()
 RETURNS UUID LANGUAGE sql STABLE SET search_path = public AS $fn$
