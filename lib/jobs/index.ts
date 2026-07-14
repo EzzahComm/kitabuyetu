@@ -86,6 +86,14 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       priority:  7,
       dedup_key: `payment_orphan_monitor:${dateStr}T${hour}`,
     });
+
+    // Payment-request expiry sweep (allocation rule A6). The allocation
+    // engine's query also filters expired rows, so hourly cadence only
+    // affects reporting freshness, never allocation correctness.
+    queued.payment_requests_expire = await safe('payment_requests_expire', {}, {
+      priority:  5,
+      dedup_key: `payment_requests_expire:${dateStr}T${hour}`,
+    });
   }
 
   // ── Daily 06:00 UTC — recurring invoices ──────────────────────

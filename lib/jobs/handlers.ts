@@ -58,6 +58,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'payment_orphan_monitor':
       return handlePaymentOrphanMonitor();
 
+    case 'payment_requests_expire':
+      return handlePaymentRequestsExpire();
+
     case 'accounting_balance_drift':
       return handleAccountingBalanceDrift();
 
@@ -182,6 +185,12 @@ async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
       : `Payment spine: ${result.count} ORPHANED payment(s) — investigate`,
     orphans: result.count,
   };
+}
+
+async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
+  const { expireDueRequests } = await import('@/lib/services/payment-requests.service');
+  const result = await expireDueRequests();
+  return { message: 'Payment requests expiry sweep complete', ...result };
 }
 
 async function handleAccountingBalanceDrift(): Promise<HandlerResult> {

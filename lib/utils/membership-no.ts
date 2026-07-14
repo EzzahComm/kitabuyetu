@@ -84,3 +84,40 @@ export function composeMembershipNo(prefix: string, seq: number): string {
   const base = `${prefix}${String(seq).padStart(5, '0')}`;
   return base + dammCheckDigit(base);
 }
+
+// ─── Product suffix hints (allocation engine tiers A1/A3) ────────────────────
+
+/** BG102534-L → loan repayment, -W → welfare, -S → shares. */
+export type ProductSuffix = 'L' | 'W' | 'S';
+const VALID_SUFFIXES: ReadonlySet<string> = new Set(['L', 'W', 'S']);
+
+export interface ParsedAccountRef {
+  /** The 8-char membership-number candidate (normalised), suffix removed. */
+  account:       string;
+  /** Valid product suffix, when present. */
+  suffix:        ProductSuffix | null;
+  /** True when a 9th trailing letter exists but isn't a known suffix (A1: reject, never guess). */
+  invalidSuffix: boolean;
+}
+
+/**
+ * Splits an inbound account reference into membership number + optional
+ * product suffix. Members may type `BG102534-W`, `BG102534 W`, or
+ * `BG102534W` — all normalise to a 9-char candidate whose first 8 chars have
+ * membership-number shape.
+ *
+ * Anything that isn't membership-number shaped at all comes back as
+ * `account = <normalised input>` with no suffix — the caller's registry
+ * lookup / legacy grammar handles it.
+ */
+export function parseAccountRef(input: string | null | undefined): ParsedAccountRef {
+  const n = normalizeAccountRef(input ?? '');
+  if (n.length === 9 && MEMBERSHIP_NO_RE.test(n.slice(0, 8)) && /^[A-Z]$/.test(n[8])) {
+    const suffix = n[8];
+    if (VALID_SUFFIXES.has(suffix)) {
+      return { account: n.slice(0, 8), suffix: suffix as ProductSuffix, invalidSuffix: false };
+    }
+    return { account: n.slice(0, 8), suffix: null, invalidSuffix: true };
+  }
+  return { account: n, suffix: null, invalidSuffix: false };
+}

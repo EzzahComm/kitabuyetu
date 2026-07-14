@@ -18,6 +18,7 @@ export type JobType =
   | 'notify_contribution_reminders' // Missed-contribution nudge (1st of month, 08:00 UTC)
   | 'outbox_dispatch'             // Drain the transactional event_outbox (every 5 min)
   | 'payment_orphan_monitor'      // Alert on completed payments stuck in allocation_status='received' (hourly)
+  | 'payment_requests_expire'     // Transition open payment_requests past expires_at to 'expired' (hourly, rule A6)
   | 'sms_bulk_send'               // Ad-hoc: bill + dispatch a bulk/campaign SMS send (enqueued on demand)
   | 'sms_retry_failed'            // Retry due rows in sms_failures (every 5 min)
   | 'sms_process_schedules'       // Fire due sms_schedules + scheduled campaigns (every 5 min)
