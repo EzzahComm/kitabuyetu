@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Inbox, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Inbox, RefreshCw, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,6 +94,9 @@ export default function MpesaPage() {
         <div className="flex items-center gap-2">
           <Link href="/mpesa/unrouted">
             <Button variant="outline" size="sm"><Inbox size={15} className="mr-2" /> Unrouted</Button>
+          </Link>
+          <Link href="/mpesa/reallocations">
+            <Button variant="outline" size="sm"><ArrowRightLeft size={15} className="mr-2" /> Corrections</Button>
           </Link>
           <Link href="/mpesa/reconciliations">
             <Button variant="outline" size="sm"><AlertTriangle size={15} className="mr-2" /> Reconciliations</Button>

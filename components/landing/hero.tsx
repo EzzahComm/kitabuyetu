@@ -139,11 +139,13 @@ function LedgerMockup() {
           </div>
         </div>
 
-        {/* M-Pesa meta */}
+        {/* M-Pesa meta — the Membership Number is the only public payment
+            identifier (payment architecture §1.1); legacy KYT/member-code
+            refs never appear on member-facing surfaces. */}
         <div className="space-y-2 py-4 font-mono text-xs">
-          <Row k="Member" v="Wanjiku N. · KY0001042" />
+          <Row k="Member" v="Wanjiku N." />
           <Row k="M-Pesa receipt" v="SKE3X9QW12" accent />
-          <Row k="Account ref" v="KYT-CONTR-KY0000019" />
+          <Row k="Account No." v="BG 10253 4" />
         </div>
 
         {/* Split allocation — the standout feature */}
