@@ -84,12 +84,19 @@ export async function POST(req: NextRequest): Promise<Response> {
     };
 
     stage = 'call_register_group_rpc';
-    const result = await withAdminDb(async (client) => {
+    const { result, membershipNo } = await withAdminDb(async (client) => {
       const { rows } = await client.query<{ register_group: RegisterGroupResult }>(
         'SELECT register_group($1::jsonb) AS register_group',
         [JSON.stringify(rpcPayload)],
       );
-      return rows[0].register_group;
+      const rpc = rows[0].register_group;
+      // The Membership Number is allocated by the group_members INSERT trigger
+      // (migration 056) inside the RPC; the RPC's JSONB result predates it.
+      const { rows: gm } = await client.query<{ membership_no: string }>(
+        `SELECT membership_no FROM group_members WHERE group_id = $1 AND member_id = $2`,
+        [rpc.group_id, rpc.member_id],
+      );
+      return { result: rpc, membershipNo: gm[0]?.membership_no ?? null };
     });
 
     stage = 'sign_tokens';
@@ -103,7 +110,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       personId:    result.person_id,
       groupStatus: result.group_status,
     });
-    const { token: refreshToken } = signRefreshToken(result.member_id);
+    // Pin the new group to the refresh token (audit C-1) — registration's
+    // session must revalidate THIS membership on refresh, same as login.
+    const { token: refreshToken } = signRefreshToken(result.member_id, 'tenant', result.group_id);
 
     stage = 'persist_refresh_token';
     try {
@@ -117,6 +126,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       registrationFee: number;
       groupCode:       string;
       memberCode:      string;
+      membershipNo?:   string;
       groupStatus:     string;
     } = {
       accessToken,
@@ -133,6 +143,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         groupName:    result.group_name,
         groupCode:    result.group_code,
         memberCode:   result.member_code,
+        membershipNo: membershipNo ?? undefined,
         personId:     result.person_id,
         officerRole:  result.creator_role,
         groupStatus:  result.group_status,
@@ -140,6 +151,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       registrationFee: REGISTRATION_FEE,
       groupCode:       result.group_code,
       memberCode:      result.member_code,
+      membershipNo:    membershipNo ?? undefined,
       groupStatus:     result.group_status,
     };
 

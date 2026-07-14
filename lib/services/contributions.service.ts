@@ -1,5 +1,6 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ConflictError } from '@/lib/utils/errors';
+import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
 import { accountingService } from './accounting.service';
@@ -86,6 +87,10 @@ export const contributionsService = {
 
   async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
     return withTransaction(ctx, async (client) => {
+      // The target member must hold an active membership in THIS group —
+      // RLS scopes group_id but never member_id (audit H-1).
+      await assertActiveMembership(client, ctx.groupId, data.memberId);
+
       if (data.mpesaReceiptNumber) {
         const dup = await client.query(
           'SELECT id FROM contributions WHERE mpesa_receipt_number = $1',

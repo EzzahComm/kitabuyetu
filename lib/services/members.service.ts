@@ -66,7 +66,8 @@ export const membersService = {
       const total = parseInt(countResult.rows[0].count, 10);
 
       const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
-        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at
+        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
+                gm.membership_no
          FROM group_members gm
          JOIN members m ON m.id = gm.member_id
          WHERE gm.group_id = $1 ${where}

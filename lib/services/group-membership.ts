@@ -39,6 +39,8 @@ export interface LinkMemberInput {
 export interface LinkMemberResult {
   groupMembersId: string;
   memberCode:     string;
+  /** The Membership Number (BG102534…) — allocated by the DB trigger at INSERT. */
+  membershipNo:   string;
   personId:       string;
 }
 
@@ -100,8 +102,10 @@ export async function linkMemberToGroup(
 
   const memberCode = `${g[0].group_code}${String(seqRows[0].last_seq).padStart(5, '0')}`;
 
-  // 4. The actual group_members link.
-  const { rows: gm } = await client.query<{ id: string }>(
+  // 4. The actual group_members link. membership_no is allocated by the
+  //    BEFORE INSERT trigger (migration 056) — the platform is the only
+  //    issuer of payment account numbers (governance §1.8).
+  const { rows: gm } = await client.query<{ id: string; membership_no: string }>(
     `INSERT INTO group_members (
        group_id, member_id, person_id, member_code,
        role, status, joined_at, invited_by
@@ -110,12 +114,17 @@ export async function linkMemberToGroup(
        $5::member_role, 'active'::member_status,
        COALESCE($6::date, CURRENT_DATE), $7
      )
-     RETURNING id`,
+     RETURNING id, membership_no`,
     [
       input.groupId, input.memberId, personId, memberCode,
       input.role, input.joinedAt ?? null, input.invitedBy ?? null,
     ],
   );
 
-  return { groupMembersId: gm[0].id, memberCode, personId };
+  return {
+    groupMembersId: gm[0].id,
+    memberCode,
+    membershipNo:   gm[0].membership_no,
+    personId,
+  };
 }

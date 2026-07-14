@@ -16,8 +16,10 @@ import { logger } from '@/lib/logger';
 import { normalizePhone } from '@/lib/utils/phone';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/lib/utils/mpesa-bill-ref';
+import { normalizeAccountRef, looksLikeMembershipNo, isValidMembershipNo } from '@/lib/utils/membership-no';
 import { allocateSplit } from '@/lib/utils/split-allocator';
 import { loadActiveSplitRules } from './contribution-splits.service';
+import { assertActiveMembership } from './membership-guard';
 import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,
@@ -135,16 +137,19 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       ],
     );
 
-    // 3. Legacy payments table (accounting / billing side)
+    // 3. Payment spine (accounting / billing side) — channel + initiator
+    //    recorded at initiation (payment architecture §7).
     await db.query(
       `INSERT INTO payments
          (group_id, invoice_id, amount, payment_method, status,
-          mpesa_checkout_request_id, mpesa_merchant_request_id, mpesa_phone)
-       VALUES ($1,$2,$3,'mpesa','pending',$4,$5,$6)
+          mpesa_checkout_request_id, mpesa_merchant_request_id, mpesa_phone,
+          channel, initiated_by)
+       VALUES ($1,$2,$3,'mpesa','pending',$4,$5,$6,'stk',$7)
        ON CONFLICT (mpesa_checkout_request_id) DO NOTHING`,
       [
         params.groupId, params.invoiceId ?? null, amountStr,
         res.checkoutRequestId, res.merchantRequestId, phone,
+        params.initiatedBy ?? null,
       ],
     );
   });
@@ -306,6 +311,13 @@ export async function handleSTKCallback(
     );
     const paymentId = payRows[0]?.id ?? null;
 
+    // Spine: money landed (first transition only — the status='pending' guard
+    // means a replayed callback returns no row and skips this).
+    if (paymentId) {
+      await logPaymentEvent(db, paymentId, 'received', { checkoutRequestId: cb.CheckoutRequestID });
+      await emitOutbox(db, 'payment.received', paymentId, { receipt, amount });
+    }
+
     if (payRows[0]?.invoice_id) {
       await db.query(
         `UPDATE invoices
@@ -315,6 +327,11 @@ export async function handleSTKCallback(
          WHERE id=$2`,
         [amount.toFixed(2), payRows[0].invoice_id],
       );
+      // Invoice-bound payments (registration/subscription/sms_topup) allocate
+      // to the billing pipeline right here (§3.5 dispatch table).
+      await markSpineAllocated(db, receipt, {
+        detail: { product: 'invoice', invoiceId: payRows[0].invoice_id },
+      });
     }
 
     await db.query(
@@ -392,19 +409,37 @@ async function applyContributionFromSTK(
   stkReq: StkRequestRow,
   in_:    FulfilmentInput,
 ): Promise<void> {
-  // Resolve the member by phone within the group. Active membership only.
-  const { rows: memberRows } = await db.query<{ id: string }>(
-    `SELECT m.id
-     FROM   members m
-     JOIN   group_members gm ON gm.member_id = m.id
-     WHERE  m.phone   = $1
-       AND  gm.group_id = $2
-       AND  gm.is_active = true
-       AND  m.is_active  = true
-     LIMIT  1`,
-    [in_.phone, stkReq.group_id],
-  );
-  const memberId = memberRows[0]?.id ?? null;
+  // Registry-first (payment architecture §3.7): when the STK request's
+  // AccountReference is a membership number (or legacy code) bound to a
+  // payment-eligible membership of THIS group, that identifies the member —
+  // the prompted phone may legitimately belong to a third party.
+  let memberId: string | null = null;
+
+  const hit = await lookupPaymentAccount(db, stkReq.account_reference);
+  if (hit
+      && (hit.kind === 'membership_no' || hit.kind === 'legacy_code')
+      && hit.groupId === stkReq.group_id
+      && isPaymentEligible(hit)) {
+    memberId = hit.memberId;
+  }
+
+  // Fallback: resolve by phone within the group. gm.status is the single
+  // membership liveness signal — the legacy is_active boolean is never
+  // updated by status transitions and reads true forever (audit C-2).
+  if (!memberId) {
+    const { rows: memberRows } = await db.query<{ id: string }>(
+      `SELECT m.id
+       FROM   members m
+       JOIN   group_members gm ON gm.member_id = m.id
+       WHERE  m.phone   = $1
+         AND  gm.group_id = $2
+         AND  gm.status = 'active'
+         AND  m.is_active  = true
+       LIMIT  1`,
+      [in_.phone, stkReq.group_id],
+    );
+    memberId = memberRows[0]?.id ?? null;
+  }
 
   if (!memberId) {
     await routeToUnrouted(db, stkReq, in_, {
@@ -447,6 +482,17 @@ async function applyContributionFromSTK(
     `UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`,
     [contributionId, stkReq.id],
   );
+
+  // Spine: link the domain row and flip received → allocated (§3.4).
+  await db.query(
+    `UPDATE contributions
+     SET    payment_id = (SELECT id FROM payments WHERE mpesa_receipt_number = $1)
+     WHERE  id = $2 AND payment_id IS NULL`,
+    [in_.receipt, contributionId],
+  );
+  await markSpineAllocated(db, in_.receipt, {
+    detail: { product: 'savings', contributionId, groupId: stkReq.group_id },
+  });
 }
 
 async function applyLoanRepayment(
@@ -477,6 +523,20 @@ async function applyLoanRepayment(
     amount:     in_.amount,
     reference:  in_.receipt,
   });
+
+  // Spine: link the domain row and flip received → allocated (§3.4).
+  await db.query(
+    `UPDATE loan_repayments
+     SET    payment_id = (SELECT id FROM payments WHERE mpesa_receipt_number = $1)
+     WHERE  id = $2 AND payment_id IS NULL`,
+    [in_.receipt, repayment.id],
+  );
+  await markSpineAllocated(db, in_.receipt, {
+    detail: {
+      product: 'loan_repayment', repaymentId: repayment.id,
+      loanId: repayment.loan_id, groupId: stkReq.group_id,
+    },
+  });
 }
 
 /**
@@ -489,7 +549,8 @@ async function routeToUnrouted(
   in_:    FulfilmentInput,
   opts:   {
     reason: 'unknown_member' | 'unknown_group' | 'unknown_prefix' |
-            'ambiguous_member' | 'no_account_ref' | 'amount_mismatch' | 'other';
+            'ambiguous_member' | 'no_account_ref' | 'amount_mismatch' |
+            'membership_inactive' | 'bad_account' | 'other';
     candidateGroupId?: string | null;
     billRef?: string | null;
   },
@@ -519,6 +580,7 @@ async function routeToUnrouted(
     reason:  opts.reason,
     phone:   in_.phone,
   });
+  await markSpineUnrouted(db, in_.receipt, opts.reason);
 }
 
 // ─── STK failure → PayBill fallback nudge ─────────────────────────────────────
@@ -561,7 +623,7 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
        FROM   members m
        JOIN   group_members gm ON gm.member_id = m.id
        WHERE  m.phone = $1 AND gm.group_id = $2
-         AND  gm.is_active = true AND m.is_active = true
+         AND  gm.status = 'active' AND m.is_active = true
        LIMIT  1`,
       [stk.phone, stk.group_id],
     ).then((r) => r.rows[0] ?? null),
@@ -717,6 +779,214 @@ async function postLoanRepaymentJournal(
   );
 }
 
+// ─── Payment-identifier registry (payment architecture §3.1) ─────────────────
+
+export interface PaymentAccountHit {
+  kind:             string;          // membership_no | legacy_code | invoice | …
+  identifier:       string;
+  accountStatus:    string;          // payment_accounts.status
+  membershipId:     string | null;
+  invoiceId:        string | null;
+  groupId:          string | null;   // membership's or invoice's group
+  memberId:         string | null;
+  membershipStatus: string | null;   // group_members.status
+  memberActive:     boolean | null;  // members.is_active (platform lock)
+  memberPhone:      string | null;
+}
+
+/**
+ * Single routing lookup: normalise the inbound reference and match it against
+ * payment_accounts. Membership numbers and legacy member codes are stored
+ * without separators; invoice numbers keep their dashes — so we try both the
+ * fully-stripped and the dash-normalised forms.
+ */
+export async function lookupPaymentAccount(
+  db:     PoolClient,
+  rawRef: string | null | undefined,
+): Promise<PaymentAccountHit | null> {
+  const stripped = normalizeAccountRef(rawRef ?? '');
+  if (!stripped) return null;
+  const dashNorm = (rawRef ?? '')
+    .trim().toUpperCase()
+    .replace(/[\s_/.]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  const { rows } = await db.query<{
+    kind: string; identifier: string; account_status: string;
+    membership_id: string | null; invoice_id: string | null;
+    gm_group_id: string | null; member_id: string | null;
+    membership_status: string | null; member_active: boolean | null;
+    member_phone: string | null; invoice_group_id: string | null;
+  }>(
+    `SELECT pa.kind, pa.identifier, pa.status AS account_status,
+            pa.membership_id, pa.invoice_id,
+            gm.group_id  AS gm_group_id,
+            gm.member_id,
+            gm.status    AS membership_status,
+            m.is_active  AS member_active,
+            m.phone      AS member_phone,
+            i.group_id   AS invoice_group_id
+     FROM   payment_accounts pa
+     LEFT JOIN group_members gm ON gm.id = pa.membership_id
+     LEFT JOIN members       m  ON m.id  = gm.member_id
+     LEFT JOIN invoices      i  ON i.id  = pa.invoice_id
+     WHERE  pa.identifier IN ($1, $2)
+     LIMIT  1`,
+    [stripped, dashNorm],
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    kind:             r.kind,
+    identifier:       r.identifier,
+    accountStatus:    r.account_status,
+    membershipId:     r.membership_id,
+    invoiceId:        r.invoice_id,
+    groupId:          r.gm_group_id ?? r.invoice_group_id,
+    memberId:         r.member_id,
+    membershipStatus: r.membership_status,
+    memberActive:     r.member_active,
+    memberPhone:      r.member_phone,
+  };
+}
+
+/** Payment eligibility per the membership state machine (§4.1). */
+function isPaymentEligible(hit: PaymentAccountHit): boolean {
+  return hit.accountStatus === 'active'
+      && hit.membershipStatus === 'active'
+      && hit.memberActive === true;
+}
+
+// ─── Payment spine helpers (payment architecture §3.4, §7, §12) ──────────────
+// Every state change on a payment appends a payment_events row; money-adjacent
+// side effects are announced via the transactional outbox (written in the SAME
+// transaction, so an event exists iff the change committed — ADR-17).
+
+async function logPaymentEvent(
+  db:        PoolClient,
+  paymentId: string,
+  event:     'received' | 'validated' | 'allocated' | 'journal_posted' | 'unrouted' |
+             'reallocated' | 'reversed' | 'refunded' | 'charged_back' | 'replayed',
+  detail?:   Record<string, unknown>,
+  actor?:    string | null,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO payment_events (payment_id, event, actor, detail)
+     VALUES ($1, $2, $3, $4::jsonb)`,
+    [paymentId, event, actor ?? null, JSON.stringify(detail ?? {})],
+  );
+}
+
+async function emitOutbox(
+  db:          PoolClient,
+  eventType:   string,
+  aggregateId: string,
+  payload:     Record<string, unknown>,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO event_outbox (event_type, aggregate_id, payload)
+     VALUES ($1, $2, $3::jsonb)`,
+    [eventType, aggregateId, JSON.stringify(payload)],
+  );
+}
+
+/** Spine payment id for a receipt (null when no payments row exists). */
+async function spinePaymentId(db: PoolClient, receipt: string): Promise<string | null> {
+  const { rows } = await db.query<{ id: string }>(
+    `SELECT id FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
+    [receipt],
+  );
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * Transition the spine to 'allocated' after a successful domain allocation.
+ * Idempotent: only rows still in received/unrouted transition.
+ */
+async function markSpineAllocated(
+  db:      PoolClient,
+  receipt: string,
+  opts?:   { isThirdParty?: boolean; actor?: string | null; detail?: Record<string, unknown> },
+): Promise<void> {
+  const { rows } = await db.query<{ id: string }>(
+    `UPDATE payments
+     SET    allocation_status = 'allocated',
+            is_third_party    = is_third_party OR $2
+     WHERE  mpesa_receipt_number = $1
+       AND  allocation_status IN ('received','unrouted')
+     RETURNING id`,
+    [receipt, opts?.isThirdParty ?? false],
+  );
+  const paymentId = rows[0]?.id;
+  if (!paymentId) return;
+  await logPaymentEvent(db, paymentId, 'allocated', opts?.detail, opts?.actor);
+  await emitOutbox(db, 'payment.allocated', paymentId, {
+    receipt, ...(opts?.detail ?? {}),
+  });
+}
+
+/** Transition the spine to 'unrouted' when auto-allocation could not bind. */
+async function markSpineUnrouted(
+  db:      PoolClient,
+  receipt: string,
+  reason:  string,
+): Promise<void> {
+  const { rows } = await db.query<{ id: string }>(
+    `UPDATE payments
+     SET    allocation_status = 'unrouted'
+     WHERE  mpesa_receipt_number = $1 AND allocation_status = 'received'
+     RETURNING id`,
+    [receipt],
+  );
+  const paymentId = rows[0]?.id;
+  if (!paymentId) return; // surrogate receipts (reconciliation) have no spine row
+  await logPaymentEvent(db, paymentId, 'unrouted', { reason });
+  await emitOutbox(db, 'payment.unrouted', paymentId, { receipt, reason });
+}
+
+// ─── C2B Validation (payment architecture §3.2) ──────────────────────────────
+
+export type C2BValidationVerdict =
+  | { accept: true }
+  | { accept: false; reason: 'bad_account' | 'unknown_account' | 'membership_inactive' };
+
+/**
+ * Pre-payment account validation — Safaricom calls this BEFORE completing a
+ * C2B transaction, so a rejection here means the member's money never moves.
+ *
+ * Deterministic and conservative:
+ *  - Membership-number-SHAPED refs are strictly validated (check digit,
+ *    registry presence, payment eligibility). A typo'd number is rejected
+ *    instead of becoming unrouted-queue toil.
+ *  - Everything else (legacy KYT grammar, invoice numbers, group codes)
+ *    is accepted and handled by confirmation-side routing, unchanged.
+ *  - Any internal error fails OPEN (accept) — we never lose a payment to our
+ *    own latency; the unrouted queue remains the backstop.
+ */
+export async function validateC2BAccount(
+  billRef: string | null | undefined,
+): Promise<C2BValidationVerdict> {
+  try {
+    const stripped = normalizeAccountRef(billRef ?? '');
+    if (!looksLikeMembershipNo(stripped)) {
+      // Not membership-number shaped — legacy/invoice refs flow to
+      // confirmation routing as before.
+      return { accept: true };
+    }
+    if (!isValidMembershipNo(stripped)) {
+      return { accept: false, reason: 'bad_account' };
+    }
+    const hit = await withAdminDb((db) => lookupPaymentAccount(db, stripped));
+    if (!hit) return { accept: false, reason: 'unknown_account' };
+    if (!isPaymentEligible(hit)) return { accept: false, reason: 'membership_inactive' };
+    return { accept: true };
+  } catch (err) {
+    logger.error('[mpesa/c2b] validation failed open', { billRef, err: String(err) });
+    return { accept: true };
+  }
+}
+
 // ─── C2B Confirmation ─────────────────────────────────────────────────────────
 
 export interface C2BCallbackBody {
@@ -755,10 +1025,36 @@ export async function handleC2BConfirmation(
     );
     if (existingPay[0]) return;
 
-    // 2. Resolve the group via the parser, with progressive fallback.
+    // 2. Registry-first routing (payment architecture §3.3 R1–R4): one
+    //    indexed lookup resolves membership numbers and legacy member codes
+    //    to a specific membership — the member is identified by the ACCOUNT
+    //    NUMBER, never by the paying phone (third parties may pay).
+    const hit = await lookupPaymentAccount(db, body.BillRefNumber);
+    if (hit && (hit.kind === 'membership_no' || hit.kind === 'legacy_code') && hit.groupId) {
+      await recordC2BInbound(db, hit.groupId, body, phone, amount, rawBody);
+
+      const fulfil: C2BFulfilmentInput = {
+        groupId: hit.groupId, route, receipt: body.TransID,
+        amount, phone, billRef: body.BillRefNumber, rawBody,
+      };
+      if (!isPaymentEligible(hit)) {
+        // Exited/suspended/blacklisted membership (or suspended account row):
+        // money is recorded on the spine but never auto-posted (§4.1).
+        await c2bToUnrouted(db, fulfil, 'membership_inactive');
+        return;
+      }
+      await applyContributionFromC2B(db, {
+        ...fulfil,
+        memberId:        hit.memberId!,
+        thirdPartyPhone: hit.memberPhone && hit.memberPhone !== phone ? phone : null,
+      });
+      return;
+    }
+
+    // 3. Legacy grammar fallback — resolve the group via the parser.
     const groupId = await resolveC2BGroupId(db, route, body);
 
-    // 3. If we couldn't even resolve a group, log to unrouted with a NULL
+    // 4. If we couldn't even resolve a group, log to unrouted with a NULL
     //    candidate group and bail — there's no group_id to write the
     //    mpesa_transactions row against.
     if (!groupId) {
@@ -779,27 +1075,8 @@ export async function handleC2BConfirmation(
       return;
     }
 
-    // 4. Record the inbound on both the master ledger and legacy payments
-    //    table. Both have UNIQUE(mpesa_receipt_number) so retries are safe.
-    await db.query(
-      `INSERT INTO mpesa_transactions
-         (group_id, transaction_type, direction, mpesa_receipt_number,
-          phone_number, amount, status, reference, raw_response, completed_at, is_test)
-       VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
-       ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
-      [groupId, body.TransID, phone, amount.toFixed(2), body.BillRefNumber, rawBody, IS_SANDBOX],
-    );
-
-    await db.query(
-      `INSERT INTO payments
-         (group_id, amount, payment_method, status, mpesa_receipt_number,
-          mpesa_phone, mpesa_raw_callback, payment_date)
-       VALUES ($1,$2,'mpesa','completed',$3,$4,$5::jsonb,NOW())
-       ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
-      [groupId, amount.toFixed(2), body.TransID, phone, rawBody],
-    );
-
-    // 5. Auto-fulfilment — route to the matching domain action.
+    // 5. Record the inbound, then route to the matching domain action.
+    await recordC2BInbound(db, groupId, body, phone, amount, rawBody);
     await fulfilC2B(db, {
       groupId,
       route,
@@ -813,13 +1090,60 @@ export async function handleC2BConfirmation(
 }
 
 /**
+ * Records an inbound C2B payment on both the master ledger and the legacy
+ * payments table. Both carry UNIQUE(mpesa_receipt_number) so retries are safe.
+ */
+async function recordC2BInbound(
+  db:      PoolClient,
+  groupId: string,
+  body:    C2BCallbackBody,
+  phone:   string,
+  amount:  number,
+  rawBody: string,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO mpesa_transactions
+       (group_id, transaction_type, direction, mpesa_receipt_number,
+        phone_number, amount, status, reference, raw_response, completed_at, is_test)
+     VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
+     ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
+    [groupId, body.TransID, phone, amount.toFixed(2), body.BillRefNumber, rawBody, IS_SANDBOX],
+  );
+
+  const { rows } = await db.query<{ id: string }>(
+    `INSERT INTO payments
+       (group_id, amount, payment_method, status, mpesa_receipt_number,
+        mpesa_phone, mpesa_raw_callback, payment_date, channel)
+     VALUES ($1,$2,'mpesa','completed',$3,$4,$5::jsonb,NOW(),'paybill')
+     ON CONFLICT (mpesa_receipt_number) DO NOTHING
+     RETURNING id`,
+    [groupId, amount.toFixed(2), body.TransID, phone, rawBody],
+  );
+
+  // First arrival appends 'received' + announces on the outbox; a Safaricom
+  // retry (conflict → no row) is recorded as 'replayed' instead.
+  if (rows[0]) {
+    await logPaymentEvent(db, rows[0].id, 'received', { billRef: body.BillRefNumber });
+    await emitOutbox(db, 'payment.received', rows[0].id, {
+      receipt: body.TransID, amount, groupId,
+    });
+  } else {
+    const existing = await spinePaymentId(db, body.TransID);
+    if (existing) await logPaymentEvent(db, existing, 'replayed', { path: 'c2b' });
+  }
+}
+
+/**
  * Group resolution strategy for C2B payments:
  *   1. Parser found a group code (`KY1234567`) → look up by `groups.group_code`
  *   2. Parser found an entity id (loan id, invoice number, etc.) → derive the
  *      group via the entity's FK
- *   3. BillRef matches the legacy `UPPER(name)` pattern → resolve by name
- *   4. Phone matches exactly one active member → use their group (only if
+ *   3. Phone matches exactly one active member → use their group (only if
  *      they're in exactly one group, per the no-account-ref-is-ambiguous rule)
+ *
+ * Group-NAME matching was deliberately removed (audit H-4): groups.name has no
+ * uniqueness constraint, so `UPPER(name) = UPPER(billRef) LIMIT 1` could post
+ * real money into an arbitrary same-named group. Do not reintroduce it.
  */
 async function resolveC2BGroupId(
   db:    PoolClient,
@@ -851,22 +1175,13 @@ async function resolveC2BGroupId(
     if (rows[0]) return rows[0].group_id;
   }
 
-  // 3. Legacy fallback — match by group name (case-insensitive)
-  if (body.BillRefNumber?.trim()) {
-    const { rows } = await db.query<{ id: string }>(
-      `SELECT id FROM groups WHERE UPPER(name) = UPPER($1) AND is_active = true LIMIT 1`,
-      [body.BillRefNumber],
-    );
-    if (rows[0]) return rows[0].id;
-  }
-
-  // 4. Phone-only fallback (only when member is in exactly one group)
+  // 3. Phone-only fallback (only when member is in exactly one group)
   const phone = normalizePhone(body.MSISDN);
   const { rows: phoneRows } = await db.query<{ group_id: string }>(
     `SELECT gm.group_id
      FROM   group_members gm
      JOIN   members m ON m.id = gm.member_id
-     WHERE  m.phone = $1 AND gm.is_active = true AND m.is_active = true`,
+     WHERE  m.phone = $1 AND gm.status = 'active' AND m.is_active = true`,
     [phone],
   );
   if (phoneRows.length === 1) return phoneRows[0].group_id;
@@ -901,15 +1216,45 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
     return;
   }
 
-  // Contribution-style payments (incl. welfare, share) — auto-create a
-  // contribution row keyed to a member resolved by phone.
+  // Contribution-style payments (incl. welfare, share). When the legacy
+  // grammar carries a member_code suffix the member is resolved by CODE —
+  // never by phone, so third-party payers route correctly (§3.3 R6). Phone
+  // resolution survives only for group-only legacy refs.
   if (route.kind === 'contribution' || route.kind === 'welfare' || route.kind === 'share') {
-    const memberId = await resolveMemberInGroup(db, in_.phone, in_.groupId);
-    if (!memberId) {
-      await c2bToUnrouted(db, in_, 'unknown_member');
-      return;
+    let memberId: string | null = null;
+    let memberPhone: string | null = null;
+
+    if (route.memberCode) {
+      const { rows } = await db.query<{ member_id: string; phone: string }>(
+        `SELECT gm.member_id, m.phone
+         FROM   group_members gm
+         JOIN   members m ON m.id = gm.member_id
+         WHERE  gm.group_id = $1 AND gm.member_code = $2
+           AND  gm.status = 'active' AND m.is_active = true
+         LIMIT  1`,
+        [in_.groupId, route.memberCode],
+      );
+      memberId    = rows[0]?.member_id ?? null;
+      memberPhone = rows[0]?.phone ?? null;
+      // A member code that doesn't match is never "corrected" via phone —
+      // that guess is exactly what mis-posts third-party payments.
+      if (!memberId) {
+        await c2bToUnrouted(db, in_, 'unknown_member');
+        return;
+      }
+    } else {
+      memberId = await resolveMemberInGroup(db, in_.phone, in_.groupId);
+      if (!memberId) {
+        await c2bToUnrouted(db, in_, 'unknown_member');
+        return;
+      }
     }
-    await applyContributionFromC2B(db, { ...in_, memberId });
+
+    await applyContributionFromC2B(db, {
+      ...in_,
+      memberId,
+      thirdPartyPhone: memberPhone && memberPhone !== in_.phone ? in_.phone : null,
+    });
     return;
   }
 
@@ -961,7 +1306,7 @@ async function resolveMemberInGroup(
      JOIN   group_members gm ON gm.member_id = m.id
      WHERE  m.phone   = $1
        AND  gm.group_id = $2
-       AND  gm.is_active = true
+       AND  gm.status = 'active'
        AND  m.is_active  = true
      LIMIT  1`,
     [phone, groupId],
@@ -971,8 +1316,14 @@ async function resolveMemberInGroup(
 
 async function applyContributionFromC2B(
   db:   PoolClient,
-  in_:  C2BFulfilmentInput & { memberId: string },
+  in_:  C2BFulfilmentInput & { memberId: string; thirdPartyPhone?: string | null },
 ): Promise<void> {
+  // Third-party payments (spouse/employer/donor pays a member's account) are
+  // flagged in the notes until the spine's is_third_party column lands
+  // (Phase 1.5). The routing destination is NEVER changed by the payer phone.
+  const note = `Auto-routed from PayBill ${in_.billRef}`
+    + (in_.thirdPartyPhone ? ` (third-party payer ${in_.thirdPartyPhone})` : '');
+
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO contributions
        (group_id, member_id, amount, contribution_date,
@@ -985,7 +1336,7 @@ async function applyContributionFromC2B(
       in_.memberId,
       in_.amount.toFixed(2),
       in_.receipt,
-      `Auto-routed from PayBill ${in_.billRef}`,
+      note,
     ],
   );
   const contributionId = rows[0]?.id ?? null;
@@ -997,13 +1348,25 @@ async function applyContributionFromC2B(
     amount:         in_.amount,
     reference:      in_.receipt,
   });
+
+  // Spine: link the domain row and flip received → allocated (§3.4).
+  await db.query(
+    `UPDATE contributions
+     SET    payment_id = (SELECT id FROM payments WHERE mpesa_receipt_number = $1)
+     WHERE  id = $2 AND payment_id IS NULL`,
+    [in_.receipt, contributionId],
+  );
+  await markSpineAllocated(db, in_.receipt, {
+    isThirdParty: !!in_.thirdPartyPhone,
+    detail: { product: 'savings', contributionId, groupId: in_.groupId },
+  });
 }
 
 async function c2bToUnrouted(
   db:    PoolClient,
   in_:   C2BFulfilmentInput,
   reason: 'unknown_prefix' | 'unknown_group' | 'unknown_member' | 'ambiguous_member' |
-          'no_account_ref' | 'amount_mismatch' | 'other',
+          'no_account_ref' | 'amount_mismatch' | 'membership_inactive' | 'bad_account' | 'other',
 ): Promise<void> {
   if (isSandboxTestRef(in_.billRef)) return;
   await db.query(
@@ -1025,6 +1388,7 @@ async function c2bToUnrouted(
     billRef: in_.billRef,
     phone:   in_.phone,
   });
+  await markSpineUnrouted(db, in_.receipt, reason);
 }
 
 // ─── Callback audit + DLQ replay ──────────────────────────────────────────────
@@ -1331,6 +1695,10 @@ export async function resolveUnrouted(
     // allocate → create contribution + journal
     if (!opts.memberId) throw new NotFoundError('Member', 'required for allocate');
 
+    // The allocation target must hold an active membership in the resolving
+    // group — treasurers must not be able to park receipts on strangers (audit H-1).
+    await assertActiveMembership(db, ctx.groupId, opts.memberId);
+
     const amount = parseFloat(row.amount);
     const { rows: contribRows } = await db.query<{ id: string }>(
       `INSERT INTO contributions
@@ -1352,6 +1720,18 @@ export async function resolveUnrouted(
         contributionId,
         amount,
         reference:      row.receipt,
+      });
+
+      // Spine: link + flip unrouted → allocated, attributed to the treasurer.
+      await db.query(
+        `UPDATE contributions
+         SET    payment_id = (SELECT id FROM payments WHERE mpesa_receipt_number = $1)
+         WHERE  id = $2 AND payment_id IS NULL`,
+        [row.receipt, contributionId],
+      );
+      await markSpineAllocated(db, row.receipt, {
+        actor:  ctx.userId,
+        detail: { product: 'savings', contributionId, groupId: ctx.groupId, via: 'unrouted_resolution' },
       });
     }
 
@@ -1991,7 +2371,7 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
      FROM   members m
      JOIN   group_members gm ON gm.member_id = m.id
      WHERE  m.phone = $1 AND gm.group_id = $2
-       AND  gm.is_active = true AND m.is_active = true
+       AND  gm.status = 'active' AND m.is_active = true
      LIMIT  1`,
     [row.phone, row.group_id],
   );

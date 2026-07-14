@@ -74,6 +74,20 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `mpesa_replay_callbacks:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  // Transactional outbox drain (payment architecture §12).
+  queued.outbox_dispatch = await safe('outbox_dispatch', {}, {
+    priority:  8,
+    dedup_key: `outbox_dispatch:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // ── Hourly — payment-spine orphan monitor (§16) ────────────────
+  if (fiveMinBucket === 0) {
+    queued.payment_orphan_monitor = await safe('payment_orphan_monitor', {}, {
+      priority:  7,
+      dedup_key: `payment_orphan_monitor:${dateStr}T${hour}`,
+    });
+  }
+
   // ── Daily 06:00 UTC — recurring invoices ──────────────────────
   if (hour === 6) {
     queued.email_recurring_invoices = await safe('email_recurring_invoices', {}, {

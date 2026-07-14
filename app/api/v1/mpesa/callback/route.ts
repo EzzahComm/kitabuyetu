@@ -42,10 +42,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return ack();
   }
 
-  // Audit-log the raw callback, process it, then mark the audit row
-  // processed/errored so the DLQ replay job can pick up genuine failures.
+  // Ack-after-durable-audit (ADR-19): the raw callback must be durably
+  // persisted BEFORE we return 200. If the audit insert fails (e.g. DB down),
+  // a non-200 makes Safaricom retry — previously we acked unconditionally and
+  // a callback arriving during an outage was silently lost. The DLQ replay
+  // job recovers processing failures from the audit row.
+  const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
+  if (!callbackId && DURABLE_ACK) {
+    logger.error('[mpesa/callback] audit write failed — asking Safaricom to retry');
+    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Retry' }, { status: 503 });
+  }
+
   after(async () => {
-    const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
     try {
       const result = await handleSTKCallback(body, callerIp);
       if (result.success && result.paymentId && result.amount) {
@@ -60,6 +68,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return ack();
 }
+
+// Config escape hatch: set MPESA_DURABLE_ACK=false to restore the legacy
+// unconditional 200-ack (e.g. while diagnosing audit-table issues).
+const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== 'false';
 
 async function processFulfillment(
   paymentId: string,

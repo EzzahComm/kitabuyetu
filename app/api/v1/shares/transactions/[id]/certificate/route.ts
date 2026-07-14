@@ -6,6 +6,7 @@ import { withDb } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { errorResponse, handleError } from '@/lib/utils/response';
 import { ShareCertificate, type ShareCertificateProps } from '@/components/pdf/share-certificate';
+import { formatMembershipNo } from '@/lib/utils/membership-no';
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
           registration_no:     string | null;
           member_first_name:   string;
           member_last_name:    string;
-          member_code:         string | null;
+          membership_no:       string | null;
           member_national_id:  string | null;
           share_class_name:    string;
           share_class_code:    string;
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
              g.registration_number           AS registration_no,
              m.first_name                    AS member_first_name,
              m.last_name                     AS member_last_name,
-             gm.member_code                  AS member_code,
+             gm.membership_no                AS membership_no,
              m.national_id                   AS member_national_id,
              c.name                          AS share_class_name,
              c.code                          AS share_class_code,
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
           registrationNo:   data.registration_no,
           memberFirstName:  data.member_first_name,
           memberLastName:   data.member_last_name,
-          memberCode:       data.member_code,
+          membershipNo:     data.membership_no ? formatMembershipNo(data.membership_no) : null,
           memberNationalId: data.member_national_id,
           shareClassName:   data.share_class_name,
           shareClassCode:   data.share_class_code,

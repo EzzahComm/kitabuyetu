@@ -7,7 +7,7 @@
  */
 import { withTransaction } from '@/lib/db';
 import { contributionsService } from '@/lib/services/contributions.service';
-import { ConflictError, NotFoundError } from '@/lib/utils/errors';
+import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -39,8 +39,25 @@ const baseContributionInput = {
   contributionDate: '2025-06-01',
 } as const;
 
+// First query in create() is always the membership guard (audit H-1).
+const membershipRow = { rows: [{ id: 'gm-1', member_code: 'KY000000100001' }] };
+
 describe('contributionsService.create', () => {
+  it('throws ValidationError when the member has no active membership in the group', async () => {
+    // Membership guard finds nothing → reject before any write
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      contributionsService.create(ctx, baseContributionInput),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    // Guard query only — no duplicate check, no INSERT
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   it('throws ConflictError when M-Pesa receipt number already exists', async () => {
+    // Membership guard passes
+    mockQuery.mockResolvedValueOnce(membershipRow);
     // Duplicate check returns an existing row → service must reject
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'existing-c-id' }] });
 
@@ -52,23 +69,24 @@ describe('contributionsService.create', () => {
     ).rejects.toBeInstanceOf(ConflictError);
 
     // Must not have proceeded to INSERT after finding the duplicate
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   it('creates a pending contribution when no payment method is provided', async () => {
     // No mpesaReceiptNumber on baseContributionInput → duplicate check is skipped
-    // The only DB call is the INSERT itself
+    // DB calls: membership guard, then the INSERT itself
     const pendingContribution = {
       id: 'c-1', group_id: 'grp-1', member_id: 'mem-1',
       amount: '1000.00', status: 'pending',
       payment_method: null, mpesa_receipt_number: null,
     };
+    mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce({ rows: [pendingContribution] });
 
     const result = await contributionsService.create(ctx, baseContributionInput);
 
     expect(result.status).toBe('pending');
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   it('creates a completed contribution when payment method is provided', async () => {
@@ -78,6 +96,8 @@ describe('contributionsService.create', () => {
       payment_method: 'mpesa', mpesa_receipt_number: 'QDE456UVW',
     };
 
+    // membership guard → active membership found
+    mockQuery.mockResolvedValueOnce(membershipRow);
     // duplicate check → no conflict
     mockQuery.mockResolvedValueOnce({ rows: [] });
     // INSERT

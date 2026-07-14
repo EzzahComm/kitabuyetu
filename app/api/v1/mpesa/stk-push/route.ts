@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
 import { initiateSTKPush } from '@/lib/services/mpesa.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
+import { withIdempotencyKey } from '@/lib/utils/idempotency';
 import { ok, handleError } from '@/lib/utils/response';
 
 const StkPushSchema = z.object({
@@ -16,21 +17,26 @@ const StkPushSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
-    const body  = await req.json();
-    const input = StkPushSchema.parse(body);
+  return withAuth(req, (auth) =>
+    // Idempotency-Key (§13): a client retry with the same key returns the
+    // original response — never a second prompt on the member's phone.
+    withIdempotencyKey(req, auth.userId, 'stk-push', async () => {
+      const body  = await req.json();
+      const input = StkPushSchema.parse(body);
 
-    const result = await initiateSTKPush({
-      ...input,
-      groupId:   auth.groupId,
-      invoiceId: input.invoiceId ?? undefined,
-    });
+      const result = await initiateSTKPush({
+        ...input,
+        groupId:     auth.groupId,
+        invoiceId:   input.invoiceId ?? undefined,
+        initiatedBy: auth.userId,
+      });
 
-    return ok({
-      checkoutRequestId:   result.checkoutRequestId,
-      merchantRequestId:   result.merchantRequestId,
-      responseDescription: result.responseDescription,
-      message:             'STK Push sent. Please complete the payment on your phone.',
-    });
-  });
+      return ok({
+        checkoutRequestId:   result.checkoutRequestId,
+        merchantRequestId:   result.merchantRequestId,
+        responseDescription: result.responseDescription,
+        message:             'STK Push sent. Please complete the payment on your phone.',
+      });
+    }),
+  );
 }

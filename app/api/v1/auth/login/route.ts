@@ -34,6 +34,7 @@ interface GroupMembershipRow {
   group_id:      string;
   member_id:     string;
   member_code:   string;
+  membership_no: string;
   person_id:     string;
   member_status: string;
   group_role:    string;     // group_members.role
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       const { rows: memberships } = await client.query<GroupMembershipRow>(
         `SELECT
-           gm.group_id, gm.member_id, gm.member_code, gm.person_id,
+           gm.group_id, gm.member_id, gm.member_code, gm.membership_no, gm.person_id,
            gm.status                  AS member_status,
            gm.role                    AS group_role,
            g.group_code, g.name       AS group_name, g.status AS group_status,
@@ -183,7 +184,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       groupStatus: chosen.group_status,
     });
 
-    const { token: refreshToken } = signRefreshToken(member.id);
+    // Pin the chosen group to the refresh token so token refreshes revalidate
+    // THIS membership instead of re-deriving one (audit C-1).
+    const { token: refreshToken } = signRefreshToken(member.id, 'tenant', chosen.group_id);
     const rtHash = hashToken(refreshToken);
     await storeRefreshToken(rtHash, member.id, refreshTtlSeconds());
 
@@ -215,6 +218,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         groupName:    chosen.group_name,
         groupCode:    chosen.group_code,
         memberCode:   chosen.member_code,
+        membershipNo: chosen.membership_no,
         personId:     chosen.person_id,
         officerRole:  chosen.officer_role ?? undefined,
         groupStatus:  chosen.group_status,

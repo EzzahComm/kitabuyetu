@@ -18,6 +18,8 @@ interface TenantUser {
   // Phase A additions — optional so legacy localStorage payloads still parse.
   groupCode?:   string;
   memberCode?:  string;
+  /** The Membership Number (e.g. BG102534) — the only public payment identifier. */
+  membershipNo?: string;
   personId?:    string;
   officerRole?: string;
 }

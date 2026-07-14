@@ -124,10 +124,13 @@ export default function ContributionsPage() {
                   const first = m.first_name ?? m.firstName ?? '';
                   const last  = m.last_name ?? m.lastName ?? '';
                   const phone = m.phone ?? '';
-                  const label = `${first} ${last}`.trim() || m.member_code || m.id;
+                  // Identify members by name + Membership Number (the only
+                  // public payment identifier) — never member_code/UUIDs.
+                  const acct  = m.membership_no ?? m.membershipNo ?? '';
+                  const label = `${first} ${last}`.trim() || acct || 'Member';
                   return (
                     <option key={m.id} value={m.id}>
-                      {label}{phone ? ` — ${phone}` : ''}
+                      {label}{acct ? ` (${acct})` : ''}{phone ? ` — ${phone}` : ''}
                     </option>
                   );
                 })}

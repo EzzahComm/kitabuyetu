@@ -9,6 +9,7 @@ import {
   Upload, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -109,6 +110,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             <p className="text-xs text-gray-400 truncate">{user.groupName}</p>
             <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
             <p className="text-xs text-gray-400 capitalize">{user.groupRole.replace('_', ' ')}</p>
+            {user.membershipNo && (
+              // The Membership Number is the member's PayBill account number —
+              // pinned here so the active membership is always unambiguous
+              // (payment architecture §8). Legacy sessions without it re-gain
+              // the line at next login.
+              <p className="text-xs font-mono text-emerald-400 mt-1" title="Your payment account number">
+                A/C {formatMembershipNo(user.membershipNo)}
+              </p>
+            )}
           </div>
         )}
 

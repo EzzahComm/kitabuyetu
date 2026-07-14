@@ -44,7 +44,8 @@ export interface LoginResponse {
     groupName:    string;
     // ── Phase A additions: human-readable IDs + shared identity ──
     groupCode?:   string;   // e.g. KY0000003
-    memberCode?:  string;   // e.g. KY000000300001
+    memberCode?:  string;   // e.g. KY000000300001 (internal/regulatory — never a payment id)
+    membershipNo?: string;  // e.g. BG102534 — the ONLY public payment identifier (Phase 1)
     personId?:    string;   // cross-group identity (person table)
     officerRole?: string;   // formal governance role from group_officers (chair/sec/treas/etc.)
     // ── Phase D Part 2: group lifecycle ──

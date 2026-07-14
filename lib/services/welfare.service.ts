@@ -1,5 +1,6 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
+import { assertActiveMembership } from './membership-guard';
 import { z } from 'zod';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -216,6 +217,9 @@ export const welfareService = {
 
   async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
     return withTransaction(ctx, async (client) => {
+      // The target member must hold an active membership in THIS group (audit H-1).
+      await assertActiveMembership(client, ctx.groupId, data.memberId);
+
       const { rows } = await client.query(
         `INSERT INTO welfare_pool_contributions
            (group_id, member_id, amount, contribution_type, payment_method,

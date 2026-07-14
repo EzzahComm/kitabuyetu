@@ -6,6 +6,7 @@ import { withDb } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { errorResponse, handleError } from '@/lib/utils/response';
 import { ContributionReceipt } from '@/components/pdf/contribution-receipt';
+import { formatMembershipNo } from '@/lib/utils/membership-no';
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
           group_code:           string;
           member_first_name:    string;
           member_last_name:     string;
-          member_code:          string | null;
+          membership_no:        string | null;
         }>(
           `SELECT c.id, c.amount, c.status, c.payment_method,
                   c.mpesa_receipt_number, c.contribution_date, c.created_at,
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
                   g.group_code  AS group_code,
                   m.first_name  AS member_first_name,
                   m.last_name   AS member_last_name,
-                  gm.member_code AS member_code
+                  gm.membership_no AS membership_no
            FROM contributions c
            JOIN groups  g  ON g.id = c.group_id
            JOIN members m  ON m.id = c.member_id
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
           groupCode:        data.group_code,
           memberFirstName:  data.member_first_name,
           memberLastName:   data.member_last_name,
-          memberCode:       data.member_code,
+          membershipNo:     data.membership_no ? formatMembershipNo(data.membership_no) : null,
           amount:           data.amount,
           paymentMethod:    data.payment_method,
           mpesaReceipt:     data.mpesa_receipt_number,

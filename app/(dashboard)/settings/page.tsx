@@ -7,9 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { membersApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
+import { formatMembershipNo, normalizeAccountRef } from '@/lib/utils/membership-no';
+
+// Platform PayBill business number, shown on the payment card when configured.
+// (NEXT_PUBLIC_* is inlined at build time.)
+const PAYBILL = process.env.NEXT_PUBLIC_MPESA_PAYBILL ?? '';
 
 const profileSchema = z.object({
   firstName: z.string().min(2),
@@ -61,9 +66,41 @@ export default function SettingsPage() {
     }
   };
 
+  const membershipNo = isTenantUser(user) ? user.membershipNo : undefined;
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      {membershipNo && (
+        // Payment instructions (payment architecture §1.7): the Membership
+        // Number is the member's PayBill account number — the ONLY payment
+        // identifier we ever show. member_code never appears here.
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Payment account</CardTitle>
+            <CardDescription>
+              Pay via M-Pesa PayBill{PAYBILL ? ` ${PAYBILL}` : ''} using this account number
+              {isTenantUser(user) ? ` — payments go to ${user.groupName}` : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-3">
+            <p className="text-xl font-mono font-semibold tracking-wider">
+              {formatMembershipNo(membershipNo)}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(normalizeAccountRef(membershipNo));
+                toast({ title: 'Copied', description: 'Account number copied to clipboard.' });
+              }}
+            >
+              Copy
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

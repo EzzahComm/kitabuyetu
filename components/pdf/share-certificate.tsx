@@ -10,7 +10,8 @@ export interface ShareCertificateProps {
 
   memberFirstName:  string;
   memberLastName:   string;
-  memberCode:       string | null;
+  /** Formatted Membership Number ("BG 10253 4") — the only public payment identifier. */
+  membershipNo:     string | null;
   memberNationalId: string | null;
 
   shareClassName:   string;
@@ -234,7 +235,7 @@ export function ShareCertificate(props: ShareCertificateProps) {
               <Text style={styles.paragraph}>
                 This is to certify that{' '}
                 <Text style={styles.inline}>{fullName}</Text>
-                {props.memberCode ? <> (member <Text style={styles.inline}>{props.memberCode}</Text>)</> : null}
+                {props.membershipNo ? <> (member A/C <Text style={styles.inline}>{props.membershipNo}</Text>)</> : null}
                 {props.memberNationalId ? <>, holder of national ID <Text style={styles.inline}>{props.memberNationalId}</Text></> : null}
                 {' '}is the registered owner of the shares set out below, recorded against{' '}
                 {TYPE_LABEL[props.txnType]} <Text style={styles.inline}>{props.quantity}</Text>{' '}

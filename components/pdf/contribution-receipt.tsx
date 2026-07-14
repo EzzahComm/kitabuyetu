@@ -7,7 +7,8 @@ export interface ContributionReceiptProps {
   groupCode:        string;
   memberFirstName:  string;
   memberLastName:   string;
-  memberCode:       string | null;
+  /** Formatted Membership Number ("BG 10253 4") — the only public payment identifier. */
+  membershipNo:     string | null;
   amount:           string;     // 2dp string
   paymentMethod:    string | null;
   mpesaReceipt:     string | null;
@@ -74,9 +75,14 @@ export function ContributionReceipt(props: ContributionReceiptProps) {
             <Text style={styles.label}>Member</Text>
             <Text style={styles.value}>
               {props.memberFirstName} {props.memberLastName}
-              {props.memberCode ? ` (${props.memberCode})` : ''}
             </Text>
           </View>
+          {props.membershipNo && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Account number</Text>
+              <Text style={styles.value}>{props.membershipNo}</Text>
+            </View>
+          )}
           <View style={styles.row}>
             <Text style={styles.label}>Date</Text>
             <Text style={styles.value}>{fmtDate(props.contributionDate)}</Text>

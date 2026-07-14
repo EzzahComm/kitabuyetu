@@ -161,3 +161,24 @@ export async function releaseStkLock(fingerprint: string): Promise<void> {
     // TTL will expire it anyway
   }
 }
+
+/**
+ * Fixed-window rate limiter. Returns true while the caller is under `limit`
+ * events per `windowSeconds` for the given key. Fail-open: a Redis outage
+ * must never block payments — abuse control degrades, correctness doesn't.
+ */
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  try {
+    const fullKey = k(keys.rateLimit(key));
+    const count = await redis.incr(fullKey);
+    if (count === 1) await redis.expire(fullKey, windowSeconds);
+    return count <= limit;
+  } catch (err) {
+    logger.warn('[redis] rate limiter unavailable — allowing request', { err: String(err) });
+    return true;
+  }
+}

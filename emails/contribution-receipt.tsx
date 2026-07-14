@@ -81,7 +81,7 @@ ContributionReceipt.PreviewProps = {
   groupName: 'Umoja Savings Group',
   amount: 3000,
   mpesaRef: 'SKE3X9QW12',
-  accountRef: 'KYT-CONTR-KY0000019',
+  accountRef: 'BG 10253 4',
   paymentMethod: 'mpesa',
   date: '29 May 2026, 09:14',
   status: 'completed',

@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient, api } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatMembershipNo } from '@/lib/utils/membership-no';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
 // manually for now — single shared types lib is a Phase F cleanup.
@@ -128,13 +129,16 @@ export default function RegisterPage() {
     try {
       const { confirm: _unused, ...body } = values;
       const data = await authApi.register(body) as Awaited<ReturnType<typeof authApi.register>> & {
-        groupCode?: string;
-        memberCode?: string;
+        groupCode?:    string;
+        membershipNo?: string;
       };
       login(data);
+      // The Membership Number is the member's payment account number — the
+      // only payment identifier we ever show (payment architecture §1.1).
       toast({
         title:       'Welcome to Kitabu Yetu!',
-        description: `Your group is ${data.groupCode ?? 'created'}. Member code: ${data.memberCode ?? ''}.`,
+        description: `Your group is ${data.groupCode ?? 'created'}.`
+          + (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
       });
       router.push('/dashboard');
     } catch (err: any) {

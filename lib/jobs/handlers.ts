@@ -52,6 +52,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'mpesa_balance_snapshot':
       return handleMpesaBalanceSnapshot();
 
+    case 'outbox_dispatch':
+      return handleOutboxDispatch();
+
+    case 'payment_orphan_monitor':
+      return handlePaymentOrphanMonitor();
+
     case 'accounting_balance_drift':
       return handleAccountingBalanceDrift();
 
@@ -159,6 +165,23 @@ async function handleMpesaBalanceSnapshot(): Promise<HandlerResult> {
   const { queryAccountBalance } = await import('@/lib/services/daraja.service');
   await queryAccountBalance();
   return { message: 'M-Pesa balance snapshot requested' };
+}
+
+async function handleOutboxDispatch(): Promise<HandlerResult> {
+  const { dispatchOutboxEvents } = await import('@/lib/services/outbox.service');
+  const result = await dispatchOutboxEvents();
+  return { message: 'Outbox dispatched', ...flattenResult(result) };
+}
+
+async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
+  const { findSpineOrphans } = await import('@/lib/services/outbox.service');
+  const result = await findSpineOrphans();
+  return {
+    message: result.count === 0
+      ? 'Payment spine: no orphans'
+      : `Payment spine: ${result.count} ORPHANED payment(s) — investigate`,
+    orphans: result.count,
+  };
 }
 
 async function handleAccountingBalanceDrift(): Promise<HandlerResult> {

@@ -39,6 +39,11 @@ interface RefreshTokenPayload {
   type: 'refresh';
   jti:  string;
   aud?: TokenAudience;           // mirror access-token audience so refreshes don't cross
+  // Active-membership pinning (audit C-1): the group chosen at login travels
+  // with the refresh token so refreshes REVALIDATE that membership instead of
+  // re-deriving one. Absent on tokens issued before this field existed —
+  // the refresh route handles that case explicitly.
+  groupId?: string;
 }
 
 // Validated at module load by lib/env.ts — no need for a second null check here.
@@ -83,11 +88,12 @@ export function verifyAccessToken(token: string): AccessTokenPayload & { iat: nu
 export function signRefreshToken(
   userId: string,
   audience: TokenAudience = 'tenant',
+  groupId?: string,
 ): { token: string; jti: string } {
   const jti = crypto.randomUUID();
   const ttl = audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL;
   const token = jwt.sign(
-    { sub: userId, type: 'refresh', jti, aud: audience } satisfies RefreshTokenPayload,
+    { sub: userId, type: 'refresh', jti, aud: audience, ...(groupId ? { groupId } : {}) } satisfies RefreshTokenPayload,
     REFRESH_SECRET,
     { algorithm: ALGORITHM, expiresIn: ttl } as jwt.SignOptions,
   );
