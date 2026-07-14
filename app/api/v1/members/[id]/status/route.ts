@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
+import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { MemberStatusTransitionSchema } from '@/lib/validators/member.schema';
 import { ok, handleError } from '@/lib/utils/response';
 import { ROLES } from '@/lib/auth/rbac';
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const { id } = await params;
   return withAuth(req, async (auth) => {
     if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
+    // Sensitive op (§2.5): governance actions re-check epochs — a demoted
+    // admin cannot suspend/blacklist members on a stale token.
+    await assertAuthFresh(auth);
     const body  = await req.json();
     const input = MemberStatusTransitionSchema.parse(body);
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

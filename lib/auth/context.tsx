@@ -54,7 +54,10 @@ interface AuthContextValue extends AuthState {
   login:      (data: LoginResponse) => void;
   loginAdmin: (data: AdminLoginResponse) => void;
   logout:     () => void;
-  setAccessToken: (token: string) => void;
+  /** Store a renewed access token — and, when the server rotated it (§15.3),
+   *  the successor refresh token. The old refresh token is consumed
+   *  server-side; reusing it revokes the whole session lineage. */
+  setAccessToken: (token: string, rotatedRefreshToken?: string) => void;
 }
 
 // Narrowing helpers so consumers can guard on shape without importing the
@@ -131,9 +134,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const setAccessToken = useCallback((token: string) => {
+  const setAccessToken = useCallback((token: string, rotatedRefreshToken?: string) => {
     setState((s) => {
-      const next = { ...s, accessToken: token };
+      const next = {
+        ...s,
+        accessToken:  token,
+        refreshToken: rotatedRefreshToken ?? s.refreshToken,
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });

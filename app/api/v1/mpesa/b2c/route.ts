@@ -9,6 +9,7 @@ import {
   type B2CResultBody,
 } from '@/lib/services/mpesa.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
+import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -79,6 +80,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Authenticated: initiate B2C disbursement
   return withRole(req, 'treasurer', async (auth) => {
     try {
+      // Sensitive op (§2.5): outbound money must not ride a stale token.
+      await assertAuthFresh(auth);
+
       const input = B2CSchema.parse(await req.json());
       const result = await initiateB2C({
         phone:       input.phone,

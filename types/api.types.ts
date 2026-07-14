@@ -24,6 +24,13 @@ export interface AuthContext {
   groupId:  string;
   role:     MemberRole | PlatformRole;
   organizationId?:   string;
+  // Active Membership Context + drift epochs (payment architecture §2.1/§2.5).
+  // Absent on legacy tokens issued before Phase 3.2; sensitive-op checks
+  // skip when absent (drift bounded by the access-token TTL).
+  membershipId?:   string;
+  membershipNo?:   string;
+  authVersion?:    number;
+  sessionVersion?: number;
 }
 
 // ------------------------------------------------------------------
@@ -123,6 +130,9 @@ export function isAdminMfaChallenge(r: AdminLoginResult): r is AdminLoginMfaChal
 
 export interface RefreshResponse {
   accessToken: string;
+  /** Rotated refresh token (§15.3) — the presented token is consumed; store
+   *  this one. Absent only from pre-rotation server responses. */
+  refreshToken?: string;
 }
 
 // ------------------------------------------------------------------

@@ -27,7 +27,19 @@ export function getAuthContext(req: NextRequest): AuthContext {
     throw new UnauthorizedError('Missing authentication context');
   }
 
-  return { userId, groupId, role, organizationId };
+  // Active Membership Context + epochs (§2.1/§2.5) — proxy-stamped from the
+  // JWT; absent on legacy tokens.
+  const membershipId  = req.headers.get('x-membership-id') ?? undefined;
+  const membershipNo  = req.headers.get('x-membership-no') ?? undefined;
+  const authVersionH  = req.headers.get('x-auth-version');
+  const sessionVersionH = req.headers.get('x-session-version');
+
+  return {
+    userId, groupId, role, organizationId,
+    membershipId, membershipNo,
+    authVersion:    authVersionH    != null ? Number(authVersionH)    : undefined,
+    sessionVersion: sessionVersionH != null ? Number(sessionVersionH) : undefined,
+  };
 }
 
 /**

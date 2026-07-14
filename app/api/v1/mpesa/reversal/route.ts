@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import { requestReversal } from '@/lib/services/daraja.service';
 import { handleReversalResult } from '@/lib/services/mpesa.service';
+import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Authenticated reversal initiation (treasurer or above)
   return withRole(req, 'treasurer', async (auth) => {
     try {
+      // Sensitive op (§2.5): reversals move money — re-check epochs.
+      await assertAuthFresh(auth);
+
       const input = ReversalSchema.parse(await req.json());
 
       const res = await requestReversal({

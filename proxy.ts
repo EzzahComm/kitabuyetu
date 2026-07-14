@@ -62,6 +62,12 @@ interface KyJwtPayload extends JWTPayload {
   role?:         string;
   // Phase D Part 2 — lifecycle gate. Missing = legacy token, treat as 'active'.
   groupStatus?:  string;
+  // Active Membership Context + drift epochs (payment architecture §2.1/§2.5).
+  // Missing on tokens issued before Phase 3.2.
+  membershipId?:   string;
+  membershipNo?:   string;
+  authVersion?:    number;
+  sessionVersion?: number;
   // Backoffice claims
   platformRole?: string;
   organizationId?:        string;
@@ -88,6 +94,7 @@ function forbidden(message: string): NextResponse {
 const CLAIM_HEADERS = [
   'x-user-id', 'x-aud', 'x-group-id', 'x-role',
   'x-group-status', 'x-organization-id', 'x-platform-role',
+  'x-membership-id', 'x-membership-no', 'x-auth-version', 'x-session-version',
 ] as const;
 
 function sanitizedHeaders(req: NextRequest): Headers {
@@ -199,6 +206,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     const groupStatus = payload.groupStatus ?? 'active';
     requestHeaders.set('x-group-status', groupStatus);
     if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
+    // Active Membership Context (§2.1) + epochs (§2.5) — absent on legacy tokens.
+    if (payload.membershipId)         requestHeaders.set('x-membership-id',   payload.membershipId);
+    if (payload.membershipNo)         requestHeaders.set('x-membership-no',   payload.membershipNo);
+    if (payload.authVersion != null)  requestHeaders.set('x-auth-version',    String(payload.authVersion));
+    if (payload.sessionVersion != null) requestHeaders.set('x-session-version', String(payload.sessionVersion));
 
     // Phase D Part 2 — gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management

@@ -116,7 +116,21 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     stage = 'persist_refresh_token';
     try {
-      await storeRefreshToken(hashToken(refreshToken), result.member_id, refreshTtlSeconds());
+      const rtHash = hashToken(refreshToken);
+      // The refresh_tokens TABLE is the rotation source of truth (§15.3) —
+      // without this row the session's first refresh would be rejected.
+      // Redis remains the fast revocation cache.
+      await withAdminDb((client) =>
+        client.query(
+          `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address, lineage_id, membership_id)
+           VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(),
+                   (SELECT gm.id FROM group_members gm
+                    WHERE gm.group_id = $5 AND gm.member_id = $1))`,
+          [result.member_id, rtHash, refreshTtlSeconds(),
+           req.headers.get('x-forwarded-for') ?? null, result.group_id],
+        ),
+      );
+      await storeRefreshToken(rtHash, result.member_id, refreshTtlSeconds());
     } catch (redisErr) {
       // Non-fatal: user is registered. Access token works for 15 min.
       logger.error('[register] failed to persist refresh token (non-fatal)', redisErr);

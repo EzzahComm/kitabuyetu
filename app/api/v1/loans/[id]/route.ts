@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { withAuth, withRole } from '@/lib/auth/middleware';
 import { loansService } from '@/lib/services/loans.service';
+import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
@@ -17,6 +18,10 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withRole(req, 'treasurer', async (auth) => {
+    // Sensitive op (§2.5): loan approval/disbursement must not ride a stale
+    // token — re-check role/session epochs against current truth.
+    await assertAuthFresh(auth);
+
     const body   = await req.json();
     const action = body.action as string;
     const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

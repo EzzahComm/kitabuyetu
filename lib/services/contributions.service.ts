@@ -246,15 +246,20 @@ async function postContributionJournal(
 
   if (!incomeAcct[0] || !cashAcct[0]) return;
 
+  // Ledger attribution (§6e): member + membership from the source document.
   const { rows: je } = await client.query<{ id: string }>(
-    `INSERT INTO journal_entries (group_id, entry_date, reference, description, status, created_by)
-     VALUES ($1, $2, $3, $4, 'posted', $5) RETURNING id`,
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by,
+        member_id, group_membership_id)
+     VALUES ($1, $2, $3, $4, 'posted', $5, $6, $7) RETURNING id`,
     [
       ctx.groupId,
       contribution.contribution_date,
       contribution.mpesa_receipt_number ?? null,
       `Contribution from member — ${contribution.id}`,
       ctx.userId,
+      contribution.member_id,
+      contribution.group_membership_id,
     ],
   );
   const jeId = je[0].id;

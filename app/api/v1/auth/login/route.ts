@@ -20,17 +20,19 @@ const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
 const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
 
 interface MemberRow {
-  id:            string;
-  password_hash: string;
-  first_name:    string;
-  last_name:     string;
-  phone:         string;
-  email:         string | null;
-  platform_role: string;
-  is_active:     boolean;
+  id:              string;
+  password_hash:   string;
+  first_name:      string;
+  last_name:       string;
+  phone:           string;
+  email:           string | null;
+  platform_role:   string;
+  is_active:       boolean;
+  session_version: number;
 }
 
 interface GroupMembershipRow {
+  membership_id: string;     // group_members.id — anchoring claim (§2.1)
   group_id:      string;
   member_id:     string;
   member_code:   string;
@@ -38,6 +40,7 @@ interface GroupMembershipRow {
   person_id:     string;
   member_status: string;
   group_role:    string;     // group_members.role
+  auth_version:  number;     // §2.5 membership auth epoch
   group_code:    string;
   group_name:    string;
   group_status:  string;     // groups.status
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const result = await withAdminDb(async (client) => {
       const { rows: members } = await client.query<MemberRow>(
         `SELECT id, password_hash, first_name, last_name, phone, email,
-                platform_role, is_active
+                platform_role, is_active, session_version
          FROM   members
          WHERE  ${isEmail ? 'lower(email) = $1' : 'phone = $1'}
          LIMIT  1`,
@@ -90,9 +93,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       const { rows: memberships } = await client.query<GroupMembershipRow>(
         `SELECT
+           gm.id                      AS membership_id,
            gm.group_id, gm.member_id, gm.member_code, gm.membership_no, gm.person_id,
            gm.status                  AS member_status,
            gm.role                    AS group_role,
+           gm.auth_version,
            g.group_code, g.name       AS group_name, g.status AS group_status,
            go.role                    AS officer_role
          FROM   group_members gm
@@ -177,16 +182,24 @@ export async function POST(req: NextRequest): Promise<Response> {
       : chosen.group_role;
 
     const accessToken = signAccessToken({
-      sub:         member.id,
-      groupId:     chosen.group_id,
-      role:        effectiveRole as any,
-      personId:    chosen.person_id,
-      groupStatus: chosen.group_status,
+      sub:            member.id,
+      groupId:        chosen.group_id,
+      role:           effectiveRole as any,
+      personId:       chosen.person_id,
+      groupStatus:    chosen.group_status,
+      // Active Membership Context (§2.1) + drift epochs (§2.5)
+      membershipId:   chosen.membership_id,
+      membershipNo:   chosen.membership_no,
+      authVersion:    chosen.auth_version,
+      sessionVersion: member.session_version,
     });
 
     // Pin the chosen group to the refresh token so token refreshes revalidate
-    // THIS membership instead of re-deriving one (audit C-1).
-    const { token: refreshToken } = signRefreshToken(member.id, 'tenant', chosen.group_id);
+    // THIS membership instead of re-deriving one (audit C-1). The session
+    // epoch travels too: a bump kills the session at its next refresh (§2.5).
+    const { token: refreshToken } = signRefreshToken(
+      member.id, 'tenant', chosen.group_id, member.session_version,
+    );
     const rtHash = hashToken(refreshToken);
     await storeRefreshToken(rtHash, member.id, refreshTtlSeconds());
 
@@ -197,9 +210,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         // `interval * interval` (an invalid operator in Postgres) — that bug
         // existed in the original code too but only surfaced after the data
         // wipe forced the first cold login of the session.
-        `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address)
-         VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4)`,
-        [member.id, rtHash, refreshTtlSeconds(), req.headers.get('x-forwarded-for') ?? null],
+        // lineage_id: a fresh login starts a new rotation lineage (§15.3);
+        // the row id doubles as the lineage anchor.
+        `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address, lineage_id, membership_id)
+         VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(), $5)`,
+        [member.id, rtHash, refreshTtlSeconds(),
+         req.headers.get('x-forwarded-for') ?? null, chosen.membership_id],
       ),
     );
 

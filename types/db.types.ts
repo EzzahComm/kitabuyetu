@@ -56,6 +56,8 @@ export interface Contribution {
   id:                   string;
   group_id:             string;
   member_id:            string;
+  /** Owning membership (group_members.id) — composite-FK bound (§6a). */
+  group_membership_id:  string;
   amount:               string;
   contribution_date:    Date;
   due_date:             Date | null;

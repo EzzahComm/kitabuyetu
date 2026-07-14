@@ -751,16 +751,23 @@ async function postContributionJournal(
     creditByAccountId.set(targetId, (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents);
   }
 
+  // Ledger attribution (§6e): member + membership copied from the source
+  // document; posted_via='system' — this entry is posted by the callback
+  // pipeline, not a signed-in user.
   const { rows: jeRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test)
-     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4)
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
+        posted_via, member_id, group_membership_id)
+     SELECT $1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4,
+            'system', c.member_id, c.group_membership_id
+     FROM   contributions c WHERE c.id = $5
      RETURNING id`,
     [
       args.groupId,
       args.reference,
       `Contribution (M-Pesa) — ${args.contributionId}`,
       IS_SANDBOX,
+      args.contributionId,
     ],
   );
   const jeId = jeRows[0].id;
@@ -809,16 +816,21 @@ async function postLoanRepaymentJournal(
     return;
   }
 
+  // Ledger attribution (§6e): from the repayment row; system-posted.
   const { rows: jeRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test)
-     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4)
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
+        posted_via, member_id, group_membership_id)
+     SELECT $1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4,
+            'system', lr.member_id, lr.group_membership_id
+     FROM   loan_repayments lr WHERE lr.id = $5
      RETURNING id`,
     [
       args.groupId,
       args.reference,
       `Loan repayment (M-Pesa) — ${args.loanId}`,
       IS_SANDBOX,
+      args.repaymentId,
     ],
   );
   const jeId = jeRows[0].id;
@@ -2432,8 +2444,8 @@ async function postStandaloneChargeJournal(
 
   const { rows: jeRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test)
-     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4)
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test, posted_via)
+     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4, 'system')
      RETURNING id`,
     [args.groupId, args.reference, `M-Pesa ${args.chargeType.toUpperCase()} transaction charge`, IS_SANDBOX],
   );
@@ -2510,10 +2522,15 @@ async function applyLoanDisbursement(
   const postCharge = args.charge > 0 && !!expenseId;
   const cashCredit = postCharge ? args.amount + args.charge : args.amount;
 
+  // Ledger attribution (§6e): borrower from the loan row. Posted by the B2C
+  // result callback (system), though initiated_by is retained in created_by.
   const { rows: jeRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test)
-     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', $4, NOW(), $5)
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
+        posted_via, member_id, group_membership_id)
+     SELECT $1, CURRENT_DATE, $2, $3, 'posted', $4, NOW(), $5,
+            'system', l.member_id, l.group_membership_id
+     FROM   loans l WHERE l.id = $6
      RETURNING id`,
     [
       args.groupId,
@@ -2521,6 +2538,7 @@ async function applyLoanDisbursement(
       `Loan disbursement (M-Pesa B2C) — ${args.loanId}`,
       args.disbursedBy,
       IS_SANDBOX,
+      args.loanId,
     ],
   );
   const jeId = jeRows[0].id;

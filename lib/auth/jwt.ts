@@ -23,6 +23,13 @@ export interface TenantAccessTokenPayload {
   // this is 'pending_verification'. Optional for backward compatibility with
   // tokens issued before this field existed (they're treated as 'active').
   groupStatus?: string;
+  // Active Membership Context (payment architecture §2.1/§2.5). Optional for
+  // tokens issued before Phase 3.2; sensitive-op checks skip when absent
+  // (drift bounded by the access-token TTL, as designed).
+  membershipId?:   string;   // group_members.id — anchoring claim
+  membershipNo?:   string;   // e.g. BG102534
+  authVersion?:    number;   // group_members.auth_version epoch
+  sessionVersion?: number;   // members.session_version epoch
 }
 
 export interface BackofficeAccessTokenPayload {
@@ -44,6 +51,10 @@ interface RefreshTokenPayload {
   // re-deriving one. Absent on tokens issued before this field existed —
   // the refresh route handles that case explicitly.
   groupId?: string;
+  // §2.5: member-level session epoch captured at issue time. Refresh compares
+  // it against members.session_version — a bump ("log out everywhere",
+  // blacklist, password change) terminates the session at its next refresh.
+  sessionVersion?: number;
 }
 
 // Validated at module load by lib/env.ts — no need for a second null check here.
@@ -89,11 +100,16 @@ export function signRefreshToken(
   userId: string,
   audience: TokenAudience = 'tenant',
   groupId?: string,
+  sessionVersion?: number,
 ): { token: string; jti: string } {
   const jti = crypto.randomUUID();
   const ttl = audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL;
   const token = jwt.sign(
-    { sub: userId, type: 'refresh', jti, aud: audience, ...(groupId ? { groupId } : {}) } satisfies RefreshTokenPayload,
+    {
+      sub: userId, type: 'refresh', jti, aud: audience,
+      ...(groupId ? { groupId } : {}),
+      ...(sessionVersion != null ? { sessionVersion } : {}),
+    } satisfies RefreshTokenPayload,
     REFRESH_SECRET,
     { algorithm: ALGORITHM, expiresIn: ttl } as jwt.SignOptions,
   );
