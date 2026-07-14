@@ -10,6 +10,7 @@ import { billingService } from '@/lib/services/billing.service';
 import { emitBusinessEvent } from '@/lib/sms/trigger-engine';
 import { SMS_EVENTS } from '@/lib/sms/events';
 import { isSafaricomIp } from '@/lib/services/daraja.service';
+import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -118,6 +119,30 @@ async function processFulfillment(
     }
   }
 
+  // Receipt context (payment architecture §8 / audit M-2): a multi-group
+  // member must always know WHICH membership a payment landed on, so the
+  // receipt names the group, the Membership Number, the product, and the
+  // updated balance. Enriched only when the payment allocated to a savings
+  // contribution; other payments (invoices, top-ups) keep the basic vars and
+  // the template engine strips unresolved placeholders.
+  const alloc = await withAdminDb(async (db) => {
+    const { rows } = await db.query<{
+      group_name: string; membership_no: string | null; balance: string;
+    }>(
+      `SELECT g.name AS group_name, gm.membership_no,
+              COALESCE((
+                SELECT SUM(c2.amount) FROM contributions c2
+                WHERE  c2.group_membership_id = gm.id AND c2.status = 'completed'
+              ), 0)::text AS balance
+       FROM   contributions c
+       JOIN   group_members gm ON gm.id = c.group_membership_id
+       JOIN   groups g         ON g.id  = c.group_id
+       WHERE  c.payment_id = $1`,
+      [paymentId],
+    );
+    return rows[0] ?? null;
+  }).catch(() => null);
+
   // Notification is decided by sms_trigger_rules, not hardcoded here. The
   // seeded 'payment_received_receipt' rule reproduces the previous message.
   // emitBusinessEvent never throws, and re-emits are idempotent per (rule,
@@ -130,6 +155,12 @@ async function processFulfillment(
       amount,
       receipt: receipt ?? 'N/A',
       phone:   payment.mpesa_phone,
+      ...(alloc ? {
+        group_name:    alloc.group_name,
+        membership_no: alloc.membership_no ? formatMembershipNo(alloc.membership_no) : undefined,
+        product:       'savings',
+        balance:       Number(alloc.balance).toLocaleString(),
+      } : {}),
     },
   });
 }

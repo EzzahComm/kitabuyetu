@@ -2,7 +2,7 @@ import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
-  MemberPublic, SubscriptionPublic, OrganizationGroupSummary,
+  MemberPublic, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
 } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
@@ -25,6 +25,13 @@ export const authApi = {
 
   refresh: (refreshToken: string) =>
     api.post<RefreshResponse>('/auth/refresh', { refreshToken }),
+
+  // Group switcher (payment architecture §8)
+  memberships: () =>
+    api.get<{ items: MembershipSwitcherItem[] }>('/auth/memberships'),
+
+  switchGroup: (groupId: string) =>
+    api.post<LoginResponse>('/auth/switch-group', { groupId }),
 
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),

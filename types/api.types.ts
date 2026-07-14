@@ -128,6 +128,19 @@ export function isAdminMfaChallenge(r: AdminLoginResult): r is AdminLoginMfaChal
   return (r as AdminLoginMfaChallenge).needsMfaCode === true;
 }
 
+/** One row in the sidebar group switcher (payment architecture §8). */
+export interface MembershipSwitcherItem {
+  membershipId:   string;
+  groupId:        string;
+  groupCode:      string;
+  groupName:      string;
+  role:           MemberRole;
+  membershipNo:   string | null;
+  displayAlias:   string | null;
+  savingsBalance: string;
+  isCurrent:      boolean;
+}
+
 export interface RefreshResponse {
   accessToken: string;
   /** Rotated refresh token (§15.3) — the presented token is consumed; store
