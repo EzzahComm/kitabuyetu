@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Building2, Users, CreditCard,
+  LayoutDashboard, Building2, Landmark, Users, CreditCard,
   Headphones, ScrollText,
   BarChart3, Flag, ShieldAlert, Activity,
   Settings,
@@ -33,7 +33,8 @@ const NAV: NavSection[] = [
     title: 'Core',
     items: [
       { href: '/admin',             label: 'Dashboard',      icon: LayoutDashboard },
-      { href: '/admin/organizations', label: 'Organizations',  icon: Building2 },
+      { href: '/admin/organizations', label: 'Organizations',  icon: Landmark },
+      { href: '/admin/groups',      label: 'Groups',         icon: Building2 },
       { href: '/admin/users',       label: 'Members',        icon: Users },
       { href: '/admin/billing-admin', label: 'Billing',      icon: CreditCard },
       { href: '/admin/analytics',   label: 'Analytics',      icon: BarChart3 },

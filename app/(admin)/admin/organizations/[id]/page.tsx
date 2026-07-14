@@ -3,51 +3,30 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Building2, ShieldCheck, AlertTriangle,
-  Users, Coins, TrendingUp, Headphones,
-  MoreHorizontal, CheckCircle2, Ban, RefreshCw, XCircle,
-  Calendar, Phone, Mail, FileText, Activity,
+  ArrowLeft, Landmark, Users, Layers, Wallet, TrendingUp,
+  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAdminOrganization, useUpdateOrganizationStatus } from '@/hooks/use-admin';
+import {
+  useAdminOrganization, useUpdateOrganizationStatus,
+  useAssignGroupToOrg, useRevokeGroupFromOrg,
+} from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate } from '@/lib/utils';
 
-const STATUS_VARIANT: Record<string, any> = {
-  active:      'success',
-  pending:     'warning',
-  suspended:   'destructive',
-  deactivated: 'secondary',
-};
-
-const PLAN_BADGE: Record<string, string> = {
-  starter:    'bg-gray-100 text-gray-700 border-gray-200',
-  growth:     'bg-blue-100 text-blue-700 border-blue-200',
-  enterprise: 'bg-purple-100 text-purple-700 border-purple-200',
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  chama:      'Chama',
-  sacco:      'SACCO',
-  welfare:    'Welfare',
-  investment: 'Investment',
-  organization_group:  'Organization Group',
-};
-
-const ACTION_DOT: Record<string, string> = {
-  INSERT: 'bg-green-500',
-  UPDATE: 'bg-blue-500',
-  DELETE: 'bg-red-500',
+const TYPE_LABEL: Record<string, string> = {
+  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
+  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Other',
 };
 
 function StatCard({
@@ -78,31 +57,13 @@ export default function OrganizationDetailPage({
 
   const { data: org, isLoading } = useAdminOrganization(id);
   const updateStatus = useUpdateOrganizationStatus();
+  const assignGroup  = useAssignGroupToOrg();
+  const revokeGroup  = useRevokeGroupFromOrg();
 
-  const [confirmAction, setConfirmAction] = useState<{
-    action: 'approve' | 'suspend' | 'activate' | 'deactivate';
-    label: string;
-  } | null>(null);
-  const [reason, setReason] = useState('');
-
-  const handleAction = async () => {
-    if (!confirmAction) return;
-    const needsReason = confirmAction.action === 'suspend';
-    if (needsReason && !reason.trim()) return;
-
-    try {
-      await updateStatus.mutateAsync({
-        id,
-        action: confirmAction.action,
-        reason: reason || undefined,
-      });
-      toast({ title: `Organization ${confirmAction.label.toLowerCase()}d successfully` });
-      setConfirmAction(null);
-      setReason('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
-    }
-  };
+  const [assignOpen, setAssignOpen]   = useState(false);
+  const [pickGroup, setPickGroup]     = useState('');
+  const [accessLevel, setAccessLevel] = useState<'read' | 'report'>('read');
+  const [revoking, setRevoking]       = useState<{ groupId: string; name: string } | null>(null);
 
   if (isLoading) {
     return (
@@ -120,12 +81,46 @@ export default function OrganizationDetailPage({
     return (
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Organization not found</p>
-        <Button variant="link" className="mt-2" onClick={() => router.back()}>← Go back</Button>
+        <Button variant="link" className="mt-2" onClick={() => router.push('/admin/organizations')}>← Back to organizations</Button>
       </div>
     );
   }
 
-  const stats = org.stats ?? {};
+  const assigned:   any[] = org.assignedGroups ?? [];
+  const assignable: any[] = org.assignableGroups ?? [];
+  const walletKES = (org.wallets ?? []).find((w: any) => w.currency === 'KES');
+  const memberReach = assigned.reduce((s, g) => s + parseInt(g.member_count ?? '0', 10), 0);
+
+  const doAssign = async () => {
+    if (!pickGroup) { toast({ variant: 'destructive', title: 'Pick a group to assign' }); return; }
+    try {
+      await assignGroup.mutateAsync({ orgId: id, groupId: pickGroup, accessLevel });
+      toast({ title: 'Group assigned' });
+      setAssignOpen(false); setPickGroup(''); setAccessLevel('read');
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Assign failed', description: e.message });
+    }
+  };
+
+  const doRevoke = async () => {
+    if (!revoking) return;
+    try {
+      await revokeGroup.mutateAsync({ orgId: id, groupId: revoking.groupId });
+      toast({ title: `${revoking.name} unassigned` });
+      setRevoking(null);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Revoke failed', description: e.message });
+    }
+  };
+
+  const toggleActive = async () => {
+    try {
+      await updateStatus.mutateAsync({ id, action: org.is_active ? 'deactivate' : 'activate' });
+      toast({ title: `Organization ${org.is_active ? 'deactivated' : 'activated'}` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -138,15 +133,15 @@ export default function OrganizationDetailPage({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-gray-900 truncate">{org.name}</h1>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${PLAN_BADGE[org.plan] ?? PLAN_BADGE.starter}`}>
-              {org.plan ?? 'starter'}
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+              {TYPE_LABEL[org.type] ?? org.type}
             </span>
-            <Badge variant={STATUS_VARIANT[org.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
-              {org.onboarding_status?.replace('_', ' ')}
+            <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
+              {org.is_active ? 'Active' : 'Inactive'}
             </Badge>
           </div>
           <p className="text-sm text-gray-500 mt-0.5">
-            {TYPE_LABELS[org.group_type] ?? org.group_type}
+            {org.county || 'No county set'}
             {org.registration_number && (
               <span className="ml-2 font-mono text-xs text-gray-400">· {org.registration_number}</span>
             )}
@@ -154,254 +149,162 @@ export default function OrganizationDetailPage({
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5">
-              Actions <MoreHorizontal size={14} />
-            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5">Actions <MoreHorizontal size={14} /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {org.onboarding_status === 'pending' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'approve', label: 'Approve' })}>
-                <CheckCircle2 size={13} className="mr-2 text-green-600" /> Approve Organization
-              </DropdownMenuItem>
-            )}
-            {org.onboarding_status === 'active' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'suspend', label: 'Suspend' })}
-                className="text-red-600 focus:text-red-600">
-                <Ban size={13} className="mr-2" /> Suspend Organization
-              </DropdownMenuItem>
-            )}
-            {org.onboarding_status === 'suspended' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'activate', label: 'Reactivate' })}>
-                <RefreshCw size={13} className="mr-2 text-blue-600" /> Reactivate
-              </DropdownMenuItem>
-            )}
-            {org.onboarding_status !== 'deactivated' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
-                className="text-gray-600">
+            {org.is_active ? (
+              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={toggleActive}>
                 <XCircle size={13} className="mr-2" /> Deactivate
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={toggleActive}>
+                <PlayCircle size={13} className="mr-2 text-green-600" /> Activate
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* Suspended banner */}
-      {org.onboarding_status === 'suspended' && (
-        <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-500" />
-          <div>
-            <p className="font-semibold">Organization suspended on {formatDate(org.suspended_at)}</p>
-            {org.suspended_reason && <p className="text-xs mt-0.5 text-red-600">{org.suspended_reason}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* KPI stats */}
+      {/* Summary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard icon={Users}    label="Active Members"    value={parseInt(stats.active_members ?? '0').toLocaleString()} color="text-blue-600" />
-        <StatCard icon={Coins}    label="Total Contributions" value={formatKES(stats.total_contributions ?? 0)} color="text-green-600" />
-        <StatCard icon={TrendingUp} label="Active Loans"    value={formatKES(stats.active_loans_amount ?? 0)}
-          sub={`${parseInt(stats.active_loans_count ?? '0')} loans`} color="text-purple-600" />
-        <StatCard icon={Headphones} label="Open Tickets"   value={parseInt(stats.open_tickets ?? '0').toLocaleString()}
-          color={parseInt(stats.open_tickets ?? '0') > 0 ? 'text-amber-600' : 'text-gray-400'} />
+        <StatCard icon={Layers}     label="Groups Overseen" value={assigned.length} color="text-blue-600" />
+        <StatCard icon={Users}      label="Member Reach"    value={memberReach.toLocaleString()} color="text-purple-600" />
+        <StatCard icon={Wallet}     label="Wallet (KES)"    value={formatKES(walletKES?.available_balance ?? 0)} color="text-green-600" />
+        <StatCard icon={TrendingUp} label="Total Disbursed" value={formatKES(walletKES?.total_disbursed ?? 0)} color="text-amber-600" />
       </div>
 
-      {/* Info grid */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Organization details */}
-        <Card>
-          <CardHeader className="pb-2">
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Assigned groups */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2 flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 size={14} className="text-blue-500" /> Organization Details
+              <Layers size={14} className="text-blue-500" /> Groups Overseen ({assigned.length})
             </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
-              <div>
-                <p className="text-gray-400 mb-0.5">Type</p>
-                <p className="font-medium text-gray-900 capitalize">{TYPE_LABELS[org.group_type] ?? org.group_type}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Subscription</p>
-                <p className="font-medium text-gray-900 capitalize">{org.subscription_status ?? 'None'}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Plan Period End</p>
-                <p className="font-medium text-gray-900">{org.current_period_end ? formatDate(org.current_period_end) : '—'}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Member Since</p>
-                <p className="font-medium text-gray-900">{formatDate(org.created_at)}</p>
-              </div>
-              {org.kyc_verified_at && (
-                <div className="col-span-2">
-                  <p className="text-gray-400 mb-0.5">KYC Verified</p>
-                  <p className="font-medium text-green-600 flex items-center gap-1">
-                    <ShieldCheck size={12} /> {formatDate(org.kyc_verified_at)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Risk / Engagement scores */}
-            <div className="pt-2.5 border-t border-gray-100 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5">Risk Score</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${(org.risk_score ?? 0) >= 70 ? 'bg-red-500' : (org.risk_score ?? 0) >= 40 ? 'bg-amber-500' : 'bg-green-500'}`}
-                      style={{ width: `${org.risk_score ?? 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-700">{org.risk_score ?? 0}</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5">Engagement Score</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${org.engagement_score ?? 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-700">{org.engagement_score ?? 0}</span>
-                </div>
-              </div>
-            </div>
-
-            {org.admin_notes && (
-              <div className="pt-2.5 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-1">Admin Notes</p>
-                <p className="text-xs text-gray-700 bg-gray-50 rounded-lg p-2.5 leading-relaxed">{org.admin_notes}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Admin contact */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Users size={14} className="text-purple-500" /> Group Administrator
-            </CardTitle>
+            <Button size="sm" variant="outline" className="h-7 text-xs"
+              onClick={() => setAssignOpen(true)} disabled={assignable.length === 0}>
+              <Plus size={13} className="mr-1" /> Assign group
+            </Button>
           </CardHeader>
           <CardContent>
-            {org.admin_name ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-purple-700">
-                      {org.admin_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{org.admin_name}</p>
-                    <p className="text-xs text-gray-500">Group Admin</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {org.admin_email && (
-                    <a href={`mailto:${org.admin_email}`}
-                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
-                      <Mail size={12} /> {org.admin_email}
-                    </a>
-                  )}
-                  {org.admin_phone && (
-                    <a href={`tel:${org.admin_phone}`}
-                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
-                      <Phone size={12} /> {org.admin_phone}
-                    </a>
-                  )}
-                </div>
-              </div>
+            {assigned.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No groups assigned yet. Use “Assign group” to link groups this organization oversees.
+              </p>
             ) : (
-              <p className="text-sm text-muted-foreground py-6 text-center">No admin assigned</p>
+              <div className="divide-y divide-gray-100">
+                {assigned.map((g) => (
+                  <div key={g.group_id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{g.group_name}</p>
+                      <p className="text-xs text-gray-400">
+                        <span className="font-mono">{g.group_code}</span>
+                        {' · '}{parseInt(g.member_count ?? '0').toLocaleString()} members
+                        {' · '}{formatKES(g.total_contributions)} contributions
+                        <span className="ml-1 uppercase text-[10px] text-gray-400">({g.access_level})</span>
+                      </p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 shrink-0"
+                      onClick={() => setRevoking({ groupId: g.group_id, name: g.group_name })}>
+                      <Trash2 size={13} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
+          </CardContent>
+        </Card>
 
-            <div className="mt-4 pt-3 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial Summary</p>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Total Payments Collected</span>
-                  <span className="font-semibold text-gray-900">{formatKES(stats.total_payments ?? 0)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Active Loan Portfolio</span>
-                  <span className="font-semibold text-blue-600">{formatKES(stats.active_loans_amount ?? 0)}</span>
-                </div>
+        {/* Coordinator + details */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Landmark size={14} className="text-purple-500" /> Organization
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs">
+            <div>
+              <p className="text-gray-400 mb-0.5">Coordinator</p>
+              <p className="font-medium text-gray-900">{org.coordinator_name ?? 'None assigned'}</p>
+            </div>
+            {org.coordinator_email && (
+              <a href={`mailto:${org.coordinator_email}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <Mail size={12} /> {org.coordinator_email}
+              </a>
+            )}
+            {(org.coordinator_phone || org.phone) && (
+              <a href={`tel:${org.coordinator_phone ?? org.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <Phone size={12} /> {org.coordinator_phone ?? org.phone}
+              </a>
+            )}
+            <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
+              <div>
+                <p className="text-gray-400 mb-0.5">Onboarded</p>
+                <p className="font-medium text-gray-900">{formatDate(org.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 mb-0.5">Committed</p>
+                <p className="font-medium text-gray-900">{formatKES(walletKES?.committed_balance ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 mb-0.5">Deposited</p>
+                <p className="font-medium text-gray-900">{formatKES(walletKES?.total_deposited ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 mb-0.5">Returned</p>
+                <p className="font-medium text-gray-900">{formatKES(walletKES?.total_returned ?? 0)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent activity */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity size={14} className="text-gray-500" /> Recent Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {org.recentActivity?.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
-          ) : (
+      {/* Assign group dialog */}
+      <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) { setAssignOpen(false); setPickGroup(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Assign a group</DialogTitle></DialogHeader>
+          <div className="space-y-3">
             <div className="space-y-1">
-              {(org.recentActivity ?? []).map((log: any, i: number) => (
-                <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_DOT[log.action] ?? 'bg-gray-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-gray-700">{log.action}</span>
-                    <span className="text-xs text-gray-400 mx-1.5">·</span>
-                    <span className="text-xs text-gray-600 font-mono">{log.table_name}</span>
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">{formatDate(log.created_at)}</span>
-                </div>
-              ))}
+              <Label>Group</Label>
+              <select
+                value={pickGroup}
+                onChange={(e) => setPickGroup(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a group…</option>
+                {assignable.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name} — {g.group_code}</option>
+                ))}
+              </select>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Confirm action dialog */}
-      <Dialog open={!!confirmAction} onOpenChange={() => { setConfirmAction(null); setReason(''); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{confirmAction?.label} Organization</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {confirmAction?.action === 'suspend'
-              ? `This will immediately restrict access for all members of "${org.name}".`
-              : confirmAction?.action === 'deactivate'
-              ? `This will permanently deactivate "${org.name}" and revoke all access.`
-              : `Confirm that you want to ${confirmAction?.label?.toLowerCase()} "${org.name}".`}
-          </p>
-          {confirmAction?.action === 'suspend' && (
             <div className="space-y-1">
-              <Label>Reason for suspension <span className="text-red-500">*</span></Label>
-              <textarea
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                rows={3}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Provide a reason that will be logged…"
-              />
+              <Label>Access level</Label>
+              <select
+                value={accessLevel}
+                onChange={(e) => setAccessLevel(e.target.value as 'read' | 'report')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="read">Read — view aggregated data</option>
+                <option value="report">Report — view + reporting exports</option>
+              </select>
             </div>
-          )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmAction(null); setReason(''); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAction}
-              loading={updateStatus.isPending}
-              disabled={confirmAction?.action === 'suspend' && !reason.trim()}
-              variant={confirmAction?.action === 'suspend' || confirmAction?.action === 'deactivate' ? 'destructive' : 'default'}
-            >
-              Confirm {confirmAction?.label}
-            </Button>
+            <Button variant="outline" onClick={() => { setAssignOpen(false); setPickGroup(''); }}>Cancel</Button>
+            <Button onClick={doAssign} loading={assignGroup.isPending}>Assign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke confirm */}
+      <Dialog open={!!revoking} onOpenChange={() => setRevoking(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Unassign group</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{revoking?.name}</strong> from {org.name}? The organization will stop overseeing this group.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevoking(null)}>Cancel</Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={doRevoke} loading={revokeGroup.isPending}>Unassign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

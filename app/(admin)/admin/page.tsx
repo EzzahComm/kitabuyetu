@@ -50,6 +50,7 @@ export default function AdminDashboardPage() {
   const { data: trend }            = useAdminRevenueTrend();
 
   const g = stats?.groups        ?? {};
+  const o = stats?.organizations ?? {};
   const m = stats?.members       ?? {};
   const s = stats?.subscriptions ?? {};
   const r = stats?.revenue       ?? {};
@@ -70,7 +71,12 @@ export default function AdminDashboardPage() {
         <div className="flex gap-2">
           <Link href="/admin/organizations">
             <Button variant="outline" size="sm" className="text-xs">
-              View Organizations <ArrowRight size={12} className="ml-1" />
+              Organizations <ArrowRight size={12} className="ml-1" />
+            </Button>
+          </Link>
+          <Link href="/admin/groups">
+            <Button variant="outline" size="sm" className="text-xs">
+              Groups <ArrowRight size={12} className="ml-1" />
             </Button>
           </Link>
           <Link href="/admin/support">
@@ -84,13 +90,13 @@ export default function AdminDashboardPage() {
       {/* Primary KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="Organizations"
+          title="Groups"
           value={isLoading ? '—' : (parseInt(g.total ?? '0')).toLocaleString()}
           sub={`${g.active ?? 0} active · ${g.new_this_month ?? 0} new this month`}
           icon={Building2}
           accent="blue"
           loading={isLoading}
-          onClick={() => router.push('/admin/organizations')}
+          onClick={() => router.push('/admin/groups')}
         />
         <MetricCard
           title="Total Members"
@@ -121,7 +127,16 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <button
+          type="button"
+          onClick={() => router.push('/admin/organizations')}
+          className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:border-blue-300 transition-colors"
+        >
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Organizations</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{o.total ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">{o.active ?? 0} active · {o.new_this_month ?? 0} new</p>
+        </button>
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active Subs</p>
           <p className="text-2xl font-bold text-gray-900 mt-2">{s.active_subscriptions ?? 0}</p>
@@ -138,7 +153,7 @@ export default function AdminDashboardPage() {
           <p className="text-xs text-gray-500 mt-1">{t.sla_breached ?? 0} SLA breached</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Suspended Orgs</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Suspended Groups</p>
           <p className="text-2xl font-bold text-gray-900 mt-2">{g.suspended ?? 0}</p>
           <p className="text-xs text-gray-500 mt-1">Require review</p>
         </div>

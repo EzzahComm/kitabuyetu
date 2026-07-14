@@ -189,7 +189,7 @@ export function buildMonitoringDashboardPayload(input: {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPlatformStats() {
   return withAdminDb(async (db: PoolClient) => {
-    const [groups, members, subscriptions, revenue, tickets, activity] = await Promise.all([
+    const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
       db.query(`
         SELECT
           COUNT(*)                                              AS total,
@@ -197,6 +197,13 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE onboarding_status = 'suspended') AS suspended,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.groups
+      `),
+      db.query(`
+        SELECT
+          COUNT(*)                                  AS total,
+          COUNT(*) FILTER (WHERE is_active = true)  AS active,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
+        FROM public.organizations
       `),
       db.query(`
         SELECT
@@ -242,6 +249,7 @@ export async function getPlatformStats() {
 
     return {
       groups:        groups.rows[0],
+      organizations: organizations.rows[0],
       members:       members.rows[0],
       subscriptions: subscriptions.rows[0],
       revenue:       revenue.rows[0],
@@ -462,7 +470,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
 // ─────────────────────────────────────────────────────────────────────────────
 // Organizations (all groups, cross-tenant)
 // ─────────────────────────────────────────────────────────────────────────────
-export interface OrgListParams {
+export interface GroupListParams {
   page:    number;
   limit:   number;
   search?: string;
@@ -470,7 +478,10 @@ export interface OrgListParams {
   plan?:   string;
 }
 
-export async function listOrganizations(params: OrgListParams) {
+// Lists GROUPS (the platform tenants / chamas) for the admin portal. Named
+// after its subject — the separate `organizations` federating bodies (banks,
+// SACCOs, foundations) are managed in admin-organizations.service.ts.
+export async function listGroups(params: GroupListParams) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, search, status, plan } = params;
     const offset = (page - 1) * limit;
@@ -526,7 +537,7 @@ export async function listOrganizations(params: OrgListParams) {
   });
 }
 
-export async function getOrganizationById(groupId: string) {
+export async function getGroupById(groupId: string) {
   return withAdminDb(async (db: PoolClient) => {
     const [group, stats, recentActivity] = await Promise.all([
       db.query(`
@@ -572,7 +583,7 @@ export async function getOrganizationById(groupId: string) {
   });
 }
 
-export async function updateOrganizationStatus(
+export async function updateGroupStatus(
   groupId: string,
   action: 'approve' | 'suspend' | 'activate' | 'deactivate',
   adminId: string,

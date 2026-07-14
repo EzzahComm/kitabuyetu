@@ -51,9 +51,9 @@ export function useAdminRevenueTrend() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Organizations
+// Groups (the platform tenants / chamas)
 // ─────────────────────────────────────────────────────────────────────────────
-export function useAdminOrganizations(params: {
+export function useAdminGroups(params: {
   page?: number; limit?: number; search?: string; status?: string; plan?: string;
 } = {}) {
   const p = new URLSearchParams();
@@ -62,6 +62,46 @@ export function useAdminOrganizations(params: {
   if (params.search) p.set('search', params.search);
   if (params.status) p.set('status', params.status);
   if (params.plan)   p.set('plan',   params.plan);
+
+  return useQuery({
+    queryKey: ['admin', 'groups', params],
+    queryFn:  () => adminFetch<any>(`/api/admin/groups?${p}`),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminGroup(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'groups', id],
+    queryFn:  () => adminFetch<any>(`/api/admin/groups/${id}`),
+    enabled:  !!id,
+  });
+}
+
+export function useUpdateGroupStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action, reason }: { id: string; action: string; reason?: string }) =>
+      adminFetch<any>(`/api/admin/groups/${id}`, { method: 'PATCH', json: { action, reason } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Organizations (federating bodies — banks, SACCOs, foundations)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAdminOrganizations(params: {
+  page?: number; limit?: number; search?: string; type?: string; status?: string;
+} = {}) {
+  const p = new URLSearchParams();
+  if (params.page)   p.set('page',   String(params.page));
+  if (params.limit)  p.set('limit',  String(params.limit));
+  if (params.search) p.set('search', params.search);
+  if (params.type)   p.set('type',   params.type);
+  if (params.status) p.set('status', params.status);
 
   return useQuery({
     queryKey: ['admin', 'organizations', params],
@@ -78,14 +118,56 @@ export function useAdminOrganization(id: string) {
   });
 }
 
-export function useUpdateOrganizationStatus() {
+export function useCreateOrganization() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, action, reason }: { id: string; action: string; reason?: string }) =>
-      adminFetch<any>(`/api/admin/organizations/${id}`, { method: 'PATCH', json: { action, reason } }),
+    mutationFn: (body: {
+      name: string; type: string; registrationNumber?: string;
+      phone?: string; email?: string; county?: string; address?: string;
+    }) => adminFetch<any>('/api/admin/organizations', { method: 'POST', json: body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    },
+  });
+}
+
+export function useUpdateOrganizationStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'activate' | 'deactivate' }) =>
+      adminFetch<any>(`/api/admin/organizations/${id}`, { method: 'PATCH', json: { action } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    },
+  });
+}
+
+export function useAssignGroupToOrg() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, groupId, accessLevel }: { orgId: string; groupId: string; accessLevel?: string }) =>
+      adminFetch<any>(`/api/admin/organizations/${orgId}/groups`, {
+        method: 'POST', json: { groupId, accessLevel },
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+    },
+  });
+}
+
+export function useRevokeGroupFromOrg() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, groupId }: { orgId: string; groupId: string }) =>
+      adminFetch<any>(`/api/admin/organizations/${orgId}/groups?groupId=${groupId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
     },
   });
 }
