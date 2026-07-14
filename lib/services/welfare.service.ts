@@ -117,13 +117,17 @@ export const welfareService = {
 
   async createRequest(ctx: TenantContext, data: CreateWelfareRequestInput) {
     return withTransaction(ctx, async (client) => {
+      // Requester must hold an active membership in THIS group (audit H-1);
+      // its id is stamped on the row (§6a).
+      const { membershipId } = await assertActiveMembership(client, ctx.groupId, ctx.userId);
+
       const { rows } = await client.query(
         `INSERT INTO welfare_requests
-           (group_id, member_id, request_type, title, description,
+           (group_id, member_id, group_membership_id, request_type, title, description,
             amount_requested, priority, notes, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
          RETURNING *`,
-        [ctx.groupId, ctx.userId, data.requestType, data.title,
+        [ctx.groupId, ctx.userId, membershipId, data.requestType, data.title,
          data.description ?? null, data.amountRequested, data.priority, data.notes ?? null],
       );
       return rows[0];
@@ -217,15 +221,16 @@ export const welfareService = {
 
   async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
     return withTransaction(ctx, async (client) => {
-      // The target member must hold an active membership in THIS group (audit H-1).
-      await assertActiveMembership(client, ctx.groupId, data.memberId);
+      // The target member must hold an active membership in THIS group (audit
+      // H-1); its id is stamped on the row (§6a).
+      const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
 
       const { rows } = await client.query(
         `INSERT INTO welfare_pool_contributions
-           (group_id, member_id, amount, contribution_type, payment_method,
+           (group_id, member_id, group_membership_id, amount, contribution_type, payment_method,
             mpesa_receipt_number, period_month, period_year, recorded_by, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-        [ctx.groupId, data.memberId, data.amount, data.contributionType,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [ctx.groupId, data.memberId, membershipId, data.amount, data.contributionType,
          data.paymentMethod ?? null, data.mpesaReceiptNumber ?? null,
          data.periodMonth ?? null, data.periodYear ?? null,
          ctx.userId, data.notes ?? null],

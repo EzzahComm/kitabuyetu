@@ -32,13 +32,25 @@ const applyInput = {
 };
 
 describe('loansService.apply', () => {
+  const membershipRow = { rows: [{ id: 'gm-1', member_code: 'KY000000000001' }] };
+
+  it('throws ValidationError when the applicant has no active membership', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // guard: no membership
+
+    await expect(loansService.apply(ctx, applyInput)).rejects.toBeInstanceOf(ValidationError);
+
+    // Must stop at the membership guard, not proceed to the loan checks
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   it('throws ValidationError when member already has an active loan', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'existing-loan' }] });
+    mockQuery.mockResolvedValueOnce(membershipRow);                  // guard
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'existing-loan' }] }); // active-loan check
 
     await expect(loansService.apply(ctx, applyInput)).rejects.toBeInstanceOf(ValidationError);
 
     // Must stop at the active-loan check, not proceed to INSERT
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   it('creates a pending loan application when no active loan exists', async () => {
@@ -46,12 +58,18 @@ describe('loansService.apply', () => {
       id: 'loan-1', group_id: 'grp-1', member_id: 'usr-1',
       principal_amount: '50000.00', status: 'pending',
     };
-    mockQuery.mockResolvedValueOnce({ rows: [] });       // no active loan
+    mockQuery.mockResolvedValueOnce(membershipRow);       // guard
+    mockQuery.mockResolvedValueOnce({ rows: [] });        // no active loan
     mockQuery.mockResolvedValueOnce({ rows: [newLoan] }); // INSERT
 
     const result = await loansService.apply(ctx, applyInput);
     expect(result.status).toBe('pending');
     expect(result.principal_amount).toBe('50000.00');
+
+    // The INSERT stamps the guard-validated membership id (§6a)
+    const insertCall = mockQuery.mock.calls[2];
+    expect(insertCall[0]).toContain('group_membership_id');
+    expect(insertCall[1]).toContain('gm-1');
   });
 });
 

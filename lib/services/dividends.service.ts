@@ -295,10 +295,12 @@ export const dividendsService = {
       for (const row of computed.rows) {
         const { rows: ins } = await client.query<DividendAllocation>(
           `INSERT INTO dividend_allocations (
-             declaration_id, group_id, member_id,
+             declaration_id, group_id, member_id, group_membership_id,
              shares_held, weight_factor,
              gross_amount, tax_amount, net_amount
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ) VALUES ($1, $2, $3,
+             (SELECT gm.id FROM group_members gm WHERE gm.group_id = $2 AND gm.member_id = $3),
+             $4, $5, $6, $7, $8)
            RETURNING *`,
           [
             declarationId, decl.group_id, row.memberId,

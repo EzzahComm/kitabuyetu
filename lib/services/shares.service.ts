@@ -718,15 +718,20 @@ interface TxnInsertArgs {
 }
 
 async function insertTxn(client: PoolClient, a: TxnInsertArgs): Promise<ShareTransaction> {
+  // Attribution (§6a): eligibility is the caller's check; the membership id
+  // is derived here — deterministic under UNIQUE (group_id, member_id) —
+  // so every share transaction (incl. transfers/redemptions) carries it.
   const { rows } = await client.query<ShareTransaction>(
     `INSERT INTO share_transactions (
-       group_id, member_id, share_class_id, type, status,
+       group_id, member_id, group_membership_id, share_class_id, type, status,
        quantity, unit_price, total_amount,
        counterparty_member_id, payment_method, payment_reference,
        certificate_serial, notes, created_by, posted_at,
        reverses_transaction_id
      ) VALUES (
-       $1,$2,$3,$4::share_txn_type,'posted',
+       $1,$2,
+       (SELECT gm.id FROM group_members gm WHERE gm.group_id = $1 AND gm.member_id = $2),
+       $3,$4::share_txn_type,'posted',
        $5,$6,$7,
        $8,$9,$10,
        $11,$12,$13,$14,

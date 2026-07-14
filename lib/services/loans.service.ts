@@ -1,5 +1,6 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
+import { assertActiveMembership } from './membership-guard';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -60,6 +61,14 @@ export const loansService = {
 
   async apply(ctx: TenantContext, data: ApplyLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
+      // Borrower must hold an active membership in THIS group (§5); the
+      // membership id is stamped on the loan (§6a). The guarantor, when
+      // named, must be an active member of the same group too.
+      const { membershipId } = await assertActiveMembership(client, ctx.groupId, ctx.userId);
+      if (data.guarantorId) {
+        await assertActiveMembership(client, ctx.groupId, data.guarantorId);
+      }
+
       // A member cannot have two active loans simultaneously
       const { rows: active } = await client.query<{ id: string }>(
         `SELECT id FROM loans
@@ -72,12 +81,12 @@ export const loansService = {
 
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
-           (group_id, member_id, principal_amount, interest_rate,
+           (group_id, member_id, group_membership_id, principal_amount, interest_rate,
             loan_term_months, purpose, guarantor_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
-          ctx.groupId, ctx.userId,
+          ctx.groupId, ctx.userId, membershipId,
           data.principalAmount.toFixed(2),
           data.interestRate.toFixed(2),
           data.loanTermMonths,

@@ -481,9 +481,12 @@ async function applyContributionFromSTK(
   // duplicate Safaricom callbacks (same receipt → no second row).
   const { rows: contribRows } = await db.query<{ id: string }>(
     `INSERT INTO contributions
-       (group_id, member_id, amount, contribution_date,
+       (group_id, member_id, group_membership_id, amount, contribution_date,
         status, payment_method, mpesa_receipt_number, notes, recorded_by)
-     VALUES ($1, $2, $3, CURRENT_DATE, 'completed', 'mpesa', $4, $5, NULL)
+     VALUES ($1, $2,
+             (SELECT gm.id FROM group_members gm
+              WHERE gm.group_id = $1 AND gm.member_id = $2),
+             $3, CURRENT_DATE, 'completed', 'mpesa', $4, $5, NULL)
      ON CONFLICT (mpesa_receipt_number) DO NOTHING
      RETURNING id`,
     [
@@ -1050,9 +1053,12 @@ async function applyWelfareFromC2B(db: PoolClient, args: DispatchArgs): Promise<
 
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO welfare_pool_contributions
-       (group_id, member_id, amount, contribution_type, payment_method,
+       (group_id, member_id, group_membership_id, amount, contribution_type, payment_method,
         mpesa_receipt_number, period_month, period_year, notes, payment_id)
-     VALUES ($1,$2,$3,'regular','mpesa',$4,
+     VALUES ($1,$2,
+             (SELECT gm.id FROM group_members gm
+              WHERE gm.group_id = $1 AND gm.member_id = $2),
+             $3,'regular','mpesa',$4,
              EXTRACT(MONTH FROM CURRENT_DATE)::smallint,
              EXTRACT(YEAR  FROM CURRENT_DATE)::smallint,
              $5,
@@ -1730,9 +1736,12 @@ async function insertSavingsContribution(
 ): Promise<string | null> {
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO contributions
-       (group_id, member_id, amount, contribution_date,
+       (group_id, member_id, group_membership_id, amount, contribution_date,
         status, payment_method, mpesa_receipt_number, notes, recorded_by)
-     VALUES ($1, $2, $3, CURRENT_DATE, 'completed', 'mpesa', $4, $5, NULL)
+     VALUES ($1, $2,
+             (SELECT gm.id FROM group_members gm
+              WHERE gm.group_id = $1 AND gm.member_id = $2),
+             $3, CURRENT_DATE, 'completed', 'mpesa', $4, $5, NULL)
      ON CONFLICT (mpesa_receipt_number) DO NOTHING
      RETURNING id`,
     [args.groupId, args.memberId, args.amount.toFixed(2), args.receipt, args.note],
@@ -2116,18 +2125,18 @@ export async function resolveUnrouted(
 
     // The allocation target must hold an active membership in the resolving
     // group — treasurers must not be able to park receipts on strangers (audit H-1).
-    await assertActiveMembership(db, ctx.groupId, opts.memberId);
+    const { membershipId } = await assertActiveMembership(db, ctx.groupId, opts.memberId);
 
     const amount = parseFloat(row.amount);
     const { rows: contribRows } = await db.query<{ id: string }>(
       `INSERT INTO contributions
-         (group_id, member_id, amount, contribution_date,
+         (group_id, member_id, group_membership_id, amount, contribution_date,
           status, payment_method, mpesa_receipt_number, notes, recorded_by)
-       VALUES ($1,$2,$3,CURRENT_DATE,'completed','mpesa',$4,$5,$6)
+       VALUES ($1,$2,$3,$4,CURRENT_DATE,'completed','mpesa',$5,$6,$7)
        ON CONFLICT (mpesa_receipt_number) DO NOTHING
        RETURNING id`,
       [
-        ctx.groupId, opts.memberId, amount.toFixed(2), row.receipt,
+        ctx.groupId, opts.memberId, membershipId, amount.toFixed(2), row.receipt,
         `Manually routed from unrouted receipt (${row.bill_ref ?? 'no ref'})`,
         ctx.userId,
       ],
@@ -2816,9 +2825,12 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
 
   const { rows: cRows } = await db.query<{ id: string }>(
     `INSERT INTO contributions
-       (group_id, member_id, amount, contribution_date,
+       (group_id, member_id, group_membership_id, amount, contribution_date,
         status, payment_method, mpesa_receipt_number, notes, recorded_by)
-     VALUES ($1,$2,$3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL)
+     VALUES ($1,$2,
+             (SELECT gm.id FROM group_members gm
+              WHERE gm.group_id = $1 AND gm.member_id = $2),
+             $3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL)
      RETURNING id`,
     [
       row.group_id, memberId, amount.toFixed(2),

@@ -586,8 +586,11 @@ export const importService = {
         try {
           await client.query(
             `INSERT INTO contributions
-               (group_id, member_id, amount, contribution_date, status, payment_method, mpesa_receipt_number, notes, recorded_by)
-             VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8)
+               (group_id, member_id, group_membership_id, amount, contribution_date, status, payment_method, mpesa_receipt_number, notes, recorded_by)
+             VALUES ($1,$2,
+                     (SELECT gm.id FROM group_members gm
+                      WHERE gm.group_id = $1 AND gm.member_id = $2),
+                     $3,$4,'completed',$5,$6,$7,$8)
              ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
             [
               ctx.groupId, row.member_id, row.amount.toFixed(2),
@@ -759,9 +762,12 @@ export const importService = {
           // pre-existing rows; everything else goes through.
           const { rows: ins } = await client.query<{ id: string }>(
             `INSERT INTO contributions
-               (group_id, member_id, amount, contribution_date, status,
+               (group_id, member_id, group_membership_id, amount, contribution_date, status,
                 payment_method, mpesa_receipt_number, notes, recorded_by)
-             VALUES ($1, $2, $3, $4, 'completed',
+             VALUES ($1, $2,
+                     (SELECT gm.id FROM group_members gm
+                      WHERE gm.group_id = $1 AND gm.member_id = $2),
+                     $3, $4, 'completed',
                      $5, $6, $7, $8)
              ON CONFLICT (mpesa_receipt_number) DO NOTHING
              RETURNING id`,
@@ -1024,13 +1030,16 @@ export const importService = {
 
           const { rows: ins } = await client.query<{ id: string }>(
             `INSERT INTO loans
-               (group_id, member_id, principal_amount, interest_rate,
+               (group_id, member_id, group_membership_id, principal_amount, interest_rate,
                 loan_term_months, disbursement_date, status, purpose,
                 approved_by, approved_at,
                 disbursed_by, disbursed_at,
                 total_repayable, outstanding_balance,
                 notes)
-             VALUES ($1, $2, $3, $4,
+             VALUES ($1, $2,
+                     (SELECT gm.id FROM group_members gm
+                      WHERE gm.group_id = $1 AND gm.member_id = $2),
+                     $3, $4,
                      $5, $6, $7::loan_status, $8,
                      $9, NOW(),
                      $9, NOW(),
