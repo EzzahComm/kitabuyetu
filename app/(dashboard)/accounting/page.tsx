@@ -209,7 +209,7 @@ export default function AccountingPage() {
                       <Input type="number" step="0.01" className="text-right h-9 w-28" value={line.credit || ''} onChange={(e)=>{const nl=[...lines];nl[idx]={...nl[idx],credit:+e.target.value,debit:0};setLines(nl);}}/>
                     </td>
                     <td className="pb-2">
-                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={()=>setLines(lines.filter((_,i)=>i!==idx))}><Trash2 size={14}/></Button>
+                      <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Remove line" onClick={()=>setLines(lines.filter((_,i)=>i!==idx))}><Trash2 size={14}/></Button>
                     </td>
                   </tr>
                 ))}

@@ -36,7 +36,7 @@ export function PaginatedTable<T extends { id: string }>({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
@@ -76,14 +76,16 @@ export function PaginatedTable<T extends { id: string }>({
           </span>
           <div className="flex gap-1">
             <Button
-              variant="outline" size="icon" className="h-8 w-8"
+              variant="outline" size="icon"
+              aria-label="Previous page"
               disabled={data.page <= 1}
               onClick={() => onPageChange(data.page - 1)}
             >
               <ChevronLeft size={14} />
             </Button>
             <Button
-              variant="outline" size="icon" className="h-8 w-8"
+              variant="outline" size="icon"
+              aria-label="Next page"
               disabled={data.page >= data.totalPages}
               onClick={() => onPageChange(data.page + 1)}
             >

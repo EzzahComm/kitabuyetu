@@ -257,10 +257,10 @@ export default function RiskDashboardPage() {
                     <p className="truncate text-xs text-muted-foreground">{k.docType} · {k.org} · {k.submitted}</p>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 hover:bg-green-50" title="Approve" onClick={() => setPending({ kind: 'approve', item: k })}>
+                    <Button size="icon" variant="outline" className="h-9 w-9 text-green-600 hover:bg-green-50" title="Approve" aria-label={`Approve ${k.name}`} onClick={() => setPending({ kind: 'approve', item: k })}>
                       <Check size={14} />
                     </Button>
-                    <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 hover:bg-red-50" title="Reject" onClick={() => setPending({ kind: 'reject', item: k })}>
+                    <Button size="icon" variant="outline" className="h-9 w-9 text-red-600 hover:bg-red-50" title="Reject" aria-label={`Reject ${k.name}`} onClick={() => setPending({ kind: 'reject', item: k })}>
                       <X size={14} />
                     </Button>
                   </div>

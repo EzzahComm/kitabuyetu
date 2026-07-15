@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,8 +33,9 @@ export default function LoanDetailPage() {
   const [mpesaOpen, setMpesaOpen] = useState(false);
   const [b2cPhone,  setB2cPhone]  = useState('');
   const [b2cAmount, setB2cAmount] = useState('');
-  const [b2cBusy,   setB2cBusy]   = useState(false);
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
+  const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
 
   const { data: loan, isLoading } = useLoan(id);
   const loanAction   = useLoanAction(id);
@@ -77,7 +79,7 @@ export default function LoanDetailPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft size={18}/></Button>
+        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => router.back()}><ArrowLeft size={18}/></Button>
         <div>
           <h1 className="text-2xl font-bold">Loan Details</h1>
           <p className="text-xs font-mono text-muted-foreground">{l.id}</p>
@@ -107,10 +109,10 @@ export default function LoanDetailPage() {
       <div className="flex gap-2 flex-wrap">
         {l.status === 'pending' && (
           <>
-            <Button variant="default" onClick={() => handleAction('approve')} loading={loanAction.isPending}>
+            <Button variant="default" onClick={() => setConfirmAction('approve')} loading={loanAction.isPending}>
               <CheckCircle size={16} className="mr-2"/> Approve
             </Button>
-            <Button variant="destructive" onClick={() => handleAction('reject')} loading={loanAction.isPending}>
+            <Button variant="destructive" onClick={() => setConfirmAction('reject')} loading={loanAction.isPending}>
               <XCircle size={16} className="mr-2"/> Reject
             </Button>
           </>
@@ -222,39 +224,68 @@ export default function LoanDetailPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setMpesaOpen(false)}>Cancel</Button>
             <Button
-              loading={b2cBusy}
-              onClick={async () => {
+              onClick={() => {
                 const amt = parseInt(b2cAmount, 10);
                 if (!b2cPhone.trim()) { toast({ variant: 'destructive', title: 'Enter the recipient phone' }); return; }
                 if (!amt || amt <= 0) { toast({ variant: 'destructive', title: 'Enter a whole-shilling amount' }); return; }
-                setB2cBusy(true);
-                try {
-                  const res = await api.post<{ needsApproval: boolean }>('/mpesa/b2c', {
-                    phone:     b2cPhone.trim(),
-                    amount:    amt,
-                    occasion:  'Loan disbursement',
-                    commandId: 'BusinessPayment',
-                    loanId:    l.id,
-                  }, { headers: { 'Idempotency-Key': b2cIdempotencyKey } }); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
-                  toast({
-                    title: res.needsApproval ? 'Disbursement submitted for approval' : 'Disbursement initiated',
-                    description: res.needsApproval
-                      ? 'A second officer must approve this amount before it is sent.'
-                      : 'Loan will update when Safaricom confirms.',
-                  });
-                  setMpesaOpen(false);
-                } catch (err) {
-                  toast({ variant: 'destructive', title: 'Disbursement failed', description: err instanceof ApiError ? err.message : '' });
-                } finally {
-                  setB2cBusy(false);
-                }
+                setMpesaOpen(false);
+                setB2cConfirmOpen(true);
               }}
             >
-              Send KES {b2cAmount || '0'}
+              Review &amp; send
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MoneyActionDialog
+        open={b2cConfirmOpen}
+        onOpenChange={setB2cConfirmOpen}
+        title="Disburse via M-Pesa"
+        amount={parseInt(b2cAmount, 10) || 0}
+        details={[
+          { label: 'Recipient phone', value: b2cPhone.trim() },
+          { label: 'Loan', value: l.id },
+        ]}
+        warning="Funds are sent to the member's phone immediately once confirmed. This cannot be undone."
+        confirmLabel={`Send KES ${b2cAmount || '0'}`}
+        onConfirm={async () => {
+          const amt = parseInt(b2cAmount, 10);
+          try {
+            const res = await api.post<{ needsApproval: boolean }>('/mpesa/b2c', {
+              phone:     b2cPhone.trim(),
+              amount:    amt,
+              occasion:  'Loan disbursement',
+              commandId: 'BusinessPayment',
+              loanId:    l.id,
+            }, { headers: { 'Idempotency-Key': b2cIdempotencyKey } }); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
+            toast({
+              title: res.needsApproval ? 'Disbursement submitted for approval' : 'Disbursement initiated',
+              description: res.needsApproval
+                ? 'A second officer must approve this amount before it is sent.'
+                : 'Loan will update when Safaricom confirms.',
+            });
+          } catch (err) {
+            toast({ variant: 'destructive', title: 'Disbursement failed', description: err instanceof ApiError ? err.message : '' });
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(o) => !o && setConfirmAction(null)}
+        title={confirmAction === 'approve' ? 'Approve this loan?' : 'Reject this loan?'}
+        description={
+          confirmAction === 'approve'
+            ? 'The member will be able to receive disbursement once approved.'
+            : 'The member will be notified that their loan application was rejected.'
+        }
+        variant={confirmAction === 'reject' ? 'danger' : 'default'}
+        confirmLabel={confirmAction === 'approve' ? 'Approve' : 'Reject'}
+        onConfirm={async () => {
+          if (confirmAction) await handleAction(confirmAction);
+        }}
+      />
     </div>
   );
 }

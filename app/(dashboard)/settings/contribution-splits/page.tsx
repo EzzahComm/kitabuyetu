@@ -103,7 +103,7 @@ export default function ContributionSplitsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/settings"><Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft size={16} /></Button></Link>
+        <Link href="/settings"><Button variant="ghost" size="icon" aria-label="Back to settings"><ArrowLeft size={16} /></Button></Link>
         <div>
           <h1 className="text-2xl font-bold">Contribution splits</h1>
           <p className="text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export default function ContributionSplitsPage() {
                   onChange={(e) => updateRow(i, { priority: parseInt(e.target.value, 10) || 0 })}
                 />
               </div>
-              <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" onClick={() => removeRow(i)}>
+              <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" aria-label="Remove split" onClick={() => removeRow(i)}>
                 <Trash2 size={16} />
               </Button>
             </div>
