@@ -6,19 +6,23 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { organizations } from '@/app/(enterprise)/_data';
+import { workspaces } from '@/app/(enterprise)/_data';
 
 /**
- * Workspace / organization switcher — lets a partner that manages several
- * entities (a federation + its programmes, or a microfinance with regional
- * arms) flip the entire portal's scope. Sits at the top of the sidebar, the
+ * Workspace switcher — lets a partner that manages several entities (a
+ * federation + its programmes, or a microfinance with regional arms) flip
+ * the entire portal's scope. Sits at the top of the sidebar, the
  * conventional place enterprise users look for it.
+ *
+ * Named "Workspace", not "Organization" — that word already names the
+ * unrelated payment-architecture funder/monitor entity (see
+ * `(admin)/admin/organizations` and `(dashboard)/organization`).
  *
  * Switching is local/cosmetic here; in production this writes to a Zustand
  * `useWorkspace()` store that scopes every query.
  */
-export function OrgSwitcher() {
-  const [current, setCurrent] = React.useState(organizations[0]);
+export function WorkspaceSwitcher() {
+  const [current, setCurrent] = React.useState(workspaces[0]);
 
   return (
     <DropdownMenu>
@@ -38,17 +42,17 @@ export function OrgSwitcher() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Organizations</DropdownMenuLabel>
-        {organizations.map((org) => (
-          <DropdownMenuItem key={org.id} onClick={() => setCurrent(org)} className="gap-2">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
+        {workspaces.map((ws) => (
+          <DropdownMenuItem key={ws.id} onClick={() => setCurrent(ws)} className="gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Building2 size={14} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm">{org.name}</span>
-              <span className="block text-[11px] text-muted-foreground">{org.type}</span>
+              <span className="block truncate text-sm">{ws.name}</span>
+              <span className="block text-[11px] text-muted-foreground">{ws.type}</span>
             </span>
-            {org.id === current.id && <Check size={15} className="text-brand-600" />}
+            {ws.id === current.id && <Check size={15} className="text-brand-600" />}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
@@ -56,7 +60,7 @@ export function OrgSwitcher() {
           <span className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed">
             <Plus size={14} />
           </span>
-          Add organization
+          Add workspace
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -4,21 +4,28 @@
  * ⚠️ No enterprise/portfolio API yet — this is the seam for the real hooks:
  *   • portfolio + branches → `usePortfolio()` aggregating across child groups
  *   • API keys / webhooks  → developer-settings endpoints
- * The enterprise tier aggregates many groups (a federation, Organization programme, or
+ * The enterprise tier aggregates many groups (a federation, funding programme, or
  * microfinance branch network), so every figure here is a roll-up.
+ *
+ * NOTE: called "Workspace" here, not "Organization" — that name is already
+ * taken by the payment-architecture entity (a funder/monitor body such as a
+ * bank, SACCO, or NGO; see `(admin)/admin/organizations` and
+ * `(dashboard)/organization`). A B2B enterprise workspace is an unrelated
+ * concept — a paying customer managing its own branch network — so it gets
+ * its own vocabulary to avoid a three-way name collision.
  */
 
-export interface Organization {
+export interface Workspace {
   id: string;
   name: string;
-  type: 'Federation' | 'Organization Programme' | 'Microfinance' | 'Cooperative Union';
+  type: 'Federation' | 'Funding Programme' | 'Microfinance' | 'Cooperative Union';
   branches: number;
 }
 
-export const organizations: Organization[] = [
-  { id: 'org1', name: 'Hisa Africa Federation', type: 'Federation', branches: 12 },
-  { id: 'org2', name: 'Imani Microfinance', type: 'Microfinance', branches: 8 },
-  { id: 'org3', name: 'Jenga Mashinani Programme', type: 'Organization Programme', branches: 21 },
+export const workspaces: Workspace[] = [
+  { id: 'ws1', name: 'Hisa Africa Federation', type: 'Federation', branches: 12 },
+  { id: 'ws2', name: 'Imani Microfinance', type: 'Microfinance', branches: 8 },
+  { id: 'ws3', name: 'Jenga Mashinani Programme', type: 'Funding Programme', branches: 21 },
 ];
 
 export const portfolio = {

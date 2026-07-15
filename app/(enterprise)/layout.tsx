@@ -8,7 +8,7 @@ import {
   KeyRound, Palette, ScrollText, Menu, X, Bell, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { OrgSwitcher } from '@/components/enterprise/org-switcher';
+import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
 
 /**
  * B2B Enterprise portal shell — corporate, desktop-first, dense.
@@ -82,7 +82,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
         </div>
 
         <div className="border-b p-3">
-          <OrgSwitcher />
+          <WorkspaceSwitcher />
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto p-3">

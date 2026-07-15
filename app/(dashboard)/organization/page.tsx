@@ -1,10 +1,15 @@
 'use client';
 
 /**
- * Organization Ecosystem Portal.
+ * Funding Portal — the self-service view for an Organization's own coordinator.
  *
- * An Organization is not a group — it is a funder/monitor that oversees many
- * groups. This dashboard gives its coordinators:
+ * An Organization is not a group — it is a funder/monitor (bank, SACCO,
+ * foundation, NGO) that oversees many groups; see `(admin)/admin/organizations`
+ * for the platform-side registry of these entities. This page is the same
+ * Organization entity's own operational view, not a separate concept — it is
+ * labeled "Funding Portal" (rather than "Organization Portal") so it isn't
+ * mistaken for the admin registry, or for the unrelated B2B "Workspace"
+ * concept in `(enterprise)`. This dashboard gives its coordinators:
  *   - the wallet position (capital in / committed / deployed)
  *   - funding programs (budget envelopes) with create/pause controls
  *   - one-click disbursement into a linked group (dual-ledger, atomic)
@@ -87,7 +92,7 @@ function Metric({ label, value, sub, icon: Icon }: {
   );
 }
 
-export default function OrganizationPage() {
+export default function FundingPortalPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [depositOpen, setDepositOpen]   = useState(false);
@@ -132,7 +137,7 @@ export default function OrganizationPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Organization Portal</h1>
+          <h1 className="text-2xl font-bold">Funding Portal</h1>
           <p className="text-sm text-muted-foreground">
             Fund, monitor and support your linked groups
           </p>

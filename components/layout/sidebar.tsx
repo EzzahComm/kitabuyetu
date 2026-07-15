@@ -56,8 +56,11 @@ const navSections = [
   },
 ];
 
+// "Funding Portal" — the Organization funder/monitor's own view (see
+// (dashboard)/organization/page.tsx doc comment). Labeled distinctly from
+// admin's "Organizations" registry and the unrelated (enterprise) Workspace concept.
 const organizationItems = [
-  { href: '/organization', label: 'Organization Portal', icon: Building2 },
+  { href: '/organization', label: 'Funding Portal', icon: Building2 },
 ];
 
 interface SidebarProps {
