@@ -146,7 +146,7 @@ export default function LoanDetailPage() {
       {schedule.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-base">Repayment Schedule</CardTitle></CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>

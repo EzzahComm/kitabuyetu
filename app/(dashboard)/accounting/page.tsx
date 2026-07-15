@@ -75,7 +75,7 @@ export default function AccountingPage() {
           {loadingTB ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Trial Balance</CardTitle></CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="overflow-x-auto p-0">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -104,7 +104,7 @@ export default function AccountingPage() {
         <TabsContent value="journals" className="mt-4">
           {loadingJournals ? <Skeleton className="h-64 w-full"/> : (
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="overflow-x-auto p-0">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -144,7 +144,7 @@ export default function AccountingPage() {
         <TabsContent value="accounts" className="mt-4">
           {loadingAccounts ? <Skeleton className="h-64 w-full"/> : (
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="overflow-x-auto p-0">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -178,6 +178,7 @@ export default function AccountingPage() {
               <Label>Memo</Label>
               <Input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Description of transaction…"/>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground">
@@ -223,6 +224,7 @@ export default function AccountingPage() {
                 </tr>
               </tfoot>
             </table>
+            </div>
             <Button variant="outline" size="sm" onClick={()=>setLines([...lines,{accountId:'',debit:0,credit:0,description:''}])}>
               <Plus size={14} className="mr-1"/> Add line
             </Button>

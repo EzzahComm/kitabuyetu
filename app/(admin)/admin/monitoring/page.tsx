@@ -192,7 +192,7 @@ export default function MonitoringPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="max-h-[420px] overflow-y-auto">
+          <div className="max-h-[420px] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/50 backdrop-blur">
                 <tr className="text-left text-xs text-muted-foreground">

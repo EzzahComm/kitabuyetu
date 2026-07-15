@@ -358,7 +358,7 @@ function CampaignsTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         {isLoading ? (
           <EmptyState title="Loading campaigns…" />
         ) : campaigns.length === 0 ? (
@@ -504,7 +504,7 @@ function TemplatesTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         {isLoading ? (
           <EmptyState title="Loading templates…" />
         ) : (
@@ -668,7 +668,7 @@ function SchedulesTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         {isLoading ? (
           <EmptyState title="Loading schedules…" />
         ) : schedules.length === 0 ? (
@@ -777,7 +777,7 @@ function LogsTab() {
         }
       />
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
         ) : logs.length === 0 ? (
