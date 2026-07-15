@@ -16,3 +16,15 @@ description = "Public Safaricom Daraja sandbox passkey (not a real secret)"
 regexes = [
   '''bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919''',
 ]
+# generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the
+# loan disbursement dialog (app/(dashboard)/loans/[id]/page.tsx:238). The
+# rule pattern-matches any 'X-Key': value shape; "Key" here names the HTTP
+# header per RFC convention (Idempotency-Key), and the value is a client-side
+# crypto.randomUUID() — never a credential. A gitleaks:allow inline comment
+# was added in a later commit, but gitleaks scans each historical commit's
+# own diff, so it doesn't retroactively suppress the introducing commit
+# (d719b41) without rewriting already-pushed history — allowlisted by commit
+# instead.
+commits = [
+  "d719b41cbdf40e02b693239cee14c11d7e2a08f5",
+]
