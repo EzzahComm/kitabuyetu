@@ -1,16 +1,17 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withRole } from '@/lib/auth/middleware';
 import {
-  initiateB2C,
   handleB2CResult,
   handleBalanceResult,
   type B2CResultBody,
 } from '@/lib/services/mpesa.service';
+import { disbursementsService } from '@/lib/services/disbursements.service';
+import { isValidCallbackToken } from '@/lib/services/daraja.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
-import { ok, handleError } from '@/lib/utils/response';
+import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -41,6 +42,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const callerIp = getCallerIp(req);
 
   if (type === 'result' || type === 'timeout') {
+    // Callback authenticity (B2C audit H1): a forged callback that doesn't
+    // carry the shared secret is dropped before it can touch any money
+    // state. Acked (not rejected) so a prober learns nothing from the
+    // response, and logged so a real misconfiguration is visible.
+    if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+      logger.warn('[b2c callback] invalid or missing token — dropped', { type, callerIp });
+      return ack();
+    }
+
     let body: B2CResultBody;
     try {
       body = await req.json();
@@ -77,27 +87,39 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  // Authenticated: initiate B2C disbursement
+  // Authenticated: initiate a disbursement (spine: reserve → maker-checker → dispatch)
   return withRole(req, 'treasurer', async (auth) => {
     try {
       // Sensitive op (§2.5): outbound money must not ride a stale token.
       await assertAuthFresh(auth);
 
-      const input = B2CSchema.parse(await req.json());
-      const result = await initiateB2C({
-        phone:       input.phone,
-        amount:      input.amount,
-        occasion:    input.occasion,
-        commandId:   input.commandId,
-        groupId:     auth.groupId,
-        loanId:      input.loanId,
-        disbursedBy: auth.userId,
+      const idempotencyKey = req.headers.get('idempotency-key');
+      if (!idempotencyKey) {
+        return errorResponse(
+          'An Idempotency-Key header is required to initiate a disbursement',
+          'IDEMPOTENCY_KEY_REQUIRED',
+          400,
+        );
+      }
+
+      const input  = B2CSchema.parse(await req.json());
+      const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const result = await disbursementsService.initiateDisbursement(ctx, {
+        phone:          input.phone,
+        amount:         input.amount,
+        occasion:       input.occasion,
+        commandId:      input.commandId,
+        loanId:         input.loanId,
+        idempotencyKey,
       });
+
       return ok({
-        conversationId:           result.conversationId,
-        originatorConversationId: result.originatorConversationId,
-        responseDescription:      result.responseDescription,
-        message: 'Disbursement initiated. Monitor the result callback.',
+        id:               result.id,
+        status:           result.status,
+        needsApproval:    result.needsApproval,
+        message:          result.needsApproval
+          ? 'Disbursement submitted — awaiting a second officer\'s approval.'
+          : 'Disbursement initiated. Monitor the result callback.',
       });
     } catch (err) {
       return handleError(err);

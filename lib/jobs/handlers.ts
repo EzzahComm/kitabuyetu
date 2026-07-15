@@ -58,6 +58,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'payment_orphan_monitor':
       return handlePaymentOrphanMonitor();
 
+    case 'disbursement_orphan_monitor':
+      return handleDisbursementOrphanMonitor();
+
     case 'payment_requests_expire':
       return handlePaymentRequestsExpire();
 
@@ -191,6 +194,17 @@ async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
   const { expireDueRequests } = await import('@/lib/services/payment-requests.service');
   const result = await expireDueRequests();
   return { message: 'Payment requests expiry sweep complete', ...result };
+}
+
+async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
+  const { findStuckDisbursements } = await import('@/lib/services/disbursements.service');
+  const result = await findStuckDisbursements();
+  return {
+    message: result.count === 0
+      ? 'B2C disbursements: no stuck payouts'
+      : `B2C disbursements: ${result.count} STUCK payout(s) — investigate against the Safaricom statement`,
+    stuck: result.count,
+  };
 }
 
 async function handleAccountingBalanceDrift(): Promise<HandlerResult> {

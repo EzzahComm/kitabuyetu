@@ -2297,6 +2297,8 @@ export interface B2CParams {
   loanId?:     string;
   disbursedBy?: string;
   remarks?:    string;
+  /** Links this Daraja call back to its disbursement_requests row (spine, B2C audit C1-C5). */
+  disbursementRequestId?: string;
 }
 
 export interface B2CResult {
@@ -2338,21 +2340,30 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
       ],
     );
 
-    await db.query(
+    const { rows: b2cRows } = await db.query<{ id: string }>(
       `INSERT INTO mpesa_b2c_transactions
          (group_id, mpesa_transaction_id, conversation_id,
           originator_conversation_id, phone, amount, command_id,
-          occasion, remarks, status, loan_id, disbursed_by, source_account)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'initiated',$10,$11,$12)`,
+          occasion, remarks, status, loan_id, disbursed_by, source_account,
+          disbursement_request_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'initiated',$10,$11,$12,$13)
+       RETURNING id`,
       [
         params.groupId, txRows[0]?.id ?? null,
         res.conversationId, res.originatorConversationId,
         phone, amountStr, params.commandId,
         params.occasion, remarks,
         params.loanId ?? null, params.disbursedBy ?? null,
-        sourceAccount,
+        sourceAccount, params.disbursementRequestId ?? null,
       ],
     );
+
+    if (params.disbursementRequestId) {
+      await db.query(
+        `UPDATE disbursement_requests SET b2c_transaction_id = $1 WHERE id = $2`,
+        [b2cRows[0].id, params.disbursementRequestId],
+      );
+    }
   });
 
   return {
@@ -2386,15 +2397,17 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
   await withAdminDb(async (db) => {
     // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
-      id:                   string;
-      group_id:             string;
-      loan_id:              string | null;
-      amount:               string;
-      phone:                string;
-      disbursed_by:         string | null;
-      mpesa_transaction_id: string | null;
+      id:                      string;
+      group_id:                string;
+      loan_id:                 string | null;
+      amount:                  string;
+      phone:                   string;
+      disbursed_by:            string | null;
+      mpesa_transaction_id:    string | null;
+      disbursement_request_id: string | null;
     }>(
-      `SELECT id, group_id, loan_id, amount, phone, disbursed_by, mpesa_transaction_id
+      `SELECT id, group_id, loan_id, amount, phone, disbursed_by, mpesa_transaction_id,
+              disbursement_request_id
        FROM   mpesa_b2c_transactions
        WHERE  originator_conversation_id=$1
        FOR UPDATE`,
@@ -2424,6 +2437,13 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
          VALUES ($1,'b2c',$2,$3,$4,$5)`,
         [groupId, r.OriginatorConversationID, r.ResultDesc, String(r.ResultCode), rawBody],
       );
+      // Disbursement spine (B2C audit C1/C4): release the reservation — the
+      // money never left, so the group's available balance is restored.
+      if (b2c?.disbursement_request_id) {
+        await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
+          status: 'failed', failureReason: r.ResultDesc,
+        });
+      }
       return;
     }
 
@@ -2462,6 +2482,32 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
           disbursedBy:        b2c.disbursed_by,
           mpesaTransactionId: b2c.mpesa_transaction_id,
         });
+
+        // Disbursement notification (B2C audit F10) — the borrower is told
+        // the money left, not just that the loan record changed. Best-effort:
+        // emitBusinessEvent never throws and no-ops when no rule matches.
+        const { rows: memberRows } = await db.query<{ member_id: string; first_name: string }>(
+          `SELECT l.member_id, m.first_name
+           FROM   loans l JOIN members m ON m.id = l.member_id
+           WHERE  l.id = $1`,
+          [b2c.loan_id],
+        );
+        if (memberRows[0]) {
+          const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+          const { SMS_EVENTS }        = await import('@/lib/sms/events');
+          await emitBusinessEvent({
+            eventType: SMS_EVENTS.LOAN_DISBURSED,
+            eventId:   b2c.loan_id,
+            groupId:   b2c.group_id,
+            actorId:   memberRows[0].member_id,
+            payload: {
+              memberId:   memberRows[0].member_id,
+              first_name: memberRows[0].first_name,
+              amount:     grossAmount,
+              receipt,
+            },
+          });
+        }
       } else if (charge > 0 && b2c.mpesa_transaction_id) {
         // Non-loan B2C (welfare payout, dividend): the disbursement journal
         // is posted by its own module, but the Safaricom fee still needs to
@@ -2474,8 +2520,45 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
           chargeType:         'b2c',
         });
       }
+
+      // Disbursement spine (B2C audit C1/C4): the money left for real —
+      // release the hold (the journal above already reduced the account's
+      // actual balance; the reservation's job is done) and mark completed.
+      if (b2c.disbursement_request_id) {
+        await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
+          status: 'completed', mpesaReceiptNumber: receipt,
+        });
+      }
     }
   });
+}
+
+/**
+ * Releases a disbursement_requests reservation on its cash account and
+ * settles the row to a terminal state. Idempotent: only rows still holding a
+ * reservation (status IN dispatched/approved) transition — a replayed
+ * callback is a safe no-op.
+ */
+async function releaseDisbursementReservation(
+  db:   PoolClient,
+  id:   string,
+  args: { status: 'completed' | 'failed'; mpesaReceiptNumber?: string | null; failureReason?: string },
+): Promise<void> {
+  const { rows } = await db.query<{ cash_account_id: string; amount: string }>(
+    `UPDATE disbursement_requests
+     SET    status = $1::disbursement_status,
+            mpesa_receipt_number = COALESCE($2, mpesa_receipt_number),
+            failure_reason = $3,
+            completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
+     WHERE  id = $4 AND status IN ('approved', 'dispatched')
+     RETURNING cash_account_id, amount`,
+    [args.status, args.mpesaReceiptNumber ?? null, args.failureReason ?? null, id],
+  );
+  if (!rows[0]) return; // already settled — replayed callback
+  await db.query(
+    `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,
+    [rows[0].amount, rows[0].cash_account_id],
+  );
 }
 
 /** Deterministic Safaricom fee lookup via the seeded tier table (mig 047). */

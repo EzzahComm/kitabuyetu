@@ -16,9 +16,9 @@
  */
 import type { PoolClient } from 'pg';
 import crypto from 'crypto';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
+import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { organizationService } from './organization.service';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,6 +78,95 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
   );
   if (!rows[0]) throw new NotFoundError('Organization wallet');
   return rows[0];
+}
+
+async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisbursement> {
+  const { rows } = await db.query<OrgDisbursement>(
+    `SELECT * FROM organization_disbursements WHERE id = $1`, [id],
+  );
+  if (!rows[0]) throw new NotFoundError('Disbursement', id);
+  return rows[0];
+}
+
+/**
+ * Settles an 'approved' org disbursement: posts the group-side journal, folds
+ * the amount into the program budget and the wallet's lifetime total, and
+ * releases the reservation hold. Idempotent — only a row still 'approved'
+ * transitions, so calling this twice (e.g. a duplicate approval click) is a
+ * safe no-op.
+ */
+async function settleOrgDisbursement(id: string): Promise<void> {
+  await withAdminDb(async (db) => {
+    const { rows } = await db.query<{
+      id: string; organization_id: string; wallet_id: string; group_id: string;
+      funding_program_id: string | null; disbursement_type: string; amount: string; reference: string;
+    }>(
+      `SELECT id, organization_id, wallet_id, group_id, funding_program_id,
+              disbursement_type, amount, reference
+       FROM   organization_disbursements
+       WHERE  id = $1 AND status = 'approved'
+       FOR UPDATE`,
+      [id],
+    );
+    const disb = rows[0];
+    if (!disb) return; // already settled
+
+    if (disb.funding_program_id) {
+      await db.query(
+        `UPDATE funding_programs SET disbursed_total = disbursed_total + $1 WHERE id = $2`,
+        [disb.amount, disb.funding_program_id],
+      );
+    }
+
+    // Group-side: balanced, posted journal entry. DR 1001 Cash / CR 4005
+    // External Funding (fallback 4004 for groups chartered before 4005 existed).
+    const { rows: accts } = await db.query<{ code: string; id: string }>(
+      `SELECT account_code AS code, id FROM accounts
+       WHERE group_id = $1 AND is_active AND account_code IN ('1001','4005','4004')`,
+      [disb.group_id],
+    );
+    const cashId   = accts.find((a) => a.code === '1001')?.id;
+    const incomeId = accts.find((a) => a.code === '4005')?.id
+                  ?? accts.find((a) => a.code === '4004')?.id;
+
+    let groupJournalId: string | null = null;
+    if (cashId && incomeId) {
+      const { rows: je } = await db.query<{ id: string }>(
+        `INSERT INTO journal_entries
+           (group_id, entry_date, reference, description, status, created_by, posted_at)
+         VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW())
+         RETURNING id`,
+        [disb.group_id, disb.reference, `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`],
+      );
+      groupJournalId = je[0].id;
+      await db.query(
+        `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+         VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
+        [disb.group_id, groupJournalId, cashId, disb.amount, incomeId],
+      );
+    } else {
+      // Never lose the money trail: the disbursement + org ledger still
+      // land, and reconciliation surfaces the missing group posting.
+      logger.warn('[org-finance] group journal skipped — chart missing 1001/4005', {
+        groupId: disb.group_id,
+      });
+    }
+
+    await db.query(
+      `UPDATE organization_wallets
+       SET    committed_balance = committed_balance - $1,
+              total_disbursed   = total_disbursed   + $1
+       WHERE  id = $2`,
+      [disb.amount, disb.wallet_id],
+    );
+
+    await db.query(
+      `UPDATE organization_disbursements
+       SET    status = 'completed', completed_at = NOW(), group_journal_entry_id = $2
+       WHERE  id = $1`,
+      [id, groupJournalId],
+    );
+  });
 }
 
 export const organizationFinanceService = {
@@ -244,6 +333,15 @@ export const organizationFinanceService = {
 
   // ─── Disbursement (org → group, dual-ledger, atomic) ───────────────────────
 
+  /**
+   * Org -> group disbursement. Dual control (B2B audit: separation of
+   * duties): amounts above the org's disbursement_approval_threshold are
+   * RESERVED (committed_balance) but park in 'pending_approval' — the group
+   * journal is not posted, and the program budget is not consumed — until a
+   * DIFFERENT coordinator approves via approveDisbursement(). Amounts at or
+   * under the threshold settle immediately under single control, same as
+   * before.
+   */
   async disburse(
     ctx: TenantContext,
     input: {
@@ -253,11 +351,11 @@ export const organizationFinanceService = {
       fundingProgramId?: string;
       notes?: string;
     },
-  ): Promise<OrgDisbursement> {
+  ): Promise<OrgDisbursement & { needsApproval: boolean }> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.amount > 0)) throw new ValidationError('Disbursement amount must be positive');
 
-    return withTransaction(ctx, async (db) => {
+    const disb = await withTransaction(ctx, async (db) => {
       const organizationId = orgId(ctx);
 
       // 1. Eligibility: the group must hold an active link to this organization.
@@ -277,7 +375,10 @@ export const organizationFinanceService = {
         );
       }
 
-      // 3. Program budget guard (when funded from a program).
+      // 3. Program budget guard (when funded from a program). "Remaining"
+      //    accounts for amounts already reserved by OTHER pending-approval
+      //    disbursements against the same program, so budget can never be
+      //    double-committed while multiple requests await approval.
       if (input.fundingProgramId) {
         const { rows: prog } = await db.query<{ budget: string; disbursed_total: string; status: string }>(
           `SELECT budget, disbursed_total, status FROM funding_programs
@@ -286,77 +387,53 @@ export const organizationFinanceService = {
         );
         if (!prog[0]) throw new NotFoundError('Funding program', input.fundingProgramId);
         if (prog[0].status !== 'active') throw new ValidationError('Funding program is not active');
-        const remaining = parseFloat(prog[0].budget) - parseFloat(prog[0].disbursed_total);
+
+        const { rows: pendingRows } = await db.query<{ pending: string }>(
+          `SELECT COALESCE(SUM(amount), 0) AS pending FROM organization_disbursements
+           WHERE funding_program_id = $1 AND status = 'pending_approval'`,
+          [input.fundingProgramId],
+        );
+        const remaining = parseFloat(prog[0].budget)
+                         - parseFloat(prog[0].disbursed_total)
+                         - parseFloat(pendingRows[0].pending);
         if (remaining < input.amount) {
           throw new ValidationError(`Program budget remaining is KES ${remaining.toFixed(2)}`);
         }
-        await db.query(
-          `UPDATE funding_programs SET disbursed_total = disbursed_total + $1 WHERE id = $2`,
-          [input.amount.toFixed(2), input.fundingProgramId],
-        );
       }
 
-      // 4. Org side: wallet debit + ledger row.
-      const reference = `ODB-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+      // 4. Maker-checker threshold (B2B audit: separation of duties).
+      const { rows: orgRows } = await db.query<{ threshold: string }>(
+        `SELECT disbursement_approval_threshold AS threshold FROM organizations WHERE id = $1`,
+        [organizationId],
+      );
+      const requiresApproval = input.amount > parseFloat(orgRows[0]?.threshold ?? '0');
+
+      // 5. Reserve: debit available_balance, hold in committed_balance — the
+      //    wallet's own reservation column, previously unused. Ledger records
+      //    this balance-affecting event now; approval is a pure status
+      //    transition (no second balance-affecting entry), rejection posts a
+      //    reversing credit.
+      const reference  = `ODB-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
       const newBalance = available - input.amount;
       await db.query(
         `UPDATE organization_wallets
          SET available_balance = available_balance - $1,
-             total_disbursed   = total_disbursed   + $1
+             committed_balance = committed_balance + $1
          WHERE id = $2`,
         [input.amount.toFixed(2), wallet.id],
       );
 
-      // 5. Group side: balanced, posted journal entry in the group's books.
-      //    DR 1001 Cash / CR 4005 External Funding (fallback 4004 Other Income
-      //    for groups chartered before 4005 existed).
-      const { rows: accts } = await db.query<{ code: string; id: string }>(
-        `SELECT account_code AS code, id FROM accounts
-         WHERE group_id = $1 AND is_active AND account_code IN ('1001','4005','4004')`,
-        [input.groupId],
-      );
-      const cashId   = accts.find((a) => a.code === '1001')?.id;
-      const incomeId = accts.find((a) => a.code === '4005')?.id
-                    ?? accts.find((a) => a.code === '4004')?.id;
-
-      let groupJournalId: string | null = null;
-      if (cashId && incomeId) {
-        const { rows: je } = await db.query<{ id: string }>(
-          `INSERT INTO journal_entries
-             (group_id, entry_date, reference, description, status, created_by, posted_at)
-           VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW())
-           RETURNING id`,
-          [
-            input.groupId, reference,
-            `External funding — ${input.disbursementType.replace(/_/g, ' ')}`,
-          ],
-        );
-        groupJournalId = je[0].id;
-        await db.query(
-          `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-           VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-          [input.groupId, groupJournalId, cashId, input.amount.toFixed(2), incomeId],
-        );
-      } else {
-        // Never lose the money trail: the disbursement + org ledger still land,
-        // and reconciliation surfaces the missing group posting.
-        logger.warn('[org-finance] group journal skipped — chart missing 1001/4005', {
-          groupId: input.groupId,
-        });
-      }
-
-      // 6. The disbursement record + org ledger row, cross-linked.
-      const { rows: disb } = await db.query<OrgDisbursement>(
+      const { rows: disbRows } = await db.query<OrgDisbursement>(
         `INSERT INTO organization_disbursements
            (organization_id, wallet_id, funding_program_id, group_id,
-            disbursement_type, amount, status, reference, notes,
-            group_journal_entry_id, created_by, completed_at)
-         VALUES ($1,$2,$3,$4,$5,$6,'completed',$7,$8,$9,$10,NOW())
+            disbursement_type, amount, status, reference, notes, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
           organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
-          input.disbursementType, input.amount.toFixed(2), reference,
-          input.notes ?? null, groupJournalId, ctx.userId,
+          input.disbursementType, input.amount.toFixed(2),
+          requiresApproval ? 'pending_approval' : 'approved',
+          reference, input.notes ?? null, ctx.userId,
         ],
       );
 
@@ -368,16 +445,95 @@ export const organizationFinanceService = {
          RETURNING id`,
         [
           organizationId, wallet.id, input.amount.toFixed(2), newBalance.toFixed(2),
-          input.fundingProgramId ?? null, input.groupId, disb[0].id, reference,
-          input.notes ?? `Disbursement to group`, ctx.userId,
+          input.fundingProgramId ?? null, input.groupId, disbRows[0].id, reference,
+          input.notes ?? (requiresApproval ? 'Disbursement — reserved, pending approval' : 'Disbursement to group'),
+          ctx.userId,
         ],
       );
       await db.query(
         `UPDATE organization_disbursements SET ledger_entry_id = $1 WHERE id = $2`,
-        [ledger[0].id, disb[0].id],
+        [ledger[0].id, disbRows[0].id],
       );
 
-      return disb[0];
+      return disbRows[0];
+    });
+
+    if (disb.status === 'approved') {
+      await settleOrgDisbursement(disb.id);
+    }
+
+    const fresh = await withDb(ctx, (db) => fetchOrgDisbursement(db, disb.id));
+    return { ...fresh, needsApproval: fresh.status === 'pending_approval' };
+  },
+
+  /** Second-officer approval (maker-checker) — approver ≠ creator. */
+  async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisbursement> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    const organizationId = orgId(ctx);
+
+    await withTransaction(ctx, async (db) => {
+      const { rows } = await db.query<{ id: string; created_by: string }>(
+        `SELECT id, created_by FROM organization_disbursements
+         WHERE id = $1 AND organization_id = $2 AND status = 'pending_approval'
+         FOR UPDATE`,
+        [id, organizationId],
+      );
+      if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+      if (rows[0].created_by === ctx.userId) {
+        throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
+      }
+      await db.query(
+        `UPDATE organization_disbursements
+         SET    status = 'approved', approved_by = $2
+         WHERE  id = $1`,
+        [id, ctx.userId],
+      );
+    });
+
+    await settleOrgDisbursement(id);
+    return withDb(ctx, (db) => fetchOrgDisbursement(db, id));
+  },
+
+  /** Reject a pending disbursement — releases the wallet reservation. */
+  async rejectDisbursement(ctx: TenantContext, id: string, reason: string): Promise<OrgDisbursement> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    const organizationId = orgId(ctx);
+
+    return withTransaction(ctx, async (db) => {
+      const { rows } = await db.query<{ wallet_id: string; amount: string }>(
+        `SELECT wallet_id, amount FROM organization_disbursements
+         WHERE id = $1 AND organization_id = $2 AND status = 'pending_approval'
+         FOR UPDATE`,
+        [id, organizationId],
+      );
+      if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+
+      const { rows: walletRows } = await db.query<{ available_balance: string }>(
+        `UPDATE organization_wallets
+         SET    available_balance = available_balance + $1,
+                committed_balance = committed_balance - $1
+         WHERE  id = $2
+         RETURNING available_balance`,
+        [rows[0].amount, rows[0].wallet_id],
+      );
+
+      await db.query(
+        `INSERT INTO organization_ledger
+           (organization_id, wallet_id, entry_type, direction, amount, balance_after,
+            disbursement_id, reference, description, created_by)
+         SELECT $1, $2, 'disbursement', 'credit', $3, $4, id, reference,
+                'Disbursement rejected — reservation released', $5
+         FROM   organization_disbursements WHERE id = $6`,
+        [organizationId, rows[0].wallet_id, rows[0].amount, walletRows[0].available_balance, ctx.userId, id],
+      );
+
+      const { rows: updated } = await db.query<OrgDisbursement>(
+        `UPDATE organization_disbursements
+         SET    status = 'rejected', rejected_by = $2, rejected_at = NOW(), rejection_reason = $3
+         WHERE  id = $1 RETURNING *`,
+        [id, ctx.userId, reason],
+      );
+      return updated[0];
     });
   },
 

@@ -38,6 +38,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import crypto from 'crypto';
 import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { toMpesaAmount } from '@/lib/utils/currency';
@@ -191,6 +192,36 @@ export function assertSafaricomIp(ip: string): void {
 
 function originatorId(): string {
   return `KY-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ─── Callback authenticity (B2C audit H1) ────────────────────────────────────
+// assertSafaricomIp() below is advisory-only (Vercel/serverless IPs aren't
+// reliably the true client IP), so it cannot be the integrity boundary on its
+// own. A shared secret in the Result/Timeout URL query string closes that gap
+// for B2C specifically: a forged callback that doesn't know the token is
+// dropped before it can flip any money state. Safaricom echoes query strings
+// on Result/Timeout URLs unmodified, so this survives the round trip.
+const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
+if (!IS_SANDBOX && !CALLBACK_TOKEN) {
+  throw new Error(
+    '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C ' +
+    'Result/Timeout callbacks would carry no authenticity token.',
+  );
+}
+
+function withCallbackToken(url: string): string {
+  if (!CALLBACK_TOKEN) return url; // sandbox without a token configured
+  return `${url}&token=${encodeURIComponent(CALLBACK_TOKEN)}`;
+}
+
+/** True when `token` (from the callback request's query string) matches the configured secret. */
+export function isValidCallbackToken(token: string | null): boolean {
+  if (!CALLBACK_TOKEN) return true; // not configured (sandbox) — nothing to check
+  if (!token) return false;
+  // Constant-time: hash both sides first so differing lengths don't short-circuit.
+  const a = crypto.createHash('sha256').update(token).digest();
+  const b = crypto.createHash('sha256').update(CALLBACK_TOKEN).digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 // ─── STK Push (M-Pesa Express) ────────────────────────────────────────────────
@@ -347,8 +378,8 @@ export async function initiateB2C(input: B2CInput): Promise<B2CResponse & { orig
       PartyA:                   B2C_SHORTCODE,
       PartyB:                   phone,
       Remarks:                  input.remarks.slice(0, 100),
-      QueueTimeOutURL:          `${CALLBACK_BASE}/api/v1/mpesa/b2c?type=timeout`,
-      ResultURL:                `${CALLBACK_BASE}/api/v1/mpesa/b2c?type=result`,
+      QueueTimeOutURL:          withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2c?type=timeout`),
+      ResultURL:                withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2c?type=result`),
       Occasion:                 (input.occasion ?? input.remarks).slice(0, 100),
     }),
   );

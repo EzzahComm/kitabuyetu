@@ -33,6 +33,7 @@ export default function LoanDetailPage() {
   const [b2cPhone,  setB2cPhone]  = useState('');
   const [b2cAmount, setB2cAmount] = useState('');
   const [b2cBusy,   setB2cBusy]   = useState(false);
+  const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
 
   const { data: loan, isLoading } = useLoan(id);
   const loanAction   = useLoanAction(id);
@@ -122,6 +123,11 @@ export default function LoanDetailPage() {
             <Button onClick={() => {
               setB2cPhone(l.memberPhone ?? l.member_phone ?? '');
               setB2cAmount(String(Math.round(Number(l.principalAmount ?? 0))));
+              // One key per dialog open: repeated clicks of "Send" while this
+              // dialog is up are the SAME logical attempt (idempotent replay
+              // returns the original result instead of a second real payout);
+              // reopening the dialog is a deliberate new attempt.
+              setB2cIdempotencyKey(crypto.randomUUID());
               setMpesaOpen(true);
             }}>
               <Smartphone size={16} className="mr-2"/> Disburse via M-Pesa
@@ -223,14 +229,19 @@ export default function LoanDetailPage() {
                 if (!amt || amt <= 0) { toast({ variant: 'destructive', title: 'Enter a whole-shilling amount' }); return; }
                 setB2cBusy(true);
                 try {
-                  await api.post('/mpesa/b2c', {
+                  const res = await api.post<{ needsApproval: boolean }>('/mpesa/b2c', {
                     phone:     b2cPhone.trim(),
                     amount:    amt,
                     occasion:  'Loan disbursement',
                     commandId: 'BusinessPayment',
                     loanId:    l.id,
+                  }, { headers: { 'Idempotency-Key': b2cIdempotencyKey } });
+                  toast({
+                    title: res.needsApproval ? 'Disbursement submitted for approval' : 'Disbursement initiated',
+                    description: res.needsApproval
+                      ? 'A second officer must approve this amount before it is sent.'
+                      : 'Loan will update when Safaricom confirms.',
                   });
-                  toast({ title: 'Disbursement initiated', description: 'Loan will update when Safaricom confirms.' });
                   setMpesaOpen(false);
                 } catch (err) {
                   toast({ variant: 'destructive', title: 'Disbursement failed', description: err instanceof ApiError ? err.message : '' });

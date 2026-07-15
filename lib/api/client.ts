@@ -98,9 +98,9 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options?: { multipart?: boolean },
+  options?: { multipart?: boolean; headers?: Record<string, string> },
 ): Promise<T> {
-  const headers = buildHeaders(body, options?.multipart);
+  const headers = { ...buildHeaders(body, options?.multipart), ...options?.headers };
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
@@ -161,7 +161,8 @@ async function openBlob(path: string): Promise<void> {
 
 export const api = {
   get:    <T>(path: string)                           => request<T>('GET',    path),
-  post:   <T>(path: string, body: unknown)            => request<T>('POST',   path, body),
+  post:   <T>(path: string, body: unknown, opts?: { headers?: Record<string, string> }) =>
+                                                          request<T>('POST',   path, body, opts),
   patch:  <T>(path: string, body: unknown)            => request<T>('PATCH',  path, body),
   put:    <T>(path: string, body: unknown)            => request<T>('PUT',    path, body),
   delete: <T>(path: string)                           => request<T>('DELETE', path),

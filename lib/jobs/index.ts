@@ -87,6 +87,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       dedup_key: `payment_orphan_monitor:${dateStr}T${hour}`,
     });
 
+    // B2C disbursement stuck-payout monitor (B2C audit C5/F13).
+    queued.disbursement_orphan_monitor = await safe('disbursement_orphan_monitor', {}, {
+      priority:  9, // outbound money stuck unresolved — high priority
+      dedup_key: `disbursement_orphan_monitor:${dateStr}T${hour}`,
+    });
+
     // Payment-request expiry sweep (allocation rule A6). The allocation
     // engine's query also filters expired rows, so hourly cadence only
     // affects reporting freshness, never allocation correctness.
