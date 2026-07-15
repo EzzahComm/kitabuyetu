@@ -235,7 +235,7 @@ export default function LoanDetailPage() {
                     occasion:  'Loan disbursement',
                     commandId: 'BusinessPayment',
                     loanId:    l.id,
-                  }, { headers: { 'Idempotency-Key': b2cIdempotencyKey } });
+                  }, { headers: { 'Idempotency-Key': b2cIdempotencyKey } }); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
                   toast({
                     title: res.needsApproval ? 'Disbursement submitted for approval' : 'Disbursement initiated',
                     description: res.needsApproval
