@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import { brandGreen, brandNavy, brandAccent, brandNeutral } from './lib/ui/brand-palette';
 
 const config: Config = {
   darkMode: ['class'],
@@ -44,37 +45,14 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         // ── Kitabu Yetu brand ──────────────────────────────────────────
-        // Primary green — built around the logo's vibrant #3CB043 leaf/people
-        // mark. Used for CTAs, success states, financial-positive indicators.
-        brand: {
-          50:  '#EAF7EC', // light accent
-          100: '#D2EFD7',
-          200: '#A8DFB1',
-          300: '#7CCC89',
-          400: '#56BC65',
-          500: '#3CB043', // ← canonical brand green
-          600: '#2F9335',
-          700: '#287629',
-          800: '#1F5C22',
-          900: '#143F18',
-        },
-        // Primary blue — built around the logo's deep navy #0B3C88 book/wordmark.
-        // Used for headings, sidebar, accents on light surfaces, and navigation.
-        'brand-blue': {
-          50:  '#E7EEF8',
-          100: '#C6D5ED',
-          200: '#94B0DC',
-          300: '#5F88C7',
-          400: '#316AB0',
-          500: '#0B3C88', // ← canonical brand navy
-          600: '#0A3477',
-          700: '#082B62',
-          800: '#06214C',
-          900: '#04162F',
-        },
+        // Sourced from lib/ui/brand-palette.ts — the single place these hex
+        // values are declared. Used for CTAs, success states, headings,
+        // sidebar/navigation, and financial-positive indicators.
+        brand: brandGreen,
+        'brand-blue': brandNavy,
         // Convenience aliases for the spec's named tokens
-        'brand-accent':  '#EAF7EC',
-        'brand-neutral': '#F8FAFC',
+        'brand-accent':  brandAccent,
+        'brand-neutral': brandNeutral,
       },
       borderRadius: {
         lg: 'var(--radius)',

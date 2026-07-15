@@ -9,26 +9,15 @@
  *   • canvas / SVG generation
  *   • logic that maps a domain status → a visual tone
  *
- * Hex anchors here MUST stay aligned with tailwind.config.ts, lib/brand.ts,
- * and app/globals.css. Do not invent new shades — extend the Tailwind palette
- * and mirror it here.
+ * The raw brand scale itself lives in lib/ui/brand-palette.ts (the single
+ * source of truth also consumed by tailwind.config.ts and lib/brand.ts) —
+ * re-exported here for convenience so existing `@/lib/ui/tokens` imports
+ * keep working. Do not invent new shades — extend brand-palette.ts instead.
  */
 
-// ── Brand palette (mirrors tailwind.config.ts `brand` / `brand-blue`) ────────
-export const brandGreen = {
-  50: '#EAF7EC', 100: '#D2EFD7', 200: '#A8DFB1', 300: '#7CCC89', 400: '#56BC65',
-  500: '#3CB043', 600: '#2F9335', 700: '#287629', 800: '#1F5C22', 900: '#143F18',
-} as const;
-
-export const brandNavy = {
-  50: '#E7EEF8', 100: '#C6D5ED', 200: '#94B0DC', 300: '#5F88C7', 400: '#316AB0',
-  500: '#0B3C88', 600: '#0A3477', 700: '#082B62', 800: '#06214C', 900: '#04162F',
-} as const;
-
-/** Orange accent reserved for alerts/actions per the brand direction. */
-export const brandOrange = {
-  50: '#FFF4ED', 100: '#FFE6D5', 300: '#FDA572', 500: '#F97316', 600: '#EA580C', 700: '#C2410C',
-} as const;
+// ── Brand palette (single source: lib/ui/brand-palette.ts) ──────────────────
+export { brandGreen, brandNavy, brandOrange } from './brand-palette';
+import { brandGreen, brandNavy, brandOrange } from './brand-palette';
 
 // ── Semantic financial tones ─────────────────────────────────────────────────
 // Used by StatusPill, alerts, and charts. `fg`/`bg` are tuned for AA contrast

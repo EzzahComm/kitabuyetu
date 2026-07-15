@@ -6,7 +6,12 @@
   :root {
     /* Kitabu Yetu — light theme.
        Brand anchors: primary = #3CB043 (green), brand-blue = #0B3C88 (navy),
-       accent = #EAF7EC (soft green tint), neutral surface = #F8FAFC. */
+       accent = #EAF7EC (soft green tint), neutral surface = #F8FAFC.
+       These hex values are the same ones declared in lib/ui/brand-palette.ts
+       (the canonical source for tailwind.config.ts / lib/ui/tokens.ts /
+       lib/brand.ts) — CSS can't import TS, so this file stays hand-authored,
+       but every HSL value below should keep the hex anchor in its comment so
+       drift is visible on read, not just on build. */
     --background:   0 0% 100%;            /* pure white page */
     --foreground:   217 85% 11%;          /* navy text — derived from brand-blue */
     --card:         0 0% 100%;
