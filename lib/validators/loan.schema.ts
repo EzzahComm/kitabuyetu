@@ -23,6 +23,14 @@ export const DisburseLoanSchema = z.object({
   notes:               z.string().max(500).optional().nullable(),
 });
 
+export const MarkDefaultedSchema = z.object({
+  reason: z.string().min(5).max(500),
+});
+
+export const WriteOffLoanSchema = z.object({
+  reason: z.string().min(5).max(500),
+});
+
 export const RecordRepaymentSchema = z.object({
   installmentNumber:   z.number().int().min(1),
   amountPaid:          z.number().positive(),
@@ -46,5 +54,7 @@ export type ApplyLoanInput       = z.infer<typeof ApplyLoanSchema>;
 export type ApproveLoanInput     = z.infer<typeof ApproveLoanSchema>;
 export type RejectLoanInput      = z.infer<typeof RejectLoanSchema>;
 export type DisburseLoanInput    = z.infer<typeof DisburseLoanSchema>;
+export type MarkDefaultedInput   = z.infer<typeof MarkDefaultedSchema>;
+export type WriteOffLoanInput    = z.infer<typeof WriteOffLoanSchema>;
 export type RecordRepaymentInput = z.infer<typeof RecordRepaymentSchema>;
 export type LoanQueryInput       = z.infer<typeof LoanQuerySchema>;

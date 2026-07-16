@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { withAuth, withRole } from '@/lib/auth/middleware';
 import { loansService } from '@/lib/services/loans.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
-import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema } from '@/lib/validators/loan.schema';
+import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema, MarkDefaultedSchema, WriteOffLoanSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -38,7 +38,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
       const input = DisburseLoanSchema.parse(body);
       return ok(await loansService.disburse(ctx, id, input));
     }
+    if (action === 'default') {
+      const input = MarkDefaultedSchema.parse(body);
+      return ok(await loansService.markDefaulted(ctx, id, input));
+    }
+    if (action === 'writeOff') {
+      const input = WriteOffLoanSchema.parse(body);
+      return ok(await loansService.writeOff(ctx, id, input));
+    }
 
-    return ok({ error: 'Unknown action. Use action: approve | reject | disburse' }, 400) as Response;
+    return ok({ error: 'Unknown action. Use action: approve | reject | disburse | default | writeOff' }, 400) as Response;
   });
 }

@@ -6,11 +6,18 @@
  */
 import { withTransaction } from '@/lib/db';
 import { loansService } from '@/lib/services/loans.service';
-import { ValidationError, NotFoundError } from '@/lib/utils/errors';
+import { postSystemJournal } from '@/lib/services/accounting.service';
+import { ValidationError, NotFoundError, ForbiddenError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
   withTransaction: jest.fn(),
+}));
+
+jest.mock('@/lib/services/accounting.service', () => ({
+  postLoanDisbursementJournal: jest.fn(),
+  postLoanRepaymentJournal:    jest.fn(),
+  postSystemJournal:           jest.fn().mockResolvedValue('je-writeoff-1'),
 }));
 
 const mockQuery  = jest.fn();
@@ -19,6 +26,7 @@ const mockClient = { query: mockQuery };
 beforeEach(() => {
   mockQuery.mockReset();
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
+  (postSystemJournal as jest.Mock).mockClear();
 });
 
 const ctx      = { groupId: 'grp-1', userId: 'usr-1', role: 'member' };
@@ -163,5 +171,79 @@ describe('loansService.reject', () => {
     await expect(
       loansService.reject(adminCtx, 'loan-1', { reason: 'Too late' }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §15 — write-off workflow with maker-checker.
+// The DB CHECK constraint (migration 084) is the authoritative backstop; these
+// cover the application-level guards that surface a clean error first.
+describe('loansService.markDefaulted', () => {
+  it('throws ValidationError when the loan is not active', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'disbursed', group_id: 'grp-1' }] });
+    await expect(
+      loansService.markDefaulted(adminCtx, 'loan-1', { reason: 'Missed 3 payments' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('marks an active loan defaulted', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'active', group_id: 'grp-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'defaulted', defaulted_by: 'admin-1' }] })
+      .mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const result = await loansService.markDefaulted(adminCtx, 'loan-1', { reason: 'Missed 3 payments' });
+    expect(result.status).toBe('defaulted');
+  });
+});
+
+describe('loansService.writeOff', () => {
+  it('throws ValidationError when the loan is not defaulted', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'active', group_id: 'grp-1' }] });
+    await expect(
+      loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('blocks the officer who marked the loan defaulted from writing it off (maker-checker)', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '5000.00' }],
+    });
+    await expect(
+      loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    // Never reaches posting or the UPDATE
+    expect(postSystemJournal).not.toHaveBeenCalled();
+  });
+
+  it('allows a different officer to write off, posting DR 5004 / CR 1101', async () => {
+    const writerCtx = { groupId: 'grp-1', userId: 'writer-1', role: 'chairperson' };
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '5000.00' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'written_off' }] })
+      .mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const result = await loansService.writeOff(writerCtx, 'loan-1', { reason: 'Confirmed uncollectible' });
+
+    expect(result.status).toBe('written_off');
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'grp-1', 'writer-1', expect.stringContaining('loan-1'),
+      [{ accountCode: '5004', debit: 5000 }, { accountCode: '1101', credit: 5000 }],
+      { reference: 'loan-1' },
+    );
+  });
+
+  it('skips posting when the outstanding balance is zero', async () => {
+    const writerCtx = { groupId: 'grp-1', userId: 'writer-1', role: 'chairperson' };
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '0.00' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'written_off' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await loansService.writeOff(writerCtx, 'loan-1', { reason: 'Zero balance cleanup' });
+    expect(postSystemJournal).not.toHaveBeenCalled();
   });
 });

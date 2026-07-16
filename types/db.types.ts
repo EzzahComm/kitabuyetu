@@ -96,6 +96,13 @@ export interface Loan {
   next_payment_date:    Date | null;
   notes:                string | null;
   journal_entry_id:     string | null;
+  defaulted_by:             string | null;
+  defaulted_at:             Date | null;
+  default_reason:           string | null;
+  written_off_by:           string | null;
+  written_off_at:           Date | null;
+  write_off_reason:         string | null;
+  write_off_journal_entry_id: string | null;
   created_at:           Date;
   updated_at:           Date;
 }

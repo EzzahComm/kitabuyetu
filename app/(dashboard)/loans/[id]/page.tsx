@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone, AlertTriangle, Ban } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLoan, useLoanAction, useRecordRepayment } from '@/hooks/use-loans';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,10 @@ export default function LoanDetailPage() {
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
   const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [defaultOpen, setDefaultOpen] = useState(false);
+  const [defaultReason, setDefaultReason] = useState('');
+  const [writeOffOpen, setWriteOffOpen] = useState(false);
+  const [writeOffReason, setWriteOffReason] = useState('');
 
   const { data: loan, isLoading } = useLoan(id);
   const loanAction   = useLoanAction(id);
@@ -137,8 +142,18 @@ export default function LoanDetailPage() {
           </>
         )}
         {l.status === 'active' && (
-          <Button onClick={() => setRepayOpen(true)}>
-            <DollarSign size={16} className="mr-2"/> Record repayment
+          <>
+            <Button onClick={() => setRepayOpen(true)}>
+              <DollarSign size={16} className="mr-2"/> Record repayment
+            </Button>
+            <Button variant="outline" onClick={() => setDefaultOpen(true)}>
+              <AlertTriangle size={16} className="mr-2"/> Mark defaulted
+            </Button>
+          </>
+        )}
+        {l.status === 'defaulted' && (
+          <Button variant="destructive" onClick={() => setWriteOffOpen(true)}>
+            <Ban size={16} className="mr-2"/> Write off
           </Button>
         )}
       </div>
@@ -286,6 +301,76 @@ export default function LoanDetailPage() {
           if (confirmAction) await handleAction(confirmAction);
         }}
       />
+
+      <Dialog open={defaultOpen} onOpenChange={setDefaultOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Mark this loan defaulted</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Flags this loan as uncollectible under normal repayment. It can then be written off by a different officer.
+            </p>
+            <div className="space-y-1">
+              <Label>Reason</Label>
+              <Textarea value={defaultReason} onChange={(e) => setDefaultReason(e.target.value)} placeholder="Why is this loan in default?" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDefaultOpen(false)}>Cancel</Button>
+            <Button
+              disabled={defaultReason.trim().length < 5}
+              loading={loanAction.isPending}
+              onClick={async () => {
+                try {
+                  await loanAction.mutateAsync({ action: 'default', reason: defaultReason });
+                  toast({ title: 'Loan marked defaulted' });
+                  setDefaultOpen(false);
+                  setDefaultReason('');
+                } catch (err: any) {
+                  toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                }
+              }}
+            >
+              Mark defaulted
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={writeOffOpen} onOpenChange={setWriteOffOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Write off this loan</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Posts the outstanding balance ({formatKES(l.outstandingBalance ?? 0)}) to Loan Write-offs and removes it from Loans Receivable. This cannot be undone.
+              Maker-checker: you cannot write off a loan you yourself marked defaulted.
+            </p>
+            <div className="space-y-1">
+              <Label>Reason</Label>
+              <Textarea value={writeOffReason} onChange={(e) => setWriteOffReason(e.target.value)} placeholder="Confirm why this debt is being written off" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWriteOffOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={writeOffReason.trim().length < 5}
+              loading={loanAction.isPending}
+              onClick={async () => {
+                try {
+                  await loanAction.mutateAsync({ action: 'writeOff', reason: writeOffReason });
+                  toast({ title: 'Loan written off' });
+                  setWriteOffOpen(false);
+                  setWriteOffReason('');
+                } catch (err: any) {
+                  toast({ variant: 'destructive', title: 'Write-off failed', description: err.message });
+                }
+              }}
+            >
+              Write off
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

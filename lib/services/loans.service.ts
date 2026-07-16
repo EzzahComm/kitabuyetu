@@ -1,11 +1,11 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
+import { postLoanDisbursementJournal, postLoanRepaymentJournal, postSystemJournal } from './accounting.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
-  DisburseLoanInput, RecordRepaymentInput, LoanQueryInput,
+  DisburseLoanInput, MarkDefaultedInput, WriteOffLoanInput, RecordRepaymentInput, LoanQueryInput,
 } from '@/lib/validators/loan.schema';
 
 export const loansService = {
@@ -242,5 +242,83 @@ export const loansService = {
       return rows[0];
     });
   },
+
+  /** First step of the write-off workflow — flags an active loan as uncollectible. */
+  async markDefaulted(ctx: TenantContext, id: string, data: MarkDefaultedInput): Promise<Loan> {
+    return withTransaction(ctx, async (client) => {
+      const { rows: existing } = await client.query<Loan>(
+        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`, [id, ctx.groupId],
+      );
+      if (!existing[0]) throw new NotFoundError('Loan', id);
+      if (existing[0].status !== 'active') {
+        throw new ValidationError(`Only active loans can be marked defaulted (current status: '${existing[0].status}')`);
+      }
+
+      const { rows } = await client.query<Loan>(
+        `UPDATE loans
+         SET    status = 'defaulted', defaulted_by = $1, defaulted_at = NOW(), default_reason = $2
+         WHERE  id = $3 RETURNING *`,
+        [ctx.userId, data.reason, id],
+      );
+      await writeAuditLog(client, ctx, 'loan.defaulted', id, { reason: data.reason });
+      return rows[0];
+    });
+  },
+
+  /**
+   * Second step — maker-checker: the officer who marked the loan defaulted
+   * cannot be the one who writes it off (DB CHECK backstop in migration 084).
+   * Posts DR 5004 Loan Write-offs / CR 1101 Loans Receivable for the
+   * outstanding balance and zeroes it out — this debt is no longer expected
+   * to be collected.
+   */
+  async writeOff(ctx: TenantContext, id: string, data: WriteOffLoanInput): Promise<Loan> {
+    return withTransaction(ctx, async (client) => {
+      const { rows: existing } = await client.query<Loan>(
+        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`, [id, ctx.groupId],
+      );
+      if (!existing[0]) throw new NotFoundError('Loan', id);
+      if (existing[0].status !== 'defaulted') {
+        throw new ValidationError(`Only defaulted loans can be written off (current status: '${existing[0].status}')`);
+      }
+      if (existing[0].defaulted_by === ctx.userId) {
+        throw new ForbiddenError('Maker-checker: the officer who marked this loan defaulted cannot authorize its write-off');
+      }
+
+      const outstanding = parseFloat(existing[0].outstanding_balance ?? '0');
+      let journalEntryId: string | null = null;
+      if (outstanding > 0) {
+        journalEntryId = await postSystemJournal(
+          client, ctx.groupId, ctx.userId, `Loan write-off — ${id}`,
+          [{ accountCode: '5004', debit: outstanding }, { accountCode: '1101', credit: outstanding }],
+          { reference: id },
+        );
+      }
+
+      const { rows } = await client.query<Loan>(
+        `UPDATE loans
+         SET    status = 'written_off', written_off_by = $1, written_off_at = NOW(), write_off_reason = $2,
+                outstanding_balance = 0, write_off_journal_entry_id = $3
+         WHERE  id = $4 RETURNING *`,
+        [ctx.userId, data.reason, journalEntryId, id],
+      );
+      await writeAuditLog(client, ctx, 'loan.written_off', id, { reason: data.reason, amount: outstanding.toFixed(2) });
+      return rows[0];
+    });
+  },
 };
+
+async function writeAuditLog(
+  client: import('pg').PoolClient,
+  ctx:    TenantContext,
+  action: string,
+  resourceId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, $2, $3, 'loan', $4, $5::jsonb)`,
+    [ctx.groupId, ctx.userId, action, resourceId, JSON.stringify(payload)],
+  );
+}
 
