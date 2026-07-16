@@ -14,6 +14,9 @@ const DEFAULT_ACCOUNTS = [
   { code: '1201', name: 'Fixed Assets',              type: 'asset' },
   { code: '2001', name: 'Accounts Payable',          type: 'liability' },
   { code: '2101', name: 'Member Savings',            type: 'liability' },
+  { code: '2102', name: 'Welfare Fund',               type: 'liability' },
+  { code: '2103', name: 'Dividends Payable',          type: 'liability' },
+  { code: '2104', name: 'Withholding Tax Payable',    type: 'liability' },
   { code: '3001', name: 'Member Equity',             type: 'equity' },
   { code: '3101', name: 'Retained Surplus',          type: 'equity' },
   { code: '4001', name: 'Member Contributions',      type: 'income' },
@@ -26,6 +29,73 @@ const DEFAULT_ACCOUNTS = [
   { code: '5003', name: 'Platform Subscription',     type: 'expense' },
   { code: '5004', name: 'Loan Write-offs',           type: 'expense' },
 ];
+
+export interface SystemJournalLine {
+  accountCode: string;
+  debit?:      number;
+  credit?:     number;
+}
+
+/**
+ * Posts a balanced system-generated journal entry within the CALLER's own
+ * transaction — takes an existing PoolClient rather than opening a new one,
+ * so it participates atomically in whatever business transaction triggered
+ * it (a share purchase, a welfare disbursement, …). Mirrors the direct
+ * status='posted' insert pattern already used by contributions/loans/mpesa
+ * services: relies on the migration-027 deferred constraint trigger to
+ * validate the balance at COMMIT, since inserting already-posted bypasses
+ * the draft→posted BEFORE UPDATE trigger (migration 009).
+ *
+ * ACCOUNTING_ARCHITECTURE_AUDIT.md §7/§10/§29.9: this is the shared posting
+ * point for the modules the audit found were bypassing accounting entirely
+ * (Shares, Welfare, Dividends, Subscriptions) — a lightweight stand-in for
+ * the full posting-template engine §29.9 describes, scoped to what's needed
+ * to close that specific finding without a larger architecture change.
+ *
+ * Missing chart-of-accounts rows are tolerated (logs a warning, posts
+ * nothing, returns null) rather than failing the caller's real business
+ * transaction — matches the existing settleOrgDisbursement() precedent for
+ * the same reason.
+ */
+export async function postSystemJournal(
+  client:      PoolClient,
+  groupId:     string,
+  userId:      string | null,
+  description: string,
+  lines:       SystemJournalLine[],
+  opts?: { reference?: string; memberId?: string; groupMembershipId?: string },
+): Promise<string | null> {
+  const codes = [...new Set(lines.map((l) => l.accountCode))];
+  const { rows: accts } = await client.query<{ id: string; account_code: string }>(
+    `SELECT id, account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
+    [groupId, codes],
+  );
+  const byCode = new Map(accts.map((a) => [a.account_code, a.id]));
+  if (byCode.size !== codes.length) {
+    logger.warn('[accounting] postSystemJournal: missing chart-of-accounts row(s), skipping posting', {
+      groupId, description, missing: codes.filter((c) => !byCode.has(c)),
+    });
+    return null;
+  }
+
+  const { rows: je } = await client.query<{ id: string }>(
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by, member_id, group_membership_id)
+     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', $4, $5, $6) RETURNING id`,
+    [groupId, opts?.reference ?? null, description, userId, opts?.memberId ?? null, opts?.groupMembershipId ?? null],
+  );
+  const jeId = je[0].id;
+
+  for (const line of lines) {
+    await client.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2)],
+    );
+  }
+
+  return jeId;
+}
 
 async function writeJournalAuditLog(
   client: PoolClient,

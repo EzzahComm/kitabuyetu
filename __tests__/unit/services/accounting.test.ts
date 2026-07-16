@@ -6,7 +6,7 @@
  * And that netProfit = totalIncome - totalExpenses.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
-import { accountingService, reconcileGLCashToMpesaBalance } from '@/lib/services/accounting.service';
+import { accountingService, reconcileGLCashToMpesaBalance, postSystemJournal } from '@/lib/services/accounting.service';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -170,6 +170,87 @@ describe('voidJournalEntry maker-checker', () => {
     const result = await accountingService.voidJournalEntry(ctx, 'je-1', voidInput);
     expect(result.status).toBe('void');
     expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+});
+
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §7/§10/§29.9 — the shared posting point
+// used to wire Shares/Welfare/Dividends/Subscriptions into the GL, since
+// each call site's correctness hinges entirely on this function.
+describe('postSystemJournal', () => {
+  it('posts a balanced entry when both accounts exist', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }, { id: 'acct-equity', account_code: '3001' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postSystemJournal(
+      mockClient as any, 'group-1', 'user-1', 'Share purchase',
+      [{ accountCode: '1001', debit: 1000 }, { accountCode: '3001', credit: 1000 }],
+    );
+
+    expect(result).toBe('je-1');
+    expect(mockQuery).toHaveBeenCalledTimes(4); // account lookup + journal insert + 2 line inserts
+
+    const journalInsert = mockQuery.mock.calls[1];
+    expect(journalInsert[0]).toContain(`INSERT INTO journal_entries`);
+    expect(journalInsert[0]).toContain(`'posted'`);
+
+    const line1 = mockQuery.mock.calls[2];
+    expect(line1[1]).toEqual(['group-1', 'je-1', 'acct-cash', '1000.00', '0.00']);
+    const line2 = mockQuery.mock.calls[3];
+    expect(line2[1]).toEqual(['group-1', 'je-1', 'acct-equity', '0.00', '1000.00']);
+  });
+
+  it('posts a 3-line entry (dividend gross split into net + tax)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { id: 'acct-surplus', account_code: '3101' },
+        { id: 'acct-payable', account_code: '2103' },
+        { id: 'acct-tax', account_code: '2104' },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postSystemJournal(
+      mockClient as any, 'group-1', 'user-1', 'Dividend declaration approved',
+      [
+        { accountCode: '3101', debit: 1000 },
+        { accountCode: '2103', credit: 850 },
+        { accountCode: '2104', credit: 150 },
+      ],
+    );
+    expect(result).toBe('je-2');
+    expect(mockQuery).toHaveBeenCalledTimes(5); // account lookup + journal insert + 3 line inserts
+  });
+
+  it('skips posting and returns null when a chart-of-accounts row is missing', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }] }); // 2102 missing
+
+    const result = await postSystemJournal(
+      mockClient as any, 'group-1', 'user-1', 'Welfare pool contribution',
+      [{ accountCode: '1001', debit: 500 }, { accountCode: '2102', credit: 500 }],
+    );
+
+    expect(result).toBeNull();
+    expect(mockQuery).toHaveBeenCalledTimes(1); // never reaches the INSERTs
+  });
+
+  it('allows a null userId for system-posted entries (no authenticated actor)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }, { id: 'acct-sub', account_code: '5003' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-3' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await postSystemJournal(
+      mockClient as any, 'group-1', null, 'Platform subscription payment',
+      [{ accountCode: '5003', debit: 500 }, { accountCode: '1001', credit: 500 }],
+    );
+    const journalInsert = mockQuery.mock.calls[1];
+    expect(journalInsert[1]).toContain(null); // created_by
   });
 });
 

@@ -22,6 +22,7 @@ import { findOpenRequests, fulfilRequest } from './payment-requests.service';
 import { allocateSplit } from '@/lib/utils/split-allocator';
 import { loadActiveSplitRules } from './contribution-splits.service';
 import { assertActiveMembership } from './membership-guard';
+import { postSystemJournal } from './accounting.service';
 import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,
@@ -360,6 +361,20 @@ export async function handleSTKCallback(
       await markSpineAllocated(db, receipt, {
         detail: { product: 'invoice', invoiceId: payRows[0].invoice_id },
       });
+
+      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the STK-driven billing path
+      // (the one most subscription payments actually go through) previously
+      // had no GL trace at all — only the manual billingService.recordPayment
+      // path posted. System-posted (created_by NULL): no authenticated
+      // officer initiated this, Safaricom's callback did.
+      if (stkReq?.group_id) {
+        await postSystemJournal(
+          db, stkReq.group_id, null,
+          `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
+          [{ accountCode: '5003', debit: amount }, { accountCode: '1001', credit: amount }],
+          { reference: receipt },
+        );
+      }
     }
 
     await db.query(

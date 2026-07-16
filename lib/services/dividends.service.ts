@@ -3,6 +3,7 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import {
   ConflictError, NotFoundError, ValidationError,
 } from '@/lib/utils/errors';
+import { postSystemJournal } from './accounting.service';
 import type {
   CreateDividendDeclarationInput, UpdateDividendDeclarationInput,
   DividendQueryInput, PayAllocationInput, BulkPayAllocationsInput,
@@ -338,6 +339,32 @@ export const dividendsService = {
         total_tax: computed.totalTax,
       });
 
+      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: recognizes the liability from
+      // retained earnings at approval time — withholding tax is split into
+      // its own payable here so payAllocation only ever settles the net cash
+      // leg. Previously this declaration had zero GL trace.
+      const totalGross = Number(computed.totalGross);
+      if (totalGross > 0) {
+        const totalTax = Number(computed.totalTax);
+        const totalNet = Number(computed.totalNet);
+        const lines = totalTax > 0
+          ? [
+              { accountCode: '3101', debit: totalGross },
+              { accountCode: '2103', credit: totalNet },
+              { accountCode: '2104', credit: totalTax },
+            ]
+          : [
+              { accountCode: '3101', debit: totalGross },
+              { accountCode: '2103', credit: totalGross },
+            ];
+        await postSystemJournal(
+          client, ctx.groupId, ctx.userId,
+          `Dividend declaration approved — ${decl.period_label}`,
+          lines,
+          { reference: declarationId },
+        );
+      }
+
       return { declaration: updated[0], allocations: allocs };
     });
   },
@@ -426,6 +453,17 @@ export const dividendsService = {
       await writeAuditLog(client, ctx, 'dividend.allocation.pay', allocationId, {
         declaration_id: declarationId, method: input.paymentMethod, amount: a[0].net_amount,
       });
+
+      const netAmount = Number(a[0].net_amount);
+      if (netAmount > 0) {
+        await postSystemJournal(
+          client, ctx.groupId, ctx.userId,
+          `Dividend payment — allocation ${allocationId}`,
+          [{ accountCode: '2103', debit: netAmount }, { accountCode: '1001', credit: netAmount }],
+          { reference: allocationId, memberId: a[0].member_id },
+        );
+      }
+
       return updated[0];
     });
   },
@@ -445,8 +483,8 @@ export const dividendsService = {
       let paid = 0;
 
       for (const id of input.allocationIds) {
-        const { rows: a } = await client.query<{ status: string }>(
-          `SELECT status FROM dividend_allocations
+        const { rows: a } = await client.query<{ status: string; member_id: string; net_amount: string }>(
+          `SELECT status, member_id, net_amount FROM dividend_allocations
             WHERE id = $1 AND declaration_id = $2 AND group_id = $3
             FOR UPDATE`,
           [id, declarationId, ctx.groupId],
@@ -467,6 +505,16 @@ export const dividendsService = {
           [id, input.paymentMethod, input.paymentReference ?? null, ctx.userId, input.notes ?? null],
         );
         paid++;
+
+        const netAmount = Number(a[0].net_amount);
+        if (netAmount > 0) {
+          await postSystemJournal(
+            client, ctx.groupId, ctx.userId,
+            `Dividend payment — allocation ${id}`,
+            [{ accountCode: '2103', debit: netAmount }, { accountCode: '1001', credit: netAmount }],
+            { reference: id, memberId: a[0].member_id },
+          );
+        }
       }
 
       await rollUpTotals(client, declarationId);

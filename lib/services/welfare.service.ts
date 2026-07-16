@@ -1,6 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
+import { postSystemJournal } from './accounting.service';
 import { z } from 'zod';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -186,6 +187,16 @@ export const welfareService = {
         [data.amountDisbursed, ctx.userId, data.paymentMethod,
          data.mpesaReceiptNumber ?? null, data.notes ?? null, id, ctx.groupId],
       );
+
+      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: a real cash payout with
+      // previously zero GL trace.
+      await postSystemJournal(
+        client, ctx.groupId, ctx.userId,
+        `Welfare disbursement — ${req.request_type} (request ${id})`,
+        [{ accountCode: '2102', debit: data.amountDisbursed }, { accountCode: '1001', credit: data.amountDisbursed }],
+        { reference: id, memberId: req.member_id },
+      );
+
       return rows[0];
     });
   },
@@ -235,6 +246,16 @@ export const welfareService = {
          data.periodMonth ?? null, data.periodYear ?? null,
          ctx.userId, data.notes ?? null],
       );
+
+      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: money coming in with previously
+      // zero GL trace.
+      await postSystemJournal(
+        client, ctx.groupId, ctx.userId,
+        `Welfare pool contribution — ${data.contributionType}`,
+        [{ accountCode: '1001', debit: data.amount }, { accountCode: '2102', credit: data.amount }],
+        { reference: rows[0].id, memberId: data.memberId },
+      );
+
       return rows[0];
     });
   },
