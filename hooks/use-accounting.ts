@@ -64,6 +64,22 @@ export function useReopenPeriod() {
   });
 }
 
+export function useCashFlow(from: string, to: string) {
+  return useQuery({
+    queryKey: ['accounting', 'cash-flow', from, to] as const,
+    queryFn:  () => accountingApi.cashFlow(from, to),
+    enabled:  !!(from && to),
+  });
+}
+
+export function useEquityChanges(from: string, to: string) {
+  return useQuery({
+    queryKey: ['accounting', 'equity-changes', from, to] as const,
+    queryFn:  () => accountingApi.equityChanges(from, to),
+    enabled:  !!(from && to),
+  });
+}
+
 export function usePostingTemplates() {
   return useQuery({ queryKey: accountingKeys.postingTemplates, queryFn: accountingApi.postingTemplates });
 }

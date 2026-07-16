@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
 import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
-import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet } from '@/types/api.types';
+import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges } from '@/types/api.types';
 import { loadActiveSplitRules } from './contribution-splits.service';
 import { allocateSplit } from '@/lib/utils/split-allocator';
 import { getEffectiveThreshold } from './approval-policy.service';
@@ -614,6 +614,154 @@ export const accountingService = {
         totalAssets:      assets.reduce((s, r)      => s + parseFloat(r.balance), 0).toFixed(2),
         totalLiabilities: liabilities.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
         totalEquity:      equity.reduce((s, r)       => s + parseFloat(r.balance), 0).toFixed(2),
+      };
+    });
+  },
+
+  /**
+   * Direct-method Cash Flow Statement (ACCOUNTING_ARCHITECTURE_AUDIT.md §12
+   * — the audit found TB/P&L/BS built but no cash flow statement at all).
+   *
+   * Method: for every posted entry in the period that touches a cash account
+   * (1001 Cash and M-Pesa / 1002 Bank), each NON-cash line's net credit is
+   * that counter-account's cash impact — DR Cash / CR Contributions means
+   * contributions brought cash in. Summing per counter-account is exact in
+   * aggregate because every entry balances. Internal cash-to-cash transfers
+   * have no non-cash lines and correctly vanish.
+   *
+   * Classification (IAS 7, financial-institution convention):
+   *  - operating: income, expenses, current liabilities (savings, welfare,
+   *    payables, withheld tax) and 1101 Loans Receivable — member lending IS
+   *    this group's principal revenue-producing activity.
+   *  - investing: all other asset counter-accounts (fixed assets, investments).
+   *  - financing: equity accounts (share capital) and 2103 Dividends Payable.
+   */
+  async getCashFlowStatement(ctx: TenantContext, from: string, to: string): Promise<CashFlowStatement> {
+    return withDb(ctx, async (client) => {
+      const CASH_CODES = ['1001', '1002'];
+
+      const { rows: movements } = await client.query<{
+        account_code: string; account_name: string; type: string; cash_impact: string;
+      }>(
+        `SELECT a.account_code, a.name AS account_name, a.type,
+                SUM(jl.credit - jl.debit)::text AS cash_impact
+         FROM journal_lines jl
+         JOIN accounts a         ON a.id  = jl.account_id
+         JOIN journal_entries je ON je.id = jl.journal_entry_id
+         WHERE a.group_id = $1
+           AND je.status = 'posted'
+           AND je.entry_date BETWEEN $2 AND $3
+           AND a.account_code <> ALL($4)
+           AND jl.journal_entry_id IN (
+             SELECT jl2.journal_entry_id
+             FROM journal_lines jl2
+             JOIN accounts a2 ON a2.id = jl2.account_id
+             WHERE a2.group_id = $1 AND a2.account_code = ANY($4)
+           )
+         GROUP BY a.account_code, a.name, a.type
+         HAVING ABS(SUM(jl.credit - jl.debit)) > 0.005
+         ORDER BY a.account_code`,
+        [ctx.groupId, from, to, CASH_CODES],
+      );
+
+      const { rows: cashBal } = await client.query<{ opening: string; closing: string }>(
+        `SELECT
+           COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <  $2), 0)::text AS opening,
+           COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <= $3), 0)::text AS closing
+         FROM journal_lines jl
+         JOIN accounts a         ON a.id  = jl.account_id
+         JOIN journal_entries je ON je.id = jl.journal_entry_id
+         WHERE a.group_id = $1 AND a.account_code = ANY($4) AND je.status = 'posted'`,
+        [ctx.groupId, from, to, CASH_CODES],
+      );
+
+      const sectionOf = (r: { account_code: string; type: string }): 'operating' | 'investing' | 'financing' => {
+        if (r.type === 'equity' || r.account_code === '2103') return 'financing';
+        if (r.type === 'asset' && r.account_code !== '1101')  return 'investing';
+        return 'operating';
+      };
+
+      const toLine = (r: typeof movements[0]) =>
+        ({ accountCode: r.account_code, accountName: r.account_name, amount: r.cash_impact });
+      const operating = movements.filter((r) => sectionOf(r) === 'operating').map(toLine);
+      const investing = movements.filter((r) => sectionOf(r) === 'investing').map(toLine);
+      const financing = movements.filter((r) => sectionOf(r) === 'financing').map(toLine);
+
+      const sum = (lines: { amount: string }[]) => lines.reduce((s, l) => s + parseFloat(l.amount), 0);
+      const netOperating = sum(operating);
+      const netInvesting = sum(investing);
+      const netFinancing = sum(financing);
+      const netChange    = netOperating + netInvesting + netFinancing;
+      const openingCash  = parseFloat(cashBal[0].opening);
+      const closingCash  = parseFloat(cashBal[0].closing);
+
+      return {
+        period: { from, to },
+        operating, investing, financing,
+        netOperating: netOperating.toFixed(2),
+        netInvesting: netInvesting.toFixed(2),
+        netFinancing: netFinancing.toFixed(2),
+        netChange:    netChange.toFixed(2),
+        openingCash:  openingCash.toFixed(2),
+        closingCash:  closingCash.toFixed(2),
+        reconciles:   Math.abs(openingCash + netChange - closingCash) < 0.01,
+      };
+    });
+  },
+
+  /**
+   * Statement of Changes in Equity (§12): per equity account — opening
+   * balance, period credits (increases, credit-normal), period debits
+   * (decreases), closing. The period's net surplus is reported separately:
+   * it lives in income/expense accounts until a closing entry moves it into
+   * Retained Surplus, and this platform has no automated year-end close.
+   */
+  async getEquityChanges(ctx: TenantContext, from: string, to: string): Promise<EquityChanges> {
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<{
+        account_code: string; account_name: string;
+        opening: string; increases: string; decreases: string;
+      }>(
+        `SELECT a.account_code, a.name AS account_name,
+           -COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date < $2), 0)::text AS opening,
+            COALESCE(SUM(jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)::text AS increases,
+            COALESCE(SUM(jl.debit)  FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)::text AS decreases
+         FROM accounts a
+         LEFT JOIN journal_lines jl ON jl.account_id = a.id
+         LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+         WHERE a.group_id = $1 AND a.type = 'equity' AND a.is_active = true
+         GROUP BY a.account_code, a.name
+         ORDER BY a.account_code`,
+        [ctx.groupId, from, to],
+      );
+
+      // Net profit = income (credit-normal) minus expenses (debit-normal);
+      // both reduce to SUM(credit - debit) over income+expense lines.
+      const { rows: pnl } = await client.query<{ net: string }>(
+        `SELECT COALESCE(SUM(jl.credit - jl.debit), 0)::text AS net
+         FROM journal_lines jl
+         JOIN accounts a         ON a.id  = jl.account_id
+         JOIN journal_entries je ON je.id = jl.journal_entry_id
+         WHERE a.group_id = $1 AND a.type IN ('income','expense')
+           AND je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3`,
+        [ctx.groupId, from, to],
+      );
+
+      const lines = rows.map((r) => {
+        const closing = parseFloat(r.opening) + parseFloat(r.increases) - parseFloat(r.decreases);
+        return {
+          accountCode: r.account_code, accountName: r.account_name,
+          opening: r.opening, increases: r.increases, decreases: r.decreases,
+          closing: closing.toFixed(2),
+        };
+      });
+
+      return {
+        period: { from, to },
+        lines,
+        totalOpening: lines.reduce((s, l) => s + parseFloat(l.opening), 0).toFixed(2),
+        totalClosing: lines.reduce((s, l) => s + parseFloat(l.closing), 0).toFixed(2),
+        periodNetProfit: parseFloat(pnl[0]?.net ?? '0').toFixed(2),
       };
     });
   },

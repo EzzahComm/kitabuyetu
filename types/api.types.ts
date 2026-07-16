@@ -250,6 +250,46 @@ export interface BalanceSheet {
   totalEquity:      string;
 }
 
+export interface CashFlowLine {
+  accountCode: string;
+  accountName: string;
+  /** Positive = cash in, negative = cash out. */
+  amount:      string;
+}
+
+export interface CashFlowStatement {
+  period: { from: string; to: string };
+  operating: CashFlowLine[];
+  investing: CashFlowLine[];
+  financing: CashFlowLine[];
+  netOperating: string;
+  netInvesting: string;
+  netFinancing: string;
+  netChange:    string;
+  openingCash:  string;
+  closingCash:  string;
+  /** openingCash + netChange should equal closingCash — false signals unclassified movement. */
+  reconciles:   boolean;
+}
+
+export interface EquityChangesLine {
+  accountCode: string;
+  accountName: string;
+  opening:     string;
+  increases:   string;
+  decreases:   string;
+  closing:     string;
+}
+
+export interface EquityChanges {
+  period: { from: string; to: string };
+  lines: EquityChangesLine[];
+  totalOpening: string;
+  totalClosing: string;
+  /** Period surplus not yet closed into an equity account. */
+  periodNetProfit: string;
+}
+
 // ------------------------------------------------------------------
 // Billing responses
 // ------------------------------------------------------------------

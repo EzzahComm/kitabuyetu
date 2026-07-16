@@ -26,6 +26,16 @@ export async function GET(req: NextRequest): Promise<Response> {
       return ok(await accountingService.getBalanceSheet(ctx, date));
     }
 
+    if (type === 'cash_flow') {
+      const { from, to } = ReportQuerySchema.parse(Object.fromEntries(searchParams));
+      return ok(await accountingService.getCashFlowStatement(ctx, from, to));
+    }
+
+    if (type === 'equity_changes') {
+      const { from, to } = ReportQuerySchema.parse(Object.fromEntries(searchParams));
+      return ok(await accountingService.getEquityChanges(ctx, from, to));
+    }
+
     return errorResponse(`Unknown report type: ${type}`, 'INVALID_PARAM', 400);
   });
 }

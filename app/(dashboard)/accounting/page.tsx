@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy, usePostingTemplates, useSetPostingTemplate } from '@/hooks/use-accounting';
+import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy, usePostingTemplates, useSetPostingTemplate, useCashFlow, useEquityChanges } from '@/hooks/use-accounting';
 import { useLoanPolicy, useSetLoanPolicy } from '@/hooks/use-loans';
 import { useFinePolicy, useSetFinePolicy } from '@/hooks/use-fines';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -44,6 +44,8 @@ export default function AccountingPage() {
   const { data: pnl, isLoading: loadingPnl }           = useProfitAndLoss(from, to);
   const asOfToday = now.toISOString().split('T')[0];
   const { data: balanceSheet, isLoading: loadingBS }   = useBalanceSheet(asOfToday);
+  const { data: cashFlow, isLoading: loadingCF }       = useCashFlow(from, to);
+  const { data: equityChanges }                        = useEquityChanges(from, to);
   const createJournal = useCreateJournal();
 
   const { data: fiscalPeriods, isLoading: loadingFP } = useFiscalPeriods();
@@ -92,6 +94,7 @@ export default function AccountingPage() {
           <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
           <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
           <TabsTrigger value="periods">Fiscal Periods</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="policies">Policies</TabsTrigger>
@@ -202,6 +205,109 @@ export default function AccountingPage() {
                       </tr>
                     ))}
                     <tr className="border-t font-semibold"><td className="px-4 py-2">Total Equity</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalEquity ?? '0'))}</td></tr>
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Statement of Changes in Equity — audit §12 */}
+          {equityChanges ? (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base">Statement of Changes in Equity — {now.getFullYear()}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Movement per equity account this year. The period&apos;s net surplus of{' '}
+                  <span className="font-mono">{formatKES(parseFloat((equityChanges as any).periodNetProfit))}</span>{' '}
+                  remains in income/expense accounts until a closing entry moves it to Retained Surplus.
+                </p>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {['Account','Opening','Increases','Decreases','Closing'].map((h, i)=>(
+                        <th key={h} className={`px-4 py-2 text-xs font-medium text-muted-foreground ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(((equityChanges as any)?.lines ?? []) as any[]).map((l) => (
+                      <tr key={l.accountCode} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-2">{l.accountName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(l.opening))}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(l.increases))}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(l.decreases))}</td>
+                        <td className="px-4 py-2 text-right font-mono font-semibold">{formatKES(parseFloat(l.closing))}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t font-semibold">
+                      <td className="px-4 py-2">Total</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((equityChanges as any).totalOpening))}</td>
+                      <td className="px-4 py-2" colSpan={2}/>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((equityChanges as any).totalClosing))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="cashflow" className="mt-4">
+          {loadingCF ? <Skeleton className="h-64 w-full"/> : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Cash Flow Statement — {now.getFullYear()}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Direct method over the Cash and Bank accounts. Member lending
+                  is classified as operating — it is the group&apos;s principal
+                  revenue-producing activity.
+                </p>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {([['Operating activities','operating','netOperating'],
+                       ['Investing activities','investing','netInvesting'],
+                       ['Financing activities','financing','netFinancing']] as const).map(([label, key, netKey]) => (
+                      <React.Fragment key={key}>
+                        <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">{label}</td></tr>
+                        {(((cashFlow as any)?.[key] ?? []) as any[]).length === 0 ? (
+                          <tr className="border-t"><td colSpan={2} className="px-4 py-2 text-muted-foreground">No movements</td></tr>
+                        ) : (((cashFlow as any)?.[key] ?? []) as any[]).map((l) => (
+                          <tr key={l.accountCode} className="border-t hover:bg-muted/20">
+                            <td className="px-4 py-2">{l.accountName}</td>
+                            <td className={`px-4 py-2 text-right font-mono ${parseFloat(l.amount) < 0 ? 'text-destructive' : ''}`}>
+                              {formatKES(parseFloat(l.amount))}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="border-t font-semibold">
+                          <td className="px-4 py-2">Net cash from {label.toLowerCase()}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.[netKey] ?? '0'))}</td>
+                        </tr>
+                      </React.Fragment>
+                    ))}
+                    <tr className="bg-muted/50 font-semibold">
+                      <td className="px-4 py-2">Net change in cash</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.netChange ?? '0'))}</td>
+                    </tr>
+                    <tr className="border-t">
+                      <td className="px-4 py-2">Opening cash</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.openingCash ?? '0'))}</td>
+                    </tr>
+                    <tr className="border-t font-semibold">
+                      <td className="px-4 py-2">Closing cash</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.closingCash ?? '0'))}</td>
+                    </tr>
+                    {(cashFlow as any) && !(cashFlow as any).reconciles && (
+                      <tr className="border-t">
+                        <td colSpan={2} className="px-4 py-2 text-xs text-destructive">
+                          Opening + net change does not equal closing — some cash movement could not be classified. Contact support.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </CardContent>
