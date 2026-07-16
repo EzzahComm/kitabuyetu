@@ -13,6 +13,7 @@ export type JobType =
   | 'mpesa_daily_report'          // Daily M-Pesa reconciliation email to officers (daily 20:00 UTC / 23:00 EAT)
   | 'mpesa_balance_snapshot'      // Trigger an Account Balance query for the sub-accounts (daily 05:00 UTC)
   | 'accounting_balance_drift'    // Audit accounts.balance vs journal_lines sums (daily 04:00 UTC)
+  | 'gl_cash_reconciliation'      // Compare GL Cash total to the real Daraja M-Pesa balance (daily 05:30 UTC)
   | 'cleanup_expired_tokens'      // Remove expired refresh tokens (daily 02:00 UTC)
   | 'notify_loan_due_alerts'      // Loan repayment due/overdue alerts (daily 06:00 UTC)
   | 'notify_contribution_reminders' // Missed-contribution nudge (1st of month, 08:00 UTC)

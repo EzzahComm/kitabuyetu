@@ -169,6 +169,16 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── Daily 06:00 UTC (09:00 EAT) — GL-to-real-cash reconciliation ─
+  // One hour after the balance snapshot trigger above, so its async Daraja
+  // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
+  if (hour === 6) {
+    queued.gl_cash_reconciliation = await safe('gl_cash_reconciliation', {}, {
+      priority:  4,
+      dedup_key: `gl_cash_reconciliation:${dateStr}`,
+    });
+  }
+
   // ── Daily 20:00 UTC (23:00 EAT) — M-Pesa daily report email ───
   if (hour === 20) {
     queued.mpesa_daily_report = await safe('mpesa_daily_report', {}, {

@@ -67,6 +67,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'accounting_balance_drift':
       return handleAccountingBalanceDrift();
 
+    case 'gl_cash_reconciliation':
+      return handleGLCashReconciliation();
+
     case 'cleanup_expired_tokens':
       return handleCleanupExpiredTokens();
 
@@ -211,6 +214,18 @@ async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
   const { detectBalanceDrift } = await import('@/lib/services/accounting.service');
   const result = await detectBalanceDrift();
   return { message: 'Balance drift audit complete', ...result };
+}
+
+async function handleGLCashReconciliation(): Promise<HandlerResult> {
+  const { reconcileGLCashToMpesaBalance } = await import('@/lib/services/accounting.service');
+  const result = await reconcileGLCashToMpesaBalance();
+  const message = {
+    ok:              'GL cash reconciliation: matches the real M-Pesa balance',
+    mismatch:        `GL cash reconciliation: MISMATCH — GL ${result.glCashTotal} vs M-Pesa ${result.mpesaBalance} (diff ${result.difference}) — investigate`,
+    no_snapshot:     'GL cash reconciliation: no balance snapshot available yet',
+    stale_snapshot:  `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
+  }[result.status];
+  return { message, ...result };
 }
 
 // ── Cleanup handler ───────────────────────────────────────────

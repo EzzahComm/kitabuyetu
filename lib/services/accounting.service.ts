@@ -1,7 +1,7 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
 import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
 import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet } from '@/types/api.types';
@@ -26,6 +26,20 @@ const DEFAULT_ACCOUNTS = [
   { code: '5003', name: 'Platform Subscription',     type: 'expense' },
   { code: '5004', name: 'Loan Write-offs',           type: 'expense' },
 ];
+
+async function writeJournalAuditLog(
+  client: PoolClient,
+  ctx:    TenantContext,
+  action: string,
+  journalEntryId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, $2, $3, 'journal_entry', $4, $5::jsonb)`,
+    [ctx.groupId, ctx.userId, action, journalEntryId, JSON.stringify(payload)],
+  );
+}
 
 export const accountingService = {
 
@@ -106,12 +120,44 @@ export const accountingService = {
         );
         lineRows.push(rows[0]);
       }
+      await writeJournalAuditLog(client, ctx, 'journal.created', je.id, {
+        entryDate: data.entryDate, reference: data.reference ?? null, description: data.description,
+        lineCount: lineRows.length,
+      });
       return { ...je, lines: lineRows };
     });
   },
 
   async postJournalEntry(ctx: TenantContext, id: string): Promise<JournalEntry> {
     return withTransaction(ctx, async (client) => {
+      const { rows: draftRows } = await client.query<JournalEntry>(
+        `SELECT * FROM journal_entries WHERE id = $1 AND group_id = $2 AND status = 'draft' FOR UPDATE`,
+        [id, ctx.groupId],
+      );
+      if (!draftRows[0]) throw new NotFoundError('Draft journal entry', id);
+
+      // Maker-checker (ACCOUNTING_ARCHITECTURE_AUDIT.md §15): above the
+      // group's threshold, the poster must differ from the creator. The DB
+      // trigger (migration 081) is the authoritative backstop; this check
+      // exists to surface a clean error instead of a raw constraint failure.
+      if (draftRows[0].created_by === ctx.userId) {
+        const { rows: grpRows } = await client.query<{ threshold: string }>(
+          `SELECT journal_approval_threshold AS threshold FROM groups WHERE id = $1`,
+          [ctx.groupId],
+        );
+        const { rows: lineRows } = await client.query<{ total: string }>(
+          `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
+          [id],
+        );
+        const threshold = parseFloat(grpRows[0]?.threshold ?? '0');
+        const total     = parseFloat(lineRows[0]?.total ?? '0');
+        if (total > threshold) {
+          throw new ForbiddenError(
+            `Maker-checker: entries above KES ${threshold.toFixed(2)} must be posted by someone other than the creator`,
+          );
+        }
+      }
+
       const { rows } = await client.query<JournalEntry>(
         `UPDATE journal_entries
          SET status = 'posted', posted_by = $1, posted_at = NOW()
@@ -120,12 +166,39 @@ export const accountingService = {
         [ctx.userId, id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Draft journal entry', id);
+      await writeJournalAuditLog(client, ctx, 'journal.posted', id, { createdBy: draftRows[0].created_by });
       return rows[0];
     });
   },
 
   async voidJournalEntry(ctx: TenantContext, id: string, data: VoidJournalInput): Promise<JournalEntry> {
     return withTransaction(ctx, async (client) => {
+      const { rows: postedRows } = await client.query<JournalEntry>(
+        `SELECT * FROM journal_entries WHERE id = $1 AND group_id = $2 AND status = 'posted' FOR UPDATE`,
+        [id, ctx.groupId],
+      );
+      if (!postedRows[0]) throw new NotFoundError('Posted journal entry', id);
+
+      // Maker-checker: above the group's threshold, the voider must differ
+      // from the poster — same reasoning and DB backstop as posting above.
+      if (postedRows[0].posted_by === ctx.userId) {
+        const { rows: grpRows } = await client.query<{ threshold: string }>(
+          `SELECT journal_approval_threshold AS threshold FROM groups WHERE id = $1`,
+          [ctx.groupId],
+        );
+        const { rows: lineRows } = await client.query<{ total: string }>(
+          `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
+          [id],
+        );
+        const threshold = parseFloat(grpRows[0]?.threshold ?? '0');
+        const total     = parseFloat(lineRows[0]?.total ?? '0');
+        if (total > threshold) {
+          throw new ForbiddenError(
+            `Maker-checker: entries above KES ${threshold.toFixed(2)} must be voided by someone other than the poster`,
+          );
+        }
+      }
+
       const { rows } = await client.query<JournalEntry>(
         `UPDATE journal_entries
          SET status = 'void', voided_by = $1, voided_at = NOW(), void_reason = $2
@@ -134,6 +207,7 @@ export const accountingService = {
         [ctx.userId, data.reason, id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Posted journal entry', id);
+      await writeJournalAuditLog(client, ctx, 'journal.voided', id, { reason: data.reason, postedBy: postedRows[0].posted_by });
       return rows[0];
     });
   },
@@ -210,9 +284,12 @@ export const accountingService = {
 
   async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
     return withDb(ctx, async (client) => {
-      // accounts.balance is stored as (SUM debit - SUM credit) uniformly by the update trigger.
-      // Assets (debit-normal) → positive balance displayed as-is.
-      // Liabilities/Equity (credit-normal) → stored as negative, negate for display.
+      // Computed from journal_lines as of the requested date — NOT the
+      // denormalized accounts.balance column, which is always the *current*
+      // running total and has no notion of "as of a past date". Same
+      // debit-minus-credit convention the update_account_balance trigger
+      // uses: assets (debit-normal) are positive as-is; liabilities/equity
+      // (credit-normal) are negated for display.
       const { rows } = await client.query<{
         account_code: string; account_name: string; type: string; balance: string;
       }>(
@@ -221,13 +298,16 @@ export const accountingService = {
            a.name AS account_name,
            a.type,
            CASE WHEN a.type = 'asset'
-             THEN a.balance
-             ELSE -a.balance
+             THEN COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date <= $2), 0)
+             ELSE -COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date <= $2), 0)
            END::text AS balance
          FROM accounts a
+         LEFT JOIN journal_lines jl ON jl.account_id = a.id
+         LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.type IN ('asset','liability','equity') AND a.is_active = true
+         GROUP BY a.account_code, a.name, a.type
          ORDER BY a.account_code`,
-        [ctx.groupId],
+        [ctx.groupId, asOf],
       );
 
       const toLine = (r: typeof rows[0]) => ({ accountCode: r.account_code, accountName: r.account_name, balance: r.balance });
@@ -311,5 +391,105 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
     );
 
     return { accountsChecked, driftsFound: drifts.length };
+  });
+}
+
+// ─── GL-to-real-cash reconciliation (platform-wide scheduled job) ───────────
+
+export interface GLCashReconciliationResult {
+  status:        'ok' | 'mismatch' | 'no_snapshot' | 'stale_snapshot';
+  glCashTotal?:  string;
+  mpesaBalance?: string;
+  difference?:   string;
+  snapshotAge?:  string;
+}
+
+const GL_CASH_RECONCILE_TOLERANCE = 1; // KES — allows for sub-shilling rounding only
+const GL_CASH_SNAPSHOT_MAX_AGE_HOURS = 36;
+
+/**
+ * ACCOUNTING_ARCHITECTURE_AUDIT.md §16 Critical finding: Daraja's own
+ * AccountBalance figure was fetched and displayed on the treasury dashboard
+ * but never compared to anything. All groups share one M-Pesa shortcode, so
+ * the correct comparison is platform-wide: SUM of every group's "1001 Cash
+ * and M-Pesa" GL account against the one real Daraja Working+Utility balance
+ * — not a per-group comparison, since no single group's ledger represents
+ * the whole paybill.
+ *
+ * Reads the latest completed balance_query row in mpesa_transactions (the
+ * treasurer-triggered "Query balance" action on the treasury page — see
+ * app/api/v1/mpesa/balance/route.ts). Detection only, same as
+ * detectBalanceDrift: a mismatch is logged and recorded, never silently
+ * "corrected".
+ *
+ * KNOWN GAP (tracked, not fixed here): the daily `mpesa_balance_snapshot`
+ * cron job only fires the Daraja query (lib/jobs/handlers.ts
+ * handleMpesaBalanceSnapshot) — it does not insert the placeholder
+ * mpesa_transactions row the authenticated POST route inserts before
+ * querying, so the async result callback (handleBalanceResult, matched by
+ * originator_conversation_id) has no row to attach to and the scheduled
+ * snapshot's result is silently dropped. mpesa_transactions.group_id is
+ * NOT NULL, and there is no platform-level anchor group to attach a
+ * shortcode-wide (not group-specific) query to — fixing that cleanly is a
+ * schema decision (nullable group_id, or a dedicated platform-balance table)
+ * outside this fix's scope. Until it's addressed, this reconciliation runs
+ * against whichever group's treasurer most recently clicked "Query balance".
+ */
+export async function reconcileGLCashToMpesaBalance(): Promise<GLCashReconciliationResult> {
+  return withAdminDb(async (db) => {
+    const { rows: snapRows } = await db.query<{ raw_response: unknown; completed_at: string }>(
+      `SELECT raw_response, completed_at FROM mpesa_transactions
+       WHERE transaction_type = 'balance_query' AND status = 'completed'
+       ORDER BY completed_at DESC LIMIT 1`,
+    );
+    if (!snapRows[0]) {
+      logger.warn('[accounting] GL-to-cash reconciliation: no balance snapshot exists yet');
+      return { status: 'no_snapshot' };
+    }
+
+    const ageHours = (Date.now() - new Date(snapRows[0].completed_at).getTime()) / 3_600_000;
+    if (ageHours > GL_CASH_SNAPSHOT_MAX_AGE_HOURS) {
+      logger.warn('[accounting] GL-to-cash reconciliation: latest balance snapshot is stale', {
+        ageHours: ageHours.toFixed(1),
+      });
+      return { status: 'stale_snapshot', snapshotAge: `${ageHours.toFixed(1)}h` };
+    }
+
+    type ResultParam = { Key: string; Value: string | number };
+    type BalResult = { Result?: { ResultParameters?: { ResultParameter?: ResultParam[] } } };
+    const params = (snapRows[0].raw_response as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
+    const get = (k: string) => Number(params.find((p) => p.Key === k)?.Value ?? 0);
+    const mpesaBalance = get('WorkingAccountAvailableFunds') + get('UtilityAccountAvailableFunds');
+
+    const { rows: glRows } = await db.query<{ total: string }>(
+      `SELECT COALESCE(SUM(balance), 0)::text AS total FROM accounts
+       WHERE account_code = '1001' AND is_active = true`,
+    );
+    const glCashTotal = parseFloat(glRows[0]?.total ?? '0');
+    const difference  = mpesaBalance - glCashTotal;
+
+    if (Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE) {
+      logger.error('[accounting] GL-to-cash mismatch detected', {
+        glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2),
+      });
+    }
+
+    await db.query(
+      `INSERT INTO mpesa_reconciliations
+         (group_id, initiated_by, status, reconciliation_type,
+          transactions_checked, mismatches_found, resolved_count, details, completed_at)
+       VALUES (NULL, NULL, 'completed', 'gl_cash_mismatch', 1, $1, 0, $2, NOW())`,
+      [
+        Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 1 : 0,
+        JSON.stringify({ glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2) }),
+      ],
+    );
+
+    return {
+      status:       Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 'mismatch' : 'ok',
+      glCashTotal:  glCashTotal.toFixed(2),
+      mpesaBalance: mpesaBalance.toFixed(2),
+      difference:   difference.toFixed(2),
+    };
   });
 }

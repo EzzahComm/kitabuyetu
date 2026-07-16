@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useCreateJournal } from '@/hooks/use-accounting';
+import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal } from '@/hooks/use-accounting';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -34,6 +34,8 @@ export default function AccountingPage() {
   const { data: trialBalance, isLoading: loadingTB }   = useTrialBalance();
   const { data: journals, isLoading: loadingJournals } = useJournals({ page: 1, pageSize: 20 });
   const { data: pnl, isLoading: loadingPnl }           = useProfitAndLoss(from, to);
+  const asOfToday = now.toISOString().split('T')[0];
+  const { data: balanceSheet, isLoading: loadingBS }   = useBalanceSheet(asOfToday);
   const createJournal = useCreateJournal();
 
   const totalDebits  = lines.reduce((s, l) => s + (l.debit || 0), 0);
@@ -68,6 +70,7 @@ export default function AccountingPage() {
           <TabsTrigger value="trial">Trial Balance</TabsTrigger>
           <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
+          <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
         </TabsList>
 
@@ -136,6 +139,48 @@ export default function AccountingPage() {
               <CardHeader><CardTitle className="text-base">Profit &amp; Loss — {now.getFullYear()}</CardTitle></CardHeader>
               <CardContent>
                 <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(pnl, null, 2)}</pre>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="balance" className="mt-4">
+          {loadingBS ? <Skeleton className="h-64 w-full"/> : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Balance Sheet — as of {balanceSheet ? formatDate((balanceSheet as any).asOf) : ''}</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
+                <table className="w-full text-sm">
+                  <tbody>
+                    <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Assets</td></tr>
+                    {(((balanceSheet as any)?.assets ?? []) as any[]).map((a) => (
+                      <tr key={a.accountCode} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-2">{a.accountName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Assets</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalAssets ?? '0'))}</td></tr>
+
+                    <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Liabilities</td></tr>
+                    {(((balanceSheet as any)?.liabilities ?? []) as any[]).map((a) => (
+                      <tr key={a.accountCode} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-2">{a.accountName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Liabilities</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalLiabilities ?? '0'))}</td></tr>
+
+                    <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Equity</td></tr>
+                    {(((balanceSheet as any)?.equity ?? []) as any[]).map((a) => (
+                      <tr key={a.accountCode} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-2">{a.accountName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Equity</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalEquity ?? '0'))}</td></tr>
+                  </tbody>
+                </table>
               </CardContent>
             </Card>
           )}
