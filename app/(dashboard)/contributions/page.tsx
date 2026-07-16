@@ -88,7 +88,7 @@ export default function ContributionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Contributions</h1>
           <p className="text-sm text-muted-foreground">{data?.total ?? 0} total records</p>
@@ -140,7 +140,7 @@ export default function ContributionsPage() {
               )}
               {errors.memberId && <p className="text-xs text-destructive">{errors.memberId.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Amount (KES)</Label>
                 <Input type="number" step="0.01" {...register('amount')} />

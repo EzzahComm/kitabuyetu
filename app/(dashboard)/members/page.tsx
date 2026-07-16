@@ -248,7 +248,7 @@ export default function MembersPage() {
 
       {/* Bulk action bar — only when at least one row is selected */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-md border bg-accent">
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-md border bg-accent flex-wrap">
           <p className="text-sm flex-1">
             <span className="font-semibold">{selectedIds.size}</span> selected
           </p>
@@ -287,7 +287,7 @@ export default function MembersPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Add new member</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>First name</Label>
                 <Input {...register('firstName')} />
@@ -297,7 +297,7 @@ export default function MembersPage() {
                 <Label>Middle name <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input {...register('middleName')} />
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1 sm:col-span-2">
                 <Label>Last name</Label>
                 <Input {...register('lastName')} />
                 {errors.lastName && <p className="text-xs text-destructive">{errors.lastName.message}</p>}
@@ -312,7 +312,7 @@ export default function MembersPage() {
                 <Input placeholder="0712345678" {...register('alternativePhone')} />
                 {errors.alternativePhone && <p className="text-xs text-destructive">{errors.alternativePhone.message}</p>}
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1 sm:col-span-2">
                 <Label>Email <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input type="email" {...register('email')} />
               </div>

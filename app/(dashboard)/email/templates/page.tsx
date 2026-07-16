@@ -28,7 +28,7 @@ function TemplateForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Template Key</Label>
           <Input value={templateKey} onChange={(e) => setTemplateKey(e.target.value)} placeholder="e.g. welcome" disabled={!!initial?.id} />
@@ -86,7 +86,7 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -104,9 +104,9 @@ export default function EmailTemplatesPage() {
           ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
           : templates.map((tpl) => (
               <Card key={tpl.id}>
-                <CardContent className="py-3 px-4 flex items-center justify-between">
+                <CardContent className="py-3 px-4 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-sm">{tpl.name}</span>
                       <Badge variant="outline" className="text-xs">{tpl.template_key}</Badge>
                       {!tpl.group_id && <Badge variant="secondary" className="text-xs">Global</Badge>}

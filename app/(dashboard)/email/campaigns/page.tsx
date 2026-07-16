@@ -45,7 +45,7 @@ export default function EmailCampaignsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Email Campaigns</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>

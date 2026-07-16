@@ -59,19 +59,19 @@ export default function ReconciliationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link href="/mpesa"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
           <div>
             <h1 className="text-2xl font-bold">Reconciliation runs</h1>
             <p className="text-sm text-muted-foreground">
-              {reconType === 'paybill' 
+              {reconType === 'paybill'
                 ? 'Sweeps paybill payments and reconciles them with pending contributions.'
                 : 'Sweeps stuck STK requests and resolves their real status with Daraja.'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Button 
               variant="outline"

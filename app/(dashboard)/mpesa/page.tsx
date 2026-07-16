@@ -91,7 +91,7 @@ export default function MpesaPage() {
           <h1 className="text-2xl font-bold">M-Pesa transactions</h1>
           <p className="text-sm text-muted-foreground">{data?.total ?? 0} records</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Link href="/mpesa/unrouted">
             <Button variant="outline" size="sm"><Inbox size={15} className="mr-2" /> Unrouted</Button>
           </Link>

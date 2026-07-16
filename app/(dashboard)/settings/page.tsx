@@ -84,7 +84,7 @@ export default function SettingsPage() {
               {isTenantUser(user) ? ` — payments go to ${user.groupName}` : ''}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-between gap-3">
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xl font-mono font-semibold tracking-wider">
               {formatMembershipNo(membershipNo)}
             </p>
@@ -109,7 +109,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleProfile(onProfileSave)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>First name</Label>
                 <Input {...regProfile('firstName')} />

@@ -97,7 +97,7 @@ export default function SupportPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Headphones size={20} className="text-blue-500" />
@@ -114,7 +114,7 @@ export default function SupportPage() {
       </div>
 
       {/* Queue summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-blue-600">{openCount}</p>
           <p className="text-xs text-gray-500 mt-1">Open</p>
@@ -302,7 +302,7 @@ export default function SupportPage() {
               <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 placeholder="Brief description of the issue" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Category</Label>
                 <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}

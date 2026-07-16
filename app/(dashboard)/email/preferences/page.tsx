@@ -51,7 +51,7 @@ export default function EmailPreferencesPage() {
 
   return (
     <div className="space-y-4 p-6 max-w-2xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Email Preferences</h1>
           <p className="text-sm text-gray-500 mt-1">Control which emails you receive and how often</p>
@@ -67,7 +67,7 @@ export default function EmailPreferencesPage() {
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 my-2 w-full" />)
             : prefs.map((pref) => (
-                <div key={pref.category} className="py-3 flex items-center justify-between gap-4">
+                <div key={pref.category} className="py-3 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
