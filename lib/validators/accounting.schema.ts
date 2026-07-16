@@ -51,8 +51,19 @@ export const BalanceSheetQuerySchema = z.object({
   asOf: z.string().date().optional(),
 });
 
+export const ClosePeriodSchema = z.object({
+  periodStart: z.string().date(),
+  periodEnd:   z.string().date(),
+}).refine((p) => p.periodEnd >= p.periodStart, { message: 'periodEnd must not be before periodStart' });
+
+export const ReopenPeriodSchema = z.object({
+  reason: z.string().min(5).max(500),
+});
+
 export type CreateAccountInput  = z.infer<typeof CreateAccountSchema>;
 export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
 export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;
 export type VoidJournalInput    = z.infer<typeof VoidJournalSchema>;
 export type ReportQueryInput    = z.infer<typeof ReportQuerySchema>;
+export type ClosePeriodInput    = z.infer<typeof ClosePeriodSchema>;
+export type ReopenPeriodInput   = z.infer<typeof ReopenPeriodSchema>;

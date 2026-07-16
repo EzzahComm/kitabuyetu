@@ -141,6 +141,12 @@ export const accountingApi = {
     api.get<unknown>(`/accounting/reports?type=profit_and_loss&from=${from}&to=${to}`),
   balanceSheet:  (asOf?: string) =>
     api.get<unknown>(`/accounting/reports?type=balance_sheet${asOf ? `&asOf=${asOf}` : ''}`),
+  fiscalPeriods: () =>
+    api.get<unknown[]>('/accounting/fiscal-periods'),
+  closePeriod: (body: { periodStart: string; periodEnd: string }) =>
+    api.post<unknown>('/accounting/fiscal-periods', body),
+  reopenPeriod: (id: string, body: { reason: string }) =>
+    api.post<unknown>(`/accounting/fiscal-periods/${id}`, body),
 };
 
 // ------------------------------------------------------------------

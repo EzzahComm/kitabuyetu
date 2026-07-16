@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal } from '@/hooks/use-accounting';
+import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod } from '@/hooks/use-accounting';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate } from '@/lib/utils';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Lock, LockOpen } from 'lucide-react';
 
 interface JournalLine { accountId: string; debit: number; credit: number; description: string }
 
@@ -37,6 +38,15 @@ export default function AccountingPage() {
   const asOfToday = now.toISOString().split('T')[0];
   const { data: balanceSheet, isLoading: loadingBS }   = useBalanceSheet(asOfToday);
   const createJournal = useCreateJournal();
+
+  const { data: fiscalPeriods, isLoading: loadingFP } = useFiscalPeriods();
+  const closePeriod  = useClosePeriod();
+  const reopenPeriod = useReopenPeriod();
+  const [closeOpen, setCloseOpen]   = useState(false);
+  const [periodStart, setPeriodStart] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
+  const [periodEnd, setPeriodEnd]     = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+  const [reopenTarget, setReopenTarget] = useState<string | null>(null);
+  const [reopenReason, setReopenReason] = useState('');
 
   const totalDebits  = lines.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
@@ -71,6 +81,7 @@ export default function AccountingPage() {
           <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
           <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="periods">Fiscal Periods</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
         </TabsList>
 
@@ -186,6 +197,55 @@ export default function AccountingPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="periods" className="mt-4">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Fiscal Periods</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Closing a period blocks new manual journal entries dated inside it. Automated postings from real M-Pesa events are never blocked.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => setCloseOpen(true)}><Lock size={15} className="mr-2"/> Close a period</Button>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              {loadingFP ? <Skeleton className="h-32 w-full m-4"/> : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {['Period','Status','Closed by','Closed at','Reopen reason',''].map((h)=>(
+                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {((fiscalPeriods as any[]) ?? []).length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No periods closed yet — every date is open for posting.</td></tr>
+                    ) : ((fiscalPeriods as any[]) ?? []).map((p: any) => (
+                      <tr key={p.id} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-2 font-mono text-xs">{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
+                        <td className="px-4 py-2">
+                          <Badge variant={p.status === 'closed' ? 'destructive' : 'success'} className="text-xs capitalize">{p.status}</Badge>
+                        </td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.closed_by ?? '—'}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.closed_at ? formatDate(p.closed_at) : '—'}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.reopen_reason ?? '—'}</td>
+                        <td className="px-4 py-2 text-right">
+                          {p.status === 'closed' && (
+                            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setReopenTarget(p.id); setReopenReason(''); }}>
+                              <LockOpen size={13}/> Reopen
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="accounts" className="mt-4">
           {loadingAccounts ? <Skeleton className="h-64 w-full"/> : (
             <Card>
@@ -277,6 +337,74 @@ export default function AccountingPage() {
           <DialogFooter>
             <Button variant="outline" onClick={()=>setOpen(false)}>Cancel</Button>
             <Button onClick={handleSubmitJournal} disabled={!balanced} loading={createJournal.isPending}>Post journal</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Close a fiscal period</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>From</Label>
+              <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>To</Label>
+              <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No new manual journal entries can be dated inside this range until the period is reopened.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseOpen(false)}>Cancel</Button>
+            <Button
+              loading={closePeriod.isPending}
+              onClick={async () => {
+                try {
+                  await closePeriod.mutateAsync({ periodStart, periodEnd });
+                  toast({ title: 'Period closed' });
+                  setCloseOpen(false);
+                } catch (err: any) {
+                  toast({ variant: 'destructive', title: 'Failed to close period', description: err.message });
+                }
+              }}
+            >
+              Close period
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reopenTarget} onOpenChange={(o) => !o && setReopenTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Reopen this period</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Reason</Label>
+              <Textarea value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} placeholder="Why does this period need to reopen?" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopenTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={reopenReason.trim().length < 5}
+              loading={reopenPeriod.isPending}
+              onClick={async () => {
+                if (!reopenTarget) return;
+                try {
+                  await reopenPeriod.mutateAsync({ id: reopenTarget, reason: reopenReason });
+                  toast({ title: 'Period reopened' });
+                  setReopenTarget(null);
+                } catch (err: any) {
+                  toast({ variant: 'destructive', title: 'Failed to reopen period', description: err.message });
+                }
+              }}
+            >
+              Reopen
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

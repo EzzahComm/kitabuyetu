@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountingApi } from '@/lib/api/endpoints';
 
 export const accountingKeys = {
-  accounts:     ['accounting', 'accounts'] as const,
-  journals:     (params?: Record<string, unknown>) => ['accounting', 'journals', params] as const,
-  trialBalance: ['accounting', 'trial-balance'] as const,
-  pnl:          (from: string, to: string) => ['accounting', 'pnl', from, to] as const,
-  balanceSheet: (asOf?: string) => ['accounting', 'balance-sheet', asOf] as const,
+  accounts:      ['accounting', 'accounts'] as const,
+  journals:      (params?: Record<string, unknown>) => ['accounting', 'journals', params] as const,
+  trialBalance:  ['accounting', 'trial-balance'] as const,
+  pnl:           (from: string, to: string) => ['accounting', 'pnl', from, to] as const,
+  balanceSheet:  (asOf?: string) => ['accounting', 'balance-sheet', asOf] as const,
+  fiscalPeriods: ['accounting', 'fiscal-periods'] as const,
 };
 
 export function useAccounts() {
@@ -38,5 +39,25 @@ export function useCreateJournal() {
   return useMutation({
     mutationFn: (body: unknown) => accountingApi.createJournal(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['accounting'] }),
+  });
+}
+
+export function useFiscalPeriods() {
+  return useQuery({ queryKey: accountingKeys.fiscalPeriods, queryFn: accountingApi.fiscalPeriods });
+}
+
+export function useClosePeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { periodStart: string; periodEnd: string }) => accountingApi.closePeriod(body),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
+  });
+}
+
+export function useReopenPeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => accountingApi.reopenPeriod(id, { reason }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
   });
 }
