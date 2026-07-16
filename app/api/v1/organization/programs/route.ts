@@ -7,6 +7,9 @@ import { ok } from '@/lib/utils/response';
 
 /**
  * GET  /api/v1/organization/programs — list this organization's funding programs
+ *   ?report=budget — budget variance/utilization report instead (per program:
+ *   budget vs disbursed vs reserved-under-approval, plus schedule variance
+ *   for dated programs).
  * POST /api/v1/organization/programs — create a funding program
  */
 
@@ -32,6 +35,9 @@ const CreateProgramSchema = z.object({
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    if (req.nextUrl.searchParams.get('report') === 'budget') {
+      return ok({ items: await organizationFinanceService.programBudgetReport(ctx) });
+    }
     return ok({ items: await organizationFinanceService.listPrograms(ctx) });
   });
 }

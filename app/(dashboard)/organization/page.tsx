@@ -66,6 +66,13 @@ interface TrialBalanceLine {
   accountCode: string; accountName: string; accountType: string; netBalance: string;
 }
 
+interface ProgramBudgetLine {
+  id: string; name: string; programType: string; status: string;
+  budget: number; disbursed: number; reserved: number; remaining: number;
+  utilizationPct: number; expectedUtilizationPct: number | null;
+  variancePct: number | null; startsOn: string | null; endsOn: string | null;
+}
+
 interface OrgPolicy {
   key: string; threshold: number; source: 'group' | 'organization' | 'platform';
 }
@@ -135,6 +142,12 @@ export default function FundingPortalPage() {
   const { data: accounting } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
     queryKey: ['organization', 'accounting'],
     queryFn:  () => api.get('/organization/accounting'),
+    staleTime: 30_000,
+  });
+
+  const { data: budgetReport } = useQuery<{ items: ProgramBudgetLine[] }>({
+    queryKey: ['organization', 'budget-report'],
+    queryFn:  () => api.get('/organization/programs?report=budget'),
     staleTime: 30_000,
   });
 
@@ -336,6 +349,65 @@ export default function FundingPortalPage() {
                       <td className="py-2 text-xs text-muted-foreground capitalize">{line.accountType}</td>
                       <td className="py-2 text-right font-medium tabular-nums">
                         {formatKES(parseFloat(line.netBalance))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Budget variance / utilization — per-program deployment report */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Budget utilization</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Per program: settled disbursements, amounts reserved under pending
+            approval, and — for dated programs — variance against the share of
+            the program window already elapsed.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(budgetReport?.items ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No programs yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase text-muted-foreground border-b">
+                    <th className="text-left py-2 font-medium">Program</th>
+                    <th className="text-right py-2 font-medium">Budget</th>
+                    <th className="text-right py-2 font-medium">Disbursed</th>
+                    <th className="text-right py-2 font-medium">Reserved</th>
+                    <th className="text-right py-2 font-medium">Remaining</th>
+                    <th className="text-right py-2 font-medium">Utilization</th>
+                    <th className="text-right py-2 font-medium">Schedule variance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(budgetReport?.items ?? []).map((line) => (
+                    <tr key={line.id} className="border-b last:border-0">
+                      <td className="py-2">
+                        <p className="font-medium">{line.name}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {line.programType.replace(/_/g, ' ')} · {line.status}
+                        </p>
+                      </td>
+                      <td className="py-2 text-right tabular-nums">{formatKES(line.budget)}</td>
+                      <td className="py-2 text-right tabular-nums">{formatKES(line.disbursed)}</td>
+                      <td className="py-2 text-right tabular-nums">{line.reserved > 0 ? formatKES(line.reserved) : '—'}</td>
+                      <td className="py-2 text-right tabular-nums">{formatKES(line.remaining)}</td>
+                      <td className="py-2 text-right tabular-nums font-medium">{line.utilizationPct.toFixed(1)}%</td>
+                      <td className="py-2 text-right tabular-nums">
+                        {line.variancePct === null ? (
+                          <span className="text-muted-foreground">undated</span>
+                        ) : (
+                          <span className={line.variancePct < -10 ? 'text-amber-600 dark:text-amber-500' : ''}>
+                            {line.variancePct >= 0 ? '+' : ''}{line.variancePct.toFixed(1)}%
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

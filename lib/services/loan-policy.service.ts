@@ -10,6 +10,10 @@
  * reliability-tier ladder. loan_eligibility_limit (the value this ladder
  * drives) is purely advisory today — no loan-approval code path reads it —
  * so making it configurable changes zero lending-enforcement behavior.
+ *
+ * Also owns the 'terms' key (default interest rate/method, max term, loan
+ * multiplier) — migrated from the retired group_constitutions table by
+ * migration 088 (§33.1) as advisory defaults for the loan-application form.
  */
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -18,6 +22,7 @@ import { ValidationError } from '@/lib/utils/errors';
 
 const DOMAIN = 'loan';
 const POLICY_KEY = 'tier_thresholds';
+const TERMS_KEY  = 'terms';
 
 export type ReliabilityTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
@@ -79,6 +84,55 @@ function validateThresholds(thresholds: TierThreshold[]): void {
   }
 }
 
+// ─── Loan terms (migrated from the retired group_constitutions table) ────────
+// Migration 088 moved group_constitutions' loan fields here (§33.1). These
+// are ADVISORY defaults for the loan-application form — officers can still
+// set a different rate/term on any individual loan (confirmed product
+// decision: advisory, not hard enforcement).
+
+export type InterestMethod = 'flat' | 'reducing_balance';
+
+export interface LoanTerms {
+  interestRate:   number;
+  interestMethod: InterestMethod;
+  maxTermMonths:  number;
+  loanMultiplier: number;
+}
+
+// Kept identical to migration 088's seed (which itself preserved the
+// retired group_constitutions column defaults).
+const DEFAULT_LOAN_TERMS: LoanTerms = {
+  interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+};
+
+export interface EffectiveLoanTerms {
+  terms:  LoanTerms;
+  source: PolicySource;
+}
+
+/** Used inline by loan/credit code paths — no route/role concerns, just a read. */
+export async function getEffectiveLoanTerms(
+  client: PoolClient,
+  scope:  { organizationId?: string | null; groupId?: string | null },
+): Promise<LoanTerms> {
+  return resolvePolicy<LoanTerms>(client, DOMAIN, TERMS_KEY, scope, DEFAULT_LOAN_TERMS);
+}
+
+function validateLoanTerms(terms: LoanTerms): void {
+  if (!(terms.interestRate >= 0 && terms.interestRate <= 100)) {
+    throw new ValidationError('interestRate must be between 0 and 100');
+  }
+  if (terms.interestMethod !== 'flat' && terms.interestMethod !== 'reducing_balance') {
+    throw new ValidationError("interestMethod must be 'flat' or 'reducing_balance'");
+  }
+  if (!(Number.isInteger(terms.maxTermMonths) && terms.maxTermMonths >= 1 && terms.maxTermMonths <= 120)) {
+    throw new ValidationError('maxTermMonths must be a whole number between 1 and 120');
+  }
+  if (!(terms.loanMultiplier > 0)) {
+    throw new ValidationError('loanMultiplier must be positive');
+  }
+}
+
 export const loanPolicyService = {
   async getGroupPolicy(ctx: TenantContext): Promise<EffectiveTierThresholds> {
     return withDb(ctx, async (client) => {
@@ -106,5 +160,35 @@ export const loanPolicyService = {
   async setPlatformDefault(userId: string, client: PoolClient, thresholds: TierThreshold[]): Promise<void> {
     validateThresholds(thresholds);
     await setPolicy(client, DOMAIN, POLICY_KEY, {}, thresholds, userId);
+  },
+
+  // ─── Loan terms ────────────────────────────────────────────────────────────
+
+  async getGroupTerms(ctx: TenantContext): Promise<EffectiveLoanTerms> {
+    return withDb(ctx, async (client) => {
+      const resolved = await resolvePolicyDetailed<LoanTerms>(
+        client, DOMAIN, TERMS_KEY, { groupId: ctx.groupId }, DEFAULT_LOAN_TERMS,
+      );
+      return { terms: resolved.value, source: resolved.source };
+    });
+  },
+
+  /** Access gated at the route (withRole(req, 'chairperson', ...)) — changes the group's default lending terms. */
+  async setGroupTermsOverride(ctx: TenantContext, terms: LoanTerms): Promise<void> {
+    validateLoanTerms(terms);
+    await withTransaction(ctx, async (client) => {
+      await setPolicy(client, DOMAIN, TERMS_KEY, { groupId: ctx.groupId }, terms, ctx.userId);
+    });
+  },
+
+  /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
+  async getPlatformTerms(client: PoolClient): Promise<EffectiveLoanTerms> {
+    const resolved = await resolvePolicyDetailed<LoanTerms>(client, DOMAIN, TERMS_KEY, {}, DEFAULT_LOAN_TERMS);
+    return { terms: resolved.value, source: resolved.source };
+  },
+
+  async setPlatformTermsDefault(userId: string, client: PoolClient, terms: LoanTerms): Promise<void> {
+    validateLoanTerms(terms);
+    await setPolicy(client, DOMAIN, TERMS_KEY, {}, terms, userId);
   },
 };

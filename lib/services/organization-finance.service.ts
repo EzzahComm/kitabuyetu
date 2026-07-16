@@ -51,6 +51,26 @@ export interface FundingProgram {
   created_at:      string;
 }
 
+export interface ProgramBudgetLine {
+  id:             string;
+  name:           string;
+  programType:    string;
+  status:         string;
+  budget:         number;
+  disbursed:      number;
+  /** Held by pending-approval disbursements — committed but not yet settled. */
+  reserved:       number;
+  remaining:      number;
+  /** (disbursed + reserved) / budget, as a percentage. */
+  utilizationPct: number;
+  /** Share of the program window already elapsed; null when the program is undated. */
+  expectedUtilizationPct: number | null;
+  /** utilizationPct − expectedUtilizationPct; negative = behind the calendar. */
+  variancePct:    number | null;
+  startsOn:       string | null;
+  endsOn:         string | null;
+}
+
 export interface OrgDisbursement {
   id:                 string;
   group_id:           string;
@@ -293,6 +313,68 @@ export const organizationFinanceService = {
         [orgId(ctx)],
       );
       return rows;
+    });
+  },
+
+  /**
+   * Budget variance / utilization report (ACCOUNTING_ARCHITECTURE_AUDIT.md
+   * §14 — "budget variance/utilization reporting" was the audit's Medium
+   * finding on the otherwise well-built reservation system): per program,
+   * budget vs settled disbursements vs amounts reserved under pending
+   * approval, plus — for programs with a start/end date — a schedule
+   * variance: actual utilization minus the share of the program window
+   * already elapsed (negative = deploying slower than the calendar).
+   */
+  async programBudgetReport(ctx: TenantContext): Promise<ProgramBudgetLine[]> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (db) => {
+      const { rows } = await db.query<{
+        id: string; name: string; program_type: string; status: string;
+        budget: string; disbursed_total: string; reserved: string;
+        starts_on: string | null; ends_on: string | null;
+      }>(
+        `SELECT p.id, p.name, p.program_type, p.status,
+                p.budget::text, p.disbursed_total::text,
+                COALESCE(pd.pending, 0)::text AS reserved,
+                p.starts_on::text, p.ends_on::text
+         FROM funding_programs p
+         LEFT JOIN (
+           SELECT funding_program_id, SUM(amount) AS pending
+           FROM organization_disbursements
+           WHERE status = 'pending_approval' AND funding_program_id IS NOT NULL
+           GROUP BY funding_program_id
+         ) pd ON pd.funding_program_id = p.id
+         WHERE p.organization_id = $1
+         ORDER BY p.status = 'active' DESC, p.created_at DESC`,
+        [orgId(ctx)],
+      );
+
+      const today = Date.now();
+      return rows.map((r) => {
+        const budget    = parseFloat(r.budget);
+        const disbursed = parseFloat(r.disbursed_total);
+        const reserved  = parseFloat(r.reserved);
+        const utilizationPct = budget > 0 ? ((disbursed + reserved) / budget) * 100 : 0;
+
+        let expectedUtilizationPct: number | null = null;
+        if (r.starts_on && r.ends_on) {
+          const start = Date.parse(r.starts_on);
+          const end   = Date.parse(r.ends_on);
+          if (end > start) {
+            expectedUtilizationPct = Math.min(100, Math.max(0, ((today - start) / (end - start)) * 100));
+          }
+        }
+
+        return {
+          id: r.id, name: r.name, programType: r.program_type, status: r.status,
+          budget, disbursed, reserved,
+          remaining:      budget - disbursed - reserved,
+          utilizationPct,
+          expectedUtilizationPct,
+          variancePct: expectedUtilizationPct === null ? null : utilizationPct - expectedUtilizationPct,
+          startsOn: r.starts_on, endsOn: r.ends_on,
+        };
+      });
     });
   },
 

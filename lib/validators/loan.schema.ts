@@ -50,6 +50,20 @@ export const LoanQuerySchema = z.object({
   sortDir:  z.enum(['asc', 'desc']).default('desc'),
 });
 
+// LoanPolicy 'terms' — advisory group lending defaults (migration 088).
+export const SetLoanTermsSchema = z.object({
+  interestRate:   z.coerce.number().min(0).max(100),
+  interestMethod: z.enum(['flat', 'reducing_balance']),
+  maxTermMonths:  z.coerce.number().int().min(1).max(120),
+  loanMultiplier: z.coerce.number().positive(),
+});
+
+// FinePolicy 'schedule' — advisory offence tariff (migration 088).
+export const SetFineScheduleSchema = z.object({
+  schedule: z.record(z.string().min(1), z.coerce.number().min(0)),
+});
+
+export type SetLoanTermsInput    = z.infer<typeof SetLoanTermsSchema>;
 export type ApplyLoanInput       = z.infer<typeof ApplyLoanSchema>;
 export type ApproveLoanInput     = z.infer<typeof ApproveLoanSchema>;
 export type RejectLoanInput      = z.infer<typeof RejectLoanSchema>;

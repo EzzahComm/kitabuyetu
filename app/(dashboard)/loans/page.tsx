@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useLoans, useApplyLoan } from '@/hooks/use-loans';
+import { useLoans, useApplyLoan, useLoanPolicy } from '@/hooks/use-loans';
 import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,12 +35,26 @@ export default function LoansPage() {
 
   const { data, isLoading } = useLoans({ page, pageSize: 20, status: status === 'all' ? undefined : status });
   const { data: membersData } = useMembers({ pageSize: 200 });
+  const { data: loanPolicy } = useLoanPolicy();
   const applyLoan = useApplyLoan();
+
+  // Advisory defaults from the group's resolved LoanPolicy (group ->
+  // organization -> platform cascade) — officers can still type a different
+  // rate/term on any individual loan.
+  const policyTerms = (loanPolicy as any)?.terms;
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
     defaultValues: { interestRate: 10, termMonths: 12 },
   });
+
+  const openApply = () => {
+    reset({
+      interestRate: policyTerms?.interestRate ?? 10,
+      termMonths:   policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
+    } as Partial<ApplyValues> as ApplyValues);
+    setOpen(true);
+  };
 
   const onSubmit = async (values: ApplyValues) => {
     try {
@@ -77,7 +91,7 @@ export default function LoansPage() {
           <h1 className="text-2xl font-bold">Loans</h1>
           <p className="text-sm text-muted-foreground">{data?.total ?? 0} total loans</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
+        <Button onClick={openApply}>
           <Plus size={16} className="mr-2" /> Apply
         </Button>
       </div>
@@ -116,10 +130,18 @@ export default function LoansPage() {
               <div className="space-y-1">
                 <Label>Interest rate (%/month)</Label>
                 <Input type="number" step="0.1" {...register('interestRate')} />
+                {policyTerms && (
+                  <p className="text-xs text-muted-foreground">
+                    Group default {policyTerms.interestRate}% ({policyTerms.interestMethod === 'flat' ? 'flat' : 'reducing balance'})
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Term (months)</Label>
                 <Input type="number" {...register('termMonths')} />
+                {policyTerms && (
+                  <p className="text-xs text-muted-foreground">Policy max {policyTerms.maxTermMonths} months</p>
+                )}
               </div>
             </div>
             <div className="space-y-1">

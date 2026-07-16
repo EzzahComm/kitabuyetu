@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy } from '@/hooks/use-accounting';
+import { useLoanPolicy, useSetLoanPolicy } from '@/hooks/use-loans';
+import { useFinePolicy, useSetFinePolicy } from '@/hooks/use-fines';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -347,6 +349,11 @@ export default function AccountingPage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <LoanTermsCard />
+            <FineScheduleCard />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -484,5 +491,184 @@ export default function AccountingPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Group loan terms (LoanPolicy 'terms', migrated from the retired
+ * group_constitutions table). Advisory: these pre-fill the loan-application
+ * form; officers can still set a different rate/term on any individual loan.
+ */
+function LoanTermsCard() {
+  const { toast } = useToast();
+  const { data, isLoading } = useLoanPolicy();
+  const save = useSetLoanPolicy();
+  const [edits, setEdits] = useState<Record<string, string> | null>(null);
+
+  const terms  = (data as any)?.terms;
+  const source = (data as any)?.source;
+  const form = edits ?? (terms ? {
+    interestRate:   String(terms.interestRate),
+    interestMethod: terms.interestMethod,
+    maxTermMonths:  String(terms.maxTermMonths),
+    loanMultiplier: String(terms.loanMultiplier),
+  } : null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Loan terms</CardTitle>
+          {source && (
+            <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Default lending terms offered on new loan applications. Advisory —
+          officers can adjust each loan individually.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Interest rate (%/month)</Label>
+                <Input type="number" step="0.1" min={0} max={100} value={form.interestRate}
+                  onChange={(e) => setEdits({ ...form, interestRate: e.target.value })}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Interest method</Label>
+                <select
+                  value={form.interestMethod}
+                  onChange={(e) => setEdits({ ...form, interestMethod: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="flat">Flat</option>
+                  <option value="reducing_balance">Reducing balance</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Max term (months)</Label>
+                <Input type="number" min={1} max={120} value={form.maxTermMonths}
+                  onChange={(e) => setEdits({ ...form, maxTermMonths: e.target.value })}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Loan multiplier (× savings)</Label>
+                <Input type="number" step="0.1" min={0.1} value={form.loanMultiplier}
+                  onChange={(e) => setEdits({ ...form, loanMultiplier: e.target.value })}/>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                size="sm" variant="outline" className="gap-1.5"
+                disabled={!edits || save.isPending}
+                onClick={async () => {
+                  try {
+                    await save.mutateAsync({
+                      interestRate:   parseFloat(form.interestRate),
+                      interestMethod: form.interestMethod,
+                      maxTermMonths:  parseInt(form.maxTermMonths, 10),
+                      loanMultiplier: parseFloat(form.loanMultiplier),
+                    });
+                    setEdits(null);
+                    toast({ title: 'Loan terms updated' });
+                  } catch (err: any) {
+                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  }
+                }}
+              >
+                <SlidersHorizontal size={13}/> Set override
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Group fine schedule (FinePolicy 'schedule', migrated from the retired
+ * group_constitutions table). Advisory reference tariff per offence —
+ * nothing auto-charges these amounts.
+ */
+function FineScheduleCard() {
+  const { toast } = useToast();
+  const { data, isLoading } = useFinePolicy();
+  const save = useSetFinePolicy();
+  const [edits, setEdits] = useState<Array<{ category: string; amount: string }> | null>(null);
+
+  const schedule = (data as any)?.schedule as Record<string, number> | undefined;
+  const source   = (data as any)?.source;
+  const rows = edits ?? (schedule
+    ? Object.entries(schedule).map(([category, amount]) => ({ category, amount: String(amount) }))
+    : null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Fine schedule</CardTitle>
+          {source && (
+            <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Reference tariff per offence, used when raising a fine payment
+          request. Advisory — amounts are set per request.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !rows ? <Skeleton className="h-32 w-full"/> : (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {rows.map((row, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    className="flex-1" placeholder="Offence (e.g. late_attendance)" value={row.category}
+                    onChange={(e) => { const next = rows.map((r, i) => i === idx ? { ...r, category: e.target.value } : r); setEdits(next); }}
+                  />
+                  <Input
+                    type="number" min={0} step="0.01" className="w-32 text-right" value={row.amount}
+                    onChange={(e) => { const next = rows.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r); setEdits(next); }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Remove offence"
+                    onClick={() => setEdits(rows.filter((_, i) => i !== idx))}>
+                    <Trash2 size={14}/>
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setEdits([...rows, { category: '', amount: '0' }])}>
+                <Plus size={13}/> Add offence
+              </Button>
+              <Button
+                size="sm" variant="outline" className="gap-1.5"
+                disabled={!edits || save.isPending || rows.length === 0 || rows.some((r) => !r.category.trim() || !(parseFloat(r.amount) >= 0))}
+                onClick={async () => {
+                  try {
+                    const schedule: Record<string, number> = {};
+                    for (const r of rows) schedule[r.category.trim()] = parseFloat(r.amount);
+                    await save.mutateAsync({ schedule });
+                    setEdits(null);
+                    toast({ title: 'Fine schedule updated' });
+                  } catch (err: any) {
+                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  }
+                }}
+              >
+                <SlidersHorizontal size={13}/> Set override
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -22,6 +22,22 @@ export function useLoan(id: string) {
   });
 }
 
+/** Effective group loan terms (advisory defaults for the application form). */
+export function useLoanPolicy() {
+  return useQuery({
+    queryKey: [...loanKeys.all, 'policy'],
+    queryFn:  () => loansApi.policy(),
+  });
+}
+
+export function useSetLoanPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => loansApi.setPolicy(body),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: [...loanKeys.all, 'policy'] }),
+  });
+}
+
 export function useApplyLoan() {
   const qc = useQueryClient();
   return useMutation({

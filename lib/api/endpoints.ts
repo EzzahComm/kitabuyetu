@@ -121,6 +121,20 @@ export const loansApi = {
     api.patch<unknown>(`/loans/${id}`, body),
   recordRepayment: (id: string, body: unknown) =>
     api.post<unknown>(`/loans/${id}/repayments`, body),
+  policy: () =>
+    api.get<unknown>('/loans/policy'),
+  setPolicy: (body: unknown) =>
+    api.put<unknown>('/loans/policy', body),
+};
+
+// ------------------------------------------------------------------
+// Fines
+// ------------------------------------------------------------------
+export const finesApi = {
+  policy: () =>
+    api.get<unknown>('/fines/policy'),
+  setPolicy: (body: { schedule: Record<string, number> }) =>
+    api.put<unknown>('/fines/policy', body),
 };
 
 // ------------------------------------------------------------------
