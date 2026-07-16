@@ -67,6 +67,13 @@ describe('organizationFinanceService.disburse', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'je-1' }] });                             // journal_entries INSERT
     mockQuery.mockResolvedValueOnce({ rows: [] });                                          // journal_lines INSERT
     mockQuery.mockResolvedValueOnce({ rows: [] });                                          // wallet settle UPDATE
+    // postOrgSystemJournal (organization's own side, DR 5001 / CR 1001):
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'org-acct-5001', account_code: '5001' }, { id: 'org-acct-1001', account_code: '1001' }],
+    });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'org-je-1' }] });                         // organization_journal_entries INSERT
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // organization_journal_lines INSERT (debit)
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // organization_journal_lines INSERT (credit)
     mockQuery.mockResolvedValueOnce({ rows: [] });                                          // disbursement status UPDATE
     mockQuery.mockResolvedValueOnce({                                                       // final fetch
       rows: [{ id: 'disb-1', status: 'completed', amount: '5000.00' }],

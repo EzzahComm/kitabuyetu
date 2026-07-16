@@ -62,6 +62,10 @@ interface Disbursement {
   reference: string; created_at: string;
 }
 
+interface TrialBalanceLine {
+  accountCode: string; accountName: string; accountType: string; netBalance: string;
+}
+
 const PROGRAM_TYPES = [
   ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
   ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
@@ -115,6 +119,12 @@ export default function FundingPortalPage() {
   const { data: disb } = useQuery<{ items: Disbursement[] }>({
     queryKey: ['organization', 'disbursements'],
     queryFn:  () => api.get('/organization/disbursements?limit=10'),
+    staleTime: 30_000,
+  });
+
+  const { data: accounting } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
+    queryKey: ['organization', 'accounting'],
+    queryFn:  () => api.get('/organization/accounting'),
     staleTime: 30_000,
   });
 
@@ -269,6 +279,47 @@ export default function FundingPortalPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Trial balance — the organization's own chart of accounts */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Trial balance</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Your organization&apos;s own ledger — deposits post to Cash/Donor
+            Contributions, disbursements to Cash/Program Disbursements.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(accounting?.trialBalance ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No activity posted yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase text-muted-foreground border-b">
+                    <th className="text-left py-2 font-medium">Code</th>
+                    <th className="text-left py-2 font-medium">Account</th>
+                    <th className="text-left py-2 font-medium">Type</th>
+                    <th className="text-right py-2 font-medium">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(accounting?.trialBalance ?? []).map((line) => (
+                    <tr key={line.accountCode} className="border-b last:border-0">
+                      <td className="py-2 font-mono text-xs text-muted-foreground">{line.accountCode}</td>
+                      <td className="py-2">{line.accountName}</td>
+                      <td className="py-2 text-xs text-muted-foreground capitalize">{line.accountType}</td>
+                      <td className="py-2 text-right font-medium tabular-nums">
+                        {formatKES(parseFloat(line.netBalance))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Linked groups */}
       <Card>

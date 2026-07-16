@@ -9,6 +9,7 @@
  */
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
+import { organizationAccountingService } from './organization-accounting.service';
 
 export const ORGANIZATION_TYPES = [
   'bank', 'sacco', 'foundation', 'ngo',
@@ -168,6 +169,7 @@ export async function createOrganization(input: {
       input.county?.trim() || null,
       input.address?.trim() || null,
     ]);
+    await organizationAccountingService.seedDefaultAccountsInTx(db, rows[0].id);
     return rows[0];
   });
 }

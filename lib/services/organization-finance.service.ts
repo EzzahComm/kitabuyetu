@@ -18,6 +18,7 @@ import type { PoolClient } from 'pg';
 import crypto from 'crypto';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { organizationService } from './organization.service';
+import { postOrgSystemJournal } from './organization-accounting.service';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 
@@ -160,6 +161,16 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       [disb.amount, disb.wallet_id],
     );
 
+    // Organization's own side of the same transfer: DR 5001 Program
+    // Disbursements / CR 1001 Cash and Bank — completes the dual-ledger
+    // transaction whose group-side half was posted above.
+    await postOrgSystemJournal(
+      db, disb.organization_id, null,
+      `Disbursement to group — ${disb.disbursement_type.replace(/_/g, ' ')}`,
+      [{ accountCode: '5001', debit: parseFloat(disb.amount) }, { accountCode: '1001', credit: parseFloat(disb.amount) }],
+      { reference: disb.reference },
+    );
+
     await db.query(
       `UPDATE organization_disbursements
        SET    status = 'completed', completed_at = NOW(), group_journal_entry_id = $2
@@ -229,6 +240,13 @@ export const organizationFinanceService = {
           input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
           ctx.userId,
         ],
+      );
+
+      await postOrgSystemJournal(
+        db, orgId(ctx), ctx.userId,
+        input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
+        [{ accountCode: '1001', debit: input.amount }, { accountCode: '4001', credit: input.amount }],
+        { reference: input.reference },
       );
 
       return { wallet: updated[0], ledgerEntryId: ledger[0].id };
