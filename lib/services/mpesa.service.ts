@@ -20,7 +20,8 @@ import { normalizeAccountRef, looksLikeMembershipNo, isValidMembershipNo, parseA
 import { resolveProduct, type PaymentProduct, type ResolvedProduct } from '@/lib/utils/allocation-engine';
 import { findOpenRequests, fulfilRequest } from './payment-requests.service';
 import { assertActiveMembership } from './membership-guard';
-import { postSystemJournal, postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
+import { postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,
@@ -366,10 +367,10 @@ export async function handleSTKCallback(
       // path posted. System-posted (created_by NULL): no authenticated
       // officer initiated this, Safaricom's callback did.
       if (stkReq?.group_id) {
-        await postSystemJournal(
-          db, stkReq.group_id, null,
+        await postTemplatedJournal(
+          db, stkReq.group_id, null, 'subscription_payment',
           `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
-          [{ accountCode: '5003', debit: amount }, { accountCode: '1001', credit: amount }],
+          { amount },
           { reference: receipt },
         );
       }

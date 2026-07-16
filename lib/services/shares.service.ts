@@ -3,7 +3,7 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import {
   ConflictError, NotFoundError, ValidationError,
 } from '@/lib/utils/errors';
-import { postSystemJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import type {
   CreateShareClassInput, UpdateShareClassInput,
   CreateShareTransactionInput, ShareTxnQueryInput, HoldingsQueryInput,
@@ -388,12 +388,11 @@ export const sharesService = {
         // typically zero cash) and adjustment (a data correction, not a
         // described cash flow) are deliberately not posted here.
         if ((input.type === 'purchase' || input.type === 'redemption') && totalAmount > 0) {
-          await postSystemJournal(
+          await postTemplatedJournal(
             client, ctx.groupId, ctx.userId,
+            input.type === 'purchase' ? 'share_purchase' : 'share_redemption',
             `Share ${input.type} — ${cls[0].code} x${qtyAbs}`,
-            input.type === 'purchase'
-              ? [{ accountCode: '1001', debit: totalAmount }, { accountCode: '3001', credit: totalAmount }]
-              : [{ accountCode: '3001', debit: totalAmount }, { accountCode: '1001', credit: totalAmount }],
+            { amount: totalAmount },
             { reference: row.id, memberId: input.memberId },
           );
         }
@@ -530,16 +529,17 @@ export const sharesService = {
         reverse_txn_id: reverseRow.id, reason,
       });
 
-      // Mirror the GL effect if the original transaction posted one.
+      // Mirror the GL effect if the original transaction posted one —
+      // resolved from the same template as the original event, sides
+      // inverted, so a reversal always mirrors whatever mapping was in force.
       if ((orig.type === 'purchase' || orig.type === 'redemption') && Number(orig.total_amount) > 0) {
         const amount = Number(orig.total_amount);
-        await postSystemJournal(
+        await postTemplatedJournal(
           client, ctx.groupId, ctx.userId,
+          orig.type === 'purchase' ? 'share_purchase' : 'share_redemption',
           `Reversal of share ${orig.type} ${orig.id}: ${reason}`,
-          orig.type === 'purchase'
-            ? [{ accountCode: '3001', debit: amount }, { accountCode: '1001', credit: amount }]
-            : [{ accountCode: '1001', debit: amount }, { accountCode: '3001', credit: amount }],
-          { reference: reverseRow.id, memberId: orig.member_id },
+          { amount },
+          { reference: reverseRow.id, memberId: orig.member_id, invert: true },
         );
       }
 

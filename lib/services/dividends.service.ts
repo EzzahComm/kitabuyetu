@@ -3,7 +3,7 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import {
   ConflictError, NotFoundError, ValidationError,
 } from '@/lib/utils/errors';
-import { postSystemJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import type {
   CreateDividendDeclarationInput, UpdateDividendDeclarationInput,
   DividendQueryInput, PayAllocationInput, BulkPayAllocationsInput,
@@ -345,22 +345,12 @@ export const dividendsService = {
       // leg. Previously this declaration had zero GL trace.
       const totalGross = Number(computed.totalGross);
       if (totalGross > 0) {
-        const totalTax = Number(computed.totalTax);
-        const totalNet = Number(computed.totalNet);
-        const lines = totalTax > 0
-          ? [
-              { accountCode: '3101', debit: totalGross },
-              { accountCode: '2103', credit: totalNet },
-              { accountCode: '2104', credit: totalTax },
-            ]
-          : [
-              { accountCode: '3101', debit: totalGross },
-              { accountCode: '2103', credit: totalGross },
-            ];
-        await postSystemJournal(
-          client, ctx.groupId, ctx.userId,
+        // Template drops the zero-valued tax line automatically, so the
+        // no-withholding case still posts a clean two-line entry.
+        await postTemplatedJournal(
+          client, ctx.groupId, ctx.userId, 'dividend_declaration',
           `Dividend declaration approved — ${decl.period_label}`,
-          lines,
+          { gross: totalGross, net: Number(computed.totalNet), tax: Number(computed.totalTax) },
           { reference: declarationId },
         );
       }
@@ -456,10 +446,10 @@ export const dividendsService = {
 
       const netAmount = Number(a[0].net_amount);
       if (netAmount > 0) {
-        await postSystemJournal(
-          client, ctx.groupId, ctx.userId,
+        await postTemplatedJournal(
+          client, ctx.groupId, ctx.userId, 'dividend_payment',
           `Dividend payment — allocation ${allocationId}`,
-          [{ accountCode: '2103', debit: netAmount }, { accountCode: '1001', credit: netAmount }],
+          { net: netAmount },
           { reference: allocationId, memberId: a[0].member_id },
         );
       }
@@ -508,10 +498,10 @@ export const dividendsService = {
 
         const netAmount = Number(a[0].net_amount);
         if (netAmount > 0) {
-          await postSystemJournal(
-            client, ctx.groupId, ctx.userId,
+          await postTemplatedJournal(
+            client, ctx.groupId, ctx.userId, 'dividend_payment',
             `Dividend payment — allocation ${id}`,
-            [{ accountCode: '2103', debit: netAmount }, { accountCode: '1001', credit: netAmount }],
+            { net: netAmount },
             { reference: id, memberId: a[0].member_id },
           );
         }

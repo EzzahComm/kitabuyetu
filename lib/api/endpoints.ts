@@ -165,6 +165,10 @@ export const accountingApi = {
     api.get<unknown[]>('/accounting/policies'),
   setPolicy: (body: { key: string; threshold: number }) =>
     api.put<unknown[]>('/accounting/policies', body),
+  postingTemplates: () =>
+    api.get<unknown[]>('/accounting/posting-templates'),
+  setPostingTemplate: (body: unknown) =>
+    api.put<unknown[]>('/accounting/posting-templates', body),
 };
 
 // ------------------------------------------------------------------

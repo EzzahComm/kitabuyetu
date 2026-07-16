@@ -5,7 +5,7 @@ import { PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES } from '@/types/enums';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { PlanType } from '@/types/enums';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
-import { postSystemJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 
 export const billingService = {
 
@@ -184,10 +184,10 @@ export const billingService = {
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
       // Subscription expense account was previously dead code — no payment
       // path ever posted to it.
-      await postSystemJournal(
-        client, ctx.groupId, ctx.userId,
+      await postTemplatedJournal(
+        client, ctx.groupId, ctx.userId, 'subscription_payment',
         `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
-        [{ accountCode: '5003', debit: data.amount }, { accountCode: '1001', credit: data.amount }],
+        { amount: data.amount },
         { reference: rows[0].id },
       );
 

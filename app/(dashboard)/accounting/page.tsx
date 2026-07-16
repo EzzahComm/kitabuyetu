@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy } from '@/hooks/use-accounting';
+import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy, usePostingTemplates, useSetPostingTemplate } from '@/hooks/use-accounting';
 import { useLoanPolicy, useSetLoanPolicy } from '@/hooks/use-loans';
 import { useFinePolicy, useSetFinePolicy } from '@/hooks/use-fines';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -354,6 +354,10 @@ export default function AccountingPage() {
             <LoanTermsCard />
             <FineScheduleCard />
           </div>
+
+          <div className="mt-4">
+            <PostingTemplatesCard accounts={(accounts as any[]) ?? []} />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -491,6 +495,120 @@ export default function AccountingPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+const POSTING_EVENT_LABELS: Record<string, string> = {
+  share_purchase:            'Share purchase',
+  share_redemption:          'Share redemption',
+  welfare_disbursement:      'Welfare disbursement',
+  welfare_pool_contribution: 'Welfare pool contribution',
+  dividend_declaration:      'Dividend declaration',
+  dividend_payment:          'Dividend payment',
+  subscription_payment:      'Platform subscription payment',
+  loan_writeoff:             'Loan write-off',
+};
+
+interface TemplateLineUI { accountCode: string; side: 'debit' | 'credit'; amount: string }
+
+/**
+ * Posting templates (audit §29.9): which accounts each system-posted business
+ * event debits/credits. Only the account can be remapped — the entry
+ * structure (sides, amount roles) is locked server-side, so an override can
+ * never unbalance an entry.
+ */
+function PostingTemplatesCard({ accounts }: { accounts: any[] }) {
+  const { toast } = useToast();
+  const { data: templates, isLoading } = usePostingTemplates();
+  const save = useSetPostingTemplate();
+  const [edits, setEdits] = useState<Record<string, TemplateLineUI[]>>({});
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Posting templates</CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Which accounts each automatic posting hits. You can point an event
+          at a different account in your chart — the debit/credit structure
+          itself is fixed, so entries always balance.
+        </p>
+      </CardHeader>
+      <CardContent className="overflow-x-auto p-0">
+        {isLoading ? <Skeleton className="h-40 w-full m-4"/> : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                {['Event','Source','Entry',''].map((h)=>(
+                  <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {((templates as any[]) ?? []).map((t: any) => {
+                const lines: TemplateLineUI[] = edits[t.event] ?? t.lines;
+                const dirty = t.event in edits;
+                return (
+                  <tr key={t.event} className="border-t align-top hover:bg-muted/20">
+                    <td className="px-4 py-2 whitespace-nowrap">{POSTING_EVENT_LABELS[t.event] ?? t.event}</td>
+                    <td className="px-4 py-2">
+                      <Badge variant={t.source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+                        {t.source === 'group' ? 'Your override' : `Inherited — ${t.source}`}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="space-y-1">
+                        {lines.map((line, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className={`w-8 shrink-0 text-[11px] font-mono font-semibold ${line.side === 'debit' ? 'text-emerald-700 dark:text-emerald-500' : 'text-sky-700 dark:text-sky-500'}`}>
+                              {line.side === 'debit' ? 'DR' : 'CR'}
+                            </span>
+                            <select
+                              value={line.accountCode}
+                              onChange={(e) => {
+                                const next = lines.map((l, i) => i === idx ? { ...l, accountCode: e.target.value } : l);
+                                setEdits((prev) => ({ ...prev, [t.event]: next }));
+                              }}
+                              className="flex h-8 w-full min-w-56 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                            >
+                              {!accounts.some((a) => a.accountCode === line.accountCode) && (
+                                <option value={line.accountCode}>{line.accountCode} — (not in your chart)</option>
+                              )}
+                              {accounts.map((a) => (
+                                <option key={a.id} value={a.accountCode}>{a.accountCode} — {a.accountName}</option>
+                              ))}
+                            </select>
+                            {line.amount !== 'amount' && (
+                              <span className="shrink-0 text-[11px] text-muted-foreground">({line.amount})</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Button
+                        size="sm" variant="outline" className="h-8 gap-1.5"
+                        disabled={!dirty || save.isPending}
+                        onClick={async () => {
+                          try {
+                            await save.mutateAsync({ event: t.event, lines });
+                            setEdits((prev) => { const { [t.event]: _gone, ...rest } = prev; return rest; });
+                            toast({ title: 'Posting template updated' });
+                          } catch (err: any) {
+                            toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                          }
+                        }}
+                      >
+                        <SlidersHorizontal size={13}/> Set override
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

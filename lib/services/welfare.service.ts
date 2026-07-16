@@ -1,7 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postSystemJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import { z } from 'zod';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -190,10 +190,10 @@ export const welfareService = {
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: a real cash payout with
       // previously zero GL trace.
-      await postSystemJournal(
-        client, ctx.groupId, ctx.userId,
+      await postTemplatedJournal(
+        client, ctx.groupId, ctx.userId, 'welfare_disbursement',
         `Welfare disbursement — ${req.request_type} (request ${id})`,
-        [{ accountCode: '2102', debit: data.amountDisbursed }, { accountCode: '1001', credit: data.amountDisbursed }],
+        { amount: data.amountDisbursed },
         { reference: id, memberId: req.member_id },
       );
 
@@ -249,10 +249,10 @@ export const welfareService = {
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: money coming in with previously
       // zero GL trace.
-      await postSystemJournal(
-        client, ctx.groupId, ctx.userId,
+      await postTemplatedJournal(
+        client, ctx.groupId, ctx.userId, 'welfare_pool_contribution',
         `Welfare pool contribution — ${data.contributionType}`,
-        [{ accountCode: '1001', debit: data.amount }, { accountCode: '2102', credit: data.amount }],
+        { amount: data.amount },
         { reference: rows[0].id, memberId: data.memberId },
       );
 

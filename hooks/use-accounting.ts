@@ -9,6 +9,7 @@ export const accountingKeys = {
   balanceSheet:  (asOf?: string) => ['accounting', 'balance-sheet', asOf] as const,
   fiscalPeriods: ['accounting', 'fiscal-periods'] as const,
   policies:      ['accounting', 'policies'] as const,
+  postingTemplates: ['accounting', 'posting-templates'] as const,
 };
 
 export function useAccounts() {
@@ -60,6 +61,18 @@ export function useReopenPeriod() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => accountingApi.reopenPeriod(id, { reason }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
+  });
+}
+
+export function usePostingTemplates() {
+  return useQuery({ queryKey: accountingKeys.postingTemplates, queryFn: accountingApi.postingTemplates });
+}
+
+export function useSetPostingTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => accountingApi.setPostingTemplate(body),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.postingTemplates }),
   });
 }
 

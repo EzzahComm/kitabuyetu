@@ -6,7 +6,7 @@
  */
 import { withTransaction } from '@/lib/db';
 import { loansService } from '@/lib/services/loans.service';
-import { postSystemJournal } from '@/lib/services/accounting.service';
+import { postTemplatedJournal } from '@/lib/services/posting-templates.service';
 import { ValidationError, NotFoundError, ForbiddenError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -17,7 +17,10 @@ jest.mock('@/lib/db', () => ({
 jest.mock('@/lib/services/accounting.service', () => ({
   postLoanDisbursementJournal: jest.fn(),
   postLoanRepaymentJournal:    jest.fn(),
-  postSystemJournal:           jest.fn().mockResolvedValue('je-writeoff-1'),
+}));
+
+jest.mock('@/lib/services/posting-templates.service', () => ({
+  postTemplatedJournal: jest.fn().mockResolvedValue('je-writeoff-1'),
 }));
 
 const mockQuery  = jest.fn();
@@ -26,7 +29,7 @@ const mockClient = { query: mockQuery };
 beforeEach(() => {
   mockQuery.mockReset();
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
-  (postSystemJournal as jest.Mock).mockClear();
+  (postTemplatedJournal as jest.Mock).mockClear();
 });
 
 const ctx      = { groupId: 'grp-1', userId: 'usr-1', role: 'member' };
@@ -212,10 +215,10 @@ describe('loansService.writeOff', () => {
       loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     // Never reaches posting or the UPDATE
-    expect(postSystemJournal).not.toHaveBeenCalled();
+    expect(postTemplatedJournal).not.toHaveBeenCalled();
   });
 
-  it('allows a different officer to write off, posting DR 5004 / CR 1101', async () => {
+  it('allows a different officer to write off, posting via the loan_writeoff template', async () => {
     const writerCtx = { groupId: 'grp-1', userId: 'writer-1', role: 'chairperson' };
     mockQuery
       .mockResolvedValueOnce({
@@ -227,9 +230,9 @@ describe('loansService.writeOff', () => {
     const result = await loansService.writeOff(writerCtx, 'loan-1', { reason: 'Confirmed uncollectible' });
 
     expect(result.status).toBe('written_off');
-    expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'grp-1', 'writer-1', expect.stringContaining('loan-1'),
-      [{ accountCode: '5004', debit: 5000 }, { accountCode: '1101', credit: 5000 }],
+    expect(postTemplatedJournal).toHaveBeenCalledWith(
+      mockClient, 'grp-1', 'writer-1', 'loan_writeoff', expect.stringContaining('loan-1'),
+      { outstanding: 5000 },
       { reference: 'loan-1' },
     );
   });
@@ -244,6 +247,6 @@ describe('loansService.writeOff', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     await loansService.writeOff(writerCtx, 'loan-1', { reason: 'Zero balance cleanup' });
-    expect(postSystemJournal).not.toHaveBeenCalled();
+    expect(postTemplatedJournal).not.toHaveBeenCalled();
   });
 });

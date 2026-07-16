@@ -65,6 +65,21 @@ export const SetApprovalPolicySchema = z.object({
   threshold: z.number().nonnegative().max(1_000_000_000),
 });
 
+// Posting-template override (§29.9) — structure is further locked to the
+// event's default shape by posting-templates.service.ts; this only checks form.
+export const SetPostingTemplateSchema = z.object({
+  event: z.enum([
+    'share_purchase', 'share_redemption', 'welfare_disbursement',
+    'welfare_pool_contribution', 'dividend_declaration', 'dividend_payment',
+    'subscription_payment', 'loan_writeoff',
+  ]),
+  lines: z.array(z.object({
+    accountCode: z.string().regex(/^\d{4}$/),
+    side:        z.enum(['debit', 'credit']),
+    amount:      z.string().min(1).max(40),
+  })).min(2).max(10),
+});
+
 export type CreateAccountInput  = z.infer<typeof CreateAccountSchema>;
 export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
 export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;

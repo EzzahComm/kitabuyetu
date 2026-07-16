@@ -9,8 +9,10 @@ import { loadActiveSplitRules } from './contribution-splits.service';
 import { allocateSplit } from '@/lib/utils/split-allocator';
 import { getEffectiveThreshold } from './approval-policy.service';
 
-// Standard chart of accounts seeded for every new group
-const DEFAULT_ACCOUNTS = [
+// Standard chart of accounts seeded for every new group. Exported so the
+// posting-template engine can validate platform-wide templates against the
+// codes every group is guaranteed to have.
+export const DEFAULT_ACCOUNTS = [
   { code: '1001', name: 'Cash and M-Pesa',          type: 'asset' },
   { code: '1002', name: 'Bank Account',              type: 'asset' },
   { code: '1101', name: 'Loans Receivable',          type: 'asset' },

@@ -1,7 +1,8 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postLoanDisbursementJournal, postLoanRepaymentJournal, postSystemJournal } from './accounting.service';
+import { postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -288,9 +289,9 @@ export const loansService = {
       const outstanding = parseFloat(existing[0].outstanding_balance ?? '0');
       let journalEntryId: string | null = null;
       if (outstanding > 0) {
-        journalEntryId = await postSystemJournal(
-          client, ctx.groupId, ctx.userId, `Loan write-off — ${id}`,
-          [{ accountCode: '5004', debit: outstanding }, { accountCode: '1101', credit: outstanding }],
+        journalEntryId = await postTemplatedJournal(
+          client, ctx.groupId, ctx.userId, 'loan_writeoff', `Loan write-off — ${id}`,
+          { outstanding },
           { reference: id },
         );
       }
