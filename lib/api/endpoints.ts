@@ -147,6 +147,10 @@ export const accountingApi = {
     api.post<unknown>('/accounting/fiscal-periods', body),
   reopenPeriod: (id: string, body: { reason: string }) =>
     api.post<unknown>(`/accounting/fiscal-periods/${id}`, body),
+  policies: () =>
+    api.get<unknown[]>('/accounting/policies'),
+  setPolicy: (body: { key: string; threshold: number }) =>
+    api.put<unknown[]>('/accounting/policies', body),
 };
 
 // ------------------------------------------------------------------
@@ -219,6 +223,9 @@ export const reportsApi = {
 export const organizationApi = {
   groups:  () => api.get<OrganizationGroupSummary[]>('/organization/groups'),
   detail:  (groupId: string) => api.get<unknown>(`/organization/reports?groupId=${groupId}`),
+  policies: () => api.get<unknown[]>('/organization/policies'),
+  setPolicy: (body: { key: string; threshold: number }) =>
+    api.put<unknown[]>('/organization/policies', body),
 };
 
 // ------------------------------------------------------------------

@@ -66,6 +66,16 @@ interface TrialBalanceLine {
   accountCode: string; accountName: string; accountType: string; netBalance: string;
 }
 
+interface OrgPolicy {
+  key: string; threshold: number; source: 'group' | 'organization' | 'platform';
+}
+
+const ORG_POLICY_LABELS: Record<string, string> = {
+  org_disbursement_threshold:   'Your own disbursement maker-checker',
+  group_disbursement_threshold: 'Default for linked groups’ disbursements',
+  journal_threshold:            'Default for linked groups’ manual journals',
+};
+
 const PROGRAM_TYPES = [
   ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
   ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
@@ -126,6 +136,21 @@ export default function FundingPortalPage() {
     queryKey: ['organization', 'accounting'],
     queryFn:  () => api.get('/organization/accounting'),
     staleTime: 30_000,
+  });
+
+  const { data: policies, isLoading: loadingPolicies } = useQuery<OrgPolicy[]>({
+    queryKey: ['organization', 'policies'],
+    queryFn:  organizationApi.policies as () => Promise<OrgPolicy[]>,
+    staleTime: 30_000,
+  });
+  const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
+  const setPolicy = useMutation({
+    mutationFn: (body: { key: string; threshold: number }) => organizationApi.setPolicy(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organization', 'policies'] });
+      toast({ title: 'Policy updated' });
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
   });
 
   const toggleProgram = useMutation({
@@ -316,6 +341,53 @@ export default function FundingPortalPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Approval policies — Configuration Service / Policy Resolution Engine */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Approval policies</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Your own disbursement threshold, plus the defaults you hand down
+            to linked groups — any group can still set its own override.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loadingPolicies ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <div className="space-y-2.5">
+              {(policies ?? []).map((p) => {
+                const editValue = policyEdits[p.key] ?? String(p.threshold);
+                const dirty = editValue !== String(p.threshold);
+                return (
+                  <div key={p.key} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{ORG_POLICY_LABELS[p.key] ?? p.key}</p>
+                      <Badge variant={p.source === 'organization' ? 'success' : 'outline'} className="text-xs capitalize mt-1">
+                        {p.source === 'organization' ? 'Your override' : `Inherited — ${p.source}`}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Input
+                        type="number" min={0} className="h-8 w-32"
+                        value={editValue}
+                        onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                      />
+                      <Button
+                        size="sm" variant="outline" className="h-8"
+                        disabled={!dirty || setPolicy.isPending || !(parseFloat(editValue) >= 0)}
+                        onClick={() => setPolicy.mutate({ key: p.key, threshold: parseFloat(editValue) })}
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

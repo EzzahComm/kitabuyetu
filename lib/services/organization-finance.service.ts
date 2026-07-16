@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { organizationService } from './organization.service';
 import { postOrgSystemJournal } from './organization-accounting.service';
+import { getEffectiveThreshold } from './approval-policy.service';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 
@@ -420,11 +421,8 @@ export const organizationFinanceService = {
       }
 
       // 4. Maker-checker threshold (B2B audit: separation of duties).
-      const { rows: orgRows } = await db.query<{ threshold: string }>(
-        `SELECT disbursement_approval_threshold AS threshold FROM organizations WHERE id = $1`,
-        [organizationId],
-      );
-      const requiresApproval = input.amount > parseFloat(orgRows[0]?.threshold ?? '0');
+      const threshold = await getEffectiveThreshold(db, 'org_disbursement_threshold', { organizationId });
+      const requiresApproval = input.amount > threshold;
 
       // 5. Reserve: debit available_balance, hold in committed_balance — the
       //    wallet's own reservation column, previously unused. Ledger records

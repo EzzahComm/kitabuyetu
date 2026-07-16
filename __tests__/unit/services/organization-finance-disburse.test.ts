@@ -49,7 +49,7 @@ describe('organizationFinanceService.disburse', () => {
   it('settles immediately under the org threshold', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'access-1' }] });                        // group link
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '50000.00' }] }); // wallet lock
-    mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '20000.00' }] });                 // org threshold (high)
+    mockQuery.mockResolvedValueOnce({ rows: [{ organization_id: 'org-1', group_id: null, value: { threshold: 20000 } }] }); // org threshold (high)
     mockQuery.mockResolvedValueOnce({ rows: [] });                                          // reserve UPDATE
     mockQuery.mockResolvedValueOnce({                                                       // INSERT disbursement
       rows: [{ id: 'disb-1', status: 'approved', wallet_id: 'wallet-1', amount: '5000.00' }],
@@ -91,7 +91,7 @@ describe('organizationFinanceService.disburse', () => {
   it('parks pending_approval above the org threshold — no group journal posted', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'access-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '50000.00' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '2000.00' }] }); // low threshold
+    mockQuery.mockResolvedValueOnce({ rows: [{ organization_id: 'org-1', group_id: null, value: { threshold: 2000 } }] }); // low threshold
     mockQuery.mockResolvedValueOnce({ rows: [] });                        // reserve UPDATE
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'disb-2', status: 'pending_approval', wallet_id: 'wallet-1', amount: '5000.00' }],

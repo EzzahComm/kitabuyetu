@@ -21,6 +21,7 @@
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { getEffectiveThreshold } from './approval-policy.service';
 
 export interface InitiateDisbursementInput {
   loanId?:         string;
@@ -105,11 +106,8 @@ export const disbursementsService = {
       }
 
       // Maker-checker threshold (C3).
-      const { rows: grpRows } = await db.query<{ threshold: string }>(
-        `SELECT disbursement_approval_threshold AS threshold FROM groups WHERE id = $1`,
-        [ctx.groupId],
-      );
-      const requiresApproval = input.amount > parseFloat(grpRows[0]?.threshold ?? '0');
+      const threshold = await getEffectiveThreshold(db, 'group_disbursement_threshold', { groupId: ctx.groupId });
+      const requiresApproval = input.amount > threshold;
 
       // Reserve (C1/C4): earmark the funds now, before Daraja is ever called
       // — including during the approval-pending window, so a second pending

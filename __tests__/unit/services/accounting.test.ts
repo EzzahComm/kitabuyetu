@@ -114,7 +114,7 @@ describe('postJournalEntry maker-checker', () => {
   it('blocks the creator from posting their own entry above the threshold', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', created_by: 'user-1', group_id: 'group-1', status: 'draft' }] })
-      .mockResolvedValueOnce({ rows: [{ threshold: '1000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'group-1', value: { threshold: 1000 } }] })
       .mockResolvedValueOnce({ rows: [{ total: '5000.00' }] });
 
     await expect(accountingService.postJournalEntry(ctx, 'je-1')).rejects.toBeInstanceOf(ForbiddenError);
@@ -124,7 +124,7 @@ describe('postJournalEntry maker-checker', () => {
   it('allows the creator to post their own entry at or under the threshold', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', created_by: 'user-1', group_id: 'group-1', status: 'draft' }] })
-      .mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'group-1', value: { threshold: 10000 } }] })
       .mockResolvedValueOnce({ rows: [{ total: '500.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', status: 'posted', posted_by: 'user-1' }] })
       .mockResolvedValueOnce({ rows: [] });
@@ -157,7 +157,7 @@ describe('voidJournalEntry maker-checker', () => {
   it('blocks the poster from voiding their own entry above the threshold', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', posted_by: 'user-1', group_id: 'group-1', status: 'posted' }] })
-      .mockResolvedValueOnce({ rows: [{ threshold: '1000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'group-1', value: { threshold: 1000 } }] })
       .mockResolvedValueOnce({ rows: [{ total: '5000.00' }] });
 
     await expect(accountingService.voidJournalEntry(ctx, 'je-1', voidInput)).rejects.toBeInstanceOf(ForbiddenError);

@@ -8,6 +8,7 @@ export const accountingKeys = {
   pnl:           (from: string, to: string) => ['accounting', 'pnl', from, to] as const,
   balanceSheet:  (asOf?: string) => ['accounting', 'balance-sheet', asOf] as const,
   fiscalPeriods: ['accounting', 'fiscal-periods'] as const,
+  policies:      ['accounting', 'policies'] as const,
 };
 
 export function useAccounts() {
@@ -59,5 +60,17 @@ export function useReopenPeriod() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => accountingApi.reopenPeriod(id, { reason }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
+  });
+}
+
+export function useApprovalPolicies() {
+  return useQuery({ queryKey: accountingKeys.policies, queryFn: accountingApi.policies });
+}
+
+export function useSetApprovalPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { key: string; threshold: number }) => accountingApi.setPolicy(body),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.policies }),
   });
 }

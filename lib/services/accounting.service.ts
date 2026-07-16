@@ -7,6 +7,7 @@ import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJo
 import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet } from '@/types/api.types';
 import { loadActiveSplitRules } from './contribution-splits.service';
 import { allocateSplit } from '@/lib/utils/split-allocator';
+import { getEffectiveThreshold } from './approval-policy.service';
 
 // Standard chart of accounts seeded for every new group
 const DEFAULT_ACCOUNTS = [
@@ -439,16 +440,12 @@ export const accountingService = {
       // trigger (migration 081) is the authoritative backstop; this check
       // exists to surface a clean error instead of a raw constraint failure.
       if (draftRows[0].created_by === ctx.userId) {
-        const { rows: grpRows } = await client.query<{ threshold: string }>(
-          `SELECT journal_approval_threshold AS threshold FROM groups WHERE id = $1`,
-          [ctx.groupId],
-        );
+        const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId: ctx.groupId });
         const { rows: lineRows } = await client.query<{ total: string }>(
           `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
           [id],
         );
-        const threshold = parseFloat(grpRows[0]?.threshold ?? '0');
-        const total     = parseFloat(lineRows[0]?.total ?? '0');
+        const total = parseFloat(lineRows[0]?.total ?? '0');
         if (total > threshold) {
           throw new ForbiddenError(
             `Maker-checker: entries above KES ${threshold.toFixed(2)} must be posted by someone other than the creator`,
@@ -480,16 +477,12 @@ export const accountingService = {
       // Maker-checker: above the group's threshold, the voider must differ
       // from the poster — same reasoning and DB backstop as posting above.
       if (postedRows[0].posted_by === ctx.userId) {
-        const { rows: grpRows } = await client.query<{ threshold: string }>(
-          `SELECT journal_approval_threshold AS threshold FROM groups WHERE id = $1`,
-          [ctx.groupId],
-        );
+        const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId: ctx.groupId });
         const { rows: lineRows } = await client.query<{ total: string }>(
           `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
           [id],
         );
-        const threshold = parseFloat(grpRows[0]?.threshold ?? '0');
-        const total     = parseFloat(lineRows[0]?.total ?? '0');
+        const total = parseFloat(lineRows[0]?.total ?? '0');
         if (total > threshold) {
           throw new ForbiddenError(
             `Maker-checker: entries above KES ${threshold.toFixed(2)} must be voided by someone other than the poster`,

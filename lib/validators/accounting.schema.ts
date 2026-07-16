@@ -60,6 +60,11 @@ export const ReopenPeriodSchema = z.object({
   reason: z.string().min(5).max(500),
 });
 
+export const SetApprovalPolicySchema = z.object({
+  key:       z.enum(['journal_threshold', 'group_disbursement_threshold', 'org_disbursement_threshold']),
+  threshold: z.number().nonnegative().max(1_000_000_000),
+});
+
 export type CreateAccountInput  = z.infer<typeof CreateAccountSchema>;
 export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
 export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;
@@ -67,3 +72,4 @@ export type VoidJournalInput    = z.infer<typeof VoidJournalSchema>;
 export type ReportQueryInput    = z.infer<typeof ReportQuerySchema>;
 export type ClosePeriodInput    = z.infer<typeof ClosePeriodSchema>;
 export type ReopenPeriodInput   = z.infer<typeof ReopenPeriodSchema>;
+export type SetApprovalPolicyInput = z.infer<typeof SetApprovalPolicySchema>;

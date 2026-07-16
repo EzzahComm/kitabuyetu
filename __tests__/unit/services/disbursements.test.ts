@@ -81,7 +81,7 @@ describe('disbursementsService.initiateDisbursement', () => {
   it('dispatches immediately when under the group threshold', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });                 // idempotency lookup
     mockQuery.mockResolvedValueOnce(cashAccount('50000.00'));      // balance check
-    mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '20000.00' }] }); // group threshold
+    mockQuery.mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'grp-1', value: { threshold: 20000 } }] }); // group threshold
     mockQuery.mockResolvedValueOnce({ rows: [] });                 // reserve UPDATE
     mockQuery.mockResolvedValueOnce({                              // INSERT disbursement_requests
       rows: [{
@@ -114,7 +114,7 @@ describe('disbursementsService.initiateDisbursement', () => {
   it('parks pending_approval above threshold and never dispatches (C3)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });                  // idempotency lookup
     mockQuery.mockResolvedValueOnce(cashAccount('100000.00'));      // balance check
-    mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '2000.00' }] }); // low threshold
+    mockQuery.mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'grp-1', value: { threshold: 2000 } }] }); // low threshold
     mockQuery.mockResolvedValueOnce({ rows: [] });                  // reserve UPDATE
     mockQuery.mockResolvedValueOnce({
       rows: [{

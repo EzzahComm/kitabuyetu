@@ -8,12 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod } from '@/hooks/use-accounting';
+import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy } from '@/hooks/use-accounting';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate } from '@/lib/utils';
-import { Plus, Trash2, Lock, LockOpen } from 'lucide-react';
+import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal } from 'lucide-react';
+
+const POLICY_LABELS: Record<string, string> = {
+  journal_threshold:            'Manual journal maker-checker',
+  group_disbursement_threshold: 'Disbursement maker-checker',
+};
 
 interface JournalLine { accountId: string; debit: number; credit: number; description: string }
 
@@ -47,6 +52,10 @@ export default function AccountingPage() {
   const [periodEnd, setPeriodEnd]     = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
   const [reopenTarget, setReopenTarget] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState('');
+
+  const { data: policies, isLoading: loadingPolicies } = useApprovalPolicies();
+  const setPolicy = useSetApprovalPolicy();
+  const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
 
   const totalDebits  = lines.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
@@ -83,6 +92,7 @@ export default function AccountingPage() {
           <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
           <TabsTrigger value="periods">Fiscal Periods</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
+          <TabsTrigger value="policies">Policies</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trial" className="mt-4">
@@ -272,6 +282,71 @@ export default function AccountingPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="policies" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Approval policies</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Thresholds above which a different officer must approve. Each
+                one shows where its current value comes from — override it
+                here to set your own group-specific limit.
+              </p>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              {loadingPolicies ? <Skeleton className="h-32 w-full m-4"/> : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {['Policy','Source','Threshold (KES)',''].map((h)=>(
+                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {((policies as any[]) ?? []).map((p: any) => {
+                      const editValue = policyEdits[p.key] ?? String(p.threshold);
+                      const dirty = editValue !== String(p.threshold);
+                      return (
+                        <tr key={p.key} className="border-t hover:bg-muted/20">
+                          <td className="px-4 py-2">{POLICY_LABELS[p.key] ?? p.key}</td>
+                          <td className="px-4 py-2">
+                            <Badge variant={p.source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+                              {p.source === 'group' ? 'Your override' : `Inherited — ${p.source}`}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number" min={0} className="h-8 w-36"
+                              value={editValue}
+                              onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <Button
+                              size="sm" variant="outline" className="h-8 gap-1.5"
+                              disabled={!dirty || setPolicy.isPending || !(parseFloat(editValue) >= 0)}
+                              onClick={async () => {
+                                try {
+                                  await setPolicy.mutateAsync({ key: p.key, threshold: parseFloat(editValue) });
+                                  toast({ title: 'Policy updated' });
+                                } catch (err: any) {
+                                  toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                                }
+                              }}
+                            >
+                              <SlidersHorizontal size={13}/> Set override
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
