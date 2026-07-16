@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type {
   CreditScoreQueryInput, ScoreHistoryQueryInput, ReliabilityTier,
 } from '@/lib/validators/credit-scores.schema';
+import { getEffectiveTierThresholds, type TierThreshold } from './loan-policy.service';
 
 // ─── Public types ────────────────────────────────────────────────────────
 
@@ -82,13 +83,6 @@ const COMPONENT_WEIGHTS: Record<ComponentKey, number> = {
   ...SOCIAL_WEIGHTS,
 };
 
-const TIER_THRESHOLDS: { tier: ReliabilityTier; min: number; loanMultiplier: number }[] = [
-  { tier: 'excellent', min: 85, loanMultiplier: 10 },
-  { tier: 'good',      min: 70, loanMultiplier:  5 },
-  { tier: 'fair',      min: 55, loanMultiplier:  3 },
-  { tier: 'poor',      min: 40, loanMultiplier:  1 },
-  { tier: 'high_risk', min:  0, loanMultiplier:  0.5 },
-];
 
 // ─── Service ────────────────────────────────────────────────────────────
 
@@ -103,8 +97,9 @@ export const creditScoresService = {
     return withTransaction(ctx, async (client) => {
       await assertGroupMembership(client, ctx.groupId, memberId);
 
+      const tierThresholds = await getEffectiveTierThresholds(client, { groupId: ctx.groupId, organizationId: ctx.organizationId });
       const components = await computeComponents(client, ctx.groupId, memberId);
-      const result     = synthesise(components);
+      const result     = synthesise(components, tierThresholds);
 
       const { rows } = await client.query<CreditScore>(
         `INSERT INTO credit_scores (
@@ -149,13 +144,14 @@ export const creditScoresService = {
         [ctx.groupId],
       );
 
+      const tierThresholds = await getEffectiveTierThresholds(client, { groupId: ctx.groupId, organizationId: ctx.organizationId });
       let recomputed = 0;
       const failed: { memberId: string; reason: string }[] = [];
 
       for (const m of members) {
         try {
           const components = await computeComponents(client, ctx.groupId, m.member_id);
-          const result     = synthesise(components);
+          const result     = synthesise(components, tierThresholds);
           await client.query(
             `INSERT INTO credit_scores (
                group_id, member_id, computed_by,
@@ -325,7 +321,13 @@ interface SynthesisResult {
   loanEligibility: number;
 }
 
-function synthesise(components: Record<ComponentKey, ComponentScore>): SynthesisResult {
+// Exported for direct unit testing of the tier-resolution logic (§29's
+// LoanPolicy proof) without needing to mock computeComponents' full chain
+// of sub-queries.
+export function synthesise(
+  components:      Record<ComponentKey, ComponentScore>,
+  tierThresholds:  TierThreshold[],
+): SynthesisResult {
   // Financial dimension = weighted sum of the financial components.
   let financial = 0;
   for (const key of Object.keys(FINANCIAL_WEIGHTS) as FinancialKey[]) {
@@ -346,7 +348,7 @@ function synthesise(components: Record<ComponentKey, ComponentScore>): Synthesis
   // because it has more signal density and more reliable underlying data.
   const overall = clamp(financial * FINANCIAL_BLEND + social * SOCIAL_BLEND, 0, 100);
 
-  const tierRow = TIER_THRESHOLDS.find((t) => overall >= t.min)!;
+  const tierRow = tierThresholds.find((t) => overall >= t.min)!;
   // total_savings comes from the contribution_consistency raw payload so we
   // don't need a second DB query just to size the loan ceiling.
   const savings = Number(

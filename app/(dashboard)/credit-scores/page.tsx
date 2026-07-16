@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, Loader2, RefreshCw, Users } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Activity, Loader2, RefreshCw, Users, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -26,6 +27,8 @@ interface Summary {
   byTier: Record<Tier, number>;
 }
 interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
+interface TierThreshold { tier: Tier; min: number; loanMultiplier: number }
+interface TierPolicy { thresholds: TierThreshold[]; source: 'group' | 'organization' | 'platform' }
 
 const fmtMoney = (v: string | number | null | undefined) =>
   new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
@@ -57,6 +60,19 @@ export default function CreditScoresPage() {
   const listQ = useQuery<Paged<CreditScore>>({
     queryKey: ['credit-scores', 'list'],
     queryFn:  () => api.get<Paged<CreditScore>>('/credit-scores?limit=100'),
+  });
+  const policyQ = useQuery<TierPolicy>({
+    queryKey: ['credit-scores', 'policy'],
+    queryFn:  () => api.get<TierPolicy>('/credit-scores/policy'),
+  });
+  const [policyEdits, setPolicyEdits] = useState<Record<Tier, { min: string; loanMultiplier: string }>>({} as never);
+  const setPolicy = useMutation({
+    mutationFn: (thresholds: TierThreshold[]) => api.put<TierPolicy>('/credit-scores/policy', { thresholds }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['credit-scores', 'policy'] });
+      toast({ title: 'Scoring policy updated' });
+    },
+    onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: err instanceof ApiError ? err.message : '' }),
   });
 
   const items   = listQ.data?.items ?? [];
@@ -102,6 +118,80 @@ export default function CreditScoresPage() {
         <Stat label="Excellent / Good"  value={`${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`} sub={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`} loading={summaryQ.isLoading} />
         <Stat label="Poor / High risk"  value={`${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`} sub={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`} loading={summaryQ.isLoading} />
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Scoring policy</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            The reliability-tier ladder used to compute each member&apos;s tier
+            and advisory loan limit (savings × multiplier). Overriding here
+            only affects this group.
+          </p>
+        </CardHeader>
+        <CardContent className="overflow-x-auto p-0">
+          {policyQ.isLoading ? (
+            <div className="p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  {['Tier', 'Min score', 'Loan multiplier', ''].map((h) => (
+                    <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(policyQ.data?.thresholds ?? []).map((t) => {
+                  const edit = policyEdits[t.tier] ?? { min: String(t.min), loanMultiplier: String(t.loanMultiplier) };
+                  return (
+                    <tr key={t.tier} className="border-t hover:bg-muted/20">
+                      <td className="px-4 py-2"><Badge variant={TIER_BADGE[t.tier]}>{TIER_LABEL[t.tier]}</Badge></td>
+                      <td className="px-4 py-2">
+                        <Input
+                          type="number" min={0} max={100} className="h-8 w-24"
+                          value={edit.min}
+                          onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [t.tier]: { ...edit, min: e.target.value } }))}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input
+                          type="number" min={0} step="0.5" className="h-8 w-24"
+                          value={edit.loanMultiplier}
+                          onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [t.tier]: { ...edit, loanMultiplier: e.target.value } }))}
+                        />
+                      </td>
+                      <td />
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+        {policyQ.data && (
+          <div className="flex items-center justify-between px-4 pb-4">
+            <Badge variant={policyQ.data.source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+              {policyQ.data.source === 'group' ? 'Your override' : `Inherited — ${policyQ.data.source}`}
+            </Badge>
+            <Button
+              size="sm" variant="outline" className="h-8 gap-1.5"
+              disabled={Object.keys(policyEdits).length === 0 || setPolicy.isPending}
+              onClick={() => {
+                const merged = (policyQ.data?.thresholds ?? []).map((t) => {
+                  const edit = policyEdits[t.tier];
+                  return edit
+                    ? { tier: t.tier, min: parseFloat(edit.min), loanMultiplier: parseFloat(edit.loanMultiplier) }
+                    : t;
+                });
+                setPolicy.mutate(merged);
+                setPolicyEdits({} as never);
+              }}
+            >
+              <SlidersHorizontal size={13} /> Save policy
+            </Button>
+          </div>
+        )}
+      </Card>
 
       {summary && summary.scoredMembers === 0 && (
         <Card>
