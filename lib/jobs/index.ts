@@ -213,6 +213,17 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── 1st of month 10:00 UTC — per-member account statements ───
+  // A distinct hour from the 08:00 bucket above so this and the
+  // contribution-reminder sweep don't compete within the same tick.
+  if (date === 1 && hour === 10) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.email_member_statements = await safe('email_member_statements', {}, {
+      priority:  2,
+      dedup_key: `email_member_statements:${monthStr}`,
+    });
+  }
+
   return queued;
 }
 

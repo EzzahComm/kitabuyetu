@@ -37,6 +37,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'email_weekly_summary':
       return handleEmailWeeklySummary();
 
+    case 'email_member_statements':
+      return handleEmailMemberStatements();
+
     case 'mpesa_reconcile':
       return handleMpesaReconcile();
 
@@ -137,6 +140,12 @@ async function handleEmailWeeklySummary(): Promise<HandlerResult> {
   const { sendWeeklySummaries } = await import('@/lib/services/report-email.service');
   await sendWeeklySummaries();
   return { message: 'Weekly summaries sent' };
+}
+
+async function handleEmailMemberStatements(): Promise<HandlerResult> {
+  const { sendAllGroupMemberStatements } = await import('@/lib/services/statement-email.service');
+  const result = await sendAllGroupMemberStatements();
+  return { message: `Member statements sent (${result.sent} sent, ${result.skipped} skipped, ${result.groups} groups)`, ...result };
 }
 
 // ── M-Pesa handler ────────────────────────────────────────────

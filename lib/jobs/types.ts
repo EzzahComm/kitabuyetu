@@ -7,6 +7,7 @@ export type JobType =
   | 'email_overdue_invoices'   // Overdue invoice reminders (daily 09:00 UTC)
   | 'email_recurring_invoices' // Process recurring invoices (daily 06:00 UTC)
   | 'email_weekly_summary'     // Member weekly summary (Monday 08:00 UTC)
+  | 'email_member_statements'  // Per-member account statements, all active groups (1st of month, 10:00 UTC)
   | 'mpesa_reconcile'             // Reconcile stuck M-Pesa transactions (every 5 min)
   | 'mpesa_replay_callbacks'      // DLQ replay of unprocessed inbound callbacks (every 5 min)
   | 'mpesa_reconcile_charges'     // Backfill missing B2C charge rows + journals (daily 03:00 UTC)
