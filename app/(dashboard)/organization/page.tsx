@@ -73,6 +73,14 @@ interface ProgramBudgetLine {
   variancePct: number | null; startsOn: string | null; endsOn: string | null;
 }
 
+interface DonorSpendLine {
+  fundingSource: string; programCount: number;
+  totalBudget: number; totalDisbursed: number; totalReserved: number;
+  remaining: number; utilizationPct: number;
+  programs: { id: string; name: string; budget: number; disbursed: number }[];
+  byGroup: { groupId: string; groupName: string | null; amount: number }[];
+}
+
 interface OrgPolicy {
   key: string; threshold: number; source: 'group' | 'organization' | 'platform';
 }
@@ -148,6 +156,12 @@ export default function FundingPortalPage() {
   const { data: budgetReport } = useQuery<{ items: ProgramBudgetLine[] }>({
     queryKey: ['organization', 'budget-report'],
     queryFn:  () => api.get('/organization/programs?report=budget'),
+    staleTime: 30_000,
+  });
+
+  const { data: donorReport } = useQuery<{ items: DonorSpendLine[] }>({
+    queryKey: ['organization', 'donor-report'],
+    queryFn:  () => api.get('/organization/programs?report=donor'),
     staleTime: 30_000,
   });
 
@@ -413,6 +427,67 @@ export default function FundingPortalPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Donor/grant spend report — programs rolled up by funding source */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Donor / grant report</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Programs grouped by funding source, with settled spend broken down
+            by the linked group that received it.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(donorReport?.items ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No funding programs yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {(donorReport?.items ?? []).map((d) => (
+                <div key={d.fundingSource} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="font-medium">{d.fundingSource}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.programCount} program{d.programCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    <div className="flex gap-4 text-sm tabular-nums">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Budget</p>
+                        <p>{formatKES(d.totalBudget)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Disbursed</p>
+                        <p>{formatKES(d.totalDisbursed)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Remaining</p>
+                        <p>{formatKES(d.remaining)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Utilization</p>
+                        <p className="font-medium">{d.utilizationPct.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                  {d.byGroup.length > 0 && (
+                    <div className="mt-2.5 pt-2.5 border-t">
+                      <p className="text-xs text-muted-foreground mb-1.5">Settled spend by recipient group</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {d.byGroup.map((g) => (
+                          <Badge key={g.groupId} variant="secondary" className="font-normal">
+                            {g.groupName ?? 'Unknown group'} · {formatKES(g.amount)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

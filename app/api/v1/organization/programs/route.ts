@@ -10,6 +10,8 @@ import { ok } from '@/lib/utils/response';
  *   ?report=budget — budget variance/utilization report instead (per program:
  *   budget vs disbursed vs reserved-under-approval, plus schedule variance
  *   for dated programs).
+ *   ?report=donor — donor/grant spend report instead (programs rolled up by
+ *   funding_source, with a per-recipient-group settled-spend breakdown).
  * POST /api/v1/organization/programs — create a funding program
  */
 
@@ -35,8 +37,12 @@ const CreateProgramSchema = z.object({
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    if (req.nextUrl.searchParams.get('report') === 'budget') {
+    const report = req.nextUrl.searchParams.get('report');
+    if (report === 'budget') {
       return ok({ items: await organizationFinanceService.programBudgetReport(ctx) });
+    }
+    if (report === 'donor') {
+      return ok({ items: await organizationFinanceService.donorSpendReport(ctx) });
     }
     return ok({ items: await organizationFinanceService.listPrograms(ctx) });
   });

@@ -71,6 +71,18 @@ export interface ProgramBudgetLine {
   endsOn:         string | null;
 }
 
+export interface DonorSpendLine {
+  fundingSource:   string;
+  programCount:    number;
+  totalBudget:     number;
+  totalDisbursed:  number;
+  totalReserved:   number;
+  remaining:       number;
+  utilizationPct:  number;
+  programs:        { id: string; name: string; budget: number; disbursed: number }[];
+  byGroup:         { groupId: string; groupName: string | null; amount: number }[];
+}
+
 export interface OrgDisbursement {
   id:                 string;
   group_id:           string;
@@ -375,6 +387,86 @@ export const organizationFinanceService = {
           startsOn: r.starts_on, endsOn: r.ends_on,
         };
       });
+    });
+  },
+
+  /**
+   * Donor/grant-specific spend report (ACCOUNTING_ARCHITECTURE_AUDIT.md §12 —
+   * "organization_ledger carries funding_program_id and programs carry
+   * funding_source, but no endpoint aggregates spend-by-donor into a report").
+   * Groups every funding program by its (free-text) `funding_source`, rolling
+   * up budget/disbursed/reserved across that donor's programs, plus a
+   * per-recipient-group breakdown of settled disbursements traced through
+   * `organization_ledger` (the only rows carrying both `funding_program_id`
+   * and `group_id`).
+   */
+  async donorSpendReport(ctx: TenantContext): Promise<DonorSpendLine[]> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (db) => {
+      const { rows: programs } = await db.query<{
+        id: string; name: string; funding_source: string | null;
+        budget: string; disbursed_total: string; reserved: string;
+      }>(
+        `SELECT p.id, p.name, p.funding_source,
+                p.budget::text, p.disbursed_total::text,
+                COALESCE(pd.pending, 0)::text AS reserved
+         FROM funding_programs p
+         LEFT JOIN (
+           SELECT funding_program_id, SUM(amount) AS pending
+           FROM organization_disbursements
+           WHERE status = 'pending_approval' AND funding_program_id IS NOT NULL
+           GROUP BY funding_program_id
+         ) pd ON pd.funding_program_id = p.id
+         WHERE p.organization_id = $1
+         ORDER BY p.funding_source NULLS LAST, p.created_at DESC`,
+        [orgId(ctx)],
+      );
+
+      const { rows: byGroupRows } = await db.query<{
+        funding_source: string | null; group_id: string; group_name: string | null; amount: string;
+      }>(
+        `SELECT p.funding_source, l.group_id, g.name AS group_name, SUM(l.amount)::text AS amount
+         FROM organization_ledger l
+         JOIN funding_programs p ON p.id = l.funding_program_id
+         LEFT JOIN groups g ON g.id = l.group_id
+         WHERE l.organization_id = $1 AND l.entry_type = 'disbursement' AND l.direction = 'debit'
+         GROUP BY p.funding_source, l.group_id, g.name`,
+        [orgId(ctx)],
+      );
+
+      const donors = new Map<string, DonorSpendLine>();
+      const bucketOf = (source: string | null): DonorSpendLine => {
+        const key = source ?? 'Unspecified';
+        let d = donors.get(key);
+        if (!d) {
+          d = {
+            fundingSource: key, programCount: 0, totalBudget: 0, totalDisbursed: 0,
+            totalReserved: 0, remaining: 0, utilizationPct: 0, programs: [], byGroup: [],
+          };
+          donors.set(key, d);
+        }
+        return d;
+      };
+
+      for (const p of programs) {
+        const d = bucketOf(p.funding_source);
+        const budget = parseFloat(p.budget), disbursed = parseFloat(p.disbursed_total), reserved = parseFloat(p.reserved);
+        d.programCount   += 1;
+        d.totalBudget    += budget;
+        d.totalDisbursed += disbursed;
+        d.totalReserved  += reserved;
+        d.programs.push({ id: p.id, name: p.name, budget, disbursed });
+      }
+      for (const r of byGroupRows) {
+        bucketOf(r.funding_source).byGroup.push({
+          groupId: r.group_id, groupName: r.group_name, amount: parseFloat(r.amount),
+        });
+      }
+      for (const d of donors.values()) {
+        d.remaining      = d.totalBudget - d.totalDisbursed - d.totalReserved;
+        d.utilizationPct = d.totalBudget > 0 ? ((d.totalDisbursed + d.totalReserved) / d.totalBudget) * 100 : 0;
+      }
+      return Array.from(donors.values()).sort((a, b) => b.totalDisbursed - a.totalDisbursed);
     });
   },
 
