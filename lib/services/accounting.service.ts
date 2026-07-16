@@ -5,6 +5,8 @@ import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/erro
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
 import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
 import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet } from '@/types/api.types';
+import { loadActiveSplitRules } from './contribution-splits.service';
+import { allocateSplit } from '@/lib/utils/split-allocator';
 
 // Standard chart of accounts seeded for every new group
 const DEFAULT_ACCOUNTS = [
@@ -63,7 +65,13 @@ export async function postSystemJournal(
   userId:      string | null,
   description: string,
   lines:       SystemJournalLine[],
-  opts?: { reference?: string; memberId?: string; groupMembershipId?: string },
+  opts?: {
+    reference?: string; memberId?: string; groupMembershipId?: string;
+    /** Defaults to CURRENT_DATE. Pass the source transaction's own date when it has one (e.g. a contribution's contribution_date). */
+    entryDate?: string;
+    /** Tags the entry so sandbox activity never mixes into production reports. Defaults to false. */
+    isTest?: boolean;
+  },
 ): Promise<string | null> {
   const codes = [...new Set(lines.map((l) => l.accountCode))];
   const { rows: accts } = await client.query<{ id: string; account_code: string }>(
@@ -80,9 +88,13 @@ export async function postSystemJournal(
 
   const { rows: je } = await client.query<{ id: string }>(
     `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, member_id, group_membership_id)
-     VALUES ($1, CURRENT_DATE, $2, $3, 'posted', $4, $5, $6) RETURNING id`,
-    [groupId, opts?.reference ?? null, description, userId, opts?.memberId ?? null, opts?.groupMembershipId ?? null],
+       (group_id, entry_date, reference, description, status, created_by, member_id, group_membership_id, is_test, posted_via)
+     VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, 'posted', $5, $6, $7, $8, $9) RETURNING id`,
+    [
+      groupId, opts?.entryDate ?? null, opts?.reference ?? null, description, userId,
+      opts?.memberId ?? null, opts?.groupMembershipId ?? null,
+      opts?.isTest ?? false, userId ? 'user' : 'system',
+    ],
   );
   const jeId = je[0].id;
 
@@ -94,6 +106,222 @@ export async function postSystemJournal(
     );
   }
 
+  return jeId;
+}
+
+// ─── Unified contribution/loan posting (§6/§7 consolidation) ────────────────
+
+/**
+ * Posts a contribution's journal entry, splitting the credit side across
+ * whatever income accounts the group has configured (group_contribution_splits)
+ * — falling back to 100% Member Contributions (4001) when none are set.
+ * Used by BOTH the manual entry path (contributions.service.ts) and every
+ * M-Pesa-driven path (mpesa.service.ts) — previously two independently
+ * written functions of the same name with different behavior (only the
+ * M-Pesa one ran the split engine); this is the single implementation both
+ * now share.
+ *
+ * Bespoke rather than built on postSystemJournal: a missing split-target
+ * account falls back to the default account rather than aborting the whole
+ * posting, which postSystemJournal's all-or-nothing missing-account check
+ * doesn't support.
+ */
+export async function postContributionJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; contributionId: string; amount: number; entryDate: string | Date;
+    reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<string | null> {
+  const cashCode      = '1001';
+  const defaultIncome = '4001';
+
+  const rules       = await loadActiveSplitRules(client, args.groupId);
+  const allocations = allocateSplit(args.amount, rules, defaultIncome);
+  if (allocations.length === 0) return null; // amount <= 0 guard
+
+  const neededCodes = Array.from(new Set([cashCode, ...allocations.map((a) => a.account_code)]));
+  const { rows: accts } = await client.query<{ code: string; id: string }>(
+    `SELECT account_code AS code, id FROM accounts WHERE group_id = $1 AND is_active = true AND account_code = ANY($2)`,
+    [args.groupId, neededCodes],
+  );
+  const idByCode = new Map(accts.map((a) => [a.code, a.id]));
+
+  const cashId = idByCode.get(cashCode);
+  if (!cashId) {
+    logger.warn('[accounting] skipped contribution journal — missing cash account 1001', { groupId: args.groupId });
+    return null;
+  }
+
+  const creditByAccountId = new Map<string, number>();
+  const defaultId = idByCode.get(defaultIncome);
+  for (const alloc of allocations) {
+    const targetId = idByCode.get(alloc.account_code) ?? defaultId;
+    if (!targetId) {
+      logger.warn('[accounting] skipped contribution journal — split target + default both missing', {
+        groupId: args.groupId, code: alloc.account_code,
+      });
+      return null;
+    }
+    creditByAccountId.set(targetId, (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents);
+  }
+
+  // Ledger attribution (§6e): member + membership from the source document.
+  const { rows: jeRows } = await client.query<{ id: string }>(
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
+        posted_via, member_id, group_membership_id)
+     SELECT $1, $2, $3, $4, 'posted', $5, NOW(), $6, $7, c.member_id, c.group_membership_id
+     FROM   contributions c WHERE c.id = $8
+     RETURNING id`,
+    [
+      args.groupId, args.entryDate, args.reference ?? null,
+      `Contribution — ${args.contributionId}`,
+      args.createdBy, args.isTest ?? false, args.createdBy ? 'user' : 'system',
+      args.contributionId,
+    ],
+  );
+  const jeId = jeRows[0]?.id;
+  if (!jeId) return null;
+
+  await client.query(
+    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,$4,0)`,
+    [args.groupId, jeId, cashId, args.amount.toFixed(2)],
+  );
+  for (const [accountId, cents] of creditByAccountId) {
+    await client.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,0,$4)`,
+      [args.groupId, jeId, accountId, (cents / 100).toFixed(2)],
+    );
+  }
+
+  await client.query(`UPDATE contributions SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.contributionId]);
+  return jeId;
+}
+
+/**
+ * Posts a loan disbursement: DR Loans Receivable (principal) [+ DR Admin
+ * Expense (Safaricom fee), when a charge is passed and the expense account
+ * exists] / CR Cash (principal + fee). The manual (cash/bank) path passes no
+ * charge; the B2C path folds in the real Safaricom fee — same posting
+ * mechanics either way, so this is shared rather than duplicated per channel.
+ */
+export async function postLoanDisbursementJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; loanId: string; principal: number; charge?: number;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<{ journalEntryId: string; chargePosted: boolean } | null> {
+  const charge = args.charge ?? 0;
+  const codes  = charge > 0 ? ['1001', '1101', '5001'] : ['1001', '1101'];
+  const { rows: accts } = await client.query<{ code: string; id: string }>(
+    `SELECT account_code AS code, id FROM accounts WHERE group_id = $1 AND is_active = true AND account_code = ANY($2)`,
+    [args.groupId, codes],
+  );
+  const idByCode  = new Map(accts.map((a) => [a.code, a.id]));
+  const cashId    = idByCode.get('1001');
+  const recvId    = idByCode.get('1101');
+  const expenseId = idByCode.get('5001');
+  if (!cashId || !recvId) {
+    logger.warn('[accounting] skipped loan disbursement journal — chart of accounts missing 1001/1101', { groupId: args.groupId });
+    return null;
+  }
+  const postCharge = charge > 0 && !!expenseId;
+  const cashCredit  = postCharge ? args.principal + charge : args.principal;
+
+  const { rows: je } = await client.query<{ id: string }>(
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test, posted_via, member_id, group_membership_id)
+     SELECT $1, $2, $3, $4, 'posted', $5, NOW(), $6, $7, l.member_id, l.group_membership_id
+     FROM   loans l WHERE l.id = $8
+     RETURNING id`,
+    [
+      args.groupId, args.entryDate, args.reference ?? null, `Loan disbursement — ${args.loanId}`,
+      args.createdBy, args.isTest ?? false, args.createdBy ? 'user' : 'system', args.loanId,
+    ],
+  );
+  const jeId = je[0]?.id;
+  if (!jeId) return null;
+
+  await client.query(
+    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
+     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$6)`,
+    [args.groupId, jeId, recvId, args.principal.toFixed(2), cashId, cashCredit.toFixed(2)],
+  );
+  if (postCharge) {
+    await client.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,$4,0)`,
+      [args.groupId, jeId, expenseId, charge.toFixed(2)],
+    );
+  }
+
+  await client.query(`UPDATE loans SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.loanId]);
+  return { journalEntryId: jeId, chargePosted: postCharge };
+}
+
+/**
+ * Posts a loan repayment: DR Cash (full amount received) / CR Loans
+ * Receivable (principal portion) + CR Interest Income (interest portion,
+ * omitted when zero). Callers supply the principal/interest split already
+ * computed — the manual path uses the installment's full scheduled split;
+ * the M-Pesa waterfall path (which can apply a partial amount to an
+ * installment) computes a proportional split so the entry always balances
+ * against the actual cash amount applied.
+ */
+export async function postLoanRepaymentJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; repaymentId: string; loanId: string;
+    principalPortion: number; interestPortion: number;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<string | null> {
+  const cashAmount = args.principalPortion + args.interestPortion;
+  const codes = args.interestPortion > 0 ? ['1001', '1101', '4002'] : ['1001', '1101'];
+  const { rows: accts } = await client.query<{ code: string; id: string }>(
+    `SELECT account_code AS code, id FROM accounts WHERE group_id = $1 AND is_active = true AND account_code = ANY($2)`,
+    [args.groupId, codes],
+  );
+  const idByCode = new Map(accts.map((a) => [a.code, a.id]));
+  const cashId   = idByCode.get('1001');
+  const recvId   = idByCode.get('1101');
+  const intId    = idByCode.get('4002');
+  if (!cashId || !recvId || (args.interestPortion > 0 && !intId)) {
+    logger.warn('[accounting] skipped loan repayment journal — chart of accounts missing 1001/1101/4002', { groupId: args.groupId });
+    return null;
+  }
+
+  const { rows: je } = await client.query<{ id: string }>(
+    `INSERT INTO journal_entries
+       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test, posted_via, member_id, group_membership_id)
+     SELECT $1, $2, $3, $4, 'posted', $5, NOW(), $6, $7, lr.member_id, lr.group_membership_id
+     FROM   loan_repayments lr WHERE lr.id = $8
+     RETURNING id`,
+    [
+      args.groupId, args.entryDate, args.reference ?? null,
+      `Loan repayment — ${args.loanId} #${args.repaymentId}`,
+      args.createdBy, args.isTest ?? false, args.createdBy ? 'user' : 'system', args.repaymentId,
+    ],
+  );
+  const jeId = je[0]?.id;
+  if (!jeId) return null;
+
+  const lines: { accountId: string; debit: number; credit: number }[] = [
+    { accountId: cashId, debit: cashAmount, credit: 0 },
+    { accountId: recvId, debit: 0, credit: args.principalPortion },
+  ];
+  if (args.interestPortion > 0 && intId) {
+    lines.push({ accountId: intId, debit: 0, credit: args.interestPortion });
+  }
+  for (const line of lines) {
+    await client.query(
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,$4,$5)`,
+      [args.groupId, jeId, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2)],
+    );
+  }
+
+  await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.repaymentId]);
   return jeId;
 }
 

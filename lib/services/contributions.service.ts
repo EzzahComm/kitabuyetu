@@ -3,7 +3,7 @@ import { NotFoundError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
-import { accountingService } from './accounting.service';
+import { postContributionJournal } from './accounting.service';
 import { sendContributionConfirmation } from './notification-email.service';
 import { logger } from '@/lib/logger';
 
@@ -122,7 +122,10 @@ export const contributionsService = {
 
       // Auto-post a journal entry when the contribution is completed on creation
       if (contribution.status === 'completed') {
-        await postContributionJournal(client, ctx, contribution);
+        await postContributionJournal(client, {
+          groupId: ctx.groupId, contributionId: contribution.id, amount: parseFloat(contribution.amount),
+          entryDate: contribution.contribution_date, reference: contribution.mpesa_receipt_number, createdBy: ctx.userId,
+        });
       }
 
       return contribution;
@@ -208,7 +211,10 @@ export const contributionsService = {
 
       // Post journal when status transitions to completed
       if (updated.status === 'completed' && prev.status !== 'completed') {
-        await postContributionJournal(client, ctx, updated);
+        await postContributionJournal(client, {
+          groupId: ctx.groupId, contributionId: updated.id, amount: parseFloat(updated.amount),
+          entryDate: updated.contribution_date, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
+        });
       }
 
       return updated;
@@ -227,51 +233,3 @@ export const contributionsService = {
     });
   },
 };
-
-async function postContributionJournal(
-  client: import('pg').PoolClient,
-  ctx: TenantContext,
-  contribution: Contribution,
-): Promise<void> {
-  const { rows: incomeAcct } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts
-     WHERE group_id = $1 AND account_code = '4001' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  const { rows: cashAcct } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts
-     WHERE group_id = $1 AND account_code = '1001' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-
-  if (!incomeAcct[0] || !cashAcct[0]) return;
-
-  // Ledger attribution (§6e): member + membership from the source document.
-  const { rows: je } = await client.query<{ id: string }>(
-    `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by,
-        member_id, group_membership_id)
-     VALUES ($1, $2, $3, $4, 'posted', $5, $6, $7) RETURNING id`,
-    [
-      ctx.groupId,
-      contribution.contribution_date,
-      contribution.mpesa_receipt_number ?? null,
-      `Contribution from member — ${contribution.id}`,
-      ctx.userId,
-      contribution.member_id,
-      contribution.group_membership_id,
-    ],
-  );
-  const jeId = je[0].id;
-
-  await client.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-    [ctx.groupId, jeId, cashAcct[0].id, contribution.amount, incomeAcct[0].id],
-  );
-
-  await client.query(
-    `UPDATE contributions SET journal_entry_id = $1 WHERE id = $2`,
-    [jeId, contribution.id],
-  );
-}

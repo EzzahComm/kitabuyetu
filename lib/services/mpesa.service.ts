@@ -19,10 +19,8 @@ import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/li
 import { normalizeAccountRef, looksLikeMembershipNo, isValidMembershipNo, parseAccountRef, formatMembershipNo, type ProductSuffix } from '@/lib/utils/membership-no';
 import { resolveProduct, type PaymentProduct, type ResolvedProduct } from '@/lib/utils/allocation-engine';
 import { findOpenRequests, fulfilRequest } from './payment-requests.service';
-import { allocateSplit } from '@/lib/utils/split-allocator';
-import { loadActiveSplitRules } from './contribution-splits.service';
 import { assertActiveMembership } from './membership-guard';
-import { postSystemJournal } from './accounting.service';
+import { postSystemJournal, postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
 import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,
@@ -515,12 +513,12 @@ async function applyContributionFromSTK(
   const contributionId = contribRows[0]?.id ?? null;
   if (!contributionId) return; // duplicate — nothing more to do
 
-  // Post the matching journal entry (DR cash / CR member savings).
+  // Post the matching journal entry (DR cash / CR member savings, split
+  // across whatever income accounts the group has configured).
   await postContributionJournal(db, {
-    groupId:        stkReq.group_id,
-    contributionId,
-    amount:         in_.amount,
-    reference:      in_.receipt,
+    groupId: stkReq.group_id, contributionId, amount: in_.amount,
+    entryDate: new Date().toISOString().slice(0, 10), reference: in_.receipt,
+    createdBy: null, isTest: IS_SANDBOX,
   });
 
   // Stamp the back-pointer on the STK request for traceability.
@@ -717,150 +715,11 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
   });
 }
 
-// ─── Journal posting helpers ─────────────────────────────────────────────────
-
-async function postContributionJournal(
-  db:   PoolClient,
-  args: { groupId: string; contributionId: string; amount: number; reference: string },
-): Promise<void> {
-  const cashCode        = '1001';   // Cash:M-Pesa (debit)
-  const defaultIncome   = '4001';   // Member savings / contribution income (credit)
-
-  // Run the split engine. Empty rule set → 100% to defaultIncome.
-  const rules       = await loadActiveSplitRules(db, args.groupId);
-  const allocations = allocateSplit(args.amount, rules, defaultIncome);
-  if (allocations.length === 0) return; // amount <= 0 guard
-
-  // Resolve account ids for cash + every allocation target in one query.
-  const neededCodes = Array.from(new Set([cashCode, ...allocations.map((a) => a.account_code)]));
-  const { rows: accts } = await db.query<{ code: string; id: string }>(
-    `SELECT account_code AS code, id
-     FROM   accounts
-     WHERE  group_id = $1 AND is_active = true
-       AND  account_code = ANY($2)`,
-    [args.groupId, neededCodes],
-  );
-  const idByCode = new Map(accts.map((a) => [a.code, a.id]));
-
-  const cashId = idByCode.get(cashCode);
-  if (!cashId) {
-    logger.warn('[mpesa] skipped contribution journal — missing cash account 1001', {
-      groupId: args.groupId,
-    });
-    return;
-  }
-
-  // Build credit lines. Any allocation targeting a code that doesn't exist in
-  // the chart is redirected to the default income account so the entry still
-  // balances. If the default itself is missing, we can't post — bail.
-  const creditByAccountId = new Map<string, number>();
-  const defaultId = idByCode.get(defaultIncome);
-  for (const alloc of allocations) {
-    const targetId = idByCode.get(alloc.account_code) ?? defaultId;
-    if (!targetId) {
-      logger.warn('[mpesa] skipped contribution journal — split target + default both missing', {
-        groupId: args.groupId, code: alloc.account_code,
-      });
-      return;
-    }
-    creditByAccountId.set(targetId, (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents);
-  }
-
-  // Ledger attribution (§6e): member + membership copied from the source
-  // document; posted_via='system' — this entry is posted by the callback
-  // pipeline, not a signed-in user.
-  const { rows: jeRows } = await db.query<{ id: string }>(
-    `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
-        posted_via, member_id, group_membership_id)
-     SELECT $1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4,
-            'system', c.member_id, c.group_membership_id
-     FROM   contributions c WHERE c.id = $5
-     RETURNING id`,
-    [
-      args.groupId,
-      args.reference,
-      `Contribution (M-Pesa) — ${args.contributionId}`,
-      IS_SANDBOX,
-      args.contributionId,
-    ],
-  );
-  const jeId = jeRows[0].id;
-
-  // Debit cash for the full amount.
-  await db.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0)`,
-    [args.groupId, jeId, cashId, args.amount.toFixed(2)],
-  );
-  // Credit each allocation target.
-  for (const [accountId, cents] of creditByAccountId) {
-    await db.query(
-      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-       VALUES ($1,$2,$3,0,$4)`,
-      [args.groupId, jeId, accountId, (cents / 100).toFixed(2)],
-    );
-  }
-
-  await db.query(
-    `UPDATE contributions SET journal_entry_id=$1 WHERE id=$2`,
-    [jeId, args.contributionId],
-  );
-}
-
-async function postLoanRepaymentJournal(
-  db:   PoolClient,
-  args: { groupId: string; repaymentId: string; loanId: string; amount: number; reference: string },
-): Promise<void> {
-  const cashCode = '1001';
-  const loanRecvCode = '1101';   // Loans Receivable (per default chart, mig 032)
-
-  const { rows: accts } = await db.query<{ code: string; id: string }>(
-    `SELECT account_code AS code, id
-     FROM   accounts
-     WHERE  group_id = $1 AND is_active = true
-       AND  account_code IN ($2, $3)`,
-    [args.groupId, cashCode, loanRecvCode],
-  );
-  const cashId = accts.find((a) => a.code === cashCode)?.id;
-  const recvId = accts.find((a) => a.code === loanRecvCode)?.id;
-  if (!cashId || !recvId) {
-    logger.warn('[mpesa] skipped loan repayment journal — chart of accounts missing 1001/1101', {
-      groupId: args.groupId,
-    });
-    return;
-  }
-
-  // Ledger attribution (§6e): from the repayment row; system-posted.
-  const { rows: jeRows } = await db.query<{ id: string }>(
-    `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
-        posted_via, member_id, group_membership_id)
-     SELECT $1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4,
-            'system', lr.member_id, lr.group_membership_id
-     FROM   loan_repayments lr WHERE lr.id = $5
-     RETURNING id`,
-    [
-      args.groupId,
-      args.reference,
-      `Loan repayment (M-Pesa) — ${args.loanId}`,
-      IS_SANDBOX,
-      args.repaymentId,
-    ],
-  );
-  const jeId = jeRows[0].id;
-
-  await db.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-    [args.groupId, jeId, cashId, args.amount.toFixed(2), recvId],
-  );
-
-  await db.query(
-    `UPDATE loan_repayments SET journal_entry_id=$1 WHERE id=$2`,
-    [jeId, args.repaymentId],
-  );
-}
+// ─── Journal posting ──────────────────────────────────────────────────────────
+// postContributionJournal / postLoanDisbursementJournal / postLoanRepaymentJournal
+// now live in accounting.service.ts, shared with the manual-entry paths in
+// contributions.service.ts / loans.service.ts (ACCOUNTING_ARCHITECTURE_AUDIT.md
+// §6/§7 — these were two independently-written functions of the same name).
 
 // ─── Payment-identifier registry (payment architecture §3.1) ─────────────────
 
@@ -1117,11 +976,12 @@ async function applyPartialRepayment(
   amount:       number,
   receipt:      string,
   stampReceipt: boolean,
-): Promise<{ applied: number; loanId: string } | null> {
+): Promise<{ applied: number; loanId: string; principalPortion: number; interestPortion: number } | null> {
   const { rows } = await db.query<{
     id: string; loan_id: string; total_due: string; amount_paid: string;
+    principal_component: string; interest_component: string;
   }>(
-    `SELECT id, loan_id, total_due, amount_paid
+    `SELECT id, loan_id, total_due, amount_paid, principal_component, interest_component
      FROM   loan_repayments
      WHERE  id = $1 AND status IN ('pending','partially_paid','overdue')
      FOR UPDATE`,
@@ -1148,7 +1008,22 @@ async function applyPartialRepayment(
     [repaymentId, applied.toFixed(2), receipt, stampReceipt],
   );
 
-  return { applied, loanId: row.loan_id };
+  // This installment's cash may be a partial amount (waterfall segments can
+  // split across installments), so the GL split is proportional to this
+  // installment's own scheduled principal:interest ratio — the standard
+  // treatment for a partial payment, and the only way the posted entry can
+  // balance against the actual cash applied rather than the full schedule.
+  const principalComponent = parseFloat(row.principal_component);
+  const interestComponent  = parseFloat(row.interest_component);
+  const scheduledTotal     = principalComponent + interestComponent;
+  const principalPortion   = scheduledTotal > 0 ? round2(applied * (principalComponent / scheduledTotal)) : applied;
+  const interestPortion    = round2(applied - principalPortion);
+
+  return { applied, loanId: row.loan_id, principalPortion, interestPortion };
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 /**
@@ -1174,23 +1049,29 @@ async function applyLoanWaterfall(db: PoolClient, args: DispatchArgs): Promise<v
 
   let remaining = fulfil.amount;
   let stamped   = false; // UNIQUE(mpesa_receipt_number): stamp only the first row
-  const segments: { repaymentId: string; loanId: string; applied: number }[] = [];
+  const segments: { repaymentId: string; loanId: string; applied: number; principalPortion: number; interestPortion: number }[] = [];
 
   for (const r of due) {
     if (remaining < 0.005) break;
     const seg = await applyPartialRepayment(db, r.id, remaining, fulfil.receipt, !stamped);
     if (seg) {
-      segments.push({ repaymentId: r.id, loanId: seg.loanId, applied: seg.applied });
+      segments.push({
+        repaymentId: r.id, loanId: seg.loanId, applied: seg.applied,
+        principalPortion: seg.principalPortion, interestPortion: seg.interestPortion,
+      });
       remaining -= seg.applied;
       stamped = true;
     }
   }
 
-  // Journals per applied segment (DR cash / CR loans receivable).
+  // Journals per applied segment (DR cash / CR loans receivable + CR interest
+  // income, proportional to each installment's own scheduled split).
   for (const seg of segments) {
     await postLoanRepaymentJournal(db, {
-      groupId: args.groupId, repaymentId: seg.repaymentId,
-      loanId: seg.loanId, amount: seg.applied, reference: fulfil.receipt,
+      groupId: args.groupId, repaymentId: seg.repaymentId, loanId: seg.loanId,
+      principalPortion: seg.principalPortion, interestPortion: seg.interestPortion,
+      entryDate: new Date().toISOString().slice(0, 10), reference: fulfil.receipt,
+      createdBy: null, isTest: IS_SANDBOX,
     });
   }
 
@@ -1877,10 +1758,9 @@ async function insertSavingsContribution(
   if (!contributionId) return null;
 
   await postContributionJournal(db, {
-    groupId:        args.groupId,
-    contributionId,
-    amount:         args.amount,
-    reference:      args.receipt,
+    groupId: args.groupId, contributionId, amount: args.amount,
+    entryDate: new Date().toISOString().slice(0, 10), reference: args.receipt,
+    createdBy: null, isTest: IS_SANDBOX,
   });
 
   await db.query(
@@ -2271,10 +2151,9 @@ export async function resolveUnrouted(
     const contributionId = contribRows[0]?.id ?? null;
     if (contributionId) {
       await postContributionJournal(db, {
-        groupId:        ctx.groupId,
-        contributionId,
-        amount,
-        reference:      row.receipt,
+        groupId: ctx.groupId, contributionId, amount,
+        entryDate: new Date().toISOString().slice(0, 10), reference: row.receipt,
+        createdBy: null, isTest: IS_SANDBOX,
       });
 
       // Spine: link + flip unrouted → allocated, attributed to the treasurer.
@@ -2692,74 +2571,14 @@ async function applyLoanDisbursement(
     return;
   }
 
-  // Combined journal (per locked decision):
-  //   DR Loans Receivable (1101)   principal
-  //   DR Admin/Charges Expense     Safaricom fee   (only when charge > 0)
-  //   CR Cash:M-Pesa (1001)        principal + fee
-  const cashCode = '1001';
-  const recvCode = '1101';   // Loans Receivable (per default chart, mig 032)
-
-  const { rows: accts } = await db.query<{ code: string; id: string }>(
-    `SELECT account_code AS code, id
-     FROM   accounts
-     WHERE  group_id = $1 AND is_active = true
-       AND  account_code = ANY($2)`,
-    [args.groupId, [cashCode, recvCode, CHARGE_EXPENSE_CODE]],
-  );
-  const cashId    = accts.find((a) => a.code === cashCode)?.id;
-  const recvId    = accts.find((a) => a.code === recvCode)?.id;
-  const expenseId = accts.find((a) => a.code === CHARGE_EXPENSE_CODE)?.id;
-  if (!cashId || !recvId) {
-    logger.warn('[mpesa] skipped loan disbursement journal — chart of accounts missing 1001/1101', {
-      groupId: args.groupId,
-    });
-    return;
-  }
-
-  // Only fold the charge in if we have an expense account to debit it to.
-  const postCharge = args.charge > 0 && !!expenseId;
-  const cashCredit = postCharge ? args.amount + args.charge : args.amount;
-
-  // Ledger attribution (§6e): borrower from the loan row. Posted by the B2C
-  // result callback (system), though initiated_by is retained in created_by.
-  const { rows: jeRows } = await db.query<{ id: string }>(
-    `INSERT INTO journal_entries
-       (group_id, entry_date, reference, description, status, created_by, posted_at, is_test,
-        posted_via, member_id, group_membership_id)
-     SELECT $1, CURRENT_DATE, $2, $3, 'posted', $4, NOW(), $5,
-            'system', l.member_id, l.group_membership_id
-     FROM   loans l WHERE l.id = $6
-     RETURNING id`,
-    [
-      args.groupId,
-      args.receipt,
-      `Loan disbursement (M-Pesa B2C) — ${args.loanId}`,
-      args.disbursedBy,
-      IS_SANDBOX,
-      args.loanId,
-    ],
-  );
-  const jeId = jeRows[0].id;
-
-  // DR loans receivable (principal) + CR cash (principal + fee)
-  await db.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$6)`,
-    [args.groupId, jeId, recvId, args.amount.toFixed(2), cashId, cashCredit.toFixed(2)],
-  );
-  // DR charges expense (fee)
-  if (postCharge) {
-    await db.query(
-      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-       VALUES ($1,$2,$3,$4,0)`,
-      [args.groupId, jeId, expenseId, args.charge.toFixed(2)],
-    );
-  }
-
-  await db.query(
-    `UPDATE loans SET journal_entry_id = $1 WHERE id = $2`,
-    [jeId, args.loanId],
-  );
+  // DR Loans Receivable (principal) [+ DR charge expense, when foldable] / CR Cash.
+  // Posted by the B2C result callback (system), though initiated_by (disbursedBy)
+  // is retained in created_by.
+  const posted = await postLoanDisbursementJournal(db, {
+    groupId: args.groupId, loanId: args.loanId, principal: args.amount, charge: args.charge,
+    entryDate: new Date().toISOString().slice(0, 10), reference: args.receipt,
+    createdBy: args.disbursedBy, isTest: IS_SANDBOX,
+  });
 
   // Record the fee for reconciliation against the Charges Paid sub-account.
   if (args.charge > 0 && args.mpesaTransactionId) {
@@ -2768,7 +2587,7 @@ async function applyLoanDisbursement(
       mpesaTransactionId: args.mpesaTransactionId,
       chargeType:         'b2c',
       amount:             args.charge,
-      journalEntryId:     postCharge ? jeId : null,
+      journalEntryId:     posted?.chargePosted ? posted.journalEntryId : null,
     });
   }
 }
@@ -3056,10 +2875,9 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
   const contributionId = cRows[0].id;
 
   await postContributionJournal(db, {
-    groupId:        row.group_id,
-    contributionId,
-    amount,
-    reference:      row.checkout_request_id,
+    groupId: row.group_id, contributionId, amount,
+    entryDate: new Date().toISOString().slice(0, 10), reference: row.checkout_request_id,
+    createdBy: null, isTest: IS_SANDBOX,
   });
 
   await db.query(`UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`, [contributionId, row.id]);

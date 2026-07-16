@@ -6,7 +6,10 @@
  * And that netProfit = totalIncome - totalExpenses.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
-import { accountingService, reconcileGLCashToMpesaBalance, postSystemJournal } from '@/lib/services/accounting.service';
+import {
+  accountingService, reconcileGLCashToMpesaBalance, postSystemJournal,
+  postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal,
+} from '@/lib/services/accounting.service';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -251,6 +254,197 @@ describe('postSystemJournal', () => {
     );
     const journalInsert = mockQuery.mock.calls[1];
     expect(journalInsert[1]).toContain(null); // created_by
+  });
+});
+
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §6/§7 — the unified contribution/loan
+// posting functions that replaced the six independently-written raw-SQL
+// implementations across contributions.service.ts, loans.service.ts, and
+// mpesa.service.ts. Highest-risk change of the audit's implementation, since
+// it touches already-working, live money-movement code — covered in detail.
+describe('postContributionJournal', () => {
+  it('posts 100% to the default income account when no split rules are configured', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // loadActiveSplitRules — none configured
+      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '4001', id: 'acct-4001' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
+      .mockResolvedValueOnce({ rows: [] }) // cash debit line
+      .mockResolvedValueOnce({ rows: [] }) // credit line (4001)
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE contributions.journal_entry_id
+
+    const result = await postContributionJournal(mockClient as any, {
+      groupId: 'group-1', contributionId: 'contrib-1', amount: 1000,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBe('je-1');
+    const creditLine = mockQuery.mock.calls[4];
+    expect(creditLine[1]).toEqual(['group-1', 'je-1', 'acct-4001', '1000.00']);
+  });
+
+  it('splits the credit side across configured income accounts', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ account_code: '2101', percentage: '80', fixed_amount: null, priority: 100 }] })
+      .mockResolvedValueOnce({ rows: [
+        { code: '1001', id: 'acct-cash' }, { code: '4001', id: 'acct-4001' }, { code: '2101', id: 'acct-2101' },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postContributionJournal(mockClient as any, {
+      groupId: 'group-1', contributionId: 'contrib-2', amount: 1000,
+      entryDate: '2026-01-15', createdBy: null, isTest: true,
+    });
+
+    expect(result).toBe('je-2');
+    // DR cash 1000 + CR 2101 (800, 80%) + CR 4001 (200, remainder) = 2 credit lines + 1 debit line
+    expect(mockQuery).toHaveBeenCalledTimes(7);
+  });
+
+  it('returns null and does not post when the cash account is missing', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ code: '4001', id: 'acct-4001' }] }); // no 1001
+
+    const result = await postContributionJournal(mockClient as any, {
+      groupId: 'group-1', contributionId: 'contrib-3', amount: 500,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBeNull();
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns null (amount <= 0 guard) after checking split rules but before any posting', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // loadActiveSplitRules
+    const result = await postContributionJournal(mockClient as any, {
+      groupId: 'group-1', contributionId: 'contrib-4', amount: 0,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+    expect(result).toBeNull();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('postLoanDisbursementJournal', () => {
+  it('posts a 2-line entry (no charge)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanDisbursementJournal(mockClient as any, {
+      groupId: 'group-1', loanId: 'loan-1', principal: 50000,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-1', chargePosted: false });
+    const line = mockQuery.mock.calls[2];
+    expect(line[1]).toEqual(['group-1', 'je-1', 'acct-recv', '50000.00', 'acct-cash', '50000.00']);
+  });
+
+  it('folds the Safaricom fee in as a third line when a charge and expense account both exist', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }, { code: '5001', id: 'acct-expense' },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanDisbursementJournal(mockClient as any, {
+      groupId: 'group-1', loanId: 'loan-2', principal: 50000, charge: 55,
+      entryDate: '2026-01-15', createdBy: null, isTest: true,
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-2', chargePosted: true });
+    const principalLine = mockQuery.mock.calls[2];
+    expect(principalLine[1]).toEqual(['group-1', 'je-2', 'acct-recv', '50000.00', 'acct-cash', '50055.00']);
+    const chargeLine = mockQuery.mock.calls[3];
+    expect(chargeLine[1]).toEqual(['group-1', 'je-2', 'acct-expense', '55.00']);
+  });
+
+  it('falls back to principal-only when a charge exists but the expense account does not', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-3' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanDisbursementJournal(mockClient as any, {
+      groupId: 'group-1', loanId: 'loan-3', principal: 50000, charge: 55,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-3', chargePosted: false });
+    expect(mockQuery).toHaveBeenCalledTimes(4); // no third line posted for the fee
+  });
+
+  it('returns null when the chart of accounts is missing 1001/1101', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }] });
+    const result = await postLoanDisbursementJournal(mockClient as any, {
+      groupId: 'group-1', loanId: 'loan-4', principal: 50000,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+    expect(result).toBeNull();
+  });
+});
+
+describe('postLoanRepaymentJournal', () => {
+  it('posts a 3-line entry when there is an interest portion', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }, { code: '4002', id: 'acct-int' },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanRepaymentJournal(mockClient as any, {
+      groupId: 'group-1', repaymentId: 'rep-1', loanId: 'loan-1',
+      principalPortion: 4000, interestPortion: 500,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBe('je-1');
+    expect(mockQuery).toHaveBeenCalledTimes(6); // lookup + insert + 3 lines + update
+    const cashLine = mockQuery.mock.calls[2];
+    expect(cashLine[1]).toEqual(['group-1', 'je-1', 'acct-cash', '4500.00', '0.00']);
+  });
+
+  it('omits the interest line entirely when interestPortion is zero', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanRepaymentJournal(mockClient as any, {
+      groupId: 'group-1', repaymentId: 'rep-2', loanId: 'loan-2',
+      principalPortion: 4500, interestPortion: 0,
+      entryDate: '2026-01-15', createdBy: null, isTest: true,
+    });
+
+    expect(result).toBe('je-2');
+    expect(mockQuery).toHaveBeenCalledTimes(5); // no interest line
+  });
+
+  it('returns null when an interest portion is due but 4002 is missing', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] });
+    const result = await postLoanRepaymentJournal(mockClient as any, {
+      groupId: 'group-1', repaymentId: 'rep-3', loanId: 'loan-3',
+      principalPortion: 4000, interestPortion: 500,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+    expect(result).toBeNull();
   });
 });
 

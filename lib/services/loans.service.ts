@@ -1,6 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
+import { postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -167,7 +168,10 @@ export const loansService = {
       );
 
       // Post disbursement journal
-      await postDisbursementJournal(client, ctx, rows[0]);
+      await postLoanDisbursementJournal(client, {
+        groupId: ctx.groupId, loanId: rows[0].id, principal: parseFloat(rows[0].principal_amount),
+        entryDate: rows[0].disbursement_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
+      });
 
       return rows[0];
     });
@@ -229,74 +233,14 @@ export const loansService = {
       );
 
       // Post repayment journal
-      await postRepaymentJournal(client, ctx, rows[0]);
+      await postLoanRepaymentJournal(client, {
+        groupId: ctx.groupId, repaymentId: rows[0].id, loanId: loanId,
+        principalPortion: parseFloat(rows[0].principal_component), interestPortion: parseFloat(rows[0].interest_component),
+        entryDate: rows[0].payment_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
+      });
 
       return rows[0];
     });
   },
 };
-
-async function postDisbursementJournal(client: import('pg').PoolClient, ctx: TenantContext, loan: Loan): Promise<void> {
-  const { rows: loanReceivable } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts WHERE group_id = $1 AND account_code = '1101' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  const { rows: cashAcct } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts WHERE group_id = $1 AND account_code = '1001' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  if (!loanReceivable[0] || !cashAcct[0]) return;
-
-  const { rows: je } = await client.query<{ id: string }>(
-    `INSERT INTO journal_entries (group_id, entry_date, reference, description, status, created_by)
-     VALUES ($1,$2,$3,$4,'posted',$5) RETURNING id`,
-    [ctx.groupId, loan.disbursement_date!, loan.mpesa_receipt_number, `Loan disbursement — ${loan.id}`, ctx.userId],
-  );
-
-  await client.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-     VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
-    [ctx.groupId, je[0].id, loanReceivable[0].id, loan.principal_amount, cashAcct[0].id],
-  );
-
-  await client.query(`UPDATE loans SET journal_entry_id = $1 WHERE id = $2`, [je[0].id, loan.id]);
-}
-
-async function postRepaymentJournal(client: import('pg').PoolClient, ctx: TenantContext, repayment: LoanRepayment): Promise<void> {
-  const { rows: loanReceivable } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts WHERE group_id = $1 AND account_code = '1101' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  const { rows: cashAcct } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts WHERE group_id = $1 AND account_code = '1001' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  const { rows: interestIncome } = await client.query<{ id: string }>(
-    `SELECT id FROM accounts WHERE group_id = $1 AND account_code = '4002' AND is_active = true LIMIT 1`,
-    [ctx.groupId],
-  );
-  if (!loanReceivable[0] || !cashAcct[0] || !interestIncome[0]) return;
-
-  const totalPaid = parseFloat(repayment.principal_component) + parseFloat(repayment.interest_component);
-  const { rows: je } = await client.query<{ id: string }>(
-    `INSERT INTO journal_entries (group_id, entry_date, reference, description, status, created_by)
-     VALUES ($1,$2,$3,$4,'posted',$5) RETURNING id`,
-    [ctx.groupId, repayment.payment_date!, repayment.mpesa_receipt_number, `Loan repayment — ${repayment.loan_id} #${repayment.installment_number}`, ctx.userId],
-  );
-
-  // DR Cash (total), CR Loans Receivable (principal), CR Interest Income (interest)
-  await client.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES
-     ($1,$2,$3,$4,0),
-     ($1,$2,$5,0,$6),
-     ($1,$2,$7,0,$8)`,
-    [
-      ctx.groupId, je[0].id,
-      cashAcct[0].id,       totalPaid.toFixed(2),
-      loanReceivable[0].id, repayment.principal_component,
-      interestIncome[0].id, repayment.interest_component,
-    ],
-  );
-  await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [je[0].id, repayment.id]);
-}
 

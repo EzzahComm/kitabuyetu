@@ -7,6 +7,7 @@
  */
 import { withTransaction } from '@/lib/db';
 import { contributionsService } from '@/lib/services/contributions.service';
+import { postContributionJournal } from '@/lib/services/accounting.service';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -19,6 +20,7 @@ jest.mock('@/lib/services/accounting.service', () => ({
     createJournalEntry: jest.fn().mockResolvedValue({ id: 'je-1', lines: [] }),
     postJournalEntry:   jest.fn().mockResolvedValue({ id: 'je-1' }),
   },
+  postContributionJournal: jest.fn().mockResolvedValue('je-1'),
 }));
 
 const mockQuery  = jest.fn();
@@ -102,8 +104,6 @@ describe('contributionsService.create', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     // INSERT
     mockQuery.mockResolvedValueOnce({ rows: [completedContribution] });
-    // postContributionJournal — income account, cash account, journal entry, journal lines
-    mockQuery.mockResolvedValue({ rows: [{ id: 'acct-1' }] });
 
     const result = await contributionsService.create(ctx, {
       ...baseContributionInput,
@@ -112,6 +112,11 @@ describe('contributionsService.create', () => {
     });
 
     expect(result.status).toBe('completed');
+    // Posting is delegated to the shared accounting.service function, not
+    // reimplemented locally (ACCOUNTING_ARCHITECTURE_AUDIT.md §6 consolidation).
+    expect(postContributionJournal).toHaveBeenCalledWith(mockClient, expect.objectContaining({
+      groupId: 'grp-1', contributionId: 'c-2', amount: 1000,
+    }));
   });
 });
 
