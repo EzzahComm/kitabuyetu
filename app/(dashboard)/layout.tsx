@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
+import { CommandPalette } from '@/components/layout/command-palette';
 import { useAuth, isBackofficeUser } from '@/lib/auth/context';
 import { configureApiClient } from '@/lib/api/client';
 
@@ -50,6 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      <CommandPalette />
     </div>
   );
 }
