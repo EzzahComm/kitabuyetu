@@ -104,6 +104,27 @@ describe('getProfitAndLoss', () => {
     expect(result.period.from).toBe('2025-04-01');
     expect(result.period.to).toBe('2025-06-30');
   });
+
+  // ACCOUNTING_ARCHITECTURE_AUDIT.md §17/§19 — this query used to put its
+  // status/date filter inside the journal_entries LEFT JOIN's ON clause,
+  // which does not exclude jl rows from the SUM (only nulls je's own
+  // columns) — silently summing every line ever posted for an account,
+  // any status, any period. Pin both fixes so neither regresses:
+  //  1. FILTER (WHERE je.status='posted' AND je.entry_date BETWEEN ...)
+  //     actually gates the SUM.
+  //  2. A redundant jl.entry_date predicate exists so the new
+  //     idx_journal_lines_account_entry_date index can be used.
+  it('filters posted status and period via FILTER, not the join condition, and predicates jl.entry_date directly', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await accountingService.getProfitAndLoss(ctx, '2025-04-01', '2025-06-30');
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toMatch(/SUM\(jl\.debit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/);
+    expect(sql).toMatch(/SUM\(jl\.credit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/);
+    expect(sql).toContain('jl.entry_date BETWEEN $2 AND $3');
+    // journal_entries join must carry no status/date condition of its own anymore.
+    expect(sql).toMatch(/LEFT JOIN journal_entries je ON je\.id = jl\.journal_entry_id\s+WHERE/);
+  });
 });
 
 // ACCOUNTING_ARCHITECTURE_AUDIT.md §15 — manual journal maker-checker.

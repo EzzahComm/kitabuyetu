@@ -545,15 +545,27 @@ export const accountingService = {
            -- Expense accounts are debit-normal: debit - credit gives positive balance.
            -- Using the correct sign per account type so both totals are positive numbers,
            -- and netProfit = totalIncome - totalExpenses is computed correctly.
+           --
+           -- FILTER (not a condition on the je join) is required here: a condition
+           -- in the journal_entries join's ON clause only decides whether je's own
+           -- columns come back null on an unmatched jl row — it does not remove
+           -- that jl row's debit/credit from the SUM. Putting status/date in the
+           -- join condition (as this query used to) silently summed every line
+           -- ever posted for the account, any status, any period, into whatever
+           -- period was requested. FILTER is what getBalanceSheet/getCashFlowStatement/
+           -- getEquityChanges below already use correctly.
            CASE WHEN a.type = 'expense'
-             THEN COALESCE(SUM(jl.debit) - SUM(jl.credit), 0)
-             ELSE COALESCE(SUM(jl.credit) - SUM(jl.debit), 0)
+             THEN COALESCE(
+               SUM(jl.debit)  FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3)
+             - SUM(jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)
+             ELSE COALESCE(
+               SUM(jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3)
+             - SUM(jl.debit)  FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)
            END::text AS total
          FROM accounts a
          LEFT JOIN journal_lines jl ON jl.account_id = a.id
+           AND jl.entry_date BETWEEN $2 AND $3
          LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-           AND je.status = 'posted'
-           AND je.entry_date BETWEEN $2 AND $3
          WHERE a.group_id = $1 AND a.type IN ('income','expense') AND a.is_active = true
          GROUP BY a.account_code, a.name, a.type
          ORDER BY a.account_code`,
@@ -596,6 +608,7 @@ export const accountingService = {
            END::text AS balance
          FROM accounts a
          LEFT JOIN journal_lines jl ON jl.account_id = a.id
+           AND jl.entry_date <= $2
          LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.type IN ('asset','liability','equity') AND a.is_active = true
          GROUP BY a.account_code, a.name, a.type
@@ -651,12 +664,14 @@ export const accountingService = {
          WHERE a.group_id = $1
            AND je.status = 'posted'
            AND je.entry_date BETWEEN $2 AND $3
+           AND jl.entry_date BETWEEN $2 AND $3
            AND a.account_code <> ALL($4)
            AND jl.journal_entry_id IN (
              SELECT jl2.journal_entry_id
              FROM journal_lines jl2
              JOIN accounts a2 ON a2.id = jl2.account_id
              WHERE a2.group_id = $1 AND a2.account_code = ANY($4)
+               AND jl2.entry_date BETWEEN $2 AND $3
            )
          GROUP BY a.account_code, a.name, a.type
          HAVING ABS(SUM(jl.credit - jl.debit)) > 0.005
@@ -671,7 +686,8 @@ export const accountingService = {
          FROM journal_lines jl
          JOIN accounts a         ON a.id  = jl.account_id
          JOIN journal_entries je ON je.id = jl.journal_entry_id
-         WHERE a.group_id = $1 AND a.account_code = ANY($4) AND je.status = 'posted'`,
+         WHERE a.group_id = $1 AND a.account_code = ANY($4) AND je.status = 'posted'
+           AND jl.entry_date <= $3`,
         [ctx.groupId, from, to, CASH_CODES],
       );
 
@@ -728,6 +744,7 @@ export const accountingService = {
             COALESCE(SUM(jl.debit)  FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)::text AS decreases
          FROM accounts a
          LEFT JOIN journal_lines jl ON jl.account_id = a.id
+           AND jl.entry_date <= $3
          LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.type = 'equity' AND a.is_active = true
          GROUP BY a.account_code, a.name
@@ -743,7 +760,8 @@ export const accountingService = {
          JOIN accounts a         ON a.id  = jl.account_id
          JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.type IN ('income','expense')
-           AND je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3`,
+           AND je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3
+           AND jl.entry_date BETWEEN $2 AND $3`,
         [ctx.groupId, from, to],
       );
 
