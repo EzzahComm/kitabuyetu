@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAccounts, useJournals, useTrialBalance, useProfitAndLoss, useBalanceSheet, useCreateJournal, useFiscalPeriods, useClosePeriod, useReopenPeriod, useApprovalPolicies, useSetApprovalPolicy, usePostingTemplates, useSetPostingTemplate, useCashFlow, useEquityChanges } from '@/hooks/use-accounting';
 import { useLoanPolicy, useSetLoanPolicy } from '@/hooks/use-loans';
 import { useFinePolicy, useSetFinePolicy } from '@/hooks/use-fines';
+import { useSavingsPolicy, useSetSavingsPolicy } from '@/hooks/use-contributions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -459,6 +460,7 @@ export default function AccountingPage() {
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <LoanTermsCard />
             <FineScheduleCard />
+            <SavingsPolicyCard />
           </div>
 
           <div className="mt-4">
@@ -799,6 +801,92 @@ function LoanTermsCard() {
                     });
                     setEdits(null);
                     toast({ title: 'Loan terms updated' });
+                  } catch (err: any) {
+                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  }
+                }}
+              >
+                <SlidersHorizontal size={13}/> Set override
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Group savings limits (SavingsPolicy 'limits'). Unlike LoanTermsCard/
+ * FineScheduleCard, there is no retired group_constitutions column behind
+ * this — §22 found min/max contribution and grace period simply didn't
+ * exist as a feature. Advisory only: pre-fills/annotates the contribution
+ * form; contributions.service.ts's create() is unchanged and still accepts
+ * any positive amount.
+ */
+function SavingsPolicyCard() {
+  const { toast } = useToast();
+  const { data, isLoading } = useSavingsPolicy();
+  const save = useSetSavingsPolicy();
+  const [edits, setEdits] = useState<Record<string, string> | null>(null);
+
+  const limits = (data as any)?.limits;
+  const source = (data as any)?.source;
+  const form = edits ?? (limits ? {
+    minContribution: String(limits.minContribution),
+    maxContribution: limits.maxContribution === null ? '' : String(limits.maxContribution),
+    gracePeriodDays: String(limits.gracePeriodDays),
+  } : null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Savings limits</CardTitle>
+          {source && (
+            <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
+              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Guidance shown on the contribution form. Advisory — treasurers can
+          still record any positive amount.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label>Min contribution (KES)</Label>
+                <Input type="number" min={0} step="0.01" value={form.minContribution}
+                  onChange={(e) => setEdits({ ...form, minContribution: e.target.value })}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Max contribution (KES)</Label>
+                <Input type="number" min={0} step="0.01" placeholder="No maximum" value={form.maxContribution}
+                  onChange={(e) => setEdits({ ...form, maxContribution: e.target.value })}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Grace period (days)</Label>
+                <Input type="number" min={0} step="1" value={form.gracePeriodDays}
+                  onChange={(e) => setEdits({ ...form, gracePeriodDays: e.target.value })}/>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                size="sm" variant="outline" className="gap-1.5"
+                disabled={!edits || save.isPending}
+                onClick={async () => {
+                  try {
+                    await save.mutateAsync({
+                      minContribution: parseFloat(form.minContribution),
+                      maxContribution: form.maxContribution === '' ? null : parseFloat(form.maxContribution),
+                      gracePeriodDays: parseInt(form.gracePeriodDays, 10),
+                    });
+                    setEdits(null);
+                    toast({ title: 'Savings limits updated' });
                   } catch (err: any) {
                     toast({ variant: 'destructive', title: 'Failed', description: err.message });
                   }

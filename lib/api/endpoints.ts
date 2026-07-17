@@ -105,6 +105,10 @@ export const contributionsApi = {
     api.patch<unknown>(`/contributions/${id}`, body),
   delete:  (id: string) =>
     api.delete<void>(`/contributions/${id}`),
+  policy: () =>
+    api.get<unknown>('/contributions/policy'),
+  setPolicy: (body: unknown) =>
+    api.put<unknown>('/contributions/policy', body),
 };
 
 // ------------------------------------------------------------------

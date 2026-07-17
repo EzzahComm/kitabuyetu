@@ -29,3 +29,19 @@ export function useRecordContribution() {
     onSuccess:  () => qc.invalidateQueries({ queryKey: contributionKeys.all }),
   });
 }
+
+/** Effective group savings limits (advisory min/max/grace period for the contribution form). */
+export function useSavingsPolicy() {
+  return useQuery({
+    queryKey: [...contributionKeys.all, 'policy'],
+    queryFn:  () => contributionsApi.policy(),
+  });
+}
+
+export function useSetSavingsPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => contributionsApi.setPolicy(body),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: [...contributionKeys.all, 'policy'] }),
+  });
+}

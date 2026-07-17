@@ -9,7 +9,7 @@ import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useContributions, useRecordContribution } from '@/hooks/use-contributions';
+import { useContributions, useRecordContribution, useSavingsPolicy } from '@/hooks/use-contributions';
 import { useMembers } from '@/hooks/use-members';
 import { api } from '@/lib/api/client';
 import { FileText } from 'lucide-react';
@@ -46,6 +46,8 @@ export default function ContributionsPage() {
   } = useMembers({ limit: 100, status: 'active' });
   const memberOptions = membersData?.items ?? [];
   const record = useRecordContribution();
+  const { data: savingsPolicy } = useSavingsPolicy();
+  const limits = (savingsPolicy as any)?.limits;
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -145,6 +147,12 @@ export default function ContributionsPage() {
                 <Label>Amount (KES)</Label>
                 <Input type="number" step="0.01" {...register('amount')} />
                 {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
+                {!errors.amount && limits && (limits.minContribution > 0 || limits.maxContribution !== null) && (
+                  <p className="text-xs text-muted-foreground">
+                    Group guidance: {formatKES(limits.minContribution)}
+                    {limits.maxContribution !== null ? ` – ${formatKES(limits.maxContribution)}` : '+'}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Payment method</Label>

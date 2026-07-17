@@ -31,6 +31,14 @@ export const ContributionQuerySchema = z.object({
   sortDir:   z.enum(['asc', 'desc']).default('desc'),
 });
 
+// SavingsPolicy 'limits' — advisory min/max/grace period (migration 092).
+export const SetSavingsLimitsSchema = z.object({
+  minContribution: z.coerce.number().min(0),
+  maxContribution: z.coerce.number().positive().nullable(),
+  gracePeriodDays: z.coerce.number().int().min(0),
+});
+
 export type CreateContributionInput = z.infer<typeof CreateContributionSchema>;
 export type UpdateContributionInput = z.infer<typeof UpdateContributionSchema>;
 export type ContributionQueryInput  = z.infer<typeof ContributionQuerySchema>;
+export type SetSavingsLimitsInput   = z.infer<typeof SetSavingsLimitsSchema>;
