@@ -14,13 +14,10 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 
-jest.mock('@/lib/services/accounting.service', () => ({
+jest.mock('@/lib/services/posting-templates.service', () => ({
+  postTemplatedJournal:        jest.fn().mockResolvedValue('je-writeoff-1'),
   postLoanDisbursementJournal: jest.fn(),
   postLoanRepaymentJournal:    jest.fn(),
-}));
-
-jest.mock('@/lib/services/posting-templates.service', () => ({
-  postTemplatedJournal: jest.fn().mockResolvedValue('je-writeoff-1'),
 }));
 
 const mockQuery  = jest.fn();

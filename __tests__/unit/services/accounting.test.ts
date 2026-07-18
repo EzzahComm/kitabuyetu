@@ -8,7 +8,7 @@
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import {
   accountingService, reconcileGLCashToMpesaBalance, postSystemJournal,
-  postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal,
+  postContributionJournal,
 } from '@/lib/services/accounting.service';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 
@@ -350,124 +350,9 @@ describe('postContributionJournal', () => {
   });
 });
 
-describe('postLoanDisbursementJournal', () => {
-  it('posts a 2-line entry (no charge)', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await postLoanDisbursementJournal(mockClient as any, {
-      groupId: 'group-1', loanId: 'loan-1', principal: 50000,
-      entryDate: '2026-01-15', createdBy: 'user-1',
-    });
-
-    expect(result).toEqual({ journalEntryId: 'je-1', chargePosted: false });
-    const line = mockQuery.mock.calls[2];
-    expect(line[1]).toEqual(['group-1', 'je-1', 'acct-recv', '50000.00', 'acct-cash', '50000.00']);
-  });
-
-  it('folds the Safaricom fee in as a third line when a charge and expense account both exist', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }, { code: '5001', id: 'acct-expense' },
-      ] })
-      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await postLoanDisbursementJournal(mockClient as any, {
-      groupId: 'group-1', loanId: 'loan-2', principal: 50000, charge: 55,
-      entryDate: '2026-01-15', createdBy: null, isTest: true,
-    });
-
-    expect(result).toEqual({ journalEntryId: 'je-2', chargePosted: true });
-    const principalLine = mockQuery.mock.calls[2];
-    expect(principalLine[1]).toEqual(['group-1', 'je-2', 'acct-recv', '50000.00', 'acct-cash', '50055.00']);
-    const chargeLine = mockQuery.mock.calls[3];
-    expect(chargeLine[1]).toEqual(['group-1', 'je-2', 'acct-expense', '55.00']);
-  });
-
-  it('falls back to principal-only when a charge exists but the expense account does not', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'je-3' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await postLoanDisbursementJournal(mockClient as any, {
-      groupId: 'group-1', loanId: 'loan-3', principal: 50000, charge: 55,
-      entryDate: '2026-01-15', createdBy: 'user-1',
-    });
-
-    expect(result).toEqual({ journalEntryId: 'je-3', chargePosted: false });
-    expect(mockQuery).toHaveBeenCalledTimes(4); // no third line posted for the fee
-  });
-
-  it('returns null when the chart of accounts is missing 1001/1101', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }] });
-    const result = await postLoanDisbursementJournal(mockClient as any, {
-      groupId: 'group-1', loanId: 'loan-4', principal: 50000,
-      entryDate: '2026-01-15', createdBy: 'user-1',
-    });
-    expect(result).toBeNull();
-  });
-});
-
-describe('postLoanRepaymentJournal', () => {
-  it('posts a 3-line entry when there is an interest portion', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }, { code: '4002', id: 'acct-int' },
-      ] })
-      .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await postLoanRepaymentJournal(mockClient as any, {
-      groupId: 'group-1', repaymentId: 'rep-1', loanId: 'loan-1',
-      principalPortion: 4000, interestPortion: 500,
-      entryDate: '2026-01-15', createdBy: 'user-1',
-    });
-
-    expect(result).toBe('je-1');
-    expect(mockQuery).toHaveBeenCalledTimes(6); // lookup + insert + 3 lines + update
-    const cashLine = mockQuery.mock.calls[2];
-    expect(cashLine[1]).toEqual(['group-1', 'je-1', 'acct-cash', '4500.00', '0.00']);
-  });
-
-  it('omits the interest line entirely when interestPortion is zero', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await postLoanRepaymentJournal(mockClient as any, {
-      groupId: 'group-1', repaymentId: 'rep-2', loanId: 'loan-2',
-      principalPortion: 4500, interestPortion: 0,
-      entryDate: '2026-01-15', createdBy: null, isTest: true,
-    });
-
-    expect(result).toBe('je-2');
-    expect(mockQuery).toHaveBeenCalledTimes(5); // no interest line
-  });
-
-  it('returns null when an interest portion is due but 4002 is missing', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '1101', id: 'acct-recv' }] });
-    const result = await postLoanRepaymentJournal(mockClient as any, {
-      groupId: 'group-1', repaymentId: 'rep-3', loanId: 'loan-3',
-      principalPortion: 4000, interestPortion: 500,
-      entryDate: '2026-01-15', createdBy: 'user-1',
-    });
-    expect(result).toBeNull();
-  });
-});
+// postLoanDisbursementJournal / postLoanRepaymentJournal moved to
+// posting-templates.service.ts (§29.9 second rollout) — their tests moved
+// to posting-templates.service.test.ts alongside them.
 
 // ACCOUNTING_ARCHITECTURE_AUDIT.md §16 — GL-to-real-cash reconciliation.
 describe('reconcileGLCashToMpesaBalance', () => {

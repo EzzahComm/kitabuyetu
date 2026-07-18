@@ -18,11 +18,29 @@
  * override from ever unbalancing an entry: balance comes from the role
  * structure (e.g. gross = net + tax), which no override can touch.
  *
- * NOT yet migrated to templates: the contribution/loan posting functions in
- * accounting.service.ts — those carry per-line member splits and repayment
- * waterfalls whose line COUNT varies per transaction, which needs the fuller
- * engine §29.9 describes. This proves the mechanism on every fixed-shape
- * event first.
+ * Second rollout: loan disbursement/repayment (postLoanDisbursementJournal/
+ * postLoanRepaymentJournal, moved here from accounting.service.ts — they now
+ * belong here, not in the lower-level posting primitive that file hosts).
+ * These turned out to be bounded, conditional-shape (2-3 lines each), not
+ * truly variable — unlike contribution splits (accounting.service.ts's
+ * postContributionJournal), whose credit-line count is genuinely unbounded
+ * (one per distinct account a group's active group_contribution_splits rows
+ * resolve to). Contribution splits stay OUT of this engine deliberately:
+ * group_contribution_splits already gives groups equivalent per-tenant
+ * configurability today, just via its own dedicated table rather than this
+ * generic one, and forcing an unbounded line count into this engine's fixed
+ * (side, amount-role) shape would need new repeating-line-group machinery
+ * this round doesn't build.
+ *
+ * Loan disbursement's one wrinkle: today, if a charge is passed but the fee
+ * account doesn't exist in a group's chart, posting silently drops just the
+ * fee and still posts principal/cash — this engine's postSystemJournal is
+ * all-or-nothing (any missing referenced account aborts the whole entry).
+ * postLoanDisbursementJournal below preserves the fallback itself (checking
+ * the *resolved* charge-role account before deciding whether to pass a zero
+ * charge amount) rather than adding an "optional line" concept to the core
+ * engine — buildTemplateLines already drops zero-amount lines, so no engine
+ * change was needed once the wrapper does that check tenant-aware.
  */
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -41,7 +59,9 @@ export type PostingEvent =
   | 'dividend_declaration'
   | 'dividend_payment'
   | 'subscription_payment'
-  | 'loan_writeoff';
+  | 'loan_writeoff'
+  | 'loan_disbursement'
+  | 'loan_repayment';
 
 export interface TemplateLine {
   accountCode: string;
@@ -91,6 +111,22 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
   loan_writeoff: { lines: [
     { accountCode: '5004', side: 'debit',  amount: 'outstanding' },
     { accountCode: '1101', side: 'credit', amount: 'outstanding' },
+  ]},
+  // Today's single combined "CR cash principal+charge" line becomes two
+  // separate lines (principal-credit, charge-credit) here, both to 1001 —
+  // legal (no per-entry uniqueness constraint on account) and nets to the
+  // identical account balance, just one more row in the journal detail view.
+  loan_disbursement: { lines: [
+    { accountCode: '1101', side: 'debit',  amount: 'principal' },
+    { accountCode: '1001', side: 'credit', amount: 'principal' },
+    { accountCode: '5001', side: 'debit',  amount: 'charge' },
+    { accountCode: '1001', side: 'credit', amount: 'charge' },
+  ]},
+  loan_repayment: { lines: [
+    { accountCode: '1001', side: 'debit',  amount: 'principal' },
+    { accountCode: '1101', side: 'credit', amount: 'principal' },
+    { accountCode: '1001', side: 'debit',  amount: 'interest' },
+    { accountCode: '4002', side: 'credit', amount: 'interest' },
   ]},
 };
 
@@ -159,6 +195,109 @@ export async function postTemplatedJournal(
   if (lines.length === 0) return null;
   const { invert: _invert, ...journalOpts } = opts ?? {};
   return postSystemJournal(client, groupId, userId, description, lines, journalOpts);
+}
+
+const toDateString = (d: string | Date): string => typeof d === 'string' ? d : d.toISOString().slice(0, 10);
+
+/**
+ * Posts a loan disbursement: DR Loans Receivable (principal) [+ DR fee
+ * expense (Safaricom charge), when a charge is passed and the resolved
+ * template's charge-role account exists] / CR Cash (principal [+ charge]).
+ * Moved here from accounting.service.ts (§29.9 second rollout — see file
+ * header) so the account mapping is template-driven rather than hardcoded.
+ *
+ * Preserves the pre-templating fallback: postSystemJournal is all-or-nothing
+ * (any missing referenced account aborts the whole entry), which would turn
+ * "posts principal-only when the fee account is missing" into "doesn't post
+ * at all." Checking the resolved charge-role account here and zeroing the
+ * charge amount when it's missing gets the same graceful degradation via
+ * buildTemplateLines' existing zero-amount-drops-the-line behavior — no
+ * change to the shared engine needed.
+ */
+export async function postLoanDisbursementJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; loanId: string; principal: number; charge?: number;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<{ journalEntryId: string; chargePosted: boolean } | null> {
+  const charge = args.charge ?? 0;
+  const template = await resolvePostingTemplate(client, 'loan_disbursement', { groupId: args.groupId });
+
+  let postCharge = charge > 0;
+  if (postCharge) {
+    const chargeCodes = [...new Set(
+      template.lines.filter((l) => l.amount === 'charge').map((l) => l.accountCode),
+    )];
+    const { rows } = await client.query<{ account_code: string }>(
+      `SELECT account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
+      [args.groupId, chargeCodes],
+    );
+    postCharge = rows.length === chargeCodes.length;
+  }
+
+  const lines = buildTemplateLines(template, { principal: args.principal, charge: postCharge ? charge : 0 });
+  if (lines.length === 0) return null;
+
+  const { rows: loanRows } = await client.query<{ member_id: string | null; group_membership_id: string | null }>(
+    `SELECT member_id, group_membership_id FROM loans WHERE id = $1`, [args.loanId],
+  );
+
+  const jeId = await postSystemJournal(
+    client, args.groupId, args.createdBy, `Loan disbursement — ${args.loanId}`, lines,
+    {
+      reference:         args.reference ?? undefined,
+      memberId:          loanRows[0]?.member_id ?? undefined,
+      groupMembershipId: loanRows[0]?.group_membership_id ?? undefined,
+      entryDate:         toDateString(args.entryDate),
+      isTest:            args.isTest,
+    },
+  );
+  if (!jeId) return null;
+
+  await client.query(`UPDATE loans SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.loanId]);
+  return { journalEntryId: jeId, chargePosted: postCharge };
+}
+
+/**
+ * Posts a loan repayment: DR Cash (full amount received) / CR Loans
+ * Receivable (principal portion) + CR Interest Income (interest portion,
+ * omitted when zero). Moved here from accounting.service.ts (§29.9 second
+ * rollout). Needs no fallback wrinkle like disbursement's: today, a missing
+ * interest account with a nonzero interest portion already aborts the whole
+ * entry, which is exactly postSystemJournal's default all-or-nothing
+ * behavior — a clean drop-in.
+ */
+export async function postLoanRepaymentJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; repaymentId: string; loanId: string;
+    principalPortion: number; interestPortion: number;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<string | null> {
+  const template = await resolvePostingTemplate(client, 'loan_repayment', { groupId: args.groupId });
+  const lines = buildTemplateLines(template, { principal: args.principalPortion, interest: args.interestPortion });
+  if (lines.length === 0) return null;
+
+  const { rows: repaymentRows } = await client.query<{ member_id: string | null; group_membership_id: string | null }>(
+    `SELECT member_id, group_membership_id FROM loan_repayments WHERE id = $1`, [args.repaymentId],
+  );
+
+  const jeId = await postSystemJournal(
+    client, args.groupId, args.createdBy, `Loan repayment — ${args.loanId} #${args.repaymentId}`, lines,
+    {
+      reference:         args.reference ?? undefined,
+      memberId:          repaymentRows[0]?.member_id ?? undefined,
+      groupMembershipId: repaymentRows[0]?.group_membership_id ?? undefined,
+      entryDate:         toDateString(args.entryDate),
+      isTest:            args.isTest,
+    },
+  );
+  if (!jeId) return null;
+
+  await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.repaymentId]);
+  return jeId;
 }
 
 /**

@@ -1,8 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
-import { postTemplatedJournal } from './posting-templates.service';
+import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,

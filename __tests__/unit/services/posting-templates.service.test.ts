@@ -7,6 +7,7 @@ import { resolvePolicy, resolvePolicyDetailed, setPolicy } from '@/lib/services/
 import { postSystemJournal } from '@/lib/services/accounting.service';
 import {
   buildTemplateLines, postTemplatedJournal, postingTemplatesService,
+  postLoanDisbursementJournal, postLoanRepaymentJournal,
   DEFAULT_TEMPLATES, POSTING_EVENTS, type TemplateLine,
 } from '@/lib/services/posting-templates.service';
 import { ValidationError } from '@/lib/utils/errors';
@@ -109,6 +110,153 @@ describe('postTemplatedJournal', () => {
     );
     expect(jeId).toBeNull();
     expect(postSystemJournal).not.toHaveBeenCalled();
+  });
+});
+
+// Moved from accounting.test.ts along with the functions themselves (§29.9
+// second rollout). postSystemJournal is fully mocked here (see top of file),
+// so these tests exercise postLoanDisbursementJournal/postLoanRepaymentJournal's
+// own logic (template resolution, the charge-account existence check, member/
+// membership lookup) rather than postSystemJournal's internals, which have
+// their own coverage in this file's 'postTemplatedJournal' block.
+describe('postLoanDisbursementJournal', () => {
+  it('posts a 2-line entry (no charge)', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_disbursement);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ member_id: 'mem-1', group_membership_id: 'gm-1' }] }) // member lookup
+      .mockResolvedValueOnce({ rows: [] }); // final UPDATE
+
+    const result = await postLoanDisbursementJournal(mockClient as never, {
+      groupId: 'group-1', loanId: 'loan-1', principal: 50000,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-1', chargePosted: false });
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'group-1', 'user-1', 'Loan disbursement — loan-1',
+      [{ accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 }],
+      { reference: undefined, memberId: 'mem-1', groupMembershipId: 'gm-1', entryDate: '2026-01-15', isTest: undefined },
+    );
+  });
+
+  it('folds the fee in when a charge is passed and the charge-role account exists', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_disbursement);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] }) // charge-account check
+      .mockResolvedValueOnce({ rows: [{ member_id: null, group_membership_id: null }] })
+      .mockResolvedValueOnce({ rows: [] });
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-2');
+
+    const result = await postLoanDisbursementJournal(mockClient as never, {
+      groupId: 'group-1', loanId: 'loan-2', principal: 50000, charge: 55,
+      entryDate: '2026-01-15', createdBy: null, isTest: true,
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-2', chargePosted: true });
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'group-1', null, 'Loan disbursement — loan-2',
+      [
+        { accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 },
+        { accountCode: '5001', debit: 55 },    { accountCode: '1001', credit: 55 },
+      ],
+      { reference: undefined, memberId: undefined, groupMembershipId: undefined, entryDate: '2026-01-15', isTest: true },
+    );
+  });
+
+  it('falls back to principal-only when a charge exists but its account is missing from the chart', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_disbursement);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ account_code: '1001' }] }) // 5001 missing from the charge-role check
+      .mockResolvedValueOnce({ rows: [{ member_id: 'mem-3', group_membership_id: null }] })
+      .mockResolvedValueOnce({ rows: [] });
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-3');
+
+    const result = await postLoanDisbursementJournal(mockClient as never, {
+      groupId: 'group-1', loanId: 'loan-3', principal: 50000, charge: 55,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toEqual({ journalEntryId: 'je-3', chargePosted: false });
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'group-1', 'user-1', 'Loan disbursement — loan-3',
+      [{ accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 }],
+      expect.objectContaining({ memberId: 'mem-3' }),
+    );
+  });
+
+  it('returns null when postSystemJournal cannot post (e.g. 1001/1101 missing from the chart)', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_disbursement);
+    mockQuery.mockResolvedValueOnce({ rows: [{ member_id: null, group_membership_id: null }] });
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce(null);
+
+    const result = await postLoanDisbursementJournal(mockClient as never, {
+      groupId: 'group-1', loanId: 'loan-4', principal: 50000,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBeNull();
+    // No UPDATE issued after a null journal — only the member-lookup query ran.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('postLoanRepaymentJournal', () => {
+  it('posts a 4-line entry when there is an interest portion (principal + interest cash lines, both to 1001)', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_repayment);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ member_id: 'mem-1', group_membership_id: 'gm-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await postLoanRepaymentJournal(mockClient as never, {
+      groupId: 'group-1', repaymentId: 'rep-1', loanId: 'loan-1',
+      principalPortion: 4000, interestPortion: 500,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBe('je-1');
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'group-1', 'user-1', 'Loan repayment — loan-1 #rep-1',
+      [
+        { accountCode: '1001', debit: 4000 }, { accountCode: '1101', credit: 4000 },
+        { accountCode: '1001', debit: 500 },  { accountCode: '4002', credit: 500 },
+      ],
+      { reference: undefined, memberId: 'mem-1', groupMembershipId: 'gm-1', entryDate: '2026-01-15', isTest: undefined },
+    );
+  });
+
+  it('omits the interest lines entirely when interestPortion is zero', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_repayment);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ member_id: null, group_membership_id: null }] })
+      .mockResolvedValueOnce({ rows: [] });
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-2');
+
+    const result = await postLoanRepaymentJournal(mockClient as never, {
+      groupId: 'group-1', repaymentId: 'rep-2', loanId: 'loan-2',
+      principalPortion: 4500, interestPortion: 0,
+      entryDate: '2026-01-15', createdBy: null, isTest: true,
+    });
+
+    expect(result).toBe('je-2');
+    expect(postSystemJournal).toHaveBeenCalledWith(
+      mockClient, 'group-1', null, 'Loan repayment — loan-2 #rep-2',
+      [{ accountCode: '1001', debit: 4500 }, { accountCode: '1101', credit: 4500 }],
+      expect.anything(),
+    );
+  });
+
+  it('returns null when an interest portion is due but postSystemJournal cannot post (e.g. 4002 missing)', async () => {
+    (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.loan_repayment);
+    mockQuery.mockResolvedValueOnce({ rows: [{ member_id: null, group_membership_id: null }] });
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce(null);
+
+    const result = await postLoanRepaymentJournal(mockClient as never, {
+      groupId: 'group-1', repaymentId: 'rep-3', loanId: 'loan-3',
+      principalPortion: 4000, interestPortion: 500,
+      entryDate: '2026-01-15', createdBy: 'user-1',
+    });
+
+    expect(result).toBeNull();
   });
 });
 

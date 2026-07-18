@@ -20,8 +20,8 @@ import { normalizeAccountRef, looksLikeMembershipNo, isValidMembershipNo, parseA
 import { resolveProduct, type PaymentProduct, type ResolvedProduct } from '@/lib/utils/allocation-engine';
 import { findOpenRequests, fulfilRequest } from './payment-requests.service';
 import { assertActiveMembership } from './membership-guard';
-import { postContributionJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './accounting.service';
-import { postTemplatedJournal } from './posting-templates.service';
+import { postContributionJournal } from './accounting.service';
+import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
 import { notifyMember } from './notifications.service';
 import {
   initiateStkPush    as _stkPush,

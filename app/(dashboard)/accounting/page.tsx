@@ -615,6 +615,8 @@ const POSTING_EVENT_LABELS: Record<string, string> = {
   dividend_payment:          'Dividend payment',
   subscription_payment:      'Platform subscription payment',
   loan_writeoff:             'Loan write-off',
+  loan_disbursement:         'Loan disbursement',
+  loan_repayment:            'Loan repayment',
 };
 
 interface TemplateLineUI { accountCode: string; side: 'debit' | 'credit'; amount: string }
