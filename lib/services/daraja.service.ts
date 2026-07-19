@@ -202,21 +202,44 @@ function originatorId(): string {
 // dropped before it can flip any money state. Safaricom echoes query strings
 // on Result/Timeout URLs unmodified, so this survives the round trip.
 const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
-if (!IS_SANDBOX && !CALLBACK_TOKEN) {
-  throw new Error(
-    '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C ' +
-    'Result/Timeout callbacks would carry no authenticity token.',
-  );
+
+// Deliberately NOT thrown at module scope: this file is imported by every
+// route that transitively references daraja.service.ts, and Next.js
+// evaluates each route's module graph during the build's page-data
+// collection — a module-scope throw here fails the ENTIRE build (every
+// route, not just the B2C ones) whenever MPESA_ENV=production is set
+// without MPESA_CALLBACK_TOKEN, rather than just refusing the specific
+// operation that would be insecure. Called instead at the top of the two
+// functions that actually touch the token, so the guarantee (never
+// register or accept an unauthenticated B2C callback in production) still
+// holds at the only times it needs to.
+function assertCallbackTokenConfigured(): void {
+  if (!IS_SANDBOX && !CALLBACK_TOKEN) {
+    throw new Error(
+      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C ' +
+      'Result/Timeout callbacks would carry no authenticity token.',
+    );
+  }
 }
 
 function withCallbackToken(url: string): string {
+  assertCallbackTokenConfigured();
   if (!CALLBACK_TOKEN) return url; // sandbox without a token configured
   return `${url}&token=${encodeURIComponent(CALLBACK_TOKEN)}`;
 }
 
-/** True when `token` (from the callback request's query string) matches the configured secret. */
+/**
+ * True when `token` (from the callback request's query string) matches the
+ * configured secret. Deliberately returns false — not a throw — when
+ * production is misconfigured (no MPESA_CALLBACK_TOKEN): the caller
+ * (app/api/v1/mpesa/b2c/route.ts) acks and logs a warning either way, so it
+ * never leaks a misconfiguration to whoever sent the callback, but it must
+ * never treat an unauthenticated request as valid just because the secret
+ * wasn't set up.
+ */
 export function isValidCallbackToken(token: string | null): boolean {
-  if (!CALLBACK_TOKEN) return true; // not configured (sandbox) — nothing to check
+  if (!IS_SANDBOX && !CALLBACK_TOKEN) return false; // production misconfiguration — never trust
+  if (!CALLBACK_TOKEN) return true; // sandbox only, no token configured — nothing to check
   if (!token) return false;
   // Constant-time: hash both sides first so differing lengths don't short-circuit.
   const a = crypto.createHash('sha256').update(token).digest();
