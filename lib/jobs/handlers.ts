@@ -73,6 +73,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'gl_cash_reconciliation':
       return handleGLCashReconciliation();
 
+    case 'journal_lines_partition_maintenance':
+      return handleJournalLinesPartitionMaintenance();
+
     case 'cleanup_expired_tokens':
       return handleCleanupExpiredTokens();
 
@@ -235,6 +238,15 @@ async function handleGLCashReconciliation(): Promise<HandlerResult> {
     stale_snapshot:  `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
   }[result.status];
   return { message, ...result };
+}
+
+async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> {
+  const { ensureJournalLinesPartitions } = await import('@/lib/services/journal-lines-partitions.service');
+  const result = await ensureJournalLinesPartitions();
+  return {
+    message: `journal_lines partitions ensured through 3 months ahead (${result.created.length} checked)`,
+    ...result,
+  };
 }
 
 // ── Cleanup handler ───────────────────────────────────────────

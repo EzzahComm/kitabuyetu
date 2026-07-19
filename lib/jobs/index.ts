@@ -213,6 +213,18 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── 1st of month 09:00 UTC — journal_lines partition maintenance ──
+  // Ensures monthly partitions exist 3 months ahead (ACCOUNTING_ARCHITECTURE_
+  // AUDIT.md §17/§19, migrations 094/095). A distinct hour from the 08:00
+  // and 10:00 buckets so nothing competes within the same tick.
+  if (date === 1 && hour === 9) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.journal_lines_partition_maintenance = await safe('journal_lines_partition_maintenance', {}, {
+      priority:  4,
+      dedup_key: `journal_lines_partition_maintenance:${monthStr}`,
+    });
+  }
+
   // ── 1st of month 10:00 UTC — per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
