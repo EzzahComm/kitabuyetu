@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import type { PaginatedResult } from '@/types/db.types';
 
 interface Declaration {
   id: string;
@@ -29,7 +30,6 @@ interface Declaration {
   total_paid: string;
   declared_at: string;
 }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 interface ShareClass { id: string; name: string; code: string }
 
 const fmtMoney = (v: string | number | null | undefined) =>
@@ -66,9 +66,9 @@ export default function DividendsPage() {
   const qc        = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const listQ = useQuery<Paged<Declaration>>({
+  const listQ = useQuery<PaginatedResult<Declaration>>({
     queryKey: ['dividends', 'list'],
-    queryFn:  () => api.get<Paged<Declaration>>('/dividends?limit=50'),
+    queryFn:  () => api.get<PaginatedResult<Declaration>>('/dividends?limit=50'),
   });
   const classesQ = useQuery<{ items: ShareClass[] }>({
     queryKey: ['share-classes', 'active'],

@@ -14,13 +14,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
+import type { PaginatedResult } from '@/types/db.types';
 
 interface Unrouted {
   id: string; receipt: string; phone: string; amount: string;
   bill_ref: string | null; reason: string; created_at: string;
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 
 const REASON_LABEL: Record<string, string> = {
   unknown_prefix:   'Unknown account format',
@@ -44,9 +44,9 @@ export default function UnroutedPage() {
     queryKey: ['mpesa', 'unrouted'],
     queryFn:  () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
   });
-  const { data: membersData } = useQuery<Paged<MemberRow>>({
+  const { data: membersData } = useQuery<PaginatedResult<MemberRow>>({
     queryKey: ['mpesa', 'unrouted', 'members'],
-    queryFn:  () => api.get<Paged<MemberRow>>('/members?status=active&limit=200'),
+    queryFn:  () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
     enabled:  !!active,
   });
 

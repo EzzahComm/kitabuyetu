@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
+import type { PaginatedResult } from '@/types/db.types';
 
 interface MpesaTxn {
   id:                   string;
@@ -25,7 +26,6 @@ interface MpesaTxn {
   created_at:           string;
   completed_at:         string | null;
 }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 
 const TYPES   = ['', 'stk_push', 'c2b', 'b2c', 'b2b', 'reversal', 'balance_query', 'transaction_status'];
 const STATUSES = ['', 'initiated', 'pending', 'completed', 'failed', 'timeout', 'cancelled', 'reversed'];
@@ -51,9 +51,9 @@ export default function MpesaPage() {
   if (status) qs.set('status', status);
   if (phone)  qs.set('phone', phone);
 
-  const { data, isLoading, refetch, isFetching } = useQuery<Paged<MpesaTxn>>({
+  const { data, isLoading, refetch, isFetching } = useQuery<PaginatedResult<MpesaTxn>>({
     queryKey: ['mpesa', 'transactions', page, type, status, phone],
-    queryFn:  () => api.get<Paged<MpesaTxn>>(`/mpesa/transactions?${qs.toString()}`),
+    queryFn:  () => api.get<PaginatedResult<MpesaTxn>>(`/mpesa/transactions?${qs.toString()}`),
   });
 
   const columns = [

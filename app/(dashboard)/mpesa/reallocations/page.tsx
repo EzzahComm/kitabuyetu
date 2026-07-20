@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
+import type { PaginatedResult } from '@/types/db.types';
 
 interface ReallocRow {
   id: string; status: 'pending_approval' | 'executed' | 'rejected';
@@ -35,7 +36,6 @@ interface ContributionRow {
   mpesa_receipt_number: string | null; contribution_date: string;
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 
 const STATUS_BADGE: Record<ReallocRow['status'], { label: string; variant: 'warning' | 'success' | 'destructive' }> = {
   pending_approval: { label: 'Awaiting approval', variant: 'warning' },
@@ -55,18 +55,18 @@ export default function ReallocationsPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy]                 = useState(false);
 
-  const { data, isLoading } = useQuery<Paged<ReallocRow>>({
+  const { data, isLoading } = useQuery<PaginatedResult<ReallocRow>>({
     queryKey: ['mpesa', 'reallocations'],
-    queryFn:  () => api.get<Paged<ReallocRow>>('/mpesa/reallocations?limit=50'),
+    queryFn:  () => api.get<PaginatedResult<ReallocRow>>('/mpesa/reallocations?limit=50'),
   });
-  const { data: contribData } = useQuery<Paged<ContributionRow>>({
+  const { data: contribData } = useQuery<PaginatedResult<ContributionRow>>({
     queryKey: ['mpesa', 'reallocations', 'contributions'],
-    queryFn:  () => api.get<Paged<ContributionRow>>('/contributions?limit=100'),
+    queryFn:  () => api.get<PaginatedResult<ContributionRow>>('/contributions?limit=100'),
     enabled:  creating,
   });
-  const { data: membersData } = useQuery<Paged<MemberRow>>({
+  const { data: membersData } = useQuery<PaginatedResult<MemberRow>>({
     queryKey: ['mpesa', 'reallocations', 'members'],
-    queryFn:  () => api.get<Paged<MemberRow>>('/members?status=active&limit=200'),
+    queryFn:  () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
     enabled:  creating,
   });
 

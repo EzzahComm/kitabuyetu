@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
+import type { PaginatedResult } from '@/types/db.types';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -52,8 +53,6 @@ interface ShareTxn {
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
 
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
-
 const fmtMoney = (v: string | number | null | undefined) => {
   const n = Number(v ?? 0);
   return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(n);
@@ -82,13 +81,13 @@ export default function SharesPage() {
     queryKey: ['shares', 'classes'],
     queryFn:  () => api.get<{ items: ShareClass[] }>('/share-classes?active=true'),
   });
-  const holdingsQ = useQuery<Paged<Holding>>({
+  const holdingsQ = useQuery<PaginatedResult<Holding>>({
     queryKey: ['shares', 'holdings'],
-    queryFn:  () => api.get<Paged<Holding>>('/shares/holdings?limit=50'),
+    queryFn:  () => api.get<PaginatedResult<Holding>>('/shares/holdings?limit=50'),
   });
-  const ledgerQ   = useQuery<Paged<ShareTxn>>({
+  const ledgerQ   = useQuery<PaginatedResult<ShareTxn>>({
     queryKey: ['shares', 'ledger'],
-    queryFn:  () => api.get<Paged<ShareTxn>>('/shares/transactions?limit=50'),
+    queryFn:  () => api.get<PaginatedResult<ShareTxn>>('/shares/transactions?limit=50'),
   });
 
   const onTxnCreated = async () => {

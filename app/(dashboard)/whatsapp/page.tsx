@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import type { PaginatedResult } from '@/types/db.types';
 
 type Status = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'dry_run';
 
@@ -32,7 +33,6 @@ interface WhatsAppMessage {
   member_first_name: string | null; member_last_name: string | null;
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 
 const STATUS_BADGE: Record<Status, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
   pending:   'secondary',
@@ -63,14 +63,14 @@ export default function WhatsAppPage() {
     queryFn:  () => api.get<{ configured: boolean }>('/whatsapp/status'),
     staleTime: 60_000,
   });
-  const membersQ = useQuery<Paged<MemberRow>>({
+  const membersQ = useQuery<PaginatedResult<MemberRow>>({
     queryKey: ['whatsapp', 'members'],
-    queryFn:  () => api.get<Paged<MemberRow>>('/members?status=active&limit=200'),
+    queryFn:  () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
     staleTime: 60_000,
   });
-  const logQ = useQuery<Paged<WhatsAppMessage>>({
+  const logQ = useQuery<PaginatedResult<WhatsAppMessage>>({
     queryKey: ['whatsapp', 'log'],
-    queryFn:  () => api.get<Paged<WhatsAppMessage>>('/whatsapp/messages?limit=50'),
+    queryFn:  () => api.get<PaginatedResult<WhatsAppMessage>>('/whatsapp/messages?limit=50'),
   });
 
   const members = membersQ.data?.items ?? [];

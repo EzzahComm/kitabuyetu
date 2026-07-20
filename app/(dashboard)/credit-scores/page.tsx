@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import type { PaginatedResult } from '@/types/db.types';
 
 type Tier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
@@ -26,7 +27,6 @@ interface Summary {
   averageOverall: string;
   byTier: Record<Tier, number>;
 }
-interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 interface TierThreshold { tier: Tier; min: number; loanMultiplier: number }
 interface TierPolicy { thresholds: TierThreshold[]; source: 'group' | 'organization' | 'platform' }
 
@@ -57,9 +57,9 @@ export default function CreditScoresPage() {
     queryKey: ['credit-scores', 'summary'],
     queryFn:  () => api.get<Summary>('/credit-scores/summary'),
   });
-  const listQ = useQuery<Paged<CreditScore>>({
+  const listQ = useQuery<PaginatedResult<CreditScore>>({
     queryKey: ['credit-scores', 'list'],
-    queryFn:  () => api.get<Paged<CreditScore>>('/credit-scores?limit=100'),
+    queryFn:  () => api.get<PaginatedResult<CreditScore>>('/credit-scores?limit=100'),
   });
   const policyQ = useQuery<TierPolicy>({
     queryKey: ['credit-scores', 'policy'],
