@@ -1,47 +1,77 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext } from '@/lib/auth/middleware';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { withAuth, withOneOf } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { launchCampaign } from '@/lib/services/campaign.service';
+import { ok } from '@/lib/utils/response';
+import { NotFoundError } from '@/lib/utils/errors';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const ActionSchema = z.object({ action: z.enum(['launch', 'cancel']) });
+
+type Ctx = { params: Promise<{ id: string }> };
+
+/**
+ * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 — GET previously had no auth
+ * check at all (any caller who knew/guessed a campaign UUID could read its
+ * full recipient list, including email addresses), and POST checked auth
+ * but never verified the campaign belonged to the caller's own group. Both
+ * are now scoped to `auth.groupId` like every other tenant route, except
+ * for `super_admin` which (matching analytics/route.ts's existing
+ * precedent) can see/manage any group's campaigns.
+ */
+export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const { rows } = await withAdminDb((db) =>
-    db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [id]),
-  );
-  if (!rows.length) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+  return withAuth(req, async (auth) => {
+    const scoped = auth.role !== 'super_admin';
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        scoped
+          ? `SELECT * FROM email_campaigns WHERE id = $1 AND group_id = $2`
+          : `SELECT * FROM email_campaigns WHERE id = $1`,
+        scoped ? [id, auth.groupId] : [id],
+      ),
+    );
+    if (!rows.length) throw new NotFoundError('Campaign', id);
 
-  const { rows: recipients } = await withAdminDb((db) =>
-    db.query(
-      `SELECT id, email, name, status, sent_at, opened_at, error_message
-       FROM email_campaign_recipients WHERE campaign_id = $1 ORDER BY created_at`,
-      [id],
-    ),
-  );
+    const { rows: recipients } = await withAdminDb((db) =>
+      db.query(
+        `SELECT id, email, name, status, sent_at, opened_at, error_message
+         FROM email_campaign_recipients WHERE campaign_id = $1 ORDER BY created_at`,
+        [id],
+      ),
+    );
 
-  return NextResponse.json({ success: true, data: { ...rows[0], recipients } });
+    return ok({ ...rows[0], recipients });
+  });
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const auth = await getAuthContext(req);
-  if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+    const { action } = ActionSchema.parse(await req.json());
 
-  const body = await req.json() as { action: string };
+    const scoped = auth.role !== 'super_admin';
+    const { rows: owned } = await withAdminDb((db) =>
+      db.query(
+        scoped
+          ? `SELECT id FROM email_campaigns WHERE id = $1 AND group_id = $2`
+          : `SELECT id FROM email_campaigns WHERE id = $1`,
+        scoped ? [id, auth.groupId] : [id],
+      ),
+    );
+    if (!owned.length) throw new NotFoundError('Campaign', id);
 
-  if (body.action === 'launch') {
-    await launchCampaign(id);
-    return NextResponse.json({ success: true, message: 'Campaign launched' });
-  }
+    if (action === 'launch') {
+      await launchCampaign(id);
+      return ok({ message: 'Campaign launched' });
+    }
 
-  if (body.action === 'cancel') {
     await withAdminDb((db) =>
       db.query(
         `UPDATE email_campaigns SET status='cancelled' WHERE id=$1 AND status IN ('draft','scheduled')`,
         [id],
       ),
     );
-    return NextResponse.json({ success: true, message: 'Campaign cancelled' });
-  }
-
-  return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
+    return ok({ message: 'Campaign cancelled' });
+  });
 }
