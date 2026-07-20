@@ -3,16 +3,18 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import { Activity, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
+// this page's initial bundle; it's only needed once history has >1 point.
+const ScoreHistoryChart = dynamic(() => import('./_charts').then((m) => m.ScoreHistoryChart), { ssr: false });
 
 type Tier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
@@ -189,20 +191,7 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
           <CardHeader><CardTitle className="text-base">Score history</CardTitle></CardHeader>
           <CardContent>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[...history].reverse().map((h) => ({
-                  date:     new Date(h.computed_at).toLocaleDateString(),
-                  overall:  Number(h.overall_score),
-                  financial: Number(h.financial_score),
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="overall"  stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} name="Overall" />
-                  <Line type="monotone" dataKey="financial" stroke="#2563eb" strokeWidth={1.5} dot={false} name="Financial" />
-                </LineChart>
-              </ResponsiveContainer>
+              <ScoreHistoryChart history={history} />
             </div>
           </CardContent>
         </Card>

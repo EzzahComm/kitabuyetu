@@ -28,6 +28,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 import { signMfaChallenge } from '@/lib/auth/jwt';
 import {
   generateTotpSecret, buildOtpAuthQrCode,
@@ -43,8 +44,10 @@ import type {
   AdminLoginEnrollmentChallenge, AdminLoginMfaChallenge, AdminLoginResult,
 } from '@/types/api.types';
 
-const MAX_ATTEMPTS    = parseInt(process.env.MAX_LOGIN_ATTEMPTS    ?? '5',  10);
-const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
+// OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
+// identical comment; this used to disagree with the validated schema default.
+const MAX_ATTEMPTS    = env.MAX_LOGIN_ATTEMPTS;
+const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 
 const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { useMembers, useCreateMember } from '@/hooks/use-members';
+import { useMembers, useCreateMember, memberKeys } from '@/hooks/use-members';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -18,7 +18,6 @@ import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { membersApi } from '@/lib/api/endpoints';
-import { memberKeys } from '@/hooks/use-members';
 
 // ─── Constants mirrored from validators/member.schema.ts ────────────────────
 const MEMBER_STATUSES = [

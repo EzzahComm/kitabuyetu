@@ -54,10 +54,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       processed,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 — no longer echoes the raw
+    // error message to the caller; still fully logged server-side.
     logger.error('[workers/cron] Error:', err);
     return NextResponse.json(
-      { success: false, error: message, timestamp: new Date().toISOString() },
+      { success: false, error: 'Internal error', timestamp: new Date().toISOString() },
       { status: 500 },
     );
   }

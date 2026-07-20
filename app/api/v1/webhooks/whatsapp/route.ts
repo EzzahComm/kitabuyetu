@@ -64,9 +64,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       logger.warn('[whatsapp.webhook] signature verification failed');
       return new NextResponse('Invalid signature', { status: 401 });
     }
+  } else if (env.NODE_ENV === 'production') {
+    // OPTIMIZATION_CLEANUP_AUDIT.md High #7 — this used to only warn and
+    // accept the unsigned callback in every environment, including
+    // production. Fail closed in prod, matching the Resend/SendGrid
+    // webhooks right next to this one; still soft-warn in dev/staging so
+    // local testing works without a secret configured.
+    logger.error('[whatsapp.webhook] rejecting callback: WHATSAPP_APP_SECRET not set');
+    return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 503 });
   } else {
-    // Soft warn so dev/staging works without a secret, prod ops can see.
-    logger.warn('[whatsapp.webhook] WHATSAPP_APP_SECRET not set — accepting unsigned callback');
+    logger.warn('[whatsapp.webhook] WHATSAPP_APP_SECRET not set — accepting unsigned callback (dev only)');
   }
 
   let payload: WaWebhookPayload;

@@ -1,5 +1,4 @@
-import type { MemberRole, PlatformRole } from '@/types/enums';
-import { ROLE_HIERARCHY } from '@/types/enums';
+import { ROLE_HIERARCHY, type MemberRole, type PlatformRole } from '@/types/enums';
 import { ForbiddenError } from '@/lib/utils/errors';
 
 type AnyRole = MemberRole | PlatformRole;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { useContributions, useRecordContribution, useSavingsPolicy } from '@/hooks/use-contributions';
 import { useMembers } from '@/hooks/use-members';
 import { api } from '@/lib/api/client';
-import { FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

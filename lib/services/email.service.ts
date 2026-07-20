@@ -1,9 +1,8 @@
-import { sendEmailWithFallback } from '@/lib/email/provider';
+import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
 import { renderTemplate, interpolate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { enqueue } from '@/lib/queue';
 import { withAdminDb } from '@/lib/db';
-import type { EmailPayload, EmailResult } from '@/lib/email/provider';
 
 export interface SendTemplatedOptions {
   templateKey: string;

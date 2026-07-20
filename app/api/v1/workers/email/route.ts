@@ -1,52 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dequeue, requeueWithBackoff, moveToDeadLetter, QUEUES } from '@/lib/queue';
-import { sendTemplatedEmail } from '@/lib/services/email.service';
-import { processCampaignJob } from '@/lib/services/campaign.service';
-import type { Job } from '@/lib/queue';
+import crypto from 'crypto';
+import { env } from '@/lib/env';
+import { drainEmailQueues } from '@/lib/services/email-queue-worker.service';
 
-// Called by cron (e.g. every 1 minute). Processes up to 20 jobs per invocation.
+// OPTIMIZATION_CLEANUP_AUDIT.md Critical #3 — this check used to be
+// conditional (`if (workerSecret) {...}`), meaning it was skipped entirely
+// if WORKER_SECRET was ever unset, leaving this route unauthenticated. Now
+// fail-closed and timing-safe, matching workers/cron's pattern exactly —
+// WORKER_SECRET is a required (non-optional) var in lib/env.ts's schema, so
+// it's already guaranteed present in any correctly-validated deployment.
+function timingSafeEqual(a: string, b: string): boolean {
+  const ha = crypto.createHash('sha256').update(a).digest();
+  const hb = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
+function isAuthorised(req: NextRequest): boolean {
+  const authHeader = req.headers.get('authorization') ?? '';
+  if (!authHeader.startsWith('Bearer ')) return false;
+  return timingSafeEqual(authHeader.slice(7), env.WORKER_SECRET);
+}
+
+// Manual/emergency trigger only — the real schedule is the
+// `email_queue_drain` job (lib/jobs), which runs every 5 minutes via the
+// confirmed-live Supabase pg_cron → POST /api/cron path (OPTIMIZATION_
+// CLEANUP_AUDIT.md Medium #30). Kept for local dev and CI smoke tests.
 export async function POST(req: NextRequest) {
-  const workerSecret = process.env.WORKER_SECRET;
-  if (workerSecret) {
-    const authHeader = req.headers.get('authorization') ?? '';
-    if (authHeader !== `Bearer ${workerSecret}`) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+  if (!isAuthorised(req)) {
+    return NextResponse.json({ success: false, error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
   }
 
-  const queues = [QUEUES.EMAIL_HIGH, QUEUES.EMAIL_SEND, QUEUES.EMAIL_BILLING, QUEUES.EMAIL_LOW, QUEUES.EMAIL_SCHEDULED];
-  let processed = 0;
-  let failed    = 0;
-
-  for (const queue of queues) {
-    const jobs = await dequeue(queue, 5);
-
-    for (const job of jobs as Job<Record<string, unknown>>[]) {
-      try {
-        if (job.data.type === 'campaign') {
-          await processCampaignJob(job.data as never);
-        } else if (job.data.type === 'templated') {
-          await sendTemplatedEmail({
-            templateKey: String(job.data.templateKey ?? ''),
-            to:          String(job.data.to ?? ''),
-            vars:        (job.data.vars ?? {}) as Record<string, string>,
-            groupId:     job.data.groupId ? String(job.data.groupId) : null,
-            userId:      job.data.userId  ? String(job.data.userId)  : undefined,
-            referenceId:   job.data.referenceId   ? String(job.data.referenceId)   : undefined,
-            referenceType: job.data.referenceType ? String(job.data.referenceType) : undefined,
-          });
-        }
-        processed++;
-      } catch (err) {
-        failed++;
-        if (job.attempts < job.maxAttempts - 1) {
-          await requeueWithBackoff(job);
-        } else {
-          await moveToDeadLetter(job, err instanceof Error ? err.message : String(err));
-        }
-      }
-    }
-  }
-
+  const { processed, failed } = await drainEmailQueues();
   return NextResponse.json({ success: true, processed, failed });
 }

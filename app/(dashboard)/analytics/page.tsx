@@ -2,11 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts';
 import {
   Activity, AlertTriangle, BarChart2, Coins, Download, Heart, Landmark,
   Loader2, ReceiptText, TrendingUp, Users, Vault,
@@ -20,7 +17,13 @@ import {
 import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import { useToast } from '@/hooks/use-toast';
-import { chartPalette, chartTheme, tone, brandNavy, brandOrange } from '@/lib/ui/tokens';
+
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
+// this page's initial bundle; it's only needed once the summary loads.
+const ContributionsChart = dynamic(() => import('./_charts').then((m) => m.ContributionsChart), { ssr: false });
+const RepaymentsChart    = dynamic(() => import('./_charts').then((m) => m.RepaymentsChart),    { ssr: false });
+const PortfolioDonutChart = dynamic(() => import('./_charts').then((m) => m.PortfolioDonutChart), { ssr: false });
+const CreditTierChart    = dynamic(() => import('./_charts').then((m) => m.CreditTierChart),    { ssr: false });
 
 type Period = '30d' | '90d' | '12mo' | 'all';
 type Tier   = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
@@ -60,19 +63,6 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: '12mo', label: 'Last 12 months' },
   { value: 'all',  label: 'All time' },
 ];
-
-// Semantic tier colours, sourced from the design tokens (not loose hex).
-const TIER_COLOR: Record<Tier, string> = {
-  excellent: tone.positive.solid,
-  good:      brandNavy[500],
-  fair:      tone.warning.solid,
-  poor:      brandOrange[500],
-  high_risk: tone.negative.solid,
-};
-const TIER_LABEL: Record<Tier, string> = {
-  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
-};
-const PORTFOLIO_COLORS = [chartPalette[0], chartPalette[1], chartPalette[2]];
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('12mo');
@@ -193,18 +183,7 @@ export default function AnalyticsPage() {
                   {s.contributions.monthlyBuckets.length === 0 ? (
                     <EmptyChart label="No contributions in this period" />
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={s.contributions.monthlyBuckets.map((b) => ({
-                        bucket: fmtBucket(b.bucket, s.grain),
-                        amount: Number(b.amount),
-                      }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
-                        <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
-                        <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-                        <Line type="monotone" dataKey="amount" stroke={tone.positive.solid} strokeWidth={2} dot={{ r: 3 }} name="Amount" />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <ContributionsChart buckets={s.contributions.monthlyBuckets} grain={s.grain} />
                   )}
                 </div>
               </CardContent>
@@ -217,18 +196,7 @@ export default function AnalyticsPage() {
                   {s.loans.monthlyRepayments.length === 0 ? (
                     <EmptyChart label="No repayments in this period" />
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={s.loans.monthlyRepayments.map((b) => ({
-                        bucket: fmtBucket(b.bucket, s.grain),
-                        amount: Number(b.amount),
-                      }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
-                        <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
-                        <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-                        <Bar dataKey="amount" fill={brandNavy[500]} name="Repaid" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <RepaymentsChart buckets={s.loans.monthlyRepayments} grain={s.grain} />
                   )}
                 </div>
               </CardContent>
@@ -241,7 +209,15 @@ export default function AnalyticsPage() {
               <CardHeader><CardTitle className="text-base">Portfolio composition</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-64">
-                  <PortfolioDonut s={s} />
+                  {(Number(s.contributions.totalAmount) + Number(s.shares.shareCapital) + Number(s.loans.outstandingBalance)) === 0 ? (
+                    <EmptyChart label="No portfolio data yet" />
+                  ) : (
+                    <PortfolioDonutChart
+                      contributionsTotal={s.contributions.totalAmount}
+                      shareCapital={s.shares.shareCapital}
+                      loansOutstanding={s.loans.outstandingBalance}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -253,28 +229,7 @@ export default function AnalyticsPage() {
                   {s.creditScores.scoredMembers === 0 ? (
                     <EmptyChart label="No scores computed yet — visit /credit-scores to recompute." />
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={(Object.keys(s.creditScores.byTier) as Tier[]).map((t) => ({
-                            name: TIER_LABEL[t],
-                            value: s.creditScores.byTier[t],
-                            tier:  t,
-                          })).filter((d) => d.value > 0)}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={2}
-                        >
-                          {(Object.keys(s.creditScores.byTier) as Tier[]).map((t) => (
-                            <Cell key={t} fill={TIER_COLOR[t]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <CreditTierChart byTier={s.creditScores.byTier} />
                   )}
                 </div>
               </CardContent>
@@ -355,28 +310,6 @@ function HealthMetric({ label, value, tone, highlight }: {
   );
 }
 
-function PortfolioDonut({ s }: { s: ExecutiveSummary }) {
-  const data = [
-    { name: 'Contributions', value: Number(s.contributions.totalAmount) },
-    { name: 'Share capital', value: Number(s.shares.shareCapital) },
-    { name: 'Loans (outstanding)', value: Number(s.loans.outstandingBalance) },
-  ].filter((d) => d.value > 0);
-
-  if (data.length === 0) return <EmptyChart label="No portfolio data yet" />;
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
-          {data.map((_, i) => <Cell key={i} fill={PORTFOLIO_COLORS[i % PORTFOLIO_COLORS.length]} />)}
-        </Pie>
-        <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-      </PieChart>
-    </ResponsiveContainer>
-  );
-}
-
 function TopList({ title, items, empty }: {
   title: string;
   items: { key: string; left: string; right: string }[];
@@ -411,18 +344,6 @@ function EmptyChart({ label }: { label: string }) {
 }
 
 // ── Formatting helpers ───────────────────────────────────────────────
-
-function fmtBucket(iso: string, grain: 'day' | 'month'): string {
-  const d = new Date(iso);
-  if (grain === 'month') return d.toLocaleDateString('en-KE', { month: 'short', year: '2-digit' });
-  return d.toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
-}
-
-function formatAxisMoney(v: number): string {
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
-  return v.toString();
-}
 
 function periodLabel(p: Period): string {
   return ({ '30d': 'last 30 days', '90d': 'last 90 days', '12mo': 'last 12 months', all: 'all time' } as const)[p];

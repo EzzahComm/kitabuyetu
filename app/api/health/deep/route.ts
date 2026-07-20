@@ -3,10 +3,23 @@
  *
  * Protected by WORKER_SECRET (same as cron) so it is not publicly queryable.
  * Used by staging pipelines and on-call runbooks to verify dependencies.
+ *
+ * Header only, timing-safe compare (OPTIMIZATION_CLEANUP_AUDIT.md High #15)
+ * — this used to also accept the secret via a `?secret=` query string
+ * (which can leak into access logs/referrers) and compared it with a plain
+ * `!==`, unlike every other secret check in this codebase.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { pool } from '@/lib/db';
 import { redis } from '@/lib/redis';
+import { env } from '@/lib/env';
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const ha = crypto.createHash('sha256').update(a).digest();
+  const hb = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,8 +49,8 @@ async function checkRedis(): Promise<CheckResult> {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const secret = req.headers.get('x-worker-secret') ?? req.nextUrl.searchParams.get('secret');
-  if (secret !== process.env.WORKER_SECRET) {
+  const secret = req.headers.get('x-worker-secret') ?? '';
+  if (!timingSafeEqual(secret, env.WORKER_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

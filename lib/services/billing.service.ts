@@ -1,9 +1,8 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
-import { PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES } from '@/types/enums';
+import { PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES, type PlanType } from '@/types/enums';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
-import type { PlanType } from '@/types/enums';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
 

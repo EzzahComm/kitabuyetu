@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import {
   CreditCard, TrendingUp, AlertCircle,
   CheckCircle2, Clock, ArrowRight,
@@ -8,12 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell,
-} from 'recharts';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
+
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — code-split recharts out of the
+// initial bundle for this rarely-visited admin page.
+const RevenueByPlanChart = dynamic(
+  () => import('./_charts').then((m) => m.RevenueByPlanChart),
+  { ssr: false, loading: () => <Skeleton className="h-52 w-full" /> },
+);
 
 const PLAN_COLORS: Record<string, string> = {
   starter:    '#94a3b8',
@@ -104,21 +108,7 @@ export default function BillingAdminPage() {
             {byPlan.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No subscription data</p>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={byPlan} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="plan" tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false}
-                    tickFormatter={(v: number) => formatKES(v)} />
-                  <Tooltip formatter={(v: any) => [formatKES(v), 'Revenue']}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                    {byPlan.map((entry: any) => (
-                      <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] ?? '#94a3b8'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <RevenueByPlanChart data={byPlan} colors={PLAN_COLORS} />
             )}
             <div className="mt-3 space-y-1.5">
               {byPlan.map((p: any) => (

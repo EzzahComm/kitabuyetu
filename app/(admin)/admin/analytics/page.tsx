@@ -1,15 +1,20 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { BarChart3, Building2, TrendingUp, Heart, Landmark } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Cell,
-} from 'recharts';
 import { useAdminAnalytics } from '@/hooks/use-admin';
 import { formatKES } from '@/lib/utils';
+
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts (~90KB gzipped) is
+// code-split out of the initial bundle; it's only needed once data loads.
+const GrowthChart = dynamic(() => import('./_charts').then((m) => m.GrowthChart), {
+  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
+});
+const TopGroupsChart = dynamic(() => import('./_charts').then((m) => m.TopGroupsChart), {
+  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
+});
 
 const GROUP_TYPE_COLORS: Record<string, string> = {
   chama:       '#3b82f6',
@@ -53,24 +58,7 @@ export default function AnalyticsPage() {
           ) : growth.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No growth data available</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={growth} margin={{ top: 5, right: 10, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="growthGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                <Area type="monotone" dataKey="cumulative_groups" name="Total Groups"
-                  stroke="#3b82f6" strokeWidth={2} fill="url(#growthGrad)" dot={false} />
-                <Area type="monotone" dataKey="new_groups" name="New This Month"
-                  stroke="#10b981" strokeWidth={1.5} fill="none" dot={false} strokeDasharray="4 2" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <GrowthChart data={growth} />
           )}
         </CardContent>
       </Card>
@@ -179,24 +167,7 @@ export default function AnalyticsPage() {
           ) : topGroups.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No data available</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={topGroups} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false}
-                  tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }}
-                  tickLine={false} axisLine={false} width={120} />
-                <Tooltip
-                  formatter={(v: any, n) => [
-                    formatKES(v),
-                    String(n) === 'contributions' ? 'Contributions' : 'Loan Book',
-                  ] as [string, string]}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                />
-                <Bar dataKey="contributions" name="Contributions" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                <Bar dataKey="loan_book" name="Loan Book" fill="#7c3aed" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <TopGroupsChart data={topGroups} />
           )}
         </CardContent>
       </Card>

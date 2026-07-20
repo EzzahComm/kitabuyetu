@@ -9,10 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEmailTemplates, useCreateTemplate, useUpdateTemplate } from '@/hooks/use-email';
+import { useEmailTemplates, useCreateTemplate, useUpdateTemplate, type EmailTemplate } from '@/hooks/use-email';
 import { Plus, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { EmailTemplate } from '@/hooks/use-email';
 
 function TemplateForm({
   initial,

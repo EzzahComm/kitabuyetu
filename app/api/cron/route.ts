@@ -68,10 +68,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       processed,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 — this used to include the
+    // raw error message in the response body, contradicting this file's own
+    // header comment ("Returns generic error messages to avoid information
+    // leakage"). The full error is still logged server-side.
     logger.error('[cron] Unhandled error:', err);
     return NextResponse.json(
-      { error: 'Internal error', detail: message, timestamp: new Date().toISOString() },
+      { error: 'Internal error', timestamp: new Date().toISOString() },
       { status: 500 },
     );
   }

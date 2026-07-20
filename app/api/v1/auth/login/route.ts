@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 import { signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';
 import {
   storeRefreshToken, incrementLoginAttempts, clearLoginAttempts,
@@ -12,8 +13,12 @@ import { normalizePhone } from '@/lib/utils/phone';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import type { LoginResponse, NeedsGroupSelection } from '@/types/api.types';
 
-const MAX_ATTEMPTS    = parseInt(process.env.MAX_LOGIN_ATTEMPTS    ?? '5',  10);
-const LOCKOUT_MINUTES = parseInt(process.env.LOGIN_LOCKOUT_MINUTES ?? '15', 10);
+// OPTIMIZATION_CLEANUP_AUDIT.md High #11 — these used to be re-parsed
+// locally in 3 separate route files with a '15' fallback that silently
+// disagreed with lib/env.ts's validated schema default of 30. Reading from
+// the central env object removes both the duplication and the mismatch.
+const MAX_ATTEMPTS    = env.MAX_LOGIN_ATTEMPTS;
+const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 
 // Constant-time decoy hash. bcrypt.compare against this when the member lookup
 // fails so the response timing doesn't reveal whether the identifier exists.

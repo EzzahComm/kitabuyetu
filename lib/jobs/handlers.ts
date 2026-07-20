@@ -25,6 +25,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'email_retry_failed':
       return handleEmailRetryFailed();
 
+    case 'email_queue_drain':
+      return handleEmailQueueDrain();
+
     case 'email_birthday':
       return handleEmailBirthday();
 
@@ -119,6 +122,12 @@ async function handleEmailRetryFailed(): Promise<HandlerResult> {
   const { retryFailedEmails } = await import('@/lib/services/scheduler.service');
   const result = await retryFailedEmails();
   return { message: 'Failed emails retried', ...flattenResult(result) };
+}
+
+async function handleEmailQueueDrain(): Promise<HandlerResult> {
+  const { drainEmailQueues } = await import('@/lib/services/email-queue-worker.service');
+  const result = await drainEmailQueues();
+  return { message: 'Email queue drained', ...flattenResult(result) };
 }
 
 async function handleEmailBirthday(): Promise<HandlerResult> {

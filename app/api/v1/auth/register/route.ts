@@ -206,10 +206,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       return errorResponse(e.message ?? 'Invalid input', 'INVALID_INPUT', 400);
     }
 
-    // Unknown failure — surface the stage so the user (and support) know.
+    // Unknown failure. The stage + full PG error detail are already in the
+    // server-side log above (OPTIMIZATION_CLEANUP_AUDIT.md Medium #22) — the
+    // client response stays generic rather than exposing internal pipeline
+    // step names.
     return errorResponse(
-      `Registration failed at step '${stage}'. Please try again or contact support.`,
-      `REG_FAIL_${stage}`,
+      'Registration failed. Please try again or contact support.',
+      'REGISTRATION_FAILED',
       500,
     );
   }

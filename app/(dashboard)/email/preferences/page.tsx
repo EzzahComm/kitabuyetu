@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEmailPreferences, useUpdatePreferences } from '@/hooks/use-email';
+import { useEmailPreferences, useUpdatePreferences, type EmailPreference } from '@/hooks/use-email';
 import { useToast } from '@/hooks/use-toast';
-import type { EmailPreference } from '@/hooks/use-email';
 
 const CATEGORY_LABELS: Record<string, string> = {
   financial_reports:    'Financial Reports',

@@ -1,8 +1,6 @@
-import { sendFinancialReport } from './email.service';
-import { sendTemplatedEmail } from './email.service';
+import { sendFinancialReport, sendTemplatedEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
-import type { EmailResult } from '@/lib/email/provider';
-import type { EmailPayload } from '@/lib/email/provider';
+import type { EmailResult, EmailPayload } from '@/lib/email/provider';
 
 const ALLOWED_REPORT_ROLES = ['treasurer', 'chairperson', 'super_admin', 'organization_coordinator'];
 
