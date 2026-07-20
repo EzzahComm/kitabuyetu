@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth, withOneOf } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
-import { createCampaign, launchCampaign } from '@/lib/services/campaign.service';
+import { createCampaign } from '@/lib/services/campaign.service';
+import { enqueueJob } from '@/lib/jobs';
 import { ok } from '@/lib/utils/response';
 import { logger } from '@/lib/logger';
 
@@ -48,8 +49,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     if (body.launch) {
-      await launchCampaign(id).catch((err: Error) => {
-        logger.error('[campaigns] launch failed', err.message);
+      await enqueueJob(
+        'email_campaign_launch',
+        { campaignId: id },
+        { priority: 5, max_attempts: 3, dedup_key: `email_campaign_launch:${id}` },
+      ).catch((err: Error) => {
+        logger.error('[campaigns] launch enqueue failed', err.message);
       });
     }
 

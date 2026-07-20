@@ -22,6 +22,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'email_campaign_process':
       return handleEmailCampaignProcess();
 
+    case 'email_campaign_launch':
+      return handleEmailCampaignLaunch(job.payload);
+
     case 'email_retry_failed':
       return handleEmailRetryFailed();
 
@@ -116,6 +119,22 @@ async function handleEmailCampaignProcess(): Promise<HandlerResult> {
   const { processDueSchedules } = await import('@/lib/services/scheduler.service');
   const result = await processDueSchedules();
   return { message: 'Email campaigns processed', ...flattenResult(result) };
+}
+
+/**
+ * OPTIMIZATION_CLEANUP_AUDIT.md High #6 — launchCampaign's per-recipient
+ * insert+enqueue loop previously ran directly inside the launch HTTP
+ * request (uncapped, one round trip per recipient). Routes now enqueue
+ * this job instead and return immediately; the loop runs here, off the
+ * request path, with the job queue's own retry/backoff.
+ */
+async function handleEmailCampaignLaunch(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const campaignId = payload.campaignId ? String(payload.campaignId) : '';
+  if (!campaignId) return { message: 'Email campaign launch skipped: no campaignId' };
+
+  const { launchCampaign } = await import('@/lib/services/campaign.service');
+  await launchCampaign(campaignId);
+  return { message: 'Email campaign launched', campaignId };
 }
 
 async function handleEmailRetryFailed(): Promise<HandlerResult> {

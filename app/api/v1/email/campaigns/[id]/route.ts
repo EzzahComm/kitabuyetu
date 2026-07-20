@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth, withOneOf } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
-import { launchCampaign } from '@/lib/services/campaign.service';
+import { enqueueJob } from '@/lib/jobs';
 import { ok } from '@/lib/utils/response';
 import { NotFoundError } from '@/lib/utils/errors';
 
@@ -62,8 +62,14 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     if (!owned.length) throw new NotFoundError('Campaign', id);
 
     if (action === 'launch') {
-      await launchCampaign(id);
-      return ok({ message: 'Campaign launched' });
+      // OPTIMIZATION_CLEANUP_AUDIT.md High #6 — hand off to the job queue
+      // instead of running the per-recipient loop inline in this request.
+      await enqueueJob(
+        'email_campaign_launch',
+        { campaignId: id },
+        { priority: 5, max_attempts: 3, dedup_key: `email_campaign_launch:${id}` },
+      );
+      return ok({ message: 'Campaign queued for launch' });
     }
 
     await withAdminDb((db) =>
