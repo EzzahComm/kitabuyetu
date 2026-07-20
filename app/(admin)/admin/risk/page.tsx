@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ChartCard, BarSeriesChart } from '@/components/shared/charts';
 import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
@@ -56,21 +55,9 @@ export default function RiskDashboardPage() {
   const alerts = data?.alerts ?? [];
   const kyc = data?.kyc ?? [];
 
-  // Pending confirm action (fraud escalate/dismiss or KYC approve/reject).
-  const [pending, setPending] = React.useState<
-    | { kind: 'escalate' | 'dismiss'; alert: RiskDashboardPayload['alerts'][number] }
-    | { kind: 'approve' | 'reject'; item: RiskDashboardPayload['kyc'][number] }
-    | null
-  >(null);
-
   const openAlerts = alerts.filter((a) => a.status === 'open').length;
   const flaggedVolume = alerts.reduce((sum, a) => sum + a.amount, 0);
   const highRiskKyc = kyc.filter((k) => k.risk === 'high').length;
-
-  function resolvePending() {
-    if (!pending) return;
-    setPending(null);
-  }
 
   return (
     <div className="space-y-6">
@@ -208,10 +195,12 @@ export default function RiskDashboardPage() {
                     <MoneyDisplay amount={a.amount} size="sm" color="red" className="shrink-0" />
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPending({ kind: 'escalate', alert: a })}>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" disabled
+                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)">
                       <Eye size={12} className="mr-1" /> Escalate
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setPending({ kind: 'dismiss', alert: a })}>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" disabled
+                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)">
                       Dismiss
                     </Button>
                   </div>
@@ -257,10 +246,14 @@ export default function RiskDashboardPage() {
                     <p className="truncate text-xs text-muted-foreground">{k.docType} · {k.org} · {k.submitted}</p>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button size="icon" variant="outline" className="h-9 w-9 text-green-600 hover:bg-green-50" title="Approve" aria-label={`Approve ${k.name}`} onClick={() => setPending({ kind: 'approve', item: k })}>
+                    <Button size="icon" variant="outline" className="h-9 w-9 text-green-600 hover:bg-green-50" disabled
+                      title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
+                      aria-label={`Approve ${k.name} (not yet available)`}>
                       <Check size={14} />
                     </Button>
-                    <Button size="icon" variant="outline" className="h-9 w-9 text-red-600 hover:bg-red-50" title="Reject" aria-label={`Reject ${k.name}`} onClick={() => setPending({ kind: 'reject', item: k })}>
+                    <Button size="icon" variant="outline" className="h-9 w-9 text-red-600 hover:bg-red-50" disabled
+                      title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
+                      aria-label={`Reject ${k.name} (not yet available)`}>
                       <X size={14} />
                     </Button>
                   </div>
@@ -273,44 +266,8 @@ export default function RiskDashboardPage() {
 
       <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>The risk feed now renders data from the platform dashboard endpoint, with local UI actions still available for operator review.</span>
+        <span>The risk feed renders real data from the platform dashboard endpoint, but the Escalate/Dismiss/Approve/Reject actions above are not yet wired to a backend mutation — they&apos;re disabled until the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) provides real alert rows to act on.</span>
       </div>
-
-      {/* Confirmation modals for every risk action */}
-      <ConfirmDialog
-        open={pending?.kind === 'escalate'}
-        onOpenChange={(o) => !o && setPending(null)}
-        title="Escalate this alert?"
-        description={pending?.kind === 'escalate' ? `${pending.alert.org} · ${formatKES(pending.alert.amount)} will be sent to compliance for manual review and the org's payouts paused.` : ''}
-        confirmLabel="Escalate to compliance"
-        onConfirm={resolvePending}
-      />
-      <ConfirmDialog
-        open={pending?.kind === 'dismiss'}
-        onOpenChange={(o) => !o && setPending(null)}
-        variant="danger"
-        title="Dismiss this alert?"
-        description="Marking it a false positive removes it from the feed and trains the rules engine. This is logged against your account."
-        confirmLabel="Dismiss as false positive"
-        onConfirm={resolvePending}
-      />
-      <ConfirmDialog
-        open={pending?.kind === 'approve'}
-        onOpenChange={(o) => !o && setPending(null)}
-        title="Approve verification?"
-        description={pending?.kind === 'approve' ? `${pending.item.name} (${pending.item.org}) will be marked KYC-verified and gain full account access.` : ''}
-        confirmLabel="Approve"
-        onConfirm={resolvePending}
-      />
-      <ConfirmDialog
-        open={pending?.kind === 'reject'}
-        onOpenChange={(o) => !o && setPending(null)}
-        variant="danger"
-        title="Reject verification?"
-        description={pending?.kind === 'reject' ? `${pending.item.name}'s submission will be rejected and they'll be asked to resubmit. The member is notified.` : ''}
-        confirmLabel="Reject submission"
-        onConfirm={resolvePending}
-      />
     </div>
   );
 }

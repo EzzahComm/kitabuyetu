@@ -34,16 +34,17 @@ export default function AnalyticsPage() {
           <BarChart3 size={20} className="text-blue-500" /> Platform Analytics
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Aggregate insights across all organizations and financial activity
+          Aggregate insights across all groups and financial activity
         </p>
       </div>
 
-      {/* Growth chart */}
+      {/* Growth chart — note: this tracks groups, not organizations (a
+          distinct entity — see organizations count on the main dashboard) */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Building2 size={14} className="text-blue-500" />
-            Organization Growth (12 months)
+            Group Growth (12 months)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -64,7 +65,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                <Area type="monotone" dataKey="cumulative_groups" name="Total Organizations"
+                <Area type="monotone" dataKey="cumulative_groups" name="Total Groups"
                   stroke="#3b82f6" strokeWidth={2} fill="url(#growthGrad)" dot={false} />
                 <Area type="monotone" dataKey="new_groups" name="New This Month"
                   stroke="#10b981" strokeWidth={1.5} fill="none" dot={false} strokeDasharray="4 2" />
@@ -164,12 +165,12 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Top organizations by contributions */}
+      {/* Top groups by contributions */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp size={14} className="text-green-500" />
-            Top Organizations by Contributions
+            Top Groups by Contributions
           </CardTitle>
         </CardHeader>
         <CardContent>

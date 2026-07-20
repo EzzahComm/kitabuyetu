@@ -3,13 +3,14 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Building2, ShieldCheck, AlertTriangle,
+  Building2, ShieldCheck, AlertTriangle,
   Users, Coins, TrendingUp, Headphones,
   MoreHorizontal, CheckCircle2, Ban, RefreshCw, XCircle,
   Phone, Mail, Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -130,60 +131,56 @@ export default function GroupDetailPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0"
-          onClick={() => router.push('/admin/groups')}>
-          <ArrowLeft size={16} />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-900 truncate">{grp.name}</h1>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${PLAN_BADGE[grp.plan] ?? PLAN_BADGE.starter}`}>
-              {grp.plan ?? 'starter'}
-            </span>
-            <Badge variant={STATUS_VARIANT[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
-              {grp.onboarding_status?.replace('_', ' ')}
-            </Badge>
-          </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {TYPE_LABELS[grp.group_type] ?? grp.group_type}
-            {grp.registration_number && (
-              <span className="ml-2 font-mono text-xs text-gray-400">· {grp.registration_number}</span>
-            )}
-          </p>
+      <PageHeader
+        title={grp.name}
+        description={`${TYPE_LABELS[grp.group_type] ?? grp.group_type}${grp.registration_number ? ` · ${grp.registration_number}` : ''}`}
+        breadcrumbs={[
+          { label: 'Groups', href: '/admin/groups' },
+          { label: grp.name },
+        ]}
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                Actions <MoreHorizontal size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {grp.onboarding_status === 'pending' && (
+                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'approve', label: 'Approve' })}>
+                  <CheckCircle2 size={13} className="mr-2 text-green-600" /> Approve Group
+                </DropdownMenuItem>
+              )}
+              {grp.onboarding_status === 'active' && (
+                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'suspend', label: 'Suspend' })}
+                  className="text-red-600 focus:text-red-600">
+                  <Ban size={13} className="mr-2" /> Suspend Group
+                </DropdownMenuItem>
+              )}
+              {grp.onboarding_status === 'suspended' && (
+                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'activate', label: 'Reactivate' })}>
+                  <RefreshCw size={13} className="mr-2 text-blue-600" /> Reactivate
+                </DropdownMenuItem>
+              )}
+              {grp.onboarding_status !== 'deactivated' && (
+                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
+                  className="text-gray-600">
+                  <XCircle size={13} className="mr-2" /> Deactivate
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${PLAN_BADGE[grp.plan] ?? PLAN_BADGE.starter}`}>
+            {grp.plan ?? 'starter'}
+          </span>
+          <Badge variant={STATUS_VARIANT[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
+            {grp.onboarding_status?.replace('_', ' ')}
+          </Badge>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5">
-              Actions <MoreHorizontal size={14} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {grp.onboarding_status === 'pending' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'approve', label: 'Approve' })}>
-                <CheckCircle2 size={13} className="mr-2 text-green-600" /> Approve Group
-              </DropdownMenuItem>
-            )}
-            {grp.onboarding_status === 'active' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'suspend', label: 'Suspend' })}
-                className="text-red-600 focus:text-red-600">
-                <Ban size={13} className="mr-2" /> Suspend Group
-              </DropdownMenuItem>
-            )}
-            {grp.onboarding_status === 'suspended' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'activate', label: 'Reactivate' })}>
-                <RefreshCw size={13} className="mr-2 text-blue-600" /> Reactivate
-              </DropdownMenuItem>
-            )}
-            {grp.onboarding_status !== 'deactivated' && (
-              <DropdownMenuItem onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
-                className="text-gray-600">
-                <XCircle size={13} className="mr-2" /> Deactivate
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      </PageHeader>
 
       {/* Suspended banner */}
       {grp.onboarding_status === 'suspended' && (

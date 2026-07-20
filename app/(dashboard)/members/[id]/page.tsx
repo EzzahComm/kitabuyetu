@@ -18,9 +18,26 @@ import { useLoans } from '@/hooks/use-loans';
 import { formatKES, formatDate, getInitials } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nextOfKinApi, membersApi } from '@/lib/api/endpoints';
+import { api } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
+
+// SUPER_ADMIN_PLATFORM_AUDIT.md §2.6 — credit-scores.service.ts already
+// computes this composite financial+social reliability score; it was just
+// never linked from the member profile. Same tier palette as
+// app/(dashboard)/credit-scores/[memberId]/page.tsx.
+type CreditTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
+const TIER_BADGE: Record<CreditTier, 'default' | 'success' | 'secondary' | 'warning' | 'destructive'> = {
+  excellent: 'success', good: 'default', fair: 'secondary', poor: 'warning', high_risk: 'destructive',
+};
+const TIER_LABEL: Record<CreditTier, string> = {
+  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
+};
+interface MemberCreditScore {
+  overall_score: string;
+  reliability_tier: CreditTier;
+}
 
 const roleVariant: Record<string, any> = {
   chairperson: 'default',
@@ -76,6 +93,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     queryKey: ['next-of-kin', id],
     queryFn:  () => nextOfKinApi.list(id) as Promise<NextOfKin[]>,
     enabled:  !!id,
+  });
+
+  const creditScoreQ = useQuery<MemberCreditScore>({
+    queryKey: ['credit-score', id, 'latest'],
+    queryFn:  () => api.get<MemberCreditScore>(`/credit-scores/${id}`),
+    enabled:  !!id,
+    retry:    false,
   });
 
   const [kinDialogOpen, setKinDialogOpen] = useState(false);
@@ -182,7 +206,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       </Card>
 
       {/* Quick stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Contributed</p>
@@ -203,6 +227,25 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-xl font-bold mt-1">{kinRows.length}</p>
           </CardContent>
         </Card>
+        <Link href={`/credit-scores/${id}`}>
+          <Card className="h-full transition-colors hover:border-brand-500">
+            <CardContent className="pt-5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Credit score</p>
+              {creditScoreQ.isLoading ? (
+                <p className="text-xl font-bold mt-1 text-muted-foreground">…</p>
+              ) : creditScoreQ.data ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xl font-bold">{Number(creditScoreQ.data.overall_score).toFixed(0)}</p>
+                  <Badge variant={TIER_BADGE[creditScoreQ.data.reliability_tier]} className="text-[10px]">
+                    {TIER_LABEL[creditScoreQ.data.reliability_tier]}
+                  </Badge>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1.5">Not scored yet</p>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Tabs defaultValue="contributions">

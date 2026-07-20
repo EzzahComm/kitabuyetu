@@ -3,11 +3,12 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Landmark, Users, Layers, Wallet, TrendingUp,
+  Landmark, Users, Layers, Wallet, TrendingUp,
   MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -125,45 +126,41 @@ export default function OrganizationDetailPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0"
-          onClick={() => router.push('/admin/organizations')}>
-          <ArrowLeft size={16} />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-900 truncate">{org.name}</h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-              {TYPE_LABEL[org.type] ?? org.type}
-            </span>
-            <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
-              {org.is_active ? 'Active' : 'Inactive'}
-            </Badge>
-          </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {org.county || 'No county set'}
-            {org.registration_number && (
-              <span className="ml-2 font-mono text-xs text-gray-400">· {org.registration_number}</span>
-            )}
-          </p>
+      <PageHeader
+        title={org.name}
+        description={`${org.county || 'No county set'}${org.registration_number ? ` · ${org.registration_number}` : ''}`}
+        breadcrumbs={[
+          { label: 'Organizations', href: '/admin/organizations' },
+          { label: org.name },
+        ]}
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">Actions <MoreHorizontal size={14} /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {org.is_active ? (
+                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={toggleActive}>
+                  <XCircle size={13} className="mr-2" /> Deactivate
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={toggleActive}>
+                  <PlayCircle size={13} className="mr-2 text-green-600" /> Activate
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+            {TYPE_LABEL[org.type] ?? org.type}
+          </span>
+          <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
+            {org.is_active ? 'Active' : 'Inactive'}
+          </Badge>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5">Actions <MoreHorizontal size={14} /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {org.is_active ? (
-              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={toggleActive}>
-                <XCircle size={13} className="mr-2" /> Deactivate
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={toggleActive}>
-                <PlayCircle size={13} className="mr-2 text-green-600" /> Activate
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      </PageHeader>
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

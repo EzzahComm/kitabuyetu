@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuditLogs } from '@/hooks/use-admin';
+import { useAuditLogs, useAdminGroups } from '@/hooks/use-admin';
 import { formatDate } from '@/lib/utils';
 
 const ACTION_STYLE: Record<string, string> = {
@@ -17,13 +17,20 @@ const ACTION_STYLE: Record<string, string> = {
 };
 
 export default function AuditLogsPage() {
-  const [page,   setPage]   = useState(1);
-  const [search, setSearch] = useState('');
-  const [action, setAction] = useState('');
-  const [from,   setFrom]   = useState('');
-  const [to,     setTo]     = useState('');
+  const [page,    setPage]    = useState(1);
+  const [search,  setSearch]  = useState('');
+  const [action,  setAction]  = useState('');
+  const [groupId, setGroupId] = useState('');
+  const [from,    setFrom]    = useState('');
+  const [to,      setTo]      = useState('');
 
-  const { data, isLoading } = useAuditLogs({ page, limit: 50, action, search, from, to });
+  const { data, isLoading } = useAuditLogs({ page, limit: 50, action, groupId, search, from, to });
+  // Backend already supports groupId filtering (app/api/admin/audit-logs/route.ts
+  // → listAuditLogs) — this dropdown was the only missing piece
+  // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). 200 is plenty for a filter dropdown;
+  // this page doesn't need every group, just enough to find one by name.
+  const { data: groupsData } = useAdminGroups({ limit: 200 });
+  const groupOptions: { id: string; name: string }[] = groupsData?.items ?? [];
 
   const items: any[] = data?.items ?? [];
   const total        = data?.total ?? 0;
@@ -56,6 +63,13 @@ export default function AuditLogsPage() {
               <option value="UPDATE">UPDATE</option>
               <option value="DELETE">DELETE</option>
             </select>
+            <select value={groupId} onChange={(e) => { setGroupId(e.target.value); setPage(1); }}
+              className="h-8 text-sm border border-input rounded-md px-2 bg-background max-w-[160px]">
+              <option value="">All groups</option>
+              {groupOptions.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
             <div className="flex items-center gap-2">
               <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }}
                 className="h-8 text-sm w-36" />
@@ -63,9 +77,9 @@ export default function AuditLogsPage() {
               <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }}
                 className="h-8 text-sm w-36" />
             </div>
-            {(search || action || from || to) && (
+            {(search || action || groupId || from || to) && (
               <Button variant="ghost" size="sm" className="h-8 text-xs"
-                onClick={() => { setSearch(''); setAction(''); setFrom(''); setTo(''); setPage(1); }}>
+                onClick={() => { setSearch(''); setAction(''); setGroupId(''); setFrom(''); setTo(''); setPage(1); }}>
                 Clear
               </Button>
             )}
@@ -83,20 +97,21 @@ export default function AuditLogsPage() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Table</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Actor</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Organization</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Group</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Record ID</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">IP Address</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Timestamp</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 [...Array(10)].map((_, i) => (
-                  <tr key={i}>{[...Array(6)].map((__, j) => (
+                  <tr key={i}>{[...Array(7)].map((__, j) => (
                     <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[120px]" /></td>
                   ))}</tr>
                 ))
               ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-sm text-muted-foreground">No audit log entries</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No audit log entries</td></tr>
               ) : items.map((log, i) => (
                 <tr key={log.id ?? i} className="hover:bg-gray-50 font-mono text-xs">
                   <td className="px-4 py-2.5">
@@ -110,6 +125,7 @@ export default function AuditLogsPage() {
                   <td className="px-4 py-2.5 text-gray-400 truncate max-w-[120px]">
                     {log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}
                   </td>
+                  <td className="px-4 py-2.5 text-gray-500">{log.ip_address ?? '—'}</td>
                   <td className="px-4 py-2.5 text-gray-500">{formatDate(log.created_at)}</td>
                 </tr>
               ))}
