@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
-import { useAuth, isBackofficeUser } from '@/lib/auth/context';
+import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
 import { configureApiClient } from '@/lib/api/client';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +29,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (isLoading) return;
     if (!user) { router.push('/login'); return; }
-    if (isBackoffice) { router.replace('/admin'); }
+    if (isBackoffice) { router.replace('/admin'); return; }
+    // Every feature route 403s server-side for a pending_verification group
+    // (proxy.ts) — redirect client-side too so the user sees the
+    // verification flow instead of a page full of failed requests.
+    if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
+      router.replace('/verify-group');
+    }
   }, [isLoading, user, isBackoffice, router]);
 
   if (isLoading) {

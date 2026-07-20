@@ -22,6 +22,8 @@ interface TenantUser {
   membershipNo?: string;
   personId?:    string;
   officerRole?: string;
+  // Phase D Part 2: group lifecycle — 'pending_verification' | 'active' | …
+  groupStatus?: string;
 }
 
 // Backoffice (platform staff) user shape — no group context.

@@ -145,9 +145,33 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
     pathname.startsWith('/api/v1/email/webhooks/');     // email provider callbacks (Resend, SendGrid)
 
+  // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — this used to be a blanket
+  // `pathname.startsWith('/api/v1/auth/')`, which also swept up
+  // /auth/memberships and /auth/switch-group. Both call withAuth() and
+  // require a verified access token's claims (stamped below), but the
+  // blanket bypass skipped JWT verification for them entirely — every
+  // request arrived with no x-user-id/x-group-id header, so withAuth
+  // always threw "Missing authentication context" and the group-switcher
+  // feature (components/layout/group-switcher.tsx) 401'd unconditionally
+  // in production. Only list the routes that genuinely have no access
+  // token yet (or use a different token type, like refresh's own).
+  const PUBLIC_AUTH_PATHS = new Set([
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',   // verifies its own refresh token from the body
+    '/api/v1/auth/logout',    // ditto
+    '/api/v1/auth/admin/login',
+    '/api/v1/auth/admin/login/verify',
+    // §4A email-link verification — the token itself is the proof of
+    // possession (its SHA-256 hash alone identifies the open verification
+    // row), so this must stay reachable without an access token: the click
+    // may happen on a different device/browser than the one that registered.
+    '/api/v1/auth/verify/email',
+  ]);
+
   if (
     isTenantApi && (
-      pathname.startsWith('/api/v1/auth/') ||         // login / register / refresh / admin-login
+      PUBLIC_AUTH_PATHS.has(pathname) ||
       pathname.startsWith('/api/v1/jurisdictions/') || // public reference data (counties etc.)
       isMpesaCallback ||
       isWebhook
@@ -215,12 +239,17 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // Phase D Part 2 — gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management
     // endpoints stay open so the registrant can complete the flow.
+    //
+    // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — this previously listed
+    // '/api/v1/auth/me' and '/api/v1/auth/verify/', neither of which is a
+    // real route (and refresh/logout are already caught by PUBLIC_AUTH_PATHS
+    // above, so they never reach this check either) — meaning this allowlist
+    // was entirely dead code and every pending_verification group was
+    // permanently locked out with no way to ever complete verification.
     if (groupStatus === 'pending_verification') {
       const allowedPending =
-        pathname.startsWith('/api/v1/auth/me')      ||
-        pathname.startsWith('/api/v1/auth/refresh') ||
-        pathname.startsWith('/api/v1/auth/logout')  ||
-        pathname.startsWith('/api/v1/auth/verify/');
+        pathname === '/api/v1/auth/verify/start' ||
+        pathname === '/api/v1/auth/verify/complete';
       if (!allowedPending) {
         return NextResponse.json(
           {

@@ -114,6 +114,13 @@ jobs:
       - name: Type check (tsc --noEmit)
         run: npm run typecheck
 
+      # ── Unit/service tests ────────────────────────────────────────────────
+      # OPTIMIZATION_CLEANUP_AUDIT.md Critical #1 — this suite previously only
+      # ran on developer machines; a red test locally never blocked a merge.
+      # Runs before the build step so a failing test fails fast.
+      - name: Test (jest --ci)
+        run: npm run test:ci
+
       # ── Next.js build ─────────────────────────────────────────────────────
       # Verifies the production bundle compiles without errors.
       # Uses fake env vars (above) so lib/env.ts validation passes.

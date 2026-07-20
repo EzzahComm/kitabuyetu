@@ -140,7 +140,7 @@ export default function RegisterPage() {
         description: `Your group is ${data.groupCode ?? 'created'}.`
           + (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
       });
-      router.push('/dashboard');
+      router.push(data.member.groupStatus === 'pending_verification' ? '/verify-group' : '/dashboard');
     } catch (err: any) {
       const code = err?.code ? ` (${err.code})` : '';
       toast({

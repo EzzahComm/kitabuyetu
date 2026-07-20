@@ -36,6 +36,17 @@ export const authApi = {
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),
 
+  // Registrant verification (§4A) — pending_verification groups only.
+  verifyStart: (channel: 'email' | 'sms') =>
+    api.post<{ channel: 'email' | 'sms'; expiresAt: string }>('/auth/verify/start', { channel }),
+
+  verifyComplete: (code: string) =>
+    api.post<LoginResponse>('/auth/verify/complete', { code }),
+
+  // Public — no access token required (the token param IS the proof).
+  verifyEmailToken: (token: string) =>
+    api.post<{ status: string; groupId: string }>('/auth/verify/email', { token }),
+
   // Step 1 of backoffice login. Returns one of:
   //   - AdminLoginEnrollmentChallenge (first-time staff: QR + recovery codes)
   //   - AdminLoginMfaChallenge        (enrolled staff: just prompt for code)
