@@ -195,7 +195,7 @@ export async function assignGroupToOrganization(
     await db.query(`
       INSERT INTO public.organization_group_access
         (organization_id, group_id, access_level, granted_by, is_active)
-      VALUES ($1, $2, $3::ngo_access_level, $4, true)
+      VALUES ($1, $2, $3::organization_access_level, $4, true)
       ON CONFLICT (organization_id, group_id) DO UPDATE SET
         is_active    = true,
         access_level = EXCLUDED.access_level,
