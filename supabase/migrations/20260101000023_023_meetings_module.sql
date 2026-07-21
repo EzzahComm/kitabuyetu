@@ -51,7 +51,7 @@ CREATE INDEX meetings_type_idx         ON public.meetings(meeting_type);
 
 CREATE TRIGGER trg_meetings_updated_at
   BEFORE UPDATE ON public.meetings
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ── Meeting attendance ────────────────────────────────────────────────────────
 CREATE TABLE public.meeting_attendance (

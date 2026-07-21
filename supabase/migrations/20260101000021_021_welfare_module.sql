@@ -52,7 +52,7 @@ CREATE INDEX welfare_requests_created_at_idx  ON public.welfare_requests(created
 
 CREATE TRIGGER trg_welfare_requests_updated_at
   BEFORE UPDATE ON public.welfare_requests
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ── Welfare pool contributions ────────────────────────────────────────────────
 CREATE TABLE public.welfare_pool_contributions (
@@ -76,7 +76,7 @@ CREATE INDEX welfare_pool_contributions_member_id_idx ON public.welfare_pool_con
 
 CREATE TRIGGER trg_welfare_pool_contributions_updated_at
   BEFORE UPDATE ON public.welfare_pool_contributions
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 ALTER TABLE public.welfare_requests ENABLE ROW LEVEL SECURITY;

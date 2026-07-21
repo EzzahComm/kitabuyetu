@@ -57,7 +57,7 @@ CREATE INDEX investments_created_at_idx ON public.investments(created_at DESC);
 
 CREATE TRIGGER trg_investments_updated_at
   BEFORE UPDATE ON public.investments
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 -- ── Investment returns ────────────────────────────────────────────────────────
 CREATE TABLE public.investment_returns (
