@@ -9,6 +9,20 @@ ALTER TABLE public.groups
   ADD COLUMN IF NOT EXISTS registration_date             date,
   ADD COLUMN IF NOT EXISTS formation_date                date;
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('group-documents', 'group-documents', false)
-ON CONFLICT (id) DO NOTHING;
+-- storage.buckets is part of Supabase's Storage extension, not available on
+-- a plain Postgres image (local docker-compose / db-integration CI job).
+-- Guarded the same way as the other Supabase-platform-only objects in this
+-- history (pg_cron, rls_auto_enable) rather than assuming it exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'storage' AND table_name = 'buckets'
+  ) THEN
+    EXECUTE $sql$
+      INSERT INTO storage.buckets (id, name, public)
+      VALUES ('group-documents', 'group-documents', false)
+      ON CONFLICT (id) DO NOTHING
+    $sql$;
+  END IF;
+END $$;
