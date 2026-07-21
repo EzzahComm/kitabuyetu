@@ -159,6 +159,10 @@ export async function createTestOrgDisbursement(
   const ctx: TenantContext = {
     userId: coordinatorId, groupId, role: 'organization_coordinator', organizationId,
   };
+  // getWallet() lazily bootstraps the organization_wallets row (createOrganization
+  // itself doesn't); deposit()'s own getWalletForUpdate() has no such fallback and
+  // throws NotFoundError against a brand-new org.
+  await organizationFinanceService.getWallet(ctx);
   await organizationFinanceService.deposit(ctx, { amount: amount * 10, source: 'Integration test funding' });
   const disb = await organizationFinanceService.disburse(ctx, {
     groupId, amount, disbursementType: 'grant',
