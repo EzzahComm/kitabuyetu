@@ -21,6 +21,14 @@ export async function execScript(sql: string): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query(sql);
+  } catch (err) {
+    // If the script's own BEGIN/COMMIT was interrupted mid-transaction, the
+    // connection comes back to the pool still aborted — every later query
+    // on it (even from an unrelated test file) fails with "current
+    // transaction is aborted" instead of the real error. ROLLBACK is a
+    // no-op if there's no open transaction, so this is always safe.
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
   } finally {
     client.release();
   }
