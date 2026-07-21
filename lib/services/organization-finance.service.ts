@@ -17,6 +17,7 @@
 import type { PoolClient } from 'pg';
 import crypto from 'crypto';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
+import { cached, keys } from '@/lib/redis';
 import { organizationService } from './organization.service';
 import { postOrgSystemJournal } from './organization-accounting.service';
 import { getEffectiveThreshold } from './approval-policy.service';
@@ -343,7 +344,7 @@ export const organizationFinanceService = {
    */
   async programBudgetReport(ctx: TenantContext): Promise<ProgramBudgetLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    return withDb(ctx, async (db) => {
+    return cached(keys.cache('program-budget', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
       const { rows } = await db.query<{
         id: string; name: string; program_type: string; status: string;
         budget: string; disbursed_total: string; reserved: string;
@@ -391,7 +392,7 @@ export const organizationFinanceService = {
           startsOn: r.starts_on, endsOn: r.ends_on,
         };
       });
-    });
+    }));
   },
 
   /**
@@ -406,7 +407,7 @@ export const organizationFinanceService = {
    */
   async donorSpendReport(ctx: TenantContext): Promise<DonorSpendLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    return withDb(ctx, async (db) => {
+    return cached(keys.cache('donor-spend', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
       const { rows: programs } = await db.query<{
         id: string; name: string; funding_source: string | null;
         budget: string; disbursed_total: string; reserved: string;
@@ -471,7 +472,7 @@ export const organizationFinanceService = {
         d.utilizationPct = d.totalBudget > 0 ? ((d.totalDisbursed + d.totalReserved) / d.totalBudget) * 100 : 0;
       }
       return Array.from(donors.values()).sort((a, b) => b.totalDisbursed - a.totalDisbursed);
-    });
+    }));
   },
 
   async createProgram(
@@ -766,59 +767,65 @@ export const organizationFinanceService = {
     programs:  FundingProgram[];
   }> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    const wallet = await this.getWallet(ctx);
 
-    return withDb(ctx, async (db) => {
-      const [portfolio, programs] = await Promise.all([
-        db.query<{
-          linked_groups: string; active_members: string;
-          total_savings: string; loan_portfolio: string;
-          loans_disbursed: string; loans_repaid: string;
-        }>(
-          `SELECT
-             COUNT(DISTINCT nga.group_id)                                            AS linked_groups,
-             COUNT(DISTINCT gm.member_id) FILTER (WHERE gm.is_active)                AS active_members,
-             COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0)::text  AS total_savings,
-             COALESCE(SUM(l.outstanding_balance)
-                      FILTER (WHERE l.status IN ('disbursed','active')), 0)::text    AS loan_portfolio,
-             COUNT(DISTINCT l.id) FILTER (WHERE l.status IN ('disbursed','active'))  AS loans_disbursed,
-             COALESCE(SUM(lr.amount_paid) FILTER (WHERE lr.status = 'completed'), 0)::text AS loans_repaid
-           FROM organization_group_access nga
-           LEFT JOIN group_members    gm ON gm.group_id = nga.group_id
-           LEFT JOIN contributions    c  ON c.group_id  = nga.group_id
-           LEFT JOIN loans            l  ON l.group_id  = nga.group_id
-           LEFT JOIN loan_repayments  lr ON lr.loan_id  = l.id
-           WHERE nga.organization_id = $1 AND nga.is_active`,
-          [orgId(ctx)],
-        ),
-        db.query<FundingProgram>(
-          `SELECT * FROM funding_programs
-           WHERE organization_id = $1 AND status = 'active'
-           ORDER BY created_at DESC LIMIT 10`,
-          [orgId(ctx)],
-        ),
-      ]);
+    // Shorter TTL than the two report methods below — this payload embeds
+    // the live wallet balance, so a smaller staleness window matters more
+    // here than on the report-style views. getWallet is fetched inside the
+    // cached closure (not before it) so a cache hit skips that query too.
+    return cached(keys.cache('org-dashboard', orgId(ctx)), 30, async () => {
+      const wallet = await this.getWallet(ctx);
+      return withDb(ctx, async (db) => {
+        const [portfolio, programs] = await Promise.all([
+          db.query<{
+            linked_groups: string; active_members: string;
+            total_savings: string; loan_portfolio: string;
+            loans_disbursed: string; loans_repaid: string;
+          }>(
+            `SELECT
+               COUNT(DISTINCT nga.group_id)                                            AS linked_groups,
+               COUNT(DISTINCT gm.member_id) FILTER (WHERE gm.is_active)                AS active_members,
+               COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0)::text  AS total_savings,
+               COALESCE(SUM(l.outstanding_balance)
+                        FILTER (WHERE l.status IN ('disbursed','active')), 0)::text    AS loan_portfolio,
+               COUNT(DISTINCT l.id) FILTER (WHERE l.status IN ('disbursed','active'))  AS loans_disbursed,
+               COALESCE(SUM(lr.amount_paid) FILTER (WHERE lr.status = 'completed'), 0)::text AS loans_repaid
+             FROM organization_group_access nga
+             LEFT JOIN group_members    gm ON gm.group_id = nga.group_id
+             LEFT JOIN contributions    c  ON c.group_id  = nga.group_id
+             LEFT JOIN loans            l  ON l.group_id  = nga.group_id
+             LEFT JOIN loan_repayments  lr ON lr.loan_id  = l.id
+             WHERE nga.organization_id = $1 AND nga.is_active`,
+            [orgId(ctx)],
+          ),
+          db.query<FundingProgram>(
+            `SELECT * FROM funding_programs
+             WHERE organization_id = $1 AND status = 'active'
+             ORDER BY created_at DESC LIMIT 10`,
+            [orgId(ctx)],
+          ),
+        ]);
 
-      const p = portfolio.rows[0];
-      return {
-        financial: {
-          walletBalance:   wallet.available_balance,
-          committedFunds:  wallet.committed_balance,
-          totalDeposited:  wallet.total_deposited,
-          totalDisbursed:  wallet.total_disbursed,
-          totalReturned:   wallet.total_returned,
-        },
-        portfolio: {
-          linkedGroups:    parseInt(p?.linked_groups ?? '0', 10),
-          activeMembers:   parseInt(p?.active_members ?? '0', 10),
-          totalSavings:    p?.total_savings ?? '0',
-          loanPortfolio:   p?.loan_portfolio ?? '0',
-          activeLoans:     parseInt(p?.loans_disbursed ?? '0', 10),
-          loanRepayments:  p?.loans_repaid ?? '0',
-          activePrograms:  programs.rows.length,
-        },
-        programs: programs.rows,
-      };
+        const p = portfolio.rows[0];
+        return {
+          financial: {
+            walletBalance:   wallet.available_balance,
+            committedFunds:  wallet.committed_balance,
+            totalDeposited:  wallet.total_deposited,
+            totalDisbursed:  wallet.total_disbursed,
+            totalReturned:   wallet.total_returned,
+          },
+          portfolio: {
+            linkedGroups:    parseInt(p?.linked_groups ?? '0', 10),
+            activeMembers:   parseInt(p?.active_members ?? '0', 10),
+            totalSavings:    p?.total_savings ?? '0',
+            loanPortfolio:   p?.loan_portfolio ?? '0',
+            activeLoans:     parseInt(p?.loans_disbursed ?? '0', 10),
+            loanRepayments:  p?.loans_repaid ?? '0',
+            activePrograms:  programs.rows.length,
+          },
+          programs: programs.rows,
+        };
+      });
     });
   },
 };

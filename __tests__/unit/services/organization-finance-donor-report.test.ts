@@ -13,6 +13,13 @@ jest.mock('@/lib/db', () => ({
 jest.mock('./organization.service', () => ({
   organizationService: { assertOrganizationCoordinator: jest.fn() },
 }), { virtual: true });
+// Passthrough — this suite tests the query/aggregation logic, not the
+// read-through cache (OPTIMIZATION_CLEANUP_AUDIT.md High #8; that has its
+// own dedicated unit test at __tests__/unit/utils/redis-cache.test.ts).
+jest.mock('@/lib/redis', () => ({
+  cached: (_key: string, _ttl: number, fn: () => unknown) => fn(),
+  keys: { cache: (name: string, scope: string) => `cache:${name}:${scope}` },
+}));
 
 const mockQuery  = jest.fn();
 const mockClient = { query: mockQuery };

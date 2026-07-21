@@ -1,5 +1,6 @@
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
+import { cached, keys } from '@/lib/redis';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -188,7 +189,7 @@ export function buildMonitoringDashboardPayload(input: {
 // Platform dashboard stats
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPlatformStats() {
-  return withAdminDb(async (db: PoolClient) => {
+  return cached(keys.cache('platform-stats', 'platform'), 90, () => withAdminDb(async (db: PoolClient) => {
     const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
       db.query(`
         SELECT
@@ -256,14 +257,14 @@ export async function getPlatformStats() {
       tickets:       tickets.rows[0],
       recentActivity: activity.rows,
     };
-  });
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Revenue trend (last 6 months)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getRevenueTrend() {
-  return withAdminDb(async (db: PoolClient) => {
+  return cached(keys.cache('revenue-trend', 'platform'), 120, () => withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query(`
       SELECT
         TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') AS month,
@@ -277,11 +278,11 @@ export async function getRevenueTrend() {
       ORDER BY month_date ASC
     `);
     return rows;
-  });
+  }));
 }
 
 export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
-  return withAdminDb(async (db: PoolClient) => {
+  return cached(keys.cache('risk-dashboard', 'platform'), 60, () => withAdminDb(async (db: PoolClient) => {
     const [groups, transactions, trend, heatmap] = await Promise.all([
       db.query(`
         SELECT g.id, g.name, g.type AS group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
@@ -352,11 +353,11 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         scores: [r.fraud, r.aml, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
       })),
     });
-  });
+  }));
 }
 
 export async function getMonitoringDashboardData(): Promise<MonitoringDashboardPayload> {
-  return withAdminDb(async (db: PoolClient) => {
+  return cached(keys.cache('monitoring-dashboard', 'platform'), 20, () => withAdminDb(async (db: PoolClient) => {
     const [channels, smsHealth, hourly, smsUsage, transactions] = await Promise.all([
       // Per-channel M-Pesa health from real transactions (last 24h): success
       // rate + average round-trip latency (completed_at − initiated_at).
@@ -464,7 +465,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
       },
       transactions: transactions.rows,
     });
-  });
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -884,7 +885,7 @@ export async function toggleFeatureFlag(key: string, enabled: boolean, adminId: 
 // Analytics aggregates
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPlatformAnalytics() {
-  return withAdminDb(async (db: PoolClient) => {
+  return cached(keys.cache('platform-analytics', 'platform'), 120, () => withAdminDb(async (db: PoolClient) => {
     const [growth, topGroups, loanHealth, welfareStats] = await Promise.all([
       db.query(`
         SELECT
@@ -935,5 +936,5 @@ export async function getPlatformAnalytics() {
       loanHealth:   loanHealth.rows[0],
       welfareStats: welfareStats.rows[0],
     };
-  });
+  }));
 }

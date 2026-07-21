@@ -39,6 +39,7 @@ export const keys = {
   stkLock:       (fingerprint: string)     => `stk_lock:${fingerprint}`,
   rateLimit:     (ip: string)              => `rl:${ip}`,
   sessionCache:  (userId: string)          => `session:${userId}`,
+  cache:         (name: string, scope: string) => `cache:${name}:${scope}`,
 };
 
 const PREFIX = process.env.REDIS_PREFIX ?? 'ky:';
@@ -181,4 +182,32 @@ export async function checkRateLimit(
     logger.warn('[redis] rate limiter unavailable — allowing request', { err: String(err) });
     return true;
   }
+}
+
+/**
+ * Read-through cache for expensive, frequently-repeated reads (dashboard and
+ * report aggregates — OPTIMIZATION_CLEANUP_AUDIT.md High #8). TTL-only
+ * expiry, no manual invalidation: the audit's own recommendation is a short
+ * TTL (30-120s) traded for "minimal staleness risk," not cache-busting on
+ * every write. Fail-open on any Redis error — a cache outage degrades to a
+ * direct DB read, it must never fail the request (same convention as
+ * `acquireStkLock`/`checkRateLimit` above).
+ */
+export async function cached<T>(
+  key: string,
+  ttlSeconds: number,
+  fn: () => Promise<T>,
+): Promise<T> {
+  try {
+    const hit = await redis.get<T>(k(key));
+    if (hit !== null && hit !== undefined) return hit;
+  } catch (err) {
+    logger.warn('[redis] cache read failed — falling through to source', { key, err: String(err) });
+  }
+
+  const value = await fn();
+  redis.set(k(key), value, { ex: ttlSeconds }).catch((err) =>
+    logger.warn('[redis] cache write failed', { key, err: String(err) }),
+  );
+  return value;
 }

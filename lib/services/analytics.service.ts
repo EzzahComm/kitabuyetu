@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { withDb, type TenantContext } from '@/lib/db';
+import { cached, keys } from '@/lib/redis';
 import {
   periodToInterval,
   type AnalyticsPeriod,
@@ -115,7 +116,7 @@ export const analyticsService = {
   async getExecutiveSummary(ctx: TenantContext, period: AnalyticsPeriod): Promise<ExecutiveSummary> {
     const { interval, grain } = periodToInterval(period);
 
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('executive-summary', `${ctx.groupId}:${period}`), 60, () => withDb(ctx, async (client) => {
       const groupId = ctx.groupId;
 
       // Run every aggregation in parallel. Most are single-row scans; the
@@ -434,7 +435,7 @@ export const analyticsService = {
           netPosition: netPosition.toFixed(2),
         },
       };
-    });
+    }));
   },
 
   // ── CSV exports (E8.2) ───────────────────────────────────────────────
@@ -454,7 +455,7 @@ export const analyticsService = {
   // ── Risk analysis (E8.2) ─────────────────────────────────────────────
 
   async getRiskAnalysis(ctx: TenantContext): Promise<RiskAnalysis> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('risk-analysis', ctx.groupId), 60, () => withDb(ctx, async (client) => {
       const groupId = ctx.groupId;
       const [
         overdueLoans,
@@ -650,7 +651,7 @@ export const analyticsService = {
         })),
       };
       return out;
-    });
+    }));
   },
 };
 
