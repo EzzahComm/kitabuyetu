@@ -2,26 +2,29 @@ import { Pool, PoolClient } from 'pg';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
-// Module-level singleton pool. Safe in Next.js API routes (Node.js runtime).
+// Module-level singleton pools. Safe in Next.js API routes (Node.js runtime).
 // HMR in dev can create multiple instances — guard with globalThis.
-const globalWithPool = globalThis as typeof globalThis & { _kyPool?: Pool };
+const globalWithPool = globalThis as typeof globalThis & {
+  _kyPool?: Pool;
+  _kyTenantPool?: Pool;
+};
 
-if (!globalWithPool._kyPool) {
-  // SUPABASE connection guidance:
-  //   • Use the Supavisor SESSION-mode pooler (aws-0-<region>.pooler.supabase.com:5432).
-  //     Direct connections (db.<ref>.supabase.co:5432) are IPv6-only and unreachable
-  //     from AWS Lambda's IPv4-only outbound networking.
-  //   • Do NOT use transaction-mode pooler (port 6543) — it doesn't preserve
-  //     SET LOCAL across queries, which our RLS context relies on.
-  //   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
-  //     isn't fully present in Node's default CA bundle on Lambda. The connection
-  //     remains TLS-encrypted; we just stop pinning the chain.
+// SUPABASE connection guidance:
+//   • Use the Supavisor SESSION-mode pooler (aws-0-<region>.pooler.supabase.com:5432).
+//     Direct connections (db.<ref>.supabase.co:5432) are IPv6-only and unreachable
+//     from AWS Lambda's IPv4-only outbound networking.
+//   • Do NOT use transaction-mode pooler (port 6543) — it doesn't preserve
+//     SET LOCAL across queries, which our RLS context relies on.
+//   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
+//     isn't fully present in Node's default CA bundle on Lambda. The connection
+//     remains TLS-encrypted; we just stop pinning the chain.
+function buildPool(connectionString: string): Pool {
   const isSupabase =
-    env.DATABASE_URL.includes('supabase.com') ||
-    env.DATABASE_URL.includes('supabase.co');
+    connectionString.includes('supabase.com') ||
+    connectionString.includes('supabase.co');
 
-  globalWithPool._kyPool = new Pool({
-    connectionString:        env.DATABASE_URL,
+  const newPool = new Pool({
+    connectionString,
     max:                     env.DB_POOL_MAX,
     idleTimeoutMillis:       10_000,
     connectionTimeoutMillis: 8_000,
@@ -32,12 +35,29 @@ if (!globalWithPool._kyPool) {
         : false,
   });
 
-  globalWithPool._kyPool.on('error', (err) => {
+  newPool.on('error', (err) => {
     logger.error('[pg pool] Idle client error', err);
   });
+
+  return newPool;
+}
+
+if (!globalWithPool._kyPool) {
+  globalWithPool._kyPool = buildPool(env.DATABASE_URL);
+}
+
+// Tenant-context pool — used by withDb()/withTransaction() for real tenant
+// traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS)
+// once TENANT_DATABASE_URL is provisioned; falls back to the same pool/role
+// as withAdminDb() until then, so this is a no-op until that role exists.
+if (!globalWithPool._kyTenantPool) {
+  globalWithPool._kyTenantPool = env.TENANT_DATABASE_URL
+    ? buildPool(env.TENANT_DATABASE_URL)
+    : globalWithPool._kyPool;
 }
 
 export const pool = globalWithPool._kyPool;
+export const tenantPool = globalWithPool._kyTenantPool;
 
 // ------------------------------------------------------------------
 // Tenant context — must be set inside an explicit transaction so that
@@ -70,7 +90,7 @@ export async function withDb<T>(
   ctx: TenantContext,
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await pool.connect();
+  const client = await tenantPool.connect();
   try {
     await client.query('BEGIN');
     await setTenantLocals(client, ctx);

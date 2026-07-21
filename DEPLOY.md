@@ -20,16 +20,22 @@
 1. Go to https://supabase.com and create a new project.
 2. Note your **Project Ref** (e.g. `qztcgryhoanennsizcll`).
 
-### 1b. Get the direct DATABASE_URL
+### 1b. Get the DATABASE_URL
 
-> ⚠️ Use the **DIRECT** connection (port 5432), NOT pgBouncer (port 6543).  
-> The app uses `SET LOCAL` session variables for Row Level Security.  
-> pgBouncer transaction mode does not support this.
+> ⚠️ Use the Supavisor **session-mode pooler** (port 5432, host
+> `aws-0-<region>.pooler.supabase.com`) — NOT the direct connection
+> (`db.[PROJECT-REF].supabase.co:5432`, IPv6-only and unreachable from
+> Vercel/Lambda's IPv4-only outbound networking) and NOT the transaction-mode
+> pooler (port 6543, which does not preserve `SET LOCAL` across queries — the
+> app relies on this for Row Level Security tenant context). Session mode and
+> transaction mode both live behind port 5432/6543 respectively on the same
+> pooler host; only the port differs, not the host — don't confuse this with
+> the direct-connection host.
 
-**Supabase Dashboard → Settings → Database → Connection string → URI**
+**Supabase Dashboard → Settings → Database → Connection string → URI, "Session pooler" tab**
 
 ```
-postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+postgresql://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
 ```
 
 ### 1c. Push migrations
@@ -103,7 +109,8 @@ Required variables:
 
 | Variable | Where to get |
 |----------|-------------|
-| `DATABASE_URL` | Supabase → Settings → Database → URI (port 5432) |
+| `DATABASE_URL` | Supabase → Settings → Database → URI, "Session pooler" tab (port 5432, `aws-0-<region>.pooler.supabase.com` host — see 1b above) |
+| `TENANT_DATABASE_URL` | Optional. Same host/pooler as `DATABASE_URL`, connecting as the least-privileged `app_tenant` role instead of `postgres` — see `scripts/ops/create-app-tenant-role.sql`. Unset = falls back to `DATABASE_URL`. |
 | `REDIS_URL` | Upstash console → ioredis URL |
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `ENCRYPTION_KEY` | `openssl rand -hex 32` |

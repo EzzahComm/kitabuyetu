@@ -18,6 +18,12 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL URI'),
   // Max connections per serverless instance. Total usage = DB_POOL_MAX × warm instances.
   DB_POOL_MAX: z.coerce.number().int().positive().default(3),
+  // Connection string for the least-privileged, non-BYPASSRLS `app_tenant` role
+  // used by withDb()/withTransaction() (real tenant-context traffic). Optional
+  // and falls back to DATABASE_URL when unset, so this is a no-op until the
+  // role actually exists and this is provisioned — unsetting it is also the
+  // instant-revert path back to the single-role/BYPASSRLS pool.
+  TENANT_DATABASE_URL: z.string().url('TENANT_DATABASE_URL must be a valid PostgreSQL URI').optional(),
 
   // ── Redis (Upstash) ───────────────────────────────────────────────────────
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
