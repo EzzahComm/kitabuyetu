@@ -17,6 +17,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --forceExit",
+    "test:integration": "jest --config jest.integration.config.ts --runInBand --forceExit",
     "ci": "npm run lint && npm run typecheck && npm run test:ci && npm run build"
   },
   "dependencies": {

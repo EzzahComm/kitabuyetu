@@ -10,6 +10,10 @@ const config: Config = {
     '<rootDir>/__tests__/**/*.test.ts',
     '<rootDir>/__tests__/**/*.test.tsx',
   ],
+  // Real-Postgres integration tests run separately via `test:integration`
+  // (jest.integration.config.ts) — they need a live DB, unlike this suite's
+  // fake DATABASE_URL (see ci.yml).
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/__tests__/integration/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
