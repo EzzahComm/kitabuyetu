@@ -16,6 +16,11 @@ services:
       # docker-entrypoint-initdb.d sorts and runs *.sql alphabetically,
       # and the timestamp prefixes preserve the correct ordering.
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+      # Layered on top of the mount above (Docker supports nesting a single
+      # file mount inside a directory mount) — must sort before every
+      # migration's timestamp prefix, hence the "00-" name. See the file for
+      # why this is needed.
+      - ./scripts/docker-init/00-bootstrap-roles.sql:/docker-entrypoint-initdb.d/00-bootstrap-roles.sql:ro
     healthcheck:
       test:     ['CMD-SHELL', 'pg_isready -U kitabuyetu']
       interval: 10s

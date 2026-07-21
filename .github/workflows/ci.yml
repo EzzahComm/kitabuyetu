@@ -405,6 +405,18 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
+      # Several migrations GRANT/REVOKE against Supabase's built-in
+      # anon/authenticated/service_role roles (RLS policy targets) — real
+      # Supabase projects provision these automatically, but a plain
+      # postgres:17-alpine image doesn't. Same script docker-compose.yml uses
+      # locally (see scripts/docker-init/00-bootstrap-roles.sql).
+      - name: Bootstrap Supabase roles
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci_test_pw
+          psql -h localhost -U kitabuyetu -d kitabuyetu -v ON_ERROR_STOP=1 \
+            -f scripts/docker-init/00-bootstrap-roles.sql
+
       # Mirrors docker-compose.yml's docker-entrypoint-initdb.d behaviour:
       # apply every migration file in filename (timestamp-prefixed) order.
       - name: Apply migrations
