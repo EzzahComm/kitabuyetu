@@ -221,9 +221,9 @@ describe('postSystemJournal', () => {
     expect(journalInsert[0]).toContain(`'posted'`);
 
     const line1 = mockQuery.mock.calls[2];
-    expect(line1[1]).toEqual(['group-1', 'je-1', 'acct-cash', '1000.00', '0.00']);
+    expect(line1[1]).toEqual(['group-1', 'je-1', 'acct-cash', '1000.00', '0.00', null]);
     const line2 = mockQuery.mock.calls[3];
-    expect(line2[1]).toEqual(['group-1', 'je-1', 'acct-equity', '0.00', '1000.00']);
+    expect(line2[1]).toEqual(['group-1', 'je-1', 'acct-equity', '0.00', '1000.00', null]);
   });
 
   it('posts a 3-line entry (dividend gross split into net + tax)', async () => {
@@ -300,7 +300,7 @@ describe('postContributionJournal', () => {
 
     expect(result).toBe('je-1');
     const creditLine = mockQuery.mock.calls[4];
-    expect(creditLine[1]).toEqual(['group-1', 'je-1', 'acct-4001', '1000.00']);
+    expect(creditLine[1]).toEqual(['group-1', 'je-1', 'acct-4001', '1000.00', '2026-01-15']);
   });
 
   it('splits the credit side across configured income accounts', async () => {

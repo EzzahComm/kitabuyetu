@@ -336,12 +336,17 @@ async function mirrorJournal(
      RETURNING id`,
     [args.sourceJeId, args.description, args.actorId, args.memberId, args.membershipId],
   );
+  // entry_date is the journal_lines partition key — supplied directly as
+  // CURRENT_DATE, matching the new entry's own date above (this mirrored
+  // entry is deliberately dated today, not the original entry's date; a
+  // BEFORE INSERT trigger deriving it after Postgres has already routed the
+  // row to a partition is unsupported).
   await client.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description)
+    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description, entry_date)
      SELECT group_id, $2, account_id,
             CASE WHEN $3 THEN credit ELSE debit  END,
             CASE WHEN $3 THEN debit  ELSE credit END,
-            description
+            description, CURRENT_DATE
      FROM   journal_lines WHERE journal_entry_id = $1`,
     [args.sourceJeId, je.id, args.swap],
   );

@@ -103,9 +103,14 @@ export async function postSystemJournal(
 
   for (const line of lines) {
     await client.query(
-      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2)],
+      // entry_date is the journal_lines partition key (migrations 094/095) — a
+      // BEFORE INSERT trigger deriving it after Postgres has already routed the
+      // row to a partition is unsupported, so it must be supplied here directly,
+      // matching the identical COALESCE(..., CURRENT_DATE) used for the parent
+      // journal_entries row above (same transaction, same resolved date).
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE))`,
+      [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2), opts?.entryDate ?? null],
     );
   }
 
@@ -187,14 +192,18 @@ export async function postContributionJournal(
   const jeId = jeRows[0]?.id;
   if (!jeId) return null;
 
+  // entry_date is the journal_lines partition key — supplied directly (see
+  // postSystemJournal's comment above) rather than left to the now-unsafe
+  // derive trigger, matching args.entryDate already bound to the parent
+  // journal_entries row above.
   await client.query(
-    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,$4,0)`,
-    [args.groupId, jeId, cashId, args.amount.toFixed(2)],
+    `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date) VALUES ($1,$2,$3,$4,0,$5)`,
+    [args.groupId, jeId, cashId, args.amount.toFixed(2), args.entryDate],
   );
   for (const [accountId, cents] of creditByAccountId) {
     await client.query(
-      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit) VALUES ($1,$2,$3,0,$4)`,
-      [args.groupId, jeId, accountId, (cents / 100).toFixed(2)],
+      `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date) VALUES ($1,$2,$3,0,$4,$5)`,
+      [args.groupId, jeId, accountId, (cents / 100).toFixed(2), args.entryDate],
     );
   }
 
@@ -289,9 +298,12 @@ export const accountingService = {
       const lineRows: JournalLine[] = [];
       for (const line of data.lines) {
         const { rows } = await client.query<JournalLine>(
-          `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-          [ctx.groupId, je.id, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2), line.description ?? null],
+          // entry_date is the journal_lines partition key — supplied directly
+          // (see postSystemJournal's comment above), matching data.entryDate
+          // already bound to the parent journal_entries row above.
+          `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description, entry_date)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+          [ctx.groupId, je.id, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2), line.description ?? null, data.entryDate],
         );
         lineRows.push(rows[0]);
       }

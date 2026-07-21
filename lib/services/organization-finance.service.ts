@@ -173,9 +173,13 @@ async function settleOrgDisbursement(id: string): Promise<void> {
         [disb.group_id, disb.reference, `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`],
       );
       groupJournalId = je[0].id;
+      // entry_date is the journal_lines partition key — supplied directly as
+      // the same CURRENT_DATE literal used for the parent journal_entries row
+      // above (a BEFORE INSERT trigger deriving it after Postgres has already
+      // routed the row to a partition is unsupported).
       await db.query(
-        `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit)
-         VALUES ($1,$2,$3,$4,0), ($1,$2,$5,0,$4)`,
+        `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
+         VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)`,
         [disb.group_id, groupJournalId, cashId, disb.amount, incomeId],
       );
     } else {
