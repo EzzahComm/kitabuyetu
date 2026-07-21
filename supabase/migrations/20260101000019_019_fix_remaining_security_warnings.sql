@@ -61,6 +61,12 @@ GRANT SELECT, INSERT, UPDATE
 -- UNLESS Supabase recreates the function from its own internal template
 -- (in which case this migration would need to be re-applied via SQL Editor).
 -- ---------------------------------------------------------------------------
+-- rls_auto_enable() only exists on real Supabase-provisioned projects (it's
+-- part of their platform template, not something any migration here
+-- creates) — every statement touching it, including the belt-and-suspenders
+-- REVOKE/GRANT below, must stay inside this same guard so applying these
+-- migrations to a plain Postgres instance (local dev, CI) doesn't fail on a
+-- function that was never expected to exist there.
 DO $$
 BEGIN
   IF EXISTS (
@@ -69,15 +75,12 @@ BEGIN
     WHERE n.nspname = 'public' AND p.proname = 'rls_auto_enable'
   ) THEN
     ALTER FUNCTION public.rls_auto_enable() SECURITY INVOKER;
+
+    -- Belt-and-suspenders REVOKE (Supabase re-grants EXECUTE on all public
+    -- functions after each push, so this is a session-scoped defence. The
+    -- SECURITY INVOKER change above is the durable fix.)
+    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon, authenticated, public;
+    GRANT  EXECUTE ON FUNCTION public.rls_auto_enable() TO service_role, postgres;
   END IF;
 END;
 $$;
-
--- Belt-and-suspenders REVOKE (Supabase re-grants EXECUTE on all public functions
--- after each push, so this is a session-scoped defence. The SECURITY INVOKER
--- change above is the durable fix.)
-REVOKE EXECUTE ON FUNCTION public.rls_auto_enable()
-  FROM anon, authenticated, public;
-
-GRANT EXECUTE ON FUNCTION public.rls_auto_enable()
-  TO service_role, postgres;
