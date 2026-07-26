@@ -11,15 +11,6 @@
 import { redis } from '@/lib/redis';
 
 export const QUEUES = {
-  MPESA_RECONCILE:      'mpesa:reconcile',
-  MPESA_STATUS_CHECK:   'mpesa:status_check',
-  FAILED_PAYMENT_RETRY: 'failed_payment:retry',
-  BILL_MGR_SEND:        'bill_mgr:send',
-  SMS_SEND:             'sms:send',
-  SMS_BULK:             'sms:bulk',
-  SMS_RETRY:            'sms:retry',
-  SMS_BIRTHDAY:         'sms:birthday',
-  SMS_SCHEDULED:        'sms:scheduled',
   EMAIL_SEND:           'email:send',
   EMAIL_HIGH:           'email:high',
   EMAIL_LOW:            'email:low',
@@ -102,22 +93,4 @@ export async function moveToDeadLetter(job: Job, error: string): Promise<void> {
   const entry = JSON.stringify({ ...job, error, failedAt: Date.now() });
   await redis.lpush(DLQ(job.queue), entry);
   await redis.ltrim(DLQ(job.queue), 0, 499);
-}
-
-// ─── Observability ───────────────────────────────────────────────────────────
-
-export async function queueDepth(queue: string): Promise<number> {
-  return redis.zcount(Q(queue), '-inf', '+inf');
-}
-
-export async function deadLetterDepth(queue: string): Promise<number> {
-  return redis.llen(DLQ(queue));
-}
-
-export async function peekDeadLetter(
-  queue: string,
-  limit = 10,
-): Promise<Job[]> {
-  const items = await redis.lrange(DLQ(queue), 0, limit - 1);
-  return items.map((i) => JSON.parse(i as string) as Job);
 }
