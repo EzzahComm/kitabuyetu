@@ -15,8 +15,9 @@ import { useSavingsPolicy, useSetSavingsPolicy } from '@/hooks/use-contributions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal } from 'lucide-react';
+import type { Account } from '@/types/db.types';
 
 const POLICY_LABELS: Record<string, string> = {
   journal_threshold:            'Manual journal maker-checker',
@@ -74,8 +75,8 @@ export default function AccountingPage() {
       setOpen(false);
       setLines([{ accountId:'',debit:0,credit:0,description:'' },{ accountId:'',debit:0,credit:0,description:'' }]);
       setMemo('');
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 
@@ -115,15 +116,19 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {((trialBalance as any[]) ?? []).map((row: any) => (
-                      <tr key={row.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2 font-mono text-xs">{row.accountCode}</td>
-                        <td className="px-4 py-2">{row.accountName}</td>
-                        <td className="px-4 py-2 capitalize text-xs"><Badge variant="outline">{row.accountType}</Badge></td>
-                        <td className="px-4 py-2 text-right">{row.debitBalance > 0 ? formatKES(row.debitBalance) : '—'}</td>
-                        <td className="px-4 py-2 text-right">{row.creditBalance > 0 ? formatKES(row.creditBalance) : '—'}</td>
-                      </tr>
-                    ))}
+                    {(trialBalance ?? []).map((row) => {
+                      const debit  = parseFloat(row.totalDebits);
+                      const credit = parseFloat(row.totalCredits);
+                      return (
+                        <tr key={row.accountCode} className="border-t hover:bg-muted/20">
+                          <td className="px-4 py-2 font-mono text-xs">{row.accountCode}</td>
+                          <td className="px-4 py-2">{row.accountName}</td>
+                          <td className="px-4 py-2 capitalize text-xs"><Badge variant="outline">{row.accountType}</Badge></td>
+                          <td className="px-4 py-2 text-right">{debit > 0 ? formatKES(debit) : '—'}</td>
+                          <td className="px-4 py-2 text-right">{credit > 0 ? formatKES(credit) : '—'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </CardContent>
@@ -144,13 +149,13 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {((journals as any)?.items ?? []).map((j: any) => (
+                    {(journals?.items ?? []).map((j) => (
                       <tr key={j.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2">{formatDate(j.entryDate ?? j.createdAt)}</td>
+                        <td className="px-4 py-2">{formatDate(j.entryDate)}</td>
                         <td className="px-4 py-2 font-mono text-xs">{j.reference ?? j.id.slice(0,8)}</td>
                         <td className="px-4 py-2 max-w-[200px] truncate">{j.memo ?? '—'}</td>
                         <td className="px-4 py-2"><Badge variant={j.status==='posted'?'success':'warning'} className="capitalize text-xs">{j.status}</Badge></td>
-                        <td className="px-4 py-2">{j.lineCount ?? '—'}</td>
+                        <td className="px-4 py-2">{j.lineCount}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -175,37 +180,37 @@ export default function AccountingPage() {
           {loadingBS ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Balance Sheet — as of {balanceSheet ? formatDate((balanceSheet as any).asOf) : ''}</CardTitle>
+                <CardTitle className="text-base">Balance Sheet — as of {balanceSheet ? formatDate(balanceSheet.asOf) : ''}</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0">
                 <table className="w-full text-sm">
                   <tbody>
                     <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Assets</td></tr>
-                    {(((balanceSheet as any)?.assets ?? []) as any[]).map((a) => (
+                    {(balanceSheet?.assets ?? []).map((a) => (
                       <tr key={a.accountCode} className="border-t hover:bg-muted/20">
                         <td className="px-4 py-2">{a.accountName}</td>
                         <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
                       </tr>
                     ))}
-                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Assets</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalAssets ?? '0'))}</td></tr>
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Assets</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(balanceSheet?.totalAssets ?? '0'))}</td></tr>
 
                     <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Liabilities</td></tr>
-                    {(((balanceSheet as any)?.liabilities ?? []) as any[]).map((a) => (
+                    {(balanceSheet?.liabilities ?? []).map((a) => (
                       <tr key={a.accountCode} className="border-t hover:bg-muted/20">
                         <td className="px-4 py-2">{a.accountName}</td>
                         <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
                       </tr>
                     ))}
-                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Liabilities</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalLiabilities ?? '0'))}</td></tr>
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Liabilities</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(balanceSheet?.totalLiabilities ?? '0'))}</td></tr>
 
                     <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">Equity</td></tr>
-                    {(((balanceSheet as any)?.equity ?? []) as any[]).map((a) => (
+                    {(balanceSheet?.equity ?? []).map((a) => (
                       <tr key={a.accountCode} className="border-t hover:bg-muted/20">
                         <td className="px-4 py-2">{a.accountName}</td>
                         <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(a.balance))}</td>
                       </tr>
                     ))}
-                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Equity</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((balanceSheet as any)?.totalEquity ?? '0'))}</td></tr>
+                    <tr className="border-t font-semibold"><td className="px-4 py-2">Total Equity</td><td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(balanceSheet?.totalEquity ?? '0'))}</td></tr>
                   </tbody>
                 </table>
               </CardContent>
@@ -219,7 +224,7 @@ export default function AccountingPage() {
                 <CardTitle className="text-base">Statement of Changes in Equity — {now.getFullYear()}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Movement per equity account this year. The period&apos;s net surplus of{' '}
-                  <span className="font-mono">{formatKES(parseFloat((equityChanges as any).periodNetProfit))}</span>{' '}
+                  <span className="font-mono">{formatKES(parseFloat(equityChanges.periodNetProfit))}</span>{' '}
                   remains in income/expense accounts until a closing entry moves it to Retained Surplus.
                 </p>
               </CardHeader>
@@ -233,7 +238,7 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(((equityChanges as any)?.lines ?? []) as any[]).map((l) => (
+                    {equityChanges.lines.map((l) => (
                       <tr key={l.accountCode} className="border-t hover:bg-muted/20">
                         <td className="px-4 py-2">{l.accountName}</td>
                         <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(l.opening))}</td>
@@ -244,9 +249,9 @@ export default function AccountingPage() {
                     ))}
                     <tr className="border-t font-semibold">
                       <td className="px-4 py-2">Total</td>
-                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((equityChanges as any).totalOpening))}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(equityChanges.totalOpening))}</td>
                       <td className="px-4 py-2" colSpan={2}/>
-                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((equityChanges as any).totalClosing))}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(equityChanges.totalClosing))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -274,9 +279,9 @@ export default function AccountingPage() {
                        ['Financing activities','financing','netFinancing']] as const).map(([label, key, netKey]) => (
                       <React.Fragment key={key}>
                         <tr className="bg-muted/50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">{label}</td></tr>
-                        {(((cashFlow as any)?.[key] ?? []) as any[]).length === 0 ? (
+                        {(cashFlow?.[key] ?? []).length === 0 ? (
                           <tr className="border-t"><td colSpan={2} className="px-4 py-2 text-muted-foreground">No movements</td></tr>
-                        ) : (((cashFlow as any)?.[key] ?? []) as any[]).map((l) => (
+                        ) : (cashFlow?.[key] ?? []).map((l) => (
                           <tr key={l.accountCode} className="border-t hover:bg-muted/20">
                             <td className="px-4 py-2">{l.accountName}</td>
                             <td className={`px-4 py-2 text-right font-mono ${parseFloat(l.amount) < 0 ? 'text-destructive' : ''}`}>
@@ -286,23 +291,23 @@ export default function AccountingPage() {
                         ))}
                         <tr className="border-t font-semibold">
                           <td className="px-4 py-2">Net cash from {label.toLowerCase()}</td>
-                          <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.[netKey] ?? '0'))}</td>
+                          <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(cashFlow?.[netKey] ?? '0'))}</td>
                         </tr>
                       </React.Fragment>
                     ))}
                     <tr className="bg-muted/50 font-semibold">
                       <td className="px-4 py-2">Net change in cash</td>
-                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.netChange ?? '0'))}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(cashFlow?.netChange ?? '0'))}</td>
                     </tr>
                     <tr className="border-t">
                       <td className="px-4 py-2">Opening cash</td>
-                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.openingCash ?? '0'))}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(cashFlow?.openingCash ?? '0'))}</td>
                     </tr>
                     <tr className="border-t font-semibold">
                       <td className="px-4 py-2">Closing cash</td>
-                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat((cashFlow as any)?.closingCash ?? '0'))}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatKES(parseFloat(cashFlow?.closingCash ?? '0'))}</td>
                     </tr>
-                    {(cashFlow as any) && !(cashFlow as any).reconciles && (
+                    {cashFlow && !cashFlow.reconciles && (
                       <tr className="border-t">
                         <td colSpan={2} className="px-4 py-2 text-xs text-destructive">
                           Opening + net change does not equal closing — some cash movement could not be classified. Contact support.
@@ -338,9 +343,9 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {((fiscalPeriods as any[]) ?? []).length === 0 ? (
+                    {(fiscalPeriods ?? []).length === 0 ? (
                       <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No periods closed yet — every date is open for posting.</td></tr>
-                    ) : ((fiscalPeriods as any[]) ?? []).map((p: any) => (
+                    ) : (fiscalPeriods ?? []).map((p) => (
                       <tr key={p.id} className="border-t hover:bg-muted/20">
                         <td className="px-4 py-2 font-mono text-xs">{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
                         <td className="px-4 py-2">
@@ -378,12 +383,12 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {((accounts as any[]) ?? []).map((a: any) => (
+                    {(accounts ?? []).map((a) => (
                       <tr key={a.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2 font-mono text-xs">{a.accountCode}</td>
-                        <td className="px-4 py-2">{a.accountName}</td>
-                        <td className="px-4 py-2 capitalize"><Badge variant="outline" className="text-xs">{a.accountType}</Badge></td>
-                        <td className="px-4 py-2 text-right font-mono">{formatKES(a.balance ?? 0)}</td>
+                        <td className="px-4 py-2 font-mono text-xs">{a.account_code}</td>
+                        <td className="px-4 py-2">{a.name}</td>
+                        <td className="px-4 py-2 capitalize"><Badge variant="outline" className="text-xs">{a.type}</Badge></td>
+                        <td className="px-4 py-2 text-right font-mono">{formatKES(a.balance)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -414,7 +419,7 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {((policies as any[]) ?? []).map((p: any) => {
+                    {(policies ?? []).map((p) => {
                       const editValue = policyEdits[p.key] ?? String(p.threshold);
                       const dirty = editValue !== String(p.threshold);
                       return (
@@ -440,8 +445,8 @@ export default function AccountingPage() {
                                 try {
                                   await setPolicy.mutateAsync({ key: p.key, threshold: parseFloat(editValue) });
                                   toast({ title: 'Policy updated' });
-                                } catch (err: any) {
-                                  toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                                } catch (err) {
+                                  toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                                 }
                               }}
                             >
@@ -464,7 +469,7 @@ export default function AccountingPage() {
           </div>
 
           <div className="mt-4">
-            <PostingTemplatesCard accounts={(accounts as any[]) ?? []} />
+            <PostingTemplatesCard accounts={accounts ?? []} />
           </div>
         </TabsContent>
       </Tabs>
@@ -497,8 +502,8 @@ export default function AccountingPage() {
                         className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
                       >
                         <option value="">Select account…</option>
-                        {((accounts as any[]) ?? []).map((a:any)=>(
-                          <option key={a.id} value={a.id}>{a.accountCode} — {a.accountName}</option>
+                        {(accounts ?? []).map((a) => (
+                          <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
                         ))}
                       </select>
                     </td>
@@ -560,8 +565,8 @@ export default function AccountingPage() {
                   await closePeriod.mutateAsync({ periodStart, periodEnd });
                   toast({ title: 'Period closed' });
                   setCloseOpen(false);
-                } catch (err: any) {
-                  toast({ variant: 'destructive', title: 'Failed to close period', description: err.message });
+                } catch (err) {
+                  toast({ variant: 'destructive', title: 'Failed to close period', description: getErrorMessage(err) });
                 }
               }}
             >
@@ -592,8 +597,8 @@ export default function AccountingPage() {
                   await reopenPeriod.mutateAsync({ id: reopenTarget, reason: reopenReason });
                   toast({ title: 'Period reopened' });
                   setReopenTarget(null);
-                } catch (err: any) {
-                  toast({ variant: 'destructive', title: 'Failed to reopen period', description: err.message });
+                } catch (err) {
+                  toast({ variant: 'destructive', title: 'Failed to reopen period', description: getErrorMessage(err) });
                 }
               }}
             >
@@ -627,7 +632,7 @@ interface TemplateLineUI { accountCode: string; side: 'debit' | 'credit'; amount
  * structure (sides, amount roles) is locked server-side, so an override can
  * never unbalance an entry.
  */
-function PostingTemplatesCard({ accounts }: { accounts: any[] }) {
+function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
   const { toast } = useToast();
   const { data: templates, isLoading } = usePostingTemplates();
   const save = useSetPostingTemplate();
@@ -654,7 +659,7 @@ function PostingTemplatesCard({ accounts }: { accounts: any[] }) {
               </tr>
             </thead>
             <tbody>
-              {((templates as any[]) ?? []).map((t: any) => {
+              {(templates ?? []).map((t) => {
                 const lines: TemplateLineUI[] = edits[t.event] ?? t.lines;
                 const dirty = t.event in edits;
                 return (
@@ -680,11 +685,11 @@ function PostingTemplatesCard({ accounts }: { accounts: any[] }) {
                               }}
                               className="flex h-8 w-full min-w-56 rounded-md border border-input bg-background px-2 py-1 text-xs"
                             >
-                              {!accounts.some((a) => a.accountCode === line.accountCode) && (
+                              {!accounts.some((a) => a.account_code === line.accountCode) && (
                                 <option value={line.accountCode}>{line.accountCode} — (not in your chart)</option>
                               )}
                               {accounts.map((a) => (
-                                <option key={a.id} value={a.accountCode}>{a.accountCode} — {a.accountName}</option>
+                                <option key={a.id} value={a.account_code}>{a.account_code} — {a.name}</option>
                               ))}
                             </select>
                             {line.amount !== 'amount' && (
@@ -703,8 +708,8 @@ function PostingTemplatesCard({ accounts }: { accounts: any[] }) {
                             await save.mutateAsync({ event: t.event, lines });
                             setEdits((prev) => { const { [t.event]: _gone, ...rest } = prev; return rest; });
                             toast({ title: 'Posting template updated' });
-                          } catch (err: any) {
-                            toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                          } catch (err) {
+                            toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                           }
                         }}
                       >
@@ -733,8 +738,8 @@ function LoanTermsCard() {
   const save = useSetLoanPolicy();
   const [edits, setEdits] = useState<Record<string, string> | null>(null);
 
-  const terms  = (data as any)?.terms;
-  const source = (data as any)?.source;
+  const terms  = data?.terms;
+  const source = data?.source;
   const form = edits ?? (terms ? {
     interestRate:   String(terms.interestRate),
     interestMethod: terms.interestMethod,
@@ -803,8 +808,8 @@ function LoanTermsCard() {
                     });
                     setEdits(null);
                     toast({ title: 'Loan terms updated' });
-                  } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  } catch (err) {
+                    toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                   }
                 }}
               >
@@ -832,8 +837,8 @@ function SavingsPolicyCard() {
   const save = useSetSavingsPolicy();
   const [edits, setEdits] = useState<Record<string, string> | null>(null);
 
-  const limits = (data as any)?.limits;
-  const source = (data as any)?.source;
+  const limits = data?.limits;
+  const source = data?.source;
   const form = edits ?? (limits ? {
     minContribution: String(limits.minContribution),
     maxContribution: limits.maxContribution === null ? '' : String(limits.maxContribution),
@@ -889,8 +894,8 @@ function SavingsPolicyCard() {
                     });
                     setEdits(null);
                     toast({ title: 'Savings limits updated' });
-                  } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  } catch (err) {
+                    toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                   }
                 }}
               >
@@ -915,8 +920,8 @@ function FineScheduleCard() {
   const save = useSetFinePolicy();
   const [edits, setEdits] = useState<Array<{ category: string; amount: string }> | null>(null);
 
-  const schedule = (data as any)?.schedule as Record<string, number> | undefined;
-  const source   = (data as any)?.source;
+  const schedule = data?.schedule;
+  const source   = data?.source;
   const rows = edits ?? (schedule
     ? Object.entries(schedule).map(([category, amount]) => ({ category, amount: String(amount) }))
     : null);
@@ -972,8 +977,8 @@ function FineScheduleCard() {
                     await save.mutateAsync({ schedule });
                     setEdits(null);
                     toast({ title: 'Fine schedule updated' });
-                  } catch (err: any) {
-                    toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                  } catch (err) {
+                    toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                   }
                 }}
               >

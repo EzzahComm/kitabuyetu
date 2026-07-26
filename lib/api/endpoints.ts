@@ -3,8 +3,15 @@ import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
   MemberPublic, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
+  TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
 } from '@/types/api.types';
-import type { PaginatedResult } from '@/types/db.types';
+import type { PaginatedResult, Account } from '@/types/db.types';
+import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
+import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
+import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
+import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
+import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
+import type { EffectiveSavingsLimits } from '@/lib/services/savings-policy.service';
 
 // ------------------------------------------------------------------
 // Auth
@@ -117,9 +124,9 @@ export const contributionsApi = {
   delete:  (id: string) =>
     api.delete<void>(`/contributions/${id}`),
   policy: () =>
-    api.get<unknown>('/contributions/policy'),
+    api.get<EffectiveSavingsLimits>('/contributions/policy'),
   setPolicy: (body: unknown) =>
-    api.put<unknown>('/contributions/policy', body),
+    api.put<EffectiveSavingsLimits>('/contributions/policy', body),
 };
 
 // ------------------------------------------------------------------
@@ -137,9 +144,9 @@ export const loansApi = {
   recordRepayment: (id: string, body: unknown) =>
     api.post<unknown>(`/loans/${id}/repayments`, body),
   policy: () =>
-    api.get<unknown>('/loans/policy'),
+    api.get<EffectiveLoanTerms>('/loans/policy'),
   setPolicy: (body: unknown) =>
-    api.put<unknown>('/loans/policy', body),
+    api.put<EffectiveLoanTerms>('/loans/policy', body),
 };
 
 // ------------------------------------------------------------------
@@ -147,9 +154,9 @@ export const loansApi = {
 // ------------------------------------------------------------------
 export const finesApi = {
   policy: () =>
-    api.get<unknown>('/fines/policy'),
+    api.get<EffectiveFineSchedule>('/fines/policy'),
   setPolicy: (body: { schedule: Record<string, number> }) =>
-    api.put<unknown>('/fines/policy', body),
+    api.put<EffectiveFineSchedule>('/fines/policy', body),
 };
 
 // ------------------------------------------------------------------
@@ -157,37 +164,37 @@ export const finesApi = {
 // ------------------------------------------------------------------
 export const accountingApi = {
   listAccounts: () =>
-    api.get<unknown[]>('/accounting/accounts'),
+    api.get<Account[]>('/accounting/accounts'),
   createAccount: (body: unknown) =>
-    api.post<unknown>('/accounting/accounts', body),
+    api.post<Account>('/accounting/accounts', body),
   journals: (params?: Record<string, unknown>) =>
-    api.get<PaginatedResult<unknown>>(`/accounting/journals${buildQuery(params ?? {})}`),
+    api.get<PaginatedResult<JournalEntry>>(`/accounting/journals${buildQuery(params ?? {})}`),
   createJournal: (body: unknown) =>
     api.post<unknown>('/accounting/journals', body),
   trialBalance: () =>
-    api.get<unknown[]>('/accounting/reports?type=trial_balance'),
+    api.get<TrialBalanceLine[]>('/accounting/reports?type=trial_balance'),
   profitAndLoss: (from: string, to: string) =>
-    api.get<unknown>(`/accounting/reports?type=profit_and_loss&from=${from}&to=${to}`),
+    api.get<ProfitAndLoss>(`/accounting/reports?type=profit_and_loss&from=${from}&to=${to}`),
   balanceSheet:  (asOf?: string) =>
-    api.get<unknown>(`/accounting/reports?type=balance_sheet${asOf ? `&asOf=${asOf}` : ''}`),
+    api.get<BalanceSheet>(`/accounting/reports?type=balance_sheet${asOf ? `&asOf=${asOf}` : ''}`),
   fiscalPeriods: () =>
-    api.get<unknown[]>('/accounting/fiscal-periods'),
+    api.get<FiscalPeriod[]>('/accounting/fiscal-periods'),
   closePeriod: (body: { periodStart: string; periodEnd: string }) =>
     api.post<unknown>('/accounting/fiscal-periods', body),
   reopenPeriod: (id: string, body: { reason: string }) =>
     api.post<unknown>(`/accounting/fiscal-periods/${id}`, body),
   policies: () =>
-    api.get<unknown[]>('/accounting/policies'),
+    api.get<EffectiveThreshold[]>('/accounting/policies'),
   setPolicy: (body: { key: string; threshold: number }) =>
-    api.put<unknown[]>('/accounting/policies', body),
+    api.put<EffectiveThreshold[]>('/accounting/policies', body),
   cashFlow: (from: string, to: string) =>
-    api.get<unknown>(`/accounting/reports?type=cash_flow&from=${from}&to=${to}`),
+    api.get<CashFlowStatement>(`/accounting/reports?type=cash_flow&from=${from}&to=${to}`),
   equityChanges: (from: string, to: string) =>
-    api.get<unknown>(`/accounting/reports?type=equity_changes&from=${from}&to=${to}`),
+    api.get<EquityChanges>(`/accounting/reports?type=equity_changes&from=${from}&to=${to}`),
   postingTemplates: () =>
-    api.get<unknown[]>('/accounting/posting-templates'),
+    api.get<EffectiveTemplate[]>('/accounting/posting-templates'),
   setPostingTemplate: (body: unknown) =>
-    api.put<unknown[]>('/accounting/posting-templates', body),
+    api.put<EffectiveTemplate[]>('/accounting/posting-templates', body),
 };
 
 // ------------------------------------------------------------------

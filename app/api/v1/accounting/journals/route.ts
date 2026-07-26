@@ -4,6 +4,8 @@ import { withAuth, withRole } from '@/lib/auth/middleware';
 import { accountingService } from '@/lib/services/accounting.service';
 import { CreateJournalSchema, VoidJournalSchema } from '@/lib/validators/accounting.schema';
 import { ok, created } from '@/lib/utils/response';
+import type { JournalEntry } from '@/types/api.types';
+import type { PaginatedResult } from '@/types/db.types';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withRole(req, 'treasurer', async (auth) => {
@@ -25,8 +27,14 @@ export async function GET(req: NextRequest): Promise<Response> {
         `SELECT COUNT(*) AS count FROM journal_entries je WHERE ${where}`, vals,
       );
       const total = parseInt(countRows[0].count, 10);
-      const { rows } = await client.query(
-        `SELECT je.*, COUNT(jl.id)::int AS line_count
+      const { rows: items } = await client.query<JournalEntry>(
+        `SELECT
+           je.id                AS "id",
+           je.entry_date::text  AS "entryDate",
+           je.reference         AS "reference",
+           je.memo              AS "memo",
+           je.status            AS "status",
+           COUNT(jl.id)::int    AS "lineCount"
          FROM journal_entries je
          LEFT JOIN journal_lines jl ON jl.journal_entry_id = je.id
          WHERE ${where}
@@ -35,7 +43,8 @@ export async function GET(req: NextRequest): Promise<Response> {
          LIMIT $${idx} OFFSET $${idx+1}`,
         [...vals, limit, offset],
       );
-      return { data: rows, total, page, limit, totalPages: Math.ceil(total / limit) };
+      const result: PaginatedResult<JournalEntry> = { items, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
+      return result;
     });
     return ok(result);
   });

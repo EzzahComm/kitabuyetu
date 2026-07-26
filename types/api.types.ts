@@ -290,6 +290,15 @@ export interface EquityChanges {
   periodNetProfit: string;
 }
 
+export interface JournalEntry {
+  id:         string;
+  entryDate:  string;
+  reference:  string | null;
+  memo:       string | null;
+  status:     string;
+  lineCount:  number;
+}
+
 // ------------------------------------------------------------------
 // Billing responses
 // ------------------------------------------------------------------

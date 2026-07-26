@@ -35,6 +35,11 @@ export function getInitials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
 }
 
+/** Narrow a caught `unknown` to a displayable message without an `any` cast. */
+export function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 /** Build query string from non-null params */
 export function buildQuery(params: Record<string, unknown>): string {
   const qs = new URLSearchParams();
