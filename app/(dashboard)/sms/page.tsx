@@ -8,58 +8,12 @@ import {
 } from 'lucide-react';
 import { smsApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { StatusPill } from '@/components/shared/status-pill';
 import { EmptyState, SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface SmsLog {
-  id: string;
-  recipient_phone: string;
-  message_text: string;
-  status: string;
-  credits_deducted: string;
-  provider_msg_id: string | null;
-  sent_at: string | null;
-  created_at: string;
-}
-
-interface Campaign {
-  id: string;
-  name: string;
-  status: string;
-  message: string;
-  recipient_count: number;
-  sent_count: number;
-  failed_count: number;
-  scheduled_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-}
-
-interface Template {
-  id: string;
-  template_key: string;
-  name: string;
-  body: string;
-  category: string;
-  is_system: boolean;
-  is_active: boolean;
-  variables: string[];
-}
-
-interface Schedule {
-  id: string;
-  name: string;
-  schedule_type: string;
-  is_active: boolean;
-  cron_expression: string | null;
-  next_run_at: string | null;
-  last_run_at: string | null;
-  template_name: string | null;
-}
+import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
+import type { SmsUsageLog } from '@/types/db.types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -110,11 +64,11 @@ function ComposeTab() {
 
   const sendMutation = useMutation({
     mutationFn: (body: unknown) => smsApi.bulk(body),
-    onSuccess: (res: any) => {
-      toast({ title: `Queued ${res?.data?.queued ?? 0} messages for delivery` });
+    onSuccess: (res) => {
+      toast({ title: `Queued ${res.queued} messages for delivery` });
       setMessage(''); setPhones('');
     },
-    onError: (err: any) => toast({ variant: 'destructive', title: 'Send failed', description: err.message }),
+    onError: (err) => toast({ variant: 'destructive', title: 'Send failed', description: getErrorMessage(err) }),
   });
 
   const handleSend = () => {
@@ -123,14 +77,14 @@ function ComposeTab() {
     if (target === 'custom') {
       recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
     } else if (target === 'active') {
-      recipientPhones = (members?.items ?? []).filter((m: any) => m.status === 'active').map((m: any) => m.phone);
+      recipientPhones = (members?.items ?? []).filter((m) => m.isActive).map((m) => m.phone);
     } else {
-      recipientPhones = (members?.items ?? []).map((m: any) => m.phone);
+      recipientPhones = (members?.items ?? []).map((m) => m.phone);
     }
     sendMutation.mutate({ phones: recipientPhones, message });
   };
 
-  const tplList: Template[] = (templates as any)?.data ?? [];
+  const tplList: SmsTemplate[] = templates ?? [];
 
   const handleTemplateSelect = (id: string) => {
     setTemplateId(id);
@@ -238,10 +192,10 @@ function BalanceCard() {
   const refresh = useMutation({
     mutationFn: () => smsApi.checkBalance(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-provider-balance'] }); },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Balance check failed', description: e.message }),
+    onError: (e) => toast({ variant: 'destructive', title: 'Balance check failed', description: getErrorMessage(e) }),
   });
 
-  const bal = (data as any)?.data;
+  const bal = data;
 
   return (
     <div className="bg-white rounded-xl border p-5">
@@ -295,7 +249,7 @@ function CampaignsTab() {
       toast({ title: 'Campaign created' });
       setShowForm(false); setName(''); setMessage(''); setScheduledAt('');
     },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
+    onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const cancel = useMutation({
@@ -303,7 +257,7 @@ function CampaignsTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-campaigns'] }); toast({ title: 'Campaign cancelled' }); },
   });
 
-  const campaigns: Campaign[] = (data as any)?.data?.items ?? [];
+  const campaigns: SmsCampaign[] = data?.items ?? [];
 
   return (
     <div className="space-y-4">
@@ -430,7 +384,7 @@ function TemplatesTab() {
       toast({ title: 'Template created' });
       setShowForm(false); setKey(''); setName(''); setBody('');
     },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
+    onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const del = useMutation({
@@ -438,7 +392,7 @@ function TemplatesTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-templates'] }); toast({ title: 'Template deleted' }); },
   });
 
-  const templates: Template[] = (data as any)?.data ?? [];
+  const templates: SmsTemplate[] = data ?? [];
   const charCount = body.length;
 
   return (
@@ -577,7 +531,7 @@ function SchedulesTab() {
       toast({ title: 'Schedule created' });
       setShowForm(false); setSName(''); setSMessage(''); setSCron(''); setSNextRun('');
     },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Error', description: e.message }),
+    onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const toggle = useMutation({
@@ -591,7 +545,7 @@ function SchedulesTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-schedules'] }); toast({ title: 'Schedule deleted' }); },
   });
 
-  const schedules: Schedule[] = (data as any)?.data ?? [];
+  const schedules: SmsSchedule[] = data ?? [];
 
   const SCHEDULE_TYPES = ['one_time', 'daily', 'weekly', 'monthly', 'birthday', 'loan_due'];
 
@@ -737,10 +691,9 @@ function LogsTab() {
     staleTime: 30_000,
   });
 
-  const result = (data as any)?.data;
-  const logs: SmsLog[] = result?.items ?? [];
-  const totalPages     = result?.totalPages ?? 1;
-  const summary = result?.summary;
+  const logs: SmsUsageLog[] = data?.items ?? [];
+  const totalPages          = data?.totalPages ?? 1;
+  const summary = data?.summary;
   const usageStats = useMemo(() => [
     { label: 'Delivered', value: summary?.delivered ?? 0, tone: 'text-emerald-600' },
     { label: 'Sent', value: summary?.sent ?? 0, tone: 'text-blue-600' },
@@ -752,8 +705,8 @@ function LogsTab() {
     try {
       await smsApi.dlr(msgId);
       toast({ title: 'DLR checked', description: 'Status updated.' });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'DLR failed', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'DLR failed', description: getErrorMessage(e) });
     }
   };
 

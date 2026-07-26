@@ -4,8 +4,10 @@ import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
   MemberPublic, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
   TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
+  SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
 } from '@/types/api.types';
-import type { PaginatedResult, Account } from '@/types/db.types';
+import type { PaginatedResult, Account, SmsUsageLog } from '@/types/db.types';
+import type { SmsUsageSummary } from '@/lib/sms/analytics';
 import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
 import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
@@ -200,31 +202,36 @@ export const accountingApi = {
 // ------------------------------------------------------------------
 // SMS
 // ------------------------------------------------------------------
+export interface SmsUsageResult extends PaginatedResult<SmsUsageLog> {
+  balance: { credits: string; rate: string };
+  summary: SmsUsageSummary;
+}
+
 export const smsApi = {
   send:       (body: unknown) => api.post<unknown>('/sms/send', body),
   usage:      (params?: Record<string, unknown>) =>
-    api.get<unknown>(`/sms/usage${buildQuery(params ?? {})}`),
+    api.get<SmsUsageResult>(`/sms/usage${buildQuery(params ?? {})}`),
   // Bulk / Campaign
-  bulk:       (body: unknown) => api.post<unknown>('/sms/bulk', body),
+  bulk:       (body: unknown) => api.post<{ queued: number }>('/sms/bulk', body),
   campaigns:  (params?: Record<string, unknown>) =>
-    api.get<unknown>(`/sms/campaign${buildQuery(params ?? {})}`),
-  createCampaign: (body: unknown) => api.post<unknown>('/sms/campaign', body),
+    api.get<PaginatedResult<SmsCampaign>>(`/sms/campaign${buildQuery(params ?? {})}`),
+  createCampaign: (body: unknown) => api.post<SmsCampaign>('/sms/campaign', body),
   cancelCampaign: (id: string)    => api.delete<void>(`/sms/campaign?id=${id}`),
   // Templates
   templates:       (params?: Record<string, unknown>) =>
-    api.get<unknown>(`/sms/templates${buildQuery(params ?? {})}`),
-  createTemplate:  (body: unknown) => api.post<unknown>('/sms/templates', body),
-  updateTemplate:  (id: string, body: unknown) => api.patch<unknown>(`/sms/templates?id=${id}`, body),
+    api.get<SmsTemplate[]>(`/sms/templates${buildQuery(params ?? {})}`),
+  createTemplate:  (body: unknown) => api.post<SmsTemplate>('/sms/templates', body),
+  updateTemplate:  (id: string, body: unknown) => api.patch<SmsTemplate>(`/sms/templates?id=${id}`, body),
   deleteTemplate:  (id: string)    => api.delete<void>(`/sms/templates?id=${id}`),
   // Schedules
   schedules:       (params?: Record<string, unknown>) =>
-    api.get<unknown>(`/sms/schedules${buildQuery(params ?? {})}`),
-  createSchedule:  (body: unknown) => api.post<unknown>('/sms/schedules', body),
-  updateSchedule:  (id: string, body: unknown) => api.patch<unknown>(`/sms/schedules?id=${id}`, body),
+    api.get<SmsSchedule[]>(`/sms/schedules${buildQuery(params ?? {})}`),
+  createSchedule:  (body: unknown) => api.post<SmsSchedule>('/sms/schedules', body),
+  updateSchedule:  (id: string, body: unknown) => api.patch<SmsSchedule>(`/sms/schedules?id=${id}`, body),
   deleteSchedule:  (id: string)    => api.delete<void>(`/sms/schedules?id=${id}`),
   // Provider balance
-  providerBalance: () => api.get<unknown>('/sms/balance'),
-  checkBalance:    () => api.post<unknown>('/sms/balance', {}),
+  providerBalance: () => api.get<SmsProviderBalance>('/sms/balance'),
+  checkBalance:    () => api.post<SmsProviderBalance>('/sms/balance', {}),
   // DLR
   dlr: (messageId: string) => api.get<unknown>(`/sms/dlr?messageId=${messageId}`),
 };

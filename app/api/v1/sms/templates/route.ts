@@ -6,7 +6,7 @@ import { TemplateCreateSchema, TemplateUpdateSchema } from '@/lib/validators/sms
 import { extractVars } from '@/lib/sms/templates';
 import { ok, notFound } from '@/lib/utils/response';
 
-function normalizeTemplatePayload(row: any) {
+function normalizeTemplatePayload<T extends { variables?: string[] | null; body?: string }>(row: T) {
   return {
     ...row,
     variables: row.variables ?? extractVars(row.body ?? ''),

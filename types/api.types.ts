@@ -317,6 +317,50 @@ export interface SubscriptionPublic {
 // ------------------------------------------------------------------
 // Organization responses
 // ------------------------------------------------------------------
+// SMS responses
+// ------------------------------------------------------------------
+export interface SmsTemplate {
+  id:           string;
+  template_key: string;
+  name:         string;
+  body:         string;
+  category:     string;
+  is_system:    boolean;
+  is_active:    boolean;
+  variables:    string[];
+}
+
+export interface SmsCampaign {
+  id:              string;
+  name:            string;
+  status:          'draft' | 'scheduled' | 'sending' | 'completed' | 'failed' | 'cancelled';
+  message:         string;
+  recipient_count: number;
+  sent_count:      number;
+  failed_count:    number;
+  scheduled_at:    string | null;
+  completed_at:    string | null;
+  created_at:      string;
+}
+
+export interface SmsSchedule {
+  id:              string;
+  name:            string;
+  schedule_type:   string;
+  is_active:       boolean;
+  cron_expression: string | null;
+  next_run_at:     string | null;
+  last_run_at:     string | null;
+  template_name:   string | null;
+}
+
+export interface SmsProviderBalance {
+  balance:     string | null;
+  currency:    string;
+  lastChecked: string | null;
+}
+
+// ------------------------------------------------------------------
 export interface OrganizationGroupSummary {
   groupId:          string;
   groupName:        string;
