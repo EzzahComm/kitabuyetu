@@ -1,5 +1,4 @@
 import { withAdminDb } from '@/lib/db';
-import { enqueue, QUEUES } from '@/lib/queue';
 import { renderTemplate } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { sendEmailWithFallback } from '@/lib/email/provider';
@@ -99,7 +98,8 @@ export async function launchCampaign(campaignId: string): Promise<void> {
     ),
   );
 
-  // Insert recipient rows
+  // Insert recipient rows — drained by the email_campaign_drain job on a
+  // schedule (lib/jobs), not enqueued individually here.
   for (const r of recipients) {
     await withAdminDb((db) =>
       db.query(
@@ -109,22 +109,6 @@ export async function launchCampaign(campaignId: string): Promise<void> {
         [campaignId, campaign.group_id, r.memberId, r.email, r.name],
       ),
     ).catch(() => {});
-
-    await enqueue(
-      QUEUES.EMAIL_LOW,
-      {
-        type: 'campaign',
-        campaignId,
-        recipientEmail: r.email,
-        recipientName: r.name,
-        memberId: r.memberId,
-        groupId: campaign.group_id,
-        subject: campaign.subject,
-        templateKey: campaign.template_key,
-        htmlBody: campaign.html_body,
-      },
-      { delayMs: 0, maxAttempts: 3 },
-    );
   }
 }
 

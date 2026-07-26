@@ -1,7 +1,7 @@
 import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
 import { renderTemplate, interpolate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
-import { enqueue } from '@/lib/queue';
+import { enqueueJob } from '@/lib/jobs';
 import { withAdminDb } from '@/lib/db';
 
 export interface SendTemplatedOptions {
@@ -51,12 +51,22 @@ export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<Em
   });
 }
 
-// Queue an email for async delivery (via cron dequeue)
+// Queue an email for async delivery (via the email_send job type)
 export async function queueEmail(
   opts: SendTemplatedOptions & { delayMs?: number; priority?: 'high' | 'normal' | 'low' },
 ): Promise<string> {
-  const queueName = opts.priority === 'high' ? 'email:high' : opts.priority === 'low' ? 'email:low' : 'email:send';
-  return enqueue(queueName, { type: 'templated', ...opts }, { delayMs: opts.delayMs, maxAttempts: 5 });
+  const { delayMs, priority, ...payload } = opts;
+  const jobPriority = priority === 'high' ? 8 : priority === 'low' ? 2 : 5;
+  const id = await enqueueJob(
+    'email_send',
+    payload,
+    {
+      priority:     jobPriority,
+      run_at:       delayMs ? new Date(Date.now() + delayMs) : undefined,
+      max_attempts: 5,
+    },
+  );
+  return id ?? '';
 }
 
 // Schedule an email at a specific time (writes to email_schedules table)
