@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -103,16 +104,16 @@ export default function CreditScoresPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Credit Scores</h1>
-          <p className="text-sm text-muted-foreground">Member reliability rated on contribution, loan repayment, savings, share ownership, and dividend history.</p>
-        </div>
-        <Button disabled={busy} onClick={recomputeAll}>
-          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Recompute all
-        </Button>
-      </div>
+      <PageHeader
+        title="Credit Scores"
+        description="Member reliability rated on contribution, loan repayment, savings, share ownership, and dividend history."
+        actions={
+          <Button disabled={busy} onClick={recomputeAll}>
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Recompute all
+          </Button>
+        }
+      />
 
       <div className="grid gap-3 md:grid-cols-4">
         <Stat label="Avg overall score" value={summary?.averageOverall ?? '—'} loading={summaryQ.isLoading} />

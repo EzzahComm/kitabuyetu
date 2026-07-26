@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting, type MeetingRow } from '@/hooks/use-meetings';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -118,15 +119,15 @@ export default function MeetingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Meetings</h1>
-          <p className="text-sm text-muted-foreground">Schedule, record minutes, and track resolutions</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} className="mr-2" /> Schedule Meeting
-        </Button>
-      </div>
+      <PageHeader
+        title="Meetings"
+        description="Schedule, record minutes, and track resolutions"
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} className="mr-2" /> Schedule Meeting
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

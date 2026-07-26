@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -106,22 +107,20 @@ export default function SharesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Share Capital</h1>
-          <p className="text-sm text-muted-foreground">
-            Allocate, sell, transfer and redeem member shares.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/shares/classes"><SettingsIcon size={16} className="mr-2" /> Share classes</Link>
-          </Button>
-          <Button disabled={noClasses} onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" /> New transaction
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Share Capital"
+        description="Allocate, sell, transfer and redeem member shares."
+        actions={
+          <>
+            <Button asChild variant="outline">
+              <Link href="/shares/classes"><SettingsIcon size={16} className="mr-2" /> Share classes</Link>
+            </Button>
+            <Button disabled={noClasses} onClick={() => setOpen(true)}>
+              <Plus size={16} className="mr-2" /> New transaction
+            </Button>
+          </>
+        }
+      />
 
       {noClasses && (
         <Card>

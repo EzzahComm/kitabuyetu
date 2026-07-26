@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useInvestments, useInvestmentSummary, useCreateInvestment, type InvestmentRow } from '@/hooks/use-investments';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -112,15 +113,15 @@ export default function InvestmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Investments</h1>
-          <p className="text-sm text-muted-foreground">Group investment portfolio tracking</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} className="mr-2" /> Add Investment
-        </Button>
-      </div>
+      <PageHeader
+        title="Investments"
+        description="Group investment portfolio tracking"
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} className="mr-2" /> Add Investment
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree } from 'lucide-react';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import type { Account } from '@/types/db.types';
 import type { JournalEntry } from '@/types/api.types';
 
@@ -85,13 +86,11 @@ export default function AccountingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Accounting</h1>
-          <p className="text-sm text-muted-foreground">Double-entry bookkeeping</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus size={16} className="mr-2"/> New journal</Button>
-      </div>
+      <PageHeader
+        title="Accounting"
+        description="Double-entry bookkeeping"
+        actions={<Button onClick={() => setOpen(true)}><Plus size={16} className="mr-2"/> New journal</Button>}
+      />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

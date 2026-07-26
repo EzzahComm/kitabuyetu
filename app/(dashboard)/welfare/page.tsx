@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useWelfareRequests, useCreateWelfareRequest, useReviewWelfareRequest, useWelfarePool, useRecordWelfarePoolContribution, type WelfareRequestRow } from '@/hooks/use-welfare';
 import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
@@ -147,20 +148,20 @@ export default function WelfarePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Welfare</h1>
-          <p className="text-sm text-muted-foreground">Community welfare fund and member support</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setOpenPool(true)}>
-            <Wallet size={16} className="mr-2" /> Record Fund Contribution
-          </Button>
-          <Button onClick={() => setOpenRequest(true)}>
-            <Plus size={16} className="mr-2" /> Submit Request
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Welfare"
+        description="Community welfare fund and member support"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setOpenPool(true)}>
+              <Wallet size={16} className="mr-2" /> Record Fund Contribution
+            </Button>
+            <Button onClick={() => setOpenRequest(true)}>
+              <Plus size={16} className="mr-2" /> Submit Request
+            </Button>
+          </>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

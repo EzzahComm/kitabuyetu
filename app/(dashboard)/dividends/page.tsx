@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -111,15 +112,15 @@ export default function DividendsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Dividends</h1>
-          <p className="text-sm text-muted-foreground">Declare, approve, and pay out dividend distributions to shareholders.</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} className="mr-2" /> New declaration
-        </Button>
-      </div>
+      <PageHeader
+        title="Dividends"
+        description="Declare, approve, and pay out dividend distributions to shareholders."
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} className="mr-2" /> New declaration
+          </Button>
+        }
+      />
 
       <PaginatedTable<Declaration>
         data={listQ.data}
