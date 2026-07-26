@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -57,6 +58,7 @@ export default function WhatsAppPage() {
   const { toast } = useToast();
   const qc        = useQueryClient();
   const [recipientMode, setRecipientMode] = useState<'member' | 'phone'>('member');
+  const [logPage, setLogPage] = useState(1);
 
   const statusQ = useQuery<{ configured: boolean }>({
     queryKey: ['whatsapp', 'status'],
@@ -69,12 +71,11 @@ export default function WhatsAppPage() {
     staleTime: 60_000,
   });
   const logQ = useQuery<PaginatedResult<WhatsAppMessage>>({
-    queryKey: ['whatsapp', 'log'],
-    queryFn:  () => api.get<PaginatedResult<WhatsAppMessage>>('/whatsapp/messages?limit=50'),
+    queryKey: ['whatsapp', 'log', logPage],
+    queryFn:  () => api.get<PaginatedResult<WhatsAppMessage>>(`/whatsapp/messages?page=${logPage}&limit=50`),
   });
 
   const members = membersQ.data?.items ?? [];
-  const log     = logQ.data?.items ?? [];
   const configured = statusQ.data?.configured ?? false;
 
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<ComposeForm>({
@@ -181,60 +182,44 @@ export default function WhatsAppPage() {
         {/* Log */}
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Message log</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            {logQ.isLoading ? (
-              <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
-            ) : log.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center text-sm text-muted-foreground">
-                <MessageSquare className="h-8 w-8" />
-                No messages sent yet
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Sent</th>
-                    <th className="px-4 py-3">To</th>
-                    <th className="px-4 py-3">Body</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {log.map((m) => (
-                    <tr key={m.id} className="border-b last:border-b-0">
-                      <td className="px-4 py-2 font-mono text-xs">{new Date(m.created_at).toLocaleString()}</td>
-                      <td className="px-4 py-2">
-                        {m.member_first_name ? (
-                          <>
-                            <p>{m.member_first_name} {m.member_last_name}</p>
-                            <p className="font-mono text-xs text-muted-foreground">{m.to_phone}</p>
-                          </>
-                        ) : (
-                          <p className="font-mono text-xs">{m.to_phone}</p>
-                        )}
-                      </td>
-                      <td className="max-w-md px-4 py-2 text-xs">
-                        <p className="truncate" title={m.body ?? ''}>{m.body}</p>
-                        {m.error_message && (
-                          <p className="mt-1 text-xs text-red-600">⚠ {m.error_message}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-2">
-                        <Badge variant={STATUS_BADGE[m.status]} className="capitalize">
-                          {m.status === 'sent'      ? <Send         className="mr-1 h-3 w-3" />
-                         : m.status === 'delivered' ? <CheckCircle2 className="mr-1 h-3 w-3" />
-                         : m.status === 'read'      ? <CheckCircle2 className="mr-1 h-3 w-3" />
-                         : m.status === 'failed'    ? <XCircle      className="mr-1 h-3 w-3" />
-                         : m.status === 'dry_run'   ? <AlertTriangle className="mr-1 h-3 w-3" />
-                         : null}
-                          {m.status.replace('_', ' ')}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          <CardContent className="p-4 pt-0">
+            <PaginatedTable<WhatsAppMessage>
+              data={logQ.data}
+              isLoading={logQ.isLoading}
+              onPageChange={setLogPage}
+              emptyMessage="No messages sent yet"
+              emptyIcon={MessageSquare}
+              columns={[
+                { key: 'created_at', header: 'Sent', render: (m) => <span className="font-mono text-xs">{new Date(m.created_at).toLocaleString()}</span> },
+                { key: 'to', header: 'To', render: (m) => m.member_first_name ? (
+                  <>
+                    <p>{m.member_first_name} {m.member_last_name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{m.to_phone}</p>
+                  </>
+                ) : (
+                  <p className="font-mono text-xs">{m.to_phone}</p>
+                ) },
+                { key: 'body', header: 'Body', className: 'max-w-md', render: (m) => (
+                  <div className="text-xs">
+                    <p className="truncate" title={m.body ?? ''}>{m.body}</p>
+                    {m.error_message && (
+                      <p className="mt-1 text-xs text-red-600">⚠ {m.error_message}</p>
+                    )}
+                  </div>
+                ) },
+                { key: 'status', header: 'Status', render: (m) => (
+                  <Badge variant={STATUS_BADGE[m.status]} className="capitalize">
+                    {m.status === 'sent'      ? <Send         className="mr-1 h-3 w-3" />
+                   : m.status === 'delivered' ? <CheckCircle2 className="mr-1 h-3 w-3" />
+                   : m.status === 'read'      ? <CheckCircle2 className="mr-1 h-3 w-3" />
+                   : m.status === 'failed'    ? <XCircle      className="mr-1 h-3 w-3" />
+                   : m.status === 'dry_run'   ? <AlertTriangle className="mr-1 h-3 w-3" />
+                   : null}
+                    {m.status.replace('_', ' ')}
+                  </Badge>
+                ) },
+              ]}
+            />
           </CardContent>
         </Card>
       </div>

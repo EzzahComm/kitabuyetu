@@ -1,18 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Coins, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -64,19 +64,19 @@ type NewDeclForm = z.infer<typeof newDeclSchema>;
 export default function DividendsPage() {
   const { toast } = useToast();
   const qc        = useQueryClient();
+  const router    = useRouter();
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const listQ = useQuery<PaginatedResult<Declaration>>({
-    queryKey: ['dividends', 'list'],
-    queryFn:  () => api.get<PaginatedResult<Declaration>>('/dividends?limit=50'),
+    queryKey: ['dividends', 'list', page],
+    queryFn:  () => api.get<PaginatedResult<Declaration>>(`/dividends?page=${page}&limit=20`),
   });
   const classesQ = useQuery<{ items: ShareClass[] }>({
     queryKey: ['share-classes', 'active'],
     queryFn:  () => api.get<{ items: ShareClass[] }>('/share-classes?active=true'),
     enabled:  open,
   });
-
-  const items = listQ.data?.items ?? [];
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<NewDeclForm>({
     resolver: zodResolver(newDeclSchema),
@@ -121,59 +121,36 @@ export default function DividendsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Period</th>
-                <th className="px-4 py-3">Policy</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Pool</th>
-                <th className="px-4 py-3 text-right">Members</th>
-                <th className="px-4 py-3 text-right">Allocated</th>
-                <th className="px-4 py-3 text-right">Paid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {listQ.isLoading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
-                  <Coins className="mx-auto mb-2 h-8 w-8" />
-                  No dividend declarations yet. Create one to start distributing earnings to shareholders.
-                </td></tr>
-              ) : items.map((d) => {
-                const allocated = Number(d.total_allocated);
-                const paid      = Number(d.total_paid);
-                const pct       = allocated > 0 ? Math.round((paid / allocated) * 100) : 0;
-                return (
-                  <tr key={d.id} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/30">
-                    <td className="px-4 py-3" colSpan={7}>
-                      <Link href={`/dividends/${d.id}`} className="grid grid-cols-7 gap-4 -my-3 py-3">
-                        <div>
-                          <p className="font-medium">{d.period_label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(d.period_start).toLocaleDateString()} → {new Date(d.period_end).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-xs text-muted-foreground self-center">{POLICY_LABEL[d.policy_type] ?? d.policy_type}</div>
-                        <div className="self-center"><Badge variant={STATUS_BADGE[d.status] ?? 'outline'} className="capitalize">{d.status.replace('_', ' ')}</Badge></div>
-                        <div className="text-right font-mono self-center">{fmtMoney(d.pool_amount)}</div>
-                        <div className="text-right font-mono self-center">{d.total_eligible_members || '—'}</div>
-                        <div className="text-right font-mono self-center">{fmtMoney(d.total_allocated)}</div>
-                        <div className="text-right font-mono self-center">
-                          {fmtMoney(d.total_paid)} <span className="text-xs text-muted-foreground">({pct}%)</span>
-                        </div>
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      <PaginatedTable<Declaration>
+        data={listQ.data}
+        isLoading={listQ.isLoading}
+        onPageChange={setPage}
+        onRowClick={(d) => router.push(`/dividends/${d.id}`)}
+        emptyMessage="No dividend declarations yet"
+        emptyIcon={Coins}
+        emptyDescription="Create one to start distributing earnings to shareholders."
+        columns={[
+          { key: 'period', header: 'Period', render: (d) => (
+            <div>
+              <p className="font-medium">{d.period_label}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(d.period_start).toLocaleDateString()} → {new Date(d.period_end).toLocaleDateString()}
+              </p>
+            </div>
+          ) },
+          { key: 'policy', header: 'Policy', render: (d) => <span className="text-xs text-muted-foreground">{POLICY_LABEL[d.policy_type] ?? d.policy_type}</span> },
+          { key: 'status', header: 'Status', render: (d) => <Badge variant={STATUS_BADGE[d.status] ?? 'outline'} className="capitalize">{d.status.replace('_', ' ')}</Badge> },
+          { key: 'pool', header: 'Pool', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.pool_amount)}</span> },
+          { key: 'members', header: 'Members', className: 'text-right', render: (d) => <span className="font-mono">{d.total_eligible_members || '—'}</span> },
+          { key: 'allocated', header: 'Allocated', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.total_allocated)}</span> },
+          { key: 'paid', header: 'Paid', className: 'text-right', render: (d) => {
+            const allocated = Number(d.total_allocated);
+            const paid      = Number(d.total_paid);
+            const pct       = allocated > 0 ? Math.round((paid / allocated) * 100) : 0;
+            return <span className="font-mono">{fmtMoney(d.total_paid)} <span className="text-xs text-muted-foreground">({pct}%)</span></span>;
+          } },
+        ]}
+      />
 
       {/* New declaration modal */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); setOpen(v); }}>

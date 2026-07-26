@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, Loader2, RefreshCw, Users, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -51,15 +52,17 @@ const TIER_BADGE: Record<Tier, 'default' | 'success' | 'secondary' | 'warning' |
 export default function CreditScoresPage() {
   const { toast } = useToast();
   const qc        = useQueryClient();
+  const router    = useRouter();
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
 
   const summaryQ = useQuery<Summary>({
     queryKey: ['credit-scores', 'summary'],
     queryFn:  () => api.get<Summary>('/credit-scores/summary'),
   });
   const listQ = useQuery<PaginatedResult<CreditScore>>({
-    queryKey: ['credit-scores', 'list'],
-    queryFn:  () => api.get<PaginatedResult<CreditScore>>('/credit-scores?limit=100'),
+    queryKey: ['credit-scores', 'list', page],
+    queryFn:  () => api.get<PaginatedResult<CreditScore>>(`/credit-scores?page=${page}&limit=50`),
   });
   const policyQ = useQuery<TierPolicy>({
     queryKey: ['credit-scores', 'policy'],
@@ -75,7 +78,6 @@ export default function CreditScoresPage() {
     onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: err instanceof ApiError ? err.message : '' }),
   });
 
-  const items   = listQ.data?.items ?? [];
   const summary = summaryQ.data;
 
   const recomputeAll = async () => {
@@ -206,45 +208,27 @@ export default function CreditScoresPage() {
       )}
 
       {summary && summary.scoredMembers > 0 && (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3 text-right">Overall</th>
-                  <th className="px-4 py-3 text-right">Financial</th>
-                  <th className="px-4 py-3">Tier</th>
-                  <th className="px-4 py-3 text-right">Loan limit</th>
-                  <th className="px-4 py-3">Last computed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listQ.isLoading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
-                ) : items.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground"><Users className="mx-auto mb-2 h-6 w-6" />No scored members yet.</td></tr>
-                ) : items.map((s) => (
-                  <tr key={s.id} className="border-b last:border-b-0 hover:bg-muted/30 cursor-pointer">
-                    <td className="px-4 py-3" colSpan={6}>
-                      <Link href={`/credit-scores/${s.member_id}`} className="grid grid-cols-6 gap-4 -my-3 py-3">
-                        <div>
-                          <p className="font-medium">{s.member_first_name} {s.member_last_name}</p>
-                          <p className="font-mono text-xs text-muted-foreground">{s.member_phone}</p>
-                        </div>
-                        <div className="self-center text-right font-mono text-base font-semibold">{Number(s.overall_score).toFixed(0)}</div>
-                        <div className="self-center text-right font-mono text-sm">{Number(s.financial_score).toFixed(0)}</div>
-                        <div className="self-center"><Badge variant={TIER_BADGE[s.reliability_tier]}>{TIER_LABEL[s.reliability_tier]}</Badge></div>
-                        <div className="self-center text-right font-mono">{fmtMoney(s.loan_eligibility_limit)}</div>
-                        <div className="self-center text-xs text-muted-foreground">{new Date(s.computed_at).toLocaleString()}</div>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <PaginatedTable<CreditScore>
+          data={listQ.data}
+          isLoading={listQ.isLoading}
+          onPageChange={setPage}
+          onRowClick={(s) => router.push(`/credit-scores/${s.member_id}`)}
+          emptyMessage="No scored members yet"
+          emptyIcon={Users}
+          columns={[
+            { key: 'member', header: 'Member', render: (s) => (
+              <div>
+                <p className="font-medium">{s.member_first_name} {s.member_last_name}</p>
+                <p className="font-mono text-xs text-muted-foreground">{s.member_phone}</p>
+              </div>
+            ) },
+            { key: 'overall', header: 'Overall', className: 'text-right', render: (s) => <span className="font-mono text-base font-semibold">{Number(s.overall_score).toFixed(0)}</span> },
+            { key: 'financial', header: 'Financial', className: 'text-right', render: (s) => <span className="font-mono">{Number(s.financial_score).toFixed(0)}</span> },
+            { key: 'tier', header: 'Tier', render: (s) => <Badge variant={TIER_BADGE[s.reliability_tier]}>{TIER_LABEL[s.reliability_tier]}</Badge> },
+            { key: 'limit', header: 'Loan limit', className: 'text-right', render: (s) => <span className="font-mono">{fmtMoney(s.loan_eligibility_limit)}</span> },
+            { key: 'computed_at', header: 'Last computed', render: (s) => <span className="text-xs text-muted-foreground">{new Date(s.computed_at).toLocaleString()}</span> },
+          ]}
+        />
       )}
     </div>
   );

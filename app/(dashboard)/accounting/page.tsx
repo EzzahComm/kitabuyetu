@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree } from 'lucide-react';
-import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import type { Account } from '@/types/db.types';
 import type { JournalEntry } from '@/types/api.types';
 
@@ -27,12 +27,6 @@ const POLICY_LABELS: Record<string, string> = {
 };
 
 interface JournalLine { accountId: string; debit: number; credit: number; description: string }
-
-/** Wraps an unpaginated list in PaginatedTable's data shape (single page, pager hidden). */
-function singlePage<T>(items: T[] | undefined): { items: T[]; total: number; page: number; pageSize: number; totalPages: number } {
-  const list = items ?? [];
-  return { items: list, total: list.length, page: 1, pageSize: Math.max(1, list.length), totalPages: 1 };
-}
 
 export default function AccountingPage() {
   const { toast } = useToast();

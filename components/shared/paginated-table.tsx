@@ -17,10 +17,18 @@ interface PaginatedTableProps<T> {
   emptyIcon?:    LucideIcon;
   /** Supporting line under the empty title. */
   emptyDescription?: string;
+  /** Makes rows clickable (pointer cursor) — e.g. navigate to a detail page. */
+  onRowClick?:   (row: T) => void;
+}
+
+/** Wraps an unpaginated list in PaginatedTable's data shape (single page, pager hidden). */
+export function singlePage<T>(items: T[] | undefined | null): { items: T[]; total: number; page: number; pageSize: number; totalPages: number } {
+  const list = items ?? [];
+  return { items: list, total: list.length, page: 1, pageSize: Math.max(1, list.length), totalPages: 1 };
 }
 
 export function PaginatedTable<T extends { id: string }>({
-  data, isLoading, columns, onPageChange, emptyMessage = 'No data found', emptyIcon, emptyDescription,
+  data, isLoading, columns, onPageChange, emptyMessage = 'No data found', emptyIcon, emptyDescription, onRowClick,
 }: PaginatedTableProps<T>) {
   if (isLoading) {
     return (
@@ -56,7 +64,11 @@ export function PaginatedTable<T extends { id: string }>({
               </tr>
             ) : (
               items.map((row) => (
-                <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
+                <tr
+                  key={row.id}
+                  className={`border-t hover:bg-muted/30 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
                   {columns.map((col) => (
                     <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
                       {col.render ? col.render(row) : String((row as unknown as Record<string, unknown>)[col.key] ?? '')}
