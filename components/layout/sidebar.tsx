@@ -4,18 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
-  MessageSquare, BarChart2, Building2, Settings, LogOut, X,
+  MessageSquare, BarChart2, Building2, Settings,
   Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
   Upload, Smartphone,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { authApi } from '@/lib/api/endpoints';
 import { BrandLogo } from '@/components/branding/BrandLogo';
+import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
-const navSections = [
+
+const NAV: PortalNavSection[] = [
   {
-    label: null,
+    title: null,
     items: [
       { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
       { href: '/contributions', label: 'Contributions',  icon: CreditCard },
@@ -25,7 +25,7 @@ const navSections = [
     ],
   },
   {
-    label: 'Money',
+    title: 'Money',
     items: [
       { href: '/welfare',    label: 'Welfare',    icon: Heart },
       { href: '/shares',     label: 'Shares',     icon: Coins },
@@ -36,7 +36,7 @@ const navSections = [
     ],
   },
   {
-    label: 'Insights',
+    title: 'Insights',
     items: [
       { href: '/analytics',     label: 'Analytics',     icon: BarChart2 },
       { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
@@ -45,7 +45,7 @@ const navSections = [
     ],
   },
   {
-    label: 'Engage',
+    title: 'Engage',
     items: [
       { href: '/meetings',    label: 'Meetings',    icon: Calendar },
       { href: '/sms',         label: 'SMS',         icon: MessageSquare },
@@ -59,9 +59,10 @@ const navSections = [
 // "Funding Portal" — the Organization funder/monitor's own view (see
 // (dashboard)/organization/page.tsx doc comment). Labeled distinctly from
 // admin's "Organizations" registry and the unrelated (enterprise) Workspace concept.
-const organizationItems = [
-  { href: '/organization', label: 'Funding Portal', icon: Building2 },
-];
+const ECOSYSTEM: PortalNavSection = {
+  title: 'Ecosystem',
+  items: [{ href: '/organization', label: 'Funding Portal', icon: Building2 }],
+};
 
 interface SidebarProps {
   open: boolean;
@@ -70,122 +71,41 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout, refreshToken } = useAuth();
-
-  const handleLogout = async () => {
-    try { await authApi.logout(refreshToken ?? undefined); } catch {}
-    logout();
-  };
+  const { user } = useAuth();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
+  const sections = user?.platformRole === 'organization_coordinator'
+    ? [...NAV, ECOSYSTEM]
+    : NAV;
+
   return (
-    <>
-      {open && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
+    <PortalSidebar
+      open={open}
+      onClose={onClose}
+      variant="dark"
+      widthExpanded="w-64"
+      sections={sections}
+      isActive={isActive}
+      logo={() => (
+        <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
+          {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
+          <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
+            <BrandLogo size={28} alt="Kitabu Yetu" />
+          </div>
+          <span className="font-bold text-sm truncate">Kitabu Yetu</span>
+        </Link>
       )}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gray-900 text-white transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto',
-          open ? 'translate-x-0' : '-translate-x-full',
-        )}
-      >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-gray-700">
-          <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
-            {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
-            <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
-              <BrandLogo size={28} alt="Kitabu Yetu" />
-            </div>
-            <span className="font-bold text-sm truncate">Kitabu Yetu</span>
-          </Link>
-          <button
-            type="button"
-            aria-label="Close sidebar"
-            onClick={onClose}
-            className="lg:hidden text-gray-400 hover:text-white"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {isTenantUser(user) && <GroupSwitcher />}
-
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {navSections.map((section, si) => (
-            <div key={si} className={cn(section.label && 'pt-3')}>
-              {section.label && (
-                <p className="px-3 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  {section.label}
-                </p>
-              )}
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      isActive(item.href)
-                        ? 'bg-brand-500 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white',
-                    )}
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-
-          {user?.platformRole === 'organization_coordinator' && (
-            <>
-              <div className="pt-4 pb-1 px-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ecosystem</p>
-              </div>
-              {organizationItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      isActive(item.href)
-                        ? 'bg-brand-500 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white',
-                    )}
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </>
-          )}
-        </nav>
-
-        <div className="px-3 py-4 border-t border-gray-700 space-y-1">
-          <Link
-            href="/settings"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-          >
-            <Settings size={18} />
-            Settings
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
-        </div>
-      </aside>
-    </>
+      preNav={isTenantUser(user) ? <GroupSwitcher /> : null}
+      footer={() => (
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+        >
+          <Settings size={18} />
+          Settings
+        </Link>
+      )}
+    />
   );
 }
