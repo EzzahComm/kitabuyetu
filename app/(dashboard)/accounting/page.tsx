@@ -16,8 +16,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal } from 'lucide-react';
+import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree } from 'lucide-react';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import type { Account } from '@/types/db.types';
+import type { JournalEntry } from '@/types/api.types';
 
 const POLICY_LABELS: Record<string, string> = {
   journal_threshold:            'Manual journal maker-checker',
@@ -25,6 +27,12 @@ const POLICY_LABELS: Record<string, string> = {
 };
 
 interface JournalLine { accountId: string; debit: number; credit: number; description: string }
+
+/** Wraps an unpaginated list in PaginatedTable's data shape (single page, pager hidden). */
+function singlePage<T>(items: T[] | undefined): { items: T[]; total: number; page: number; pageSize: number; totalPages: number } {
+  const list = items ?? [];
+  return { items: list, total: list.length, page: 1, pageSize: Math.max(1, list.length), totalPages: 1 };
+}
 
 export default function AccountingPage() {
   const { toast } = useToast();
@@ -42,7 +50,8 @@ export default function AccountingPage() {
 
   const { data: accounts, isLoading: loadingAccounts } = useAccounts();
   const { data: trialBalance, isLoading: loadingTB }   = useTrialBalance();
-  const { data: journals, isLoading: loadingJournals } = useJournals({ page: 1, pageSize: 20 });
+  const [journalPage, setJournalPage] = useState(1);
+  const { data: journals, isLoading: loadingJournals } = useJournals({ page: journalPage, pageSize: 20 });
   const { data: pnl, isLoading: loadingPnl }           = useProfitAndLoss(from, to);
   const asOfToday = now.toISOString().split('T')[0];
   const { data: balanceSheet, isLoading: loadingBS }   = useBalanceSheet(asOfToday);
@@ -137,32 +146,21 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="journals" className="mt-4">
-          {loadingJournals ? <Skeleton className="h-64 w-full"/> : (
-            <Card>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {['Date','Reference','Memo','Status','Lines'].map((h)=>(
-                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(journals?.items ?? []).map((j) => (
-                      <tr key={j.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2">{formatDate(j.entryDate)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{j.reference ?? j.id.slice(0,8)}</td>
-                        <td className="px-4 py-2 max-w-[200px] truncate">{j.memo ?? '—'}</td>
-                        <td className="px-4 py-2"><Badge variant={j.status==='posted'?'success':'warning'} className="capitalize text-xs">{j.status}</Badge></td>
-                        <td className="px-4 py-2">{j.lineCount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
+          <PaginatedTable<JournalEntry>
+            data={journals}
+            isLoading={loadingJournals}
+            onPageChange={setJournalPage}
+            emptyMessage="No journal entries yet"
+            emptyIcon={BookOpen}
+            emptyDescription="Post your first entry with the New journal button above."
+            columns={[
+              { key: 'entryDate', header: 'Date', render: (j) => formatDate(j.entryDate) },
+              { key: 'reference', header: 'Reference', render: (j) => <span className="font-mono text-xs">{j.reference ?? j.id.slice(0,8)}</span> },
+              { key: 'memo', header: 'Memo', className: 'max-w-[200px] truncate', render: (j) => j.memo ?? '—' },
+              { key: 'status', header: 'Status', render: (j) => <Badge variant={j.status==='posted'?'success':'warning'} className="capitalize text-xs">{j.status}</Badge> },
+              { key: 'lineCount', header: 'Lines' },
+            ]}
+          />
         </TabsContent>
 
         <TabsContent value="pnl" className="mt-4">
@@ -332,70 +330,45 @@ export default function AccountingPage() {
               </div>
               <Button size="sm" onClick={() => setCloseOpen(true)}><Lock size={15} className="mr-2"/> Close a period</Button>
             </CardHeader>
-            <CardContent className="overflow-x-auto p-0">
-              {loadingFP ? <Skeleton className="h-32 w-full m-4"/> : (
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {['Period','Status','Closed by','Closed at','Reopen reason',''].map((h)=>(
-                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(fiscalPeriods ?? []).length === 0 ? (
-                      <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No periods closed yet — every date is open for posting.</td></tr>
-                    ) : (fiscalPeriods ?? []).map((p) => (
-                      <tr key={p.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2 font-mono text-xs">{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
-                        <td className="px-4 py-2">
-                          <Badge variant={p.status === 'closed' ? 'destructive' : 'success'} className="text-xs capitalize">{p.status}</Badge>
-                        </td>
-                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.closed_by ?? '—'}</td>
-                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.closed_at ? formatDate(p.closed_at) : '—'}</td>
-                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.reopen_reason ?? '—'}</td>
-                        <td className="px-4 py-2 text-right">
-                          {p.status === 'closed' && (
-                            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setReopenTarget(p.id); setReopenReason(''); }}>
-                              <LockOpen size={13}/> Reopen
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            <CardContent className="p-4 pt-0">
+              <PaginatedTable
+                data={singlePage(fiscalPeriods)}
+                isLoading={loadingFP}
+                onPageChange={() => {}}
+                emptyMessage="No periods closed yet"
+                emptyIcon={CalendarClock}
+                emptyDescription="Every date is open for posting."
+                columns={[
+                  { key: 'period', header: 'Period', render: (p) => <span className="font-mono text-xs">{formatDate(p.period_start)} – {formatDate(p.period_end)}</span> },
+                  { key: 'status', header: 'Status', render: (p) => <Badge variant={p.status === 'closed' ? 'destructive' : 'success'} className="text-xs capitalize">{p.status}</Badge> },
+                  { key: 'closed_by', header: 'Closed by', render: (p) => <span className="text-xs text-muted-foreground">{p.closed_by ?? '—'}</span> },
+                  { key: 'closed_at', header: 'Closed at', render: (p) => <span className="text-xs text-muted-foreground">{p.closed_at ? formatDate(p.closed_at) : '—'}</span> },
+                  { key: 'reopen_reason', header: 'Reopen reason', render: (p) => <span className="text-xs text-muted-foreground">{p.reopen_reason ?? '—'}</span> },
+                  { key: 'actions', header: '', className: 'text-right', render: (p) => p.status === 'closed' ? (
+                    <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setReopenTarget(p.id); setReopenReason(''); }}>
+                      <LockOpen size={13}/> Reopen
+                    </Button>
+                  ) : null },
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="accounts" className="mt-4">
-          {loadingAccounts ? <Skeleton className="h-64 w-full"/> : (
-            <Card>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {['Code','Name','Type','Balance'].map((h)=>(
-                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(accounts ?? []).map((a) => (
-                      <tr key={a.id} className="border-t hover:bg-muted/20">
-                        <td className="px-4 py-2 font-mono text-xs">{a.account_code}</td>
-                        <td className="px-4 py-2">{a.name}</td>
-                        <td className="px-4 py-2 capitalize"><Badge variant="outline" className="text-xs">{a.type}</Badge></td>
-                        <td className="px-4 py-2 text-right font-mono">{formatKES(a.balance)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
+          <PaginatedTable<Account>
+            data={singlePage(accounts)}
+            isLoading={loadingAccounts}
+            onPageChange={() => {}}
+            emptyMessage="No accounts found"
+            emptyIcon={ListTree}
+            columns={[
+              { key: 'account_code', header: 'Code', render: (a) => <span className="font-mono text-xs">{a.account_code}</span> },
+              { key: 'name', header: 'Name' },
+              { key: 'type', header: 'Type', render: (a) => <Badge variant="outline" className="text-xs capitalize">{a.type}</Badge> },
+              { key: 'balance', header: 'Balance', className: 'text-right', render: (a) => <span className="font-mono">{formatKES(a.balance)}</span> },
+            ]}
+          />
         </TabsContent>
 
         <TabsContent value="policies" className="mt-4">
