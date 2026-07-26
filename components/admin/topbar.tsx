@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import {
-  Bell, Search, Menu, ChevronDown,
+  Bell, Menu, ChevronDown,
   CircleCheck, CircleAlert, Activity,
   LogOut, Settings,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { openCommandPalette } from '@/components/admin/command-palette';
+import { SearchTrigger } from '@/components/shared/search-trigger';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -47,19 +48,11 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
       </button>
 
       {/* Global search — opens the ⌘K command palette */}
-      <div className="flex-1 max-w-md">
-        <button
-          type="button"
-          onClick={openCommandPalette}
-          className="group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <span className="text-gray-400 truncate">Search organizations, users, tickets…</span>
-          <kbd className="ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-gray-200 bg-white px-1 text-[10px] font-mono text-gray-400">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
+      <SearchTrigger
+        variant="admin"
+        onOpen={openCommandPalette}
+        placeholder="Search organizations, users, tickets…"
+      />
 
       <div className="flex items-center gap-2 ml-auto">
         {/* System status pill */}

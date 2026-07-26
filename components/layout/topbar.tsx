@@ -1,10 +1,11 @@
 'use client';
 
-import { Menu, Bell, Search } from 'lucide-react';
+import { Menu, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/lib/auth/context';
 import { openCommandPalette } from '@/components/layout/command-palette';
+import { SearchTrigger } from '@/components/shared/search-trigger';
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -27,19 +28,11 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       </button>
 
       {/* Global search — opens the ⌘K command palette */}
-      <div className="max-w-md flex-1">
-        <button
-          type="button"
-          onClick={openCommandPalette}
-          className="group relative flex h-9 w-full items-center rounded-lg border bg-muted/40 pl-8 pr-2 text-sm hover:bg-muted transition-colors"
-        >
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <span className="truncate text-muted-foreground">Search or jump to…</span>
-          <kbd className="ml-auto hidden h-4 select-none items-center gap-0.5 rounded border bg-background px-1 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
+      <SearchTrigger
+        variant="dashboard"
+        onOpen={openCommandPalette}
+        placeholder="Search or jump to…"
+      />
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="relative">
