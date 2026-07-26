@@ -14,10 +14,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getErrorMessage } from '@/lib/utils';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { membersApi } from '@/lib/api/endpoints';
+import type { GroupMemberRow } from '@/types/api.types';
 
 // ─── Constants mirrored from validators/member.schema.ts ────────────────────
 const MEMBER_STATUSES = [
@@ -93,13 +94,13 @@ export default function MembersPage() {
       toast({ title: 'Member added successfully' });
       setOpen(false);
       reset();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed to add member', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed to add member', description: getErrorMessage(err) });
     }
   };
 
   // ── Selection helpers ─────────────────────────────────────────────────
-  const rows: any[] = (data as any)?.items ?? [];
+  const rows: GroupMemberRow[] = data?.items ?? [];
   const allOnPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
 
   const toggleRow = (id: string) => {
@@ -156,23 +157,20 @@ export default function MembersPage() {
           aria-label="Select all on this page"
         />
       ),
-      render: (row: any) => (
+      render: (row: GroupMemberRow) => (
         <input
           type="checkbox"
           checked={selectedIds.has(row.id)}
           onChange={() => toggleRow(row.id)}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Select ${row.firstName ?? row.first_name} ${row.lastName ?? row.last_name}`}
+          aria-label={`Select ${row.first_name} ${row.last_name}`}
         />
       ),
     },
     {
       key: 'name', header: 'Name',
-      render: (row: any) => {
-        const first = row.firstName ?? row.first_name ?? '';
-        const middle = row.middleName ?? row.middle_name ?? '';
-        const last = row.lastName ?? row.last_name ?? '';
-        const name = [first, middle, last].filter(Boolean).join(' ');
+      render: (row: GroupMemberRow) => {
+        const name = [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' ');
         return (
           <Link href={`/members/${row.id}`} className="font-medium hover:text-brand-600 hover:underline">
             {name}
@@ -180,24 +178,23 @@ export default function MembersPage() {
         );
       },
     },
-    { key: 'phone',      header: 'Phone',      render: (row: any) => <span className="font-mono text-xs">{row.phone}</span> },
-    { key: 'occupation', header: 'Occupation', render: (row: any) => <span className="text-sm">{row.occupation ?? row.occupation ?? '—'}</span> },
+    { key: 'phone',      header: 'Phone',      render: (row: GroupMemberRow) => <span className="font-mono text-xs">{row.phone}</span> },
+    { key: 'occupation', header: 'Occupation', render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span> },
     {
       key: 'groupRole', header: 'Role',
-      render: (row: any) => (
+      render: (row: GroupMemberRow) => (
         <Badge variant="outline" className="capitalize">
-          {(row.groupRole ?? row.group_role)?.replace('_', ' ')}
+          {row.group_role?.replace('_', ' ')}
         </Badge>
       ),
     },
     {
       key: 'status', header: 'Status',
-      render: (row: any) => {
-        const s = row.groupStatus ?? row.group_status ?? (row.isActive ?? row.is_active ? 'active' : 'inactive');
-        return <StatusPill status={s} />;
-      },
+      render: (row: GroupMemberRow) => (
+        <StatusPill status={row.group_status ?? (row.is_active ? 'active' : 'inactive')} />
+      ),
     },
-    { key: 'joinedAt', header: 'Joined', render: (row: any) => formatDate(row.joinedAt ?? row.joined_at ?? row.createdAt ?? row.created_at) },
+    { key: 'joinedAt', header: 'Joined', render: (row: GroupMemberRow) => formatDate(row.joined_at ?? row.created_at) },
   ];
 
   return (
@@ -206,7 +203,7 @@ export default function MembersPage() {
         <div>
           <h1 className="text-2xl font-bold">Members</h1>
           <p className="text-sm text-muted-foreground">
-            {(data as any)?.total ?? 0} total{status ? ` (${MEMBER_STATUSES.find((s) => s.value === status)?.label.toLowerCase()})` : ' (excluding archived)'}
+            {data?.total ?? 0} total{status ? ` (${MEMBER_STATUSES.find((s) => s.value === status)?.label.toLowerCase()})` : ' (excluding archived)'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -275,7 +272,7 @@ export default function MembersPage() {
       )}
 
       <PaginatedTable
-        data={data as any}
+        data={data}
         isLoading={isLoading}
         columns={columns}
         onPageChange={setPage}

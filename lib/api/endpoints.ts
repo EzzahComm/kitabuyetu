@@ -6,7 +6,7 @@ import type {
   TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
   SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
 } from '@/types/api.types';
-import type { PaginatedResult, Account, SmsUsageLog } from '@/types/db.types';
+import type { PaginatedResult, Account, SmsUsageLog, Contribution, Loan, LoanRepayment } from '@/types/db.types';
 import type { SmsUsageSummary } from '@/lib/sms/analytics';
 import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
@@ -116,13 +116,13 @@ export const nextOfKinApi = {
 // ------------------------------------------------------------------
 export const contributionsApi = {
   list:   (params?: Record<string, unknown>) =>
-    api.get<PaginatedResult<unknown>>(`/contributions${buildQuery(params ?? {})}`),
+    api.get<PaginatedResult<Contribution & { member_name: string }>>(`/contributions${buildQuery(params ?? {})}`),
   getById: (id: string) =>
-    api.get<unknown>(`/contributions/${id}`),
+    api.get<Contribution & { member_name: string }>(`/contributions/${id}`),
   create:  (body: unknown) =>
-    api.post<unknown>('/contributions', body),
+    api.post<Contribution>('/contributions', body),
   update:  (id: string, body: unknown) =>
-    api.patch<unknown>(`/contributions/${id}`, body),
+    api.patch<Contribution>(`/contributions/${id}`, body),
   delete:  (id: string) =>
     api.delete<void>(`/contributions/${id}`),
   policy: () =>
@@ -136,15 +136,15 @@ export const contributionsApi = {
 // ------------------------------------------------------------------
 export const loansApi = {
   list:   (params?: Record<string, unknown>) =>
-    api.get<PaginatedResult<unknown>>(`/loans${buildQuery(params ?? {})}`),
+    api.get<PaginatedResult<Loan & { member_name: string }>>(`/loans${buildQuery(params ?? {})}`),
   getById: (id: string) =>
-    api.get<unknown>(`/loans/${id}`),
+    api.get<Loan & { member_name: string; schedule: LoanRepayment[] }>(`/loans/${id}`),
   apply:   (body: unknown) =>
-    api.post<unknown>('/loans', body),
+    api.post<Loan>('/loans', body),
   action:  (id: string, body: unknown) =>
-    api.patch<unknown>(`/loans/${id}`, body),
+    api.patch<Loan>(`/loans/${id}`, body),
   recordRepayment: (id: string, body: unknown) =>
-    api.post<unknown>(`/loans/${id}/repayments`, body),
+    api.post<LoanRepayment>(`/loans/${id}/repayments`, body),
   policy: () =>
     api.get<EffectiveLoanTerms>('/loans/policy'),
   setPolicy: (body: unknown) =>

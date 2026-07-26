@@ -59,7 +59,7 @@ export function PaginatedTable<T extends { id: string }>({
                 <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
                   {columns.map((col) => (
                     <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
-                      {col.render ? col.render(row) : String((row as any)[col.key] ?? '')}
+                      {col.render ? col.render(row) : String((row as unknown as Record<string, unknown>)[col.key] ?? '')}
                     </td>
                   ))}
                 </tr>

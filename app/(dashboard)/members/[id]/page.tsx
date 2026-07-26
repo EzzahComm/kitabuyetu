@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useMember, memberKeys } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
 import { useLoans } from '@/hooks/use-loans';
-import { formatKES, formatDate, getInitials } from '@/lib/utils';
+import { formatKES, formatDate, getInitials, getErrorMessage } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nextOfKinApi, membersApi } from '@/lib/api/endpoints';
 import { api } from '@/lib/api/client';
@@ -39,7 +39,7 @@ interface MemberCreditScore {
   reliability_tier: CreditTier;
 }
 
-const roleVariant: Record<string, any> = {
+const roleVariant: Record<string, 'default' | 'success' | 'secondary' | 'outline'> = {
   chairperson: 'default',
   treasurer:   'success',
   secretary:   'secondary',
@@ -54,7 +54,7 @@ const roleLabels: Record<string, string> = {
   member:      'Member',
 };
 
-const STATUS_BADGE: Record<string, any> = {
+const STATUS_BADGE: Record<string, 'warning' | 'success' | 'secondary' | 'destructive' | 'outline'> = {
   pending_verification: 'warning',
   active:               'success',
   inactive:             'secondary',
@@ -125,19 +125,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const m = member as any;
-  const contributions = (contribData as any)?.items ?? [];
-  const loans         = (loanData as any)?.items ?? [];
-  const totalContributed = contributions.reduce((sum: number, c: any) =>
+  const m = member;
+  const contributions = contribData?.items ?? [];
+  const loans         = loanData?.items ?? [];
+  const totalContributed = contributions.reduce((sum, c) =>
     sum + parseFloat(c.amount ?? '0'), 0);
-  const currentStatus: string = m.groupStatus ?? m.group_status
-    ?? ((m.isActive ?? m.is_active) ? 'active' : 'inactive');
+  const currentStatus: string = m.group_status ?? (m.is_active ? 'active' : 'inactive');
 
-  const fullName = [
-    m.firstName ?? m.first_name,
-    m.middleName ?? m.middle_name,
-    m.lastName  ?? m.last_name,
-  ].filter(Boolean).join(' ');
+  const fullName = [m.first_name, m.middle_name, m.last_name].filter(Boolean).join(' ');
 
   return (
     <div className="space-y-6">
@@ -151,14 +146,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Avatar className="h-16 w-16 text-lg">
               <AvatarFallback className="bg-brand-100 text-brand-700 font-bold text-xl">
-                {getInitials(m.firstName ?? m.first_name ?? '?', m.lastName ?? m.last_name ?? '')}
+                {getInitials(m.first_name ?? '?', m.last_name ?? '')}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold">{fullName}</h1>
-                <Badge variant={roleVariant[m.groupRole ?? m.group_role] ?? 'outline'}>
-                  {roleLabels[m.groupRole ?? m.group_role] ?? (m.groupRole ?? m.group_role)}
+                <Badge variant={roleVariant[m.group_role] ?? 'outline'}>
+                  {roleLabels[m.group_role] ?? m.group_role}
                 </Badge>
                 <Badge variant={STATUS_BADGE[currentStatus] ?? 'outline'} className="capitalize">
                   {currentStatus.replace('_', ' ')}
@@ -166,14 +161,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
               </div>
               <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                 {m.phone && <span className="flex items-center gap-1"><Phone size={13} /> {m.phone}</span>}
-                {(m.alternativePhone ?? m.alternative_phone) && (
-                  <span className="flex items-center gap-1"><Phone size={13} /> Alt: {m.alternativePhone ?? m.alternative_phone}</span>
+                {m.alternative_phone && (
+                  <span className="flex items-center gap-1"><Phone size={13} /> Alt: {m.alternative_phone}</span>
                 )}
                 {m.email   && <span className="flex items-center gap-1"><Mail size={13} /> {m.email}</span>}
                 {m.address && <span className="flex items-center gap-1"><MapPin size={13} /> {m.address}</span>}
                 {m.occupation && <span className="flex items-center gap-1"><Briefcase size={13} /> {m.occupation}</span>}
-                {(m.joinedAt ?? m.joined_at) && (
-                  <span className="flex items-center gap-1"><Calendar size={13} /> Joined {formatDate(m.joinedAt ?? m.joined_at)}</span>
+                {m.joined_at && (
+                  <span className="flex items-center gap-1"><Calendar size={13} /> Joined {formatDate(m.joined_at)}</span>
                 )}
               </div>
             </div>
@@ -217,7 +212,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Loans</p>
             <p className="text-xl font-bold mt-1">
-              {loans.filter((l: any) => l.status === 'active' || l.status === 'disbursed').length}
+              {loans.filter((l) => l.status === 'active' || l.status === 'disbursed').length}
             </p>
           </CardContent>
         </Card>
@@ -271,14 +266,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 <p className="text-sm text-muted-foreground py-6 text-center">No contributions recorded</p>
               ) : (
                 <div className="divide-y">
-                  {contributions.map((c: any) => (
+                  {contributions.map((c) => (
                     <div key={c.id} className="flex items-center justify-between py-3 text-sm">
                       <div>
-                        <p className="font-medium">
-                          {c.periodYear ?? c.period_year}-{String(c.periodMonth ?? c.period_month ?? '').padStart(2,'0')}
-                        </p>
+                        <p className="font-medium">{formatDate(c.contribution_date)}</p>
                         <p className="text-xs text-muted-foreground capitalize">
-                          {(c.paymentMethod ?? c.payment_method)?.replace('_',' ')}
+                          {c.payment_method?.replace('_',' ')}
                         </p>
                       </div>
                       <div className="text-right">
@@ -300,19 +293,19 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 <p className="text-sm text-muted-foreground py-6 text-center">No loans found</p>
               ) : (
                 <div className="divide-y">
-                  {loans.map((l: any) => (
+                  {loans.map((l) => (
                     <div key={l.id} className="flex items-center justify-between py-3 text-sm">
                       <div>
-                        <p className="font-medium">{formatKES(l.principalAmount ?? l.principal_amount)}</p>
+                        <p className="font-medium">{formatKES(l.principal_amount)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {l.loanTermMonths ?? l.loan_term_months}m @ {l.interestRate ?? l.interest_rate}%
+                          {l.loan_term_months}m @ {l.interest_rate}%
                         </p>
                       </div>
                       <div className="text-right">
                         <Badge variant={l.status === 'active' ? 'success' : 'secondary'} className="text-xs capitalize">{l.status}</Badge>
-                        {(l.outstandingBalance ?? l.outstanding_balance) && (
+                        {l.outstanding_balance && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Balance: {formatKES(l.outstandingBalance ?? l.outstanding_balance)}
+                            Balance: {formatKES(l.outstanding_balance)}
                           </p>
                         )}
                       </div>
@@ -355,16 +348,16 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <CardContent className="pt-4">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 {[
-                  ['Middle name', m.middleName ?? m.middle_name ?? '—'],
+                  ['Middle name', m.middle_name ?? '—'],
                   ['Occupation', m.occupation ?? '—'],
-                  ['National ID', m.nationalId ?? m.national_id ?? '—'],
+                  ['National ID', m.national_id ?? '—'],
                   ['Gender', m.gender ?? '—'],
-                  ['Date of Birth', (m.dateOfBirth ?? m.date_of_birth) ? formatDate(m.dateOfBirth ?? m.date_of_birth) : '—'],
-                  ['Platform Role', m.platformRole ?? m.platform_role ?? '—'],
-                  ['Email Verified', (m.emailVerified ?? m.email_verified) ? 'Yes' : 'No'],
-                  ['Phone Verified', (m.phoneVerified ?? m.phone_verified) ? 'Yes' : 'No'],
-                  ['Last Login', m.lastLoginAt ?? m.last_login_at ? formatDate(m.lastLoginAt ?? m.last_login_at) : '—'],
-                  ['Member Since', formatDate(m.createdAt ?? m.created_at)],
+                  ['Date of Birth', m.date_of_birth ? formatDate(m.date_of_birth) : '—'],
+                  ['Platform Role', m.platform_role ?? '—'],
+                  ['Email Verified', m.email_verified ? 'Yes' : 'No'],
+                  ['Phone Verified', m.phone_verified ? 'Yes' : 'No'],
+                  ['Last Login', m.last_login_at ? formatDate(m.last_login_at) : '—'],
+                  ['Member Since', formatDate(m.created_at)],
                 ].map(([label, value]) => (
                   <div key={label as string}>
                     <dt className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</dt>
@@ -394,7 +387,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       <StkPromptDialog
         open={stkOpen}
         onClose={() => setStkOpen(false)}
-        member={{ name: fullName, phone: m.phone ?? '' }}
+        member={{ name: fullName, phone: m.phone }}
       />
     </div>
   );
@@ -411,8 +404,8 @@ function KinRow({ memberId, kin }: { memberId: string; kin: NextOfKin }) {
       qc.invalidateQueries({ queryKey: ['next-of-kin', memberId] });
       toast({ title: 'Contact removed' });
     },
-    onError: (err: any) => {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    onError: (err: unknown) => {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     },
   });
 
@@ -484,8 +477,8 @@ function AddKinDialog({
       reset();
       onClose();
     },
-    onError: (err: any) => {
-      toast({ variant: 'destructive', title: 'Failed to add contact', description: err.message });
+    onError: (err: unknown) => {
+      toast({ variant: 'destructive', title: 'Failed to add contact', description: getErrorMessage(err) });
     },
   });
 
@@ -607,8 +600,8 @@ function StatusDialog({
       onApplied();
       onClose();
     },
-    onError: (err: any) => {
-      toast({ variant: 'destructive', title: 'Failed to update status', description: err.message });
+    onError: (err: unknown) => {
+      toast({ variant: 'destructive', title: 'Failed to update status', description: getErrorMessage(err) });
     },
   });
 

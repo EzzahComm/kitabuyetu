@@ -173,6 +173,8 @@ export interface GroupMemberRow {
   county_id?:        string | null;
   platform_role:     PlatformRole;
   is_active:         boolean;
+  email_verified:    boolean;
+  phone_verified:    boolean;
   last_login_at:     string | null;
   created_at:        string;
   group_role:        MemberRole;
