@@ -5,6 +5,7 @@
  *   expense accounts → debit - credit  (returns positive total for debit-normal)
  * And that netProfit = totalIncome - totalExpenses.
  */
+import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import {
   accountingService, reconcileGLCashToMpesaBalance, postSystemJournal,
@@ -209,7 +210,7 @@ describe('postSystemJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await postSystemJournal(
-      mockClient as any, 'group-1', 'user-1', 'Share purchase',
+      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Share purchase',
       [{ accountCode: '1001', debit: 1000 }, { accountCode: '3001', credit: 1000 }],
     );
 
@@ -239,7 +240,7 @@ describe('postSystemJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await postSystemJournal(
-      mockClient as any, 'group-1', 'user-1', 'Dividend declaration approved',
+      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Dividend declaration approved',
       [
         { accountCode: '3101', debit: 1000 },
         { accountCode: '2103', credit: 850 },
@@ -254,7 +255,7 @@ describe('postSystemJournal', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }] }); // 2102 missing
 
     const result = await postSystemJournal(
-      mockClient as any, 'group-1', 'user-1', 'Welfare pool contribution',
+      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Welfare pool contribution',
       [{ accountCode: '1001', debit: 500 }, { accountCode: '2102', credit: 500 }],
     );
 
@@ -270,7 +271,7 @@ describe('postSystemJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     await postSystemJournal(
-      mockClient as any, 'group-1', null, 'Platform subscription payment',
+      mockClient as unknown as PoolClient, 'group-1', null, 'Platform subscription payment',
       [{ accountCode: '5003', debit: 500 }, { accountCode: '1001', credit: 500 }],
     );
     const journalInsert = mockQuery.mock.calls[1];
@@ -293,7 +294,7 @@ describe('postContributionJournal', () => {
       .mockResolvedValueOnce({ rows: [] }) // credit line (4001)
       .mockResolvedValueOnce({ rows: [] }); // UPDATE contributions.journal_entry_id
 
-    const result = await postContributionJournal(mockClient as any, {
+    const result = await postContributionJournal(mockClient as unknown as PoolClient, {
       groupId: 'group-1', contributionId: 'contrib-1', amount: 1000,
       entryDate: '2026-01-15', createdBy: 'user-1',
     });
@@ -315,7 +316,7 @@ describe('postContributionJournal', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const result = await postContributionJournal(mockClient as any, {
+    const result = await postContributionJournal(mockClient as unknown as PoolClient, {
       groupId: 'group-1', contributionId: 'contrib-2', amount: 1000,
       entryDate: '2026-01-15', createdBy: null, isTest: true,
     });
@@ -330,7 +331,7 @@ describe('postContributionJournal', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ code: '4001', id: 'acct-4001' }] }); // no 1001
 
-    const result = await postContributionJournal(mockClient as any, {
+    const result = await postContributionJournal(mockClient as unknown as PoolClient, {
       groupId: 'group-1', contributionId: 'contrib-3', amount: 500,
       entryDate: '2026-01-15', createdBy: 'user-1',
     });
@@ -341,7 +342,7 @@ describe('postContributionJournal', () => {
 
   it('returns null (amount <= 0 guard) after checking split rules but before any posting', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // loadActiveSplitRules
-    const result = await postContributionJournal(mockClient as any, {
+    const result = await postContributionJournal(mockClient as unknown as PoolClient, {
       groupId: 'group-1', contributionId: 'contrib-4', amount: 0,
       entryDate: '2026-01-15', createdBy: 'user-1',
     });

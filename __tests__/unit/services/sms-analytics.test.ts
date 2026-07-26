@@ -10,7 +10,7 @@ describe('summarizeUsageRows', () => {
       { status: 'queued', credits_deducted: '0.90' },
     ];
 
-    expect(summarizeUsageRows(rows as any)).toEqual({
+    expect(summarizeUsageRows(rows)).toEqual({
       totalMessages: 5,
       delivered: 1,
       sent: 1,
