@@ -48,16 +48,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `email_retry_failed:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
-  // Drains any residual Redis backlog (lib/queue) enqueued before the
-  // email_send/email_campaign_drain cutover — `queueEmail`/`launchCampaign`
-  // no longer push into it, so this only has work to do for a short window
-  // after deploy. Removed once the old path is deleted.
-  queued.email_queue_drain = await safe('email_queue_drain', {}, {
-    priority:  5,
-    dedup_key: `email_queue_drain:${dateStr}T${hour}:${fiveMinBucket}`,
-  });
-
-  // Replaces email_queue_drain's per-recipient campaign fan-out — claims a
+  // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
   // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's
   // lib/queue + lib/jobs merge).
