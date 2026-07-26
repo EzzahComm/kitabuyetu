@@ -15,6 +15,20 @@ import { linkMemberToGroup } from './group-membership';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 
+/** A members row with credential material removed — the only shape routes may return. */
+export type SafeMember = Omit<Member, 'password_hash'>;
+
+/**
+ * Strip password_hash before a row leaves the service. The list/detail
+ * queries SELECT m.* (so schema additions flow through without edits here),
+ * which means the bcrypt hash rides along and MUST be removed before the
+ * route serializes the row to the client.
+ */
+function stripSecrets<T extends { password_hash?: string | null }>(row: T): Omit<T, 'password_hash'> {
+  const { password_hash: _secret, ...rest } = row;
+  return rest;
+}
+
 // Member statuses that need a reason recorded when a transition lands.
 const REASON_REQUIRED_STATUSES = new Set<MemberStatus>([
   'suspended', 'rejected', 'blacklisted', 'exited',
@@ -25,7 +39,7 @@ export const membersService = {
   async list(
     ctx: TenantContext,
     params: MemberQueryInput,
-  ): Promise<PaginatedResult<Member & { group_role: string; group_status: string; joined_at: Date }>> {
+  ): Promise<PaginatedResult<SafeMember & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>> {
     return withDb(ctx, async (client) => {
       const { page, limit, search, role, status, includeArchived, countyId, sortBy, sortDir } = params;
       const offset = (page - 1) * limit;
@@ -65,7 +79,7 @@ export const membersService = {
       );
       const total = parseInt(countResult.rows[0].count, 10);
 
-      const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
+      const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
         `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
                 gm.membership_no
          FROM group_members gm
@@ -76,13 +90,13 @@ export const membersService = {
         [...values, limit, offset],
       );
 
-      const data = rows.rows.map((m) => applyMemberMask(m, ctx.role) as typeof m);
+      const data = rows.rows.map((m) => stripSecrets(applyMemberMask(m, ctx.role) as typeof m));
 
       return { items: data, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
     });
   },
 
-  async getById(ctx: TenantContext, memberId: string): Promise<Member & { group_role: string; group_status: string; joined_at: Date }> {
+  async getById(ctx: TenantContext, memberId: string): Promise<SafeMember & { group_role: string; group_status: string; joined_at: Date }> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
         `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at
@@ -92,11 +106,11 @@ export const membersService = {
         [memberId, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return applyMemberMask(rows[0], ctx.role) as typeof rows[0];
+      return stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
     });
   },
 
-  async create(ctx: TenantContext, data: CreateMemberInput): Promise<Member> {
+  async create(ctx: TenantContext, data: CreateMemberInput): Promise<SafeMember> {
     return withTransaction(ctx, async (client) => {
       // Enforce member cap before adding
       await billingService.assertMemberCap(ctx, client);
@@ -177,11 +191,11 @@ export const membersService = {
         'SELECT * FROM members WHERE id = $1',
         [memberId],
       );
-      return rows[0];
+      return stripSecrets(rows[0]);
     });
   },
 
-  async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<Member> {
+  async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<SafeMember> {
     return withTransaction(ctx, async (client) => {
       // Field mapping kept explicit so unknown fields can't be smuggled into
       // the SQL via a dynamic object spread.
@@ -222,7 +236,7 @@ export const membersService = {
         values,
       );
       if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return rows[0];
+      return stripSecrets(rows[0]);
     });
   },
 

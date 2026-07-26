@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { membersApi } from '@/lib/api/endpoints';
-import type { MemberPublic } from '@/types/api.types';
 
 export const memberKeys = {
   all:    ['members'] as const,

@@ -77,7 +77,7 @@ function ComposeTab() {
     if (target === 'custom') {
       recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
     } else if (target === 'active') {
-      recipientPhones = (members?.items ?? []).filter((m) => m.isActive).map((m) => m.phone);
+      recipientPhones = (members?.items ?? []).filter((m) => m.group_status === 'active').map((m) => m.phone);
     } else {
       recipientPhones = (members?.items ?? []).map((m) => m.phone);
     }

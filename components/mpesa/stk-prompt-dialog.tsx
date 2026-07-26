@@ -30,7 +30,7 @@ import { api } from '@/lib/api/client';
 import { membersApi } from '@/lib/api/endpoints';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { formatKES } from '@/lib/utils';
-import type { MemberPublic } from '@/types/api.types';
+import type { GroupMemberRow } from '@/types/api.types';
 
 type Step = 'form' | 'sending' | 'waiting' | 'completed' | 'failed';
 
@@ -64,8 +64,8 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
     staleTime: 60_000,
   });
   const pickable = useMemo(
-    () => (((membersData as { items?: MemberPublic[] } | undefined)?.items) ?? [])
-      .filter((m) => m.isActive && m.phone),
+    () => (((membersData as { items?: GroupMemberRow[] } | undefined)?.items) ?? [])
+      .filter((m) => m.group_status === 'active' && m.phone),
     [membersData],
   );
 
@@ -79,7 +79,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   const payerName = member?.name
     ?? (() => {
       const p = pickable.find((m) => m.id === memberId);
-      return p ? `${p.firstName} ${p.lastName}` : null;
+      return p ? `${p.first_name} ${p.last_name}` : null;
     })();
 
   const amt = parseInt(amount, 10);
@@ -195,7 +195,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                   </option>
                   {pickable.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.firstName} {m.lastName} — {m.phone}
+                      {m.first_name} {m.last_name} — {m.phone}
                     </option>
                   ))}
                 </select>

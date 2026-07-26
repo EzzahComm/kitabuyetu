@@ -2,7 +2,7 @@ import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
-  MemberPublic, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
+  GroupMemberRow, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
   TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
   SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
 } from '@/types/api.types';
@@ -82,13 +82,13 @@ export const authApi = {
 // ------------------------------------------------------------------
 export const membersApi = {
   list:   (params?: Record<string, unknown>) =>
-    api.get<PaginatedResult<MemberPublic>>(`/members${buildQuery(params ?? {})}`),
+    api.get<PaginatedResult<GroupMemberRow>>(`/members${buildQuery(params ?? {})}`),
   getById: (id: string) =>
-    api.get<MemberPublic>(`/members/${id}`),
+    api.get<GroupMemberRow>(`/members/${id}`),
   create:  (body: unknown) =>
-    api.post<MemberPublic>('/members', body),
+    api.post<GroupMemberRow>('/members', body),
   update:  (id: string, body: unknown) =>
-    api.patch<MemberPublic>(`/members/${id}`, body),
+    api.patch<GroupMemberRow>(`/members/${id}`, body),
   updateRole: (id: string, role: string) =>
     api.put<unknown>(`/members/${id}`, { role }),
   deactivate: (id: string) =>

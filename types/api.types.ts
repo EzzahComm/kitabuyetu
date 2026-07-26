@@ -151,22 +151,35 @@ export interface RefreshResponse {
 // ------------------------------------------------------------------
 // Member responses
 // ------------------------------------------------------------------
-export interface MemberPublic {
-  id:              string;
-  firstName:       string;
-  lastName:        string;
-  phone:           string;
-  email:           string | null;
-  nationalId:      string | null;
-  dateOfBirth:     string | null;
-  gender:          string | null;
-  address:         string | null;
-  profilePhotoUrl: string | null;
-  platformRole:    PlatformRole;
-  groupRole:       MemberRole;
-  isActive:        boolean;
-  joinedAt:        string;
-  lastLoginAt:     string | null;
+// The ACTUAL wire shape of /members list/detail rows: snake_case members-table
+// columns (SELECT m.*, PII masked per caller role, password_hash stripped
+// server-side) plus the group_members join fields. Replaces the old
+// `MemberPublic` interface, which described a camelCase mapping no route ever
+// performed — reads against it were silently undefined.
+export interface GroupMemberRow {
+  id:                string;
+  phone:             string;
+  email:             string | null;
+  first_name:        string;
+  middle_name?:      string | null;
+  last_name:         string;
+  national_id:       string | null;
+  date_of_birth:     string | null;
+  gender:            string | null;
+  address:           string | null;
+  profile_photo_url: string | null;
+  occupation?:       string | null;
+  alternative_phone?: string | null;
+  county_id?:        string | null;
+  platform_role:     PlatformRole;
+  is_active:         boolean;
+  last_login_at:     string | null;
+  created_at:        string;
+  group_role:        MemberRole;
+  group_status:      string;
+  joined_at:         string;
+  /** Present on list rows only (joined from group_members). */
+  membership_no?:    string | null;
 }
 
 // ------------------------------------------------------------------
