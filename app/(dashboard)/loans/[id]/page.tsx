@@ -36,7 +36,7 @@ export default function LoanDetailPage() {
   const [b2cAmount, setB2cAmount] = useState('');
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
   const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'disburse' | null>(null);
   const [defaultOpen, setDefaultOpen] = useState(false);
   const [defaultReason, setDefaultReason] = useState('');
   const [writeOffOpen, setWriteOffOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function LoanDetailPage() {
         )}
         {l.status === 'approved' && (
           <>
-            <Button onClick={() => handleAction('disburse')} loading={loanAction.isPending} variant="outline">
+            <Button onClick={() => setConfirmAction('disburse')} loading={loanAction.isPending} variant="outline">
               <DollarSign size={16} className="mr-2"/> Mark disbursed
             </Button>
             <Button onClick={() => {
@@ -297,14 +297,24 @@ export default function LoanDetailPage() {
       <ConfirmDialog
         open={confirmAction !== null}
         onOpenChange={(o) => !o && setConfirmAction(null)}
-        title={confirmAction === 'approve' ? 'Approve this loan?' : 'Reject this loan?'}
+        title={
+          confirmAction === 'approve' ? 'Approve this loan?'
+          : confirmAction === 'disburse' ? 'Mark this loan disbursed?'
+          : 'Reject this loan?'
+        }
         description={
           confirmAction === 'approve'
             ? 'The member will be able to receive disbursement once approved.'
-            : 'The member will be notified that their loan application was rejected.'
+            : confirmAction === 'disburse'
+              ? `Records that ${formatKES(l.principal_amount)} was handed to ${l.member_name ?? 'the member'} outside M-Pesa (cash/bank) and posts the disbursement to the books. Use "Disburse via M-Pesa" instead if the money should actually be sent.`
+              : 'The member will be notified that their loan application was rejected.'
         }
         variant={confirmAction === 'reject' ? 'danger' : 'default'}
-        confirmLabel={confirmAction === 'approve' ? 'Approve' : 'Reject'}
+        confirmLabel={
+          confirmAction === 'approve' ? 'Approve'
+          : confirmAction === 'disburse' ? 'Mark disbursed'
+          : 'Reject'
+        }
         onConfirm={async () => {
           if (confirmAction) await handleAction(confirmAction);
         }}

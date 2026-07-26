@@ -14,6 +14,7 @@ import { ArrowLeft, ArrowRightLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export default function ReallocationsPage() {
   const [reason, setReason]             = useState('');
   const [rejecting, setRejecting]       = useState<ReallocRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approving, setApproving]       = useState<ReallocRow | null>(null);
   const [busy, setBusy]                 = useState(false);
 
   const { data, isLoading } = useQuery<PaginatedResult<ReallocRow>>({
@@ -111,6 +113,7 @@ export default function ReallocationsPage() {
     try {
       await api.post(`/mpesa/reallocations/${row.id}`, { action: 'approve' });
       toast({ title: 'Correction approved and executed' });
+      setApproving(null);
       await refresh();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Approval failed', description: err instanceof ApiError ? err.message : '' });
@@ -191,7 +194,7 @@ export default function ReallocationsPage() {
                       <Button size="sm" variant="outline" onClick={() => { setRejecting(row); setRejectReason(''); }} disabled={busy}>
                         Reject
                       </Button>
-                      <Button size="sm" onClick={() => approve(row)} disabled={busy}>
+                      <Button size="sm" onClick={() => setApproving(row)} disabled={busy}>
                         Approve
                       </Button>
                     </div>
@@ -255,6 +258,26 @@ export default function ReallocationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Approve — executes the money move immediately, so confirm with full details */}
+      {approving && (
+        <MoneyActionDialog
+          open={!!approving}
+          onOpenChange={(o) => !o && setApproving(null)}
+          title="Approve this correction?"
+          amount={parseFloat(approving.amount)}
+          details={[
+            { label: 'From', value: approving.from_member_name ?? '—' },
+            { label: 'To', value: approving.to_member_name ?? '—' },
+            ...(approving.mpesa_receipt_number ? [{ label: 'Receipt', value: approving.mpesa_receipt_number }] : []),
+            { label: 'Initiated by', value: approving.initiated_by_name ?? '—' },
+            { label: 'Reason', value: approving.reason },
+          ]}
+          warning="Approving executes the reallocation immediately — the contribution moves between members and both sets of books update."
+          confirmLabel="Approve & execute"
+          onConfirm={() => approve(approving)}
+        />
+      )}
 
       {/* Reject */}
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>

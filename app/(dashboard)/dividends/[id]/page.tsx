@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -106,6 +107,7 @@ export default function DividendDetailPage() {
   });
 
   const [cancelOpen, setCancelOpen]   = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [payOpen,    setPayOpen]      = useState<Allocation | null>(null);
   const [bulkOpen,   setBulkOpen]     = useState(false);
   const [selected,   setSelected]     = useState<Set<string>>(new Set());
@@ -175,7 +177,7 @@ export default function DividendDetailPage() {
           )}
           {decl.status === 'pending_approval' && (
             <>
-              <Button onClick={onApprove} disabled={busy}>
+              <Button onClick={() => setApproveOpen(true)} disabled={busy}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                 Approve &amp; snapshot
               </Button>
@@ -341,6 +343,15 @@ export default function DividendDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        title="Approve & snapshot this declaration?"
+        description={`Locks in the ${fmtMoney(decl.pool_amount)} pool across ${previewQ.data?.totalEligibleMembers ?? decl.total_eligible_members ?? 'the eligible'} shareholder(s) at today's share balances. Allocations are computed and persisted — after this, changes require cancelling the whole declaration.`}
+        confirmLabel="Approve & snapshot"
+        onConfirm={onApprove}
+      />
 
       <CancelDialog
         open={cancelOpen}
