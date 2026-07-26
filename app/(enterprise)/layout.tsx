@@ -2,12 +2,13 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Network, Users2, Banknote, FileBarChart,
   KeyRound, Palette, ScrollText, Menu, X, Bell, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
 
 /**
@@ -17,9 +18,12 @@ import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
  * (gray/red staff console): this is a customer-facing partner workspace, so it
  * carries the brand (green + navy) with a persistent organization switcher.
  *
- * NOTE: gate this group behind enterprise-role auth in production (mirrors the
- * (dashboard) guard). Left open here so the UI is reviewable in isolation.
+ * Gated behind the same organization_coordinator/super_admin backoffice roles
+ * that `assertOrganizationCoordinator()` enforces server-side for every
+ * /api/v1/organization/* route — mirrors (admin)/layout.tsx's ADMIN_ROLES guard.
  */
+const ENTERPRISE_ROLES = ['organization_coordinator', 'super_admin'] as const;
+type EnterpriseRole = (typeof ENTERPRISE_ROLES)[number];
 
 interface NavItem { href: string; label: string; icon: LucideIcon; soon?: boolean }
 interface NavSection { title: string; items: NavItem[] }
@@ -54,10 +58,39 @@ const NAV: NavSection[] = [
 
 export default function EnterpriseLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const { user, audience, isLoading } = useAuth();
+
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (!user || audience !== 'backoffice') {
+      router.replace('/admin-login');
+      return;
+    }
+    if (!ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole)) {
+      router.replace('/admin-login');
+    }
+  }, [user, audience, isLoading, router]);
+
+  const ready = !isLoading
+    && !!user
+    && audience === 'backoffice'
+    && ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
 
   const isActive = (href: string) =>
     href === '/enterprise' ? pathname === href : pathname.startsWith(href);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <div className="text-center">
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Verifying enterprise access…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/30">
