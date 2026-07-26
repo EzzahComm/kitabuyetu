@@ -16,7 +16,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import type { Loan } from '@/types/db.types';
+
+type LoanRow = Loan & { member_name: string };
 
 const applySchema = z.object({
   memberId:       z.string().min(1),
@@ -41,7 +44,7 @@ export default function LoansPage() {
   // Advisory defaults from the group's resolved LoanPolicy (group ->
   // organization -> platform cascade) — officers can still type a different
   // rate/term on any individual loan.
-  const policyTerms = (loanPolicy as any)?.terms;
+  const policyTerms = loanPolicy?.terms;
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
@@ -62,26 +65,26 @@ export default function LoansPage() {
       toast({ title: 'Loan application submitted' });
       setOpen(false);
       reset();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 
   const columns = [
     {
       key: 'id', header: 'Loan',
-      render: (row: any) => (
+      render: (row: LoanRow) => (
         <Link href={`/loans/${row.id}`} className="font-mono text-xs text-brand-600 hover:underline">
           {row.id.slice(0, 8)}…
         </Link>
       ),
     },
-    { key: 'memberName', header: 'Member', render: (row: any) => row.memberName ?? row.memberId },
-    { key: 'principalAmount', header: 'Principal', render: (row: any) => <span className="font-semibold">{formatKES(row.principalAmount)}</span> },
-    { key: 'interestRate', header: 'Rate', render: (row: any) => `${row.interestRate}%` },
-    { key: 'termMonths', header: 'Term', render: (row: any) => `${row.termMonths}m` },
-    { key: 'status', header: 'Status', render: (row: any) => <StatusPill status={row.status} /> },
-    { key: 'disbursedAt', header: 'Disbursed', render: (row: any) => row.disbursedAt ? formatDate(row.disbursedAt) : '—' },
+    { key: 'memberName', header: 'Member', render: (row: LoanRow) => row.member_name ?? row.member_id },
+    { key: 'principalAmount', header: 'Principal', render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span> },
+    { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}%` },
+    { key: 'termMonths', header: 'Term', render: (row: LoanRow) => `${row.loan_term_months}m` },
+    { key: 'status', header: 'Status', render: (row: LoanRow) => <StatusPill status={row.status} /> },
+    { key: 'disbursedAt', header: 'Disbursed', render: (row: LoanRow) => row.disbursed_at ? formatDate(row.disbursed_at) : '—' },
   ];
 
   return (
@@ -103,7 +106,7 @@ export default function LoansPage() {
           ))}
         </TabsList>
         <TabsContent value={status} className="mt-4">
-          <PaginatedTable data={data as any} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No loans found" />
+          <PaginatedTable data={data} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No loans found" />
         </TabsContent>
       </Tabs>
 
@@ -115,8 +118,8 @@ export default function LoansPage() {
               <Label>Member</Label>
               <select {...register('memberId')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="">Select member…</option>
-                {(membersData?.items ?? []).map((m: any) => (
-                  <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                {(membersData?.items ?? []).map((m) => (
+                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
                 ))}
               </select>
               {errors.memberId && <p className="text-xs text-destructive">{errors.memberId.message}</p>}

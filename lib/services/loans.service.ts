@@ -41,10 +41,10 @@ export const loansService = {
     });
   },
 
-  async getById(ctx: TenantContext, id: string): Promise<Loan & { member_name: string; schedule: LoanRepayment[] }> {
+  async getById(ctx: TenantContext, id: string): Promise<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }> {
     return withDb(ctx, async (client) => {
-      const { rows: loanRows } = await client.query<Loan & { member_name: string }>(
-        `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name
+      const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(
+        `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name, m.phone AS member_phone
          FROM loans l JOIN members m ON m.id = l.member_id
          WHERE l.id = $1 AND l.group_id = $2`,
         [id, ctx.groupId],

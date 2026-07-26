@@ -138,7 +138,7 @@ export const loansApi = {
   list:   (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<Loan & { member_name: string }>>(`/loans${buildQuery(params ?? {})}`),
   getById: (id: string) =>
-    api.get<Loan & { member_name: string; schedule: LoanRepayment[] }>(`/loans/${id}`),
+    api.get<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }>(`/loans/${id}`),
   apply:   (body: unknown) =>
     api.post<Loan>('/loans', body),
   action:  (id: string, body: unknown) =>

@@ -16,16 +16,22 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import type { Contribution } from '@/types/db.types';
 
+type ContributionRow = Contribution & { member_name: string };
+
+// Fields match CreateContributionSchema (lib/validators/contribution.schema.ts)
+// exactly — the form previously sent periodMonth/periodYear (fields that
+// don't exist on that schema, silently dropped by zod) and never sent the
+// required contributionDate, so every submission 400'd server-side.
 const schema = z.object({
-  memberId:      z.string().min(1, 'Member required'),
-  amount:        z.coerce.number().positive(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque']),
-  reference:     z.string().optional(),
-  periodMonth:   z.coerce.number().int().min(1).max(12),
-  periodYear:    z.coerce.number().int().min(2020).max(2099),
-  notes:         z.string().optional(),
+  memberId:           z.string().min(1, 'Member required'),
+  amount:             z.coerce.number().positive(),
+  contributionDate:   z.string().min(1, 'Date required'),
+  paymentMethod:      z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque']),
+  mpesaReceiptNumber: z.string().optional(),
+  notes:              z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -46,11 +52,11 @@ export default function ContributionsPage() {
   const memberOptions = membersData?.items ?? [];
   const record = useRecordContribution();
   const { data: savingsPolicy } = useSavingsPolicy();
-  const limits = (savingsPolicy as any)?.limits;
+  const limits = savingsPolicy?.limits;
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { paymentMethod: 'mpesa', periodMonth: now.getMonth() + 1, periodYear: now.getFullYear() },
+    defaultValues: { paymentMethod: 'mpesa', contributionDate: now.toISOString().split('T')[0] },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -59,27 +65,27 @@ export default function ContributionsPage() {
       toast({ title: 'Contribution recorded' });
       setOpen(false);
       reset();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 
   const columns = [
-    { key: 'memberName', header: 'Member', render: (row: any) => <span className="font-medium">{row.memberName ?? row.memberId}</span> },
-    { key: 'amount', header: 'Amount', render: (row: any) => <span className="font-semibold text-green-600">{formatKES(row.amount)}</span> },
-    { key: 'period', header: 'Period', render: (row: any) => `${row.periodYear}-${String(row.periodMonth).padStart(2,'0')}` },
-    { key: 'paymentMethod', header: 'Method', render: (row: any) => <Badge variant="outline" className="capitalize">{row.paymentMethod?.replace('_',' ')}</Badge> },
-    { key: 'status', header: 'Status', render: (row: any) => <StatusPill status={row.status} /> },
-    { key: 'createdAt', header: 'Date', render: (row: any) => formatDate(row.createdAt) },
+    { key: 'memberName', header: 'Member', render: (row: ContributionRow) => <span className="font-medium">{row.member_name ?? row.member_id}</span> },
+    { key: 'amount', header: 'Amount', render: (row: ContributionRow) => <span className="font-semibold text-green-600">{formatKES(row.amount)}</span> },
+    { key: 'period', header: 'Date', render: (row: ContributionRow) => formatDate(row.contribution_date) },
+    { key: 'paymentMethod', header: 'Method', render: (row: ContributionRow) => <Badge variant="outline" className="capitalize">{row.payment_method?.replace('_',' ')}</Badge> },
+    { key: 'status', header: 'Status', render: (row: ContributionRow) => <StatusPill status={row.status} /> },
+    { key: 'createdAt', header: 'Recorded', render: (row: ContributionRow) => formatDate(row.created_at) },
     {
       key: 'receipt', header: '',
-      render: (row: any) =>
-        (row.status === 'completed' || row.status === 'confirmed') ? (
+      render: (row: ContributionRow) =>
+        row.status === 'completed' ? (
           <button
             type="button"
             className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
             onClick={() => api.openBlob(`/contributions/${row.id}/receipt`).catch((e) =>
-              toast({ variant: 'destructive', title: 'Receipt failed', description: e.message }))}
+              toast({ variant: 'destructive', title: 'Receipt failed', description: getErrorMessage(e) }))}
           >
             <FileText size={13} /> Receipt
           </button>
@@ -99,7 +105,7 @@ export default function ContributionsPage() {
         </Button>
       </div>
 
-      <PaginatedTable data={data as any} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
+      <PaginatedTable data={data} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -119,15 +125,13 @@ export default function ContributionsPage() {
                       ? 'No active members found'
                       : 'Select member…'}
                 </option>
-                {memberOptions.map((m: any) => {
-                  // The members API returns raw DB rows (snake_case); keep a
-                  // camelCase fallback in case a masked/mapped shape is used.
-                  const first = m.first_name ?? m.firstName ?? '';
-                  const last  = m.last_name ?? m.lastName ?? '';
+                {memberOptions.map((m) => {
+                  const first = m.first_name ?? '';
+                  const last  = m.last_name ?? '';
                   const phone = m.phone ?? '';
                   // Identify members by name + Membership Number (the only
                   // public payment identifier) — never member_code/UUIDs.
-                  const acct  = m.membership_no ?? m.membershipNo ?? '';
+                  const acct  = m.membership_no ?? '';
                   const label = `${first} ${last}`.trim() || acct || 'Member';
                   return (
                     <option key={m.id} value={m.id}>
@@ -162,18 +166,15 @@ export default function ContributionsPage() {
                   <option value="cheque">Cheque</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <Label>Month</Label>
-                <Input type="number" min={1} max={12} {...register('periodMonth')} />
-              </div>
-              <div className="space-y-1">
-                <Label>Year</Label>
-                <Input type="number" min={2020} max={2099} {...register('periodYear')} />
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Contribution date</Label>
+                <Input type="date" {...register('contributionDate')} />
+                {errors.contributionDate && <p className="text-xs text-destructive">{errors.contributionDate.message}</p>}
               </div>
             </div>
             <div className="space-y-1">
               <Label>M-Pesa reference (optional)</Label>
-              <Input placeholder="QAB1234XYZ" {...register('reference')} />
+              <Input placeholder="QAB1234XYZ" {...register('mpesaReceiptNumber')} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLoan, useLoanAction, useRecordRepayment } from '@/hooks/use-loans';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,19 +56,27 @@ export default function LoanDetailPage() {
     try {
       await loanAction.mutateAsync({ action });
       toast({ title: `Loan ${action}d successfully` });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Action failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Action failed', description: getErrorMessage(err) });
     }
   };
 
-  const onRepay = async (values: any) => {
+  // NOTE: this form's payload ({amount, paymentMethod, reference}) does not
+  // match what POST /loans/[id]/repayments actually requires
+  // (RecordRepaymentSchema: installmentNumber, amountPaid, paymentDate,
+  // paymentMethod, + optional mpesaReceiptNumber/penaltyAmount) — recording a
+  // repayment through this dialog 400s server-side today. Fixing it needs an
+  // installment picker (which schedule row is being paid), a product/UX call
+  // beyond this typing pass — left as-is, typed honestly against the local
+  // form schema rather than papering over the mismatch.
+  const onRepay = async (values: RepayForm) => {
     try {
       await recordRepay.mutateAsync(values);
       toast({ title: 'Repayment recorded' });
       setRepayOpen(false);
       reset();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 
@@ -78,8 +86,8 @@ export default function LoanDetailPage() {
 
   if (!loan) return <p className="text-muted-foreground">Loan not found</p>;
 
-  const l = loan as any;
-  const schedule: any[] = l.repaymentSchedule ?? [];
+  const l = loan;
+  const schedule = l.schedule ?? [];
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -95,19 +103,19 @@ export default function LoanDetailPage() {
       <div className="grid sm:grid-cols-2 gap-4">
         <Card><CardContent className="p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Member</p>
-          <p className="font-semibold">{l.memberName ?? l.memberId}</p>
+          <p className="font-semibold">{l.member_name ?? l.member_id}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Principal</p>
-          <p className="font-bold text-xl">{formatKES(l.principalAmount)}</p>
+          <p className="font-bold text-xl">{formatKES(l.principal_amount)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Interest rate / Term</p>
-          <p className="font-semibold">{l.interestRate}% /mo × {l.termMonths} months</p>
+          <p className="font-semibold">{l.interest_rate}% /mo × {l.loan_term_months} months</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Outstanding balance</p>
-          <p className="font-bold text-xl text-red-600">{formatKES(l.outstandingBalance ?? l.principalAmount)}</p>
+          <p className="font-bold text-xl text-red-600">{formatKES(l.outstanding_balance ?? l.principal_amount)}</p>
         </CardContent></Card>
       </div>
 
@@ -128,8 +136,8 @@ export default function LoanDetailPage() {
               <DollarSign size={16} className="mr-2"/> Mark disbursed
             </Button>
             <Button onClick={() => {
-              setB2cPhone(l.memberPhone ?? l.member_phone ?? '');
-              setB2cAmount(String(Math.round(Number(l.principalAmount ?? 0))));
+              setB2cPhone(l.member_phone ?? '');
+              setB2cAmount(String(Math.round(Number(l.principal_amount ?? 0))));
               // One key per dialog open: repeated clicks of "Send" while this
               // dialog is up are the SAME logical attempt (idempotent replay
               // returns the original result instead of a second real payout);
@@ -171,14 +179,14 @@ export default function LoanDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {schedule.map((s: any) => (
-                  <tr key={s.installmentNumber} className="border-t hover:bg-muted/20">
-                    <td className="px-4 py-2">{s.installmentNumber}</td>
-                    <td className="px-4 py-2">{formatDate(s.dueDate)}</td>
-                    <td className="px-4 py-2">{formatKES(s.principalComponent)}</td>
-                    <td className="px-4 py-2">{formatKES(s.interestComponent)}</td>
-                    <td className="px-4 py-2 font-semibold">{formatKES(s.emiAmount)}</td>
-                    <td className="px-4 py-2">{formatKES(s.openingBalance)}</td>
+                {schedule.map((s) => (
+                  <tr key={s.installment_number} className="border-t hover:bg-muted/20">
+                    <td className="px-4 py-2">{s.installment_number}</td>
+                    <td className="px-4 py-2">{formatDate(s.due_date)}</td>
+                    <td className="px-4 py-2">{formatKES(s.principal_component)}</td>
+                    <td className="px-4 py-2">{formatKES(s.interest_component)}</td>
+                    <td className="px-4 py-2 font-semibold">{formatKES(s.total_due)}</td>
+                    <td className="px-4 py-2">{formatKES(s.opening_balance)}</td>
                     <td className="px-4 py-2">
                       <StatusPill status={s.status} size="sm" />
                     </td>
@@ -325,8 +333,8 @@ export default function LoanDetailPage() {
                   toast({ title: 'Loan marked defaulted' });
                   setDefaultOpen(false);
                   setDefaultReason('');
-                } catch (err: any) {
-                  toast({ variant: 'destructive', title: 'Failed', description: err.message });
+                } catch (err) {
+                  toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
                 }
               }}
             >
@@ -341,7 +349,7 @@ export default function LoanDetailPage() {
           <DialogHeader><DialogTitle>Write off this loan</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Posts the outstanding balance ({formatKES(l.outstandingBalance ?? 0)}) to Loan Write-offs and removes it from Loans Receivable. This cannot be undone.
+              Posts the outstanding balance ({formatKES(l.outstanding_balance ?? 0)}) to Loan Write-offs and removes it from Loans Receivable. This cannot be undone.
               Maker-checker: you cannot write off a loan you yourself marked defaulted.
             </p>
             <div className="space-y-1">
@@ -361,8 +369,8 @@ export default function LoanDetailPage() {
                   toast({ title: 'Loan written off' });
                   setWriteOffOpen(false);
                   setWriteOffReason('');
-                } catch (err: any) {
-                  toast({ variant: 'destructive', title: 'Write-off failed', description: err.message });
+                } catch (err) {
+                  toast({ variant: 'destructive', title: 'Write-off failed', description: getErrorMessage(err) });
                 }
               }}
             >
