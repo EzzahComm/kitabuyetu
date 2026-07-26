@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { useInvestments, useInvestmentSummary, useCreateInvestment } from '@/hooks/use-investments';
+import { useInvestments, useInvestmentSummary, useCreateInvestment, type InvestmentRow } from '@/hooks/use-investments';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
 const createSchema = z.object({
   name:               z.string().min(3),
@@ -31,7 +31,7 @@ const createSchema = z.object({
 
 type CreateInvestmentForm = z.infer<typeof createSchema>;
 
-const statusVariant: Record<string, any> = {
+const statusVariant: Record<string, 'warning' | 'success' | 'default' | 'secondary' | 'destructive'> = {
   pending_approval: 'warning',
   active:           'success',
   matured:          'default',
@@ -60,12 +60,12 @@ export default function InvestmentsPage() {
     defaultValues: { investmentType: 'shares' },
   });
 
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: CreateInvestmentForm) => {
     try {
       await createInvestment.mutateAsync(values);
       toast({ title: 'Investment recorded successfully' });
       setOpen(false); form.reset();
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
   const roi = summary?.roi ?? 0;
@@ -73,7 +73,7 @@ export default function InvestmentsPage() {
   const columns = [
     {
       key: 'name', header: 'Investment',
-      render: (row: any) => (
+      render: (row: InvestmentRow) => (
         <div>
           <p className="font-medium text-sm">{row.name}</p>
           <p className="text-xs text-muted-foreground">{typeLabels[row.investment_type] ?? row.investment_type}</p>
@@ -82,31 +82,31 @@ export default function InvestmentsPage() {
     },
     {
       key: 'principal_amount', header: 'Principal',
-      render: (row: any) => <span className="font-semibold text-sm">{formatKES(row.principal_amount)}</span>,
+      render: (row: InvestmentRow) => <span className="font-semibold text-sm">{formatKES(row.principal_amount)}</span>,
     },
     {
       key: 'current_value', header: 'Current Value',
-      render: (row: any) => row.current_value
+      render: (row: InvestmentRow) => row.current_value
         ? <span className="font-semibold text-sm text-green-600">{formatKES(row.current_value)}</span>
         : <span className="text-muted-foreground text-sm">—</span>,
     },
     {
       key: 'total_returns', header: 'Returns Earned',
-      render: (row: any) => <span className="text-sm text-blue-600">{formatKES(row.total_returns ?? 0)}</span>,
+      render: (row: InvestmentRow) => <span className="text-sm text-blue-600">{formatKES(row.total_returns ?? 0)}</span>,
     },
     {
       key: 'expected_return_rate', header: 'Expected Rate',
-      render: (row: any) => row.expected_return_rate
+      render: (row: InvestmentRow) => row.expected_return_rate
         ? <span className="text-sm">{row.expected_return_rate}%</span>
         : <span className="text-muted-foreground text-sm">—</span>,
     },
     {
       key: 'status', header: 'Status',
-      render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
+      render: (row: InvestmentRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
     },
     {
       key: 'start_date', header: 'Start Date',
-      render: (row: any) => <span className="text-xs">{formatDate(row.start_date)}</span>,
+      render: (row: InvestmentRow) => <span className="text-xs">{formatDate(row.start_date)}</span>,
     },
   ];
 
@@ -168,7 +168,7 @@ export default function InvestmentsPage() {
         </TabsList>
         <TabsContent value={status} className="mt-4">
           <PaginatedTable
-            data={data as any}
+            data={data}
             isLoading={isLoading}
             columns={columns}
             onPageChange={setPage}

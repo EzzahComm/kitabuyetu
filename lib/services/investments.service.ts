@@ -80,7 +80,7 @@ export const investmentsService = {
         `SELECT COUNT(*) FROM investments i WHERE ${where}`,
         args,
       );
-      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page };
+      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page, pageSize: params.limit };
     });
   },
 
