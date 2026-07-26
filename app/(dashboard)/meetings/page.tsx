@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting } from '@/hooks/use-meetings';
+import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting, type MeetingRow } from '@/hooks/use-meetings';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime, getErrorMessage } from '@/lib/utils';
 
 const createSchema = z.object({
   title:          z.string().min(3),
@@ -30,7 +30,7 @@ const createSchema = z.object({
 
 type CreateMeetingForm = z.infer<typeof createSchema>;
 
-const statusVariant: Record<string, any> = {
+const statusVariant: Record<string, 'warning' | 'default' | 'success' | 'destructive' | 'secondary'> = {
   scheduled:   'warning',
   in_progress: 'default',
   completed:   'success',
@@ -59,20 +59,20 @@ export default function MeetingsPage() {
   });
   const isVirtual = useWatch({ control: form.control, name: 'isVirtual' });
 
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: CreateMeetingForm) => {
     // Convert datetime-local value to ISO string
     const scheduledAt = new Date(values.scheduledAt).toISOString();
     try {
       await createMeeting.mutateAsync({ ...values, scheduledAt });
       toast({ title: 'Meeting scheduled' });
       setOpen(false); form.reset();
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
   const columns = [
     {
       key: 'title', header: 'Meeting',
-      render: (row: any) => (
+      render: (row: MeetingRow) => (
         <div className="space-y-0.5">
           <p className="font-medium text-sm">{row.title}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -85,7 +85,7 @@ export default function MeetingsPage() {
     },
     {
       key: 'scheduled_at', header: 'Date & Time',
-      render: (row: any) => (
+      render: (row: MeetingRow) => (
         <div>
           <p className="text-sm font-medium">{formatDate(row.scheduled_at)}</p>
           <p className="text-xs text-muted-foreground">{new Date(row.scheduled_at).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -94,11 +94,11 @@ export default function MeetingsPage() {
     },
     {
       key: 'chaired_by_name', header: 'Chair',
-      render: (row: any) => <span className="text-sm">{row.chaired_by_name ?? '—'}</span>,
+      render: (row: MeetingRow) => <span className="text-sm">{row.chaired_by_name ?? '—'}</span>,
     },
     {
       key: 'attendees_present', header: 'Attendance',
-      render: (row: any) => (
+      render: (row: MeetingRow) => (
         <div className="flex items-center gap-1 text-sm">
           <Users size={14} className="text-muted-foreground" />
           <span>{row.attendees_present ?? 0}</span>
@@ -108,11 +108,11 @@ export default function MeetingsPage() {
     },
     {
       key: 'resolution_count', header: 'Resolutions',
-      render: (row: any) => <span className="text-sm">{row.resolution_count ?? 0}</span>,
+      render: (row: MeetingRow) => <span className="text-sm">{row.resolution_count ?? 0}</span>,
     },
     {
       key: 'status', header: 'Status',
-      render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
+      render: (row: MeetingRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
     },
   ];
 
@@ -166,7 +166,7 @@ export default function MeetingsPage() {
         </TabsList>
         <TabsContent value={status} className="mt-4">
           <PaginatedTable
-            data={data as any}
+            data={data}
             isLoading={isLoading}
             columns={columns}
             onPageChange={setPage}

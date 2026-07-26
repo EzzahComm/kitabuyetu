@@ -10,13 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { useWelfareRequests, useCreateWelfareRequest, useReviewWelfareRequest, useWelfarePool, useRecordWelfarePoolContribution } from '@/hooks/use-welfare';
+import { useWelfareRequests, useCreateWelfareRequest, useReviewWelfareRequest, useWelfarePool, useRecordWelfarePoolContribution, type WelfareRequestRow } from '@/hooks/use-welfare';
 import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
 const requestSchema = z.object({
   requestType:     z.enum(['funeral','hospital','emergency','education','maternity','bereavement','disability','other']),
@@ -38,7 +38,7 @@ const poolSchema = z.object({
 
 type WelfarePoolForm = z.infer<typeof poolSchema>;
 
-const statusVariant: Record<string, any> = {
+const statusVariant: Record<string, 'warning' | 'secondary' | 'success' | 'default' | 'destructive'> = {
   pending:      'warning',
   under_review: 'secondary',
   approved:     'success',
@@ -83,20 +83,20 @@ export default function WelfarePage() {
     defaultValues: { contributionType: 'regular' },
   });
 
-  const onSubmitRequest = async (values: any) => {
+  const onSubmitRequest = async (values: WelfareRequestForm) => {
     try {
       await createReq.mutateAsync(values);
       toast({ title: 'Welfare request submitted' });
       setOpenRequest(false); reqForm.reset();
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
-  const onSubmitPool = async (values: any) => {
+  const onSubmitPool = async (values: WelfarePoolForm) => {
     try {
       await recordPool.mutateAsync(values);
       toast({ title: 'Welfare fund contribution recorded' });
       setOpenPool(false); poolForm.reset();
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
   const onApprove = async (id: string, amountApproved: number) => {
@@ -104,7 +104,7 @@ export default function WelfarePage() {
       await reviewReq.mutateAsync({ action: 'approve', amountApproved });
       toast({ title: 'Request approved' });
       setReviewId(null);
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
   const summary = poolData?.summary;
@@ -112,17 +112,17 @@ export default function WelfarePage() {
   const columns = [
     {
       key: 'title', header: 'Request',
-      render: (row: any) => (
+      render: (row: WelfareRequestRow) => (
         <div>
           <p className="font-medium text-sm">{row.title}</p>
           <p className="text-xs text-muted-foreground capitalize">{row.request_type?.replace('_',' ')}</p>
         </div>
       ),
     },
-    { key: 'member', header: 'Member', render: (row: any) => <span className="text-sm">{row.member_name}</span> },
+    { key: 'member', header: 'Member', render: (row: WelfareRequestRow) => <span className="text-sm">{row.member_name}</span> },
     {
       key: 'amount', header: 'Requested',
-      render: (row: any) => (
+      render: (row: WelfareRequestRow) => (
         <div className="text-right">
           <p className="font-semibold text-sm">{formatKES(row.amount_requested)}</p>
           {row.amount_approved && <p className="text-xs text-green-600">Approved: {formatKES(row.amount_approved)}</p>}
@@ -131,15 +131,15 @@ export default function WelfarePage() {
     },
     {
       key: 'priority', header: 'Priority',
-      render: (row: any) => (
+      render: (row: WelfareRequestRow) => (
         <span className={`text-xs capitalize ${priorityClass[row.priority] ?? ''}`}>{row.priority}</span>
       ),
     },
-    { key: 'status', header: 'Status', render: (row: any) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize">{row.status?.replace('_',' ')}</Badge> },
-    { key: 'created_at', header: 'Date', render: (row: any) => <span className="text-xs">{formatDate(row.created_at)}</span> },
+    { key: 'status', header: 'Status', render: (row: WelfareRequestRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize">{row.status?.replace('_',' ')}</Badge> },
+    { key: 'created_at', header: 'Date', render: (row: WelfareRequestRow) => <span className="text-xs">{formatDate(row.created_at)}</span> },
     {
       key: 'actions', header: '',
-      render: (row: any) => row.status === 'pending' ? (
+      render: (row: WelfareRequestRow) => row.status === 'pending' ? (
         <Button size="sm" variant="outline" onClick={() => { setReviewId(row.id); }}>Review</Button>
       ) : null,
     },
@@ -200,7 +200,7 @@ export default function WelfarePage() {
         </TabsList>
         <TabsContent value={statusFilter} className="mt-4">
           <PaginatedTable
-            data={data as any}
+            data={data}
             isLoading={isLoading}
             columns={columns}
             onPageChange={setPage}
@@ -267,8 +267,8 @@ export default function WelfarePage() {
               <Label>Member</Label>
               <select {...poolForm.register('memberId')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="">Select member…</option>
-                {(membersData?.items ?? []).map((m: any) => (
-                  <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                {(membersData?.items ?? []).map((m) => (
+                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
                 ))}
               </select>
             </div>
@@ -329,7 +329,7 @@ export default function WelfarePage() {
                     try {
                       await reviewReq.mutateAsync({ action: 'reject', rejectionReason: 'Declined by officer' });
                       toast({ title: 'Request rejected' }); setReviewId(null);
-                    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+                    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
                   }}
                 >
                   Reject

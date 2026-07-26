@@ -88,7 +88,7 @@ export const welfareService = {
         `SELECT COUNT(*) FROM welfare_requests wr WHERE ${where}`,
         args,
       );
-      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page };
+      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page, pageSize: params.limit };
     });
   },
 
