@@ -2,9 +2,14 @@
 
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer,
+  CartesianGrid, Tooltip, ResponsiveContainer, type TooltipValueType,
 } from 'recharts';
 import { formatKES } from '@/lib/utils';
+
+function tooltipNumber(v: TooltipValueType | undefined): number | string | undefined {
+  if (v === undefined) return undefined;
+  return Array.isArray(v) ? v[0] : (v as number | string);
+}
 
 export function GrowthChart({ data }: { data: Record<string, unknown>[] }) {
   return (
@@ -39,8 +44,8 @@ export function TopGroupsChart({ data }: { data: Record<string, unknown>[] }) {
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }}
           tickLine={false} axisLine={false} width={120} />
         <Tooltip
-          formatter={(v: any, n) => [
-            formatKES(v),
+          formatter={(v, n) => [
+            formatKES(tooltipNumber(v)),
             String(n) === 'contributions' ? 'Contributions' : 'Loan Book',
           ] as [string, string]}
           contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}

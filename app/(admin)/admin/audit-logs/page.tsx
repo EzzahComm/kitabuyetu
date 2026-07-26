@@ -10,6 +10,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuditLogs, useAdminGroups } from '@/hooks/use-admin';
 import { formatDate } from '@/lib/utils';
 
+interface AuditLogRow {
+  id:         string;
+  action:     string;
+  table_name: string;
+  actor_name: string | null;
+  group_name: string | null;
+  record_id:  string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
 const ACTION_STYLE: Record<string, string> = {
   INSERT: 'bg-green-50 text-green-700 border-green-200',
   UPDATE: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -32,7 +43,7 @@ export default function AuditLogsPage() {
   const { data: groupsData } = useAdminGroups({ limit: 200 });
   const groupOptions: { id: string; name: string }[] = groupsData?.items ?? [];
 
-  const items: any[] = data?.items ?? [];
+  const items: AuditLogRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 50);
 

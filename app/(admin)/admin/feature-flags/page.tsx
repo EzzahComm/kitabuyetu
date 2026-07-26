@@ -7,6 +7,20 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeatureFlags, useToggleFeatureFlag } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/utils';
+
+interface FeatureFlagRow {
+  id:          string;
+  key:         string;
+  description: string | null;
+  enabled:     boolean;
+  rollout_pct: number;
+  applies_to:  'all' | 'plan' | 'group' | 'member';
+  conditions:  Record<string, unknown>;
+  created_at:  string;
+  updated_at:  string;
+  updated_by:  string | null;
+}
 
 const APPLIES_TO_ICON: Record<string, React.ElementType> = {
   all:         Globe,
@@ -15,7 +29,7 @@ const APPLIES_TO_ICON: Record<string, React.ElementType> = {
   member:      User,
 };
 
-const APPLIES_TO_VARIANT: Record<string, any> = {
+const APPLIES_TO_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
   all:    'default',
   plan:   'secondary',
   group:  'outline',
@@ -41,15 +55,15 @@ export default function FeatureFlagsPage() {
   const { data: flags, isLoading } = useFeatureFlags();
   const toggle = useToggleFeatureFlag();
 
-  const items: any[] = flags ?? [];
+  const items: FeatureFlagRow[] = flags ?? [];
   const enabledCount  = items.filter((f) => f.enabled).length;
 
   const handleToggle = async (key: string, current: boolean) => {
     try {
       await toggle.mutateAsync({ key, enabled: !current });
       toast({ title: `Feature "${key}" ${!current ? 'enabled' : 'disabled'}` });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 

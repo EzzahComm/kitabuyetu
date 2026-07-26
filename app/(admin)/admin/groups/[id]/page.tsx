@@ -22,9 +22,15 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminGroup, useUpdateGroupStatus } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
-const STATUS_VARIANT: Record<string, any> = {
+interface GroupActivityRow {
+  action:     string;
+  table_name: string;
+  created_at: string;
+}
+
+const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
   active:      'success',
   pending:     'warning',
   suspended:   'destructive',
@@ -100,8 +106,8 @@ export default function GroupDetailPage({
       toast({ title: `Group ${confirmAction.label.toLowerCase()}d successfully` });
       setConfirmAction(null);
       setReason('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 
@@ -127,6 +133,7 @@ export default function GroupDetailPage({
   }
 
   const stats = grp.stats ?? {};
+  const activity: GroupActivityRow[] = grp.recentActivity ?? [];
 
   return (
     <div className="space-y-5">
@@ -342,11 +349,11 @@ export default function GroupDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {grp.recentActivity?.length === 0 ? (
+          {activity.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
           ) : (
             <div className="space-y-1">
-              {(grp.recentActivity ?? []).map((log: any, i: number) => (
+              {activity.map((log, i) => (
                 <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_DOT[log.action] ?? 'bg-gray-400'}`} />
                   <div className="flex-1 min-w-0">

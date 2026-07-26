@@ -18,9 +18,28 @@ import {
   useAdminUsers, useUpdateUserRole, useAssignableRoles, useAssignGroupRole,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getErrorMessage } from '@/lib/utils';
 
-const PLATFORM_ROLE_BADGE: Record<string, any> = {
+interface AdminUserRow {
+  id:                 string;
+  first_name:         string;
+  last_name:          string;
+  email:              string | null;
+  phone_number:       string | null;
+  platform_role:      string | null;
+  created_at:         string;
+  group_id:           string | null;
+  member_code:        string | null;
+  group_role:         string | null;
+  role_id:            string | null;
+  status:             string | null;
+  joined_at:          string | null;
+  group_name:         string | null;
+  role_name:          string | null;
+  organization_name:  string | null;
+}
+
+const PLATFORM_ROLE_BADGE: Record<string, 'destructive' | 'warning' | 'default' | 'secondary'> = {
   super_admin:     'destructive',
   support:         'warning',
   organization_coordinator: 'default',
@@ -42,16 +61,16 @@ export default function UsersPage() {
   const [editUser,   setEditUser]   = useState<{ id: string; name: string; role: string } | null>(null);
   const [newRole,    setNewRole]    = useState('');
   // Group-role assignment modal state
-  const [roleUser,   setRoleUser]   = useState<any | null>(null);
+  const [roleUser,   setRoleUser]   = useState<AdminUserRow | null>(null);
   const [selRoleId,  setSelRoleId]  = useState('');
 
   const { data, isLoading }  = useAdminUsers({ page, limit: 25, search, role: roleFilter });
   const updateRole           = useUpdateUserRole();
   const assignRole           = useAssignGroupRole();
   const { data: rolesData, isLoading: rolesLoading } = useAssignableRoles(roleUser?.group_id);
-  const assignableRoles: any[] = rolesData?.items ?? [];
+  const assignableRoles = rolesData?.items ?? [];
 
-  const items: any[] = data?.items ?? [];
+  const items: AdminUserRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 25);
 
@@ -61,12 +80,12 @@ export default function UsersPage() {
       await updateRole.mutateAsync({ id: editUser.id, platformRole: newRole });
       toast({ title: `Role updated to ${ROLE_LABELS[newRole] ?? newRole}` });
       setEditUser(null); setNewRole('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 
-  const openAssignRole = (u: any) => {
+  const openAssignRole = (u: AdminUserRow) => {
     setRoleUser(u);
     setSelRoleId(u.role_id ?? '');
   };
@@ -86,8 +105,8 @@ export default function UsersPage() {
       const roleName = res?.newRole?.name ?? assignableRoles.find((r) => r.id === selRoleId)?.name ?? 'role';
       toast({ title: `Assigned ${roleName}`, description: `${roleUser.first_name} ${roleUser.last_name} in ${roleUser.group_name ?? 'group'}` });
       setRoleUser(null); setSelRoleId('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Assignment failed', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Assignment failed', description: getErrorMessage(e) });
     }
   };
 

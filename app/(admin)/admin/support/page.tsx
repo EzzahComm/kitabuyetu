@@ -20,9 +20,22 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminTickets, useUpdateTicket, useCreateTicket } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getErrorMessage } from '@/lib/utils';
 
-const STATUS_VARIANT: Record<string, any> = {
+interface SupportTicketRow {
+  id:             string;
+  subject:        string;
+  ticket_number:  string;
+  group_name:     string | null;
+  member_name:    string | null;
+  priority:       string;
+  status:         string;
+  sla_breach_at:  string | undefined;
+  comment_count:  number | null;
+  created_at:     string;
+}
+
+const STATUS_VARIANT: Record<string, 'warning' | 'default' | 'secondary' | 'success'> = {
   open:        'warning',
   in_progress: 'default',
   waiting:     'secondary',
@@ -64,7 +77,7 @@ export default function SupportPage() {
   const updateTicket = useUpdateTicket();
   const createTicket = useCreateTicket();
 
-  const items: any[] = data?.items ?? [];
+  const items: SupportTicketRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 20);
 
@@ -78,8 +91,8 @@ export default function SupportPage() {
       await updateTicket.mutateAsync({ id: resolveId, status: 'resolved', resolution });
       toast({ title: 'Ticket resolved' });
       setResolveId(null); setResolution('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 
@@ -89,8 +102,8 @@ export default function SupportPage() {
       toast({ title: 'Ticket created' });
       setNewTicket(false);
       setForm({ subject: '', description: '', category: 'general', priority: 'normal' });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 

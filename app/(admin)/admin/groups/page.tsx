@@ -22,9 +22,22 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminGroups, useUpdateGroupStatus } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
-const STATUS_BADGE: Record<string, any> = {
+interface AdminGroupRow {
+  id:                  string;
+  name:                string;
+  group_type:          string;
+  onboarding_status:   string;
+  risk_score:          number;
+  created_at:          string;
+  plan:                string;
+  member_count:        string;
+  total_contributions: string;
+  active_loans:        string;
+}
+
+const STATUS_BADGE: Record<string, 'success' | 'destructive' | 'warning' | 'secondary'> = {
   active:      'success',
   suspended:   'destructive',
   pending:     'warning',
@@ -65,7 +78,7 @@ export default function GroupsPage() {
   const { data, isLoading } = useAdminGroups({ page, limit: 25, search, status, plan });
   const updateStatus = useUpdateGroupStatus();
 
-  const items: any[] = data?.items ?? [];
+  const items: AdminGroupRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 25);
 
@@ -75,8 +88,8 @@ export default function GroupsPage() {
       await updateStatus.mutateAsync({ id: confirm.id, action: confirm.action, reason });
       toast({ title: `Group ${confirm.action}d successfully` });
       setConfirm(null); setReason('');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 

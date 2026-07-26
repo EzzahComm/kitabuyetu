@@ -237,7 +237,7 @@ export default function AdminDashboardPage() {
               <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
             ) : (
               <div className="space-y-2.5">
-                {(stats.recentActivity as any[]).map((a: any, i: number) => (
+                {(stats?.recentActivity ?? []).map((a, i) => (
                   <div key={i} className="flex items-start gap-2.5 text-xs">
                     <ActivityDot action={a.action} />
                     <div className="flex-1 min-w-0">

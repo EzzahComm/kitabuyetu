@@ -23,7 +23,19 @@ import {
   useAdminOrganizations, useCreateOrganization, useUpdateOrganizationStatus,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+
+interface AdminOrgRow {
+  id:                  string;
+  name:                string;
+  registration_number: string | null;
+  type:                string;
+  group_count:         number;
+  member_reach:        string;
+  wallet_balance:      string;
+  is_active:           boolean;
+  created_at:          string;
+}
 
 const ORG_TYPES = [
   { value: 'bank',        label: 'Bank' },
@@ -71,7 +83,7 @@ export default function OrganizationsPage() {
   const createOrg    = useCreateOrganization();
   const updateStatus = useUpdateOrganizationStatus();
 
-  const items: any[] = data?.items ?? [];
+  const items: AdminOrgRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 25);
 
@@ -93,8 +105,8 @@ export default function OrganizationsPage() {
       toast({ title: `${form.name.trim()} onboarded` });
       setOnboardOpen(false);
       setForm({ ...EMPTY_FORM });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Could not onboard', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Could not onboard', description: getErrorMessage(e) });
     }
   };
 
@@ -104,8 +116,8 @@ export default function OrganizationsPage() {
       await updateStatus.mutateAsync({ id: confirm.id, action: confirm.action });
       toast({ title: `${confirm.name} ${confirm.action}d` });
       setConfirm(null);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 

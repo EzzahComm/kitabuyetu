@@ -25,27 +25,47 @@ const PLAN_COLORS: Record<string, string> = {
   enterprise: '#7c3aed',
 };
 
-const PAYMENT_STATUS_VARIANT: Record<string, any> = {
+const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
   completed: 'success',
   pending:   'warning',
   failed:    'destructive',
   refunded:  'secondary',
 };
 
-const INVOICE_STATUS_VARIANT: Record<string, any> = {
+const INVOICE_STATUS_VARIANT: Record<string, 'warning' | 'destructive' | 'success' | 'secondary'> = {
   pending:  'warning',
   overdue:  'destructive',
   paid:     'success',
   cancelled: 'secondary',
 };
 
+interface BillingSummary {
+  active_subscriptions:  number;
+  expired_subscriptions: number;
+  trial_subscriptions:   number;
+  mrr:                   string;
+  overdue_count:         number;
+}
+
+interface PlanRevenueRow { plan: string; count: string; revenue: string }
+
+interface OutstandingInvoiceRow {
+  id: string; invoice_number: string; amount_due: string;
+  due_date: string; status: string; is_overdue: boolean; group_name: string | null;
+}
+
+interface RecentPaymentRow {
+  id: string; amount: string; status: string; payment_method: string | null;
+  created_at: string; group_name: string | null; invoice_number: string | null;
+}
+
 export default function BillingAdminPage() {
   const { data, isLoading } = useAdminBilling();
 
-  const summary        = data?.summary        ?? {};
-  const byPlan         = data?.byPlan         ?? [];
-  const recentPayments = data?.recentPayments ?? [];
-  const outstanding    = data?.outstanding    ?? [];
+  const summary: Partial<BillingSummary> = data?.summary        ?? {};
+  const byPlan: PlanRevenueRow[]          = data?.byPlan         ?? [];
+  const recentPayments: RecentPaymentRow[] = data?.recentPayments ?? [];
+  const outstanding: OutstandingInvoiceRow[] = data?.outstanding    ?? [];
 
   const mrr = parseFloat(summary.mrr ?? '0');
 
@@ -111,7 +131,7 @@ export default function BillingAdminPage() {
               <RevenueByPlanChart data={byPlan} colors={PLAN_COLORS} />
             )}
             <div className="mt-3 space-y-1.5">
-              {byPlan.map((p: any) => (
+              {byPlan.map((p) => (
                 <div key={p.plan} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: PLAN_COLORS[p.plan] }} />
@@ -145,7 +165,7 @@ export default function BillingAdminPage() {
               </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {outstanding.map((inv: any) => (
+                {outstanding.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{inv.group_name}</p>
@@ -198,7 +218,7 @@ export default function BillingAdminPage() {
                   ))
                 ) : recentPayments.length === 0 ? (
                   <tr><td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">No payments yet</td></tr>
-                ) : recentPayments.map((p: any) => (
+                ) : recentPayments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{p.group_name ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs font-mono">{p.invoice_number ?? '—'}</td>

@@ -2,6 +2,45 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getStoredAccessToken } from '@/lib/api/client';
+import type {
+  getPlatformStats, getRevenueTrend, listGroups, getGroupById, updateGroupStatus,
+  listPlatformUsers, updatePlatformUserRole, getBillingOverview,
+  listSupportTickets, createSupportTicket, updateTicketStatus,
+  listAuditLogs, listFeatureFlags, toggleFeatureFlag, getPlatformAnalytics,
+} from '@/lib/services/admin.service';
+import type {
+  listOrganizations, getOrganizationDetail, createOrganization,
+  setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
+} from '@/lib/services/admin-organizations.service';
+import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
+
+// Response/request shapes derived directly from the service functions that
+// back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
+// rather than hand-duplicated interfaces — stays in sync automatically if the
+// service's return shape changes.
+type PlatformStats            = Awaited<ReturnType<typeof getPlatformStats>>;
+type RevenueTrend             = Awaited<ReturnType<typeof getRevenueTrend>>;
+type AdminGroupList           = Awaited<ReturnType<typeof listGroups>>;
+type AdminGroupDetail         = Awaited<ReturnType<typeof getGroupById>>;
+type UpdateGroupResult        = Awaited<ReturnType<typeof updateGroupStatus>>;
+type AdminOrgList             = Awaited<ReturnType<typeof listOrganizations>>;
+type AdminOrgDetail           = Awaited<ReturnType<typeof getOrganizationDetail>>;
+type CreateOrgInput           = Parameters<typeof createOrganization>[0];
+type AdminOrgCreated          = Awaited<ReturnType<typeof createOrganization>>;
+type SetOrgActiveResult       = Awaited<ReturnType<typeof setOrganizationActive>>;
+type AssignGroupToOrgResult   = Awaited<ReturnType<typeof assignGroupToOrganization>>;
+type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganization>>;
+type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
+type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
+type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
+type SupportTicketList        = Awaited<ReturnType<typeof listSupportTickets>>;
+type CreateTicketInput        = Parameters<typeof createSupportTicket>[0];
+type CreatedTicket            = Awaited<ReturnType<typeof createSupportTicket>>;
+type UpdatedTicket            = Awaited<ReturnType<typeof updateTicketStatus>>;
+type AuditLogList             = Awaited<ReturnType<typeof listAuditLogs>>;
+type FeatureFlagList          = Awaited<ReturnType<typeof listFeatureFlags>>;
+type ToggleFeatureFlagResult  = Awaited<ReturnType<typeof toggleFeatureFlag>>;
+type PlatformAnalytics        = Awaited<ReturnType<typeof getPlatformAnalytics>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -36,7 +75,7 @@ export async function adminFetch<T>(
 export function useAdminDashboard() {
   return useQuery({
     queryKey: ['admin', 'dashboard'],
-    queryFn:  () => adminFetch<any>('/api/admin/dashboard'),
+    queryFn:  () => adminFetch<PlatformStats>('/api/admin/dashboard'),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
@@ -45,7 +84,7 @@ export function useAdminDashboard() {
 export function useAdminRevenueTrend() {
   return useQuery({
     queryKey: ['admin', 'revenue-trend'],
-    queryFn:  () => adminFetch<any>('/api/admin/dashboard?widget=revenue_trend'),
+    queryFn:  () => adminFetch<RevenueTrend>('/api/admin/dashboard?widget=revenue_trend'),
     staleTime: 300_000,
   });
 }
@@ -65,7 +104,7 @@ export function useAdminGroups(params: {
 
   return useQuery({
     queryKey: ['admin', 'groups', params],
-    queryFn:  () => adminFetch<any>(`/api/admin/groups?${p}`),
+    queryFn:  () => adminFetch<AdminGroupList>(`/api/admin/groups?${p}`),
     staleTime: 30_000,
   });
 }
@@ -73,7 +112,7 @@ export function useAdminGroups(params: {
 export function useAdminGroup(id: string) {
   return useQuery({
     queryKey: ['admin', 'groups', id],
-    queryFn:  () => adminFetch<any>(`/api/admin/groups/${id}`),
+    queryFn:  () => adminFetch<AdminGroupDetail>(`/api/admin/groups/${id}`),
     enabled:  !!id,
   });
 }
@@ -82,7 +121,7 @@ export function useUpdateGroupStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, action, reason }: { id: string; action: string; reason?: string }) =>
-      adminFetch<any>(`/api/admin/groups/${id}`, { method: 'PATCH', json: { action, reason } }),
+      adminFetch<UpdateGroupResult>(`/api/admin/groups/${id}`, { method: 'PATCH', json: { action, reason } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
@@ -105,7 +144,7 @@ export function useAdminOrganizations(params: {
 
   return useQuery({
     queryKey: ['admin', 'organizations', params],
-    queryFn:  () => adminFetch<any>(`/api/admin/organizations?${p}`),
+    queryFn:  () => adminFetch<AdminOrgList>(`/api/admin/organizations?${p}`),
     staleTime: 30_000,
   });
 }
@@ -113,7 +152,7 @@ export function useAdminOrganizations(params: {
 export function useAdminOrganization(id: string) {
   return useQuery({
     queryKey: ['admin', 'organizations', id],
-    queryFn:  () => adminFetch<any>(`/api/admin/organizations/${id}`),
+    queryFn:  () => adminFetch<AdminOrgDetail>(`/api/admin/organizations/${id}`),
     enabled:  !!id,
   });
 }
@@ -121,10 +160,8 @@ export function useAdminOrganization(id: string) {
 export function useCreateOrganization() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: {
-      name: string; type: string; registrationNumber?: string;
-      phone?: string; email?: string; county?: string; address?: string;
-    }) => adminFetch<any>('/api/admin/organizations', { method: 'POST', json: body }),
+    mutationFn: (body: CreateOrgInput) =>
+      adminFetch<AdminOrgCreated>('/api/admin/organizations', { method: 'POST', json: body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
@@ -136,7 +173,7 @@ export function useUpdateOrganizationStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'activate' | 'deactivate' }) =>
-      adminFetch<any>(`/api/admin/organizations/${id}`, { method: 'PATCH', json: { action } }),
+      adminFetch<SetOrgActiveResult>(`/api/admin/organizations/${id}`, { method: 'PATCH', json: { action } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
@@ -148,7 +185,7 @@ export function useAssignGroupToOrg() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ orgId, groupId, accessLevel }: { orgId: string; groupId: string; accessLevel?: string }) =>
-      adminFetch<any>(`/api/admin/organizations/${orgId}/groups`, {
+      adminFetch<AssignGroupToOrgResult>(`/api/admin/organizations/${orgId}/groups`, {
         method: 'POST', json: { groupId, accessLevel },
       }),
     onSuccess: (_d, v) => {
@@ -162,7 +199,7 @@ export function useRevokeGroupFromOrg() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ orgId, groupId }: { orgId: string; groupId: string }) =>
-      adminFetch<any>(`/api/admin/organizations/${orgId}/groups?groupId=${groupId}`, {
+      adminFetch<RevokeGroupFromOrgResult>(`/api/admin/organizations/${orgId}/groups?groupId=${groupId}`, {
         method: 'DELETE',
       }),
     onSuccess: (_d, v) => {
@@ -186,7 +223,7 @@ export function useAdminUsers(params: {
 
   return useQuery({
     queryKey: ['admin', 'users', params],
-    queryFn:  () => adminFetch<any>(`/api/admin/users?${p}`),
+    queryFn:  () => adminFetch<AdminUserList>(`/api/admin/users?${p}`),
     staleTime: 30_000,
   });
 }
@@ -195,7 +232,7 @@ export function useUpdateUserRole() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, platformRole }: { id: string; platformRole: string }) =>
-      adminFetch<any>(`/api/admin/users/${id}`, { method: 'PATCH', json: { platformRole } }),
+      adminFetch<UpdateUserRoleResult>(`/api/admin/users/${id}`, { method: 'PATCH', json: { platformRole } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
 }
@@ -204,7 +241,7 @@ export function useUpdateUserRole() {
 export function useAssignableRoles(groupId?: string | null) {
   return useQuery({
     queryKey: ['admin', 'assignable-roles', groupId],
-    queryFn:  () => adminFetch<{ items: any[] }>(`/api/admin/roles?groupId=${groupId}`),
+    queryFn:  () => adminFetch<{ items: AssignableRole[] }>(`/api/admin/roles?groupId=${groupId}`),
     enabled:  !!groupId,
     staleTime: 5 * 60_000,
   });
@@ -214,7 +251,7 @@ export function useAssignGroupRole() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ memberId, groupId, roleId }: { memberId: string; groupId: string; roleId: string }) =>
-      adminFetch<any>(`/api/admin/members/${memberId}/role`, {
+      adminFetch<AssignRoleResult>(`/api/admin/members/${memberId}/role`, {
         method: 'POST',
         json: { groupId, roleId },
       }),
@@ -231,7 +268,7 @@ export function useAssignGroupRole() {
 export function useAdminBilling() {
   return useQuery({
     queryKey: ['admin', 'billing'],
-    queryFn:  () => adminFetch<any>('/api/admin/billing'),
+    queryFn:  () => adminFetch<BillingOverview>('/api/admin/billing'),
     staleTime: 60_000,
   });
 }
@@ -251,7 +288,7 @@ export function useAdminTickets(params: {
 
   return useQuery({
     queryKey: ['admin', 'tickets', params],
-    queryFn:  () => adminFetch<any>(`/api/admin/support?${p}`),
+    queryFn:  () => adminFetch<SupportTicketList>(`/api/admin/support?${p}`),
     staleTime: 20_000,
     refetchInterval: 60_000,
   });
@@ -260,8 +297,8 @@ export function useAdminTickets(params: {
 export function useCreateTicket() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) =>
-      adminFetch<any>('/api/admin/support', { method: 'POST', json: data }),
+    mutationFn: (data: CreateTicketInput) =>
+      adminFetch<CreatedTicket>('/api/admin/support', { method: 'POST', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tickets'] }),
   });
 }
@@ -270,7 +307,7 @@ export function useUpdateTicket() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string; status: string; resolution?: string }) =>
-      adminFetch<any>(`/api/admin/support/${id}`, { method: 'PATCH', json: data }),
+      adminFetch<UpdatedTicket>(`/api/admin/support/${id}`, { method: 'PATCH', json: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tickets'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
@@ -291,7 +328,7 @@ export function useAuditLogs(params: {
 
   return useQuery({
     queryKey: ['admin', 'audit-logs', params],
-    queryFn:  () => adminFetch<any>(`/api/admin/audit-logs?${p}`),
+    queryFn:  () => adminFetch<AuditLogList>(`/api/admin/audit-logs?${p}`),
     staleTime: 30_000,
   });
 }
@@ -302,7 +339,7 @@ export function useAuditLogs(params: {
 export function useAdminAnalytics() {
   return useQuery({
     queryKey: ['admin', 'analytics'],
-    queryFn:  () => adminFetch<any>('/api/admin/analytics'),
+    queryFn:  () => adminFetch<PlatformAnalytics>('/api/admin/analytics'),
     staleTime: 300_000,
   });
 }
@@ -313,7 +350,7 @@ export function useAdminAnalytics() {
 export function useFeatureFlags() {
   return useQuery({
     queryKey: ['admin', 'feature-flags'],
-    queryFn:  () => adminFetch<any>('/api/admin/feature-flags'),
+    queryFn:  () => adminFetch<FeatureFlagList>('/api/admin/feature-flags'),
     staleTime: 60_000,
   });
 }
@@ -322,7 +359,7 @@ export function useToggleFeatureFlag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
-      adminFetch<any>('/api/admin/feature-flags', { method: 'PATCH', json: { key, enabled } }),
+      adminFetch<ToggleFeatureFlagResult>('/api/admin/feature-flags', { method: 'PATCH', json: { key, enabled } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] }),
   });
 }

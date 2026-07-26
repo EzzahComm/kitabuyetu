@@ -23,7 +23,35 @@ import {
   useAssignGroupToOrg, useRevokeGroupFromOrg,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+
+interface AssignedGroupRow {
+  group_id:            string;
+  access_level:        string;
+  granted_at:          string;
+  group_name:          string;
+  group_code:          string;
+  group_type:          string;
+  onboarding_status:   string;
+  member_count:        string;
+  total_contributions: string;
+}
+
+interface AssignableGroupRow {
+  id:         string;
+  name:       string;
+  group_code: string;
+  group_type: string;
+}
+
+interface OrgWalletRow {
+  currency:          string;
+  available_balance: string;
+  committed_balance: string;
+  total_deposited:   string;
+  total_disbursed:   string;
+  total_returned:    string;
+}
 
 const TYPE_LABEL: Record<string, string> = {
   bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
@@ -87,9 +115,10 @@ export default function OrganizationDetailPage({
     );
   }
 
-  const assigned:   any[] = org.assignedGroups ?? [];
-  const assignable: any[] = org.assignableGroups ?? [];
-  const walletKES = (org.wallets ?? []).find((w: any) => w.currency === 'KES');
+  const assigned:   AssignedGroupRow[]   = org.assignedGroups ?? [];
+  const assignable: AssignableGroupRow[] = org.assignableGroups ?? [];
+  const wallets:    OrgWalletRow[]       = org.wallets ?? [];
+  const walletKES = wallets.find((w) => w.currency === 'KES');
   const memberReach = assigned.reduce((s, g) => s + parseInt(g.member_count ?? '0', 10), 0);
 
   const doAssign = async () => {
@@ -98,8 +127,8 @@ export default function OrganizationDetailPage({
       await assignGroup.mutateAsync({ orgId: id, groupId: pickGroup, accessLevel });
       toast({ title: 'Group assigned' });
       setAssignOpen(false); setPickGroup(''); setAccessLevel('read');
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Assign failed', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Assign failed', description: getErrorMessage(e) });
     }
   };
 
@@ -109,8 +138,8 @@ export default function OrganizationDetailPage({
       await revokeGroup.mutateAsync({ orgId: id, groupId: revoking.groupId });
       toast({ title: `${revoking.name} unassigned` });
       setRevoking(null);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Revoke failed', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Revoke failed', description: getErrorMessage(e) });
     }
   };
 
@@ -118,8 +147,8 @@ export default function OrganizationDetailPage({
     try {
       await updateStatus.mutateAsync({ id, action: org.is_active ? 'deactivate' : 'activate' });
       toast({ title: `Organization ${org.is_active ? 'deactivated' : 'activated'}` });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
 

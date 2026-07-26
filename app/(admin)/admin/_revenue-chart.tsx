@@ -2,8 +2,14 @@
 
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  type TooltipValueType,
 } from 'recharts';
 import { formatKES } from '@/lib/utils';
+
+function tooltipNumber(v: TooltipValueType | undefined): number | string | undefined {
+  if (v === undefined) return undefined;
+  return Array.isArray(v) ? v[0] : (v as number | string);
+}
 
 /**
  * Revenue trend chart for the admin dashboard, split into its own module so the
@@ -28,7 +34,7 @@ export default function RevenueChart({ data }: { data: { month: string; revenue:
           tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
         />
         <Tooltip
-          formatter={(v: any) => [formatKES(v), 'Revenue']}
+          formatter={(v) => [formatKES(tooltipNumber(v)), 'Revenue']}
           contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
         />
         <Area

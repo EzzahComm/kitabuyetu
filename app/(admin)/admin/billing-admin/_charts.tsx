@@ -2,9 +2,14 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell,
+  Tooltip, ResponsiveContainer, Cell, type TooltipValueType,
 } from 'recharts';
 import { formatKES } from '@/lib/utils';
+
+function tooltipNumber(v: TooltipValueType | undefined): number | string | undefined {
+  if (v === undefined) return undefined;
+  return Array.isArray(v) ? v[0] : (v as number | string);
+}
 
 export function RevenueByPlanChart({
   data, colors,
@@ -19,7 +24,7 @@ export function RevenueByPlanChart({
         <XAxis dataKey="plan" tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} axisLine={false} />
         <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false}
           tickFormatter={(v: number) => formatKES(v)} />
-        <Tooltip formatter={(v: any) => [formatKES(v), 'Revenue']}
+        <Tooltip formatter={(v) => [formatKES(tooltipNumber(v)), 'Revenue']}
           contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
         <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
           {data.map((entry) => (
