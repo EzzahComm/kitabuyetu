@@ -274,9 +274,9 @@ export const reportsApi = {
 export const organizationApi = {
   groups:  () => api.get<OrganizationGroupSummary[]>('/organization/groups'),
   detail:  (groupId: string) => api.get<unknown>(`/organization/reports?groupId=${groupId}`),
-  policies: () => api.get<unknown[]>('/organization/policies'),
+  policies: () => api.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: { key: string; threshold: number }) =>
-    api.put<unknown[]>('/organization/policies', body),
+    api.put<EffectiveThreshold[]>('/organization/policies', body),
 };
 
 // ------------------------------------------------------------------

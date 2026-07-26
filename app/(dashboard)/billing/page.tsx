@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
-import { cn, formatKES } from '@/lib/utils';
+import { cn, formatKES, getErrorMessage } from '@/lib/utils';
 
 const PLANS = [
   { type: 'starter',    label: 'Starter',    price: 0,     maxMembers: 10,   features: ['Basic reporting', 'M-Pesa integration', 'SMS (50/mo)'] },
@@ -46,7 +46,7 @@ export default function BillingPage() {
       setMpesaOpen(false);
       upgradePlan.mutate(pendingPlan!, {
         onSuccess: () => toast({ title: 'Plan upgraded!', description: `Now on ${pendingPlan} plan` }),
-        onError:   (err: any) => toast({ variant: 'destructive', title: 'Upgrade failed', description: err.message }),
+        onError:   (err) => toast({ variant: 'destructive', title: 'Upgrade failed', description: getErrorMessage(err) }),
       });
     } else if (mpesaStatus.status === 'failed') {
       setPolling(false);
@@ -67,8 +67,8 @@ export default function BillingPage() {
       const res = await stkPush.mutateAsync({ phone, amount: plan.price, purpose: `${plan.label} plan subscription` });
       setCheckoutId(res.checkoutRequestId);
       setPolling(true);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'STK push failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'STK push failed', description: getErrorMessage(err) });
     }
   };
 

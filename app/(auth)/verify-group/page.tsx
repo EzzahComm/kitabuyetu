@@ -10,6 +10,7 @@ import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/utils';
 
 type Step = 'choose' | 'email-sent' | 'sms-code';
 
@@ -50,8 +51,8 @@ export default function VerifyGroupPage() {
           ? `Check ${user.email} for a link to verify your group.`
           : `A 6-digit code was sent to ${user.phone}.`,
       });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Could not send verification', description: err?.message ?? 'Please try again.' });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Could not send verification', description: getErrorMessage(err) });
     } finally {
       setBusy(false);
     }
@@ -64,8 +65,8 @@ export default function VerifyGroupPage() {
       login(data);
       toast({ title: 'Group verified!', description: 'Welcome to your dashboard.' });
       router.push('/dashboard');
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Verification failed', description: err?.message ?? 'Please try again.' });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Verification failed', description: getErrorMessage(err) });
     } finally {
       setBusy(false);
     }

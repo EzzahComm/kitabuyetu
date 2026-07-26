@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
+import { getErrorMessage } from '@/lib/utils';
 
 type Status = 'checking' | 'success' | 'error';
 
@@ -30,9 +31,9 @@ function ConfirmBody() {
 
     authApi.verifyEmailToken(token)
       .then(() => setStatus('success'))
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         setStatus('error');
-        setMessage(err?.message ?? 'This verification link is invalid or has expired.');
+        setMessage(getErrorMessage(err) || 'This verification link is invalid or has expired.');
       });
   }, [token]);
 

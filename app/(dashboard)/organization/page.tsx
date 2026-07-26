@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate } from '@/lib/utils';
+import type { OrganizationGroupSummary } from '@/types/api.types';
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
@@ -135,9 +136,9 @@ export default function FundingPortalPage() {
     refetchInterval: 120_000,
   });
 
-  const { data: groups } = useQuery<{ groupId: string; groupName: string }[]>({
+  const { data: groups } = useQuery<OrganizationGroupSummary[]>({
     queryKey: ['organization', 'groups'],
-    queryFn:  organizationApi.groups as () => Promise<{ groupId: string; groupName: string }[]>,
+    queryFn:  organizationApi.groups,
     staleTime: 60_000,
   });
 
@@ -167,7 +168,7 @@ export default function FundingPortalPage() {
 
   const { data: policies, isLoading: loadingPolicies } = useQuery<OrgPolicy[]>({
     queryKey: ['organization', 'policies'],
-    queryFn:  organizationApi.policies as () => Promise<OrgPolicy[]>,
+    queryFn:  organizationApi.policies,
     staleTime: 30_000,
   });
   const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
@@ -552,7 +553,7 @@ export default function FundingPortalPage() {
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {linkedGroups.map((g: any) => (
+              {linkedGroups.map((g) => (
                 <div key={g.groupId} className="rounded-lg border p-3">
                   <p className="font-medium text-sm truncate">{g.groupName}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

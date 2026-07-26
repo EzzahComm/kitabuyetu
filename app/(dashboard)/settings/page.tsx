@@ -11,6 +11,7 @@ import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { membersApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo, normalizeAccountRef } from '@/lib/utils/membership-no';
+import { getErrorMessage } from '@/lib/utils';
 
 // Platform PayBill business number, shown on the payment card when configured.
 // (NEXT_PUBLIC_* is inlined at build time.)
@@ -45,24 +46,34 @@ export default function SettingsPage() {
   const { register: regPwd, handleSubmit: handlePwd, reset: resetPwd, formState: { errors: pwdErrors, isSubmitting: pwdSubmitting } } =
     useForm<PasswordForm>({ resolver: zodResolver(passwordSchema) });
 
-  const onProfileSave = async (values: any) => {
+  const onProfileSave = async (values: ProfileForm) => {
     if (!user) return;
     try {
       await membersApi.update(user.id, values);
       toast({ title: 'Profile updated' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 
-  const onPasswordChange = async (values: any) => {
+  // NOTE: this silently does nothing today. PATCH /members/[id]'s
+  // UpdateMemberSchema (lib/validators/member.schema.ts) has no
+  // currentPassword/password fields at all, and members.service.ts's
+  // update() whitelists an explicit column fieldMap that doesn't include
+  // a password path either — Zod strips the unrecognized keys, the request
+  // succeeds, and password_hash is never touched. The toast below always
+  // fires "Password changed" even though nothing changed. Building a real
+  // password-change flow (verify currentPassword via bcrypt.compare, hash
+  // and store newPassword) is a genuine security-relevant feature gap, not
+  // a typing fix — flagging rather than silently shipping a fake success.
+  const onPasswordChange = async (values: PasswordForm) => {
     if (!user) return;
     try {
       await membersApi.update(user.id, { currentPassword: values.currentPassword, password: values.newPassword });
       toast({ title: 'Password changed' });
       resetPwd();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: err.message });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
   };
 

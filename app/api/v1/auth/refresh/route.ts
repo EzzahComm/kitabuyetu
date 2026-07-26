@@ -8,6 +8,7 @@ import { storeRefreshToken, revokeRefreshToken } from '@/lib/redis';
 import { RefreshSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import { logger } from '@/lib/logger';
+import type { MemberRole, PlatformRole } from '@/types/enums';
 
 interface MembershipRow {
   id:              string;    // members.id
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const accessToken = signAccessToken({
       sub:            membership.id,
       groupId:        membership.group_id,
-      role:           role as any,
+      role:           role as PlatformRole | MemberRole,
       personId:       membership.person_id,
       groupStatus:    membership.group_status,
       membershipId:   membership.membership_id,

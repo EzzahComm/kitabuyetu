@@ -12,9 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
-import { configureApiClient, api } from '@/lib/api/client';
+import { configureApiClient, api, ApiError } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
+import { getErrorMessage } from '@/lib/utils';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
 // manually for now — single shared types lib is a Phase F cleanup.
@@ -141,12 +142,12 @@ export default function RegisterPage() {
           + (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
       });
       router.push(data.member.groupStatus === 'pending_verification' ? '/verify-group' : '/dashboard');
-    } catch (err: any) {
-      const code = err?.code ? ` (${err.code})` : '';
+    } catch (err) {
+      const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
         variant:     'destructive',
         title:       'Registration failed',
-        description: `${err?.message ?? 'Unknown error'}${code}`,
+        description: `${getErrorMessage(err)}${code}`,
       });
     }
   };

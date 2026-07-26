@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
-import { configureApiClient } from '@/lib/api/client';
+import { configureApiClient, ApiError } from '@/lib/api/client';
+import { getErrorMessage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { isGroupSelectionNeeded } from '@/types/api.types';
 import type { NeedsGroupSelection } from '@/types/api.types';
@@ -59,12 +60,12 @@ export default function LoginPage() {
       }
       login(result);
       router.push('/dashboard');
-    } catch (err: any) {
-      const code = err?.code ? ` (${err.code})` : '';
+    } catch (err) {
+      const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
         variant:     'destructive',
         title:       'Sign in failed',
-        description: `${err?.message ?? 'Unknown error'}${code}`,
+        description: `${getErrorMessage(err)}${code}`,
       });
     } finally {
       setSubmitting(false);

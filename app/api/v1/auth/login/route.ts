@@ -12,6 +12,7 @@ import { LoginSchema } from '@/lib/validators/auth.schema';
 import { normalizePhone } from '@/lib/utils/phone';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import type { LoginResponse, NeedsGroupSelection } from '@/types/api.types';
+import type { MemberRole, PlatformRole } from '@/types/enums';
 
 // OPTIMIZATION_CLEANUP_AUDIT.md High #11 — these used to be re-parsed
 // locally in 3 separate route files with a '15' fallback that silently
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           groupId:    m.group_id,
           groupCode:  m.group_code,
           groupName:  m.group_name,
-          groupRole:  m.group_role as any,
+          groupRole:  m.group_role as MemberRole,
           officerRole: m.officer_role ?? undefined,
         })),
       };
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const accessToken = signAccessToken({
       sub:            member.id,
       groupId:        chosen.group_id,
-      role:           effectiveRole as any,
+      role:           effectiveRole as PlatformRole | MemberRole,
       personId:       chosen.person_id,
       groupStatus:    chosen.group_status,
       // Active Membership Context (§2.1) + drift epochs (§2.5)
@@ -233,8 +234,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         lastName:     member.last_name,
         phone:        member.phone,
         email:        member.email,
-        platformRole: member.platform_role as any,
-        groupRole:    chosen.group_role as any,
+        platformRole: member.platform_role as PlatformRole,
+        groupRole:    chosen.group_role as MemberRole,
         groupId:      chosen.group_id,
         groupName:    chosen.group_name,
         groupCode:    chosen.group_code,

@@ -113,9 +113,9 @@ export default function DashboardPage() {
   });
 
   const totalMembers       = membersData?.total ?? 0;
-  const recentContribs     = (contributionsData?.items ?? []) as any[];
-  const pendingLoanList    = (pendingLoans?.items ?? []) as any[];
-  const pendingWelfareList = (pendingWelfare?.items ?? []) as any[];
+  const recentContribs     = contributionsData?.items ?? [];
+  const pendingLoanList    = pendingLoans?.items ?? [];
+  const pendingWelfareList = pendingWelfare?.items ?? [];
   const unroutedList       = unrouted?.items ?? [];
   const welfareBalance     = poolData?.summary?.balance ?? 0;
 
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                   count={pendingLoanList.length}
                   label={`loan${pendingLoanList.length !== 1 ? 's' : ''} awaiting approval`}
                   preview={pendingLoanList.map(
-                    (l) => `${l.member_name ?? l.memberName} — ${formatKES(l.principal_amount ?? l.principalAmount)}`,
+                    (l) => `${l.member_name} — ${formatKES(l.principal_amount)}`,
                   )}
                   href="/loans"
                   cta="Review"
@@ -277,11 +277,11 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground text-center py-6">No contributions yet</p>
           ) : (
             <div className="space-y-3">
-              {recentContribs.map((c: any) => (
+              {recentContribs.map((c) => (
                 <div key={c.id} className="flex items-center justify-between text-sm">
                   <div>
-                    <p className="font-medium">{c.member_name ?? c.memberName ?? c.member_id}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(c.created_at ?? c.createdAt)}</p>
+                    <p className="font-medium">{c.member_name ?? c.member_id}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(c.created_at)}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-green-600">{formatKES(c.amount)}</p>

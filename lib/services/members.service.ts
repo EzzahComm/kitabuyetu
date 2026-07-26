@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { DatabaseError } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { applyMemberMask } from '@/lib/utils/mask';
 import { normalizePhone } from '@/lib/utils/phone';
@@ -435,8 +436,8 @@ export const membersService = {
           ],
         );
         return rows[0];
-      } catch (e: any) {
-        if (e?.code === '23505' && e?.constraint === 'uq_nok_one_primary_per_member') {
+      } catch (e) {
+        if (e instanceof DatabaseError && e.code === '23505' && e.constraint === 'uq_nok_one_primary_per_member') {
           throw new ConflictError(
             'This member already has a primary next-of-kin (priority 1). Use a different priority or update the existing primary.',
           );

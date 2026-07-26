@@ -11,6 +11,7 @@ import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import type { LoginResponse } from '@/types/api.types';
+import type { MemberRole, PlatformRole } from '@/types/enums';
 
 const BCRYPT_ROUNDS    = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 const REGISTRATION_FEE = parseInt(process.env.REGISTRATION_FEE_KES ?? '300', 10);
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const accessToken = signAccessToken({
       sub:         result.member_id,
       groupId:     result.group_id,
-      role:        result.group_role as any,
+      role:        result.group_role as MemberRole,
       personId:    result.person_id,
       groupStatus: result.group_status,
     });
@@ -151,8 +152,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         lastName:     input.lastName,
         phone,
         email,
-        platformRole: result.platform_role as any,
-        groupRole:    result.group_role as any,
+        platformRole: result.platform_role as PlatformRole,
+        groupRole:    result.group_role as MemberRole,
         groupId:      result.group_id,
         groupName:    result.group_name,
         groupCode:    result.group_code,

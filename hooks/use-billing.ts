@@ -33,8 +33,15 @@ export function usePollMpesa(checkoutRequestId: string | null, enabled: boolean)
     queryKey: ['mpesa', 'poll', checkoutRequestId],
     queryFn:  () => mpesaApi.pollStatus(checkoutRequestId!),
     enabled:  enabled && !!checkoutRequestId,
-    refetchInterval: (data: any) => {
-      if (data?.status === 'completed' || data?.status === 'failed') return false;
+    // refetchInterval's callback receives the Query object, not its data
+    // directly (query.state.data) — the previous `(data: any) => data?.status`
+    // read a `.status` field that doesn't exist on a Query, so polling never
+    // actually stopped on its own once the payment completed/failed; it kept
+    // firing every 3s until something else (e.g. `enabled` going false)
+    // stopped it.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'completed' || status === 'failed') return false;
       return 3000;
     },
   });
