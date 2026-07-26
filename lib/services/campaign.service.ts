@@ -128,7 +128,7 @@ export async function launchCampaign(campaignId: string): Promise<void> {
   }
 }
 
-// Process a single campaign job (called by queue worker)
+// Process a single campaign job (called by the drain)
 export async function processCampaignJob(job: {
   campaignId: string;
   recipientEmail: string;
@@ -138,7 +138,7 @@ export async function processCampaignJob(job: {
   subject: string;
   templateKey?: string;
   htmlBody?: string;
-}): Promise<void> {
+}): Promise<{ success: boolean }> {
   let html = job.htmlBody ?? '';
 
   if (job.templateKey) {
@@ -191,4 +191,77 @@ export async function processCampaignJob(job: {
       [job.campaignId],
     ),
   ).catch(() => {});
+
+  return { success: result.success };
+}
+
+export interface CampaignDrainResult {
+  processed: number;
+  sent:      number;
+  failed:    number;
+}
+
+/**
+ * Claims a bounded batch of 'pending' email_campaign_recipients rows (for
+ * campaigns currently 'sending') and sends each — the replacement for the
+ * old Redis-based per-recipient fan-out (OPTIMIZATION_CLEANUP_AUDIT.md's
+ * lib/queue + lib/jobs merge). One row per recipient stays durable in
+ * Postgres (as it always has, via launchCampaign's insert); this just
+ * changes what drains that table on a schedule, from a Redis dequeue loop
+ * to a direct DB claim using the same FOR UPDATE SKIP LOCKED idiom
+ * lib/jobs/db.ts already uses for its own job_queue table.
+ *
+ * Batch size is kept modest (default 40) to stay well under the Vercel
+ * function time budget when every recipient in the batch is an outbound
+ * provider call — tune via the `email_campaign_drain` job's caller if
+ * job_logs shows this handler running close to the limit.
+ */
+export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrainResult> {
+  const { rows } = await withAdminDb((db) =>
+    db.query<{
+      campaign_id:  string;
+      group_id:     string;
+      member_id:    string | null;
+      email:        string;
+      name:         string | null;
+      subject:      string;
+      template_key: string | null;
+      html_body:    string | null;
+    }>(
+      `UPDATE email_campaign_recipients ecr
+       SET status = 'sending'
+       FROM (
+         SELECT ecr2.id
+         FROM email_campaign_recipients ecr2
+         JOIN email_campaigns ec2 ON ec2.id = ecr2.campaign_id
+         WHERE ecr2.status = 'pending' AND ec2.status = 'sending'
+         ORDER BY ecr2.created_at ASC
+         LIMIT $1
+         FOR UPDATE OF ecr2 SKIP LOCKED
+       ) claimed,
+       email_campaigns ec
+       WHERE ecr.id = claimed.id AND ec.id = ecr.campaign_id
+       RETURNING ecr.campaign_id, ecr.group_id, ecr.member_id, ecr.email, ecr.name,
+                 ec.subject, ec.template_key, ec.html_body`,
+      [limit],
+    ),
+  );
+
+  let sent = 0;
+  let failed = 0;
+  for (const r of rows) {
+    const { success } = await processCampaignJob({
+      campaignId:     r.campaign_id,
+      recipientEmail: r.email,
+      recipientName:  r.name ?? r.email,
+      memberId:       r.member_id ?? '',
+      groupId:        r.group_id,
+      subject:        r.subject,
+      templateKey:    r.template_key ?? undefined,
+      htmlBody:       r.html_body ?? undefined,
+    });
+    if (success) sent++; else failed++;
+  }
+
+  return { processed: rows.length, sent, failed };
 }

@@ -31,6 +31,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'email_queue_drain':
       return handleEmailQueueDrain();
 
+    case 'email_send':
+      return handleEmailSend(job.payload);
+
+    case 'email_campaign_drain':
+      return handleEmailCampaignDrain();
+
     case 'email_birthday':
       return handleEmailBirthday();
 
@@ -147,6 +153,43 @@ async function handleEmailQueueDrain(): Promise<HandlerResult> {
   const { drainEmailQueues } = await import('@/lib/services/email-queue-worker.service');
   const result = await drainEmailQueues();
   return { message: 'Email queue drained', ...flattenResult(result) };
+}
+
+/**
+ * Send one templated email. Replaces lib/queue's Redis fan-out — every
+ * `queueEmail()` call now enqueues this job type instead of a Redis item.
+ * Throwing on failure lets the processor's existing retry/backoff handle
+ * it, the same guarantee the old queue's requeueWithBackoff/DLQ gave.
+ */
+async function handleEmailSend(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const { sendTemplatedEmail } = await import('@/lib/services/email.service');
+  const to = Array.isArray(payload.to) ? payload.to.map(String) : String(payload.to ?? '');
+  const templateKey = String(payload.templateKey ?? '');
+
+  const result = await sendTemplatedEmail({
+    templateKey,
+    to,
+    vars:          (payload.vars ?? {}) as Record<string, string | number | boolean | null | undefined>,
+    groupId:       payload.groupId ? String(payload.groupId) : null,
+    userId:        payload.userId  ? String(payload.userId)  : undefined,
+    referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
+    referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
+  });
+
+  if (!result.success) throw new Error(result.error ?? `Email send failed (${templateKey})`);
+  return { message: `Email sent (${templateKey})`, provider: result.provider };
+}
+
+/**
+ * Drain a batch of due email_campaign_recipients rows for in-flight
+ * campaigns — the replacement for email_queue_drain's Redis-based
+ * per-recipient fan-out (OPTIMIZATION_CLEANUP_AUDIT.md's lib/queue +
+ * lib/jobs merge). See drainCampaignRecipients() for the claim query.
+ */
+async function handleEmailCampaignDrain(): Promise<HandlerResult> {
+  const { drainCampaignRecipients } = await import('@/lib/services/campaign.service');
+  const result = await drainCampaignRecipients();
+  return { message: `Email campaign drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`, ...result };
 }
 
 async function handleEmailBirthday(): Promise<HandlerResult> {
