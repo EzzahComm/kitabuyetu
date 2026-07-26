@@ -1,68 +1,56 @@
 'use client';
 
-import * as React from 'react';
-import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { workspaces } from '@/app/(enterprise)/_data';
+import { Building2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
+import { organizationApi } from '@/lib/api/endpoints';
+import type { OrganizationProfile } from '@/types/api.types';
+
+const TYPE_LABEL: Record<OrganizationProfile['type'], string> = {
+  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
+  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Organization',
+};
 
 /**
- * Workspace switcher — lets a partner that manages several entities (a
- * federation + its programmes, or a microfinance with regional arms) flip
- * the entire portal's scope. Sits at the top of the sidebar, the
- * conventional place enterprise users look for it.
+ * Organization identity card at the top of the enterprise sidebar.
  *
- * Named "Workspace", not "Organization" — that word already names the
- * unrelated payment-architecture funder/monitor entity (see
- * `(admin)/admin/organizations` and `(dashboard)/organization`).
- *
- * Switching is local/cosmetic here; in production this writes to a Zustand
- * `useWorkspace()` store that scopes every query.
+ * A coordinator belongs to exactly one organization (see
+ * `auth/admin/login/verify` — resolved by `coordinator_member_id`, not a
+ * membership list), so there is no real multi-workspace switching to build.
+ * This shows the real org name/type instead of the old mock's fictional
+ * federation picker; a future multi-workspace model would replace this
+ * component, not extend it.
  */
 export function WorkspaceSwitcher() {
-  const [current, setCurrent] = React.useState(workspaces[0]);
+  const { data, isLoading } = useQuery<OrganizationProfile>({
+    queryKey: ['enterprise', 'org-profile'],
+    queryFn:  organizationApi.profile,
+    staleTime: 5 * 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex w-full items-center gap-2.5 rounded-lg border bg-card p-2">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <Skeleton className="h-3.5 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2.5 rounded-lg border bg-card p-2 text-left transition-colors hover:bg-muted"
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-blue-600 text-white">
-            <Building2 size={16} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-foreground">{current.name}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">{current.type} · {current.branches} branches</span>
-          </span>
-          <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
-        {workspaces.map((ws) => (
-          <DropdownMenuItem key={ws.id} onClick={() => setCurrent(ws)} className="gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Building2 size={14} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm">{ws.name}</span>
-              <span className="block text-[11px] text-muted-foreground">{ws.type}</span>
-            </span>
-            {ws.id === current.id && <Check size={15} className="text-brand-600" />}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-muted-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed">
-            <Plus size={14} />
-          </span>
-          Add workspace
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex w-full items-center gap-2.5 rounded-lg border bg-card p-2">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-blue-600 text-white">
+        <Building2 size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{data?.name ?? 'Your organization'}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {data ? TYPE_LABEL[data.type] : '—'}
+        </span>
+      </span>
+    </div>
   );
 }

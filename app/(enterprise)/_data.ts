@@ -1,99 +1,13 @@
 /**
- * Representative data for the B2B Enterprise portal.
+ * Remaining mock data for the B2B Enterprise portal.
  *
- * ⚠️ No enterprise/portfolio API yet — this is the seam for the real hooks:
- *   • portfolio + branches → `usePortfolio()` aggregating across child groups
- *   • API keys / webhooks  → developer-settings endpoints
- * The enterprise tier aggregates many groups (a federation, funding programme, or
- * microfinance branch network), so every figure here is a roll-up.
- *
- * NOTE: called "Workspace" here, not "Organization" — that name is already
- * taken by the payment-architecture entity (a funder/monitor body such as a
- * bank, SACCO, or NGO; see `(admin)/admin/organizations` and
- * `(dashboard)/organization`). A B2B enterprise workspace is an unrelated
- * concept — a paying customer managing its own branch network — so it gets
- * its own vocabulary to avoid a three-way name collision.
+ * Portfolio/branch figures now come from real data (organizationApi.groups /
+ * '/organization/dashboard' — see enterprise/page.tsx and
+ * enterprise/branches/page.tsx). API keys and webhooks stay mock: there is no
+ * developer-settings backend yet (no API key issuance, no webhook delivery
+ * pipeline), so this is intentionally not wired — a future, separate build,
+ * not a "quick win" gap.
  */
-
-export interface Workspace {
-  id: string;
-  name: string;
-  type: 'Federation' | 'Funding Programme' | 'Microfinance' | 'Cooperative Union';
-  branches: number;
-}
-
-export const workspaces: Workspace[] = [
-  { id: 'ws1', name: 'Hisa Africa Federation', type: 'Federation', branches: 12 },
-  { id: 'ws2', name: 'Imani Microfinance', type: 'Microfinance', branches: 8 },
-  { id: 'ws3', name: 'Jenga Mashinani Programme', type: 'Funding Programme', branches: 21 },
-];
-
-export const portfolio = {
-  members: 18420,
-  savings: 248_500_000,
-  loansOut: 96_200_000,
-  /** Portfolio at risk (>30d) %. */
-  par: 4.2,
-  activeGroups: 412,
-  branches: 12,
-  /** YoY growth %. */
-  savingsGrowth: 18.4,
-  membersGrowth: 11.2,
-};
-
-export interface Branch {
-  id: string;
-  name: string;
-  region: string;
-  members: number;
-  savings: number;
-  loansOut: number;
-  /** Portfolio at risk %. */
-  par: number;
-  status: 'active' | 'review' | 'onboarding';
-  /** 6-pt savings sparkline. */
-  trend: { v: number }[];
-}
-
-const spark = (base: number) =>
-  Array.from({ length: 6 }, (_, i) => ({ v: Math.round(base * (0.8 + i * 0.05 + Math.random() * 0.05)) }));
-
-export const branches: Branch[] = [
-  { id: 'b1', name: 'Nairobi Central', region: 'Nairobi',   members: 3240, savings: 62_400_000, loansOut: 28_100_000, par: 3.1, status: 'active',     trend: spark(60) },
-  { id: 'b2', name: 'Mombasa',         region: 'Coast',     members: 2110, savings: 38_900_000, loansOut: 16_400_000, par: 5.8, status: 'active',     trend: spark(38) },
-  { id: 'b3', name: 'Kisumu',          region: 'Nyanza',    members: 1980, savings: 31_200_000, loansOut: 12_900_000, par: 4.4, status: 'active',     trend: spark(31) },
-  { id: 'b4', name: 'Nakuru',          region: 'Rift Valley', members: 1740, savings: 27_600_000, loansOut: 11_200_000, par: 6.9, status: 'review',   trend: spark(27) },
-  { id: 'b5', name: 'Eldoret',         region: 'Rift Valley', members: 1520, savings: 22_100_000, loansOut: 8_700_000,  par: 3.7, status: 'active',     trend: spark(22) },
-  { id: 'b6', name: 'Nyeri',           region: 'Central',   members: 1280, savings: 18_400_000, loansOut: 6_900_000,  par: 2.9, status: 'active',     trend: spark(18) },
-  { id: 'b7', name: 'Garissa',         region: 'North East', members: 640,  savings: 6_200_000,  loansOut: 2_100_000,  par: 8.1, status: 'review',   trend: spark(6) },
-  { id: 'b8', name: 'Machakos',        region: 'Eastern',   members: 410,   savings: 3_100_000,  loansOut: 900_000,    par: 1.8, status: 'onboarding', trend: spark(3) },
-];
-
-export const portfolioTrend = [
-  { month: 'Dec', savings: 198_000_000, loans: 74_000_000 },
-  { month: 'Jan', savings: 210_000_000, loans: 79_000_000 },
-  { month: 'Feb', savings: 219_000_000, loans: 83_000_000 },
-  { month: 'Mar', savings: 228_000_000, loans: 88_000_000 },
-  { month: 'Apr', savings: 239_000_000, loans: 92_000_000 },
-  { month: 'May', savings: 248_500_000, loans: 96_200_000 },
-];
-
-export const savingsByRegion = [
-  { name: 'Nairobi', value: 62_400_000 },
-  { name: 'Rift Valley', value: 49_700_000 },
-  { name: 'Coast', value: 38_900_000 },
-  { name: 'Nyanza', value: 31_200_000 },
-  { name: 'Central', value: 18_400_000 },
-  { name: 'Other', value: 47_900_000 },
-];
-
-/** Program / impact analytics — the metrics Organizations & funders report on. */
-export const impact = [
-  { label: 'Women members', value: 68, hint: '12,525 women' },
-  { label: 'Youth (18–35)', value: 41, hint: '7,552 members' },
-  { label: 'Rural reach', value: 57, hint: '235 villages' },
-  { label: 'Loan repayment rate', value: 95, hint: 'On-time, 90d' },
-];
 
 export interface ApiKey {
   id: string;

@@ -1,35 +1,47 @@
 'use client';
 
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Network, Download } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
-import { Sparkline } from '@/components/shared/charts';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { tone } from '@/lib/ui/tokens';
-import { branches } from '../../_data';
-
-const branchStatusTone = { active: 'positive', review: 'warning', onboarding: 'info' } as const;
+import { organizationApi } from '@/lib/api/endpoints';
+import type { OrganizationGroupSummary } from '@/types/api.types';
 
 export default function BranchesPage() {
   const [query, setQuery] = React.useState('');
   const [region, setRegion] = React.useState<string>('all');
 
-  const regions = React.useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], []);
+  const { data: groups, isLoading } = useQuery<OrganizationGroupSummary[]>({
+    queryKey: ['enterprise', 'groups'],
+    queryFn:  organizationApi.groups,
+  });
 
-  const filtered = branches.filter((b) => {
-    const matchesQuery = (b.name + ' ' + b.region).toLowerCase().includes(query.toLowerCase());
-    const matchesRegion = region === 'all' || b.region === region;
+  const rows = groups ?? [];
+  const regions = React.useMemo(
+    () => ['all', ...Array.from(new Set((groups ?? []).map((g) => g.county).filter((c): c is string => !!c)))],
+    [groups],
+  );
+
+  const filtered = rows.filter((g) => {
+    const matchesQuery = (g.groupName + ' ' + (g.county ?? '')).toLowerCase().includes(query.toLowerCase());
+    const matchesRegion = region === 'all' || g.county === region;
     return matchesQuery && matchesRegion;
   });
 
   const totals = filtered.reduce(
-    (acc, b) => ({ members: acc.members + b.members, savings: acc.savings + b.savings, loansOut: acc.loansOut + b.loansOut }),
+    (acc, g) => ({
+      members: acc.members + g.activeMemberCount,
+      savings: acc.savings + parseFloat(g.totalContributions),
+      loansOut: acc.loansOut + parseFloat(g.activeLoanPortfolio),
+    }),
     { members: 0, savings: 0, loansOut: 0 },
   );
 
@@ -67,7 +79,11 @@ export default function BranchesPage() {
 
       <Card>
         <CardContent className="p-0">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={Network}
               title="No branches match"
@@ -83,29 +99,30 @@ export default function BranchesPage() {
                     <th className="px-4 py-3 text-right font-medium">Members</th>
                     <th className="px-4 py-3 text-right font-medium">Savings</th>
                     <th className="px-4 py-3 text-right font-medium">Loans out</th>
-                    <th className="px-4 py-3 text-right font-medium">PAR</th>
-                    <th className="hidden px-4 py-3 font-medium lg:table-cell">6-mo trend</th>
+                    <th className="px-4 py-3 text-right font-medium">Defaulted loans</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((b) => (
-                    <tr key={b.id} className="border-b transition-colors last:border-0 hover:bg-muted/30">
+                  {filtered.map((g) => (
+                    <tr key={g.groupId} className="border-b transition-colors last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">{b.name}</p>
-                        <p className="text-xs text-muted-foreground">{b.region}</p>
+                        <p className="font-medium text-foreground">{g.groupName}</p>
+                        <p className="text-xs text-muted-foreground">{g.county ?? '—'}</p>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{b.members.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={b.savings} size="sm" /></td>
-                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={b.loansOut} size="sm" /></td>
+                      <td className="px-4 py-3 text-right tabular-nums">{g.activeMemberCount.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" /></td>
+                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={parseFloat(g.activeLoanPortfolio)} size="sm" /></td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        <span className={b.par > 6 ? 'font-semibold text-red-600' : b.par > 4 ? 'text-amber-600' : 'text-muted-foreground'}>{b.par}%</span>
-                      </td>
-                      <td className="hidden px-4 py-3 lg:table-cell">
-                        <div className="w-28"><Sparkline data={b.trend} dataKey="v" height={28} color={tone.positive.solid} /></div>
+                        <span className={g.defaultedLoanCount > 0 ? 'font-semibold text-red-600' : 'text-muted-foreground'}>{g.defaultedLoanCount}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <StatusPill status={b.status} tone={branchStatusTone[b.status]} label={b.status} size="sm" />
+                        <StatusPill
+                          status={g.defaultedLoanCount > 0 ? 'review' : 'active'}
+                          tone={g.defaultedLoanCount > 0 ? 'warning' : 'positive'}
+                          label={g.defaultedLoanCount > 0 ? 'review' : 'active'}
+                          size="sm"
+                        />
                       </td>
                     </tr>
                   ))}
@@ -116,7 +133,7 @@ export default function BranchesPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{totals.members.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right"><MoneyDisplay amount={totals.savings} size="sm" /></td>
                     <td className="px-4 py-3 text-right"><MoneyDisplay amount={totals.loansOut} size="sm" /></td>
-                    <td colSpan={3} />
+                    <td colSpan={2} />
                   </tr>
                 </tfoot>
               </table>

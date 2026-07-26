@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+// Intentionally still mock — no API key issuance / webhook delivery backend
+// exists yet. Out of scope for the portfolio/branches "quick win" wiring.
 import { apiKeys as seedKeys, webhooks as seedHooks, type ApiKey } from '../../_data';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';

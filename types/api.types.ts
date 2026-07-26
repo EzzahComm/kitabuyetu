@@ -376,6 +376,12 @@ export interface SmsProviderBalance {
 }
 
 // ------------------------------------------------------------------
+export interface OrganizationProfile {
+  id:   string;
+  name: string;
+  type: 'bank' | 'sacco' | 'foundation' | 'ngo' | 'government' | 'cooperative' | 'faith_based' | 'other';
+}
+
 export interface OrganizationGroupSummary {
   groupId:          string;
   groupName:        string;

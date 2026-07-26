@@ -1,6 +1,6 @@
 import { withDb, type TenantContext } from '@/lib/db';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
-import type { OrganizationGroupSummary } from '@/types/api.types';
+import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
 
 export const organizationService = {
 
@@ -11,6 +11,19 @@ export const organizationService = {
     if (ctx.role === 'organization_coordinator' && !ctx.organizationId) {
       throw new ForbiddenError('Organization context is required');
     }
+  },
+
+  /** The coordinator's own organization — name/type for portal chrome (e.g. the enterprise sidebar). */
+  async getProfile(ctx: TenantContext): Promise<OrganizationProfile> {
+    await this.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<OrganizationProfile>(
+        `SELECT id, name, type FROM organizations WHERE id = $1`,
+        [ctx.organizationId],
+      );
+      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      return rows[0];
+    });
   },
 
   async listGroupSummaries(ctx: TenantContext): Promise<OrganizationGroupSummary[]> {

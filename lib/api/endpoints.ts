@@ -2,7 +2,7 @@ import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
-  GroupMemberRow, SubscriptionPublic, OrganizationGroupSummary, MembershipSwitcherItem,
+  GroupMemberRow, SubscriptionPublic, OrganizationGroupSummary, OrganizationProfile, MembershipSwitcherItem,
   TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
   SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
 } from '@/types/api.types';
@@ -272,6 +272,7 @@ export const reportsApi = {
 // Organization
 // ------------------------------------------------------------------
 export const organizationApi = {
+  profile: () => api.get<OrganizationProfile>('/organization/profile'),
   groups:  () => api.get<OrganizationGroupSummary[]>('/organization/groups'),
   detail:  (groupId: string) => api.get<unknown>(`/organization/reports?groupId=${groupId}`),
   policies: () => api.get<EffectiveThreshold[]>('/organization/policies'),
