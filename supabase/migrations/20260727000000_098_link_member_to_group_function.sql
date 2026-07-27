@@ -118,7 +118,11 @@ BEGIN
     p_role, 'active'::member_status,
     COALESCE(p_joined_at, CURRENT_DATE), p_invited_by
   )
-  RETURNING id, membership_no INTO v_gm_id, v_membership_no;
+  -- Table-qualified: this function's own RETURNS TABLE columns are named
+  -- member_code/membership_no too (implicitly declared as plpgsql variables
+  -- from OUT params), which collide with the unqualified column names here
+  -- and raise "column reference is ambiguous" otherwise.
+  RETURNING group_members.id, group_members.membership_no INTO v_gm_id, v_membership_no;
 
   RETURN QUERY SELECT v_gm_id, v_member_code, v_membership_no, v_person_id;
 END;
