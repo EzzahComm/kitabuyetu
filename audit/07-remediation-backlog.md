@@ -60,11 +60,13 @@ migration 097's own comment had already warned about exactly this blind spot).
    Effort: small-medium (one new integration test file, reusing the existing fixture helper as
    its own subject rather than just its setup).
 
-7. **Follow-up grep: second pass for unmasked PII beyond the members-service fix.** (`02-security-findings.md` #3)
-   Approach: `SELECT \*` / `RETURNING \*` across `lib/services` cross-referenced against tables
-   with a `national_id`/`password_hash`/similar sensitive column, the same method that found the
-   original members-service leak.
-   Effort: small (a grep + spot-check pass), same shape as the fix already shipped this session.
+~~7. Follow-up grep: second pass for unmasked PII beyond the members-service fix.~~ **FIXED**
+   (`06-fix-log.md`, 2026-07-27). Swept `SELECT \*`/`RETURNING \*` across `lib/services` + `app/api`
+   against every table with a sensitive column (`members`, `person`, `member_mfa_secrets`,
+   `refresh_tokens`) — all clean except `next_of_kin`, where `GET .../next-of-kin` had no role
+   check and returned unmasked `national_id`/`phone`/`email`/`address` to any group member.
+   Restricted to `ROLES.canManageMembers` (chairperson/treasurer/secretary/super_admin), matching
+   the existing POST/PATCH/DELETE gate on the same route, per user sign-off.
 
 8. **No formal down-migration/rollback runbook.** (`03-data-integrity-findings.md` #3)
    Mitigated in practice by defensive forward-migration discipline (rename-not-drop, backfill-

@@ -10,12 +10,16 @@ import { ForbiddenError } from '@/lib/utils/errors';
 type Ctx = { params: Promise<{ id: string }> };
 
 // GET /api/v1/members/[id]/next-of-kin — list a member's emergency contacts.
-// Any group member can read; PII masking would belong at the service layer
-// if needed (we don't apply maskMember here since NoK fields aren't on
-// members).
+// Restricted to group admins + secretaries (same as POST/PATCH/DELETE below):
+// these rows carry unmasked national_id/phone/email/address, and unlike a
+// member's own record (masked via applyMemberMask for non-privileged roles)
+// there's no masking layer here, so open read access would let any group
+// member see PII more freely for a colleague's emergency contact than for
+// the colleague themselves.
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {
+    if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const rows = await membersService.listNextOfKin(ctx, id);
     return ok(rows);
