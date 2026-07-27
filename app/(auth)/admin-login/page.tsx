@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, ArrowLeft, Copy, CheckCircle2 } from 'lucide-react';
+import { Shield, ArrowLeft, Copy, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
@@ -196,6 +196,7 @@ function PasswordForm({
   onSubmit: (v: PasswordValues) => void;
 }) {
   const { register, handleSubmit, formState: { errors } } = form;
+  const [showPassword, setShowPassword] = useState(false);
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
@@ -211,11 +212,22 @@ function PasswordForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="password" className="text-slate-300">Password</Label>
-        <Input
-          id="password" type="password" autoComplete="current-password"
-          className="bg-slate-950 border-slate-800 text-slate-100"
-          {...register('password')}
-        />
+        <div className="relative">
+          <Input
+            id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
+            className="bg-slate-950 border-slate-800 pr-10 text-slate-100"
+            {...register('password')}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
       </div>
 

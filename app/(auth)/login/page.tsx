@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,13 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+// "Remember me" only remembers the identifier field for next time — it does
+// NOT extend the session. Sessions already persist indefinitely in
+// localStorage regardless (lib/auth/context.tsx), so there's no separate
+// "stay signed in" behavior to toggle without touching that shared, security
+// -relevant storage logic. This key is unrelated to the auth session key.
+const REMEMBERED_IDENTIFIER_KEY = 'ky_remembered_identifier';
+
 export default function LoginPage() {
   const router = useRouter();
   const { login, user } = useAuth();
@@ -36,8 +44,10 @@ export default function LoginPage() {
   // and we render a chooser instead of redirecting.
   const [pendingGroups, setPendingGroups] = useState<NeedsGroupSelection['groups'] | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
+  const [showPassword,  setShowPassword]  = useState(false);
+  const [rememberMe,    setRememberMe]    = useState(false);
 
-  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, getValues, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -49,6 +59,16 @@ export default function LoginPage() {
     configureApiClient({ getToken: () => null, onUnauthorized: () => {} });
   }, []);
 
+  // Pre-fill from a previously remembered identifier, if any.
+  useEffect(() => {
+    const remembered = localStorage.getItem(REMEMBERED_IDENTIFIER_KEY);
+    if (remembered) {
+      setValue('identifier', remembered);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRememberMe(true);
+    }
+  }, [setValue]);
+
   // Shared submit — pass `groupCode` to disambiguate after the user picks a group.
   const submitWith = async (values: FormValues, groupCode?: string) => {
     setSubmitting(true);
@@ -58,6 +78,8 @@ export default function LoginPage() {
         setPendingGroups(result.groups);
         return;
       }
+      if (rememberMe) localStorage.setItem(REMEMBERED_IDENTIFIER_KEY, values.identifier);
+      else            localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
       login(result);
       router.push('/dashboard');
     } catch (err) {
@@ -140,14 +162,36 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password')}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                className="pr-10"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            Remember my phone/email on this device
+          </label>
 
           <Button type="submit" className="w-full" loading={isSubmitting || submitting}>
             Sign in
