@@ -2,6 +2,12 @@ import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 
+// Every href below must resolve to a real page — the prior version linked
+// 10 of 16 entries (Pricing, Security, all of Company/Legal, most of
+// Resources) to routes that didn't exist. Legal pages (Privacy/Terms/
+// Cookies) are deliberately absent rather than stubbed: fabricated legal
+// text for a product handling real money and PII would be actively worse
+// than no link. See docs/audits/UX_SURFACE_AUDIT_2026-07.md §8.
 const footerLinks = {
   Solutions: [
     { label: 'Member app', href: '/me' },
@@ -13,23 +19,14 @@ const footerLinks = {
     { label: 'Features', href: '#features' },
     { label: 'Ecosystem', href: '#ecosystem' },
     { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'Security', href: '/security' },
+    { label: 'Pricing', href: '/pricing' },
   ],
   Company: [
     { label: 'About', href: '/about' },
-    { label: 'Blog', href: '/blog' },
-    { label: 'Careers', href: '/careers' },
     { label: 'Contact', href: '/contact' },
-  ],
-  Legal: [
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Terms of Service', href: '/terms' },
-    { label: 'Cookie Policy', href: '/cookies' },
   ],
   Resources: [
     { label: 'Documentation', href: '/docs' },
-    { label: 'API Reference', href: '/docs/api' },
     { label: 'Status', href: '/status' },
     { label: 'Support', href: '/support' },
   ],
@@ -40,7 +37,7 @@ export default function Footer() {
     <footer className="border-t border-slate-100 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         {/* Top row */}
-        <div className="grid gap-10 md:grid-cols-3 lg:grid-cols-7 lg:gap-8">
+        <div className="grid gap-10 md:grid-cols-3 lg:grid-cols-6 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2.5 group w-fit" aria-label="Kitabu Yetu home">
