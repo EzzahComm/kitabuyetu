@@ -1,7 +1,7 @@
 import { api } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
-  LoginResponse, LoginResult, RefreshResponse, AdminLoginResponse, AdminLoginResult,
+  LoginResponse, LoginResult, RefreshResponse, AdminLoginResult, AdminLoginVerifyResult,
   GroupMemberRow, SubscriptionPublic, OrganizationGroupSummary, OrganizationProfile, MembershipSwitcherItem,
   TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
   SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
@@ -67,14 +67,17 @@ export const authApi = {
   // Step 2 of backoffice login: submit the 6-digit TOTP code (or a recovery
   // code) + the challenge token from step 1. On first-time enrollment the
   // client also echoes back the 10 plaintext recoveryCodes so they get
-  // bcrypt-hashed + stored alongside the secret.
+  // bcrypt-hashed + stored alongside the secret. Can also return
+  // NeedsOrgSelection (multi-staff organizations, migration 101) — the
+  // client shows an org chooser and re-submits with `organizationId`.
   adminLoginVerify: (body: {
     challenge:      string;
     code:           string;
     label?:         string;
     recoveryCodes?: string[];
+    organizationId?: string;
   }) =>
-    api.post<AdminLoginResponse>('/auth/admin/login/verify', body),
+    api.post<AdminLoginVerifyResult>('/auth/admin/login/verify', body),
 };
 
 // ------------------------------------------------------------------

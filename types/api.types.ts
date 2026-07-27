@@ -116,16 +116,38 @@ export interface AdminLoginMfaChallenge {
   challenge:    string;   // short-lived JWT (5 min)
 }
 
+// Returned by /admin/login/verify when the member is active staff at more
+// than one organization (multi-staff organizations, migration 101). The
+// client shows an org chooser and re-submits the same challenge + code
+// along with `organizationId` — mirrors NeedsGroupSelection's shape/flow
+// on the consumer /login side.
+export interface NeedsOrgSelection {
+  needsOrgSelection: true;
+  organizations: Array<{
+    organizationId:   string;
+    organizationName: string;
+    orgRole:          'lead' | 'staff';
+  }>;
+}
+
+// Step 1 (/admin/login) can never return NeedsOrgSelection — only step 2
+// (/admin/login/verify, after the member is identified) can, so this stays
+// a narrower, separate union rather than folding NeedsOrgSelection in here.
 export type AdminLoginResult =
   | AdminLoginEnrollmentChallenge
   | AdminLoginMfaChallenge
   | AdminLoginResponse;
+
+export type AdminLoginVerifyResult = NeedsOrgSelection | AdminLoginResponse;
 
 export function isAdminEnrollment(r: AdminLoginResult): r is AdminLoginEnrollmentChallenge {
   return (r as AdminLoginEnrollmentChallenge).needsMfaEnrollment === true;
 }
 export function isAdminMfaChallenge(r: AdminLoginResult): r is AdminLoginMfaChallenge {
   return (r as AdminLoginMfaChallenge).needsMfaCode === true;
+}
+export function isOrgSelectionNeeded(r: AdminLoginVerifyResult): r is NeedsOrgSelection {
+  return (r as NeedsOrgSelection).needsOrgSelection === true;
 }
 
 /** One row in the sidebar group switcher (payment architecture §8). */
