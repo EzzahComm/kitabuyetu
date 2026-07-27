@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -155,10 +156,10 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
-        <Stat label="Overall score"    value={Number(latest.overall_score).toFixed(0)} sub="/ 100" />
-        <Stat label="Financial"        value={Number(latest.financial_score).toFixed(0)} sub="/ 100" />
-        <Stat label="Social"           value={Number(latest.social_score).toFixed(0)} sub="placeholder (E6.2)" />
-        <Stat label="Loan eligibility" value={fmtMoney(latest.loan_eligibility_limit)} sub={`based on ${TIER_LABEL[latest.reliability_tier].toLowerCase()} tier`} />
+        <StatCard title="Overall score"    value={Number(latest.overall_score).toFixed(0)} description="/ 100" />
+        <StatCard title="Financial"        value={Number(latest.financial_score).toFixed(0)} description="/ 100" />
+        <StatCard title="Social"           value={Number(latest.social_score).toFixed(0)} description="placeholder (E6.2)" />
+        <StatCard title="Loan eligibility" value={fmtMoney(latest.loan_eligibility_limit)} description={`based on ${TIER_LABEL[latest.reliability_tier].toLowerCase()} tier`} />
       </div>
 
       <Card>
@@ -199,18 +200,6 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
         {history.length > 0 && ` · ${history.length} snapshot(s) on record.`}
       </p>
     </>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold">{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
-    </Card>
   );
 }
 

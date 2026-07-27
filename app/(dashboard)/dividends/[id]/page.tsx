@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { StatCard } from '@/components/shared/stat-card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -197,10 +198,10 @@ export default function DividendDetailPage() {
 
       {/* Info card */}
       <div className="grid gap-3 md:grid-cols-4">
-        <Stat label="Pool"      value={fmtMoney(decl.pool_amount)}   />
-        <Stat label="Allocated" value={fmtMoney(decl.total_allocated)} sub={decl.total_eligible_members ? `${decl.total_eligible_members} members` : undefined} />
-        <Stat label="Paid"      value={fmtMoney(decl.total_paid)}    sub={Number(decl.total_allocated) > 0 ? `${Math.round((Number(decl.total_paid) / Number(decl.total_allocated)) * 100)}% of allocated` : undefined} />
-        <Stat label="Tax"       value={fmtMoney(decl.total_tax)}     sub={`${fmtPct(decl.withholding_tax_rate)} rate`} />
+        <StatCard title="Pool"      value={fmtMoney(decl.pool_amount)} />
+        <StatCard title="Allocated" value={fmtMoney(decl.total_allocated)} description={decl.total_eligible_members ? `${decl.total_eligible_members} members` : undefined} />
+        <StatCard title="Paid"      value={fmtMoney(decl.total_paid)} description={Number(decl.total_allocated) > 0 ? `${Math.round((Number(decl.total_paid) / Number(decl.total_allocated)) * 100)}% of allocated` : undefined} />
+        <StatCard title="Tax"       value={fmtMoney(decl.total_tax)} description={`${fmtPct(decl.withholding_tax_rate)} rate`} />
       </div>
 
       <Card>
@@ -398,18 +399,6 @@ export default function DividendDetailPage() {
 }
 
 // ── Small subcomponents ────────────────────────────────────────────────
-
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold">{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (

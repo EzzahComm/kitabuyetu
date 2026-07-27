@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useInvestments, useInvestmentSummary, useCreateInvestment, type InvestmentRow } from '@/hooks/use-investments';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -125,13 +126,7 @@ export default function InvestmentsPage() {
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Principal</p>
-            <p className="text-2xl font-bold mt-1">{formatKES(summary?.totalPrincipal ?? 0)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{summary?.totalInvestments ?? 0} investments</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Principal" value={formatKES(summary?.totalPrincipal ?? 0)} description={`${summary?.totalInvestments ?? 0} investments`} />
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Portfolio Value</p>

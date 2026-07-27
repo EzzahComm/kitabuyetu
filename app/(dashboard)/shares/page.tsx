@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -142,10 +143,10 @@ export default function SharesPage() {
         <>
           {/* Summary cards */}
           <div className="grid gap-3 md:grid-cols-4">
-            <Summary label="Share capital" value={fmtMoney(summary?.totalShareCapital)} icon={<Coins className="h-5 w-5" />} loading={summaryQ.isLoading} />
-            <Summary label="Shares issued" value={fmtInt(summary?.totalShares ?? 0)}        icon={<TrendingUp className="h-5 w-5" />} loading={summaryQ.isLoading} />
-            <Summary label="Shareholders"  value={fmtInt(summary?.totalShareholders ?? 0)} icon={<Users className="h-5 w-5" />}      loading={summaryQ.isLoading} />
-            <Summary label="Share classes" value={fmtInt(summary?.totalClasses ?? 0)}      icon={<Layers className="h-5 w-5" />}     loading={summaryQ.isLoading} />
+            <StatCard title="Share capital" value={summaryQ.isLoading ? '—' : fmtMoney(summary?.totalShareCapital)} icon={Coins} />
+            <StatCard title="Shares issued" value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalShares ?? 0)} icon={TrendingUp} />
+            <StatCard title="Shareholders"  value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalShareholders ?? 0)} icon={Users} />
+            <StatCard title="Share classes" value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalClasses ?? 0)} icon={Layers} />
           </div>
 
           {/* By-class breakdown */}
@@ -330,22 +331,6 @@ export default function SharesPage() {
         onPosted={onTxnCreated}
       />
     </div>
-  );
-}
-
-// ── Summary card ───────────────────────────────────────────────────────
-
-function Summary({ label, value, icon, loading }: { label: string; value: string; icon: React.ReactNode; loading?: boolean }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase text-muted-foreground">{label}</p>
-          <span className="text-muted-foreground">{icon}</span>
-        </div>
-        <p className="mt-1 text-2xl font-semibold">{loading ? '—' : value}</p>
-      </CardContent>
-    </Card>
   );
 }
 

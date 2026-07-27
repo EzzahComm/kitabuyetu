@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -124,18 +125,15 @@ export default function SupportPage() {
 
       {/* Queue summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{openCount}</p>
-          <p className="text-xs text-gray-500 mt-1">Open</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600">{inProgressCount}</p>
-          <p className="text-xs text-gray-500 mt-1">In Progress</p>
-        </div>
-        <div className={`border rounded-xl p-4 text-center ${slaBreached > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-          <p className={`text-2xl font-bold ${slaBreached > 0 ? 'text-red-600' : 'text-gray-400'}`}>{slaBreached}</p>
-          <p className="text-xs text-gray-500 mt-1">SLA Breached</p>
-        </div>
+        <StatCard title="Open" value={openCount} icon={Clock} iconClass="bg-blue-50" />
+        <StatCard title="In Progress" value={inProgressCount} icon={Clock} iconClass="bg-amber-50" />
+        <StatCard
+          title="SLA Breached"
+          value={slaBreached}
+          icon={AlertTriangle}
+          className={slaBreached > 0 ? 'border-red-200 bg-red-50/40' : ''}
+          iconClass={slaBreached > 0 ? 'bg-red-50' : 'bg-gray-100'}
+        />
       </div>
 
       {/* Filters */}

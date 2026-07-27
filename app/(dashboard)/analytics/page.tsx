@@ -15,6 +15,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import { useToast } from '@/hooks/use-toast';
@@ -143,15 +144,15 @@ export default function AnalyticsPage() {
         <>
           {/* KPI grid */}
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Total members"        value={fmtInt(s.members.total)}                 sub={`${fmtInt(s.members.active)} active`} icon={<Users        className="h-4 w-4" />} />
-            <Kpi label="New this period"      value={fmtInt(s.members.joinedInPeriod)}        sub={periodLabel(period)} icon={<Activity     className="h-4 w-4" />} />
-            <Kpi label="Contributions"        value={fmtMoney(s.contributions.periodAmount)}  sub={`${fmtInt(s.contributions.periodCount)} payments`} icon={<TrendingUp   className="h-4 w-4" />} />
-            <Kpi label="Loan portfolio"       value={fmtMoney(s.loans.outstandingBalance)}    sub={`${fmtInt(s.loans.activeCount)} active · ${fmtInt(s.loans.overdueCount)} overdue`} icon={<Landmark     className="h-4 w-4" />} />
+            <StatCard title="Total members"    value={fmtInt(s.members.total)}                 description={`${fmtInt(s.members.active)} active`} icon={Users} />
+            <StatCard title="New this period"  value={fmtInt(s.members.joinedInPeriod)}        description={periodLabel(period)} icon={Activity} />
+            <StatCard title="Contributions"    value={fmtMoney(s.contributions.periodAmount)}  description={`${fmtInt(s.contributions.periodCount)} payments`} icon={TrendingUp} />
+            <StatCard title="Loan portfolio"   value={fmtMoney(s.loans.outstandingBalance)}    description={`${fmtInt(s.loans.activeCount)} active · ${fmtInt(s.loans.overdueCount)} overdue`} icon={Landmark} />
 
-            <Kpi label="Share capital"        value={fmtMoney(s.shares.shareCapital)}         sub={`${fmtInt(s.shares.sharesIssued)} shares · ${fmtInt(s.shares.shareholders)} holders`} icon={<Coins        className="h-4 w-4" />} />
-            <Kpi label="Dividends paid"       value={fmtMoney(s.dividends.totalPaid)}         sub={s.dividends.lastDeclarationLabel ? `Last: ${s.dividends.lastDeclarationLabel}` : 'No declarations yet'} icon={<ReceiptText  className="h-4 w-4" />} />
-            <Kpi label="Welfare fund"         value={fmtMoney(s.welfare.poolBalance)}         sub={`${fmtInt(s.welfare.pendingRequests)} pending requests`} icon={<Heart        className="h-4 w-4" />} />
-            <Kpi label="Avg credit score"     value={s.creditScores.scoredMembers > 0 ? Number(s.creditScores.averageOverall).toFixed(0) : '—'} sub={`${fmtInt(s.creditScores.scoredMembers)} scored`} icon={<BarChart2    className="h-4 w-4" />} />
+            <StatCard title="Share capital"    value={fmtMoney(s.shares.shareCapital)}         description={`${fmtInt(s.shares.sharesIssued)} shares · ${fmtInt(s.shares.shareholders)} holders`} icon={Coins} />
+            <StatCard title="Dividends paid"   value={fmtMoney(s.dividends.totalPaid)}         description={s.dividends.lastDeclarationLabel ? `Last: ${s.dividends.lastDeclarationLabel}` : 'No declarations yet'} icon={ReceiptText} />
+            <StatCard title="Welfare fund"     value={fmtMoney(s.welfare.poolBalance)}         description={`${fmtInt(s.welfare.pendingRequests)} pending requests`} icon={Heart} />
+            <StatCard title="Avg credit score" value={s.creditScores.scoredMembers > 0 ? Number(s.creditScores.averageOverall).toFixed(0) : '—'} description={`${fmtInt(s.creditScores.scoredMembers)} scored`} icon={BarChart2} />
           </div>
 
           {/* Financial health */}
@@ -279,21 +280,6 @@ export default function AnalyticsPage() {
 }
 
 // ── Subcomponents ─────────────────────────────────────────────────────
-
-function Kpi({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon: React.ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase text-muted-foreground">{label}</p>
-          <span className="text-muted-foreground">{icon}</span>
-        </div>
-        <p className="mt-1 text-2xl font-semibold">{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 function HealthMetric({ label, value, tone, highlight }: {
   label: string; value: string;

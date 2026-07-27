@@ -7,6 +7,7 @@ import { useEmailAnalytics } from '@/hooks/use-email';
 import { Mail, CheckCircle, XCircle, Eye, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useState } from 'react';
 
 function pct(n: number, total: number) {
@@ -20,11 +21,11 @@ export default function EmailDashboardPage() {
   const stats = data;
 
   const statCards = [
-    { label: 'Total Sent',  value: stats?.sent    ?? 0, icon: Mail,          color: 'text-blue-600'   },
-    { label: 'Delivered',   value: stats?.sent    ?? 0, icon: CheckCircle,   color: 'text-green-600'  },
-    { label: 'Failed',      value: stats?.failed  ?? 0, icon: XCircle,       color: 'text-red-600'    },
-    { label: 'Opened',      value: stats?.opened  ?? 0, icon: Eye,           color: 'text-purple-600' },
-    { label: 'Bounced',     value: stats?.bounced ?? 0, icon: AlertTriangle, color: 'text-amber-600'  },
+    { label: 'Total Sent',  value: stats?.sent    ?? 0, icon: Mail,          iconClass: 'bg-blue-50'   },
+    { label: 'Delivered',   value: stats?.sent    ?? 0, icon: CheckCircle,   iconClass: 'bg-green-50'  },
+    { label: 'Failed',      value: stats?.failed  ?? 0, icon: XCircle,       iconClass: 'bg-red-50'    },
+    { label: 'Opened',      value: stats?.opened  ?? 0, icon: Eye,           iconClass: 'bg-purple-50' },
+    { label: 'Bounced',     value: stats?.bounced ?? 0, icon: AlertTriangle, iconClass: 'bg-amber-50'  },
   ];
 
   return (
@@ -50,19 +51,19 @@ export default function EmailDashboardPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {statCards.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-                <span className="text-xs text-gray-500">{s.label}</span>
-              </div>
-              {isLoading ? (
+          isLoading ? (
+            <Card key={s.label}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <s.icon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">{s.label}</span>
+                </div>
                 <Skeleton className="h-7 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-gray-900">{s.value.toLocaleString()}</div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <StatCard key={s.label} title={s.label} value={s.value.toLocaleString()} icon={s.icon} iconClass={s.iconClass} />
+          )
         ))}
       </div>
 

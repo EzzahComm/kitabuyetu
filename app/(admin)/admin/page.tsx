@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import dynamic from 'next/dynamic';
 import { useAdminDashboard, useAdminRevenueTrend } from '@/hooks/use-admin';
@@ -136,26 +137,36 @@ export default function AdminDashboardPage() {
           <p className="text-2xl font-bold text-gray-900 mt-2">{o.total ?? 0}</p>
           <p className="text-xs text-gray-500 mt-1">{o.active ?? 0} active · {o.new_this_month ?? 0} new</p>
         </button>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active Subs</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{s.active_subscriptions ?? 0}</p>
-          <p className="text-xs text-gray-500 mt-1">{s.trial_subscriptions ?? 0} on trial</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">At Risk</p>
-          <p className="text-2xl font-bold text-amber-600 mt-2">{s.at_risk ?? 0}</p>
-          <p className="text-xs text-gray-500 mt-1">Expired or suspended</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Open Tickets</p>
-          <p className="text-2xl font-bold text-red-600 mt-2">{t.open ?? 0}</p>
-          <p className="text-xs text-gray-500 mt-1">{t.sla_breached ?? 0} SLA breached</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Suspended Groups</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{g.suspended ?? 0}</p>
-          <p className="text-xs text-gray-500 mt-1">Require review</p>
-        </div>
+        <StatCard
+          title="Active Subs"
+          value={s.active_subscriptions ?? 0}
+          description={`${s.trial_subscriptions ?? 0} on trial`}
+          icon={CreditCard}
+          iconClass="bg-blue-50"
+        />
+        <StatCard
+          title="At Risk"
+          value={s.at_risk ?? 0}
+          description="Expired or suspended"
+          icon={AlertTriangle}
+          className="border-amber-200"
+          iconClass="bg-amber-50"
+        />
+        <StatCard
+          title="Open Tickets"
+          value={t.open ?? 0}
+          description={`${t.sla_breached ?? 0} SLA breached`}
+          icon={Headphones}
+          className="border-red-200"
+          iconClass="bg-red-50"
+        />
+        <StatCard
+          title="Suspended Groups"
+          value={g.suspended ?? 0}
+          description="Require review"
+          icon={Building2}
+          iconClass="bg-gray-100"
+        />
       </div>
 
       {/* Charts + Activity row */}

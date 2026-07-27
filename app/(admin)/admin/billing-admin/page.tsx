@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatCard } from '@/components/shared/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -80,41 +81,38 @@ export default function BillingAdminPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            label: 'Monthly Recurring Revenue',
-            value: isLoading ? null : formatKES(mrr),
-            sub: `${summary.active_subscriptions ?? 0} active subscriptions`,
-            color: 'text-green-600',
-          },
-          {
-            label: 'Active Subscriptions',
-            value: isLoading ? null : (summary.active_subscriptions ?? 0),
-            sub: `${summary.trial_subscriptions ?? 0} on trial`,
-            color: 'text-blue-600',
-          },
-          {
-            label: 'Expired / At Risk',
-            value: isLoading ? null : (summary.expired_subscriptions ?? 0),
-            sub: 'Need renewal or follow-up',
-            color: 'text-amber-600',
-          },
-          {
-            label: 'Overdue Invoices',
-            value: isLoading ? null : (summary.overdue_count ?? 0),
-            sub: 'Outstanding balances',
-            color: 'text-red-600',
-          },
-        ].map(({ label, value, sub, color }) => (
-          <div key={label} className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-            {isLoading
-              ? <Skeleton className="h-8 w-24 mt-2" />
-              : <p className={`text-2xl font-bold mt-2 ${color}`}>{value}</p>
-            }
-            <p className="text-xs text-gray-400 mt-1">{sub}</p>
-          </div>
-        ))}
+        <StatCard
+          title="Monthly Recurring Revenue"
+          value={isLoading ? '—' : formatKES(mrr)}
+          description={`${summary.active_subscriptions ?? 0} active subscriptions`}
+          icon={CreditCard}
+          className="border-green-200"
+          iconClass="bg-green-50"
+        />
+        <StatCard
+          title="Active Subscriptions"
+          value={isLoading ? '—' : (summary.active_subscriptions ?? 0)}
+          description={`${summary.trial_subscriptions ?? 0} on trial`}
+          icon={CheckCircle2}
+          className="border-blue-200"
+          iconClass="bg-blue-50"
+        />
+        <StatCard
+          title="Expired / At Risk"
+          value={isLoading ? '—' : (summary.expired_subscriptions ?? 0)}
+          description="Need renewal or follow-up"
+          icon={Clock}
+          className="border-amber-200"
+          iconClass="bg-amber-50"
+        />
+        <StatCard
+          title="Overdue Invoices"
+          value={isLoading ? '—' : (summary.overdue_count ?? 0)}
+          description="Outstanding balances"
+          icon={AlertCircle}
+          className="border-red-200"
+          iconClass="bg-red-50"
+        />
       </div>
 
       {/* Plan distribution chart + outstanding invoices */}

@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -56,23 +57,6 @@ const ACTION_DOT: Record<string, string> = {
   UPDATE: 'bg-blue-500',
   DELETE: 'bg-red-500',
 };
-
-function StatCard({
-  icon: Icon, label, value, color = 'text-gray-900', sub,
-}: {
-  icon: React.ElementType; label: string; value: string | number; color?: string; sub?: string;
-}) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-gray-400" />
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      </div>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
-  );
-}
 
 export default function GroupDetailPage({
   params,
@@ -202,12 +186,32 @@ export default function GroupDetailPage({
 
       {/* KPI stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard icon={Users}    label="Active Members"    value={parseInt(stats.active_members ?? '0').toLocaleString()} color="text-blue-600" />
-        <StatCard icon={Coins}    label="Total Contributions" value={formatKES(stats.total_contributions ?? 0)} color="text-green-600" />
-        <StatCard icon={TrendingUp} label="Active Loans"    value={formatKES(stats.active_loans_amount ?? 0)}
-          sub={`${parseInt(stats.active_loans_count ?? '0')} loans`} color="text-purple-600" />
-        <StatCard icon={Headphones} label="Open Tickets"   value={parseInt(stats.open_tickets ?? '0').toLocaleString()}
-          color={parseInt(stats.open_tickets ?? '0') > 0 ? 'text-amber-600' : 'text-gray-400'} />
+        <StatCard
+          title="Active Members"
+          value={parseInt(stats.active_members ?? '0').toLocaleString()}
+          icon={Users}
+          iconClass="bg-blue-50"
+        />
+        <StatCard
+          title="Total Contributions"
+          value={formatKES(stats.total_contributions ?? 0)}
+          icon={Coins}
+          iconClass="bg-green-50"
+        />
+        <StatCard
+          title="Active Loans"
+          value={formatKES(stats.active_loans_amount ?? 0)}
+          description={`${parseInt(stats.active_loans_count ?? '0')} loans`}
+          icon={TrendingUp}
+          iconClass="bg-purple-50"
+        />
+        <StatCard
+          title="Open Tickets"
+          value={parseInt(stats.open_tickets ?? '0').toLocaleString()}
+          icon={Headphones}
+          iconClass={parseInt(stats.open_tickets ?? '0') > 0 ? 'bg-amber-50' : 'bg-gray-100'}
+          className={parseInt(stats.open_tickets ?? '0') > 0 ? 'border-amber-200' : ''}
+        />
       </div>
 
       {/* Info grid */}

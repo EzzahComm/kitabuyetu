@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -116,10 +117,10 @@ export default function CreditScoresPage() {
       />
 
       <div className="grid gap-3 md:grid-cols-4">
-        <Stat label="Avg overall score" value={summary?.averageOverall ?? '—'} loading={summaryQ.isLoading} />
-        <Stat label="Members scored"    value={`${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`} loading={summaryQ.isLoading} />
-        <Stat label="Excellent / Good"  value={`${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`} sub={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`} loading={summaryQ.isLoading} />
-        <Stat label="Poor / High risk"  value={`${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`} sub={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`} loading={summaryQ.isLoading} />
+        <StatCard title="Avg overall score" value={summaryQ.isLoading ? '—' : (summary?.averageOverall ?? '—')} />
+        <StatCard title="Members scored"    value={summaryQ.isLoading ? '—' : `${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`} />
+        <StatCard title="Excellent / Good"  value={summaryQ.isLoading ? '—' : `${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`} description={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`} />
+        <StatCard title="Poor / High risk"  value={summaryQ.isLoading ? '—' : `${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`} description={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`} />
       </div>
 
       <Card>
@@ -232,17 +233,5 @@ export default function CreditScoresPage() {
         />
       )}
     </div>
-  );
-}
-
-function Stat({ label, value, sub, loading }: { label: string; value: string; sub?: string; loading?: boolean }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold">{loading ? '—' : value}</p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
-    </Card>
   );
 }

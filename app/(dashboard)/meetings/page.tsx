@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting, type MeetingRow } from '@/hooks/use-meetings';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -131,32 +132,15 @@ export default function MeetingsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Meetings</p>
-            <p className="text-2xl font-bold mt-1">{stats?.totalMeetings ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{stats?.completedMeetings ?? 0} completed</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Meetings" value={stats?.totalMeetings ?? 0} description={`${stats?.completedMeetings ?? 0} completed`} />
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Upcoming</p>
             <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.upcomingMeetings ?? 0}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Attendance</p>
-            <p className="text-2xl font-bold mt-1">{stats?.avgAttendancePct ?? 0}%</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resolutions</p>
-            <p className="text-2xl font-bold mt-1">{stats?.totalResolutions ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{stats?.implementedResolutions ?? 0} implemented</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Avg Attendance" value={`${stats?.avgAttendancePct ?? 0}%`} />
+        <StatCard title="Resolutions" value={stats?.totalResolutions ?? 0} description={`${stats?.implementedResolutions ?? 0} implemented`} />
       </div>
 
       <Tabs value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>

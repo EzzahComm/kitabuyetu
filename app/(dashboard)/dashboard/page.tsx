@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
 import { useMembers } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
@@ -63,25 +64,6 @@ function TaskRow({ icon: Icon, tone, count, label, preview, href, cta }: TaskRow
         </div>
       )}
     </div>
-  );
-}
-
-function MoneyTile({ label, value, sub, href, icon: Icon }: {
-  label: string; value: string; sub?: string; href: string; icon: React.ElementType;
-}) {
-  return (
-    <Link href={href} className="block group">
-      <Card className="transition-colors group-hover:border-primary/40">
-        <CardContent className="pt-5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">{label}</p>
-            <p className="mt-1 text-2xl font-bold">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-          </div>
-          <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-        </CardContent>
-      </Card>
-    </Link>
   );
 }
 
@@ -229,32 +211,40 @@ export default function DashboardPage() {
 
       {/* Zone 2 — Money at a glance */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MoneyTile
-          label="Cash / M-Pesa"
-          value={formatKES(cashBalance)}
-          href="/accounting"
-          icon={Wallet}
-        />
-        <MoneyTile
-          label="Welfare fund"
-          value={formatKES(welfareBalance)}
-          sub={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
-          href="/welfare"
-          icon={Heart}
-        />
-        <MoneyTile
-          label="External funding"
-          value={formatKES(externalFunding)}
-          sub="From partner organizations"
-          href="/treasury"
-          icon={Landmark}
-        />
-        <MoneyTile
-          label="Members"
-          value={String(totalMembers)}
-          href="/members"
-          icon={Users}
-        />
+        <Link href="/accounting" className="block group">
+          <StatCard
+            title="Cash / M-Pesa"
+            value={formatKES(cashBalance)}
+            icon={Wallet}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
+        <Link href="/welfare" className="block group">
+          <StatCard
+            title="Welfare fund"
+            value={formatKES(welfareBalance)}
+            description={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
+            icon={Heart}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
+        <Link href="/treasury" className="block group">
+          <StatCard
+            title="External funding"
+            value={formatKES(externalFunding)}
+            description="From partner organizations"
+            icon={Landmark}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
+        <Link href="/members" className="block group">
+          <StatCard
+            title="Members"
+            value={String(totalMembers)}
+            icon={Users}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
       </div>
 
       {/* Zone 3 — Recent activity */}

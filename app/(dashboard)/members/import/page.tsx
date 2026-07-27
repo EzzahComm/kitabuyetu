@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -261,7 +262,7 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
-        <SummaryCard label="Total rows" value={job.total_rows} />
+        <StatCard title="Total rows" value={job.total_rows} />
         <SummaryCard label="Valid"      value={job.valid_rows} valueClass="text-green-600" />
         <SummaryCard label="Errors"     value={job.error_rows} valueClass={hasErrors ? 'text-red-600' : ''} />
       </div>
@@ -352,7 +353,7 @@ function ResultView({ job, onRollback, onStartOver }: { job: ImportJob; onRollba
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <SummaryCard label="Imported" value={job.imported ?? job.created_member_ids.length} valueClass="text-green-600" />
-          <SummaryCard label="Skipped"  value={job.skipped  ?? 0} />
+          <StatCard title="Skipped"  value={job.skipped  ?? 0} />
           <SummaryCard label="Errors"   value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
         </div>
 

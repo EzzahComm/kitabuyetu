@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -57,23 +58,6 @@ const TYPE_LABEL: Record<string, string> = {
   bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
   government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Other',
 };
-
-function StatCard({
-  icon: Icon, label, value, color = 'text-gray-900', sub,
-}: {
-  icon: React.ElementType; label: string; value: string | number; color?: string; sub?: string;
-}) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-gray-400" />
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      </div>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
-  );
-}
 
 export default function OrganizationDetailPage({
   params,
@@ -193,10 +177,10 @@ export default function OrganizationDetailPage({
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard icon={Layers}     label="Groups Overseen" value={assigned.length} color="text-blue-600" />
-        <StatCard icon={Users}      label="Member Reach"    value={memberReach.toLocaleString()} color="text-purple-600" />
-        <StatCard icon={Wallet}     label="Wallet (KES)"    value={formatKES(walletKES?.available_balance ?? 0)} color="text-green-600" />
-        <StatCard icon={TrendingUp} label="Total Disbursed" value={formatKES(walletKES?.total_disbursed ?? 0)} color="text-amber-600" />
+        <StatCard title="Groups Overseen" value={assigned.length} icon={Layers} iconClass="bg-blue-50" />
+        <StatCard title="Member Reach" value={memberReach.toLocaleString()} icon={Users} iconClass="bg-purple-50" />
+        <StatCard title="Wallet (KES)" value={formatKES(walletKES?.available_balance ?? 0)} icon={Wallet} iconClass="bg-green-50" />
+        <StatCard title="Total Disbursed" value={formatKES(walletKES?.total_disbursed ?? 0)} icon={TrendingUp} iconClass="bg-amber-50" />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">

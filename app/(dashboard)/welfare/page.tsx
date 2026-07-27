@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { useWelfareRequests, useCreateWelfareRequest, useReviewWelfareRequest, useWelfarePool, useRecordWelfarePoolContribution, type WelfareRequestRow } from '@/hooks/use-welfare';
 import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
@@ -172,12 +173,7 @@ export default function WelfarePage() {
             <p className="text-xs text-muted-foreground mt-1">Collected: {formatKES(summary?.totalCollected ?? 0)}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Disbursed</p>
-            <p className="text-2xl font-bold mt-1">{formatKES(summary?.totalDisbursed ?? 0)}</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Disbursed" value={formatKES(summary?.totalDisbursed ?? 0)} />
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Requests</p>
