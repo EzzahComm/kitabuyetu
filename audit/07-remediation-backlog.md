@@ -24,15 +24,13 @@ hosting environment's variables, which this audit had no access to.
 
 ## High
 
-2. **Add RLS policies to `mpesa_b2c_transactions`, `mpesa_b2b_transactions`, `mpesa_b2c_charge_tiers`.** (`02-security-findings.md` #2)
-   Affected: money-movement tables with no policy at all — a real gap if/when the `app_tenant`
-   cutover (item 1) happens, since these three would leak cross-tenant with no policy to fall
-   back on.
-   Approach: new migration, `ENABLE ROW LEVEL SECURITY` + a `group_id = app_current_group_id()`
-   policy mirroring `loans`/`contributions`. Per this repo's own established pattern (`journal_lines`
-   partitioning caveat), verify against a scratch Postgres instance before applying to production —
-   this touches live-money tables.
-   Effort: small (1 migration + 1 verification pass).
+~~2. Add RLS policies to `mpesa_b2c_transactions`, `mpesa_b2b_transactions`, `mpesa_b2c_charge_tiers`.~~
+**RETRACTED — false positive.** All three already have `ENABLE ROW LEVEL SECURITY` and a real
+policy (migration 012's `DO $$ ... EXECUTE format(...) $$` loop for the transactions tables,
+migration 047's literal policy for the charge-tiers table). Found during Phase 6 implementation
+research, before any migration was written — see `02-security-findings.md` §2.2 for the full
+correction and root cause (a static grep can't see policies created inside dynamic SQL, and
+migration 097's own comment had already warned about exactly this blind spot).
 
 ## Medium
 
@@ -91,15 +89,15 @@ hosting environment's variables, which this audit had no access to.
 
 | Gate | Status |
 |---|---|
-| Zero Critical/High findings open in `02-security-findings.md` | ❌ **1 Critical (needs a live-env check, not code), 1 High (needs a migration) — both open** |
+| Zero Critical/High findings open in `02-security-findings.md` | ⚠️ **1 Critical open (needs a live-env check, not code). The 1 High item was retracted as a false positive during implementation research — zero real High findings remain.** |
 | Cross-tenant isolation test suite passes | ✅ Passes — confirmed running as a required CI job, green on every commit this session |
 | Ledger reconciliation check passes across all test/seed data | ⚠️ **Not run this pass** — no data environment available; the DB-level balance-triggers (item 4 above's subject) provide continuous enforcement, but a standalone reconciliation query wasn't executed |
 | Environment variable audit is clean | ✅ No leaked secrets found; the one open item (`TENANT_DATABASE_URL` provisioning) is a "is this set to the right thing" question, not a leak |
 | Rollback strategy documented for the current migration state | ⚠️ **Partial** — the repo's forward-defensive migration discipline is real and consistently followed, but no written runbook exists (item 8) |
 
 **Bottom line**: nothing found in this pass indicates the platform is silently broken today. The
-gate is not fully green because two items (Critical #1, its downstream High #2) require either a
-live-environment check or a migration this audit's own rules require verifying against a scratch
-DB first — neither is something to silently resolve mid-audit. Recommend: check
-`TENANT_DATABASE_URL` in production immediately (near-zero effort, resolves the single biggest
-open question), then decide priority on the rest with that answer in hand.
+gate is not fully green because Critical #1 requires a live-environment check this audit had no
+access to — not something to silently resolve mid-audit. (The one High item found alongside it
+was itself retracted as a false positive before any fix was shipped — see above.) Recommend:
+check `TENANT_DATABASE_URL` in production immediately (near-zero effort, resolves the single
+biggest open question), then decide priority on the rest with that answer in hand.
