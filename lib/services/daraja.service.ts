@@ -86,17 +86,28 @@ const ALLOWED_IPS = new Set<string>(
 );
 
 // Fail fast: a production deployment with an empty allow-list would accept
-// callbacks from anywhere. Catch the misconfiguration at module load.
-if (!IS_SANDBOX && ALLOWED_IPS.size === 0) {
-  throw new Error(
-    '[daraja] MPESA_ENV=production but the Safaricom IP allow-list is empty. ' +
-    'Set MPESA_ALLOWED_IPS or restore DEFAULT_SAFARICOM_IPS.',
-  );
+// callbacks from anywhere. Deliberately NOT thrown at module scope: this
+// file is imported by every route that transitively references
+// daraja.service.ts, and Next.js evaluates each route's module graph during
+// the build's page-data collection — a module-scope throw here fails the
+// ENTIRE build (every route, not just the M-Pesa ones) whenever
+// MPESA_ENV=production is set with MPESA_ALLOWED_IPS present but empty,
+// rather than just refusing the specific check that would actually be
+// unsafe. Called instead at the top of isSafaricomIp(), the only place
+// ALLOWED_IPS is read (same fix already applied to CALLBACK_TOKEN below).
+function assertAllowedIpsConfigured(): void {
+  if (!IS_SANDBOX && ALLOWED_IPS.size === 0) {
+    throw new Error(
+      '[daraja] MPESA_ENV=production but the Safaricom IP allow-list is empty. ' +
+      'Set MPESA_ALLOWED_IPS or restore DEFAULT_SAFARICOM_IPS.',
+    );
+  }
 }
 
 /** True when `ip` is an authorised Safaricom callback source (always true in sandbox). */
 export function isSafaricomIp(ip: string): boolean {
   if (IS_SANDBOX) return true;
+  assertAllowedIpsConfigured();
   return ALLOWED_IPS.has(ip);
 }
 
