@@ -32,6 +32,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
@@ -342,35 +343,19 @@ export default function FundingPortalPage() {
             Contributions, disbursements to Cash/Program Disbursements.
           </p>
         </CardHeader>
-        <CardContent>
-          {(accounting?.trialBalance ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No activity posted yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs uppercase text-muted-foreground border-b">
-                    <th className="text-left py-2 font-medium">Code</th>
-                    <th className="text-left py-2 font-medium">Account</th>
-                    <th className="text-left py-2 font-medium">Type</th>
-                    <th className="text-right py-2 font-medium">Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(accounting?.trialBalance ?? []).map((line) => (
-                    <tr key={line.accountCode} className="border-b last:border-0">
-                      <td className="py-2 font-mono text-xs text-muted-foreground">{line.accountCode}</td>
-                      <td className="py-2">{line.accountName}</td>
-                      <td className="py-2 text-xs text-muted-foreground capitalize">{line.accountType}</td>
-                      <td className="py-2 text-right font-medium tabular-nums">
-                        {formatKES(parseFloat(line.netBalance))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <CardContent className="p-0">
+          <PaginatedTable
+            data={singlePage((accounting?.trialBalance ?? []).map((line) => ({ ...line, id: line.accountCode })))}
+            isLoading={false}
+            onPageChange={() => {}}
+            emptyMessage="No activity posted yet."
+            columns={[
+              { key: 'accountCode', header: 'Code', className: 'font-mono text-xs text-muted-foreground', render: (line) => line.accountCode },
+              { key: 'accountName', header: 'Account', render: (line) => line.accountName },
+              { key: 'accountType', header: 'Type', className: 'text-xs text-muted-foreground capitalize', render: (line) => line.accountType },
+              { key: 'netBalance', header: 'Balance', className: 'text-right font-medium tabular-nums', render: (line) => formatKES(parseFloat(line.netBalance)) },
+            ]}
+          />
         </CardContent>
       </Card>
 
@@ -384,52 +369,41 @@ export default function FundingPortalPage() {
             the program window already elapsed.
           </p>
         </CardHeader>
-        <CardContent>
-          {(budgetReport?.items ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No programs yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs uppercase text-muted-foreground border-b">
-                    <th className="text-left py-2 font-medium">Program</th>
-                    <th className="text-right py-2 font-medium">Budget</th>
-                    <th className="text-right py-2 font-medium">Disbursed</th>
-                    <th className="text-right py-2 font-medium">Reserved</th>
-                    <th className="text-right py-2 font-medium">Remaining</th>
-                    <th className="text-right py-2 font-medium">Utilization</th>
-                    <th className="text-right py-2 font-medium">Schedule variance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(budgetReport?.items ?? []).map((line) => (
-                    <tr key={line.id} className="border-b last:border-0">
-                      <td className="py-2">
-                        <p className="font-medium">{line.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {line.programType.replace(/_/g, ' ')} · {line.status}
-                        </p>
-                      </td>
-                      <td className="py-2 text-right tabular-nums">{formatKES(line.budget)}</td>
-                      <td className="py-2 text-right tabular-nums">{formatKES(line.disbursed)}</td>
-                      <td className="py-2 text-right tabular-nums">{line.reserved > 0 ? formatKES(line.reserved) : '—'}</td>
-                      <td className="py-2 text-right tabular-nums">{formatKES(line.remaining)}</td>
-                      <td className="py-2 text-right tabular-nums font-medium">{line.utilizationPct.toFixed(1)}%</td>
-                      <td className="py-2 text-right tabular-nums">
-                        {line.variancePct === null ? (
-                          <span className="text-muted-foreground">undated</span>
-                        ) : (
-                          <span className={line.variancePct < -10 ? 'text-amber-600 dark:text-amber-500' : ''}>
-                            {line.variancePct >= 0 ? '+' : ''}{line.variancePct.toFixed(1)}%
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <CardContent className="p-0">
+          <PaginatedTable
+            data={singlePage(budgetReport?.items)}
+            isLoading={false}
+            onPageChange={() => {}}
+            emptyMessage="No programs yet."
+            columns={[
+              {
+                key: 'name', header: 'Program', render: (line) => (
+                  <>
+                    <p className="font-medium">{line.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {line.programType.replace(/_/g, ' ')} · {line.status}
+                    </p>
+                  </>
+                ),
+              },
+              { key: 'budget', header: 'Budget', className: 'text-right tabular-nums', render: (line) => formatKES(line.budget) },
+              { key: 'disbursed', header: 'Disbursed', className: 'text-right tabular-nums', render: (line) => formatKES(line.disbursed) },
+              { key: 'reserved', header: 'Reserved', className: 'text-right tabular-nums', render: (line) => line.reserved > 0 ? formatKES(line.reserved) : '—' },
+              { key: 'remaining', header: 'Remaining', className: 'text-right tabular-nums', render: (line) => formatKES(line.remaining) },
+              { key: 'utilizationPct', header: 'Utilization', className: 'text-right tabular-nums font-medium', render: (line) => `${line.utilizationPct.toFixed(1)}%` },
+              {
+                key: 'variancePct', header: 'Schedule variance', className: 'text-right tabular-nums', render: (line) => (
+                  line.variancePct === null ? (
+                    <span className="text-muted-foreground">undated</span>
+                  ) : (
+                    <span className={line.variancePct < -10 ? 'text-amber-600 dark:text-amber-500' : ''}>
+                      {line.variancePct >= 0 ? '+' : ''}{line.variancePct.toFixed(1)}%
+                    </span>
+                  )
+                ),
+              },
+            ]}
+          />
         </CardContent>
       </Card>
 

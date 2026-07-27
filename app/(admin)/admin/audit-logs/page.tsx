@@ -5,9 +5,8 @@ import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useAuditLogs, useAdminGroups } from '@/hooks/use-admin';
 import { formatDate } from '@/lib/utils';
 
@@ -47,6 +46,7 @@ export default function AuditLogsPage() {
   const items: AuditLogRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 50);
+  const tableData     = data ? { items, total, page: data.page, pageSize: 50, totalPages } : null;
 
   return (
     <div className="space-y-5">
@@ -97,61 +97,31 @@ export default function AuditLogsPage() {
       </Card>
 
       {/* Log table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Table</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Actor</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Group</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Record ID</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">IP Address</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Timestamp</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                [...Array(10)].map((_, i) => (
-                  <tr key={i}>{[...Array(7)].map((__, j) => (
-                    <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[120px]" /></td>
-                  ))}</tr>
-                ))
-              ) : items.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No audit log entries</td></tr>
-              ) : items.map((log, i) => (
-                <tr key={log.id ?? i} className="hover:bg-gray-50 font-mono text-xs">
-                  <td className="px-4 py-2.5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ACTION_STYLE[log.action] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-700 font-medium">{log.table_name}</td>
-                  <td className="px-4 py-2.5 text-gray-600">{log.actor_name ?? 'System'}</td>
-                  <td className="px-4 py-2.5 text-gray-500">{log.group_name ?? '—'}</td>
-                  <td className="px-4 py-2.5 text-gray-400 truncate max-w-[120px]">
-                    {log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-500">{log.ip_address ?? '—'}</td>
-                  <td className="px-4 py-2.5 text-gray-500">{formatDate(log.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">Page {page} of {totalPages} · {total} entries</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PaginatedTable
+        data={tableData}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No audit log entries"
+        columns={[
+          {
+            key: 'action', header: 'Action',
+            render: (log) => (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ACTION_STYLE[log.action] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                {log.action}
+              </span>
+            ),
+          },
+          { key: 'table_name', header: 'Table', render: (log) => <span className="font-mono text-xs text-gray-700 font-medium">{log.table_name}</span> },
+          { key: 'actor_name', header: 'Actor', render: (log) => <span className="font-mono text-xs text-gray-600">{log.actor_name ?? 'System'}</span> },
+          { key: 'group_name', header: 'Group', render: (log) => <span className="font-mono text-xs text-gray-500">{log.group_name ?? '—'}</span> },
+          {
+            key: 'record_id', header: 'Record ID',
+            render: (log) => <span className="font-mono text-xs text-gray-400 truncate max-w-[120px] inline-block align-bottom">{log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}</span>,
+          },
+          { key: 'ip_address', header: 'IP Address', render: (log) => <span className="font-mono text-xs text-gray-500">{log.ip_address ?? '—'}</span> },
+          { key: 'created_at', header: 'Timestamp', render: (log) => <span className="font-mono text-xs text-gray-500">{formatDate(log.created_at)}</span> },
+        ]}
+      />
     </div>
   );
 }

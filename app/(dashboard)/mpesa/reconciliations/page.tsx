@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
@@ -104,38 +104,20 @@ export default function ReconciliationsPage() {
         />
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-      ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Checked</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Mismatches</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Resolved</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Started</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No reconciliation runs yet</td></tr>
-              ) : runs.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-3"><Badge variant={statusVariant[r.status] ?? 'secondary'}>{r.status}</Badge></td>
-                  <td className="px-4 py-3">{r.transactions_checked}</td>
-                  <td className="px-4 py-3">{r.mismatches_found}</td>
-                  <td className="px-4 py-3 font-medium">{r.resolved_count}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(r.started_at)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.initiated_by_name ?? 'Cron'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <PaginatedTable
+        data={singlePage(runs)}
+        isLoading={isLoading}
+        onPageChange={() => {}}
+        emptyMessage="No reconciliation runs yet"
+        columns={[
+          { key: 'status', header: 'Status', render: (r) => <Badge variant={statusVariant[r.status] ?? 'secondary'}>{r.status}</Badge> },
+          { key: 'transactions_checked', header: 'Checked', render: (r) => r.transactions_checked },
+          { key: 'mismatches_found', header: 'Mismatches', render: (r) => r.mismatches_found },
+          { key: 'resolved_count', header: 'Resolved', className: 'font-medium', render: (r) => r.resolved_count },
+          { key: 'started_at', header: 'Started', className: 'text-muted-foreground', render: (r) => formatDate(r.started_at) },
+          { key: 'initiated_by_name', header: 'By', className: 'text-muted-foreground', render: (r) => r.initiated_by_name ?? 'Cron' },
+        ]}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -195,45 +196,24 @@ export default function BillingAdminPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Recent Payments</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Organization</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Invoice</th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase px-4 py-3">Amount</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Method</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {isLoading ? (
-                  [...Array(6)].map((_, i) => (
-                    <tr key={i}>{[...Array(6)].map((__, j) => (
-                      <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
-                    ))}</tr>
-                  ))
-                ) : recentPayments.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">No payments yet</td></tr>
-                ) : recentPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{p.group_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs font-mono">{p.invoice_number ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{formatKES(p.amount)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500 capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={PAYMENT_STATUS_VARIANT[p.status] ?? 'secondary'} className="text-xs">
-                        {p.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{formatDate(p.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <CardContent className="p-4 pt-0">
+          <PaginatedTable
+            data={singlePage(recentPayments)}
+            isLoading={isLoading}
+            onPageChange={() => {}}
+            emptyMessage="No payments yet"
+            columns={[
+              { key: 'group_name', header: 'Organization', render: (p) => <span className="font-medium text-gray-900">{p.group_name ?? '—'}</span> },
+              { key: 'invoice_number', header: 'Invoice', render: (p) => <span className="text-gray-500 text-xs font-mono">{p.invoice_number ?? '—'}</span> },
+              { key: 'amount', header: 'Amount', className: 'text-right', render: (p) => <span className="font-semibold">{formatKES(p.amount)}</span> },
+              { key: 'payment_method', header: 'Method', render: (p) => <span className="text-xs text-gray-500 capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</span> },
+              {
+                key: 'status', header: 'Status',
+                render: (p) => <Badge variant={PAYMENT_STATUS_VARIANT[p.status] ?? 'secondary'} className="text-xs">{p.status}</Badge>,
+              },
+              { key: 'created_at', header: 'Date', render: (p) => <span className="text-xs text-gray-500">{formatDate(p.created_at)}</span> },
+            ]}
+          />
         </CardContent>
       </Card>
     </div>

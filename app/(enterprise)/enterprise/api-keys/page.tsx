@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 // Intentionally still mock — no API key issuance / webhook delivery backend
 // exists yet. Out of scope for the portfolio/branches "quick win" wiring.
 import { apiKeys as seedKeys, webhooks as seedHooks, type ApiKey } from '../../_data';
@@ -83,45 +84,45 @@ export default function ApiKeysPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Key</th>
-                    <th className="hidden px-4 py-3 font-medium md:table-cell">Scopes</th>
-                    <th className="hidden px-4 py-3 font-medium sm:table-cell">Last used</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {keys.map((k) => (
-                    <tr key={k.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3">
+              <PaginatedTable<ApiKey>
+                data={singlePage(keys)}
+                isLoading={false}
+                onPageChange={() => {}}
+                emptyMessage="No API keys yet"
+                columns={[
+                  {
+                    key: 'name', header: 'Name',
+                    render: (k) => (
+                      <>
                         <p className="font-medium text-foreground">{k.name}</p>
                         <p className="text-xs text-muted-foreground">Created {k.created}</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{k.prefix}••••••••</td>
-                      <td className="hidden px-4 py-3 md:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {k.scopes.map((s) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
-                        </div>
-                      </td>
-                      <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{k.lastUsed}</td>
-                      <td className="px-4 py-3">
-                        <StatusPill status={k.status} tone={k.status === 'active' ? 'positive' : 'neutral'} label={k.status} size="sm" />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {k.status === 'active' && (
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setRevokeTarget(k)}>
-                            <Trash2 size={13} className="mr-1" /> Revoke
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </>
+                    ),
+                  },
+                  { key: 'key', header: 'Key', render: (k) => <span className="font-mono text-xs text-muted-foreground">{k.prefix}••••••••</span> },
+                  {
+                    key: 'scopes', header: 'Scopes', className: 'hidden md:table-cell',
+                    render: (k) => (
+                      <div className="flex flex-wrap gap-1">
+                        {k.scopes.map((s) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
+                      </div>
+                    ),
+                  },
+                  { key: 'lastUsed', header: 'Last used', className: 'hidden sm:table-cell', render: (k) => <span className="text-muted-foreground">{k.lastUsed}</span> },
+                  {
+                    key: 'status', header: 'Status',
+                    render: (k) => <StatusPill status={k.status} tone={k.status === 'active' ? 'positive' : 'neutral'} label={k.status} size="sm" />,
+                  },
+                  {
+                    key: 'actions', header: '', className: 'text-right',
+                    render: (k) => k.status === 'active' ? (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setRevokeTarget(k)}>
+                        <Trash2 size={13} className="mr-1" /> Revoke
+                      </Button>
+                    ) : null,
+                  },
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>

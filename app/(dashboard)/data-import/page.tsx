@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -333,92 +334,63 @@ function PreviewTable({ kind, rows }: { kind: Kind; rows: MemberRow[] | Contribu
   if (kind === 'members') {
     const memberRows = rows as MemberRow[];
     return (
-      <table className="w-full text-sm">
-        <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="py-2 pr-3">Row</th>
-            <th className="py-2 pr-3">Phone</th>
-            <th className="py-2 pr-3">Name</th>
-            <th className="py-2 pr-3">Role</th>
-            <th className="py-2 pr-3">Occupation</th>
-            <th className="py-2 pr-3">Warnings</th>
-          </tr>
-        </thead>
-        <tbody>
-          {memberRows.map((r) => (
-            <tr key={r.row_num} className="border-b last:border-b-0">
-              <td className="py-1.5 pr-3 font-mono text-xs">{r.row_num}</td>
-              <td className="py-1.5 pr-3 font-mono">{r.phone}</td>
-              <td className="py-1.5 pr-3">{[r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ')}</td>
-              <td className="py-1.5 pr-3"><Badge variant="secondary">{r.role}</Badge></td>
-              <td className="py-1.5 pr-3">{r.occupation ?? '—'}</td>
-              <td className="py-1.5 pr-3">
-                {r.warnings.length > 0 ? <span className="text-amber-600">{r.warnings.join('; ')}</span> : <span className="text-muted-foreground">—</span>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <PaginatedTable
+        data={singlePage(memberRows.map((r) => ({ ...r, id: String(r.row_num) })))}
+        isLoading={false}
+        onPageChange={() => {}}
+        emptyMessage="No rows to preview"
+        columns={[
+          { key: 'row_num', header: 'Row', render: (r) => <span className="font-mono text-xs">{r.row_num}</span> },
+          { key: 'phone', header: 'Phone', render: (r) => <span className="font-mono">{r.phone}</span> },
+          { key: 'name', header: 'Name', render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ') },
+          { key: 'role', header: 'Role', render: (r) => <Badge variant="secondary">{r.role}</Badge> },
+          { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '—' },
+          {
+            key: 'warnings', header: 'Warnings', render: (r) => (
+              r.warnings.length > 0 ? <span className="text-amber-600">{r.warnings.join('; ')}</span> : <span className="text-muted-foreground">—</span>
+            ),
+          },
+        ]}
+      />
     );
   }
   if (kind === 'contributions') {
     const cRows = rows as ContributionRow[];
     return (
-      <table className="w-full text-sm">
-        <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="py-2 pr-3">Row</th>
-            <th className="py-2 pr-3">Phone</th>
-            <th className="py-2 pr-3 text-right">Amount</th>
-            <th className="py-2 pr-3">Date</th>
-            <th className="py-2 pr-3">Method</th>
-            <th className="py-2 pr-3">Receipt</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cRows.map((r) => (
-            <tr key={r.row_num} className="border-b last:border-b-0">
-              <td className="py-1.5 pr-3 font-mono text-xs">{r.row_num}</td>
-              <td className="py-1.5 pr-3 font-mono">{r.member_phone}</td>
-              <td className="py-1.5 pr-3 text-right font-mono">{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(r.amount)}</td>
-              <td className="py-1.5 pr-3">{r.contribution_date}</td>
-              <td className="py-1.5 pr-3">{r.payment_method ?? '—'}</td>
-              <td className="py-1.5 pr-3 font-mono text-xs">{r.mpesa_receipt ?? '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <PaginatedTable
+        data={singlePage(cRows.map((r) => ({ ...r, id: String(r.row_num) })))}
+        isLoading={false}
+        onPageChange={() => {}}
+        emptyMessage="No rows to preview"
+        columns={[
+          { key: 'row_num', header: 'Row', render: (r) => <span className="font-mono text-xs">{r.row_num}</span> },
+          { key: 'member_phone', header: 'Phone', render: (r) => <span className="font-mono">{r.member_phone}</span> },
+          { key: 'amount', header: 'Amount', className: 'text-right', render: (r) => <span className="font-mono">{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(r.amount)}</span> },
+          { key: 'contribution_date', header: 'Date', render: (r) => r.contribution_date },
+          { key: 'payment_method', header: 'Method', render: (r) => r.payment_method ?? '—' },
+          { key: 'mpesa_receipt', header: 'Receipt', render: (r) => <span className="font-mono text-xs">{r.mpesa_receipt ?? '—'}</span> },
+        ]}
+      />
     );
   }
   // loans
   const lRows = rows as LoanRow[];
   return (
-    <table className="w-full text-sm">
-      <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-        <tr>
-          <th className="py-2 pr-3">Row</th>
-          <th className="py-2 pr-3 text-right">Principal</th>
-          <th className="py-2 pr-3 text-right">Rate</th>
-          <th className="py-2 pr-3 text-right">Term</th>
-          <th className="py-2 pr-3">Disbursed</th>
-          <th className="py-2 pr-3">Status</th>
-          <th className="py-2 pr-3">Purpose</th>
-        </tr>
-      </thead>
-      <tbody>
-        {lRows.map((r) => (
-          <tr key={r.row_num} className="border-b last:border-b-0">
-            <td className="py-1.5 pr-3 font-mono text-xs">{r.row_num}</td>
-            <td className="py-1.5 pr-3 text-right font-mono">{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(r.principal_amount)}</td>
-            <td className="py-1.5 pr-3 text-right font-mono">{r.interest_rate}%</td>
-            <td className="py-1.5 pr-3 text-right font-mono">{r.term_months} mo</td>
-            <td className="py-1.5 pr-3">{r.disbursement_date}</td>
-            <td className="py-1.5 pr-3"><Badge variant="outline" className="capitalize">{r.status.replace('_', ' ')}</Badge></td>
-            <td className="py-1.5 pr-3">{r.purpose ?? '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <PaginatedTable
+      data={singlePage(lRows.map((r) => ({ ...r, id: String(r.row_num) })))}
+      isLoading={false}
+      onPageChange={() => {}}
+      emptyMessage="No rows to preview"
+      columns={[
+        { key: 'row_num', header: 'Row', render: (r) => <span className="font-mono text-xs">{r.row_num}</span> },
+        { key: 'principal_amount', header: 'Principal', className: 'text-right', render: (r) => <span className="font-mono">{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(r.principal_amount)}</span> },
+        { key: 'interest_rate', header: 'Rate', className: 'text-right', render: (r) => <span className="font-mono">{r.interest_rate}%</span> },
+        { key: 'term_months', header: 'Term', className: 'text-right', render: (r) => <span className="font-mono">{r.term_months} mo</span> },
+        { key: 'disbursement_date', header: 'Disbursed', render: (r) => r.disbursement_date },
+        { key: 'status', header: 'Status', render: (r) => <Badge variant="outline" className="capitalize">{r.status.replace('_', ' ')}</Badge> },
+        { key: 'purpose', header: 'Purpose', render: (r) => r.purpose ?? '—' },
+      ]}
+    />
   );
 }
 

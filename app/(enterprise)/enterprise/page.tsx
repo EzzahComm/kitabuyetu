@@ -11,6 +11,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { organizationApi } from '@/lib/api/endpoints';
 import { api } from '@/lib/api/client';
 import { formatKES } from '@/lib/utils';
@@ -45,7 +46,7 @@ export default function EnterpriseDashboardPage() {
     queryKey: ['enterprise', 'dashboard'],
     queryFn:  () => api.get('/organization/dashboard'),
   });
-  const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
+  const { data: groupsPage, isLoading: groupsLoading } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],
     queryFn:  () => organizationApi.groups(),
   });
@@ -53,7 +54,8 @@ export default function EnterpriseDashboardPage() {
   const p = dash?.portfolio;
   const topGroups = [...(groupsPage?.items ?? [])]
     .sort((a, b) => parseFloat(b.totalContributions) - parseFloat(a.totalContributions))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((g) => ({ ...g, id: g.groupId }));
 
   return (
     <div className="space-y-6">
@@ -94,40 +96,42 @@ export default function EnterpriseDashboardPage() {
             </Link>
           </CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Group</th>
-                  <th className="px-4 py-2 text-right font-medium">Members</th>
-                  <th className="px-4 py-2 text-right font-medium">Contributions</th>
-                  <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">Defaulted loans</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topGroups.map((g) => (
-                  <tr key={g.groupId} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-2.5">
+            <PaginatedTable
+              data={singlePage(topGroups)}
+              isLoading={groupsLoading}
+              onPageChange={() => {}}
+              emptyMessage="No groups yet"
+              columns={[
+                {
+                  key: 'group', header: 'Group',
+                  render: (g) => (
+                    <>
                       <p className="font-medium text-foreground">{g.groupName}</p>
                       <p className="text-xs text-muted-foreground">{g.county ?? '—'}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{g.activeMemberCount.toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-right"><MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" /></td>
-                    <td className="hidden px-4 py-2.5 text-right tabular-nums sm:table-cell">
-                      <span className={g.defaultedLoanCount > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}>{g.defaultedLoanCount}</span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <StatusPill
-                        status={g.defaultedLoanCount > 0 ? 'review' : 'active'}
-                        tone={g.defaultedLoanCount > 0 ? 'warning' : 'positive'}
-                        label={g.defaultedLoanCount > 0 ? 'review' : 'active'}
-                        size="sm"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </>
+                  ),
+                },
+                { key: 'members', header: 'Members', className: 'text-right', render: (g) => <span className="tabular-nums">{g.activeMemberCount.toLocaleString()}</span> },
+                { key: 'contributions', header: 'Contributions', className: 'text-right', render: (g) => <MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" /> },
+                {
+                  key: 'defaultedLoans', header: 'Defaulted loans', className: 'hidden sm:table-cell text-right',
+                  render: (g) => (
+                    <span className={`tabular-nums ${g.defaultedLoanCount > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}`}>{g.defaultedLoanCount}</span>
+                  ),
+                },
+                {
+                  key: 'status', header: 'Status',
+                  render: (g) => (
+                    <StatusPill
+                      status={g.defaultedLoanCount > 0 ? 'review' : 'active'}
+                      tone={g.defaultedLoanCount > 0 ? 'warning' : 'positive'}
+                      label={g.defaultedLoanCount > 0 ? 'review' : 'active'}
+                      size="sm"
+                    />
+                  ),
+                },
+              ]}
+            />
           </CardContent>
         </Card>
       </div>

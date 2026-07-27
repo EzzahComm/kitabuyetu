@@ -4,17 +4,17 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
-  RefreshCw, Plus, Trash2, PauseCircle, PlayCircle, ChevronLeft, ChevronRight,
+  RefreshCw, Plus, Trash2, PauseCircle, PlayCircle,
 } from 'lucide-react';
 import { smsApi } from '@/lib/api/endpoints';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { StatusPill } from '@/components/shared/status-pill';
-import { EmptyState, SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
+import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
-import type { SmsUsageLog } from '@/types/db.types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -313,50 +313,44 @@ function CampaignsTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-x-auto">
-        {isLoading ? (
-          <EmptyState title="Loading campaigns…" />
-        ) : campaigns.length === 0 ? (
-          <EmptyState title="No campaigns yet" />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                {['Name', 'Status', 'Recipients', 'Sent / Failed', 'Scheduled', 'Actions'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {campaigns.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                  <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                  <td className="px-4 py-3 text-gray-600">{c.recipient_count.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    <span className="text-green-600">{c.sent_count}</span>
-                    {' / '}
-                    <span className="text-red-500">{c.failed_count}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}</td>
-                  <td className="px-4 py-3">
-                    {(c.status === 'draft' || c.status === 'scheduled') && (
-                      <button
-                        type="button"
-                        onClick={() => cancel.mutate(c.id)}
-                        className="text-red-400 hover:text-red-600 transition-colors"
-                        title="Cancel"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <PaginatedTable
+        data={singlePage(campaigns)}
+        isLoading={isLoading}
+        onPageChange={() => {}}
+        emptyMessage="No campaigns yet"
+        columns={[
+          { key: 'name', header: 'Name', render: (c) => <span className="font-medium text-gray-900">{c.name}</span> },
+          { key: 'status', header: 'Status', render: (c) => <StatusBadge status={c.status} /> },
+          { key: 'recipients', header: 'Recipients', render: (c) => <span className="text-gray-600">{c.recipient_count.toLocaleString()}</span> },
+          {
+            key: 'sentFailed', header: 'Sent / Failed',
+            render: (c) => (
+              <span className="text-gray-600">
+                <span className="text-green-600">{c.sent_count}</span>
+                {' / '}
+                <span className="text-red-500">{c.failed_count}</span>
+              </span>
+            ),
+          },
+          {
+            key: 'scheduled', header: 'Scheduled',
+            render: (c) => <span className="text-gray-500 text-xs">{c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}</span>,
+          },
+          {
+            key: 'actions', header: 'Actions',
+            render: (c) => (c.status === 'draft' || c.status === 'scheduled') ? (
+              <button
+                type="button"
+                onClick={() => cancel.mutate(c.id)}
+                className="text-red-400 hover:text-red-600 transition-colors"
+                title="Cancel"
+              >
+                <Trash2 size={14} />
+              </button>
+            ) : null,
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -459,49 +453,40 @@ function TemplatesTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-x-auto">
-        {isLoading ? (
-          <EmptyState title="Loading templates…" />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                {['Name', 'Key', 'Category', 'Variables', 'Body', 'Type', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {templates.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{t.template_key}</td>
-                  <td className="px-4 py-3"><CategoryBadge category={t.category} /></td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{(t.variables ?? []).join(', ') || '—'}</td>
-                  <td className="px-4 py-3 max-w-[280px] truncate text-gray-600 text-xs">{t.body}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs ${t.is_system ? 'text-blue-500' : 'text-gray-400'}`}>
-                      {t.is_system ? 'System' : 'Custom'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {!t.is_system && (
-                      <button
-                        type="button"
-                        onClick={() => del.mutate(t.id)}
-                        aria-label="Delete template"
-                        className="text-red-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <PaginatedTable
+        data={singlePage(templates)}
+        isLoading={isLoading}
+        onPageChange={() => {}}
+        emptyMessage="No templates yet"
+        columns={[
+          { key: 'name', header: 'Name', render: (t) => <span className="font-medium text-gray-900">{t.name}</span> },
+          { key: 'key', header: 'Key', render: (t) => <span className="font-mono text-xs text-gray-500">{t.template_key}</span> },
+          { key: 'category', header: 'Category', render: (t) => <CategoryBadge category={t.category} /> },
+          { key: 'variables', header: 'Variables', render: (t) => <span className="text-xs text-gray-500">{(t.variables ?? []).join(', ') || '—'}</span> },
+          { key: 'body', header: 'Body', className: 'max-w-[280px] truncate', render: (t) => <span className="text-gray-600 text-xs">{t.body}</span> },
+          {
+            key: 'type', header: 'Type',
+            render: (t) => (
+              <span className={`text-xs ${t.is_system ? 'text-blue-500' : 'text-gray-400'}`}>
+                {t.is_system ? 'System' : 'Custom'}
+              </span>
+            ),
+          },
+          {
+            key: 'actions', header: '',
+            render: (t) => !t.is_system ? (
+              <button
+                type="button"
+                onClick={() => del.mutate(t.id)}
+                aria-label="Delete template"
+                className="text-red-400 hover:text-red-600 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            ) : null,
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -623,58 +608,45 @@ function SchedulesTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border overflow-x-auto">
-        {isLoading ? (
-          <EmptyState title="Loading schedules…" />
-        ) : schedules.length === 0 ? (
-          <EmptyState title="No schedules yet" />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                {['Name', 'Type', 'Cron / Next Run', 'Last Run', 'Status', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {schedules.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
-                  <td className="px-4 py-3 capitalize text-gray-600 text-xs">{s.schedule_type.replace(/_/g, ' ')}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500 font-mono">
-                    {s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={s.is_active ? 'sent' : 'cancelled'} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggle.mutate({ id: s.id, isActive: !s.is_active })}
-                        className="text-gray-400 hover:text-gray-700 transition-colors"
-                        title={s.is_active ? 'Pause' : 'Resume'}
-                      >
-                        {s.is_active ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => del.mutate(s.id)}
-                        aria-label="Delete schedule"
-                        className="text-red-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <PaginatedTable
+        data={singlePage(schedules)}
+        isLoading={isLoading}
+        onPageChange={() => {}}
+        emptyMessage="No schedules yet"
+        columns={[
+          { key: 'name', header: 'Name', render: (s) => <span className="font-medium text-gray-900">{s.name}</span> },
+          { key: 'type', header: 'Type', render: (s) => <span className="capitalize text-gray-600 text-xs">{s.schedule_type.replace(/_/g, ' ')}</span> },
+          {
+            key: 'cron', header: 'Cron / Next Run',
+            render: (s) => <span className="text-xs text-gray-500 font-mono">{s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}</span>,
+          },
+          { key: 'lastRun', header: 'Last Run', render: (s) => <span className="text-xs text-gray-400">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span> },
+          { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.is_active ? 'sent' : 'cancelled'} /> },
+          {
+            key: 'actions', header: '',
+            render: (s) => (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggle.mutate({ id: s.id, isActive: !s.is_active })}
+                  className="text-gray-400 hover:text-gray-700 transition-colors"
+                  title={s.is_active ? 'Pause' : 'Resume'}
+                >
+                  {s.is_active ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => del.mutate(s.id)}
+                  aria-label="Delete schedule"
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -692,8 +664,6 @@ function LogsTab() {
     staleTime: 30_000,
   });
 
-  const logs: SmsUsageLog[] = data?.items ?? [];
-  const totalPages          = data?.totalPages ?? 1;
   const summary = data?.summary;
   const usageStats = useMemo(() => [
     { label: 'Delivered', value: summary?.delivered ?? 0, tone: 'text-emerald-600' },
@@ -731,55 +701,31 @@ function LogsTab() {
         }
       />
 
-      <div className="bg-white rounded-xl border overflow-x-auto">
-        {isLoading ? (
-          <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
-        ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">No SMS logs found</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                {['Recipient', 'Message', 'Status', 'Credits', 'Sent At', 'DLR'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {logs.map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-700">{l.recipient_phone}</td>
-                  <td className="px-4 py-3 max-w-[220px] truncate text-gray-600 text-xs">{l.message_text}</td>
-                  <td className="px-4 py-3"><StatusBadge status={l.status} /></td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{parseFloat(l.credits_deducted).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{l.sent_at ? formatDate(l.sent_at) : '—'}</td>
-                  <td className="px-4 py-3">
-                    {l.provider_msg_id && l.status === 'sent' && (
-                      <button
-                        type="button"
-                        onClick={() => checkDlr(l.provider_msg_id!)}
-                        className="text-xs text-blue-500 hover:underline"
-                      >
-                        Check
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-1">
-            <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage(page - 1)} className="p-1.5 rounded border hover:bg-gray-50 disabled:opacity-40"><ChevronLeft size={14} /></button>
-            <button type="button" aria-label="Next page" disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="p-1.5 rounded border hover:bg-gray-50 disabled:opacity-40"><ChevronRight size={14} /></button>
-          </div>
-        </div>
-      )}
+      <PaginatedTable
+        data={data}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No SMS logs found"
+        columns={[
+          { key: 'recipient', header: 'Recipient', render: (l) => <span className="font-mono text-xs text-gray-700">{l.recipient_phone}</span> },
+          { key: 'message', header: 'Message', className: 'max-w-[220px] truncate', render: (l) => <span className="text-gray-600 text-xs">{l.message_text}</span> },
+          { key: 'status', header: 'Status', render: (l) => <StatusBadge status={l.status} /> },
+          { key: 'credits', header: 'Credits', render: (l) => <span className="text-xs text-gray-500">{parseFloat(l.credits_deducted).toFixed(2)}</span> },
+          { key: 'sentAt', header: 'Sent At', render: (l) => <span className="text-xs text-gray-400">{l.sent_at ? formatDate(l.sent_at) : '—'}</span> },
+          {
+            key: 'dlr', header: 'DLR',
+            render: (l) => (l.provider_msg_id && l.status === 'sent') ? (
+              <button
+                type="button"
+                onClick={() => checkDlr(l.provider_msg_id!)}
+                className="text-xs text-blue-500 hover:underline"
+              >
+                Check
+              </button>
+            ) : null,
+          },
+        ]}
+      />
     </div>
   );
 }

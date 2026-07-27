@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Label } from '@/components/ui/label';
@@ -171,31 +172,22 @@ export default function LoanDetailPage() {
       {schedule.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-base">Repayment Schedule</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {['#','Due Date','Principal','Interest','EMI','Balance','Status'].map((h)=>(
-                    <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {schedule.map((s) => (
-                  <tr key={s.installment_number} className="border-t hover:bg-muted/20">
-                    <td className="px-4 py-2">{s.installment_number}</td>
-                    <td className="px-4 py-2">{formatDate(s.due_date)}</td>
-                    <td className="px-4 py-2">{formatKES(s.principal_component)}</td>
-                    <td className="px-4 py-2">{formatKES(s.interest_component)}</td>
-                    <td className="px-4 py-2 font-semibold">{formatKES(s.total_due)}</td>
-                    <td className="px-4 py-2">{formatKES(s.opening_balance)}</td>
-                    <td className="px-4 py-2">
-                      <StatusPill status={s.status} size="sm" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <CardContent className="p-0">
+            <PaginatedTable
+              data={singlePage(schedule.map((s) => ({ ...s, id: String(s.installment_number) })))}
+              isLoading={false}
+              onPageChange={() => {}}
+              emptyMessage="No repayment schedule"
+              columns={[
+                { key: 'installment_number', header: '#', render: (s) => s.installment_number },
+                { key: 'due_date', header: 'Due Date', render: (s) => formatDate(s.due_date) },
+                { key: 'principal_component', header: 'Principal', render: (s) => formatKES(s.principal_component) },
+                { key: 'interest_component', header: 'Interest', render: (s) => formatKES(s.interest_component) },
+                { key: 'total_due', header: 'EMI', className: 'font-semibold', render: (s) => formatKES(s.total_due) },
+                { key: 'opening_balance', header: 'Balance', render: (s) => formatKES(s.opening_balance) },
+                { key: 'status', header: 'Status', render: (s) => <StatusPill status={s.status} size="sm" /> },
+              ]}
+            />
           </CardContent>
         </Card>
       )}

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -20,7 +21,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminGroups, useUpdateGroupStatus } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
@@ -82,6 +82,7 @@ export default function GroupsPage() {
   const items: AdminGroupRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 25);
+  const tableData     = data ? { items, total, page: data.page, pageSize: 25, totalPages } : null;
 
   const handleAction = async () => {
     if (!confirm) return;
@@ -154,137 +155,100 @@ export default function GroupsPage() {
       </Card>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Group</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Plan</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Status</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Members</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Contributions</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Active Loans</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Risk</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Joined</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                [...Array(8)].map((_, i) => (
-                  <tr key={i}>
-                    {[...Array(8)].map((__, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <Skeleton className="h-4 w-full max-w-[120px]" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
-                    No groups found
-                  </td>
-                </tr>
-              ) : items.map((grp) => (
-                <tr
-                  key={grp.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/admin/groups/${grp.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                        <Building2 size={13} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{grp.name}</p>
-                        <p className="text-xs text-gray-400 capitalize">{grp.group_type?.replace('_', ' ')}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {grp.plan}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_BADGE[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
-                      {grp.onboarding_status?.replace('_', ' ')}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{grp.member_count}</td>
-                  <td className="px-4 py-3 text-right text-green-600 font-medium">
-                    {formatKES(grp.total_contributions)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-blue-600 font-medium">
-                    {formatKES(grp.active_loans)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <RiskBadge score={grp.risk_score ?? 0} />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatDate(grp.created_at)}</td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <MoreHorizontal size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/admin/groups/${grp.id}`)}>
-                          <ArrowUpRight size={13} className="mr-2" /> View details
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {grp.onboarding_status === 'pending' && (
-                          <DropdownMenuItem className="text-green-700"
-                            onClick={() => setConfirm({ id: grp.id, action: 'approve', name: grp.name })}>
-                            <CheckCircle2 size={13} className="mr-2" /> Approve
-                          </DropdownMenuItem>
-                        )}
-                        {grp.onboarding_status === 'active' && (
-                          <DropdownMenuItem className="text-amber-700"
-                            onClick={() => setConfirm({ id: grp.id, action: 'suspend', name: grp.name })}>
-                            <PauseCircle size={13} className="mr-2" /> Suspend
-                          </DropdownMenuItem>
-                        )}
-                        {grp.onboarding_status === 'suspended' && (
-                          <DropdownMenuItem className="text-green-700"
-                            onClick={() => setConfirm({ id: grp.id, action: 'activate', name: grp.name })}>
-                            <PlayCircle size={13} className="mr-2" /> Reactivate
-                          </DropdownMenuItem>
-                        )}
-                        {grp.onboarding_status !== 'deactivated' && (
-                          <DropdownMenuItem className="text-red-700"
-                            onClick={() => setConfirm({ id: grp.id, action: 'deactivate', name: grp.name })}>
-                            <XCircle size={13} className="mr-2" /> Deactivate
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">
-              Page {page} of {totalPages} · {total} groups
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PaginatedTable
+        data={tableData}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No groups found"
+        onRowClick={(grp) => router.push(`/admin/groups/${grp.id}`)}
+        columns={[
+          {
+            key: 'group', header: 'Group',
+            render: (grp) => (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <Building2 size={13} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{grp.name}</p>
+                  <p className="text-xs text-gray-400 capitalize">{grp.group_type?.replace('_', ' ')}</p>
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'plan', header: 'Plan',
+            render: (grp) => (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-600'}`}>
+                {grp.plan}
+              </span>
+            ),
+          },
+          {
+            key: 'status', header: 'Status',
+            render: (grp) => (
+              <Badge variant={STATUS_BADGE[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
+                {grp.onboarding_status?.replace('_', ' ')}
+              </Badge>
+            ),
+          },
+          { key: 'member_count', header: 'Members', className: 'text-right', render: (grp) => <span className="font-medium">{grp.member_count}</span> },
+          {
+            key: 'total_contributions', header: 'Contributions', className: 'text-right',
+            render: (grp) => <span className="text-green-600 font-medium">{formatKES(grp.total_contributions)}</span>,
+          },
+          {
+            key: 'active_loans', header: 'Active Loans', className: 'text-right',
+            render: (grp) => <span className="text-blue-600 font-medium">{formatKES(grp.active_loans)}</span>,
+          },
+          { key: 'risk_score', header: 'Risk', render: (grp) => <RiskBadge score={grp.risk_score ?? 0} /> },
+          { key: 'created_at', header: 'Joined', render: (grp) => <span className="text-xs text-gray-500">{formatDate(grp.created_at)}</span> },
+          {
+            key: 'actions', header: '',
+            render: (grp) => (
+              <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <MoreHorizontal size={14} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => router.push(`/admin/groups/${grp.id}`)}>
+                      <ArrowUpRight size={13} className="mr-2" /> View details
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {grp.onboarding_status === 'pending' && (
+                      <DropdownMenuItem className="text-green-700"
+                        onClick={() => setConfirm({ id: grp.id, action: 'approve', name: grp.name })}>
+                        <CheckCircle2 size={13} className="mr-2" /> Approve
+                      </DropdownMenuItem>
+                    )}
+                    {grp.onboarding_status === 'active' && (
+                      <DropdownMenuItem className="text-amber-700"
+                        onClick={() => setConfirm({ id: grp.id, action: 'suspend', name: grp.name })}>
+                        <PauseCircle size={13} className="mr-2" /> Suspend
+                      </DropdownMenuItem>
+                    )}
+                    {grp.onboarding_status === 'suspended' && (
+                      <DropdownMenuItem className="text-green-700"
+                        onClick={() => setConfirm({ id: grp.id, action: 'activate', name: grp.name })}>
+                        <PlayCircle size={13} className="mr-2" /> Reactivate
+                      </DropdownMenuItem>
+                    )}
+                    {grp.onboarding_status !== 'deactivated' && (
+                      <DropdownMenuItem className="text-red-700"
+                        onClick={() => setConfirm({ id: grp.id, action: 'deactivate', name: grp.name })}>
+                        <XCircle size={13} className="mr-2" /> Deactivate
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {/* Confirm action dialog */}
       <Dialog open={!!confirm} onOpenChange={() => { setConfirm(null); setReason(''); }}>

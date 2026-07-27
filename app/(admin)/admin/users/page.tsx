@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import {
   useAdminUsers, useUpdateUserRole, useAssignableRoles, useAssignGroupRole,
 } from '@/hooks/use-admin';
@@ -150,112 +150,94 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">User</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Contact</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Organization</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Group</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Group Role</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Platform Role</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Joined</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                [...Array(8)].map((_, i) => (
-                  <tr key={i}>{[...Array(9)].map((__, j) => (
-                    <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
-                  ))}</tr>
-                ))
-              ) : items.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">No users found</td></tr>
-              ) : items.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-purple-700">
-                          {u.first_name?.[0]}{u.last_name?.[0]}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{u.first_name} {u.last_name}</p>
-                        {u.member_code && <p className="text-[11px] font-mono text-gray-400">{u.member_code}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-xs text-gray-600">{u.email ?? '—'}</p>
-                    <p className="text-xs text-gray-400">{u.phone_number ?? '—'}</p>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{u.organization_name ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{u.group_name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-gray-600 capitalize">
-                      {u.role_name ?? u.group_role?.replace('_', ' ') ?? '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {u.platform_role && u.platform_role !== 'member' ? (
-                      <Badge variant={PLATFORM_ROLE_BADGE[u.platform_role] ?? 'secondary'} className="text-xs">
-                        {ROLE_LABELS[u.platform_role] ?? u.platform_role}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={u.status === 'active' ? 'success' : 'secondary'} className="text-xs capitalize">
-                      {u.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <MoreHorizontal size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          disabled={!u.group_id}
-                          onClick={() => openAssignRole(u)}
-                        >
-                          <UserCog size={13} className="mr-2" /> Assign Group Role
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setEditUser({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.platform_role ?? 'member' });
-                          setNewRole(u.platform_role ?? 'member');
-                        }}>
-                          <ShieldCheck size={13} className="mr-2" /> Change Platform Role
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">Page {page} of {totalPages} · {total} users</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PaginatedTable<AdminUserRow>
+        data={{ items, total, page, pageSize: 25, totalPages }}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No users found"
+        columns={[
+          {
+            key: 'user', header: 'User',
+            render: (u) => (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold text-purple-700">
+                    {u.first_name?.[0]}{u.last_name?.[0]}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{u.first_name} {u.last_name}</p>
+                  {u.member_code && <p className="text-[11px] font-mono text-gray-400">{u.member_code}</p>}
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'contact', header: 'Contact',
+            render: (u) => (
+              <>
+                <p className="text-xs text-gray-600">{u.email ?? '—'}</p>
+                <p className="text-xs text-gray-400">{u.phone_number ?? '—'}</p>
+              </>
+            ),
+          },
+          { key: 'org', header: 'Organization', render: (u) => <span className="text-sm text-gray-600">{u.organization_name ?? '—'}</span> },
+          { key: 'group', header: 'Group', render: (u) => <span className="text-sm text-gray-600">{u.group_name ?? '—'}</span> },
+          {
+            key: 'groupRole', header: 'Group Role',
+            render: (u) => (
+              <span className="text-xs text-gray-600 capitalize">
+                {u.role_name ?? u.group_role?.replace('_', ' ') ?? '—'}
+              </span>
+            ),
+          },
+          {
+            key: 'platformRole', header: 'Platform Role',
+            render: (u) => u.platform_role && u.platform_role !== 'member' ? (
+              <Badge variant={PLATFORM_ROLE_BADGE[u.platform_role] ?? 'secondary'} className="text-xs">
+                {ROLE_LABELS[u.platform_role] ?? u.platform_role}
+              </Badge>
+            ) : (
+              <span className="text-xs text-gray-400">—</span>
+            ),
+          },
+          {
+            key: 'status', header: 'Status',
+            render: (u) => (
+              <Badge variant={u.status === 'active' ? 'success' : 'secondary'} className="text-xs capitalize">
+                {u.status}
+              </Badge>
+            ),
+          },
+          { key: 'joined', header: 'Joined', render: (u) => <span className="text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</span> },
+          {
+            key: 'actions', header: '',
+            render: (u) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                    <MoreHorizontal size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    disabled={!u.group_id}
+                    onClick={() => openAssignRole(u)}
+                  >
+                    <UserCog size={13} className="mr-2" /> Assign Group Role
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setEditUser({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.platform_role ?? 'member' });
+                    setNewRole(u.platform_role ?? 'member');
+                  }}>
+                    <ShieldCheck size={13} className="mr-2" /> Change Platform Role
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ),
+          },
+        ]}
+      />
 
       {/* Role change dialog */}
       <Dialog open={!!editUser} onOpenChange={() => { setEditUser(null); setNewRole(''); }}>

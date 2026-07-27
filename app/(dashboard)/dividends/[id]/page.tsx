@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -228,98 +229,81 @@ export default function DividendDetailPage() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          {previewQ.isLoading || allocsQ.isLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
-          ) : showPreview ? (
-            previewRows.length === 0 ? (
-              <EmptyAllocs message="No eligible shareholders — at least one member with shares is required before approval." />
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Member</th>
-                    <th className="px-4 py-3 text-right">Shares</th>
-                    <th className="px-4 py-3 text-right">Gross</th>
-                    <th className="px-4 py-3 text-right">Tax</th>
-                    <th className="px-4 py-3 text-right">Net</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((r) => (
-                    <tr key={r.memberId} className="border-b last:border-b-0">
-                      <td className="px-4 py-2">
-                        <p className="font-medium">{r.firstName} {r.lastName}</p>
-                        <p className="font-mono text-xs text-muted-foreground">{r.phone}</p>
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono">{r.sharesHeld}</td>
-                      <td className="px-4 py-2 text-right font-mono">{fmtMoney(r.grossAmount)}</td>
-                      <td className="px-4 py-2 text-right font-mono">{fmtMoney(r.taxAmount)}</td>
-                      <td className="px-4 py-2 text-right font-mono font-medium">{fmtMoney(r.netAmount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          ) : allocItems.length === 0 ? (
-            <EmptyAllocs message="No allocations recorded." />
+        <CardContent className="p-0">
+          {showPreview ? (
+            <PaginatedTable
+              data={singlePage(previewRows.map((r) => ({ ...r, id: r.memberId })))}
+              isLoading={previewQ.isLoading || allocsQ.isLoading}
+              onPageChange={() => {}}
+              emptyIcon={Coins}
+              emptyMessage="No eligible shareholders — at least one member with shares is required before approval."
+              columns={[
+                {
+                  key: 'member', header: 'Member', render: (r) => (
+                    <>
+                      <p className="font-medium">{r.firstName} {r.lastName}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{r.phone}</p>
+                    </>
+                  ),
+                },
+                { key: 'shares', header: 'Shares', className: 'text-right', render: (r) => <span className="font-mono">{r.sharesHeld}</span> },
+                { key: 'gross', header: 'Gross', className: 'text-right', render: (r) => <span className="font-mono">{fmtMoney(r.grossAmount)}</span> },
+                { key: 'tax', header: 'Tax', className: 'text-right', render: (r) => <span className="font-mono">{fmtMoney(r.taxAmount)}</span> },
+                { key: 'net', header: 'Net', className: 'text-right', render: (r) => <span className="font-mono font-medium">{fmtMoney(r.netAmount)}</span> },
+              ]}
+            />
           ) : (
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  {decl.status === 'approved' && (
-                    <th className="w-8 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelected(new Set(pendingSelectableIds));
-                          else                  setSelected(new Set());
-                        }}
-                        aria-label="Select all pending allocations"
-                      />
-                    </th>
-                  )}
-                  <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3 text-right">Shares</th>
-                  <th className="px-4 py-3 text-right">Gross</th>
-                  <th className="px-4 py-3 text-right">Tax</th>
-                  <th className="px-4 py-3 text-right">Net</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {allocItems.map((a) => (
-                  <tr key={a.id} className={`border-b last:border-b-0 hover:bg-muted/30 ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>
-                    {decl.status === 'approved' && (
-                      <td className="px-4 py-2">
-                        {a.status === 'pending' && (
-                          <input
-                            type="checkbox"
-                            checked={selected.has(a.id)}
-                            onChange={(e) => setSelected((prev) => {
-                              const next = new Set(prev);
-                              if (e.target.checked) next.add(a.id);
-                              else                  next.delete(a.id);
-                              return next;
-                            })}
-                            aria-label={`Select ${a.member_first_name} ${a.member_last_name}`}
-                          />
-                        )}
-                      </td>
-                    )}
-                    <td className="px-4 py-2">
+            <PaginatedTable
+              data={singlePage(allocItems)}
+              isLoading={previewQ.isLoading || allocsQ.isLoading}
+              onPageChange={() => {}}
+              emptyIcon={Coins}
+              emptyMessage="No allocations recorded."
+              columns={[
+                ...(decl.status === 'approved' ? [{
+                  key: '_select',
+                  header: (
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelected(new Set(pendingSelectableIds));
+                        else                  setSelected(new Set());
+                      }}
+                      aria-label="Select all pending allocations"
+                    />
+                  ),
+                  render: (a: Allocation) => a.status === 'pending' ? (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(a.id)}
+                      onChange={(e) => setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(a.id);
+                        else                  next.delete(a.id);
+                        return next;
+                      })}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${a.member_first_name} ${a.member_last_name}`}
+                    />
+                  ) : null,
+                }] : []),
+                {
+                  key: 'member', header: 'Member', render: (a) => (
+                    <div className={a.status === 'cancelled' ? 'opacity-60' : ''}>
                       <p className="font-medium">{a.member_first_name} {a.member_last_name}</p>
                       <p className="font-mono text-xs text-muted-foreground">{a.member_phone}</p>
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono">{a.shares_held}</td>
-                    <td className="px-4 py-2 text-right font-mono">{fmtMoney(a.gross_amount)}</td>
-                    <td className="px-4 py-2 text-right font-mono">{fmtMoney(a.tax_amount)}</td>
-                    <td className="px-4 py-2 text-right font-mono font-medium">{fmtMoney(a.net_amount)}</td>
-                    <td className="px-4 py-2"><Badge variant={ALLOC_BADGE[a.status] ?? 'outline'} className="capitalize">{a.status}</Badge></td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">
+                    </div>
+                  ),
+                },
+                { key: 'shares', header: 'Shares', className: 'text-right', render: (a) => <span className={`font-mono ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{a.shares_held}</span> },
+                { key: 'gross', header: 'Gross', className: 'text-right', render: (a) => <span className={`font-mono ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.gross_amount)}</span> },
+                { key: 'tax', header: 'Tax', className: 'text-right', render: (a) => <span className={`font-mono ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.tax_amount)}</span> },
+                { key: 'net', header: 'Net', className: 'text-right', render: (a) => <span className={`font-mono font-medium ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.net_amount)}</span> },
+                { key: 'status', header: 'Status', render: (a) => <Badge variant={ALLOC_BADGE[a.status] ?? 'outline'} className={`capitalize ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{a.status}</Badge> },
+                {
+                  key: 'payment', header: 'Payment', className: 'text-xs text-muted-foreground', render: (a) => (
+                    <div className={a.status === 'cancelled' ? 'opacity-60' : ''}>
                       {a.payment_method ? (
                         <>
                           <p className="capitalize">{a.payment_method.replace('_', ' ')}</p>
@@ -327,18 +311,20 @@ export default function DividendDetailPage() {
                           {a.paid_at && <p>{new Date(a.paid_at).toLocaleDateString()}</p>}
                         </>
                       ) : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {decl.status === 'approved' && a.status === 'pending' && (
-                        <Button size="sm" variant="outline" onClick={() => setPayOpen(a)}>
-                          <Wallet className="mr-1.5 h-3 w-3" /> Pay
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'actions', header: '', className: 'text-right', render: (a) => (
+                    decl.status === 'approved' && a.status === 'pending' && (
+                      <Button size="sm" variant="outline" onClick={() => setPayOpen(a)}>
+                        <Wallet className="mr-1.5 h-3 w-3" /> Pay
+                      </Button>
+                    )
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
@@ -430,15 +416,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <p className="text-xs uppercase text-muted-foreground">{label}</p>
       <p className="mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-function EmptyAllocs({ message }: { message: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
-      <Coins className="h-8 w-8" />
-      <p className="text-sm">{message}</p>
     </div>
   );
 }

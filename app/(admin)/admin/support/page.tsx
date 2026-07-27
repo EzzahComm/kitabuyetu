@@ -18,7 +18,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useAdminTickets, useUpdateTicket, useCreateTicket } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
@@ -179,103 +179,76 @@ export default function SupportPage() {
       </Card>
 
       {/* Tickets table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Ticket</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Organization</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Priority</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">SLA</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Replies</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Created</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                [...Array(6)].map((_, i) => (
-                  <tr key={i}>{[...Array(7)].map((__, j) => (
-                    <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
-                  ))}</tr>
-                ))
-              ) : items.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
-                  No tickets found
-                </td></tr>
-              ) : items.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-gray-900 max-w-[280px] truncate">{ticket.subject}</p>
-                      <p className="text-xs text-gray-400 font-mono mt-0.5">{ticket.ticket_number}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{ticket.group_name ?? ticket.member_name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border capitalize ${PRIORITY_CLASS[ticket.priority] ?? ''}`}>
-                      {ticket.priority}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[ticket.status] ?? 'secondary'} className="text-xs capitalize">
-                      {ticket.status?.replace('_', ' ')}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <SlaChip breachAt={ticket.sla_breach_at} />
-                  </td>
-                  <td className="px-4 py-3 text-center text-xs text-gray-500">{ticket.comment_count ?? 0}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatDate(ticket.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <MoreHorizontal size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {!['resolved','closed'].includes(ticket.status) && (
-                          <>
-                            <DropdownMenuItem onClick={async () => {
-                              await updateTicket.mutateAsync({ id: ticket.id, status: 'in_progress' });
-                            }}>
-                              <Clock size={13} className="mr-2" /> Mark In Progress
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setResolveId(ticket.id)}>
-                              <CheckCircle2 size={13} className="mr-2 text-green-600" /> Resolve
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {!['closed'].includes(ticket.status) && (
-                          <DropdownMenuItem onClick={async () => {
-                            await updateTicket.mutateAsync({ id: ticket.id, status: 'closed' });
-                          }}>
-                            Close ticket
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PaginatedTable<SupportTicketRow>
+        data={{ items, total, page, pageSize: 20, totalPages }}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No tickets found"
+        columns={[
+          {
+            key: 'ticket', header: 'Ticket',
+            render: (ticket) => (
+              <div>
+                <p className="font-medium text-gray-900 max-w-[280px] truncate">{ticket.subject}</p>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{ticket.ticket_number}</p>
+              </div>
+            ),
+          },
+          { key: 'org', header: 'Organization', render: (ticket) => <span className="text-sm text-gray-600">{ticket.group_name ?? ticket.member_name ?? '—'}</span> },
+          {
+            key: 'priority', header: 'Priority',
+            render: (ticket) => (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border capitalize ${PRIORITY_CLASS[ticket.priority] ?? ''}`}>
+                {ticket.priority}
+              </span>
+            ),
+          },
+          {
+            key: 'status', header: 'Status',
+            render: (ticket) => (
+              <Badge variant={STATUS_VARIANT[ticket.status] ?? 'secondary'} className="text-xs capitalize">
+                {ticket.status?.replace('_', ' ')}
+              </Badge>
+            ),
+          },
+          { key: 'sla', header: 'SLA', render: (ticket) => <SlaChip breachAt={ticket.sla_breach_at} /> },
+          { key: 'replies', header: 'Replies', className: 'text-center', render: (ticket) => <span className="text-xs text-gray-500">{ticket.comment_count ?? 0}</span> },
+          { key: 'created', header: 'Created', render: (ticket) => <span className="text-xs text-gray-500">{formatDate(ticket.created_at)}</span> },
+          {
+            key: 'actions', header: '',
+            render: (ticket) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                    <MoreHorizontal size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!['resolved','closed'].includes(ticket.status) && (
+                    <>
+                      <DropdownMenuItem onClick={async () => {
+                        await updateTicket.mutateAsync({ id: ticket.id, status: 'in_progress' });
+                      }}>
+                        <Clock size={13} className="mr-2" /> Mark In Progress
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setResolveId(ticket.id)}>
+                        <CheckCircle2 size={13} className="mr-2 text-green-600" /> Resolve
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {!['closed'].includes(ticket.status) && (
+                    <DropdownMenuItem onClick={async () => {
+                      await updateTicket.mutateAsync({ id: ticket.id, status: 'closed' });
+                    }}>
+                      Close ticket
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ),
+          },
+        ]}
+      />
 
       {/* Resolve dialog */}
       <Dialog open={!!resolveId} onOpenChange={() => { setResolveId(null); setResolution(''); }}>

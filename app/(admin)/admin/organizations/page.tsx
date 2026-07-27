@@ -19,7 +19,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import {
   useAdminOrganizations, useCreateOrganization, useUpdateOrganizationStatus,
 } from '@/hooks/use-admin';
@@ -183,111 +183,82 @@ export default function OrganizationsPage() {
       </Card>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Organization</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Type</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Groups</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Member Reach</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Wallet</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Onboarded</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                [...Array(6)].map((_, i) => (
-                  <tr key={i}>
-                    {[...Array(7)].map((__, j) => (
-                      <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[120px]" /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
-                    No organizations yet. Onboard a bank, SACCO, or foundation to get started.
-                  </td>
-                </tr>
-              ) : items.map((org) => (
-                <tr
-                  key={org.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/admin/organizations/${org.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                        <Landmark size={13} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{org.name}</p>
-                        {org.registration_number && (
-                          <p className="text-xs text-gray-400 font-mono">{org.registration_number}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[org.type] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {TYPE_LABEL[org.type] ?? org.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{org.group_count}</td>
-                  <td className="px-4 py-3 text-right font-medium">{Number(org.member_reach).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-green-600 font-medium">{formatKES(org.wallet_balance)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
-                      {org.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatDate(org.created_at)}</td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal size={14} /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${org.id}`)}>
-                          <ArrowUpRight size={13} className="mr-2" /> View & assign groups
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {org.is_active ? (
-                          <DropdownMenuItem className="text-red-700"
-                            onClick={() => setConfirm({ id: org.id, name: org.name, action: 'deactivate' })}>
-                            <XCircle size={13} className="mr-2" /> Deactivate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem className="text-green-700"
-                            onClick={() => setConfirm({ id: org.id, name: org.name, action: 'activate' })}>
-                            <PlayCircle size={13} className="mr-2" /> Activate
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">Page {page} of {totalPages} · {total} organizations</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PaginatedTable<AdminOrgRow>
+        data={{ items, total, page, pageSize: 25, totalPages }}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        emptyMessage="No organizations yet"
+        emptyDescription="Onboard a bank, SACCO, or foundation to get started."
+        emptyIcon={Landmark}
+        onRowClick={(org) => router.push(`/admin/organizations/${org.id}`)}
+        columns={[
+          {
+            key: 'org', header: 'Organization',
+            render: (org) => (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <Landmark size={13} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{org.name}</p>
+                  {org.registration_number && (
+                    <p className="text-xs text-gray-400 font-mono">{org.registration_number}</p>
+                  )}
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'type', header: 'Type',
+            render: (org) => (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[org.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                {TYPE_LABEL[org.type] ?? org.type}
+              </span>
+            ),
+          },
+          { key: 'groups', header: 'Groups', className: 'text-right', render: (org) => <span className="font-medium">{org.group_count}</span> },
+          { key: 'memberReach', header: 'Member Reach', className: 'text-right', render: (org) => <span className="font-medium">{Number(org.member_reach).toLocaleString()}</span> },
+          { key: 'wallet', header: 'Wallet', className: 'text-right', render: (org) => <span className="text-green-600 font-medium">{formatKES(org.wallet_balance)}</span> },
+          {
+            key: 'status', header: 'Status',
+            render: (org) => (
+              <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
+                {org.is_active ? 'Active' : 'Inactive'}
+              </Badge>
+            ),
+          },
+          { key: 'onboarded', header: 'Onboarded', render: (org) => <span className="text-xs text-gray-500">{formatDate(org.created_at)}</span> },
+          {
+            key: 'actions', header: '', className: 'text-right',
+            render: (org) => (
+              <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal size={14} /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => router.push(`/admin/organizations/${org.id}`)}>
+                      <ArrowUpRight size={13} className="mr-2" /> View & assign groups
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {org.is_active ? (
+                      <DropdownMenuItem className="text-red-700"
+                        onClick={() => setConfirm({ id: org.id, name: org.name, action: 'deactivate' })}>
+                        <XCircle size={13} className="mr-2" /> Deactivate
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem className="text-green-700"
+                        onClick={() => setConfirm({ id: org.id, name: org.name, action: 'activate' })}>
+                        <PlayCircle size={13} className="mr-2" /> Activate
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {/* Onboard dialog */}
       <Dialog open={onboardOpen} onOpenChange={(o) => { if (!o) { setOnboardOpen(false); setForm({ ...EMPTY_FORM }); } }}>

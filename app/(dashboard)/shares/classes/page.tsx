@@ -8,12 +8,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Layers, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -111,55 +111,33 @@ export default function ShareClassesPage() {
         />
       </div>
 
-      {classesQ.isLoading ? (
-        <Card><CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </CardContent></Card>
-      ) : classes.length === 0 ? (
-        <Card><CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-          <Layers className="h-10 w-10 text-muted-foreground" />
-          <p className="font-medium">No share classes yet</p>
-          <p className="max-w-md text-sm text-muted-foreground">Create your first class — e.g. <em>Ordinary Shares</em> at KES 100 par value with a 30-day lock period.</p>
-        </CardContent></Card>
-      ) : (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3 text-right">Par value</th>
-                  <th className="px-4 py-3 text-right">Current value</th>
-                  <th className="px-4 py-3 text-right">Per-member cap</th>
-                  <th className="px-4 py-3 text-right">Voting</th>
-                  <th className="px-4 py-3 text-right">Lock days</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {classes.map((c) => (
-                  <tr key={c.id} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/30" onClick={() => openEdit(c)}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{c.name}</p>
-                      {c.description && <p className="text-xs text-muted-foreground">{c.description}</p>}
-                    </td>
-                    <td className="px-4 py-3"><Badge variant="outline">{c.code}</Badge></td>
-                    <td className="px-4 py-3 text-right font-mono">{fmtMoney(c.par_value)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{c.current_value ? fmtMoney(c.current_value) : '—'}</td>
-                    <td className="px-4 py-3 text-right font-mono">{c.min_per_member ?? 0}–{c.max_per_member ?? '∞'}</td>
-                    <td className="px-4 py-3 text-right font-mono">{c.voting_weight}</td>
-                    <td className="px-4 py-3 text-right font-mono">{c.lock_period_days}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={c.is_active ? 'success' : 'secondary'}>{c.is_active ? 'active' : 'inactive'}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+      <PaginatedTable
+        data={singlePage(classes)}
+        isLoading={classesQ.isLoading}
+        onPageChange={() => {}}
+        onRowClick={openEdit}
+        emptyMessage="No share classes yet"
+        emptyIcon={Layers}
+        emptyDescription="Create your first class — e.g. Ordinary Shares at KES 100 par value with a 30-day lock period."
+        columns={[
+          {
+            key: 'name', header: 'Name',
+            render: (c) => (
+              <>
+                <p className="font-medium">{c.name}</p>
+                {c.description && <p className="text-xs text-muted-foreground">{c.description}</p>}
+              </>
+            ),
+          },
+          { key: 'code', header: 'Code', render: (c) => <Badge variant="outline">{c.code}</Badge> },
+          { key: 'parValue', header: 'Par value', className: 'text-right', render: (c) => <span className="font-mono">{fmtMoney(c.par_value)}</span> },
+          { key: 'currentValue', header: 'Current value', className: 'text-right', render: (c) => <span className="font-mono">{c.current_value ? fmtMoney(c.current_value) : '—'}</span> },
+          { key: 'cap', header: 'Per-member cap', className: 'text-right', render: (c) => <span className="font-mono">{c.min_per_member ?? 0}–{c.max_per_member ?? '∞'}</span> },
+          { key: 'voting', header: 'Voting', className: 'text-right', render: (c) => <span className="font-mono">{c.voting_weight}</span> },
+          { key: 'lock', header: 'Lock days', className: 'text-right', render: (c) => <span className="font-mono">{c.lock_period_days}</span> },
+          { key: 'status', header: 'Status', render: (c) => <Badge variant={c.is_active ? 'success' : 'secondary'}>{c.is_active ? 'active' : 'inactive'}</Badge> },
+        ]}
+      />
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); setOpen(v); }}>
         <DialogContent className="max-w-2xl">

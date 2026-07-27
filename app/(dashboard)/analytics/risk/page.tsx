@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { api } from '@/lib/api/client';
 
 interface OverdueLoan {
@@ -108,34 +109,33 @@ export default function RiskAnalysisPage() {
               <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
                 <Clock className="h-4 w-4" /> Overdue loans ({r.overdueLoans.length})
               </CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3 text-right">Principal</th>
-                      <th className="px-4 py-3 text-right">Outstanding</th>
-                      <th className="px-4 py-3">Due</th>
-                      <th className="px-4 py-3 text-right">Days late</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {r.overdueLoans.map((l) => (
-                      <tr key={l.loanId} className="border-b last:border-b-0">
-                        <td className="px-4 py-2">
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage(r.overdueLoans.map((l) => ({ ...l, id: l.loanId })))}
+                  isLoading={false}
+                  onPageChange={() => {}}
+                  emptyMessage="No overdue loans"
+                  columns={[
+                    {
+                      key: 'member', header: 'Member', render: (l) => (
+                        <>
                           <p className="font-medium">{l.firstName} {l.lastName}</p>
                           <p className="font-mono text-xs text-muted-foreground">{l.phone}</p>
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">{fmtMoney(l.principalAmount)}</td>
-                        <td className="px-4 py-2 text-right font-mono">{fmtMoney(l.outstanding)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{l.nextPaymentDate}</td>
-                        <td className={`px-4 py-2 text-right font-mono font-medium ${l.daysOverdue >= 60 ? 'text-red-600' : l.daysOverdue >= 30 ? 'text-amber-600' : ''}`}>
+                        </>
+                      ),
+                    },
+                    { key: 'principal', header: 'Principal', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span> },
+                    { key: 'outstanding', header: 'Outstanding', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span> },
+                    { key: 'due', header: 'Due', render: (l) => <span className="font-mono text-xs">{l.nextPaymentDate}</span> },
+                    {
+                      key: 'daysOverdue', header: 'Days late', className: 'text-right', render: (l) => (
+                        <span className={`font-mono font-medium ${l.daysOverdue >= 60 ? 'text-red-600' : l.daysOverdue >= 30 ? 'text-amber-600' : ''}`}>
                           {l.daysOverdue}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
@@ -145,30 +145,26 @@ export default function RiskAnalysisPage() {
               <CardHeader><CardTitle className="flex items-center gap-2 text-base text-red-700">
                 <Landmark className="h-4 w-4" /> Defaulted &amp; written-off loans ({r.defaultedLoans.length})
               </CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3 text-right">Principal</th>
-                      <th className="px-4 py-3 text-right">Outstanding</th>
-                      <th className="px-4 py-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {r.defaultedLoans.map((l) => (
-                      <tr key={l.loanId} className="border-b last:border-b-0">
-                        <td className="px-4 py-2">
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage(r.defaultedLoans.map((l) => ({ ...l, id: l.loanId })))}
+                  isLoading={false}
+                  onPageChange={() => {}}
+                  emptyMessage="No defaulted loans"
+                  columns={[
+                    {
+                      key: 'member', header: 'Member', render: (l) => (
+                        <>
                           <p className="font-medium">{l.firstName} {l.lastName}</p>
                           <p className="font-mono text-xs text-muted-foreground">{l.phone}</p>
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">{fmtMoney(l.principalAmount)}</td>
-                        <td className="px-4 py-2 text-right font-mono">{fmtMoney(l.outstanding)}</td>
-                        <td className="px-4 py-2"><Badge variant="destructive" className="capitalize">{l.status.replace('_', ' ')}</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </>
+                      ),
+                    },
+                    { key: 'principal', header: 'Principal', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span> },
+                    { key: 'outstanding', header: 'Outstanding', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span> },
+                    { key: 'status', header: 'Status', render: (l) => <Badge variant="destructive" className="capitalize">{l.status.replace('_', ' ')}</Badge> },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
@@ -178,34 +174,32 @@ export default function RiskAnalysisPage() {
               <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
                 <ShieldAlert className="h-4 w-4" /> Members in poor or high-risk tier ({r.highRiskMembers.length})
               </CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3 text-right">Overall</th>
-                      <th className="px-4 py-3">Tier</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {r.highRiskMembers.map((m) => (
-                      <tr key={m.memberId} className="border-b last:border-b-0">
-                        <td className="px-4 py-2">
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage(r.highRiskMembers.map((m) => ({ ...m, id: m.memberId })))}
+                  isLoading={false}
+                  onPageChange={() => {}}
+                  emptyMessage="No high-risk members"
+                  columns={[
+                    {
+                      key: 'member', header: 'Member', render: (m) => (
+                        <>
                           <p className="font-medium">{m.firstName} {m.lastName}</p>
                           <p className="font-mono text-xs text-muted-foreground">{m.phone}</p>
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono font-medium">{m.overallScore.toFixed(0)}</td>
-                        <td className="px-4 py-2"><Badge variant={TIER_BADGE[m.reliabilityTier]} className="capitalize">{m.reliabilityTier.replace('_', ' ')}</Badge></td>
-                        <td className="px-4 py-2 text-right">
-                          <Button asChild size="sm" variant="ghost">
-                            <Link href={`/credit-scores/${m.memberId}`}>View score</Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </>
+                      ),
+                    },
+                    { key: 'overall', header: 'Overall', className: 'text-right', render: (m) => <span className="font-mono font-medium">{m.overallScore.toFixed(0)}</span> },
+                    { key: 'tier', header: 'Tier', render: (m) => <Badge variant={TIER_BADGE[m.reliabilityTier]} className="capitalize">{m.reliabilityTier.replace('_', ' ')}</Badge> },
+                    {
+                      key: 'actions', header: '', className: 'text-right', render: (m) => (
+                        <Button asChild size="sm" variant="ghost">
+                          <Link href={`/credit-scores/${m.memberId}`}>View score</Link>
+                        </Button>
+                      ),
+                    },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
@@ -215,28 +209,25 @@ export default function RiskAnalysisPage() {
               <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
                 <UserX className="h-4 w-4" /> Idle members ({r.idleMembers.length})
               </CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3">Joined</th>
-                      <th className="px-4 py-3">Last contribution</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {r.idleMembers.map((m) => (
-                      <tr key={m.memberId} className="border-b last:border-b-0">
-                        <td className="px-4 py-2">
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage(r.idleMembers.map((m) => ({ ...m, id: m.memberId })))}
+                  isLoading={false}
+                  onPageChange={() => {}}
+                  emptyMessage="No idle members"
+                  columns={[
+                    {
+                      key: 'member', header: 'Member', render: (m) => (
+                        <>
                           <p className="font-medium">{m.firstName} {m.lastName}</p>
                           <p className="font-mono text-xs text-muted-foreground">{m.phone}</p>
-                        </td>
-                        <td className="px-4 py-2 font-mono text-xs">{m.joinedAt}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{m.lastContributionAt ?? <span className="text-muted-foreground italic">never</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </>
+                      ),
+                    },
+                    { key: 'joinedAt', header: 'Joined', render: (m) => <span className="font-mono text-xs">{m.joinedAt}</span> },
+                    { key: 'lastContributionAt', header: 'Last contribution', render: (m) => <span className="font-mono text-xs">{m.lastContributionAt ?? <span className="text-muted-foreground italic">never</span>}</span> },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
@@ -246,30 +237,26 @@ export default function RiskAnalysisPage() {
               <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
                 <Heart className="h-4 w-4" /> Welfare requests pending &gt; 14 days ({r.staleWelfareRequests.length})
               </CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Member</th>
-                      <th className="px-4 py-3 text-right">Requested</th>
-                      <th className="px-4 py-3">Submitted</th>
-                      <th className="px-4 py-3 text-right">Days pending</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {r.staleWelfareRequests.map((w) => (
-                      <tr key={w.requestId} className="border-b last:border-b-0">
-                        <td className="px-4 py-2">
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage(r.staleWelfareRequests.map((w) => ({ ...w, id: w.requestId })))}
+                  isLoading={false}
+                  onPageChange={() => {}}
+                  emptyMessage="No stale welfare requests"
+                  columns={[
+                    {
+                      key: 'member', header: 'Member', render: (w) => (
+                        <>
                           <p className="font-medium">{w.firstName} {w.lastName}</p>
                           <p className="font-mono text-xs text-muted-foreground">{w.phone}</p>
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">{fmtMoney(w.amountRequested)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{new Date(w.createdAt).toLocaleDateString()}</td>
-                        <td className="px-4 py-2 text-right font-mono font-medium">{w.daysPending}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </>
+                      ),
+                    },
+                    { key: 'amountRequested', header: 'Requested', className: 'text-right', render: (w) => <span className="font-mono">{fmtMoney(w.amountRequested)}</span> },
+                    { key: 'createdAt', header: 'Submitted', render: (w) => <span className="font-mono text-xs">{new Date(w.createdAt).toLocaleDateString()}</span> },
+                    { key: 'daysPending', header: 'Days pending', className: 'text-right', render: (w) => <span className="font-mono font-medium">{w.daysPending}</span> },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}

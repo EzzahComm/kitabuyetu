@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Coins, Plus, Users, TrendingUp, Layers, Settings as SettingsIcon,
-  Loader2,
+  Loader2, Wallet, ListTree, Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -179,147 +180,144 @@ export default function SharesPage() {
             </TabsList>
 
             <TabsContent value="holdings" className="mt-4">
-              <Card>
-                <CardContent className="overflow-x-auto p-0">
-                  <table className="w-full text-sm">
-                    <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3">Member</th>
-                        <th className="px-4 py-3">Class</th>
-                        <th className="px-4 py-3 text-right">Shares</th>
-                        <th className="px-4 py-3 text-right">Invested</th>
-                        <th className="px-4 py-3 text-right">Value</th>
-                        <th className="px-4 py-3 text-right">Appreciation</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {holdingsQ.isLoading ? (
-                        <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto h-4 w-4 animate-spin" /></td></tr>
-                      ) : (holdingsQ.data?.items.length ?? 0) === 0 ? (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No shareholders yet</td></tr>
-                      ) : holdingsQ.data!.items.map((h) => {
-                        const value = h.quantity * Number(h.share_class_current ?? h.share_class_par);
-                        const appreciation = value - Number(h.total_invested);
-                        return (
-                          <tr key={`${h.member_id}-${h.share_class_id}`} className="border-b last:border-b-0 hover:bg-muted/30">
-                            <td className="px-4 py-2">
-                              <p className="font-medium">{h.member_first_name} {h.member_last_name}</p>
-                              <p className="font-mono text-xs text-muted-foreground">{h.member_phone}</p>
-                            </td>
-                            <td className="px-4 py-2"><Badge variant="outline">{h.share_class_code}</Badge></td>
-                            <td className="px-4 py-2 text-right font-mono">{fmtInt(h.quantity)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{fmtMoney(h.total_invested)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{fmtMoney(value)}</td>
-                            <td className={`px-4 py-2 text-right font-mono ${appreciation > 0 ? 'text-green-600' : appreciation < 0 ? 'text-red-600' : ''}`}>
-                              {appreciation > 0 ? '+' : ''}{fmtMoney(appreciation)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
+              <PaginatedTable
+                data={singlePage((holdingsQ.data?.items ?? []).map((h) => ({ ...h, id: `${h.member_id}-${h.share_class_id}` })))}
+                isLoading={holdingsQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No shareholders yet"
+                emptyIcon={Wallet}
+                columns={[
+                  {
+                    key: 'member', header: 'Member',
+                    render: (h) => (
+                      <>
+                        <p className="font-medium">{h.member_first_name} {h.member_last_name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{h.member_phone}</p>
+                      </>
+                    ),
+                  },
+                  { key: 'class', header: 'Class', render: (h) => <Badge variant="outline">{h.share_class_code}</Badge> },
+                  { key: 'shares', header: 'Shares', className: 'text-right', render: (h) => <span className="font-mono">{fmtInt(h.quantity)}</span> },
+                  { key: 'invested', header: 'Invested', className: 'text-right', render: (h) => <span className="font-mono">{fmtMoney(h.total_invested)}</span> },
+                  {
+                    key: 'value', header: 'Value', className: 'text-right',
+                    render: (h) => {
+                      const value = h.quantity * Number(h.share_class_current ?? h.share_class_par);
+                      return <span className="font-mono">{fmtMoney(value)}</span>;
+                    },
+                  },
+                  {
+                    key: 'appreciation', header: 'Appreciation', className: 'text-right',
+                    render: (h) => {
+                      const value = h.quantity * Number(h.share_class_current ?? h.share_class_par);
+                      const appreciation = value - Number(h.total_invested);
+                      return (
+                        <span className={`font-mono ${appreciation > 0 ? 'text-green-600' : appreciation < 0 ? 'text-red-600' : ''}`}>
+                          {appreciation > 0 ? '+' : ''}{fmtMoney(appreciation)}
+                        </span>
+                      );
+                    },
+                  },
+                ]}
+              />
             </TabsContent>
 
             <TabsContent value="ledger" className="mt-4">
-              <Card>
-                <CardContent className="overflow-x-auto p-0">
-                  <table className="w-full text-sm">
-                    <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">Type</th>
-                        <th className="px-4 py-3">Member</th>
-                        <th className="px-4 py-3">Class</th>
-                        <th className="px-4 py-3 text-right">Qty</th>
-                        <th className="px-4 py-3 text-right">Amount</th>
-                        <th className="px-4 py-3">Certificate</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledgerQ.isLoading ? (
-                        <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground"><Loader2 className="mx-auto h-4 w-4 animate-spin" /></td></tr>
-                      ) : (ledgerQ.data?.items.length ?? 0) === 0 ? (
-                        <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No transactions yet</td></tr>
-                      ) : ledgerQ.data!.items.map((t) => (
-                        <tr key={t.id} className={`border-b last:border-b-0 hover:bg-muted/30 ${t.status === 'reversed' ? 'opacity-60 line-through' : ''}`}>
-                          <td className="px-4 py-2 font-mono text-xs">{new Date(t.posted_at).toLocaleDateString()}</td>
-                          <td className="px-4 py-2">
-                            <Badge variant={TYPE_BADGE[t.type] ?? 'outline'} className="capitalize">{t.type.replace('_', ' ')}</Badge>
-                          </td>
-                          <td className="px-4 py-2">
-                            <p>{t.member_first_name} {t.member_last_name}</p>
-                            {t.counterparty_first_name && (
-                              <p className="text-xs text-muted-foreground">↔ {t.counterparty_first_name} {t.counterparty_last_name}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-2"><Badge variant="outline">{t.share_class_code}</Badge></td>
-                          <td className={`px-4 py-2 text-right font-mono ${t.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {t.quantity > 0 ? '+' : ''}{fmtInt(t.quantity)}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono">{fmtMoney(t.total_amount)}</td>
-                          <td className="px-4 py-2 font-mono text-xs">
-                            {t.certificate_serial ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  // Auth'd download — JWT is in localStorage,
-                                  // a plain <a target=_blank> would 401.
-                                  downloadAuthenticated(
-                                    `/api/v1/shares/transactions/${t.id}/certificate`,
-                                    {
-                                      fallbackFilename: `share-certificate-${t.certificate_serial}.pdf`,
-                                      openInNewTab: true,
-                                    },
-                                  ).catch((err: Error) =>
-                                    toast({ variant: 'destructive', title: 'Could not open certificate', description: err.message }),
-                                  );
-                                }}
-                                className="text-primary hover:underline"
-                                title="Open share certificate PDF"
-                              >
-                                {t.certificate_serial}
-                              </button>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
+              <PaginatedTable
+                data={singlePage(ledgerQ.data?.items)}
+                isLoading={ledgerQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No transactions yet"
+                emptyIcon={ListTree}
+                columns={[
+                  {
+                    key: 'date', header: 'Date',
+                    render: (t) => <span className={`font-mono text-xs ${t.status === 'reversed' ? 'opacity-60 line-through' : ''}`}>{new Date(t.posted_at).toLocaleDateString()}</span>,
+                  },
+                  {
+                    key: 'type', header: 'Type',
+                    render: (t) => (
+                      <span className={t.status === 'reversed' ? 'opacity-60 line-through' : ''}>
+                        <Badge variant={TYPE_BADGE[t.type] ?? 'outline'} className="capitalize">{t.type.replace('_', ' ')}</Badge>
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'member', header: 'Member',
+                    render: (t) => (
+                      <span className={t.status === 'reversed' ? 'opacity-60 line-through' : ''}>
+                        <p>{t.member_first_name} {t.member_last_name}</p>
+                        {t.counterparty_first_name && (
+                          <p className="text-xs text-muted-foreground">↔ {t.counterparty_first_name} {t.counterparty_last_name}</p>
+                        )}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'class', header: 'Class',
+                    render: (t) => <span className={t.status === 'reversed' ? 'opacity-60 line-through' : ''}><Badge variant="outline">{t.share_class_code}</Badge></span>,
+                  },
+                  {
+                    key: 'qty', header: 'Qty', className: 'text-right',
+                    render: (t) => (
+                      <span className={`font-mono ${t.quantity > 0 ? 'text-green-600' : 'text-red-600'} ${t.status === 'reversed' ? 'opacity-60 line-through' : ''}`}>
+                        {t.quantity > 0 ? '+' : ''}{fmtInt(t.quantity)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'amount', header: 'Amount', className: 'text-right',
+                    render: (t) => <span className={`font-mono ${t.status === 'reversed' ? 'opacity-60 line-through' : ''}`}>{fmtMoney(t.total_amount)}</span>,
+                  },
+                  {
+                    key: 'certificate', header: 'Certificate',
+                    render: (t) => (
+                      <span className={`font-mono text-xs ${t.status === 'reversed' ? 'opacity-60 line-through' : ''}`}>
+                        {t.certificate_serial ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Auth'd download — JWT is in localStorage,
+                              // a plain <a target=_blank> would 401.
+                              downloadAuthenticated(
+                                `/api/v1/shares/transactions/${t.id}/certificate`,
+                                {
+                                  fallbackFilename: `share-certificate-${t.certificate_serial}.pdf`,
+                                  openInNewTab: true,
+                                },
+                              ).catch((err: Error) =>
+                                toast({ variant: 'destructive', title: 'Could not open certificate', description: err.message }),
+                              );
+                            }}
+                            className="text-primary hover:underline"
+                            title="Open share certificate PDF"
+                          >
+                            {t.certificate_serial}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
             </TabsContent>
 
             <TabsContent value="topholders" className="mt-4">
-              <Card>
-                <CardContent className="overflow-x-auto p-0">
-                  <table className="w-full text-sm">
-                    <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3">Rank</th>
-                        <th className="px-4 py-3">Member</th>
-                        <th className="px-4 py-3 text-right">Total shares</th>
-                        <th className="px-4 py-3 text-right">Invested</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(summary?.topHolders.length ?? 0) === 0 ? (
-                        <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No shareholders yet</td></tr>
-                      ) : summary!.topHolders.map((h, i) => (
-                        <tr key={h.memberId} className="border-b last:border-b-0 hover:bg-muted/30">
-                          <td className="px-4 py-2 font-mono">#{i + 1}</td>
-                          <td className="px-4 py-2">{h.firstName} {h.lastName}</td>
-                          <td className="px-4 py-2 text-right font-mono">{fmtInt(h.totalShares)}</td>
-                          <td className="px-4 py-2 text-right font-mono">{fmtMoney(h.totalInvested)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
+              <PaginatedTable
+                data={singlePage((summary?.topHolders ?? []).map((h, i) => ({ ...h, id: h.memberId, rank: i + 1 })))}
+                isLoading={summaryQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No shareholders yet"
+                emptyIcon={Trophy}
+                columns={[
+                  { key: 'rank', header: 'Rank', render: (h) => <span className="font-mono">#{h.rank}</span> },
+                  { key: 'member', header: 'Member', render: (h) => <>{h.firstName} {h.lastName}</> },
+                  { key: 'totalShares', header: 'Total shares', className: 'text-right', render: (h) => <span className="font-mono">{fmtInt(h.totalShares)}</span> },
+                  { key: 'totalInvested', header: 'Invested', className: 'text-right', render: (h) => <span className="font-mono">{fmtMoney(h.totalInvested)}</span> },
+                ]}
+              />
             </TabsContent>
           </Tabs>
         </>

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -292,37 +293,28 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
       {visible.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Preview ({visible.length} of {rows.length})</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3">Row</th>
-                  <th className="py-2 pr-3">Phone</th>
-                  <th className="py-2 pr-3">Name</th>
-                  <th className="py-2 pr-3">Role</th>
-                  <th className="py-2 pr-3">Email</th>
-                  <th className="py-2 pr-3">Occupation</th>
-                  <th className="py-2 pr-3">Warnings</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r) => (
-                  <tr key={r.row_num} className="border-b last:border-b-0">
-                    <td className="py-1.5 pr-3 font-mono text-xs">{r.row_num}</td>
-                    <td className="py-1.5 pr-3 font-mono">{r.phone}</td>
-                    <td className="py-1.5 pr-3">{[r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ')}</td>
-                    <td className="py-1.5 pr-3"><Badge variant="secondary">{r.role}</Badge></td>
-                    <td className="py-1.5 pr-3">{r.email ?? '—'}</td>
-                    <td className="py-1.5 pr-3">{r.occupation ?? '—'}</td>
-                    <td className="py-1.5 pr-3">
-                      {r.warnings.length > 0
-                        ? <span className="text-amber-600">{r.warnings.join('; ')}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <CardContent>
+            <PaginatedTable
+              data={singlePage(visible.map((r) => ({ ...r, id: String(r.row_num) })))}
+              isLoading={false}
+              onPageChange={() => {}}
+              emptyMessage="No rows to preview"
+              columns={[
+                { key: 'row_num', header: 'Row', render: (r) => <span className="font-mono text-xs">{r.row_num}</span> },
+                { key: 'phone', header: 'Phone', render: (r) => <span className="font-mono">{r.phone}</span> },
+                { key: 'name', header: 'Name', render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ') },
+                { key: 'role', header: 'Role', render: (r) => <Badge variant="secondary">{r.role}</Badge> },
+                { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
+                { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '—' },
+                {
+                  key: 'warnings', header: 'Warnings', render: (r) => (
+                    r.warnings.length > 0
+                      ? <span className="text-amber-600">{r.warnings.join('; ')}</span>
+                      : <span className="text-muted-foreground">—</span>
+                  ),
+                },
+              ]}
+            />
             {hiddenCount > 0 && (
               <p className="mt-3 text-xs text-muted-foreground">…and {hiddenCount} more row(s). They’ll all be imported on confirm.</p>
             )}
