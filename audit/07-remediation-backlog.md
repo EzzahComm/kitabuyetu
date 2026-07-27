@@ -14,13 +14,17 @@ hosting environment's variables, which this audit had no access to.
 
 ## Critical
 
-1. **Confirm whether `TENANT_DATABASE_URL` is provisioned in production.** (`02-security-findings.md` #1)
-   Affected: entire tenant-traffic RLS enforcement model.
-   Approach: check the live Vercel/hosting environment variables directly — this cannot be
-   answered from the repo. If unset, tenant traffic runs 100% on hand-written `WHERE group_id`
-   predicates with RLS as inert schema decoration; if set, RLS is a live second layer already.
-   Effort: near-zero (a config check), but **the single highest-leverage open question in this
-   entire audit** — every other RLS-related finding's real-world severity depends on the answer.
+1. ~~**Confirm whether `TENANT_DATABASE_URL` is provisioned in production.**~~ **Resolved
+   2026-07-27**: confirmed via authenticated `vercel env ls production` — it is **not** set in
+   either Production or Preview (only `DATABASE_URL` exists). Tenant traffic runs 100% on
+   hand-written `WHERE group_id` predicates today; RLS is confirmed inert schema decoration in
+   production. See `docs/adr/001-bypassrls-two-role-split.md`'s "Phase 1 CI verification"
+   section — the `db-integration` CI job now provisions `app_tenant` against a disposable
+   Postgres on every push and proves both functional parity and real RLS-based cross-tenant
+   denial there, continuously. **What remains is the production cutover itself** (run
+   `scripts/ops/create-app-tenant-role.sql` against production, set `TENANT_DATABASE_URL`,
+   canary via Preview first) — that step needs direct production access this audit doesn't have,
+   tracked as the ADR's own "Follow-up (not yet done)" item.
 
 ## High
 

@@ -8,10 +8,19 @@
  *
  * Callers MUST already be inside an open transaction (`client` parameter)
  * so the person upsert, counter allocation, and group_members insert all
- * commit/rollback atomically. The function locks the group_member_counters
- * row FOR UPDATE so concurrent inserts can't race on member_seq.
+ * commit/rollback atomically. The actual writes happen inside
+ * public.link_member_to_group() (migration 098), a SECURITY DEFINER
+ * function — person/group_member_counters were deliberately built (mig 030)
+ * with no INSERT/UPDATE policy for any tenant role ("service-role writes
+ * only"; person is genuinely cross-group, so there's no group_id to scope a
+ * real policy on), and this helper is called from real tenant-context
+ * requests (membersService.create(), CSV bulk import). Running the writes
+ * inside a SECURITY DEFINER function keeps that original trust boundary
+ * intact regardless of which role the caller's `client` connects as — see
+ * docs/adr/001-bypassrls-two-role-split.md.
  */
 import type { PoolClient } from 'pg';
+import { DatabaseError } from 'pg';
 import { ConflictError, NotFoundError } from '@/lib/utils/errors';
 
 export interface LinkMemberInput {
@@ -48,83 +57,41 @@ export async function linkMemberToGroup(
   client: PoolClient,
   input:  LinkMemberInput,
 ): Promise<LinkMemberResult> {
-  // 1. Look up the group's code — needed to build the per-member identifier.
-  const { rows: g } = await client.query<{ group_code: string }>(
-    `SELECT group_code FROM groups WHERE id = $1`,
-    [input.groupId],
-  );
-  if (!g[0]) throw new NotFoundError('Group', input.groupId);
-
-  // 2. Upsert the cross-group person identity. With a national_id, ON
-  //    CONFLICT links to the existing row; without one, synthesise a
-  //    placeholder so the NOT NULL + UNIQUE constraints hold.
-  const fullName = `${input.firstName} ${input.lastName}`.trim();
-  const dob      = input.dateOfBirth ?? '1970-01-01';
-
-  let personId: string;
-  if (input.nationalId) {
-    const { rows: p } = await client.query<{ id: string }>(
-      `INSERT INTO person (national_id, full_name, dob, phone, gender)
-       VALUES ($1, $2, $3::date, $4, $5)
-       ON CONFLICT (national_id) DO UPDATE SET
-         phone     = COALESCE(person.phone, EXCLUDED.phone),
-         full_name = CASE WHEN person.full_name = '' THEN EXCLUDED.full_name ELSE person.full_name END
-       RETURNING id`,
-      [input.nationalId, fullName, dob, input.phone ?? null, input.gender ?? null],
+  try {
+    const { rows } = await client.query<{
+      group_members_id: string;
+      member_code:      string;
+      membership_no:    string;
+      person_id:        string;
+    }>(
+      `SELECT * FROM link_member_to_group(
+         $1, $2, $3::member_role, $4, $5, $6, $7, $8::date, $9::gender, $10::date, $11
+       )`,
+      [
+        input.memberId, input.groupId, input.role,
+        input.firstName, input.lastName,
+        input.phone ?? null, input.nationalId ?? null,
+        input.dateOfBirth ?? null, input.gender ?? null,
+        input.joinedAt ?? null, input.invitedBy ?? null,
+      ],
     );
-    personId = p[0].id;
-  } else {
-    const { rows: p } = await client.query<{ id: string }>(
-      `INSERT INTO person (national_id, full_name, dob, phone, gender)
-       VALUES ('TEMP-' || gen_random_uuid()::text, $1, $2::date, $3, $4)
-       RETURNING id`,
-      [fullName, dob, input.phone ?? null, input.gender ?? null],
-    );
-    personId = p[0].id;
+
+    return {
+      groupMembersId: rows[0].group_members_id,
+      memberCode:     rows[0].member_code,
+      membershipNo:   rows[0].membership_no,
+      personId:       rows[0].person_id,
+    };
+  } catch (err) {
+    // link_member_to_group() (migration 098) signals these two cases via
+    // RAISE EXCEPTION ... USING ERRCODE, matching this function's original
+    // pre-098 error contract so callers don't need to change.
+    if (err instanceof DatabaseError && err.code === 'P0002') {
+      throw new NotFoundError('Group', input.groupId);
+    }
+    if (err instanceof DatabaseError && err.code === '23000') {
+      throw new ConflictError(`Group ${input.groupId} has no member counter row`);
+    }
+    throw err;
   }
-
-  // 3. Allocate the per-group sequential code. UPDATE acquires the row
-  //    lock; INSERT-then-UPDATE seeds the counter for legacy/dev groups
-  //    that pre-date mig 030.
-  const { rows: seqRows } = await client.query<{ last_seq: number }>(
-    `INSERT INTO group_member_counters (group_id, last_seq)
-     VALUES ($1, 0)
-     ON CONFLICT (group_id) DO NOTHING`,
-    [input.groupId],
-  ).then(() => client.query<{ last_seq: number }>(
-    `UPDATE group_member_counters
-        SET last_seq = last_seq + 1
-      WHERE group_id = $1
-      RETURNING last_seq`,
-    [input.groupId],
-  ));
-  if (!seqRows[0]) throw new ConflictError(`Group ${input.groupId} has no member counter row`);
-
-  const memberCode = `${g[0].group_code}${String(seqRows[0].last_seq).padStart(5, '0')}`;
-
-  // 4. The actual group_members link. membership_no is allocated by the
-  //    BEFORE INSERT trigger (migration 056) — the platform is the only
-  //    issuer of payment account numbers (governance §1.8).
-  const { rows: gm } = await client.query<{ id: string; membership_no: string }>(
-    `INSERT INTO group_members (
-       group_id, member_id, person_id, member_code,
-       role, status, joined_at, invited_by
-     ) VALUES (
-       $1, $2, $3, $4,
-       $5::member_role, 'active'::member_status,
-       COALESCE($6::date, CURRENT_DATE), $7
-     )
-     RETURNING id, membership_no`,
-    [
-      input.groupId, input.memberId, personId, memberCode,
-      input.role, input.joinedAt ?? null, input.invitedBy ?? null,
-    ],
-  );
-
-  return {
-    groupMembersId: gm[0].id,
-    memberCode,
-    membershipNo:   gm[0].membership_no,
-    personId,
-  };
 }
