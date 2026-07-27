@@ -34,12 +34,12 @@ migration 097's own comment had already warned about exactly this blind spot).
 
 ## Medium
 
-3. **Paginate `organizationService.listGroupSummaries()`.** (`04-performance-findings.md` #1)
-   Affected: `(dashboard)/organization` and `(enterprise)/enterprise/branches` (both wired to this
-   endpoint this session) — unbounded for a federation with a large group count.
-   Approach: add `page`/`limit` params mirroring every other list service; needs a small shape
-   change on both consuming pages' hooks. Not a silent fix — flagged per Phase 6 rule #1.
-   Effort: small-medium (one service function + two page call sites + their tests).
+~~3. Paginate `organizationService.listGroupSummaries()`.~~ **FIXED** (`06-fix-log.md`, 2026-07-27).
+   Added `page`/`limit` (default 200, capped 500), returns `PaginatedResult<T>`. Also fixed a
+   latent bug found in the process: all 3 consuming pages (not just the 2 originally identified —
+   `(enterprise)/enterprise`'s top-5 sort also depends on this endpoint) passed `organizationApi.groups`
+   as a bare `queryFn` reference, which would have silently broken once the function gained a
+   params argument (TanStack Query would pass its own context object instead).
 
 4. **Verify the `journal_lines` partition constraint-trigger cloning against a real Postgres 17 instance.** (`03-data-integrity-findings.md` #1)
    Pre-existing, carried over from the accounting-audit series — never actually executed against

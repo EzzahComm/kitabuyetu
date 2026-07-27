@@ -14,16 +14,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
 import type { OrganizationGroupSummary } from '@/types/api.types';
+import type { PaginatedResult } from '@/types/db.types';
 
 export default function BranchesPage() {
   const [query, setQuery] = React.useState('');
   const [region, setRegion] = React.useState<string>('all');
 
-  const { data: groups, isLoading } = useQuery<OrganizationGroupSummary[]>({
+  const { data: groupsPage, isLoading } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],
-    queryFn:  organizationApi.groups,
+    queryFn:  () => organizationApi.groups(),
   });
 
+  const groups = groupsPage?.items;
   const rows = groups ?? [];
   const regions = React.useMemo(
     () => ['all', ...Array.from(new Set((groups ?? []).map((g) => g.county).filter((c): c is string => !!c)))],

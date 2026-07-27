@@ -15,6 +15,7 @@ import { organizationApi } from '@/lib/api/endpoints';
 import { api } from '@/lib/api/client';
 import { formatKES } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
+import type { PaginatedResult } from '@/types/db.types';
 
 interface OrgDashboard {
   portfolio: {
@@ -44,13 +45,13 @@ export default function EnterpriseDashboardPage() {
     queryKey: ['enterprise', 'dashboard'],
     queryFn:  () => api.get('/organization/dashboard'),
   });
-  const { data: groups } = useQuery<OrganizationGroupSummary[]>({
+  const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],
-    queryFn:  organizationApi.groups,
+    queryFn:  () => organizationApi.groups(),
   });
 
   const p = dash?.portfolio;
-  const topGroups = [...(groups ?? [])]
+  const topGroups = [...(groupsPage?.items ?? [])]
     .sort((a, b) => parseFloat(b.totalContributions) - parseFloat(a.totalContributions))
     .slice(0, 5);
 

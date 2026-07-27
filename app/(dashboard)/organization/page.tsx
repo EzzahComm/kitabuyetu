@@ -36,6 +36,7 @@ import { api } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
+import type { PaginatedResult } from '@/types/db.types';
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
@@ -136,11 +137,12 @@ export default function FundingPortalPage() {
     refetchInterval: 120_000,
   });
 
-  const { data: groups } = useQuery<OrganizationGroupSummary[]>({
+  const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['organization', 'groups'],
-    queryFn:  organizationApi.groups,
+    queryFn:  () => organizationApi.groups(),
     staleTime: 60_000,
   });
+  const groups = groupsPage?.items;
 
   const { data: disb } = useQuery<{ items: Disbursement[] }>({
     queryKey: ['organization', 'disbursements'],

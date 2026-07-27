@@ -7,6 +7,11 @@ import { ok } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    return ok(await organizationService.listGroupSummaries(ctx));
+    const p = req.nextUrl.searchParams;
+    const params = {
+      page:  p.get('page')  ? parseInt(p.get('page')!, 10)  : undefined,
+      limit: p.get('limit') ? parseInt(p.get('limit')!, 10) : undefined,
+    };
+    return ok(await organizationService.listGroupSummaries(ctx, params));
   });
 }

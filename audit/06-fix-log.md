@@ -2,8 +2,12 @@
 
 Per the brief's own phase ordering (Inventory → Security → Data Integrity → Performance → Code
 Quality → **Remediation**), this pass was scoped to **findings only** — no fixes were applied
-during Phases 1-5. This file is the template/ledger for fixes as they're actually applied; it's
-empty as of this audit pass by design, not by omission.
+during Phases 1-5. This file is the ledger for fixes as they're actually applied, starting below.
+
+**2026-07-27 note**: the first remediation attempted (07's item #2, RLS on the mpesa_b2c/b2b
+tables) turned out to be a false positive — caught during implementation research, before any
+migration was written. See `02-security-findings.md` §2.2 and `07-remediation-backlog.md` for the
+correction. No entry below for it since nothing was actually shipped.
 
 **Rules for entries in this file going forward** (per the brief's Phase 6):
 1. One concern per commit — security, performance, and refactor fixes ship separately.
@@ -14,4 +18,4 @@ empty as of this audit pass by design, not by omission.
 
 | Date | Commit | Finding # (from which doc) | What changed | Verification |
 |---|---|---|---|---|
-| _(none yet — this audit pass produced findings only)_ | | | | |
+| 2026-07-27 | _(pending push)_ | `07-remediation-backlog.md` #3 (`04-performance-findings.md` #1) | `organizationService.listGroupSummaries()` was fully unbounded (no LIMIT at all). Added `page`/`limit` params (default 200, capped at 500) and a real `COUNT` query, returning the canonical `PaginatedResult<T>` shape instead of a bare array. Updated the 3 consumers (`(dashboard)/organization`, `(enterprise)/enterprise`, `(enterprise)/enterprise/branches`) to read `.items` — all 3 wanted "everything for client-side search/sort," not a pager UI, so the default limit preserves current behavior at realistic org sizes while capping true unboundedness. Also fixed a latent bug found while making this change: all 3 call sites passed `organizationApi.groups` as a bare `queryFn` reference — harmless before this fix (it took no params), but would have silently passed TanStack Query's `QueryFunctionContext` as the new `params` argument once the function gained one; wrapped as `() => organizationApi.groups()` at all 3 sites. | `tsc --noEmit` clean, `npm run lint` zero new errors (74 pre-existing warnings, unchanged), new `__tests__/unit/services/organization-groups.test.ts` (4 cases: default page/limit, page-2 offset math, limit cap at 500, non-positive page clamped to 1), full suite 329/329 passing. |
