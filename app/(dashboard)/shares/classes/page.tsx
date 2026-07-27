@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -98,17 +99,16 @@ export default function ShareClassesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Link href="/shares" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Share Classes</h1>
-            <p className="text-sm text-muted-foreground">Define the price, limits, and rules for each class of shares.</p>
-          </div>
-        </div>
-        <Button onClick={openCreate}><Plus size={16} className="mr-2" /> New class</Button>
+      <div className="flex items-center gap-3">
+        <Link href="/shares" className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <PageHeader
+          title="Share Classes"
+          description="Define the price, limits, and rules for each class of shares."
+          actions={<Button onClick={openCreate}><Plus size={16} className="mr-2" /> New class</Button>}
+          className="flex-1"
+        />
       </div>
 
       {classesQ.isLoading ? (

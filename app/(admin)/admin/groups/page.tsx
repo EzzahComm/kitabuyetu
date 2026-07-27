@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -96,14 +97,10 @@ export default function GroupsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Groups</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total.toLocaleString()} total · savings groups on the platform — lifecycle, KYC, subscriptions
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Groups"
+        description={`${total.toLocaleString()} total · savings groups on the platform — lifecycle, KYC, subscriptions`}
+      />
 
       {/* Filters */}
       <Card>

@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 import {
-  ShieldAlert, ShieldCheck, UserCheck, AlertTriangle, Banknote,
+  ShieldCheck, UserCheck, AlertTriangle, Banknote,
   ArrowRight, Check, X, Eye, Info,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -62,22 +63,15 @@ export default function RiskDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header — matches the backoffice header pattern */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-            <ShieldAlert size={20} className="text-red-500" />
-            Risk &amp; Fraud
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Platform-wide risk posture, live fraud signals, and the KYC verification queue
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Risk & Fraud"
+        description="Platform-wide risk posture, live fraud signals, and the KYC verification queue"
+        actions={
           <Button variant="outline" size="sm" className="text-xs">
             Export report <ArrowRight size={12} className="ml-1" />
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

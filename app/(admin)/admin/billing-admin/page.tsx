@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -71,12 +72,10 @@ export default function BillingAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Billing Operations</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Subscription management, revenue tracking, and invoice oversight
-        </p>
-      </div>
+      <PageHeader
+        title="Billing Operations"
+        description="Subscription management, revenue tracking, and invoice oversight"
+      />
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

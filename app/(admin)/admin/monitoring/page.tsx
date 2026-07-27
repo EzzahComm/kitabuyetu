@@ -9,6 +9,7 @@ import {
 import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { Progress } from '@/components/ui/progress';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
@@ -64,25 +65,20 @@ export default function MonitoringPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-            <Activity size={20} className="text-blue-500" />
-            Platform Monitoring
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Daraja, messaging &amp; API health with a real-time M-Pesa transaction feed
-          </p>
-        </div>
-        <Button
-          variant={live ? 'default' : 'outline'}
-          size="sm"
-          className={live ? 'bg-blue-600 text-xs hover:bg-blue-700' : 'text-xs'}
-          onClick={() => setLive((l) => !l)}
-        >
-          {live ? <><Pause size={13} className="mr-1" /> Pause feed</> : <><Play size={13} className="mr-1" /> Resume feed</>}
-        </Button>
-      </div>
+      <PageHeader
+        title="Platform Monitoring"
+        description="Daraja, messaging & API health with a real-time M-Pesa transaction feed"
+        actions={
+          <Button
+            variant={live ? 'default' : 'outline'}
+            size="sm"
+            className={live ? 'bg-blue-600 text-xs hover:bg-blue-700' : 'text-xs'}
+            onClick={() => setLive((l) => !l)}
+          >
+            {live ? <><Pause size={13} className="mr-1" /> Pause feed</> : <><Play size={13} className="mr-1" /> Resume feed</>}
+          </Button>
+        }
+      />
 
       {/* Degraded banner */}
       {degraded.length > 0 && (

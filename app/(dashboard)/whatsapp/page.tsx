@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -99,12 +100,10 @@ export default function WhatsAppPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><MessageSquare className="h-6 w-6" /> WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">
-          Send WhatsApp Business messages and review the delivery log. Automated triggers come in E10.2.
-        </p>
-      </div>
+      <PageHeader
+        title="WhatsApp"
+        description="Send WhatsApp Business messages and review the delivery log. Automated triggers come in E10.2."
+      />
 
       {!configured && (
         <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

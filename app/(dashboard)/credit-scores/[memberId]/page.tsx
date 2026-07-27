@@ -9,6 +9,7 @@ import { Activity, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -108,31 +109,27 @@ export default function CreditScoreDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-start gap-3">
-          <Link href="/credit-scores" className="text-muted-foreground hover:text-foreground mt-1">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            {!noScoreYet && latestQ.data ? (
-              <>
-                <h1 className="text-2xl font-bold">{latestQ.data.member_first_name} {latestQ.data.member_last_name}</h1>
-                <p className="font-mono text-sm text-muted-foreground">{latestQ.data.member_phone}</p>
-              </>
-            ) : (
-              <h1 className="text-2xl font-bold">Member credit score</h1>
-            )}
-          </div>
+      <div className="flex items-start gap-3">
+        <Link href="/credit-scores" className="text-muted-foreground hover:text-foreground mt-1">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <PageHeader
+          className="flex-1"
+          title={!noScoreYet && latestQ.data ? `${latestQ.data.member_first_name} ${latestQ.data.member_last_name}` : 'Member credit score'}
+          description={!noScoreYet && latestQ.data ? latestQ.data.member_phone : undefined}
+          actions={
+            <Button disabled={busy} onClick={recompute}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Recompute now
+            </Button>
+          }
+        >
           {!noScoreYet && latestQ.data && (
-            <Badge variant={TIER_BADGE[latestQ.data.reliability_tier]} className="mt-2">
+            <Badge variant={TIER_BADGE[latestQ.data.reliability_tier]}>
               {TIER_LABEL[latestQ.data.reliability_tier]}
             </Badge>
           )}
-        </div>
-        <Button disabled={busy} onClick={recompute}>
-          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Recompute now
-        </Button>
+        </PageHeader>
       </div>
 
       {noScoreYet ? (

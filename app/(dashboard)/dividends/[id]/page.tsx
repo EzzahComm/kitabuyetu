@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -150,49 +151,47 @@ export default function DividendDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-start gap-3">
-          <Link href="/dividends" className="text-muted-foreground hover:text-foreground mt-1">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">{decl.period_label}</h1>
-            <p className="text-sm text-muted-foreground">
-              {new Date(decl.period_start).toLocaleDateString()} → {new Date(decl.period_end).toLocaleDateString()}
-            </p>
-          </div>
-          <Badge variant={STATUS_BADGE[decl.status]} className="capitalize mt-2">{decl.status.replace('_', ' ')}</Badge>
-        </div>
-
-        {/* Status-driven actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          {decl.status === 'draft' && (
+      <div className="flex items-start gap-3">
+        <Link href="/dividends" className="text-muted-foreground hover:text-foreground mt-1">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <PageHeader
+          className="flex-1"
+          title={decl.period_label}
+          description={`${new Date(decl.period_start).toLocaleDateString()} → ${new Date(decl.period_end).toLocaleDateString()}`}
+          actions={
             <>
-              <Button onClick={onSubmit} disabled={busy}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Submit for approval
-              </Button>
-              <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+              {decl.status === 'draft' && (
+                <>
+                  <Button onClick={onSubmit} disabled={busy}>
+                    {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Submit for approval
+                  </Button>
+                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                </>
+              )}
+              {decl.status === 'pending_approval' && (
+                <>
+                  <Button onClick={() => setApproveOpen(true)} disabled={busy}>
+                    {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    Approve &amp; snapshot
+                  </Button>
+                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                </>
+              )}
+              {decl.status === 'approved' && (
+                <>
+                  <Button disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
+                    <Wallet className="mr-2 h-4 w-4" /> Pay selected ({selected.size})
+                  </Button>
+                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                </>
+              )}
             </>
-          )}
-          {decl.status === 'pending_approval' && (
-            <>
-              <Button onClick={() => setApproveOpen(true)} disabled={busy}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                Approve &amp; snapshot
-              </Button>
-              <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
-            </>
-          )}
-          {decl.status === 'approved' && (
-            <>
-              <Button disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
-                <Wallet className="mr-2 h-4 w-4" /> Pay selected ({selected.size})
-              </Button>
-              <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
-            </>
-          )}
-        </div>
+          }
+        >
+          <Badge variant={STATUS_BADGE[decl.status]} className="capitalize">{decl.status.replace('_', ' ')}</Badge>
+        </PageHeader>
       </div>
 
       {/* Info card */}

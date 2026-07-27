@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import { useToast } from '@/hooks/use-toast';
@@ -97,46 +98,44 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Executive view across members, finances, shares, dividends and credit health.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/analytics/risk"><AlertTriangle className="mr-2 h-4 w-4" /> Risk analysis</Link>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={exporting !== null}>
-                {exporting
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Exporting…</>
-                  : <><Download className="mr-2 h-4 w-4" /> Export CSV</>}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => exportCsv('members')}>Members</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => exportCsv('contributions')}>Contributions</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => exportCsv('loans')}>Loans</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => exportCsv('share_holdings')}>Share holdings</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => exportCsv('credit_scores')}>Credit scores</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <label htmlFor="period" className="text-xs text-muted-foreground ml-2">Period</label>
-          <select
-            id="period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as Period)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            {PERIOD_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Analytics"
+        description="Executive view across members, finances, shares, dividends and credit health."
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/analytics/risk"><AlertTriangle className="mr-2 h-4 w-4" /> Risk analysis</Link>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={exporting !== null}>
+                  {exporting
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Exporting…</>
+                    : <><Download className="mr-2 h-4 w-4" /> Export CSV</>}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => exportCsv('members')}>Members</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => exportCsv('contributions')}>Contributions</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => exportCsv('loans')}>Loans</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => exportCsv('share_holdings')}>Share holdings</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => exportCsv('credit_scores')}>Credit scores</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <label htmlFor="period" className="text-xs text-muted-foreground ml-2">Period</label>
+            <select
+              id="period"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as Period)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {PERIOD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </>
+        }
+      />
 
       {summaryQ.isLoading || !s ? (
         <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>

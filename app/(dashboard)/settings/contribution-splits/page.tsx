@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -104,12 +105,11 @@ export default function ContributionSplitsPage() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <Link href="/settings"><Button variant="ghost" size="icon" aria-label="Back to settings"><ArrowLeft size={16} /></Button></Link>
-        <div>
-          <h1 className="text-2xl font-bold">Contribution splits</h1>
-          <p className="text-sm text-muted-foreground">
-            Auto-allocate incoming M-Pesa contributions across ledger accounts.
-          </p>
-        </div>
+        <PageHeader
+          title="Contribution splits"
+          description="Auto-allocate incoming M-Pesa contributions across ledger accounts."
+          className="flex-1"
+        />
       </div>
 
       <Card className="bg-muted/40 border-dashed">

@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Settings, Shield, LogOut, Mail, User } from 'lucide-react';
+import { Shield, LogOut, Mail, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, isBackofficeUser } from '@/lib/auth/context';
 
@@ -25,12 +26,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings size={20} className="text-gray-500" /> Settings
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Your backoffice account</p>
-      </div>
+      <PageHeader title="Settings" description="Your backoffice account" />
 
       {/* Account */}
       <Card>

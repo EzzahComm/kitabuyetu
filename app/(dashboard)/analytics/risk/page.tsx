@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
 
 interface OverdueLoan {
@@ -65,20 +66,15 @@ export default function RiskAnalysisPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-start gap-3">
-          <Link href="/analytics" className="text-muted-foreground hover:text-foreground mt-1">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <ShieldAlert className="h-6 w-6" /> Risk analysis
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Loans, members and requests that warrant follow-up. Each category caps at 50 most-pressing rows.
-            </p>
-          </div>
-        </div>
+      <div className="flex items-start gap-3">
+        <Link href="/analytics" className="text-muted-foreground hover:text-foreground mt-1">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <PageHeader
+          className="flex-1"
+          title="Risk analysis"
+          description="Loans, members and requests that warrant follow-up. Each category caps at 50 most-pressing rows."
+        />
       </div>
 
       {riskQ.isLoading || !r ? (

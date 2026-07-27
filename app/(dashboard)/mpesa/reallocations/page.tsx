@@ -14,6 +14,7 @@ import { ArrowLeft, ArrowRightLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/shared/page-header';
 import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -142,20 +143,18 @@ export default function ReallocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/mpesa"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
-          <div>
-            <h1 className="text-2xl font-bold">Payment corrections</h1>
-            <p className="text-sm text-muted-foreground">
-              Move a payment posted to the wrong member. Originals are never edited —
-              corrections post contra entries with a full audit trail.
-            </p>
-          </div>
-        </div>
-        <Button size="sm" onClick={() => setCreating(true)}>
-          <ArrowRightLeft size={15} className="mr-2" /> New correction
-        </Button>
+      <div className="flex items-start gap-3">
+        <Link href="/mpesa" className="mt-1"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
+        <PageHeader
+          className="flex-1"
+          title="Payment corrections"
+          description="Move a payment posted to the wrong member. Originals are never edited — corrections post contra entries with a full audit trail."
+          actions={
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <ArrowRightLeft size={15} className="mr-2" /> New correction
+            </Button>
+          }
+        />
       </div>
 
       {isLoading ? (

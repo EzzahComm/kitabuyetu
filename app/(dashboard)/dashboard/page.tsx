@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
+import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { useMembers } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
@@ -134,27 +135,23 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {user ? `Welcome back, ${user.firstName}` : 'Dashboard'}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {isTenantUser(user) ? user.groupName : 'Financial overview'}
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          {/* Opens the in-dashboard STK Push flow — no page navigation. */}
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setStkOpen(true)}>
-            <Smartphone size={15} /> Request payment
-          </Button>
-          <Link href="/contributions">
-            <Button size="sm" variant="outline" className="gap-1.5 h-9">
-              <Plus size={15} /> Record
+      <PageHeader
+        title={user ? `Welcome back, ${user.firstName}` : 'Dashboard'}
+        description={isTenantUser(user) ? user.groupName : 'Financial overview'}
+        actions={
+          <>
+            {/* Opens the in-dashboard STK Push flow — no page navigation. */}
+            <Button size="sm" className="gap-1.5 h-9" onClick={() => setStkOpen(true)}>
+              <Smartphone size={15} /> Request payment
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link href="/contributions">
+              <Button size="sm" variant="outline" className="gap-1.5 h-9">
+                <Plus size={15} /> Record
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Zone 1 — Needs you now */}
       <Card>

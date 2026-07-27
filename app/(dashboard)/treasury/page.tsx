@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { StatCard } from '@/components/shared/stat-card';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate, formatDateTime } from '@/lib/utils';
 
@@ -197,16 +198,15 @@ export default function TreasuryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Treasury</h1>
-          <p className="text-sm text-muted-foreground">M-Pesa balance, transactions, and reconciliation</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => balanceMut.mutate()} loading={balanceMut.isPending}>
-          <RefreshCw size={15} /> Refresh balance
-        </Button>
-      </div>
+      <PageHeader
+        title="Treasury"
+        description="M-Pesa balance, transactions, and reconciliation"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => balanceMut.mutate()} loading={balanceMut.isPending}>
+            <RefreshCw size={15} /> Refresh balance
+          </Button>
+        }
+      />
 
       {/* Balance cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

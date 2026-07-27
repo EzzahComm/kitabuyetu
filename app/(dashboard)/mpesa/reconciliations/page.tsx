@@ -6,6 +6,7 @@ import { ArrowLeft, Play, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
@@ -59,47 +60,48 @@ export default function ReconciliationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/mpesa"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
-          <div>
-            <h1 className="text-2xl font-bold">Reconciliation runs</h1>
-            <p className="text-sm text-muted-foreground">
-              {reconType === 'paybill'
-                ? 'Sweeps paybill payments and reconciles them with pending contributions.'
-                : 'Sweeps stuck STK requests and resolves their real status with Daraja.'}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Button 
-              variant="outline"
-              onClick={() => setShowTypeMenu(!showTypeMenu)}
-              className="gap-2"
-            >
-              {reconType === 'paybill' ? 'Paybill Sweep' : 'STK Sweep'} 
-              <ChevronDown size={14} />
-            </Button>
-            {showTypeMenu && (
-              <div className="absolute top-full right-0 mt-1 bg-white border rounded-md shadow-md z-10 min-w-[150px]">
-                <button
-                  onClick={() => { setReconType('stk'); setShowTypeMenu(false); }}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'stk' ? 'bg-muted font-medium' : ''}`}
+      <div className="flex items-start gap-3">
+        <Link href="/mpesa" className="mt-1"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
+        <PageHeader
+          className="flex-1"
+          title="Reconciliation runs"
+          description={
+            reconType === 'paybill'
+              ? 'Sweeps paybill payments and reconciles them with pending contributions.'
+              : 'Sweeps stuck STK requests and resolves their real status with Daraja.'
+          }
+          actions={
+            <>
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTypeMenu(!showTypeMenu)}
+                  className="gap-2"
                 >
-                  STK Sweep
-                </button>
-                <button
-                  onClick={() => { setReconType('paybill'); setShowTypeMenu(false); }}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'paybill' ? 'bg-muted font-medium' : ''}`}
-                >
-                  Paybill Sweep
-                </button>
+                  {reconType === 'paybill' ? 'Paybill Sweep' : 'STK Sweep'}
+                  <ChevronDown size={14} />
+                </Button>
+                {showTypeMenu && (
+                  <div className="absolute top-full right-0 mt-1 bg-white border rounded-md shadow-md z-10 min-w-[150px]">
+                    <button
+                      onClick={() => { setReconType('stk'); setShowTypeMenu(false); }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'stk' ? 'bg-muted font-medium' : ''}`}
+                    >
+                      STK Sweep
+                    </button>
+                    <button
+                      onClick={() => { setReconType('paybill'); setShowTypeMenu(false); }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'paybill' ? 'bg-muted font-medium' : ''}`}
+                    >
+                      Paybill Sweep
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <Button onClick={runNow} loading={running}><Play size={15} className="mr-2" /> Run now</Button>
-        </div>
+              <Button onClick={runNow} loading={running}><Play size={15} className="mr-2" /> Run now</Button>
+            </>
+          }
+        />
       </div>
 
       {isLoading ? (

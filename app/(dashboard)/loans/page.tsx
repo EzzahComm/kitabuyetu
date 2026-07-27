@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -89,15 +90,15 @@ export default function LoansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Loans</h1>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} total loans</p>
-        </div>
-        <Button onClick={openApply}>
-          <Plus size={16} className="mr-2" /> Apply
-        </Button>
-      </div>
+      <PageHeader
+        title="Loans"
+        description={`${data?.total ?? 0} total loans`}
+        actions={
+          <Button onClick={openApply}>
+            <Plus size={16} className="mr-2" /> Apply
+          </Button>
+        }
+      />
 
       <Tabs value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
         <TabsList>

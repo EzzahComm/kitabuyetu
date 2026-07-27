@@ -10,6 +10,7 @@ import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import dynamic from 'next/dynamic';
 import { useAdminDashboard, useAdminRevenueTrend } from '@/hooks/use-admin';
@@ -61,31 +62,29 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Platform Overview</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Real-time operational intelligence across all organizations
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/admin/organizations">
-            <Button variant="outline" size="sm" className="text-xs">
-              Organizations <ArrowRight size={12} className="ml-1" />
-            </Button>
-          </Link>
-          <Link href="/admin/groups">
-            <Button variant="outline" size="sm" className="text-xs">
-              Groups <ArrowRight size={12} className="ml-1" />
-            </Button>
-          </Link>
-          <Link href="/admin/support">
-            <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700">
-              Support Center
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Platform Overview"
+        description="Real-time operational intelligence across all organizations"
+        actions={
+          <>
+            <Link href="/admin/organizations">
+              <Button variant="outline" size="sm" className="text-xs">
+                Organizations <ArrowRight size={12} className="ml-1" />
+              </Button>
+            </Link>
+            <Link href="/admin/groups">
+              <Button variant="outline" size="sm" className="text-xs">
+                Groups <ArrowRight size={12} className="ml-1" />
+              </Button>
+            </Link>
+            <Link href="/admin/support">
+              <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700">
+                Support Center
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Primary KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

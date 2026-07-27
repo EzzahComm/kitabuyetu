@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { BarChart3, Building2, TrendingUp, Heart, Landmark } from 'lucide-react';
+import { Building2, TrendingUp, Heart, Landmark } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useAdminAnalytics } from '@/hooks/use-admin';
 import { formatKES } from '@/lib/utils';
 
@@ -34,14 +35,10 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <BarChart3 size={20} className="text-blue-500" /> Platform Analytics
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Aggregate insights across all groups and financial activity
-        </p>
-      </div>
+      <PageHeader
+        title="Platform Analytics"
+        description="Aggregate insights across all groups and financial activity"
+      />
 
       {/* Growth chart — note: this tracks groups, not organizations (a
           distinct entity — see organizations count on the main dashboard) */}

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import {
-  Headphones, Search, Plus,
+  Search, Plus,
   Clock, CheckCircle2, AlertTriangle,
   MoreHorizontal, ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -110,21 +111,16 @@ export default function SupportPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Headphones size={20} className="text-blue-500" />
-            Support Center
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Triage, manage, and resolve customer support requests
-          </p>
-        </div>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs"
-          onClick={() => setNewTicket(true)}>
-          <Plus size={14} className="mr-1" /> New Ticket
-        </Button>
-      </div>
+      <PageHeader
+        title="Support Center"
+        description="Triage, manage, and resolve customer support requests"
+        actions={
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs"
+            onClick={() => setNewTicket(true)}>
+            <Plus size={14} className="mr-1" /> New Ticket
+          </Button>
+        }
+      />
 
       {/* Queue summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

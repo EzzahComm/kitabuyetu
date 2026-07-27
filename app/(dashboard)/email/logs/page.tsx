@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/page-header';
 import { useEmailLogs } from '@/hooks/use-email';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -34,7 +35,7 @@ export default function EmailLogsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <h1 className="text-2xl font-bold text-gray-900">Email Logs</h1>
+      <PageHeader title="Email Logs" />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useEmailCampaigns, useCreateCampaign, useCampaignAction } from '@/hooks/use-email';
 import { Plus, Play, X, Users, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -45,39 +46,41 @@ export default function EmailCampaignsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Email Campaigns</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />New Campaign</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>Create Campaign</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Campaign Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. January Announcement" />
+      <PageHeader
+        title="Email Campaigns"
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />New Campaign</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader><DialogTitle>Create Campaign</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Campaign Name</Label>
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. January Announcement" />
+                </div>
+                <div>
+                  <Label>Email Subject</Label>
+                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" />
+                </div>
+                <div>
+                  <Label>HTML Body</Label>
+                  <Textarea value={htmlBody} onChange={(e) => setHtml(e.target.value)} rows={10} placeholder="<p>Dear member...</p>" className="font-mono text-sm" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => handleCreate(false)} disabled={!name || !subject}>
+                    Save as Draft
+                  </Button>
+                  <Button className="flex-1" onClick={() => handleCreate(true)} disabled={!name || !subject || !htmlBody}>
+                    <Play className="h-4 w-4 mr-2" />Launch Now
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label>Email Subject</Label>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" />
-              </div>
-              <div>
-                <Label>HTML Body</Label>
-                <Textarea value={htmlBody} onChange={(e) => setHtml(e.target.value)} rows={10} placeholder="<p>Dear member...</p>" className="font-mono text-sm" />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => handleCreate(false)} disabled={!name || !subject}>
-                  Save as Draft
-                </Button>
-                <Button className="flex-1" onClick={() => handleCreate(true)} disabled={!name || !subject || !htmlBody}>
-                  <Play className="h-4 w-4 mr-2" />Launch Now
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <div className="space-y-3">
         {isLoading

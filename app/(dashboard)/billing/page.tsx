@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/shared/page-header';
 import { useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth/context';
@@ -77,13 +78,10 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-sm text-muted-foreground">
-          Current plan: <span className="font-semibold capitalize">{currentPlanType}</span>
-          {current?.expiresAt && ` · expires ${new Date(current.expiresAt).toLocaleDateString()}`}
-        </p>
-      </div>
+      <PageHeader
+        title="Billing"
+        description={`Current plan: ${currentPlanType.charAt(0).toUpperCase()}${currentPlanType.slice(1)}${current?.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : ''}`}
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {PLANS.map((plan) => {

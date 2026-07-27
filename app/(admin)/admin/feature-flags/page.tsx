@@ -1,9 +1,10 @@
 'use client';
 
-import { Flag, Info, Users, Layers, User, Globe } from 'lucide-react';
+import { Info, Users, Layers, User, Globe } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeatureFlags, useToggleFeatureFlag } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
@@ -69,30 +70,26 @@ export default function FeatureFlagsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Flag size={20} className="text-indigo-500" /> Feature Flags
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Control feature rollouts, experiments, and platform capabilities
-          </p>
-        </div>
-        {!isLoading && (
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">{enabledCount}/{items.length}</p>
-              <p className="text-xs text-gray-500">flags enabled</p>
+      <PageHeader
+        title="Feature Flags"
+        description="Control feature rollouts, experiments, and platform capabilities"
+        actions={
+          !isLoading && (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-900">{enabledCount}/{items.length}</p>
+                <p className="text-xs text-gray-500">flags enabled</p>
+              </div>
+              <div className="w-16 h-2 rounded-full bg-gray-200 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all"
+                  style={{ width: items.length ? `${(enabledCount / items.length) * 100}%` : '0%' }}
+                />
+              </div>
             </div>
-            <div className="w-16 h-2 rounded-full bg-gray-200 overflow-hidden">
-              <div
-                className="h-full bg-indigo-500 rounded-full transition-all"
-                style={{ width: items.length ? `${(enabledCount / items.length) * 100}%` : '0%' }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+          )
+        }
+      />
 
       {/* Info banner */}
       <Card className="border-blue-200 bg-blue-50">

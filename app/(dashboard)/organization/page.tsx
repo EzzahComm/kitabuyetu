@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
@@ -199,23 +200,20 @@ export default function FundingPortalPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Funding Portal</h1>
-          <p className="text-sm text-muted-foreground">
-            Fund, monitor and support your linked groups
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
-            <ArrowDownToLine size={15} /> Deposit
-          </Button>
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
-            <ArrowRightLeft size={15} /> Disburse funds
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Funding Portal"
+        description="Fund, monitor and support your linked groups"
+        actions={
+          <>
+            <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
+              <ArrowDownToLine size={15} /> Deposit
+            </Button>
+            <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
+              <ArrowRightLeft size={15} /> Disburse funds
+            </Button>
+          </>
+        }
+      />
 
       {/* Financial position */}
       {isLoading ? (

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Users, MoreHorizontal, ShieldCheck, UserCog } from 'lucide-react';
+import { Search, MoreHorizontal, ShieldCheck, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -112,16 +113,10 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Users size={20} className="text-purple-500" /> Platform Users
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total.toLocaleString()} total members across all organizations
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Platform Users"
+        description={`${total.toLocaleString()} total members across all organizations`}
+      />
 
       <Card>
         <CardContent className="pt-4">

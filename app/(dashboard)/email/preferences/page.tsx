@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useEmailPreferences, useUpdatePreferences, type EmailPreference } from '@/hooks/use-email';
 import { useToast } from '@/hooks/use-toast';
 
@@ -50,15 +51,15 @@ export default function EmailPreferencesPage() {
 
   return (
     <div className="space-y-4 p-6 max-w-2xl">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Email Preferences</h1>
-          <p className="text-sm text-gray-500 mt-1">Control which emails you receive and how often</p>
-        </div>
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          {updateMutation.isPending ? 'Saving…' : 'Save'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Email Preferences"
+        description="Control which emails you receive and how often"
+        actions={
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Notification Categories</CardTitle></CardHeader>

@@ -7,6 +7,7 @@ import {
   RefreshCw, Plus, Trash2, PauseCircle, PlayCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { smsApi } from '@/lib/api/endpoints';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
@@ -790,10 +791,7 @@ export default function SmsPage() {
 
   return (
     <div className="space-y-6 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">SMS Centre</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Send, schedule, and track messages via TextSMS Kenya</p>
-      </div>
+      <PageHeader title="SMS Centre" description="Send, schedule, and track messages via TextSMS Kenya" />
 
       {/* Tab navigation */}
       <div className="flex gap-1 border-b">

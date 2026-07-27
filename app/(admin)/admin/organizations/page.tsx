@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -124,17 +125,15 @@ export default function OrganizationsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Organizations</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total.toLocaleString()} total · banks, SACCOs & foundations that oversee groups
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setOnboardOpen(true)}>
-          <PlusCircle size={15} className="mr-2" /> Onboard organization
-        </Button>
-      </div>
+      <PageHeader
+        title="Organizations"
+        description={`${total.toLocaleString()} total · banks, SACCOs & foundations that oversee groups`}
+        actions={
+          <Button size="sm" onClick={() => setOnboardOpen(true)}>
+            <PlusCircle size={15} className="mr-2" /> Onboard organization
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card>

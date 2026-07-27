@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
@@ -86,26 +87,26 @@ export default function MpesaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">M-Pesa transactions</h1>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} records</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href="/mpesa/unrouted">
-            <Button variant="outline" size="sm"><Inbox size={15} className="mr-2" /> Unrouted</Button>
-          </Link>
-          <Link href="/mpesa/reallocations">
-            <Button variant="outline" size="sm"><ArrowRightLeft size={15} className="mr-2" /> Corrections</Button>
-          </Link>
-          <Link href="/mpesa/reconciliations">
-            <Button variant="outline" size="sm"><AlertTriangle size={15} className="mr-2" /> Reconciliations</Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="M-Pesa transactions"
+        description={`${data?.total ?? 0} records`}
+        actions={
+          <>
+            <Link href="/mpesa/unrouted">
+              <Button variant="outline" size="sm"><Inbox size={15} className="mr-2" /> Unrouted</Button>
+            </Link>
+            <Link href="/mpesa/reallocations">
+              <Button variant="outline" size="sm"><ArrowRightLeft size={15} className="mr-2" /> Corrections</Button>
+            </Link>
+            <Link href="/mpesa/reconciliations">
+              <Button variant="outline" size="sm"><AlertTriangle size={15} className="mr-2" /> Reconciliations</Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-2 items-end">
         <div className="space-y-1">

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '@/lib/api/endpoints';
 
@@ -34,10 +35,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Reports</h1>
-        <p className="text-sm text-muted-foreground">Generate financial reports for your group</p>
-      </div>
+      <PageHeader title="Reports" description="Generate financial reports for your group" />
 
       <Card>
         <CardContent className="pt-4">

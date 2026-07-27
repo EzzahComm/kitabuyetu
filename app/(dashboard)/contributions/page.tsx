@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -95,15 +96,15 @@ export default function ContributionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Contributions</h1>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} total records</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} className="mr-2" /> Record
-        </Button>
-      </div>
+      <PageHeader
+        title="Contributions"
+        description={`${data?.total ?? 0} total records`}
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} className="mr-2" /> Record
+          </Button>
+        }
+      />
 
       <PaginatedTable data={data} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
 

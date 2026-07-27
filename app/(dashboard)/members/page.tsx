@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PageHeader } from '@/components/shared/page-header';
 import { useMembers, useCreateMember, memberKeys } from '@/hooks/use-members';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -199,24 +200,22 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Members</h1>
-          <p className="text-sm text-muted-foreground">
-            {data?.total ?? 0} total{status ? ` (${MEMBER_STATUSES.find((s) => s.value === status)?.label.toLowerCase()})` : ' (excluding archived)'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/members/import">
-              <Upload size={16} className="mr-2" /> Import
-            </Link>
-          </Button>
-          <Button onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" /> Add member
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Members"
+        description={`${data?.total ?? 0} total${status ? ` (${MEMBER_STATUSES.find((s) => s.value === status)?.label.toLowerCase()})` : ' (excluding archived)'}`}
+        actions={
+          <>
+            <Button asChild variant="outline">
+              <Link href="/members/import">
+                <Upload size={16} className="mr-2" /> Import
+              </Link>
+            </Button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={16} className="mr-2" /> Add member
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters row */}
       <div className="flex items-center gap-3 flex-wrap">

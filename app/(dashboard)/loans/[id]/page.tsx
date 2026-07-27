@@ -7,6 +7,7 @@ import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/shared/status-pill';
+import { PageHeader } from '@/components/shared/page-header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Label } from '@/components/ui/label';
@@ -91,13 +92,14 @@ export default function LoanDetailPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => router.back()}><ArrowLeft size={18}/></Button>
-        <div>
-          <h1 className="text-2xl font-bold">Loan Details</h1>
-          <p className="text-xs font-mono text-muted-foreground">{l.id}</p>
-        </div>
-        <StatusPill status={l.status} className="ml-auto" />
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => router.back()} className="mt-1"><ArrowLeft size={18}/></Button>
+        <PageHeader
+          className="flex-1"
+          title="Loan Details"
+          description={l.id}
+          actions={<StatusPill status={l.status} />}
+        />
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">

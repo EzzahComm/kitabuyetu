@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/shared/page-header';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { membersApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
@@ -81,7 +82,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <PageHeader title="Settings" />
 
       {membershipNo && (
         // Payment instructions (payment architecture §1.7): the Membership

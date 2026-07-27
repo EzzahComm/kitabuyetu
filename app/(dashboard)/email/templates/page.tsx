@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useEmailTemplates, useCreateTemplate, useUpdateTemplate, type EmailTemplate } from '@/hooks/use-email';
 import { Plus, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -85,18 +86,20 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />New Template</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>Create Email Template</DialogTitle></DialogHeader>
-            <TemplateForm onSave={handleCreate} />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Email Templates"
+        actions={
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />New Template</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader><DialogTitle>Create Email Template</DialogTitle></DialogHeader>
+              <TemplateForm onSave={handleCreate} />
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <div className="grid gap-4">
         {isLoading

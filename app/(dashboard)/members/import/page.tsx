@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
@@ -131,11 +132,11 @@ export default function MembersImportPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Link href="/members" className="text-muted-foreground hover:text-foreground">
+      <div className="flex items-start gap-3">
+        <Link href="/members" className="text-muted-foreground hover:text-foreground mt-1">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-2xl font-semibold">Import Members</h1>
+        <PageHeader className="flex-1" title="Import Members" />
       </div>
 
       {phase === 'idle' && <IdleView onUpload={uploadFile} />}

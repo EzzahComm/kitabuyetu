@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -82,12 +83,11 @@ export default function UnroutedPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/mpesa"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
-        <div>
-          <h1 className="text-2xl font-bold">Unrouted receipts</h1>
-          <p className="text-sm text-muted-foreground">
-            Payments that landed but couldn&apos;t be matched to a member automatically.
-          </p>
-        </div>
+        <PageHeader
+          title="Unrouted receipts"
+          description="Payments that landed but couldn't be matched to a member automatically."
+          className="flex-1"
+        />
       </div>
 
       {isLoading ? (

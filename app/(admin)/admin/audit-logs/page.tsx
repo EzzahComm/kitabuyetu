@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, ScrollText, Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/shared/page-header';
 import { useAuditLogs, useAdminGroups } from '@/hooks/use-admin';
 import { formatDate } from '@/lib/utils';
 
@@ -49,14 +50,10 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <ScrollText size={20} className="text-gray-500" /> Audit Logs
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Immutable record of all platform data changes — {total.toLocaleString()} entries
-        </p>
-      </div>
+      <PageHeader
+        title="Audit Logs"
+        description={`Immutable record of all platform data changes — ${total.toLocaleString()} entries`}
+      />
 
       {/* Filters */}
       <Card>
