@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { DatabaseError } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -153,15 +154,24 @@ export const membersService = {
           (data as Record<string, unknown>).password as string | undefined ?? generateTempPassword(),
           BCRYPT_ROUNDS,
         );
-        const { rows } = await client.query<Member>(
+        // id is generated here (rather than left to the column's own
+        // gen_random_uuid() default) so this INSERT needs no RETURNING: the
+        // row isn't yet linked into group_members at this point in the
+        // transaction, so under the least-privileged `app_tenant` role (no
+        // BYPASSRLS — see docs/adr/001-bypassrls-two-role-split.md) the
+        // members_select RLS policy can't see it yet, and Postgres rejects
+        // an INSERT...RETURNING whose new row fails the table's SELECT
+        // policy. The full row is already re-fetched below via a plain
+        // SELECT, once linkMemberToGroup has made it visible.
+        memberId = crypto.randomUUID();
+        await client.query(
           `INSERT INTO members
-             (phone, email, password_hash, first_name, middle_name, last_name,
+             (id, phone, email, password_hash, first_name, middle_name, last_name,
               national_id, date_of_birth, gender, address,
               alternative_phone, county_id, occupation, referred_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-           RETURNING *`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
           [
-            phone, data.email ?? null, passwordHash,
+            memberId, phone, data.email ?? null, passwordHash,
             data.firstName, data.middleName ?? null, data.lastName,
             data.nationalId ?? null, data.dateOfBirth ?? null,
             data.gender ?? null, data.address ?? null,
@@ -169,7 +179,6 @@ export const membersService = {
             data.occupation ?? null, data.referredBy ?? null,
           ],
         );
-        memberId = rows[0].id;
       }
 
       // Use the shared helper so person_id + member_code (both NOT NULL
