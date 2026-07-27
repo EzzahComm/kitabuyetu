@@ -69,7 +69,10 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
       return;
     }
     if (!ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole)) {
-      router.replace('/admin-login');
+      // Genuinely authenticated-but-denied (e.g. a support-role backoffice
+      // user without enterprise access) — /unauthorized, not back to the
+      // login page they just came from.
+      router.replace('/unauthorized');
     }
   }, [user, audience, isLoading, router]);
 

@@ -51,8 +51,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!ADMIN_ROLES.includes(user.platformRole as AdminRole)) {
       // Signed in to backoffice but role isn't recognised — defensive,
       // shouldn't be reachable since the login route enforces the same
-      // allowlist before issuing a token.
-      router.replace('/admin-login');
+      // allowlist before issuing a token. Genuinely authenticated-but-denied,
+      // so this goes to /unauthorized, not back to the login page they just
+      // came from (which would just be a confusing dead-end loop).
+      router.replace('/unauthorized');
     }
   }, [user, audience, isLoading, router]);
 
