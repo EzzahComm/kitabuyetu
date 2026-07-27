@@ -87,11 +87,13 @@ export const disbursementsService = {
       }
 
       // Balance check (C1): lock the group's cash account, require the
-      // amount to fit within available = balance - reserved_amount.
+      // amount to fit within available = balance - reserved_amount. Routed
+      // through lock_group_cash_account() (migration 100, SECURITY DEFINER)
+      // — a plain SELECT ... FOR UPDATE here would also be checked against
+      // accounts_update's is_system RLS policy (every real account is
+      // is_system = true) even though this never issues a write itself.
       const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
-        `SELECT id, balance, reserved_amount FROM accounts
-         WHERE  group_id = $1 AND account_code = '1001' AND is_active = true
-         FOR UPDATE`,
+        `SELECT * FROM lock_group_cash_account($1, '1001')`,
         [ctx.groupId],
       );
       if (!acctRows[0]) {
@@ -112,9 +114,11 @@ export const disbursementsService = {
       // Reserve (C1/C4): earmark the funds now, before Daraja is ever called
       // — including during the approval-pending window, so a second pending
       // request can't also pass the balance check against the same cash.
+      // adjust_account_reserved_amount() (migration 100, SECURITY DEFINER) —
+      // see the lock above for why a direct UPDATE needs it too.
       await db.query(
-        `UPDATE accounts SET reserved_amount = reserved_amount + $1 WHERE id = $2`,
-        [input.amount.toFixed(2), cashAccountId],
+        `SELECT adjust_account_reserved_amount($1, $2)`,
+        [cashAccountId, input.amount.toFixed(2)],
       );
 
       const { rows: inserted } = await db.query<DisbursementRow>(
@@ -181,8 +185,10 @@ export const disbursementsService = {
       if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
 
       await db.query(
-        `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,
-        [rows[0].amount, rows[0].cash_account_id],
+        // String-negate rather than parseFloat/re-serialize, to avoid any
+        // float round-trip on a currency value.
+        `SELECT adjust_account_reserved_amount($1, $2)`,
+        [rows[0].cash_account_id, `-${rows[0].amount}`],
       );
       const { rows: updated } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
