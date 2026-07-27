@@ -82,8 +82,15 @@ describe('organization staff (multi-staff organizations)', () => {
 
   it('removing (archiving) staff proves the two-different-people maker-checker path is now reachable through real staff records, not just forged headers', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
+    // createTestOrganization()'s coordinator is a member with platform_role
+    // = 'organization_coordinator', but createOrganization() never touches
+    // organization_members (that table is new) — add them as lead explicitly
+    // to get two real, distinct staff rows for the same org.
+    const first = await addOrgStaff(organizationId, {
+      phone: '0712340003', firstName: 'C', lastName: 'C', orgRole: 'lead', invitedBy: coordinatorId,
+    });
     const second = await addOrgStaff(organizationId, {
-      phone: '0712340004', firstName: 'D', lastName: 'D', orgRole: 'staff', invitedBy: coordinatorId,
+      phone: '0712340004', firstName: 'D', lastName: 'D', orgRole: 'staff', invitedBy: first.memberId,
     });
 
     // Two distinct, real organization_members rows for the same org — this
