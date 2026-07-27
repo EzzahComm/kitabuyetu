@@ -431,6 +431,44 @@ jobs:
       - name: Test (tenant isolation, real Postgres)
         run: npm run test:integration
 
+      # ── ADR-001 Phase 1 CI pre-flight (docs/adr/001-bypassrls-two-role-split.md) ──
+      # Runs the actual production provisioning script, unmodified in
+      # substance, against this job's disposable Postgres. Two substitutions
+      # only: the CI database is named `kitabuyetu` (Supabase's is always
+      # literally `postgres`), and a CI-only placeholder password replaces the
+      # script's own placeholder — same convention as this job's `ci_test_pw`
+      # above.
+      - name: Provision app_tenant role (CI Postgres)
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci_test_pw
+          sed \
+            -e "s/REPLACE_ME_BEFORE_RUNNING/ci_app_tenant_pw/" \
+            -e "s/DATABASE postgres/DATABASE kitabuyetu/" \
+            scripts/ops/create-app-tenant-role.sql \
+            | psql -h localhost -U kitabuyetu -d kitabuyetu -v ON_ERROR_STOP=1
+
+      # Functional-parity pass — the exact same suite as "Test (tenant
+      # isolation, real Postgres)" above, re-run with TENANT_DATABASE_URL now
+      # pointed at app_tenant's CI connection string. lib/db/index.ts routes
+      # withDb()/withTransaction() through it automatically once set, so this
+      # requires zero test changes — it proves the app's real request paths
+      # still work correctly under the least-privileged role.
+      - name: Test (tenant isolation, real Postgres, under app_tenant)
+        env:
+          TENANT_DATABASE_URL: postgresql://app_tenant:ci_app_tenant_pw@localhost:5432/kitabuyetu
+        run: npm run test:integration
+
+      # The actual point of the two-role split: proves Postgres's own RLS
+      # policy — not a service-layer WHERE clause — is what filters
+      # cross-tenant rows. Runs only here, on the app_tenant connection; the
+      # plain step above never exercises this (see jest.integration.config.ts's
+      # testPathIgnorePatterns).
+      - name: Test (RLS enforcement proof, app_tenant role)
+        env:
+          TENANT_DATABASE_URL: postgresql://app_tenant:ci_app_tenant_pw@localhost:5432/kitabuyetu
+        run: npm run test:integration:app-tenant
+
   # ╔══════════════════════════════════════════════════════════════════════════╗
   # ║  6. DEPLOY — Vercel production (main branch only)                      ║
   # ╚══════════════════════════════════════════════════════════════════════════╝

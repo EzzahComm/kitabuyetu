@@ -1,8 +1,8 @@
 # ADR 001: Stop relying on BYPASSRLS for tenant traffic via a two-role split
 
-**Status:** Accepted, partially implemented (Phase 0 shipped; Phase 1 code shipped,
-production role creation pending; Phase 3 deferred).
-**Date:** 2026-07-22
+**Status:** Accepted, partially implemented (Phase 0 shipped; Phase 1 code + CI
+verification shipped, production role creation pending; Phase 3 deferred).
+**Date:** 2026-07-22 (Phase 1 CI verification added 2026-07-27)
 **Related:** `docs/audits/OPTIMIZATION_CLEANUP_AUDIT.md` Critical #2, Medium-term
 roadmap item "Write down the BYPASSRLS decision explicitly."
 
@@ -107,13 +107,37 @@ requests — ship independently.
   platform's trajectory toward more organizations, donors, and financial
   institutions sharing the same infrastructure.
 
+## Phase 1 CI verification (2026-07-27)
+
+Confirmed via authenticated `vercel env ls production`: `TENANT_DATABASE_URL` is
+**not** set in either Production or Preview (only `DATABASE_URL` exists, one shared
+value across both environments — there is no separate staging database). This
+closes `audit/07-remediation-backlog.md` Critical #1's open *question*: RLS is
+confirmed decorative in production today, the worst case this ADR describes.
+
+The `db-integration` CI job (`.github/workflows/ci.yml`) now provisions `app_tenant`
+in its disposable per-run Postgres 17 instance by piping the real
+`scripts/ops/create-app-tenant-role.sql` through `sed` (only the database name and
+password placeholder differ from what production will run), then runs two proofs on
+every push: the existing `test:integration` suite re-run with `TENANT_DATABASE_URL`
+pointed at `app_tenant` (functional parity — zero test changes needed, since
+`lib/db/index.ts` already routes through it once set), and a new
+`test:integration:app-tenant` suite
+(`__tests__/integration/app-tenant/rls-enforcement.test.ts`) proving Postgres's own
+RLS policy — not a service-layer `WHERE group_id` clause — filters cross-tenant rows
+for an unfiltered query. This is a continuously-re-verified CI gate, not a one-time
+check, and covers both halves of the "staging verification pass" this ADR calls for
+below — before production is ever touched.
+
 ## Follow-up (not yet done)
 
 - **Phase 1 completion**: run `scripts/ops/create-app-tenant-role.sql` against
   production (pending confirmation that Supavisor will proxy a newly created custom
-  role — see the script's own header), set `TENANT_DATABASE_URL`, run the staging
-  verification pass described in the migration plan (functional parity + proof of
-  cross-tenant denial), then cut over.
+  role — see the script's own header), set `TENANT_DATABASE_URL` (canary via Preview
+  first, since Preview shares the live database with Production), then promote to
+  Production. The functional-parity and RLS-enforcement proofs this now needs are
+  already continuously verified in CI (see above) — this step is the actual
+  production cutover, not further verification.
 - **Phase 3 (deferred, not blocking)**: incrementally migrate the ~130 "tenant data
   behind a weak gate" `withAdminDb` call sites (email/SMS/campaign services) onto
   `withDb(ctx, ...)` so they run under `app_tenant` too, service by service. Two
