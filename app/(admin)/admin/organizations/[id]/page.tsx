@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Landmark, Users, Layers, Wallet, TrendingUp,
-  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail,
+  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -245,6 +245,14 @@ export default function OrganizationDetailPage({
               <a href={`tel:${org.coordinator_phone ?? org.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
                 <Phone size={12} /> {org.coordinator_phone ?? org.phone}
               </a>
+            )}
+            {org.coordinator_name && (
+              <p className="flex items-start gap-1.5 rounded-md bg-gray-50 px-2 py-1.5 text-[11px] leading-snug text-gray-500">
+                <Info size={12} className="mt-0.5 shrink-0" />
+                This coordinator manages day-to-day operations (wallet, programs,
+                disbursements) through the separate Kitabu Enterprise portal — same
+                organization, a different sign-in.
+              </p>
             )}
             <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
               <div>
