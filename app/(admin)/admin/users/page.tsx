@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, MoreHorizontal, ShieldCheck, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +58,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function UsersPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [page,       setPage]       = useState(1);
   const [search,     setSearch]     = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -156,6 +158,10 @@ export default function UsersPage() {
         isLoading={isLoading}
         onPageChange={setPage}
         emptyMessage="No users found"
+        onRowClick={(u) => {
+          if (u.group_id) router.push(`/admin/groups/${u.group_id}/members/${u.id}`);
+          else toast({ title: 'No active group membership', description: 'This user has no group to show a detail page for.' });
+        }}
         columns={[
           {
             key: 'user', header: 'User',
@@ -212,27 +218,29 @@ export default function UsersPage() {
           {
             key: 'actions', header: '',
             render: (u) => (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                    <MoreHorizontal size={14} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    disabled={!u.group_id}
-                    onClick={() => openAssignRole(u)}
-                  >
-                    <UserCog size={13} className="mr-2" /> Assign Group Role
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setEditUser({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.platform_role ?? 'member' });
-                    setNewRole(u.platform_role ?? 'member');
-                  }}>
-                    <ShieldCheck size={13} className="mr-2" /> Change Platform Role
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <MoreHorizontal size={14} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      disabled={!u.group_id}
+                      onClick={() => openAssignRole(u)}
+                    >
+                      <UserCog size={13} className="mr-2" /> Assign Group Role
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      setEditUser({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.platform_role ?? 'member' });
+                      setNewRole(u.platform_role ?? 'member');
+                    }}>
+                      <ShieldCheck size={13} className="mr-2" /> Change Platform Role
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ),
           },
         ]}

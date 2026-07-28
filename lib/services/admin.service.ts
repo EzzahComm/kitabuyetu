@@ -1,6 +1,7 @@
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
 import { cached, keys } from '@/lib/redis';
+import { computeMemberFinancialSnapshot } from './member-balances.service';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -667,6 +668,98 @@ export async function listPlatformUsers(params: {
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Member drill-down (SUPER_ADMIN_PLATFORM_AUDIT.md §2.6/§2.7 Phase 1) — a
+// real cross-tenant member detail, reachable from both admin/users and a new
+// member table on admin/groups/[id]. Financial snapshot reuses
+// member-balances.service.ts's computeMemberFinancialSnapshot (built for the
+// (member) portal's own wallet) rather than re-deriving the same savings/
+// loan/shares SQL a third time. Credit score is read directly here (not via
+// credit-scores.service.ts's getLatestForMember) because that function is
+// deliberately group_id-scoped for its own tenant-facing use — a cross-
+// tenant admin read is a different, simpler query, not a variant worth
+// threading a TenantContext through.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Active members of one group, for the member table on admin/groups/[id]. */
+export async function listGroupMembers(groupId: string, params: { page: number; limit: number }) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { page, limit } = params;
+    const offset = (page - 1) * limit;
+
+    const [data, count] = await Promise.all([
+      db.query(`
+        SELECT m.id, m.first_name, m.last_name, m.email, m.phone,
+               gm.member_code, gm.role AS group_role, gm.status, gm.joined_at
+        FROM public.group_members gm
+        JOIN public.members m ON m.id = gm.member_id
+        WHERE gm.group_id = $1 AND gm.status = 'active'
+        ORDER BY m.first_name, m.last_name
+        LIMIT $2 OFFSET $3
+      `, [groupId, limit, offset]),
+      db.query(`SELECT COUNT(*) AS total FROM public.group_members WHERE group_id = $1 AND status = 'active'`, [groupId]),
+    ]);
+
+    return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+  });
+}
+
+/** Cross-tenant member detail: profile, active group/org context, financial snapshot, recent activity, credit score. */
+export async function getAdminMemberDetail(memberId: string) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows: profileRows } = await db.query(`
+      SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.national_id,
+             m.platform_role, m.is_active, m.created_at, m.last_login_at,
+             gm.group_id, gm.member_code, gm.role AS group_role, gm.status AS membership_status, gm.joined_at,
+             g.name AS group_name, g.group_code,
+             org.name AS organization_name
+      FROM public.members m
+      LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active'
+      LEFT JOIN public.groups g ON g.id = gm.group_id
+      LEFT JOIN LATERAL (
+        SELECT o.name
+        FROM public.organization_group_access oga
+        JOIN public.organizations o ON o.id = oga.organization_id
+        WHERE oga.group_id = gm.group_id AND oga.is_active = TRUE
+        LIMIT 1
+      ) org ON true
+      WHERE m.id = $1
+      LIMIT 1
+    `, [memberId]);
+
+    const profile = profileRows[0];
+    if (!profile) return null;
+
+    const [snapshot, activity, creditScore] = await Promise.all([
+      profile.group_id
+        ? computeMemberFinancialSnapshot(db, profile.group_id, memberId)
+        : Promise.resolve([]),
+      db.query(`
+        SELECT id, 'contribution' AS type, amount, contribution_date::text AS date, status
+        FROM public.contributions WHERE member_id = $1
+        UNION ALL
+        SELECT id, 'loan_repayment' AS type, amount_paid AS amount, COALESCE(payment_date, due_date)::text AS date, status
+        FROM public.loan_repayments WHERE member_id = $1
+        ORDER BY date DESC LIMIT 10
+      `, [memberId]),
+      profile.group_id
+        ? db.query(`
+            SELECT overall_score, financial_score, social_score, reliability_tier, loan_eligibility_limit, computed_at
+            FROM public.credit_scores WHERE member_id = $1 AND group_id = $2
+            ORDER BY computed_at DESC LIMIT 1
+          `, [memberId, profile.group_id])
+        : Promise.resolve({ rows: [] }),
+    ]);
+
+    return {
+      profile,
+      snapshot: snapshot[0] ?? null,
+      recentActivity: activity.rows,
+      creditScore: creditScore.rows[0] ?? null,
+    };
   });
 }
 

@@ -7,6 +7,7 @@ import type {
   listPlatformUsers, updatePlatformUserRole, getBillingOverview,
   listSupportTickets, createSupportTicket, updateTicketStatus,
   listAuditLogs, listFeatureFlags, toggleFeatureFlag, getPlatformAnalytics,
+  listGroupMembers, getAdminMemberDetail,
 } from '@/lib/services/admin.service';
 import type {
   listOrganizations, getOrganizationDetail, createOrganization,
@@ -27,6 +28,8 @@ type RevenueTrend             = Awaited<ReturnType<typeof getRevenueTrend>>;
 type AdminGroupList           = Awaited<ReturnType<typeof listGroups>>;
 type AdminGroupDetail         = Awaited<ReturnType<typeof getGroupById>>;
 type UpdateGroupResult        = Awaited<ReturnType<typeof updateGroupStatus>>;
+type AdminGroupMemberList     = Awaited<ReturnType<typeof listGroupMembers>>;
+type AdminMemberDetail        = Awaited<ReturnType<typeof getAdminMemberDetail>>;
 type AdminOrgList             = Awaited<ReturnType<typeof listOrganizations>>;
 type AdminOrgDetail           = Awaited<ReturnType<typeof getOrganizationDetail>>;
 type CreateOrgInput           = Parameters<typeof createOrganization>[0];
@@ -142,6 +145,23 @@ export function useAdminGroup(id: string) {
     queryKey: ['admin', 'groups', id],
     queryFn:  () => adminFetch<AdminGroupDetail>(`/api/admin/groups/${id}`),
     enabled:  !!id,
+  });
+}
+
+// Member drill-down (SUPER_ADMIN_PLATFORM_AUDIT.md §2.6/§2.7 Phase 1).
+export function useAdminGroupMembers(groupId: string, page: number) {
+  return useQuery({
+    queryKey: ['admin', 'groups', groupId, 'members', page],
+    queryFn:  () => adminFetch<AdminGroupMemberList>(`/api/admin/groups/${groupId}/members?page=${page}&limit=25`),
+    enabled:  !!groupId,
+  });
+}
+
+export function useAdminMemberDetail(groupId: string, memberId: string) {
+  return useQuery({
+    queryKey: ['admin', 'groups', groupId, 'members', memberId],
+    queryFn:  () => adminFetch<AdminMemberDetail>(`/api/admin/groups/${groupId}/members/${memberId}`),
+    enabled:  !!groupId && !!memberId,
   });
 }
 

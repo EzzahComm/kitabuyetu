@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
+import { PaginatedTable } from '@/components/shared/paginated-table';
 import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -22,7 +23,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAdminGroup, useUpdateGroupStatus } from '@/hooks/use-admin';
+import { useAdminGroup, useUpdateGroupStatus, useAdminGroupMembers } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
@@ -30,6 +31,18 @@ interface GroupActivityRow {
   action:     string;
   table_name: string;
   created_at: string;
+}
+
+interface GroupMemberRow {
+  id:          string;
+  first_name:  string;
+  last_name:   string;
+  email:       string | null;
+  phone:       string;
+  member_code: string | null;
+  group_role:  string;
+  status:      string;
+  joined_at:   string;
 }
 
 // active/pending/suspended are already mapped by STATUS_TONE; deactivated is
@@ -69,6 +82,9 @@ export default function GroupDetailPage({
 
   const { data: grp, isLoading } = useAdminGroup(id);
   const updateStatus = useUpdateGroupStatus();
+
+  const [memberPage, setMemberPage] = useState(1);
+  const { data: membersData, isLoading: membersLoading } = useAdminGroupMembers(id, memberPage);
 
   const [confirmAction, setConfirmAction] = useState<{
     action: 'approve' | 'suspend' | 'activate' | 'deactivate';
@@ -342,6 +358,43 @@ export default function GroupDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Members — SUPER_ADMIN_PLATFORM_AUDIT.md §2.1/§2.5 Phase 1: this
+          page previously had no member table at all, only aggregate stats. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Users size={14} className="text-blue-500" /> Members ({membersData?.total ?? 0})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PaginatedTable<GroupMemberRow>
+            data={membersData ? {
+              items: membersData.items as GroupMemberRow[], total: membersData.total,
+              page: membersData.page, pageSize: membersData.limit,
+              totalPages: Math.ceil(membersData.total / membersData.limit),
+            } : null}
+            isLoading={membersLoading}
+            onPageChange={setMemberPage}
+            emptyMessage="No active members"
+            onRowClick={(m) => router.push(`/admin/groups/${id}/members/${m.id}`)}
+            columns={[
+              {
+                key: 'name', header: 'Name',
+                render: (m) => (
+                  <div>
+                    <p className="font-medium text-gray-900">{m.first_name} {m.last_name}</p>
+                    {m.member_code && <p className="text-[11px] font-mono text-gray-400">{m.member_code}</p>}
+                  </div>
+                ),
+              },
+              { key: 'contact', header: 'Contact', render: (m) => <span className="text-xs text-gray-600">{m.phone}{m.email ? ` · ${m.email}` : ''}</span> },
+              { key: 'role', header: 'Role', render: (m) => <span className="text-xs text-gray-600 capitalize">{m.group_role?.replace('_', ' ')}</span> },
+              { key: 'joined', header: 'Joined', render: (m) => <span className="text-xs text-gray-500">{formatDate(m.joined_at)}</span> },
+            ]}
+          />
+        </CardContent>
+      </Card>
 
       {/* Recent activity */}
       <Card>
