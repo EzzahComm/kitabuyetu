@@ -85,6 +85,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'journal_lines_partition_maintenance':
       return handleJournalLinesPartitionMaintenance();
 
+    case 'governance_compute_metrics':
+      return handleGovernanceComputeMetrics(job.payload);
+
     case 'cleanup_expired_tokens':
       return handleCleanupExpiredTokens();
 
@@ -307,6 +310,20 @@ async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> 
   const result = await ensureJournalLinesPartitions();
   return {
     message: `journal_lines partitions ensured through 3 months ahead (${result.created.length} checked)`,
+    ...result,
+  };
+}
+
+// ── Governance handler ────────────────────────────────────────
+
+async function handleGovernanceComputeMetrics(payload?: Record<string, unknown>): Promise<HandlerResult> {
+  const { computeGovernanceForAllGroups } = await import('@/lib/services/governance.service');
+  // asOf defaults to today; a payload override lets a manual/backfill run
+  // target a specific period-end date.
+  const asOf = typeof payload?.asOf === 'string' ? payload.asOf : new Date().toISOString().slice(0, 10);
+  const result = await computeGovernanceForAllGroups(asOf);
+  return {
+    message: `governance metrics computed for ${result.succeeded}/${result.groups} groups (${result.alertsRaised} alerts raised, ${result.failed} failed)`,
     ...result,
   };
 }

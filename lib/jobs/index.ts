@@ -245,6 +245,18 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── 1st of month 11:00 UTC — governance/health-score computation ─────
+  // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
+  // unused across this file, so this never competes with an existing
+  // monthly/daily bucket within the same tick.
+  if (date === 1 && hour === 11) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.governance_compute_metrics = await safe('governance_compute_metrics', {}, {
+      priority:  4,
+      dedup_key: `governance_compute_metrics:${monthStr}`,
+    });
+  }
+
   return queued;
 }
 
