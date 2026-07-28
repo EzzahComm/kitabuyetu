@@ -31,7 +31,8 @@ interface AdminGroupRow {
   name:                string;
   group_type:          string;
   onboarding_status:   string;
-  risk_score:          number;
+  health_score:        number | null;
+  health_rag:          'green' | 'amber' | 'red' | null;
   created_at:          string;
   plan:                string;
   member_count:        string;
@@ -53,12 +54,18 @@ const PLAN_BADGE: Record<string, string> = {
   enterprise: 'bg-purple-100 text-purple-700',
 };
 
-function RiskBadge({ score }: { score: number }) {
-  const color = score >= 70 ? 'text-red-600 bg-red-50' :
-                score >= 40 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50';
+// Sourced from governance_health_scores (the health-scoring engine,
+// SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) — null until that group's first
+// monthly computation run has happened, not a fake zero.
+function HealthBadge({ score, rag }: { score: number | null; rag: 'green' | 'amber' | 'red' | null }) {
+  if (score === null || rag === null) {
+    return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">Not yet scored</span>;
+  }
+  const color = rag === 'red' ? 'text-red-600 bg-red-50' :
+                rag === 'amber' ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50';
   return (
     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${color}`}>
-      {score >= 70 ? 'HIGH' : score >= 40 ? 'MED' : 'LOW'} {score}
+      {rag.toUpperCase()} {score}
     </span>
   );
 }
@@ -199,7 +206,7 @@ export default function GroupsPage() {
             key: 'active_loans', header: 'Active Loans', className: 'text-right',
             render: (grp) => <span className="text-blue-600 font-medium">{formatKES(grp.active_loans)}</span>,
           },
-          { key: 'risk_score', header: 'Risk', render: (grp) => <RiskBadge score={grp.risk_score ?? 0} /> },
+          { key: 'health_score', header: 'Health', render: (grp) => <HealthBadge score={grp.health_score} rag={grp.health_rag} /> },
           { key: 'created_at', header: 'Joined', render: (grp) => <span className="text-xs text-gray-500">{formatDate(grp.created_at)}</span> },
           {
             key: 'actions', header: '',

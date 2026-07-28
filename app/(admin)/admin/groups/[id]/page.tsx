@@ -23,7 +23,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAdminGroup, useUpdateGroupStatus, useAdminGroupMembers } from '@/hooks/use-admin';
+import { useAdminGroup, useUpdateGroupStatus, useAdminGroupMembers, useGroupGovernanceSnapshot } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
@@ -85,6 +85,7 @@ export default function GroupDetailPage({
 
   const [memberPage, setMemberPage] = useState(1);
   const { data: membersData, isLoading: membersLoading } = useAdminGroupMembers(id, memberPage);
+  const { data: snapshot } = useGroupGovernanceSnapshot(id);
 
   const [confirmAction, setConfirmAction] = useState<{
     action: 'approve' | 'suspend' | 'activate' | 'deactivate';
@@ -265,32 +266,33 @@ export default function GroupDetailPage({
               )}
             </div>
 
-            {/* Risk / Engagement scores */}
-            <div className="pt-2.5 border-t border-gray-100 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5">Risk Score</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${(grp.risk_score ?? 0) >= 70 ? 'bg-red-500' : (grp.risk_score ?? 0) >= 40 ? 'bg-amber-500' : 'bg-green-500'}`}
-                      style={{ width: `${grp.risk_score ?? 0}%` }}
+            {/* Governance health score — computed monthly by the health-
+                scoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) from
+                real liquidity/credit/profitability/growth metrics. */}
+            <div className="pt-2.5 border-t border-gray-100">
+              <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1.5"><Activity size={11} /> Governance Health Score</p>
+              {!snapshot?.healthScore ? (
+                <p className="text-xs text-gray-400">Not yet computed — runs monthly, or trigger it manually from Admin tools.</p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${snapshot.healthScore.rag === 'red' ? 'bg-red-500' : snapshot.healthScore.rag === 'amber' ? 'bg-amber-500' : 'bg-green-500'}`}
+                        style={{ width: `${snapshot.healthScore.score}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700">{snapshot.healthScore.score}</span>
+                    <StatusPill
+                      status={snapshot.healthScore.rag}
+                      tone={snapshot.healthScore.rag === 'red' ? 'negative' : snapshot.healthScore.rag === 'amber' ? 'warning' : 'positive'}
+                      label={snapshot.healthScore.rag}
+                      size="sm"
                     />
                   </div>
-                  <span className="text-xs font-semibold text-gray-700">{grp.risk_score ?? 0}</span>
+                  <p className="text-[11px] text-gray-400">As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}</p>
                 </div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5">Engagement Score</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${grp.engagement_score ?? 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-700">{grp.engagement_score ?? 0}</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {grp.admin_notes && (

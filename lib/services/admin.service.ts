@@ -519,7 +519,7 @@ export async function listGroups(params: GroupListParams) {
       db.query(`
         SELECT
           g.id, g.name, g.type AS group_type, g.onboarding_status,
-          g.risk_score, g.engagement_score, g.created_at,
+          hs.score AS health_score, hs.category AS health_rag, g.created_at,
           g.suspended_at, g.suspended_reason,
           COALESCE(s.plan_type, 'starter') AS plan,
           COALESCE(s.status, 'active') AS subscription_status,
@@ -531,8 +531,12 @@ export async function listGroups(params: GroupListParams) {
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.status = 'active'
         LEFT JOIN public.contributions c ON c.group_id = g.id
         LEFT JOIN public.loans l ON l.group_id = g.id
+        LEFT JOIN LATERAL (
+          SELECT score, category FROM public.governance_health_scores h
+          WHERE h.group_id = g.id ORDER BY h.as_of DESC LIMIT 1
+        ) hs ON true
         ${where}
-        GROUP BY g.id, s.plan_type, s.status
+        GROUP BY g.id, s.plan_type, s.status, hs.score, hs.category
         ORDER BY g.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...values, limit, offset]),
