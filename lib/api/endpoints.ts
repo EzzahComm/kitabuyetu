@@ -81,6 +81,36 @@ export const authApi = {
 };
 
 // ------------------------------------------------------------------
+// Organization staff invitations (Phase 2, migration 102) — fully public,
+// unauthenticated flow reached only via an emailed link. Mirrors
+// authApi.verifyEmailToken's shape: token-in-body, no access token.
+// ------------------------------------------------------------------
+export interface OrgInvitationLookup {
+  id:               string;
+  organizationId:   string;
+  organizationName: string;
+  email:            string;
+  firstName:        string;
+  lastName:         string;
+  orgRole:          'lead' | 'staff';
+  status:           string;
+}
+
+export const orgInvitationApi = {
+  lookup: (token: string) =>
+    api.post<OrgInvitationLookup>('/organization-invitations/lookup', { token }),
+
+  confirmEmail: (token: string) =>
+    api.post<{ phone: string }>('/organization-invitations/confirm-email', { token }),
+
+  verifyOtp: (token: string, otp: string) =>
+    api.post<{ status: string }>('/organization-invitations/verify-otp', { token, otp }),
+
+  complete: (token: string, password: string) =>
+    api.post<{ status: string }>('/organization-invitations/complete', { token, password }),
+};
+
+// ------------------------------------------------------------------
 // Members
 // ------------------------------------------------------------------
 export const membersApi = {
