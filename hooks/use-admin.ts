@@ -12,6 +12,7 @@ import type {
 import type {
   listOrganizations, getOrganizationDetail, createOrganization,
   setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
+  compareOrganizations,
 } from '@/lib/services/admin-organizations.service';
 import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
@@ -41,6 +42,7 @@ type AdminOrgCreated          = Awaited<ReturnType<typeof createOrganization>>;
 type SetOrgActiveResult       = Awaited<ReturnType<typeof setOrganizationActive>>;
 type AssignGroupToOrgResult   = Awaited<ReturnType<typeof assignGroupToOrganization>>;
 type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganization>>;
+type OrgComparisonList        = Awaited<ReturnType<typeof compareOrganizations>>;
 type OrgStaffList      = Awaited<ReturnType<typeof listOrgStaff>>;
 // `invitedBy` is injected server-side from the caller's own auth context
 // (see app/api/admin/organizations/[id]/staff/route.ts) — the client never
@@ -211,6 +213,14 @@ export function useAdminOrganization(id: string) {
     queryKey: ['admin', 'organizations', id],
     queryFn:  () => adminFetch<AdminOrgDetail>(`/api/admin/organizations/${id}`),
     enabled:  !!id,
+  });
+}
+
+export function useOrganizationComparison() {
+  return useQuery({
+    queryKey: ['admin', 'organizations', 'compare'],
+    queryFn:  () => adminFetch<OrgComparisonList>('/api/admin/organizations/compare'),
+    staleTime: 60_000,
   });
 }
 

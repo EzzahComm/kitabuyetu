@@ -84,6 +84,53 @@ export async function listOrganizations(params: OrgListParams) {
 }
 
 /**
+ * Side-by-side comparison rollup across every active organization —
+ * SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3. Reuses listOrganizations' own
+ * group_count/member_reach/wallet SQL shape and adds each org's average
+ * governance health score (governance_health_scores, Phase 2), averaged
+ * across the groups it oversees via organization_group_access. Unpaginated
+ * (organizations are a small federating-body count, not a tenant-scale
+ * list) — capped defensively rather than exposed as a page param.
+ */
+export async function compareOrganizations() {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query(`
+      SELECT
+        o.id, o.name, o.type, o.county, o.is_active,
+        COALESCE(ga.group_count, 0)      AS group_count,
+        COALESCE(ga.member_reach, 0)     AS member_reach,
+        COALESCE(w.available_balance, 0) AS wallet_balance,
+        COALESCE(w.total_disbursed, 0)   AS total_disbursed,
+        ROUND(hs.avg_health_score)       AS avg_health_score
+      FROM public.organizations o
+      LEFT JOIN LATERAL (
+        SELECT COUNT(DISTINCT oga.group_id) AS group_count,
+               COUNT(DISTINCT gm.id)         AS member_reach
+        FROM public.organization_group_access oga
+        LEFT JOIN public.group_members gm
+          ON gm.group_id = oga.group_id AND gm.status = 'active'
+        WHERE oga.organization_id = o.id AND oga.is_active
+      ) ga ON true
+      LEFT JOIN public.organization_wallets w
+        ON w.organization_id = o.id AND w.currency = 'KES'
+      LEFT JOIN LATERAL (
+        SELECT AVG(h.score) AS avg_health_score
+        FROM public.organization_group_access oga2
+        JOIN LATERAL (
+          SELECT score FROM public.governance_health_scores h2
+          WHERE h2.group_id = oga2.group_id ORDER BY h2.as_of DESC LIMIT 1
+        ) h ON true
+        WHERE oga2.organization_id = o.id AND oga2.is_active
+      ) hs ON true
+      WHERE o.is_active = true
+      ORDER BY o.name
+      LIMIT 200
+    `);
+    return rows;
+  });
+}
+
+/**
  * One organization with its summary, the groups it oversees (each with a
  * member/contribution rollup), and the pool of active groups not yet assigned
  * — everything the detail + assignment UI needs in a single call.
