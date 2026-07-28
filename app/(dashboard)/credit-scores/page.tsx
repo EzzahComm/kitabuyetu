@@ -7,6 +7,7 @@ import { Activity, Loader2, RefreshCw, Users, SlidersHorizontal } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
@@ -14,6 +15,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
+import type { Tone } from '@/lib/ui/tokens';
 
 type Tier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
@@ -43,12 +45,17 @@ const TIER_LABEL: Record<Tier, string> = {
   poor:      'Poor',
   high_risk: 'High risk',
 };
-const TIER_BADGE: Record<Tier, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  excellent: 'success',
-  good:      'default',
-  fair:      'secondary',
-  poor:      'warning',
-  high_risk: 'destructive',
+// Reliability-tier → StatusPill tone mapping. Kept in sync with the same
+// tiers on the member detail page (credit-scores/[memberId]) and the risk
+// analytics page (analytics/risk) — a severity gradient from favorable to
+// unfavorable, since none of these tier names are in the shared STATUS_TONE
+// map (only "high_risk" is, coincidentally already 'negative').
+const TIER_TONE: Record<Tier, Tone> = {
+  excellent: 'positive',
+  good:      'positive',
+  fair:      'warning',
+  poor:      'negative',
+  high_risk: 'negative',
 };
 
 export default function CreditScoresPage() {
@@ -149,7 +156,7 @@ export default function CreditScoresPage() {
                   const edit = policyEdits[t.tier] ?? { min: String(t.min), loanMultiplier: String(t.loanMultiplier) };
                   return (
                     <tr key={t.tier} className="border-t hover:bg-muted/20">
-                      <td className="px-4 py-2"><Badge variant={TIER_BADGE[t.tier]}>{TIER_LABEL[t.tier]}</Badge></td>
+                      <td className="px-4 py-2"><StatusPill status={t.tier} tone={TIER_TONE[t.tier]} label={TIER_LABEL[t.tier]} /></td>
                       <td className="px-4 py-2">
                         <Input
                           type="number" min={0} max={100} className="h-8 w-24"
@@ -226,7 +233,7 @@ export default function CreditScoresPage() {
             ) },
             { key: 'overall', header: 'Overall', className: 'text-right', render: (s) => <span className="font-mono text-base font-semibold">{Number(s.overall_score).toFixed(0)}</span> },
             { key: 'financial', header: 'Financial', className: 'text-right', render: (s) => <span className="font-mono">{Number(s.financial_score).toFixed(0)}</span> },
-            { key: 'tier', header: 'Tier', render: (s) => <Badge variant={TIER_BADGE[s.reliability_tier]}>{TIER_LABEL[s.reliability_tier]}</Badge> },
+            { key: 'tier', header: 'Tier', render: (s) => <StatusPill status={s.reliability_tier} tone={TIER_TONE[s.reliability_tier]} label={TIER_LABEL[s.reliability_tier]} /> },
             { key: 'limit', header: 'Loan limit', className: 'text-right', render: (s) => <span className="font-mono">{fmtMoney(s.loan_eligibility_limit)}</span> },
             { key: 'computed_at', header: 'Last computed', render: (s) => <span className="text-xs text-muted-foreground">{new Date(s.computed_at).toLocaleString()}</span> },
           ]}

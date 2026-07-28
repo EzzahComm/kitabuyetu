@@ -8,11 +8,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import type { Tone } from '@/lib/ui/tokens';
 
 // OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
 // this page's initial bundle; it's only needed once history has >1 point.
@@ -35,8 +36,10 @@ interface CreditScore {
   member_first_name: string; member_last_name: string; member_phone: string;
 }
 
-const TIER_BADGE: Record<Tier, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  excellent: 'success', good: 'default', fair: 'secondary', poor: 'warning', high_risk: 'destructive',
+// Same reliability-tier → tone mapping as the credit-scores list page and
+// the risk analytics page, for consistency across all three.
+const TIER_TONE: Record<Tier, Tone> = {
+  excellent: 'positive', good: 'positive', fair: 'warning', poor: 'negative', high_risk: 'negative',
 };
 const TIER_LABEL: Record<Tier, string> = {
   excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
@@ -126,9 +129,11 @@ export default function CreditScoreDetailPage() {
           }
         >
           {!noScoreYet && latestQ.data && (
-            <Badge variant={TIER_BADGE[latestQ.data.reliability_tier]}>
-              {TIER_LABEL[latestQ.data.reliability_tier]}
-            </Badge>
+            <StatusPill
+              status={latestQ.data.reliability_tier}
+              tone={TIER_TONE[latestQ.data.reliability_tier]}
+              label={TIER_LABEL[latestQ.data.reliability_tier]}
+            />
           )}
         </PageHeader>
       </div>

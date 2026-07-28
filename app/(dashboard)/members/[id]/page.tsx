@@ -6,6 +6,9 @@ import { ArrowLeft, Phone, Mail, MapPin, Calendar, Shield, CreditCard, Landmark,
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,8 +31,11 @@ import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
 // never linked from the member profile. Same tier palette as
 // app/(dashboard)/credit-scores/[memberId]/page.tsx.
 type CreditTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
-const TIER_BADGE: Record<CreditTier, 'default' | 'success' | 'secondary' | 'warning' | 'destructive'> = {
-  excellent: 'success', good: 'default', fair: 'secondary', poor: 'warning', high_risk: 'destructive',
+// `high_risk` is a real STATUS_TONE key already; the rest have no natural
+// auto-derived mapping, so mirror credit-scores/page.tsx's TIER_BADGE colors
+// (excellent/good both green-leaning, fair neutral, poor amber) explicitly.
+const TIER_TONE: Record<CreditTier, Tone> = {
+  excellent: 'positive', good: 'positive', fair: 'neutral', poor: 'warning', high_risk: 'negative',
 };
 const TIER_LABEL: Record<CreditTier, string> = {
   excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
@@ -52,17 +58,6 @@ const roleLabels: Record<string, string> = {
   secretary:   'Secretary',
   auditor:     'Auditor',
   member:      'Member',
-};
-
-const STATUS_BADGE: Record<string, 'warning' | 'success' | 'secondary' | 'destructive' | 'outline'> = {
-  pending_verification: 'warning',
-  active:               'success',
-  inactive:             'secondary',
-  suspended:            'warning',
-  rejected:             'destructive',
-  blacklisted:          'destructive',
-  exited:               'secondary',
-  archived:             'outline',
 };
 
 interface NextOfKin {
@@ -155,9 +150,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 <Badge variant={roleVariant[m.group_role] ?? 'outline'}>
                   {roleLabels[m.group_role] ?? m.group_role}
                 </Badge>
-                <Badge variant={STATUS_BADGE[currentStatus] ?? 'outline'} className="capitalize">
-                  {currentStatus.replace('_', ' ')}
-                </Badge>
+                <StatusPill status={currentStatus} />
               </div>
               <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                 {m.phone && <span className="flex items-center gap-1"><Phone size={13} /> {m.phone}</span>}
@@ -202,26 +195,15 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Quick stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Contributed</p>
-            <p className="text-xl font-bold mt-1 text-brand-600">{formatKES(totalContributed)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Loans</p>
-            <p className="text-xl font-bold mt-1">
-              {loans.filter((l) => l.status === 'active' || l.status === 'disbursed').length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Next of kin</p>
-            <p className="text-xl font-bold mt-1">{kinRows.length}</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Contributed" value={formatKES(totalContributed)} />
+        <StatCard
+          title="Active Loans"
+          value={loans.filter((l) => l.status === 'active' || l.status === 'disbursed').length}
+        />
+        <StatCard title="Next of kin" value={kinRows.length} />
+        {/* Not a plain StatCard: the tier is a colored StatusPill living inside
+            the value area, which StatCard's string|number `value` can't host.
+            Kept as a Card so the tier pill stays visible next to the score. */}
         <Link href={`/credit-scores/${id}`}>
           <Card className="h-full transition-colors hover:border-brand-500">
             <CardContent className="pt-5">
@@ -231,9 +213,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
               ) : creditScoreQ.data ? (
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-xl font-bold">{Number(creditScoreQ.data.overall_score).toFixed(0)}</p>
-                  <Badge variant={TIER_BADGE[creditScoreQ.data.reliability_tier]} className="text-[10px]">
-                    {TIER_LABEL[creditScoreQ.data.reliability_tier]}
-                  </Badge>
+                  <StatusPill
+                    status={creditScoreQ.data.reliability_tier}
+                    tone={TIER_TONE[creditScoreQ.data.reliability_tier]}
+                    label={TIER_LABEL[creditScoreQ.data.reliability_tier]}
+                    size="sm"
+                  />
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground mt-1.5">Not scored yet</p>
@@ -276,7 +261,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-brand-600">{formatKES(c.amount)}</p>
-                        <Badge variant={c.status === 'completed' ? 'success' : 'warning'} className="text-xs">{c.status}</Badge>
+                        <StatusPill status={c.status} size="sm" />
                       </div>
                     </div>
                   ))}
@@ -302,7 +287,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={l.status === 'active' ? 'success' : 'secondary'} className="text-xs capitalize">{l.status}</Badge>
+                        <StatusPill status={l.status} size="sm" />
                         {l.outstanding_balance && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Balance: {formatKES(l.outstanding_balance)}

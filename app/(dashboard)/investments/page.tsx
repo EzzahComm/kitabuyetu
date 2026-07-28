@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Plus, TrendingUp, TrendingDown, DollarSign, BarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
 import { useInvestments, useInvestmentSummary, useCreateInvestment, type InvestmentRow } from '@/hooks/use-investments';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,14 +32,6 @@ const createSchema = z.object({
 });
 
 type CreateInvestmentForm = z.infer<typeof createSchema>;
-
-const statusVariant: Record<string, 'warning' | 'success' | 'default' | 'secondary' | 'destructive'> = {
-  pending_approval: 'warning',
-  active:           'success',
-  matured:          'default',
-  liquidated:       'secondary',
-  cancelled:        'destructive',
-};
 
 const typeLabels: Record<string, string> = {
   real_estate: 'Real Estate', shares: 'Shares', bonds: 'Bonds',
@@ -104,7 +96,9 @@ export default function InvestmentsPage() {
     },
     {
       key: 'status', header: 'Status',
-      render: (row: InvestmentRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
+      render: (row: InvestmentRow) => (
+        <StatusPill status={row.status} tone={row.status === 'pending_approval' ? 'pending' : undefined} size="sm" />
+      ),
     },
     {
       key: 'start_date', header: 'Start Date',
@@ -127,19 +121,16 @@ export default function InvestmentsPage() {
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Principal" value={formatKES(summary?.totalPrincipal ?? 0)} description={`${summary?.totalInvestments ?? 0} investments`} />
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Portfolio Value</p>
-            <p className="text-2xl font-bold mt-1 text-green-600">{formatKES(summary?.totalCurrentValue ?? 0)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{summary?.activeCount ?? 0} active</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Returns Earned</p>
-            <p className="text-2xl font-bold mt-1 text-blue-600">{formatKES(summary?.totalReturns ?? 0)}</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Current Portfolio Value"
+          value={formatKES(summary?.totalCurrentValue ?? 0)}
+          description={`${summary?.activeCount ?? 0} active`}
+        />
+        <StatCard title="Total Returns Earned" value={formatKES(summary?.totalReturns ?? 0)} />
+        {/* Not converted to StatCard: ROI's sign is a real positive/negative
+            signal (colored value text + swapped Trending icon), which
+            StatCard's plain string|number value can't represent — see
+            component-reference guidance to skip rather than force this. */}
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall ROI</p>

@@ -32,6 +32,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
@@ -107,23 +108,6 @@ const DISBURSEMENT_TYPES = [
   ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
   ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
 ] as const;
-
-function Metric({ label, value, sub, icon: Icon }: {
-  label: string; value: string; sub?: string; icon: React.ElementType;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs uppercase text-muted-foreground tracking-wide">{label}</p>
-          <p className="mt-1 text-xl font-bold truncate">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-        </div>
-        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function FundingPortalPage() {
   const qc = useQueryClient();
@@ -223,22 +207,22 @@ export default function FundingPortalPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label="Wallet balance" value={formatKES(parseFloat(f?.walletBalance ?? '0'))}
-                  sub={`${formatKES(parseFloat(f?.committedFunds ?? '0'))} committed`} icon={Wallet} />
-          <Metric label="Total deposited" value={formatKES(parseFloat(f?.totalDeposited ?? '0'))} icon={ArrowDownToLine} />
-          <Metric label="Total disbursed" value={formatKES(parseFloat(f?.totalDisbursed ?? '0'))}
-                  sub={`${formatKES(parseFloat(f?.totalReturned ?? '0'))} returned`} icon={ArrowRightLeft} />
-          <Metric label="Active programs" value={String(p?.activePrograms ?? 0)} icon={FolderKanban} />
+          <StatCard title="Wallet balance" value={formatKES(parseFloat(f?.walletBalance ?? '0'))}
+                    description={`${formatKES(parseFloat(f?.committedFunds ?? '0'))} committed`} icon={Wallet} />
+          <StatCard title="Total deposited" value={formatKES(parseFloat(f?.totalDeposited ?? '0'))} icon={ArrowDownToLine} />
+          <StatCard title="Total disbursed" value={formatKES(parseFloat(f?.totalDisbursed ?? '0'))}
+                    description={`${formatKES(parseFloat(f?.totalReturned ?? '0'))} returned`} icon={ArrowRightLeft} />
+          <StatCard title="Active programs" value={String(p?.activePrograms ?? 0)} icon={FolderKanban} />
         </div>
       )}
 
       {/* Portfolio */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Linked groups" value={String(p?.linkedGroups ?? 0)} icon={Landmark} />
-        <Metric label="Active members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users} />
-        <Metric label="Savings mobilized" value={formatKES(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
-        <Metric label="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
-                sub={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
+        <StatCard title="Linked groups" value={String(p?.linkedGroups ?? 0)} icon={Landmark} />
+        <StatCard title="Active members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users} />
+        <StatCard title="Savings mobilized" value={formatKES(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
+        <StatCard title="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
+                  description={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

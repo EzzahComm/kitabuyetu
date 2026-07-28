@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -66,21 +66,6 @@ const fmtMoney = (v: string | number | null | undefined) =>
   new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(Number(v ?? 0));
 const fmtPct   = (rate: string | number) =>
   (Number(rate) * 100).toFixed(rate.toString().length > 5 ? 2 : 0) + '%';
-
-const STATUS_BADGE: Record<Status, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  draft:            'secondary',
-  pending_approval: 'warning',
-  approved:         'default',
-  paid:             'success',
-  cancelled:        'outline',
-};
-
-const ALLOC_BADGE: Record<string, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  pending:    'warning',
-  paid:       'success',
-  reinvested: 'default',
-  cancelled:  'outline',
-};
 
 // ── Page ───────────────────────────────────────────────────────────────
 
@@ -192,7 +177,7 @@ export default function DividendDetailPage() {
             </>
           }
         >
-          <Badge variant={STATUS_BADGE[decl.status]} className="capitalize">{decl.status.replace('_', ' ')}</Badge>
+          <StatusPill status={decl.status} tone={decl.status === 'pending_approval' ? 'pending' : undefined} />
         </PageHeader>
       </div>
 
@@ -301,7 +286,7 @@ export default function DividendDetailPage() {
                 { key: 'gross', header: 'Gross', className: 'text-right', render: (a) => <span className={`font-mono ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.gross_amount)}</span> },
                 { key: 'tax', header: 'Tax', className: 'text-right', render: (a) => <span className={`font-mono ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.tax_amount)}</span> },
                 { key: 'net', header: 'Net', className: 'text-right', render: (a) => <span className={`font-mono font-medium ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{fmtMoney(a.net_amount)}</span> },
-                { key: 'status', header: 'Status', render: (a) => <Badge variant={ALLOC_BADGE[a.status] ?? 'outline'} className={`capitalize ${a.status === 'cancelled' ? 'opacity-60' : ''}`}>{a.status}</Badge> },
+                { key: 'status', header: 'Status', render: (a) => <StatusPill status={a.status} tone={a.status === 'reinvested' ? 'info' : undefined} className={a.status === 'cancelled' ? 'opacity-60' : ''} /> },
                 {
                   key: 'payment', header: 'Payment', className: 'text-xs text-muted-foreground', render: (a) => (
                     <div className={a.status === 'cancelled' ? 'opacity-60' : ''}>

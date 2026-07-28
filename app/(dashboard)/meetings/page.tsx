@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Plus, Calendar, Users, CheckSquare, Clock, MapPin, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -32,12 +33,11 @@ const createSchema = z.object({
 
 type CreateMeetingForm = z.infer<typeof createSchema>;
 
-const statusVariant: Record<string, 'warning' | 'default' | 'success' | 'destructive' | 'secondary'> = {
-  scheduled:   'warning',
-  in_progress: 'default',
-  completed:   'success',
-  cancelled:   'destructive',
-  postponed:   'secondary',
+// Statuses not in the shared STATUS_TONE map get an explicit tone override
+// here; the rest (scheduled, completed, cancelled) derive automatically.
+const MEETING_STATUS_TONE: Record<string, 'pending' | 'warning'> = {
+  in_progress: 'pending',
+  postponed:   'warning',
 };
 
 const typeLabels: Record<string, string> = {
@@ -114,7 +114,7 @@ export default function MeetingsPage() {
     },
     {
       key: 'status', header: 'Status',
-      render: (row: MeetingRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize text-xs">{row.status?.replace('_',' ')}</Badge>,
+      render: (row: MeetingRow) => <StatusPill status={row.status} tone={MEETING_STATUS_TONE[row.status]} size="sm" />,
     },
   ];
 

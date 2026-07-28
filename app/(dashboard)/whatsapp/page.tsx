@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  AlertTriangle, CheckCircle2, Info, Loader2, MessageSquare, Send, XCircle,
+  Info, Loader2, MessageSquare, Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusPill } from '@/components/shared/status-pill';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -35,15 +36,6 @@ interface WhatsAppMessage {
   member_first_name: string | null; member_last_name: string | null;
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
-
-const STATUS_BADGE: Record<Status, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  pending:   'secondary',
-  sent:      'default',
-  delivered: 'success',
-  read:      'success',
-  failed:    'destructive',
-  dry_run:   'warning',
-};
 
 const composeSchema = z.object({
   memberId: z.string().optional(),
@@ -207,15 +199,7 @@ export default function WhatsAppPage() {
                   </div>
                 ) },
                 { key: 'status', header: 'Status', render: (m) => (
-                  <Badge variant={STATUS_BADGE[m.status]} className="capitalize">
-                    {m.status === 'sent'      ? <Send         className="mr-1 h-3 w-3" />
-                   : m.status === 'delivered' ? <CheckCircle2 className="mr-1 h-3 w-3" />
-                   : m.status === 'read'      ? <CheckCircle2 className="mr-1 h-3 w-3" />
-                   : m.status === 'failed'    ? <XCircle      className="mr-1 h-3 w-3" />
-                   : m.status === 'dry_run'   ? <AlertTriangle className="mr-1 h-3 w-3" />
-                   : null}
-                    {m.status.replace('_', ' ')}
-                  </Badge>
+                  <StatusPill status={m.status} tone={m.status === 'read' ? 'positive' : undefined} size="sm" />
                 ) },
               ]}
             />

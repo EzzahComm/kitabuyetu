@@ -263,8 +263,11 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
         <StatCard title="Total rows" value={job.total_rows} />
-        <SummaryCard label="Valid"      value={job.valid_rows} valueClass="text-green-600" />
-        <SummaryCard label="Errors"     value={job.error_rows} valueClass={hasErrors ? 'text-red-600' : ''} />
+        <StatCard title="Valid" value={job.valid_rows} />
+        {/* Not converted: color here is a real signal (turns red only when
+            error_rows > 0), which StatCard's plain string|number value can't
+            express — kept on SummaryCard per the component-reference skip rule. */}
+        <SummaryCard label="Errors" value={job.error_rows} valueClass={hasErrors ? 'text-red-600' : ''} />
       </div>
 
       {job.filename && (
@@ -352,8 +355,10 @@ function ResultView({ job, onRollback, onStartOver }: { job: ImportJob; onRollba
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
-          <SummaryCard label="Imported" value={job.imported ?? job.created_member_ids.length} valueClass="text-green-600" />
+          <StatCard title="Imported" value={job.imported ?? job.created_member_ids.length} />
           <StatCard title="Skipped"  value={job.skipped  ?? 0} />
+          {/* Not converted: amber only when error_rows > 0 — same real-signal
+              exception as the preview view above. */}
           <SummaryCard label="Errors"   value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
         </div>
 

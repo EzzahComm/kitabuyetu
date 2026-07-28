@@ -108,31 +108,20 @@ export default function AccountingPage() {
           {loadingTB ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Trial Balance</CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {['Code','Account','Type','Debit','Credit'].map((h)=>(
-                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(trialBalance ?? []).map((row) => {
-                      const debit  = parseFloat(row.totalDebits);
-                      const credit = parseFloat(row.totalCredits);
-                      return (
-                        <tr key={row.accountCode} className="border-t hover:bg-muted/20">
-                          <td className="px-4 py-2 font-mono text-xs">{row.accountCode}</td>
-                          <td className="px-4 py-2">{row.accountName}</td>
-                          <td className="px-4 py-2 capitalize text-xs"><Badge variant="outline">{row.accountType}</Badge></td>
-                          <td className="px-4 py-2 text-right">{debit > 0 ? formatKES(debit) : '—'}</td>
-                          <td className="px-4 py-2 text-right">{credit > 0 ? formatKES(credit) : '—'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <CardContent className="p-0">
+                <PaginatedTable
+                  data={singlePage((trialBalance ?? []).map((line) => ({ ...line, id: line.accountCode })))}
+                  isLoading={loadingTB}
+                  onPageChange={() => {}}
+                  emptyMessage="No trial balance data"
+                  columns={[
+                    { key: 'accountCode', header: 'Code', render: (row) => <span className="font-mono text-xs">{row.accountCode}</span> },
+                    { key: 'accountName', header: 'Account' },
+                    { key: 'accountType', header: 'Type', className: 'capitalize text-xs', render: (row) => <Badge variant="outline">{row.accountType}</Badge> },
+                    { key: 'totalDebits', header: 'Debit', className: 'text-right', render: (row) => { const debit = parseFloat(row.totalDebits); return debit > 0 ? formatKES(debit) : '—'; } },
+                    { key: 'totalCredits', header: 'Credit', className: 'text-right', render: (row) => { const credit = parseFloat(row.totalCredits); return credit > 0 ? formatKES(credit) : '—'; } },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
