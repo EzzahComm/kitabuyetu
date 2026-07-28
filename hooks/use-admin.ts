@@ -13,7 +13,7 @@ import type {
   setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
 } from '@/lib/services/admin-organizations.service';
 import type {
-  listOrgStaff, addOrgStaff, createOrgInvitation,
+  listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
 
@@ -42,6 +42,8 @@ type AddOrgStaffResult = Awaited<ReturnType<typeof addOrgStaff>>;
 // `invitedBy` is injected server-side, same as AddOrgStaffInput above.
 type InviteOrgStaffInput  = Omit<Parameters<typeof createOrgInvitation>[1], 'invitedBy'>;
 type InviteOrgStaffResult = Awaited<ReturnType<typeof createOrgInvitation>>;
+type OrgInvitationList    = Awaited<ReturnType<typeof listOrgInvitations>>;
+type ResendInvitationResult = Awaited<ReturnType<typeof resendOrgInvitation>>;
 type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
 type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
 type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
@@ -252,6 +254,41 @@ export function useInviteOrgStaff() {
       }),
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'staff'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'invitations'] });
+    },
+  });
+}
+
+export function useOrgInvitations(orgId: string) {
+  return useQuery({
+    queryKey: ['admin', 'organizations', orgId, 'invitations'],
+    queryFn:  () => adminFetch<OrgInvitationList>(`/api/admin/organizations/${orgId}/staff/invitations`),
+    enabled:  !!orgId,
+  });
+}
+
+export function useResendOrgInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, invitationId }: { orgId: string; invitationId: string }) =>
+      adminFetch<ResendInvitationResult>(`/api/admin/organizations/${orgId}/staff/invitations/${invitationId}/resend`, {
+        method: 'POST',
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'invitations'] });
+    },
+  });
+}
+
+export function useCancelOrgInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, invitationId }: { orgId: string; invitationId: string }) =>
+      adminFetch<{ id: string }>(`/api/admin/organizations/${orgId}/staff/invitations/${invitationId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'invitations'] });
     },
   });
 }

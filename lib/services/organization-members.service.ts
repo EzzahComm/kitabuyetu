@@ -372,6 +372,115 @@ export async function verifyOrgInvitationOtp(token: string, otp: string): Promis
   });
 }
 
+export interface OrgInvitationListItem {
+  id:        string;
+  email:     string;
+  firstName: string;
+  lastName:  string;
+  orgRole:   OrgRole;
+  status:    string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+interface InvitationListQueryRow {
+  id: string; email: string; first_name: string; last_name: string;
+  org_role: OrgRole; status: string; expires_at: Date; created_at: Date;
+}
+
+const TERMINAL_INVITATION_STATUSES = ['completed', 'cancelled'] as const;
+
+function mapInvitationListRow(r: InvitationListQueryRow): OrgInvitationListItem {
+  // 'expired' isn't written anywhere by the accept flow itself (getOrgInvitation
+  // just rejects a stale token at read-time) — surface it here instead, since
+  // this is the one place an admin actually needs to see it.
+  const status = !TERMINAL_INVITATION_STATUSES.includes(r.status as never) && r.expires_at < new Date()
+    ? 'expired' : r.status;
+  return {
+    id: r.id, email: r.email, firstName: r.first_name, lastName: r.last_name,
+    orgRole: r.org_role, status, expiresAt: r.expires_at, createdAt: r.created_at,
+  };
+}
+
+/** Lead/super_admin-only. Every invitation ever sent for this org, newest first — completed/cancelled included so the history is auditable, not just the actionable ones. */
+export async function listOrgInvitations(organizationId: string): Promise<OrgInvitationListItem[]> {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query<InvitationListQueryRow>(
+      `SELECT id, email, first_name, last_name, org_role, status, expires_at, created_at
+       FROM public.organization_invitations
+       WHERE organization_id = $1
+       ORDER BY created_at DESC`,
+      [organizationId],
+    );
+    return rows.map(mapInvitationListRow);
+  });
+}
+
+/**
+ * Lead/super_admin-only. Regenerates the token (and resets the OTP state —
+ * the old token is dead the moment a new one is issued, so any in-flight
+ * OTP tied to it must restart too) and re-sends the invite email. Works
+ * from any non-terminal status, including an already-expired one.
+ */
+export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date }> {
+  const token = generateEmailToken();
+  const tokenHash = hashSecret(token);
+
+  const result = await withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query<{
+      status: string; email: string; first_name: string; organization_name: string;
+    }>(
+      `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name
+       FROM public.organization_invitations oi
+       JOIN public.organizations o ON o.id = oi.organization_id
+       WHERE oi.id = $1`,
+      [id],
+    );
+    const inv = rows[0];
+    if (!inv) throw new NotFoundError('Invitation', id);
+    if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
+      throw new ValidationError(`Cannot resend a ${inv.status} invitation`);
+    }
+
+    const { rows: updated } = await db.query<{ expires_at: Date }>(
+      `UPDATE public.organization_invitations
+       SET status = 'invited', token_hash = $2, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0,
+           expires_at = NOW() + INTERVAL '14 days'
+       WHERE id = $1
+       RETURNING expires_at`,
+      [id, tokenHash],
+    );
+    return { expiresAt: updated[0].expires_at, email: inv.email, firstName: inv.first_name, organizationName: inv.organization_name };
+  });
+
+  await sendTemplatedEmail({
+    templateKey: 'org_staff_invite',
+    to:          result.email,
+    vars: {
+      firstName:        result.firstName,
+      organizationName: result.organizationName,
+      inviteUrl:         acceptInviteUrlFor(token),
+    },
+  });
+
+  return { expiresAt: result.expiresAt };
+}
+
+/** Lead/super_admin-only. */
+export async function cancelOrgInvitation(id: string): Promise<void> {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query<{ status: string }>(
+      `SELECT status FROM public.organization_invitations WHERE id = $1`, [id],
+    );
+    const inv = rows[0];
+    if (!inv) throw new NotFoundError('Invitation', id);
+    if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
+      throw new ValidationError(`Cannot cancel a ${inv.status} invitation`);
+    }
+    await db.query(`UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`, [id]);
+  });
+}
+
 /** Public. Creates/links the member and marks the invitation completed. */
 export async function completeOrgInvitation(token: string, password: string): Promise<void> {
   const tokenHash = hashSecret(token);
