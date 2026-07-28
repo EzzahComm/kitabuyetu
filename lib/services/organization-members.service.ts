@@ -481,6 +481,24 @@ export async function cancelOrgInvitation(id: string): Promise<void> {
   });
 }
 
+/**
+ * Public. The invitee declining their own invitation — a typo'd email, a
+ * change of mind, or "this isn't me". No auth needed for the same reason
+ * every other public step here doesn't: the token itself is the proof of
+ * who's acting.
+ */
+export async function declineOrgInvitationByToken(token: string): Promise<void> {
+  const tokenHash = hashSecret(token);
+  return withAdminDb(async (db: PoolClient) => {
+    const inv = await loadInvitationByTokenHash(db, tokenHash);
+    if (!inv) throw new NotFoundError('Invitation', token);
+    if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
+      throw new ValidationError(`This invitation is already ${inv.status}`);
+    }
+    await db.query(`UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`, [inv.id]);
+  });
+}
+
 /** Public. Creates/links the member and marks the invitation completed. */
 export async function completeOrgInvitation(token: string, password: string): Promise<void> {
   const tokenHash = hashSecret(token);

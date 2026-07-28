@@ -123,6 +123,9 @@ export const orgInvitationApi = {
 
   complete: (token: string, password: string) =>
     api.post<{ status: string }>('/organization-invitations/complete', { token, password }),
+
+  decline: (token: string) =>
+    api.post<{ status: string }>('/organization-invitations/decline', { token }),
 };
 
 // ------------------------------------------------------------------
