@@ -4,12 +4,13 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Landmark, Users, Layers, Wallet, TrendingUp,
-  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog,
+  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog, RotateCw, Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -25,6 +26,7 @@ import {
   useAdminOrganization, useUpdateOrganizationStatus,
   useAssignGroupToOrg, useRevokeGroupFromOrg,
   useOrgStaff, useAddOrgStaff, useInviteOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
+  useOrgInvitations, useResendOrgInvitation, useCancelOrgInvitation,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
@@ -81,6 +83,10 @@ export default function OrganizationDetailPage({
   const inviteStaff      = useInviteOrgStaff();
   const changeStaffRole = useChangeOrgStaffRole();
   const removeStaff    = useRemoveOrgStaff();
+
+  const { data: invitations, isLoading: invitationsLoading } = useOrgInvitations(id);
+  const resendInvitation = useResendOrgInvitation();
+  const cancelInvitation = useCancelOrgInvitation();
 
   const [assignOpen, setAssignOpen]   = useState(false);
   const [pickGroup, setPickGroup]     = useState('');
@@ -187,6 +193,24 @@ export default function OrganizationDetailPage({
       setAddStaffOpen(false); resetStaffForm();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Invite failed', description: getErrorMessage(e) });
+    }
+  };
+
+  const doResendInvitation = async (invitationId: string) => {
+    try {
+      await resendInvitation.mutateAsync({ orgId: id, invitationId });
+      toast({ title: 'Invitation re-sent' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Could not resend invitation', description: getErrorMessage(e) });
+    }
+  };
+
+  const doCancelInvitation = async (invitationId: string) => {
+    try {
+      await cancelInvitation.mutateAsync({ orgId: id, invitationId });
+      toast({ title: 'Invitation cancelled' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Could not cancel invitation', description: getErrorMessage(e) });
     }
   };
 
@@ -352,6 +376,56 @@ export default function OrganizationDetailPage({
               </p>
             </CardContent>
           </Card>
+
+          {/* Pending invitations — the invite feature (migration 102) shipped
+              without any way to see what happened after "Send invite" was
+              clicked. This closes that gap: status, resend, cancel. */}
+          {(() => {
+            const pending = invitations?.filter((i) => i.status !== 'completed') ?? [];
+            if (!invitationsLoading && pending.length === 0) return null;
+            return (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Mail size={14} className="text-purple-500" /> Pending invitations ({pending.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs">
+                  {invitationsLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : (
+                    pending.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 rounded-md border border-gray-100 px-2.5 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-gray-900">{inv.firstName} {inv.lastName}</p>
+                          <p className="truncate text-[11px] text-gray-400">{inv.email}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <StatusPill status={inv.status} size="sm" />
+                          <Button
+                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                            title="Resend invitation"
+                            disabled={resendInvitation.isPending}
+                            onClick={() => doResendInvitation(inv.id)}
+                          >
+                            <RotateCw size={12} />
+                          </Button>
+                          <Button
+                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                            title="Cancel invitation"
+                            disabled={cancelInvitation.isPending}
+                            onClick={() => doCancelInvitation(inv.id)}
+                          >
+                            <Ban size={12} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Organization details */}
           <Card>
