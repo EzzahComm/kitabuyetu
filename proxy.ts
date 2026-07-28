@@ -174,6 +174,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     '/api/v1/organization-invitations/confirm-email',
     '/api/v1/organization-invitations/verify-otp',
     '/api/v1/organization-invitations/complete',
+    // Self-service forgot-password — a visitor who forgot their password has
+    // no session by definition. Same OTP-is-the-proof shape as the flows above.
+    '/api/v1/auth/forgot-password/start',
+    '/api/v1/auth/forgot-password/reset',
   ]);
 
   if (
