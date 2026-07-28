@@ -18,6 +18,9 @@ import type {
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
 import type { AdminLoginResponse } from '@/types/api.types';
+import type {
+  listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
+} from '@/lib/services/governance.service';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -72,6 +75,10 @@ type AuditLogList             = Awaited<ReturnType<typeof listAuditLogs>>;
 type FeatureFlagList          = Awaited<ReturnType<typeof listFeatureFlags>>;
 type ToggleFeatureFlagResult  = Awaited<ReturnType<typeof toggleFeatureFlag>>;
 type PlatformAnalytics        = Awaited<ReturnType<typeof getPlatformAnalytics>>;
+type GovernanceAlertList      = Awaited<ReturnType<typeof listGovernanceAlerts>>;
+type AcknowledgedAlert        = Awaited<ReturnType<typeof acknowledgeAlert>>;
+type ResolvedAlert            = Awaited<ReturnType<typeof resolveAlert>>;
+type GroupGovernanceSnapshot  = Awaited<ReturnType<typeof getGroupGovernanceSnapshot>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -524,5 +531,53 @@ export function useToggleFeatureFlag() {
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
       adminFetch<ToggleFeatureFlagResult>('/api/admin/feature-flags', { method: 'PATCH', json: { key, enabled } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Governance / health-scoring
+// ─────────────────────────────────────────────────────────────────────────────
+export function useGovernanceAlerts(params: {
+  page?: number; limit?: number; status?: string; severity?: string; groupId?: string;
+} = {}) {
+  const p = new URLSearchParams();
+  if (params.page)     p.set('page',     String(params.page));
+  if (params.limit)    p.set('limit',    String(params.limit));
+  if (params.status)   p.set('status',   params.status);
+  if (params.severity) p.set('severity', params.severity);
+  if (params.groupId)  p.set('groupId',  params.groupId);
+
+  return useQuery({
+    queryKey: ['admin', 'governance', 'alerts', params],
+    queryFn:  () => adminFetch<GovernanceAlertList>(`/api/admin/governance/alerts?${p}`),
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useAcknowledgeGovernanceAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      adminFetch<AcknowledgedAlert>(`/api/admin/governance/alerts/${id}`, { method: 'PATCH', json: { status: 'acknowledged' } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'governance', 'alerts'] }),
+  });
+}
+
+export function useResolveGovernanceAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      adminFetch<ResolvedAlert>(`/api/admin/governance/alerts/${id}`, { method: 'PATCH', json: { status: 'resolved' } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'governance', 'alerts'] }),
+  });
+}
+
+export function useGroupGovernanceSnapshot(groupId: string) {
+  return useQuery({
+    queryKey: ['admin', 'governance', 'snapshot', groupId],
+    queryFn:  () => adminFetch<GroupGovernanceSnapshot>(`/api/admin/governance/snapshots?groupId=${groupId}`),
+    enabled: !!groupId,
+    staleTime: 60_000,
   });
 }

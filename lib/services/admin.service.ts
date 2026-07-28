@@ -318,23 +318,32 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
           JOIN public.groups g ON g.id = t.group_id
           GROUP BY g.type
         ),
-        lo AS (
-          SELECT g.type::text AS segment,
-                 COUNT(*) AS total,
-                 COUNT(*) FILTER (WHERE COALESCE(l.days_in_arrears, 0) > 0) AS arrears
-          FROM public.loans l
-          JOIN public.groups g ON g.id = l.group_id
-          GROUP BY g.type
+        -- Real per-category "badness" (100 - goodness), sourced from each
+        -- group's latest governance_snapshots RAG rather than the dead
+        -- groups.risk_score column or the stale loans.days_in_arrears
+        -- column. Same green=100/amber=55/red=15 mapping the composite
+        -- health score uses (governance.service.ts's RAG_SCORE).
+        gov AS (
+          SELECT g.type::text AS segment, gm.category,
+                 AVG(CASE s.rag WHEN 'green' THEN 100 WHEN 'amber' THEN 55 WHEN 'red' THEN 15 END) AS goodness
+          FROM public.governance_snapshots s
+          JOIN public.governance_metrics gm ON gm.code = s.metric_code
+          JOIN public.groups g ON g.id = s.group_id
+          JOIN (
+            SELECT group_id, MAX(as_of) AS as_of FROM public.governance_snapshots GROUP BY group_id
+          ) latest ON latest.group_id = s.group_id AND latest.as_of = s.as_of
+          WHERE gm.category IN ('liquidity', 'credit', 'capital') AND s.period_type = 'monthly' AND s.rag <> 'na'
+          GROUP BY g.type, gm.category
         )
         SELECT g.type::text AS segment,
                ROUND(100.0 * COALESCE(MAX(txn.risky), 0) / NULLIF(MAX(txn.total), 0))::int AS fraud,
-               ROUND(AVG(COALESCE(g.risk_score, 0)))::int                                  AS aml,
-               ROUND(100.0 * COALESCE(MAX(lo.arrears), 0) / NULLIF(MAX(lo.total), 0))::int  AS credit,
-               ROUND(AVG(COALESCE(g.risk_score, 0)))::int                                  AS liquidity,
+               ROUND(100 - COALESCE(MAX(gov.goodness) FILTER (WHERE gov.category = 'capital'), 100))::int   AS capital,
+               ROUND(100 - COALESCE(MAX(gov.goodness) FILTER (WHERE gov.category = 'credit'), 100))::int    AS credit,
+               ROUND(100 - COALESCE(MAX(gov.goodness) FILTER (WHERE gov.category = 'liquidity'), 100))::int AS liquidity,
                ROUND(100.0 * COUNT(*) FILTER (WHERE g.kyc_verified_at IS NULL) / NULLIF(COUNT(*), 0))::int AS compliance
         FROM public.groups g
         LEFT JOIN txn ON txn.segment = g.type::text
-        LEFT JOIN lo  ON lo.segment  = g.type::text
+        LEFT JOIN gov ON gov.segment = g.type::text
         GROUP BY g.type
         ORDER BY g.type
       `),
@@ -351,7 +360,7 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
       dailyTrend: trend.rows,
       heatmap: heatmap.rows.map((r: Record<string, unknown>) => ({
         segment: prettySegment(String(r.segment)),
-        scores: [r.fraud, r.aml, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
+        scores: [r.fraud, r.capital, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
       })),
     });
   }));

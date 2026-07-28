@@ -30,6 +30,7 @@
  */
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
+import { NotFoundError } from '@/lib/utils/errors';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -416,4 +417,105 @@ export async function computeGovernanceForAllGroups(asOf: string): Promise<{ gro
     }
   }
   return { groups: groups.length, succeeded, failed, alertsRaised };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alert workflow — mirrors updateTicketStatus's exact shape (admin.service.ts),
+// the closest existing ack/resolve-style precedent in this codebase.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function listGovernanceAlerts(params: {
+  page: number; limit: number; status?: string; severity?: string; groupId?: string;
+}) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { page, limit, status, severity, groupId } = params;
+    const offset = (page - 1) * limit;
+    const conds: string[] = [];
+    const vals: unknown[] = [];
+    let idx = 1;
+
+    if (status)   { conds.push(`a.status = $${idx}`);      vals.push(status);   idx++; }
+    if (severity) { conds.push(`a.severity = $${idx}`);    vals.push(severity); idx++; }
+    if (groupId)  { conds.push(`a.group_id = $${idx}`);    vals.push(groupId);  idx++; }
+
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    const [data, count] = await Promise.all([
+      db.query(`
+        SELECT a.*, g.name AS group_name, gm.name AS metric_name,
+               ack.first_name || ' ' || ack.last_name AS acknowledged_by_name
+        FROM public.governance_alerts a
+        JOIN public.groups g ON g.id = a.group_id
+        JOIN public.governance_metrics gm ON gm.code = a.metric_code
+        LEFT JOIN public.members ack ON ack.id = a.acknowledged_by
+        ${where}
+        ORDER BY CASE a.severity WHEN 'red' THEN 1 ELSE 2 END, a.created_at DESC
+        LIMIT $${idx} OFFSET $${idx + 1}
+      `, [...vals, limit, offset]),
+      db.query(`SELECT COUNT(*) AS total FROM public.governance_alerts a ${where}`, vals),
+    ]);
+
+    return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+  });
+}
+
+export async function acknowledgeAlert(alertId: string, adminId: string) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rowCount } = await db.query(
+      `UPDATE public.governance_alerts
+       SET status = 'acknowledged', acknowledged_by = $2, acknowledged_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND status = 'open'`,
+      [alertId, adminId],
+    );
+    if (!rowCount) throw new NotFoundError('Open governance alert', alertId);
+    return { success: true };
+  });
+}
+
+export async function resolveAlert(alertId: string, adminId: string) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rowCount } = await db.query(
+      `UPDATE public.governance_alerts
+       SET status = 'resolved', acknowledged_by = COALESCE(acknowledged_by, $2),
+           acknowledged_at = COALESCE(acknowledged_at, NOW()), updated_at = NOW()
+       WHERE id = $1 AND status != 'resolved'`,
+      [alertId, adminId],
+    );
+    if (!rowCount) throw new NotFoundError('Governance alert', alertId);
+    return { success: true };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Snapshot reads — power the group detail health card and the Risk Center
+// heatmap. Read-only, no computation; purely reshapes what
+// computeGroupGovernanceSnapshot already persisted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getGroupGovernanceSnapshot(groupId: string) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows: latest } = await db.query<{ as_of: string | null }>(
+      `SELECT MAX(as_of)::text AS as_of FROM governance_snapshots WHERE group_id = $1`,
+      [groupId],
+    );
+    const asOf = latest[0]?.as_of ?? null;
+    if (!asOf) return { asOf: null, metrics: [], healthScore: null };
+
+    const [{ rows: metrics }, { rows: health }] = await Promise.all([
+      db.query(
+        `SELECT s.metric_code, gm.name AS metric_name, gm.category, gm.unit, s.value, s.rag, s.trend
+         FROM governance_snapshots s
+         JOIN governance_metrics gm ON gm.code = s.metric_code
+         WHERE s.group_id = $1 AND s.as_of = $2 AND s.period_type = 'monthly'
+         ORDER BY gm.sort_order`,
+        [groupId, asOf],
+      ),
+      db.query(
+        `SELECT score, category AS rag, components FROM governance_health_scores
+         WHERE group_id = $1 AND as_of = $2 AND period_type = 'monthly'`,
+        [groupId, asOf],
+      ),
+    ]);
+    return { asOf, metrics, healthScore: health[0] ?? null };
+  });
 }
