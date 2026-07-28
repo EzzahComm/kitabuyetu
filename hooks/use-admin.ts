@@ -13,7 +13,7 @@ import type {
   setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
 } from '@/lib/services/admin-organizations.service';
 import type {
-  listOrgStaff, addOrgStaff,
+  listOrgStaff, addOrgStaff, createOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
 
@@ -39,6 +39,9 @@ type OrgStaffList      = Awaited<ReturnType<typeof listOrgStaff>>;
 // supplies it.
 type AddOrgStaffInput  = Omit<Parameters<typeof addOrgStaff>[1], 'invitedBy'>;
 type AddOrgStaffResult = Awaited<ReturnType<typeof addOrgStaff>>;
+// `invitedBy` is injected server-side, same as AddOrgStaffInput above.
+type InviteOrgStaffInput  = Omit<Parameters<typeof createOrgInvitation>[1], 'invitedBy'>;
+type InviteOrgStaffResult = Awaited<ReturnType<typeof createOrgInvitation>>;
 type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
 type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
 type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
@@ -232,6 +235,19 @@ export function useAddOrgStaff() {
   return useMutation({
     mutationFn: ({ orgId, ...body }: { orgId: string } & AddOrgStaffInput) =>
       adminFetch<AddOrgStaffResult>(`/api/admin/organizations/${orgId}/staff`, {
+        method: 'POST', json: body,
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'staff'] });
+    },
+  });
+}
+
+export function useInviteOrgStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, ...body }: { orgId: string } & InviteOrgStaffInput) =>
+      adminFetch<InviteOrgStaffResult>(`/api/admin/organizations/${orgId}/staff/invite`, {
         method: 'POST', json: body,
       }),
     onSuccess: (_d, v) => {

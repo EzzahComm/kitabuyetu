@@ -37,6 +37,17 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     `,
   },
 
+  org_staff_invite: {
+    subject: 'You\'ve been invited to join {{organizationName}} on Kitabu Yetu',
+    body: `
+      <h2 style="margin:0 0 16px;color:#0B3C88;">You're invited</h2>
+      <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{firstName}}</strong>,</p>
+      <p style="margin:0 0 20px;color:#374151;">You've been invited to join <strong>{{organizationName}}</strong> as staff on Kitabu Yetu. Click below to confirm your email and continue setup — you'll also need to verify your phone number by SMS code.</p>
+      <a href="{{inviteUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Accept invitation</a>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 14 days. If you were not expecting this invitation, please ignore this email.</p>
+    `,
+  },
+
   password_reset: {
     subject: 'Reset your Kitabu Yetu password',
     body: `

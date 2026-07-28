@@ -167,6 +167,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // row), so this must stay reachable without an access token: the click
     // may happen on a different device/browser than the one that registered.
     '/api/v1/auth/verify/email',
+    // Multi-staff organizations, Phase 2 (migration 102) — the accept-invite
+    // flow is a visitor with only an emailed link, no session yet. Same
+    // token-is-the-proof shape as verify/email above.
+    '/api/v1/organization-invitations/lookup',
+    '/api/v1/organization-invitations/confirm-email',
+    '/api/v1/organization-invitations/verify-otp',
+    '/api/v1/organization-invitations/complete',
   ]);
 
   if (

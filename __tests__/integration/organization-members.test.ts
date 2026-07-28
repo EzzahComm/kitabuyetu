@@ -9,10 +9,47 @@
  */
 import {
   listOrgStaff, addOrgStaff, changeOrgStaffRole, removeOrgStaff,
+  createOrgInvitation, getOrgInvitation, confirmOrgInvitationEmail,
+  verifyOrgInvitationOtp, completeOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import { createTestOrganization, createOrgCoordinator } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
+
+// The invite flow's two proof-of-possession channels are a real outbound
+// email (lib/services/email.service.ts — EMAIL_DRY_RUN logs it but doesn't
+// expose the rendered link back to the caller) and a real outbound SMS
+// (lib/services/textsms.service.ts — no dry-run flag at all). Both are
+// mocked here the same way any other genuinely external HTTP dependency
+// would be; everything else (real Postgres, the actual service functions,
+// the invited -> otp_sent -> verified -> completed state machine) runs for
+// real. The mocks also let the test recover the plaintext token/OTP that
+// only ever exist in the email link / SMS body, never on the DB row itself
+// (token_hash/otp_hash are one-way hashes by design).
+jest.mock('@/lib/services/email.service', () => ({
+  sendTemplatedEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('@/lib/services/textsms.service', () => ({
+  sendSingleSms: jest.fn().mockResolvedValue({ success: true }),
+}));
+import { sendTemplatedEmail } from '@/lib/services/email.service';
+import { sendSingleSms } from '@/lib/services/textsms.service';
+
+function extractTokenFromEmailMock(): string {
+  const call = (sendTemplatedEmail as jest.Mock).mock.calls.at(-1);
+  const inviteUrl = call?.[0]?.vars?.inviteUrl as string;
+  const token = inviteUrl?.split('/accept-org-invite/')[1];
+  if (!token) throw new Error('Could not find invite token in mocked email vars');
+  return token;
+}
+
+function extractOtpFromSmsMock(): string {
+  const call = (sendSingleSms as jest.Mock).mock.calls.at(-1);
+  const message = call?.[0]?.message as string;
+  const match = message.match(/code is (\d{6})/);
+  if (!match) throw new Error('Could not find OTP in mocked SMS message');
+  return match[1];
+}
 
 describe('organization staff (multi-staff organizations)', () => {
   afterEach(async () => {
@@ -116,5 +153,72 @@ describe('organization staff (multi-staff organizations)', () => {
     const [lead] = await listOrgStaff(organizationId);
 
     await expect(removeOrgStaff(organizationId, lead.memberId, coordinatorId)).rejects.toThrow();
+  });
+});
+
+describe('organization staff invitations (Phase 2 — email + phone-OTP)', () => {
+  afterEach(async () => {
+    jest.clearAllMocks();
+    await resetDatabase();
+  });
+
+  it('walks the full invited -> otp_sent -> verified -> completed state machine against real Postgres', async () => {
+    const { organizationId, coordinatorId } = await createTestOrganization();
+
+    const invitation = await createOrgInvitation(organizationId, {
+      email: 'amara@example.com', phone: '0712350001',
+      firstName: 'Amara', lastName: 'Njeri', orgRole: 'staff', invitedBy: coordinatorId,
+    });
+    expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
+    const token = extractTokenFromEmailMock();
+
+    const lookedUp = await getOrgInvitation(token);
+    expect(lookedUp.status).toBe('invited');
+    expect(lookedUp.organizationId).toBe(organizationId);
+
+    await confirmOrgInvitationEmail(token);
+    expect(sendSingleSms).toHaveBeenCalledTimes(1);
+    expect((await getOrgInvitation(token)).status).toBe('otp_sent');
+    const otp = extractOtpFromSmsMock();
+
+    await verifyOrgInvitationOtp(token, otp);
+    expect((await getOrgInvitation(token)).status).toBe('verified');
+
+    await completeOrgInvitation(token, 'S3curePass1');
+
+    const [row] = await rawQuery<{ status: string; completed_at: Date | null }>(
+      `SELECT status, completed_at FROM organization_invitations WHERE id = $1`, [invitation.id],
+    );
+    expect(row.status).toBe('completed');
+    expect(row.completed_at).not.toBeNull();
+
+    const staff = await listOrgStaff(organizationId);
+    const newStaff = staff.find((s) => s.phone === '254712350001');
+    expect(newStaff?.status).toBe('active');
+    expect(newStaff?.orgRole).toBe('staff');
+  });
+
+  it('rejects an incorrect OTP and does not advance the invitation past otp_sent', async () => {
+    const { organizationId, coordinatorId } = await createTestOrganization();
+    await createOrgInvitation(organizationId, {
+      email: 'b@example.com', phone: '0712350002',
+      firstName: 'B', lastName: 'B', orgRole: 'staff', invitedBy: coordinatorId,
+    });
+    const token = extractTokenFromEmailMock();
+
+    await confirmOrgInvitationEmail(token);
+    await expect(verifyOrgInvitationOtp(token, '000000')).rejects.toThrow();
+    expect((await getOrgInvitation(token)).status).toBe('otp_sent');
+  });
+
+  it('rejects completing an invitation before OTP verification', async () => {
+    const { organizationId, coordinatorId } = await createTestOrganization();
+    await createOrgInvitation(organizationId, {
+      email: 'c@example.com', phone: '0712350003',
+      firstName: 'C', lastName: 'C', orgRole: 'staff', invitedBy: coordinatorId,
+    });
+    const token = extractTokenFromEmailMock();
+
+    await expect(completeOrgInvitation(token, 'S3curePass1')).rejects.toThrow();
   });
 });

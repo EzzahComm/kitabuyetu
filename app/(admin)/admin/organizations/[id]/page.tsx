@@ -20,10 +20,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   useAdminOrganization, useUpdateOrganizationStatus,
   useAssignGroupToOrg, useRevokeGroupFromOrg,
-  useOrgStaff, useAddOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
+  useOrgStaff, useAddOrgStaff, useInviteOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
@@ -76,7 +77,8 @@ export default function OrganizationDetailPage({
   const revokeGroup  = useRevokeGroupFromOrg();
 
   const { data: staff, isLoading: staffLoading } = useOrgStaff(id);
-  const addStaff       = useAddOrgStaff();
+  const addStaff        = useAddOrgStaff();
+  const inviteStaff      = useInviteOrgStaff();
   const changeStaffRole = useChangeOrgStaffRole();
   const removeStaff    = useRemoveOrgStaff();
 
@@ -86,7 +88,9 @@ export default function OrganizationDetailPage({
   const [revoking, setRevoking]       = useState<{ groupId: string; name: string } | null>(null);
 
   const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [staffMode, setStaffMode]       = useState<'direct' | 'invite'>('direct');
   const [staffPhone, setStaffPhone]     = useState('');
+  const [staffEmail, setStaffEmail]     = useState('');
   const [staffFirst, setStaffFirst]     = useState('');
   const [staffLast, setStaffLast]       = useState('');
   const [staffRole, setStaffRole]       = useState<'lead' | 'staff'>('staff');
@@ -150,6 +154,10 @@ export default function OrganizationDetailPage({
     }
   };
 
+  const resetStaffForm = () => {
+    setStaffPhone(''); setStaffEmail(''); setStaffFirst(''); setStaffLast(''); setStaffRole('staff');
+  };
+
   const doAddStaff = async () => {
     if (!staffPhone || !staffFirst || !staffLast) {
       toast({ variant: 'destructive', title: 'Phone, first name, and last name are required' });
@@ -160,9 +168,25 @@ export default function OrganizationDetailPage({
         orgId: id, phone: staffPhone, firstName: staffFirst, lastName: staffLast, orgRole: staffRole,
       });
       toast({ title: 'Staff added' });
-      setAddStaffOpen(false); setStaffPhone(''); setStaffFirst(''); setStaffLast(''); setStaffRole('staff');
+      setAddStaffOpen(false); resetStaffForm();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Add staff failed', description: getErrorMessage(e) });
+    }
+  };
+
+  const doInviteStaff = async () => {
+    if (!staffEmail || !staffPhone || !staffFirst || !staffLast) {
+      toast({ variant: 'destructive', title: 'Email, phone, first name, and last name are required' });
+      return;
+    }
+    try {
+      await inviteStaff.mutateAsync({
+        orgId: id, email: staffEmail, phone: staffPhone, firstName: staffFirst, lastName: staffLast, orgRole: staffRole,
+      });
+      toast({ title: 'Invitation sent', description: `${staffFirst} will get an email to finish setting up their account.` });
+      setAddStaffOpen(false); resetStaffForm();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Invite failed', description: getErrorMessage(e) });
     }
   };
 
@@ -371,40 +395,89 @@ export default function OrganizationDetailPage({
       </div>
 
       {/* Add staff dialog */}
-      <Dialog open={addStaffOpen} onOpenChange={(o) => { if (!o) setAddStaffOpen(false); }}>
+      <Dialog open={addStaffOpen} onOpenChange={(o) => { if (!o) { setAddStaffOpen(false); resetStaffForm(); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add staff</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>First name</Label>
-                <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />
+          <Tabs value={staffMode} onValueChange={(v) => setStaffMode(v as 'direct' | 'invite')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="direct">Add directly</TabsTrigger>
+              <TabsTrigger value="invite">Invite by email</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="direct" className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Creates the account immediately with a temporary password. Best for someone who&apos;s already a known member.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>First name</Label>
+                  <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Last name</Label>
+                  <Input value={staffLast} onChange={(e) => setStaffLast(e.target.value)} />
+                </div>
               </div>
               <div className="space-y-1">
-                <Label>Last name</Label>
-                <Input value={staffLast} onChange={(e) => setStaffLast(e.target.value)} />
+                <Label>Phone</Label>
+                <Input value={staffPhone} onChange={(e) => setStaffPhone(e.target.value)} placeholder="0712345678" />
               </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Phone</Label>
-              <Input value={staffPhone} onChange={(e) => setStaffPhone(e.target.value)} placeholder="0712345678" />
-            </div>
-            <div className="space-y-1">
-              <Label>Role</Label>
-              <select
-                value={staffRole}
-                onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="staff">Staff — day-to-day operations</option>
-                <option value="lead">Lead — can also manage other staff</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
-            <Button onClick={doAddStaff} loading={addStaff.isPending}>Add staff</Button>
-          </DialogFooter>
+              <div className="space-y-1">
+                <Label>Role</Label>
+                <select
+                  value={staffRole}
+                  onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="staff">Staff — day-to-day operations</option>
+                  <option value="lead">Lead — can also manage other staff</option>
+                </select>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
+                <Button onClick={doAddStaff} loading={addStaff.isPending}>Add staff</Button>
+              </DialogFooter>
+            </TabsContent>
+
+            <TabsContent value="invite" className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Emails a link to confirm and set their own password — they also verify their phone by SMS code.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>First name</Label>
+                  <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Last name</Label>
+                  <Input value={staffLast} onChange={(e) => setStaffLast(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Email</Label>
+                <Input type="email" value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} placeholder="name@example.com" />
+              </div>
+              <div className="space-y-1">
+                <Label>Phone</Label>
+                <Input value={staffPhone} onChange={(e) => setStaffPhone(e.target.value)} placeholder="0712345678" />
+              </div>
+              <div className="space-y-1">
+                <Label>Role</Label>
+                <select
+                  value={staffRole}
+                  onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="staff">Staff — day-to-day operations</option>
+                  <option value="lead">Lead — can also manage other staff</option>
+                </select>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
+                <Button onClick={doInviteStaff} loading={inviteStaff.isPending}>Send invite</Button>
+              </DialogFooter>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

@@ -25,15 +25,15 @@ interface GroupContactInfo {
   phone:      string;
 }
 
-function hashSecret(secret: string): string {
+export function hashSecret(secret: string): string {
   return crypto.createHash('sha256').update(secret).digest('hex');
 }
 
-function generateEmailToken(): string {
+export function generateEmailToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function generateOtp(): string {
+export function generateOtp(): string {
   return String(crypto.randomInt(100_000, 1_000_000)); // 6 digits, zero-padding not needed
 }
 
