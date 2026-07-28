@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import {
-  ShieldCheck, UserCheck, AlertTriangle, Banknote,
+  ShieldCheck, UserCheck, AlertTriangle, Banknote, Activity,
   ArrowRight, Check, X, Eye, Info,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,17 +14,20 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ChartCard, BarSeriesChart } from '@/components/shared/charts';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import { type Severity } from './_data';
 import type { RiskDashboardPayload } from '@/lib/services/admin.service';
-import { adminFetch } from '@/hooks/use-admin';
+import { adminFetch, useGovernanceAlerts, useAcknowledgeGovernanceAlert, useResolveGovernanceAlert } from '@/hooks/use-admin';
 
 const severityTone: Record<Severity, Tone> = {
   critical: 'negative', high: 'negative', medium: 'warning', low: 'neutral',
 };
 
-const RISK_DIMENSIONS = ['Fraud', 'AML', 'Credit', 'Liquidity', 'Compliance'] as const;
+const RISK_DIMENSIONS = ['Fraud', 'Capital', 'Credit', 'Liquidity', 'Compliance'] as const;
+
+const alertStatusTone: Record<string, Tone> = { open: 'negative', acknowledged: 'warning', resolved: 'positive' };
 
 function heatmapCellClass(score: number): string {
   if (score >= 60) return 'bg-red-100 text-red-800';
@@ -52,6 +55,11 @@ export default function RiskDashboardPage() {
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
+
+  const { data: govAlerts, isLoading: govLoading } = useGovernanceAlerts({ limit: 10 });
+  const acknowledgeAlert = useAcknowledgeGovernanceAlert();
+  const resolveAlert = useResolveGovernanceAlert();
+  const [resolvingId, setResolvingId] = React.useState<string | null>(null);
 
   const alerts = data?.alerts ?? [];
   const kyc = data?.kyc ?? [];
@@ -143,6 +151,71 @@ export default function RiskDashboardPage() {
           />
         </ChartCard>
       </div>
+
+      {/* Governance alerts — real rows raised by the health-scoring engine
+          (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) when a group's metric lands
+          in amber/red; acknowledge/resolve here actually mutate governance_alerts. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Activity size={14} className="text-brand-600" /> Governance alerts
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">{govAlerts?.total ?? 0} total</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Raised automatically when a group&apos;s financial metrics land in amber or red</p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {govLoading ? (
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading governance alerts…</div>
+          ) : !govAlerts?.items.length ? (
+            <EmptyState
+              size="sm"
+              icon={ShieldCheck}
+              title="No governance alerts"
+              description="Every group's metrics are within their green/amber bands, or the monthly computation hasn't run yet."
+            />
+          ) : (
+            govAlerts.items.map((a: Record<string, unknown>) => (
+              <div key={a.id as string} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <StatusPill status={a.severity as string} tone={a.severity === 'red' ? 'negative' : 'warning'} label={a.severity as string} size="sm" />
+                    <StatusPill status={a.status as string} tone={alertStatusTone[a.status as string] ?? 'neutral'} label={a.status as string} size="sm" />
+                    <span className="truncate text-sm font-semibold text-gray-900">{a.group_name as string}</span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{a.metric_name as string} · {a.message as string}</p>
+                </div>
+                {a.status !== 'resolved' && (
+                  <div className="flex shrink-0 gap-2">
+                    {a.status === 'open' && (
+                      <Button
+                        size="sm" variant="outline" className="h-7 text-xs"
+                        loading={acknowledgeAlert.isPending && acknowledgeAlert.variables === a.id}
+                        onClick={() => acknowledgeAlert.mutate(a.id as string)}
+                      >
+                        Acknowledge
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setResolvingId(a.id as string)}>
+                      Resolve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={!!resolvingId}
+        onOpenChange={(o) => !o && setResolvingId(null)}
+        title="Resolve governance alert"
+        description="This marks the alert as resolved. It will be raised again automatically if the same metric is still in amber/red at the next computation run."
+        confirmLabel="Resolve"
+        onConfirm={async () => { if (resolvingId) await resolveAlert.mutateAsync(resolvingId); }}
+      />
 
       {/* Live fraud feed + KYC queue */}
       <div className="grid gap-6 lg:grid-cols-2">
