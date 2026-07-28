@@ -1,9 +1,15 @@
+'use client';
+
 import * as React from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { MemberBottomNav } from '@/components/member/bottom-nav';
 import { OfflineIndicator } from '@/components/member/offline-indicator';
-import { member, notificationsCount } from './_data';
+import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
+import { configureApiClient } from '@/lib/api/client';
+import { useUnreadNotificationCount } from '@/hooks/use-member';
 
 /**
  * Member self-service shell — mobile-first by construction.
@@ -13,35 +19,67 @@ import { member, notificationsCount } from './_data';
  * phone and on a desktop. A sticky top bar carries the greeting + sync status;
  * a fixed bottom tab bar carries primary navigation.
  *
- * NOTE: in production this group should be wrapped with the same auth guard as
- * (dashboard) — gated to the member's own membership. It's left ungated here so
- * the UI is reviewable in isolation.
+ * Auth guard mirrors app/(dashboard)/layout.tsx exactly — see that file for
+ * the reasoning behind each check (backoffice sessions never render here,
+ * pending_verification groups get bounced to /verify-group, etc.).
  */
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, accessToken, audience, logout } = useAuth();
+  const router = useRouter();
+  const isBackoffice = audience === 'backoffice' || isBackofficeUser(user);
+
+  useEffect(() => {
+    configureApiClient({
+      getToken:       () => accessToken,
+      onUnauthorized: () => { logout(); router.push('/login'); },
+    });
+  }, [accessToken, logout, router]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) { router.push('/login'); return; }
+    if (isBackoffice) { router.replace('/admin'); return; }
+    if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
+      router.replace('/verify-group');
+    }
+  }, [isLoading, user, isBackoffice, router]);
+
+  const { data: unreadCount } = useUnreadNotificationCount({ enabled: !isLoading && !!user && !isBackoffice });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
+      </div>
+    );
+  }
+
+  if (!user || isBackoffice || !isTenantUser(user)) return null;
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background shadow-sm">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue-600 text-sm font-bold text-white">
-            {member.firstName[0]}{member.lastName[0]}
+            {user.firstName[0]}{user.lastName[0]}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-tight text-foreground">
-              Hi, {member.firstName} 👋
+              Hi, {user.firstName} 👋
             </p>
-            <p className="truncate text-xs text-muted-foreground">{member.groupName}</p>
+            <p className="truncate text-xs text-muted-foreground">{user.groupName}</p>
           </div>
           <OfflineIndicator className="hidden sm:inline-flex" />
           <Link
             href="/me/notifications"
             className="relative rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted"
-            aria-label={`Notifications${notificationsCount ? `, ${notificationsCount} unread` : ''}`}
+            aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
           >
             <Bell size={20} />
-            {notificationsCount > 0 && (
+            {!!unreadCount && unreadCount > 0 && (
               <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
-                {notificationsCount}
+                {unreadCount}
               </span>
             )}
           </Link>
