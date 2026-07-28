@@ -3,16 +3,17 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Loader2, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, UserX, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { orgInvitationApi, type OrgInvitationLookup } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
 import { getErrorMessage } from '@/lib/utils';
 
-type Step = 'loading' | 'otp' | 'password' | 'success' | 'error';
+type Step = 'loading' | 'otp' | 'password' | 'success' | 'declined' | 'error';
 
 /**
  * Public, unauthenticated (a visitor with only the emailed link, no
@@ -35,6 +36,7 @@ function AcceptInviteBody() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
 
   useEffect(() => {
     configureApiClient({ getToken: () => null, onUnauthorized: () => {} });
@@ -91,6 +93,16 @@ function AcceptInviteBody() {
       setError(getErrorMessage(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const declineInvite = async () => {
+    setError('');
+    try {
+      await orgInvitationApi.decline(token);
+      setStep('declined');
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -151,6 +163,11 @@ function AcceptInviteBody() {
             <Button variant="ghost" className="w-full" disabled={busy} onClick={resendCode}>
               Resend code
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              <button type="button" onClick={() => setDeclineOpen(true)} className="hover:underline">
+                Not you? Decline this invitation
+              </button>
+            </p>
           </div>
         )}
 
@@ -195,6 +212,11 @@ function AcceptInviteBody() {
             <Button className="w-full" disabled={busy || !password || !confirmPassword} onClick={submitPassword}>
               Set password and finish
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              <button type="button" onClick={() => setDeclineOpen(true)} className="hover:underline">
+                Not you? Decline this invitation
+              </button>
+            </p>
           </div>
         )}
 
@@ -209,6 +231,18 @@ function AcceptInviteBody() {
           </div>
         )}
 
+        {step === 'declined' && (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <UserX className="h-10 w-10 text-muted-foreground" />
+            <p className="font-medium">Invitation declined</p>
+            <p className="text-sm text-muted-foreground text-center">
+              You won&apos;t be added as staff for {invite?.organizationName ?? 'this organization'}.
+              If this was a mistake, ask them to send you a new invitation.
+            </p>
+            <Button asChild variant="outline" className="w-full"><Link href="/admin-login">Back to login</Link></Button>
+          </div>
+        )}
+
         {step === 'error' && (
           <div className="flex flex-col items-center gap-3 py-6">
             <XCircle className="h-10 w-10 text-destructive" />
@@ -218,6 +252,16 @@ function AcceptInviteBody() {
           </div>
         )}
       </CardContent>
+
+      <ConfirmDialog
+        open={declineOpen}
+        onOpenChange={setDeclineOpen}
+        title="Decline this invitation?"
+        description="You won't be added as staff for this organization. This can't be undone from this page — you'd need a new invitation to join later."
+        confirmLabel="Decline invitation"
+        variant="danger"
+        onConfirm={declineInvite}
+      />
     </Card>
   );
 }

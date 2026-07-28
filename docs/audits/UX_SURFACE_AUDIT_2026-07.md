@@ -131,8 +131,10 @@ Supersedes §8 of the original report. Ordered by leverage; nothing here has bee
 7. ~~Continue the `PaginatedTable`/`StatCard` sweeps, start a first `StatusPill` sweep~~ — **Done (2026-07-28).** `PaginatedTable` 56%→57%, `StatCard` 35%→39%, `StatusPill` 24%→**65%** (first sweep, now the best-adopted of the four). See §6 for the full breakdown and what was deliberately left hand-rolled.
 
 **Larger, needs a product decision first:**
-8. **Decide whether `(enterprise)` needs a real in-app organization switcher** now that multi-org staff genuinely exists — today that data model exists but has no UI expression once a person is signed in.
-9. **Add a decline / "not me" path to the accept-org-invite flow** — a real workflow (typo'd email, changed mind) with no graceful exit today.
+8. ~~Decide whether `(enterprise)` needs a real in-app organization switcher~~ — **Decided and shipped (2026-07-28): yes.** New `POST /api/admin/auth/switch-org` mints a fresh session for another org, no password re-entry — a direct mirror of `/api/v1/auth/switch-group`'s already-proven design, not new architecture. `WorkspaceSwitcher` now expands into a real switcher for staff at 2+ orgs.
+9. ~~Add a decline / "not me" path to the accept-org-invite flow~~ — **Done (2026-07-28).** New `POST /api/v1/organization-invitations/decline` (public, token-authenticated like every other step in this flow) marks the invitation cancelled; a "Not you? Decline this invitation" link on the OTP/password steps opens a confirmation dialog before acting.
+
+**All 9 roadmap items are now closed.** Only the deferred bucket below remains, by design — none of it was ever scoped as blocking.
 
 **Deferred, lower urgency:**
 10. Dark-mode on `(auth)` — confirmed platform-wide non-issue, not worth isolated `(auth)` work ahead of a real theme system.
