@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Landmark, Users, Layers, Wallet, TrendingUp,
-  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info,
+  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +17,13 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useAdminOrganization, useUpdateOrganizationStatus,
   useAssignGroupToOrg, useRevokeGroupFromOrg,
+  useOrgStaff, useAddOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
@@ -73,10 +75,22 @@ export default function OrganizationDetailPage({
   const assignGroup  = useAssignGroupToOrg();
   const revokeGroup  = useRevokeGroupFromOrg();
 
+  const { data: staff, isLoading: staffLoading } = useOrgStaff(id);
+  const addStaff       = useAddOrgStaff();
+  const changeStaffRole = useChangeOrgStaffRole();
+  const removeStaff    = useRemoveOrgStaff();
+
   const [assignOpen, setAssignOpen]   = useState(false);
   const [pickGroup, setPickGroup]     = useState('');
   const [accessLevel, setAccessLevel] = useState<'read' | 'report'>('read');
   const [revoking, setRevoking]       = useState<{ groupId: string; name: string } | null>(null);
+
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [staffPhone, setStaffPhone]     = useState('');
+  const [staffFirst, setStaffFirst]     = useState('');
+  const [staffLast, setStaffLast]       = useState('');
+  const [staffRole, setStaffRole]       = useState<'lead' | 'staff'>('staff');
+  const [removingStaff, setRemovingStaff] = useState<{ memberId: string; name: string } | null>(null);
 
   if (isLoading) {
     return (
@@ -133,6 +147,42 @@ export default function OrganizationDetailPage({
       toast({ title: `Organization ${org.is_active ? 'deactivated' : 'activated'}` });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
+    }
+  };
+
+  const doAddStaff = async () => {
+    if (!staffPhone || !staffFirst || !staffLast) {
+      toast({ variant: 'destructive', title: 'Phone, first name, and last name are required' });
+      return;
+    }
+    try {
+      await addStaff.mutateAsync({
+        orgId: id, phone: staffPhone, firstName: staffFirst, lastName: staffLast, orgRole: staffRole,
+      });
+      toast({ title: 'Staff added' });
+      setAddStaffOpen(false); setStaffPhone(''); setStaffFirst(''); setStaffLast(''); setStaffRole('staff');
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Add staff failed', description: getErrorMessage(e) });
+    }
+  };
+
+  const doChangeStaffRole = async (memberId: string, orgRole: 'lead' | 'staff') => {
+    try {
+      await changeStaffRole.mutateAsync({ orgId: id, memberId, orgRole });
+      toast({ title: 'Role updated' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Could not update role', description: getErrorMessage(e) });
+    }
+  };
+
+  const doRemoveStaff = async () => {
+    if (!removingStaff) return;
+    try {
+      await removeStaff.mutateAsync({ orgId: id, memberId: removingStaff.memberId });
+      toast({ title: `${removingStaff.name} removed` });
+      setRemovingStaff(null);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Remove failed', description: getErrorMessage(e) });
     }
   };
 
@@ -224,57 +274,153 @@ export default function OrganizationDetailPage({
           </CardContent>
         </Card>
 
-        {/* Coordinator + details */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Landmark size={14} className="text-purple-500" /> Organization
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-xs">
-            <div>
-              <p className="text-gray-400 mb-0.5">Coordinator</p>
-              <p className="font-medium text-gray-900">{org.coordinator_name ?? 'None assigned'}</p>
-            </div>
-            {org.coordinator_email && (
-              <a href={`mailto:${org.coordinator_email}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <Mail size={12} /> {org.coordinator_email}
-              </a>
-            )}
-            {(org.coordinator_phone || org.phone) && (
-              <a href={`tel:${org.coordinator_phone ?? org.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <Phone size={12} /> {org.coordinator_phone ?? org.phone}
-              </a>
-            )}
-            {org.coordinator_name && (
+        <div className="space-y-5">
+          {/* Staff — multi-staff organizations (migration 101). Coordinator
+              info used to be a single read-only name/email/phone here; that
+              was also the only place org staff could ever be assigned, and
+              only by direct SQL (no UI existed at all). This replaces it
+              with the real list + add/remove/re-role actions. */}
+          <Card>
+            <CardHeader className="pb-2 flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <UserCog size={14} className="text-purple-500" /> Staff ({staff?.length ?? 0})
+              </CardTitle>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAddStaffOpen(true)}>
+                <Plus size={13} className="mr-1" /> Add staff
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              {staffLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : !staff || staff.length === 0 ? (
+                <p className="text-center py-6 text-muted-foreground">
+                  No staff yet. Use &quot;Add staff&quot; to give someone access to this organization&apos;s portal.
+                </p>
+              ) : (
+                staff.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-gray-100 px-2.5 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-gray-900">{s.firstName} {s.lastName}</p>
+                      <p className="truncate text-[11px] text-gray-400">{s.phone}{s.email ? ` · ${s.email}` : ''}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => doChangeStaffRole(s.memberId, s.orgRole === 'lead' ? 'staff' : 'lead')}
+                        className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-600 hover:bg-gray-200"
+                        title="Click to toggle role"
+                      >
+                        {s.orgRole}
+                      </button>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => setRemovingStaff({ memberId: s.memberId, name: `${s.firstName} ${s.lastName}` })}>
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
               <p className="flex items-start gap-1.5 rounded-md bg-gray-50 px-2 py-1.5 text-[11px] leading-snug text-gray-500">
                 <Info size={12} className="mt-0.5 shrink-0" />
-                This coordinator manages day-to-day operations (wallet, programs,
-                disbursements) through the separate Kitabu Enterprise portal — same
-                organization, a different sign-in.
+                Staff sign in and manage this organization (wallet, programs,
+                disbursements) through the separate Kitabu Enterprise portal —
+                same organization, a different sign-in.
               </p>
-            )}
-            <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
-              <div>
-                <p className="text-gray-400 mb-0.5">Onboarded</p>
-                <p className="font-medium text-gray-900">{formatDate(org.created_at)}</p>
+            </CardContent>
+          </Card>
+
+          {/* Organization details */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Landmark size={14} className="text-purple-500" /> Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              {org.phone && (
+                <a href={`tel:${org.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                  <Phone size={12} /> {org.phone}
+                </a>
+              )}
+              {org.email && (
+                <a href={`mailto:${org.email}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                  <Mail size={12} /> {org.email}
+                </a>
+              )}
+              <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
+                <div>
+                  <p className="text-gray-400 mb-0.5">Onboarded</p>
+                  <p className="font-medium text-gray-900">{formatDate(org.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-0.5">Committed</p>
+                  <p className="font-medium text-gray-900">{formatKES(walletKES?.committed_balance ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-0.5">Deposited</p>
+                  <p className="font-medium text-gray-900">{formatKES(walletKES?.total_deposited ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-0.5">Returned</p>
+                  <p className="font-medium text-gray-900">{formatKES(walletKES?.total_returned ?? 0)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Committed</p>
-                <p className="font-medium text-gray-900">{formatKES(walletKES?.committed_balance ?? 0)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Add staff dialog */}
+      <Dialog open={addStaffOpen} onOpenChange={(o) => { if (!o) setAddStaffOpen(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add staff</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>First name</Label>
+                <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />
               </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Deposited</p>
-                <p className="font-medium text-gray-900">{formatKES(walletKES?.total_deposited ?? 0)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 mb-0.5">Returned</p>
-                <p className="font-medium text-gray-900">{formatKES(walletKES?.total_returned ?? 0)}</p>
+              <div className="space-y-1">
+                <Label>Last name</Label>
+                <Input value={staffLast} onChange={(e) => setStaffLast(e.target.value)} />
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-1">
+              <Label>Phone</Label>
+              <Input value={staffPhone} onChange={(e) => setStaffPhone(e.target.value)} placeholder="0712345678" />
+            </div>
+            <div className="space-y-1">
+              <Label>Role</Label>
+              <select
+                value={staffRole}
+                onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="staff">Staff — day-to-day operations</option>
+                <option value="lead">Lead — can also manage other staff</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
+            <Button onClick={doAddStaff} loading={addStaff.isPending}>Add staff</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove staff confirm */}
+      <Dialog open={!!removingStaff} onOpenChange={() => setRemovingStaff(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Remove staff</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{removingStaff?.name}</strong> from {org.name}? They will lose access to this organization&apos;s portal.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemovingStaff(null)}>Cancel</Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={doRemoveStaff} loading={removeStaff.isPending}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign group dialog */}
       <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) { setAssignOpen(false); setPickGroup(''); } }}>

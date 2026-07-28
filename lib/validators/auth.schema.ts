@@ -85,6 +85,9 @@ export const AdminLoginMfaVerifySchema = z.object({
                .min(6, 'Enter the 6-digit code from your authenticator')
                .max(20),
   label:     z.string().max(80).optional(),
+  // Disambiguates which organization to sign into when the member is
+  // active staff at more than one (multi-staff organizations, migration 101).
+  organizationId: z.string().uuid().optional(),
 });
 
 // Phase D Part 2 — registrant verification.

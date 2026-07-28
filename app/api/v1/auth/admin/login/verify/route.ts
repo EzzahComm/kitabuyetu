@@ -43,7 +43,7 @@ import {
 } from '@/lib/redis';
 import { AdminLoginMfaVerifySchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
-import type { AdminLoginResponse } from '@/types/api.types';
+import type { AdminLoginResponse, NeedsOrgSelection } from '@/types/api.types';
 
 // OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
 // identical comment; this used to disagree with the validated schema default.
@@ -92,23 +92,45 @@ export async function POST(req: NextRequest): Promise<Response> {
           || !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)) {
         return null;
       }
-      // organization_coordinator scope
+      // organization_coordinator scope — resolved via organization_members
+      // (migration 101), not organizations.coordinator_member_id directly;
+      // that column is legacy/display-only now. A member can be active
+      // staff at more than one organization (multi-staff organizations),
+      // so this can return 0, 1, or many rows.
       let organizationId: string | undefined;
+      let orgChoices: NeedsOrgSelection['organizations'] | undefined;
       if (member.platform_role === 'organization_coordinator') {
-        const { rows: organization } = await client.query<{ id: string }>(
-          `SELECT id FROM organizations WHERE coordinator_member_id = $1 AND is_active = TRUE LIMIT 1`,
+        const { rows: orgs } = await client.query<{ id: string; name: string; org_role: 'lead' | 'staff' }>(
+          `SELECT o.id, o.name, om.org_role
+             FROM organization_members om
+             JOIN organizations o ON o.id = om.organization_id
+            WHERE om.member_id = $1 AND om.status = 'active' AND o.is_active = TRUE`,
           [member.id],
         );
-        organizationId = organization[0]?.id;
-        if (!organizationId) return null;
+        if (orgs.length === 0) return null;
+        if (orgs.length === 1) {
+          organizationId = orgs[0].id;
+        } else if (input.organizationId) {
+          // Re-submission after the client showed an org chooser.
+          const chosen = orgs.find((o) => o.id === input.organizationId);
+          if (!chosen) return null;
+          organizationId = chosen.id;
+        } else {
+          orgChoices = orgs.map((o) => ({
+            organizationId: o.id, organizationName: o.name, orgRole: o.org_role,
+          }));
+        }
       }
-      return { member, organizationId };
+      return { member, organizationId, orgChoices };
     });
 
     if (!memberLookup) {
       return errorResponse('Sign-in session is no longer valid.', 'MFA_CHALLENGE_INVALID', 401);
     }
-    const { member, organizationId } = memberLookup;
+    const { member, organizationId, orgChoices } = memberLookup;
+    if (orgChoices) {
+      return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
+    }
     const lockKey = `admin:${(member.email ?? '').toLowerCase()}`;
 
     if (await isAccountLocked(lockKey)) {

@@ -12,6 +12,9 @@ import type {
   listOrganizations, getOrganizationDetail, createOrganization,
   setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
 } from '@/lib/services/admin-organizations.service';
+import type {
+  listOrgStaff, addOrgStaff,
+} from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -30,6 +33,12 @@ type AdminOrgCreated          = Awaited<ReturnType<typeof createOrganization>>;
 type SetOrgActiveResult       = Awaited<ReturnType<typeof setOrganizationActive>>;
 type AssignGroupToOrgResult   = Awaited<ReturnType<typeof assignGroupToOrganization>>;
 type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganization>>;
+type OrgStaffList      = Awaited<ReturnType<typeof listOrgStaff>>;
+// `invitedBy` is injected server-side from the caller's own auth context
+// (see app/api/admin/organizations/[id]/staff/route.ts) — the client never
+// supplies it.
+type AddOrgStaffInput  = Omit<Parameters<typeof addOrgStaff>[1], 'invitedBy'>;
+type AddOrgStaffResult = Awaited<ReturnType<typeof addOrgStaff>>;
 type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
 type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
 type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
@@ -205,6 +214,54 @@ export function useRevokeGroupFromOrg() {
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId] });
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+    },
+  });
+}
+
+// Multi-staff organizations (migration 101).
+export function useOrgStaff(orgId: string) {
+  return useQuery({
+    queryKey: ['admin', 'organizations', orgId, 'staff'],
+    queryFn:  () => adminFetch<OrgStaffList>(`/api/admin/organizations/${orgId}/staff`),
+    enabled:  !!orgId,
+  });
+}
+
+export function useAddOrgStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, ...body }: { orgId: string } & AddOrgStaffInput) =>
+      adminFetch<AddOrgStaffResult>(`/api/admin/organizations/${orgId}/staff`, {
+        method: 'POST', json: body,
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'staff'] });
+    },
+  });
+}
+
+export function useChangeOrgStaffRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, memberId, orgRole }: { orgId: string; memberId: string; orgRole: 'lead' | 'staff' }) =>
+      adminFetch<{ success: true }>(`/api/admin/organizations/${orgId}/staff/${memberId}`, {
+        method: 'PATCH', json: { orgRole },
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'staff'] });
+    },
+  });
+}
+
+export function useRemoveOrgStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, memberId }: { orgId: string; memberId: string }) =>
+      adminFetch<{ success: true }>(`/api/admin/organizations/${orgId}/staff/${memberId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId, 'staff'] });
     },
   });
 }

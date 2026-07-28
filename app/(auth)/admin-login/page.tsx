@@ -19,8 +19,8 @@ import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import {
-  isAdminEnrollment, isAdminMfaChallenge,
-  type AdminLoginEnrollmentChallenge,
+  isAdminEnrollment, isAdminMfaChallenge, isOrgSelectionNeeded,
+  type AdminLoginEnrollmentChallenge, type NeedsOrgSelection,
 } from '@/types/api.types';
 
 /**
@@ -51,7 +51,8 @@ type CodeValues = z.infer<typeof codeSchema>;
 type Phase =
   | { kind: 'password' }
   | { kind: 'enroll'; data: AdminLoginEnrollmentChallenge }
-  | { kind: 'verify'; challenge: string };
+  | { kind: 'verify'; challenge: string }
+  | { kind: 'chooseOrg'; challenge: string; code: string; organizations: NeedsOrgSelection['organizations'] };
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -99,13 +100,19 @@ export default function AdminLoginPage() {
   // ── Step 2: code (enrollment OR verify) ───────────────────────────
   const onSubmitCode = async (values: CodeValues) => {
     if (phase.kind !== 'enroll' && phase.kind !== 'verify') return;
+    const challenge = phase.kind === 'enroll' ? phase.data.challenge : phase.challenge;
+    const code       = values.code.trim();
     setSubmitting(true);
     try {
       const data = await authApi.adminLoginVerify({
-        challenge:     phase.kind === 'enroll' ? phase.data.challenge : phase.challenge,
-        code:          values.code.trim(),
+        challenge,
+        code,
         recoveryCodes: phase.kind === 'enroll' ? phase.data.recoveryCodes : undefined,
       });
+      if (isOrgSelectionNeeded(data)) {
+        setPhase({ kind: 'chooseOrg', challenge, code, organizations: data.organizations });
+        return;
+      }
       loginAdmin(data);
       router.replace('/admin');
     } catch (err) {
@@ -113,6 +120,28 @@ export default function AdminLoginPage() {
         variant:     'destructive',
         title:       'Verification failed',
         description: (err as Error).message ?? 'Invalid code',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Step 3 (multi-staff organizations only): pick which org to sign into ──
+  const onPickOrg = async (organizationId: string) => {
+    if (phase.kind !== 'chooseOrg') return;
+    setSubmitting(true);
+    try {
+      const data = await authApi.adminLoginVerify({
+        challenge: phase.challenge, code: phase.code, organizationId,
+      });
+      if (isOrgSelectionNeeded(data)) return; // shouldn't happen once organizationId is supplied
+      loginAdmin(data);
+      router.replace('/admin');
+    } catch (err) {
+      toast({
+        variant:     'destructive',
+        title:       'Sign-in failed',
+        description: (err as Error).message ?? 'Could not complete sign-in',
       });
     } finally {
       setSubmitting(false);
@@ -134,9 +163,10 @@ export default function AdminLoginPage() {
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-red-500" />
               <CardTitle className="text-slate-100">
-                {phase.kind === 'password' && 'Backoffice sign-in'}
-                {phase.kind === 'enroll'   && 'Set up two-factor authentication'}
-                {phase.kind === 'verify'   && 'Enter your authenticator code'}
+                {phase.kind === 'password'   && 'Backoffice sign-in'}
+                {phase.kind === 'enroll'     && 'Set up two-factor authentication'}
+                {phase.kind === 'verify'     && 'Enter your authenticator code'}
+                {phase.kind === 'chooseOrg'  && 'Choose an organization'}
               </CardTitle>
             </div>
             <CardDescription className="text-slate-400">
@@ -150,6 +180,9 @@ export default function AdminLoginPage() {
               )}
               {phase.kind === 'verify' && (
                 <>Open your authenticator app and enter the current 6-digit code. Or use one of your recovery codes (10 hex characters).</>
+              )}
+              {phase.kind === 'chooseOrg' && (
+                <>You&apos;re staff at more than one organization. Pick the one you want to sign into.</>
               )}
             </CardDescription>
           </CardHeader>
@@ -174,6 +207,29 @@ export default function AdminLoginPage() {
                 onSubmit={onSubmitCode}
                 onBack={() => setPhase({ kind: 'password' })}
               />
+            )}
+            {phase.kind === 'chooseOrg' && (
+              <div className="space-y-2">
+                {phase.organizations.map((o) => (
+                  <button
+                    key={o.organizationId}
+                    type="button"
+                    onClick={() => onPickOrg(o.organizationId)}
+                    disabled={submitting}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-left transition-colors hover:border-red-700 disabled:opacity-50"
+                  >
+                    <p className="text-sm font-semibold text-slate-100">{o.organizationName}</p>
+                    <p className="mt-0.5 text-xs capitalize text-slate-500">{o.orgRole}</p>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPhase({ kind: 'password' })}
+                  className="mt-2 text-sm text-slate-400 hover:text-slate-200"
+                >
+                  ← Back to sign in
+                </button>
+              </div>
             )}
           </CardContent>
         </Card>

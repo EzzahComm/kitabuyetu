@@ -15,7 +15,7 @@ import type {
 import { billingService } from './billing.service';
 import { linkMemberToGroup } from './group-membership';
 
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
+export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 
 /** A members row with credential material removed — the only shape routes may return. */
 export type SafeMember = Omit<Member, 'password_hash'>;
@@ -520,6 +520,6 @@ export const membersService = {
   },
 };
 
-function generateTempPassword(): string {
+export function generateTempPassword(): string {
   return Math.random().toString(36).slice(-10) + 'A1';
 }
