@@ -8,21 +8,30 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
-import { createCommandPalette, type CommandPaletteGroup } from '@/components/shared/command-palette';
+import { createCommandPalette, type CommandPaletteGroup, type CommandPaletteCommand } from '@/components/shared/command-palette';
+import { useAdminSearch } from '@/hooks/use-admin';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 /**
  * Global ⌘K / Ctrl-K command palette for the backoffice — a configuration
  * wrapper around the shared shell in components/shared/command-palette.tsx.
  * Only the command set and the open-event name are backoffice-specific; the
  * Dialog/keyboard-nav/filter mechanics live in the shared shell.
+ *
+ * The "Go to" static nav was the only thing this palette ever showed — the
+ * shell's own query state is now threaded through so a real cross-entity
+ * search (SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3) can inject a live "Search
+ * results" group on top of it.
  */
-function useAdminCommandGroups(): CommandPaletteGroup[] {
+function useAdminCommandGroups(query: string): CommandPaletteGroup[] {
   const router = useRouter();
   const { logout, refreshToken } = useAuth();
+  const debouncedQuery = useDebouncedValue(query, 250);
+  const { data: results } = useAdminSearch(debouncedQuery);
 
   const go = React.useCallback((href: string) => () => router.push(href), [router]);
 
-  return React.useMemo<CommandPaletteGroup[]>(() => [
+  const navGroups = React.useMemo<CommandPaletteGroup[]>(() => [
     {
       heading: 'Go to',
       commands: [
@@ -52,6 +61,34 @@ function useAdminCommandGroups(): CommandPaletteGroup[] {
       ],
     },
   ], [go, logout, refreshToken]);
+
+  const resultsGroup = React.useMemo<CommandPaletteGroup | null>(() => {
+    if (!results || debouncedQuery.trim().length < 2) return null;
+    const commands: CommandPaletteCommand[] = [
+      ...results.organizations.map((o): CommandPaletteCommand => ({
+        id: `org-${o.id}`, label: o.name, hint: 'Organization', icon: Building2,
+        keywords: `${o.registration_number ?? ''} ${o.type}`,
+        run: go(`/admin/organizations/${o.id}`),
+      })),
+      ...results.groups.map((g): CommandPaletteCommand => ({
+        id: `group-${g.id}`, label: g.name, hint: 'Group', icon: Building2,
+        keywords: `${g.group_code ?? ''} ${g.group_type}`,
+        run: go(`/admin/groups/${g.id}`),
+      })),
+      ...results.members.map((m): CommandPaletteCommand => ({
+        id: `member-${m.id}`, label: `${m.first_name} ${m.last_name}`,
+        hint: m.group_name ? `Member · ${m.group_name}` : 'Member', icon: Users,
+        keywords: `${m.phone ?? ''} ${m.member_code ?? ''}`,
+        run: m.group_id ? go(`/admin/groups/${m.group_id}/members/${m.id}`) : go('/admin/users'),
+      })),
+    ];
+    return commands.length ? { heading: 'Search results', commands } : null;
+  }, [results, debouncedQuery, go]);
+
+  return React.useMemo<CommandPaletteGroup[]>(
+    () => (resultsGroup ? [resultsGroup, ...navGroups] : navGroups),
+    [resultsGroup, navGroups],
+  );
 }
 
 export const { CommandPalette, openCommandPalette } = createCommandPalette(

@@ -21,6 +21,7 @@ import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
 } from '@/lib/services/governance.service';
+import type { searchPlatform } from '@/lib/services/admin-search.service';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -79,6 +80,7 @@ type GovernanceAlertList      = Awaited<ReturnType<typeof listGovernanceAlerts>>
 type AcknowledgedAlert        = Awaited<ReturnType<typeof acknowledgeAlert>>;
 type ResolvedAlert            = Awaited<ReturnType<typeof resolveAlert>>;
 type GroupGovernanceSnapshot  = Awaited<ReturnType<typeof getGroupGovernanceSnapshot>>;
+type PlatformSearchResults    = Awaited<ReturnType<typeof searchPlatform>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -579,5 +581,18 @@ export function useGroupGovernanceSnapshot(groupId: string) {
     queryFn:  () => adminFetch<GroupGovernanceSnapshot>(`/api/admin/governance/snapshots?groupId=${groupId}`),
     enabled: !!groupId,
     staleTime: 60_000,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified cross-entity search (command palette)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAdminSearch(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['admin', 'search', q],
+    queryFn:  () => adminFetch<PlatformSearchResults>(`/api/admin/search?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 2,
+    staleTime: 15_000,
   });
 }
