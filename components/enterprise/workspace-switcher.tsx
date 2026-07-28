@@ -14,12 +14,17 @@ const TYPE_LABEL: Record<OrganizationProfile['type'], string> = {
 /**
  * Organization identity card at the top of the enterprise sidebar.
  *
- * A coordinator belongs to exactly one organization (see
- * `auth/admin/login/verify` — resolved by `coordinator_member_id`, not a
- * membership list), so there is no real multi-workspace switching to build.
- * This shows the real org name/type instead of the old mock's fictional
- * federation picker; a future multi-workspace model would replace this
- * component, not extend it.
+ * Multi-staff organizations (migration 101) mean a person genuinely CAN be
+ * active staff at more than one org — `app/api/v1/auth/admin/login/verify
+ * /route.ts` already resolves that via `organization_members`, not a single
+ * `coordinator_member_id`, and prompts an org picker at login time when it's
+ * ambiguous. This card intentionally shows only the one org chosen at login
+ * (scoped server-side into the session JWT) — there is no in-app switcher
+ * today, so switching orgs mid-session means logging out and back in through
+ * that picker. Whether to build a real in-app switcher now that the
+ * underlying data model supports it is an open product decision (see
+ * docs/audits/UX_SURFACE_AUDIT_2026-07.md §8 item 8), not a technical gap —
+ * don't read the absence of one here as an oversight.
  */
 export function WorkspaceSwitcher() {
   const { data, isLoading } = useQuery<OrganizationProfile>({
