@@ -16,6 +16,7 @@ import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
+import type { AdminLoginResponse } from '@/types/api.types';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -44,6 +45,19 @@ type InviteOrgStaffInput  = Omit<Parameters<typeof createOrgInvitation>[1], 'inv
 type InviteOrgStaffResult = Awaited<ReturnType<typeof createOrgInvitation>>;
 type OrgInvitationList    = Awaited<ReturnType<typeof listOrgInvitations>>;
 type ResendInvitationResult = Awaited<ReturnType<typeof resendOrgInvitation>>;
+
+// No service layer backs these two (mirrors GET /api/v1/auth/memberships'
+// own inline-query shape on the tenant side) — plain interfaces instead of
+// the Awaited<ReturnType<...>> derivation used everywhere else in this file.
+export interface MyOrganizationSummary {
+  organizationId:   string;
+  organizationName: string;
+  organizationType: string;
+  orgRole:          'lead' | 'staff';
+}
+// Same response shape admin-login itself returns — switching orgs mints a
+// full replacement session, so loginAdmin() can consume it directly.
+export type SwitchOrgResult = AdminLoginResponse;
 type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
 type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
 type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
@@ -220,6 +234,25 @@ export function useRevokeGroupFromOrg() {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations', v.orgId] });
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
     },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backoffice org-switching (migration 101, WorkspaceSwitcher) — for staff
+// active at more than one organization. Mirrors GET /api/v1/auth/memberships
+// + POST /api/v1/auth/switch-group's role on the tenant side.
+// ─────────────────────────────────────────────────────────────────────────────
+export function useMyOrganizations() {
+  return useQuery({
+    queryKey: ['admin', 'auth', 'my-organizations'],
+    queryFn:  () => adminFetch<{ items: MyOrganizationSummary[] }>('/api/admin/auth/my-organizations'),
+  });
+}
+
+export function useSwitchOrg() {
+  return useMutation({
+    mutationFn: (organizationId: string) =>
+      adminFetch<SwitchOrgResult>('/api/admin/auth/switch-org', { method: 'POST', json: { organizationId } }),
   });
 }
 
