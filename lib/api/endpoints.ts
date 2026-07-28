@@ -62,6 +62,15 @@ export const authApi = {
   verifyEmailToken: (token: string) =>
     api.post<{ status: string; groupId: string }>('/auth/verify/email', { token }),
 
+  // Self-service forgot-password — public, phone-only (mirrors the pattern
+  // above). start() always resolves the same way regardless of whether the
+  // phone belongs to an account.
+  forgotPasswordStart: (phone: string) =>
+    api.post<{ status: string }>('/auth/forgot-password/start', { phone }),
+
+  forgotPasswordReset: (body: { phone: string; otp: string; password: string }) =>
+    api.post<{ status: string }>('/auth/forgot-password/reset', body),
+
   // Step 1 of backoffice login. Returns one of:
   //   - AdminLoginEnrollmentChallenge (first-time staff: QR + recovery codes)
   //   - AdminLoginMfaChallenge        (enrolled staff: just prompt for code)

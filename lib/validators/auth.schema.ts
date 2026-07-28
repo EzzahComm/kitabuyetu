@@ -117,10 +117,16 @@ export const ChangePasswordSchema = z.object({
                     .regex(/[0-9]/, 'Must contain a number'),
 });
 
+export const ForgotPasswordStartSchema = z.object({
+  phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+});
+
 export const ResetPasswordSchema = z.object({
   phone:    z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
   otp:      z.string().length(6),
-  password: z.string().min(8),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+               .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
 export type LoginInput            = z.infer<typeof LoginSchema>;
@@ -129,4 +135,5 @@ export type AdminLoginMfaVerifyInput = z.infer<typeof AdminLoginMfaVerifySchema>
 export type RegisterInput         = z.infer<typeof RegisterSchema>;
 export type RefreshInput          = z.infer<typeof RefreshSchema>;
 export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;
+export type ForgotPasswordStartInput = z.infer<typeof ForgotPasswordStartSchema>;
 export type ResetPasswordInput    = z.infer<typeof ResetPasswordSchema>;
