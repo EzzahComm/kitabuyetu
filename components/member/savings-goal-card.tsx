@@ -1,17 +1,32 @@
 import * as React from 'react';
+import { MoreHorizontal, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { ProgressRing } from '@/components/member/progress-ring';
-import { formatKES } from '@/lib/utils';
-import type { SavingsGoal } from '@/app/(member)/_data';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { formatKES, formatDate } from '@/lib/utils';
+import type { MemberGoal } from '@/lib/services/member-goals.service';
+
+interface SavingsGoalCardProps {
+  goal: MemberGoal;
+  onLogProgress?: (goal: MemberGoal) => void;
+  onEdit?: (goal: MemberGoal) => void;
+  onDelete?: (goal: MemberGoal) => void;
+}
 
 /**
  * Savings-goal card — a progress ring plus the human framing members actually
  * care about: "how much more to go". Turns an abstract balance into a tangible,
- * motivating target.
+ * motivating target. Action affordances (log progress/edit/delete) are
+ * optional so the same card works read-only (e.g. the home page's top-goal
+ * teaser) and fully interactive (the goals list page).
  */
-export function SavingsGoalCard({ goal }: { goal: SavingsGoal }) {
-  const pct = Math.min(100, Math.round((goal.saved / goal.target) * 100));
-  const remaining = Math.max(0, goal.target - goal.saved);
-  const done = remaining === 0;
+export function SavingsGoalCard({ goal, onLogProgress, onEdit, onDelete }: SavingsGoalCardProps) {
+  const pct = Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100));
+  const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
+  const done = goal.status === 'achieved' || remaining === 0;
+  const hasActions = onLogProgress || onEdit || onDelete;
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border bg-card p-4">
@@ -24,12 +39,42 @@ export function SavingsGoalCard({ goal }: { goal: SavingsGoal }) {
           <p className="truncate font-semibold text-foreground">{goal.name}</p>
         </div>
         <p className="money mt-0.5 text-sm text-muted-foreground">
-          {formatKES(goal.saved)} <span className="text-muted-foreground/60">of</span> {formatKES(goal.target)}
+          {formatKES(goal.savedAmount)} <span className="text-muted-foreground/60">of</span> {formatKES(goal.targetAmount)}
         </p>
         <p className="mt-1 text-xs font-medium text-brand-600">
-          {done ? '🎉 Goal reached!' : `${formatKES(remaining)} to go · by ${goal.deadline}`}
+          {done ? '🎉 Goal reached!' : `${formatKES(remaining)} to go · by ${goal.deadline ? formatDate(goal.deadline) : 'Ongoing'}`}
         </p>
       </div>
+      {hasActions && (
+        <div className="flex shrink-0 items-center gap-1">
+          {onLogProgress && !done && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onLogProgress(goal)} aria-label="Add progress">
+              <PlusCircle size={16} />
+            </Button>
+          )}
+          {(onEdit || onDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More options">
+                  <MoreHorizontal size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(goal)}>
+                    <Pencil size={14} className="mr-2" /> Edit
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem onClick={() => onDelete(goal)} className="text-destructive focus:text-destructive">
+                    <Trash2 size={14} className="mr-2" /> Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
     </div>
   );
 }

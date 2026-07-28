@@ -14,6 +14,12 @@ import type { EffectiveTemplate } from '@/lib/services/posting-templates.service
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
 import type { EffectiveSavingsLimits } from '@/lib/services/savings-policy.service';
+import type { MemberWalletSummary } from '@/lib/services/member-wallet.service';
+import type { PassbookEntry } from '@/lib/services/member-passbook.service';
+import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.schema';
+import type { MemberNotification } from '@/lib/services/member-notifications.service';
+import type { MemberGoal } from '@/lib/services/member-goals.service';
+import type { CreateMemberGoalInput, UpdateMemberGoalInput, LogGoalProgressInput } from '@/lib/validators/member-goal.schema';
 
 // ------------------------------------------------------------------
 // Auth
@@ -108,6 +114,41 @@ export const orgInvitationApi = {
 
   complete: (token: string, password: string) =>
     api.post<{ status: string }>('/organization-invitations/complete', { token, password }),
+};
+
+// ------------------------------------------------------------------
+// Me — the (member) self-service portal. Every route here is scoped to the
+// signed-in member's own data (auth.userId), no id params, mirroring
+// authApi's shape but under /me/*.
+// ------------------------------------------------------------------
+export const meApi = {
+  wallet: () =>
+    api.get<MemberWalletSummary>('/me/wallet'),
+
+  passbook: (params?: Partial<MemberPassbookQueryInput>) =>
+    api.get<PaginatedResult<PassbookEntry>>(`/me/passbook${buildQuery(params ?? {})}`),
+
+  notifications: {
+    list: (params?: { page?: number; limit?: number }) =>
+      api.get<PaginatedResult<MemberNotification> & { unreadCount: number }>(`/me/notifications${buildQuery(params ?? {})}`),
+    markRead: (id: string) =>
+      api.patch<{ id: string }>(`/me/notifications/${id}`, {}),
+    markAllRead: () =>
+      api.post<{ status: string }>('/me/notifications/mark-all-read', {}),
+  },
+
+  goals: {
+    list: () =>
+      api.get<MemberGoal[]>('/me/goals'),
+    create: (body: CreateMemberGoalInput) =>
+      api.post<MemberGoal>('/me/goals', body),
+    update: (id: string, body: UpdateMemberGoalInput) =>
+      api.patch<MemberGoal>(`/me/goals/${id}`, body),
+    delete: (id: string) =>
+      api.delete<void>(`/me/goals/${id}`),
+    logProgress: (id: string, body: LogGoalProgressInput) =>
+      api.post<MemberGoal>(`/me/goals/${id}/progress`, body),
+  },
 };
 
 // ------------------------------------------------------------------

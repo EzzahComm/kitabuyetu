@@ -12,6 +12,7 @@ import { withAdminDb } from '@/lib/db';
 import { sendReactEmail } from '@/lib/email/react/send';
 import AccountStatement, { type StatementTxn } from '@/emails/account-statement';
 import { formatDate } from '@/lib/utils';
+import { computeMemberFinancialSnapshot } from './member-balances.service';
 
 const STATEMENT_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/me/passbook`;
 
@@ -20,10 +21,6 @@ interface MemberStatementRow {
   full_name: string;
   email: string;
   group_name: string;
-  savings: string;
-  loan_balance: string;
-  shares: string;
-  contributed_this_period: string;
 }
 
 /** Sends every active member of one group their statement for `period` (e.g. "May 2026"). */
@@ -33,36 +30,10 @@ export async function sendMemberStatements(
 ): Promise<{ sent: number; skipped: number }> {
   const { rows: members } = await withAdminDb((db) =>
     db.query<MemberStatementRow>(
-      `SELECT m.id, m.full_name, m.email, g.name AS group_name,
-              COALESCE(sav.total, 0)::text   AS savings,
-              COALESCE(ln.total, 0)::text    AS loan_balance,
-              COALESCE(shr.total, 0)::text   AS shares,
-              COALESCE(per.total, 0)::text   AS contributed_this_period
+      `SELECT m.id, m.full_name, m.email, g.name AS group_name
        FROM members m
        JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
        JOIN groups g ON g.id = gm.group_id
-       LEFT JOIN (
-         SELECT member_id, SUM(amount) AS total FROM contributions
-         WHERE group_id = $1 AND status = 'completed'
-         GROUP BY member_id
-       ) sav ON sav.member_id = m.id
-       LEFT JOIN (
-         SELECT member_id, SUM(outstanding_balance) AS total FROM loans
-         WHERE group_id = $1 AND status IN ('active', 'disbursed')
-         GROUP BY member_id
-       ) ln ON ln.member_id = m.id
-       LEFT JOIN (
-         SELECT sh.member_id, SUM(sh.quantity * COALESCE(sc.current_value, sc.par_value)) AS total
-         FROM share_holdings sh JOIN share_classes sc ON sc.id = sh.share_class_id
-         WHERE sh.group_id = $1
-         GROUP BY sh.member_id
-       ) shr ON shr.member_id = m.id
-       LEFT JOIN (
-         SELECT member_id, SUM(amount) AS total FROM contributions
-         WHERE group_id = $1 AND status = 'completed'
-           AND DATE_TRUNC('month', contribution_date) = DATE_TRUNC('month', CURRENT_DATE)
-         GROUP BY member_id
-       ) per ON per.member_id = m.id
        WHERE gm.status = 'active' AND m.email IS NOT NULL
          AND COALESCE(
            (SELECT ep.enabled FROM email_preferences ep
@@ -77,6 +48,9 @@ export async function sendMemberStatements(
   );
 
   if (members.length === 0) return { sent: 0, skipped: 0 };
+
+  const snapshots = await withAdminDb((db) => computeMemberFinancialSnapshot(db, groupId));
+  const snapshotByMember = new Map(snapshots.map((s) => [s.memberId, s]));
 
   const { rows: txns } = await withAdminDb((db) =>
     db.query<{ member_id: string; txn_date: string; label: string; amount: string; direction: 'in' | 'out' }>(
@@ -106,6 +80,8 @@ export async function sendMemberStatements(
   let sent = 0;
   let skipped = 0;
   for (const m of members) {
+    const snapshot = snapshotByMember.get(m.id) ??
+      { memberId: m.id, savings: 0, loanBalance: 0, shares: 0, contributedThisPeriod: 0 };
     const result = await sendReactEmail({
       to: m.email,
       subject: `Your ${period} statement — ${m.group_name}`,
@@ -113,10 +89,10 @@ export async function sendMemberStatements(
         memberName: m.full_name,
         groupName: m.group_name,
         period,
-        savings: parseFloat(m.savings),
-        shares: parseFloat(m.shares),
-        loanBalance: parseFloat(m.loan_balance),
-        contributedThisPeriod: parseFloat(m.contributed_this_period),
+        savings: snapshot.savings,
+        shares: snapshot.shares,
+        loanBalance: snapshot.loanBalance,
+        contributedThisPeriod: snapshot.contributedThisPeriod,
         transactions: txnsByMember.get(m.id) ?? [],
         statementUrl: STATEMENT_URL,
       }),

@@ -1,137 +1,144 @@
 # Kitabu Yetu — UX Surface Audit (Follow-up to UX_UI_AUDIT.md)
 
-**Date:** 2026-07-27
-**Trigger:** The user supplied a large, generic "complete UI/UX refactor" prompt (12 phases: surface audit, IA rebuild, five dedicated role-based login pages, a from-scratch landing page redesign, a footer rebuild, missing-surface implementation, a full design-system consolidation, a bug hunt, mobile-first pass, performance audit). The prompt was written for a hypothetical fintech SaaS, not derived from this codebase — several of its premises turned out not to match this platform's actual architecture. This audit exists to separate what's real from what the prompt assumed, before any implementation starts.
-**Method:** Three parallel source-grounded research passes (route inventory, auth architecture, design-system/landing-page adoption), every claim traced to a file path. Builds on and re-verifies `docs/audits/UX_UI_AUDIT.md` (2026-07-15, scored 54/100) rather than re-deriving it — a great deal shipped in the 12 days between that audit and this one.
+**Original date:** 2026-07-27
+**Updated:** 2026-07-28 — re-verified against everything shipped since, including two entirely new features (404/403 pages, footer fixes, three design-system adoption sweeps, login cosmetics) and one major piece of new architecture (multi-staff organizations, Phases 1 & 2) that wasn't on this audit's radar at all.
+**Trigger (original):** The user supplied a large, generic "complete UI/UX refactor" prompt written for a hypothetical fintech SaaS, not derived from this codebase. This audit exists to separate what's real from what the prompt assumed.
+**Method (this update):** Two parallel source-grounded research passes re-verifying every claim in the original report against current code (not trusting the original's numbers), plus a targeted pass on how multi-staff organizations interacts with the previously-flagged "Organization" naming collision and auth architecture. Every claim below is traced to a file path; items marked **unchanged** were re-confirmed, not assumed.
 
 ---
 
 ## 1. Executive summary
 
-The platform has moved measurably since the last audit — a shared `PortalSidebar`, `error.tsx` boundaries on all four portals, a command palette in two of them, and a `PageHeader`/`PaginatedTable`/`StatusPill` component set that's genuinely adopted on a growing (if still minority) share of pages. But the generic refactor prompt's headline asks don't line up with reality in three important ways:
+A great deal shipped in the 24 hours since the original audit — most of it directly off that audit's own roadmap:
 
-- **"Five dedicated login pages" is solving a problem that mostly doesn't exist.** There are two real login surfaces today (`/login`, `/admin-login`), and role-based post-auth routing already exists structurally. The one real gap is that `(member)` — the mobile self-service portal — has **no auth guard at all** and still runs on mock data; a logged-in member never actually lands there today.
-- **"Field Officer" is not a role in this system.** It doesn't exist in any enum, any table, any UI. It's explicitly listed as a *future* gap in `B2B_ENTERPRISE_AUDIT.md`. Building a login page for it means inventing a role from scratch — a product/RBAC decision, not a UX task.
-- **The landing page the prompt wants redesigned already has most of the requested sections** (hero, stats, solutions, features, testimonials, CTA) — but has two live broken links today: the footer's "Pricing" anchor (`#pricing`) points at nothing, and "Security" links to a page that 404s.
+- **All three "quick, high-leverage" items are done.** Global `404`/`unauthorized` pages exist and are correctly wired into every layout guard (this also fixed a real bug: authenticated-but-wrong-role users used to bounce back into a login dead-loop). The footer's two dead links are gone — in fact 10 of 16 links were dead, not 2, and all are now fixed. Login cosmetics (password-visibility toggle, remember-me) shipped too.
+- **The design-system adoption sweep — the single most consequential number in the original report — moved hard.** `PageHeader` went from 22% to 98% (53/54 pages). `PaginatedTable` went from 22% to 56%. `StatCard` went from 4% to 35%. `StatusPill`, notably, did **not** move (still 13/54, 24%) — it wasn't part of any sweep and is now the least-adopted of the four.
+- **A major new capability shipped that wasn't on this audit's roadmap at all: multi-staff organizations** (two phases, PRs #4 and #5). This retires the original audit's premise that "organizations are single-coordinator, no multi-user-per-org concept exists" — that's now false. But it validates the audit's *conclusion*: the team built the multi-user reality using the exact same "picker step on the existing login page" pattern the consumer `/login` already uses for multi-group members, not a separate branded "Organization Login" surface. The original recommendation not to build one was correct, and was followed.
+- **The one gap this audit called "the single most serious auth gap the generic prompt didn't even ask about" is still completely untouched**: `(member)` has no auth guard and still runs on mock data. Zero of the last day's six commits touched it.
+- **The newly-shipped invite feature introduces its own real UX gap**: once an admin sends a staff invitation, it vanishes — there's no way to see whether it's pending, expired, or to resend/cancel it. This is exactly the class of "missing state" this audit style exists to catch, just in code that didn't exist yesterday.
+- A pre-existing component, `components/enterprise/workspace-switcher.tsx`, carries a doc comment claiming "a coordinator belongs to exactly one organization... no real multi-workspace switching to build" — multi-staff organizations makes that comment **factually wrong** as of migration 101, and nobody updated it. The component's behavior isn't broken (it correctly shows the one org chosen at login), but a future engineer reading that comment would be misled, and there is genuinely no way to switch orgs mid-session anymore despite the backend now supporting it.
 
-Where the prompt's instinct is correct: design-system **adoption** is still the weak point exactly as the prior audit found, and it hasn't closed as much as the shipped fixes suggest — `PageHeader` and `PaginatedTable` are each used on only 12 of 54 portal pages (22%), and a `StatCard` component already exists but is used on just 2 of 54 (4%). The missing-surface list is also real: there is no 404 page, no 403 page, and no maintenance-mode page anywhere in the app.
-
-**Overall UX/product-completeness maturity: 60/100** — up modestly from the prior audit's 54, driven by real shared-shell and boundary work, offset by adoption still being the dominant unsolved problem and by newly-surfaced gaps (broken landing-page links, an unauthenticated member portal, zero error/empty-state pages).
+**Overall UX/product-completeness maturity: 72/100** — up from 60/100. The jump reflects real, verified shipped work closing nearly the entire "quick wins" bucket and a large share of "medium," plus a substantial architecture upgrade (multi-staff orgs) that wasn't even asked for. The score isn't higher because the single worst gap in both this and the prior audit — `(member)`'s missing auth guard — remains completely unaddressed, and the new invite feature introduced a fresh gap of its own.
 
 ---
 
-## 2. What the generic prompt got wrong, and why it matters
+## 2. What's shipped since 2026-07-27
 
-| Prompt's ask | Reality | Source |
+| Original roadmap item | Status | Evidence |
 |---|---|---|
-| 5 separate branded login pages (Super Admin, Organization, Group, Member, Field Officer) | 2 real login pages. `/login` (phone/email + password) serves members, group officers, *and* organization coordinators/super_admins if they land there; `/admin-login` (email + password + TOTP) serves `super_admin`/`support`/`organization_coordinator`. Post-login routing is handled by **layout guards**, not separate login forms. | `app/(auth)/login/page.tsx`, `app/(auth)/admin-login/page.tsx`, `app/api/v1/auth/login/route.ts`, `app/api/v1/auth/admin/login/route.ts` |
-| "Field Officer Login" | `field_officer` does not exist in `member_role` or `platform_role` enums, or anywhere in the schema. It's named once, as a roadmap gap, in `B2B_ENTERPRISE_AUDIT.md`. | `supabase/migrations/20260101000000_001_init_enums.sql`, `types/enums.ts:7`, `docs/audits/B2B_ENTERPRISE_AUDIT.md:31,62,150` |
-| "Organization Login" via Organization Code or Organization Domain | Zero matches anywhere in the repo for `organization_code`/`org_code`/`organization_domain`. Organizations are single-coordinator (`organizations.coordinator_member_id`); there's no multi-user-per-org concept to differentiate by domain/code. This would be new product architecture, not a UI gap. | grep-verified repo-wide; `docs/audits/B2B_ENTERPRISE_AUDIT.md:29-31` |
-| Landing page needs a full rebuild | 8 of 9 requested sections already exist (hero, stats, solutions/personas, features, how-it-works, testimonials, CTA, footer) with real (if unpolished — CSS/SVG mockups, no product screenshots) content. Only pricing-on-landing and a security page are genuinely absent. | `app/page.tsx` + `components/landing/*` |
-| `StatCard`/stat-tile standardization needs to be built | Already exists (`components/shared/stat-card.tsx`) — the gap is adoption (4%), not the component's absence. | grep-verified |
-
-None of this means the underlying instincts (consistency, missing states, a real bug hunt) are wrong — it means five of the prompt's most specific, most expensive asks (5 login pages, a from-scratch landing rebuild, inventing a Field Officer role) would be solving problems that are either already solved or not real, at the expense of the ones that are.
-
----
-
-## 3. Information architecture — what changed since 2026-07-15, what didn't
-
-**Route counts today:** `(dashboard)` 33 pages (up from 24), `(admin)` 13, `(enterprise)` 3 real + 5 `soon: true` stubs (unchanged), `(member)` 4 (unchanged).
-
-**Fixed since the last audit:**
-- The "four separate nav implementations" finding is now half-true: `components/shared/portal-sidebar.tsx` unifies `(dashboard)` and `(admin)` (`components/layout/sidebar.tsx`, `components/admin/sidebar.tsx`).
-- `error.tsx` now exists for **all four** portals (was 1 of 4). `loading.tsx` exists for 3 of 4 (still missing for `(admin)`).
-- A command palette (`components/shared/command-palette.tsx` + `search-trigger.tsx`) is now in both `(dashboard)` and `(admin)` topbars — was admin-only.
-- `PageHeader` adoption grew from the shipped "first batch" of 7 to 12 pages.
-
-**Still true, unresolved:**
-- `(enterprise)` still has its own inline nav shell (`app/(enterprise)/layout.tsx:33-57`), not `PortalSidebar` — same 5 `soon: true` stubs (`reports`, `members`, `disbursements`, `branding`, `audit`) as the prior audit, verbatim.
-- `(member)` still runs its own `bottom-nav.tsx`, separate shell — and per the auth research, is still not actually gated by real auth.
-- **The three-way "Organization" naming collision is still live**, not resolved: `(admin)/admin/organizations` (federating bodies), `(dashboard)/organization` (a single dense page covering disbursements/accounting/budget reports/policy thresholds), and `(enterprise)` (a separate "Kitabu Enterprise" partner workspace with its own `WorkspaceSwitcher`) are three unrelated concepts sharing one name across three portals.
-- No `not-found.tsx` exists anywhere in the app (glob-verified, zero matches).
-
-**Org-level surfaces the prompt assumes exist somewhere:** they mostly don't. "Wallet," "officers," and "roles" return zero matches anywhere in `app/`. "Branding" and "audit" exist only as disabled nav stubs in `(enterprise)`, with no backing page.
+| #1 Fix 2 broken footer links | **Done — turned out to be 10 of 16 dead, not 2** | `components/landing/footer.tsx:5-10` (comment cites the audit directly), 11-33. All 13 remaining links resolve to real pages/anchors; Legal pages (Privacy/Terms/Cookies) deliberately omitted rather than stubbed with fake content for a product handling real money/PII |
+| #2 Global `not-found.tsx` + 403 page | **Done, and fixed a real bug in the process** | `app/not-found.tsx`, `app/unauthorized/page.tsx` (comment at lines 14-17 documents the login-bounce dead-end it fixes). `app/(admin)/layout.tsx:45-58` and `app/(enterprise)/layout.tsx:65-77` both now route authenticated-but-wrong-role users to `/unauthorized`, not back to `/admin-login` |
+| #3 Gate `(member)` behind real auth | **Not started** | `app/(member)/layout.tsx:16-19` — comment unchanged: *"in production this group should be wrapped with the same auth guard as (dashboard)... It's left ungated here so the UI is reviewable in isolation."* Line 6 still imports mock data from `./_data`. None of the last day's commits touched this file |
+| #4 `PageHeader`/`PaginatedTable` sweep | **Done for PageHeader (98%), substantial for PaginatedTable (56%)** | See §6 below for full counts |
+| #5 `StatCard` sweep | **Done (35%, up from 4%)** | See §6 |
+| #6 Extend `EmptyState` to core lists | **Not started — net +1 file, and that file isn't a core list** | Still 0 matches in `members`, `loans`, `contributions`, `admin/organizations`, `admin/groups` list pages. The only two new `EmptyState` usages are the new `not-found.tsx`/`unauthorized/page.tsx` themselves |
+| #7 Resolve "Organization" naming collision | **Partially — via wayfinding, per the user's own decision, not a rename** | See §3 below — one part of the collision was already independently fixed, one part got a wayfinding note, and multi-staff orgs left a stale doc comment behind |
+| #8 Decide "Organization Login" / "Field Officer" | **Decided and acted on** | Field Officer: confirmed dropped, zero references anywhere including the two brand-new migrations (grep-verified). Organization Login: multi-staff orgs shipped as real architecture, but deliberately using the existing `/admin-login` + picker pattern, not a new branded surface — see §3 |
+| #9 Self-service forgot-password | **Not started, but no longer blocked** | `app/(auth)/forgot-password/page.tsx:27-36` still just toasts "contact your group admin," never calls a reset endpoint. Its own comment (lines 28-30) says self-service can be wired "once the SMS OTP endpoint is live" — **that's no longer true**: this project now has *two* proven, production email/SMS-OTP implementations (`group-verification.service.ts`, and the org-invitations flow built this week) to reuse. This is now a wiring task, not new invention |
+| #10 Password toggle / remember-me | **Done on `/login`; toggle-only on `/admin-login` (reasonable)** | `app/(auth)/login/page.tsx`: `showPassword` state + toggle (lines 47, 168, 173-181), `rememberMe` + `localStorage` (lines 36, 48, 64-70, 81-82, 186-194). `app/(auth)/admin-login/page.tsx`'s `PasswordForm`: toggle only (lines 255, 273, 277-285) — no remember-me, arguably correct for a 2FA-gated staff portal |
+| #10 (cont.) Dark-mode on `(auth)` | **Unchanged, still missing — but now confirmed not an isolated gap** | `app/(auth)/layout.tsx:5` still hardcodes a light gradient with zero `dark:` classes. Repo-wide: **zero** `dark:` classes anywhere in `app/(auth)/**`, and no `ThemeProvider`/`next-themes` wiring anywhere in the app at all — this was never actually reachable, platform-wide, not an `(auth)`-specific oversight |
+| #11 Payment-result screens | **Not re-verified this pass — no signal it was touched** | — |
+| #12 Invitation-expired / subscription-expired states | **Invitation-expired: now effectively resolved for org invites. Subscription-expired: still open** | `app/(auth)/accept-org-invite/[token]/page.tsx`'s `error` step explicitly handles expired/invalid tokens with real copy, not a blank state. `billing/page.tsx`'s lapsed-subscription gap wasn't re-checked this pass |
 
 ---
 
-## 4. Missing-surface / error-state audit
+## 3. Multi-staff organizations vs. the "Organization" naming collision
 
-| Surface | Status | Evidence |
+This wasn't on the original roadmap — it grew out of a separate conversation about the naming collision itself, where the user decided (a) keep "Enterprise" as its own brand rather than rename anything, fix wayfinding instead, and (b) multi-staff-per-organization accounts are a real, worth-building feature (unlike "Field Officer," which was dropped). Now that both phases have shipped, here's how it actually landed:
+
+**Is "Organization Login via domain/code" real now?** The *premise* the original audit dismissed this on ("single-coordinator, no multi-user-per-org concept... would be new product architecture") is now false — `organization_members` (migration 101) genuinely allows many people to be staff at one org, and one person to staff several. But the *conclusion* still holds: `app/(auth)/admin-login/page.tsx`'s `Phase` union just gained a fourth variant, `chooseOrg` (lines 51-55), appended to the existing password/enroll/verify phases — same file, same `Card`, same route. `app/api/v1/auth/admin/login/verify/route.ts:95-123` only returns `NeedsOrgSelection` when a person actively staffs more than one org; otherwise login behaves exactly as before. This is structurally identical to the consumer `/login`'s existing multi-group picker (`isGroupSelectionNeeded` → `pendingGroups`), right down to having the same "← Back to sign in" escape hatch (`admin-login/page.tsx:225-231` vs. `login/page.tsx:126-132`). So: the data model changed, the recommendation not to build a separate branded login surface was followed anyway, and it was the right call.
+
+**Is the three-way collision resolved?** Two-thirds of it, yes — independently of this audit:
+- `(dashboard)/organization` is labeled "Funding Portal" in-app (`app/(dashboard)/organization/page.tsx:3-17`), specifically so it isn't confused with the admin registry or the B2B "Workspace" concept.
+- `(enterprise)`'s sidebar identity card was already converted from a fictional multi-org federation picker to a single-org identity card in earlier work.
+- `(admin)/admin/organizations/[id]` carries the wayfinding note the user asked for, now living under the new Staff card: *"Staff sign in and manage this organization... through the separate Kitabu Enterprise portal — same organization, a different sign-in"* (`page.tsx:347-352`).
+
+**What multi-staff orgs left behind, unresolved:** `components/enterprise/workspace-switcher.tsx:14-23`'s doc comment — *"A coordinator belongs to exactly one organization... so there is no real multi-workspace switching to build"* — is now contradicted by the very login route it cites (`admin/login/verify/route.ts:97-99`: *"A member can be active staff at more than one organization... this can return 0, 1, or many rows"*). The component's actual behavior isn't broken (it shows the one org chosen at login, scoped server-side into the JWT), but:
+1. The comment actively misleads anyone reading it about the current data model.
+2. There is genuinely no in-app way to switch organizations mid-session anymore — a person who leads two orgs has to fully re-login and re-pick to switch, even though the backend now has everything needed for a real in-app switcher. Whether to build one is a product call, not a bug — see the roadmap.
+
+---
+
+## 4. IA / missing-surface table (re-verified)
+
+| Surface | Status (2026-07-27) | Status (2026-07-28) |
 |---|---|---|
-| 404 page | **Missing** | Zero `not-found.tsx` files anywhere |
-| 403 / unauthorized page | **Missing** | Access control is silent `router.replace()` redirects in layouts (e.g. `app/(enterprise)/layout.tsx:68,72`) — no dedicated screen |
-| Maintenance-mode page | **Missing** | Zero UI-layer matches for "maintenance" |
-| Empty states (no orgs/groups/members/transactions) | **Partial** | `EmptyState` used in only 7 files, none of them the core lists (members, loans, contributions, admin org/group lists) |
-| Offline-mode handling | **Partial, member-portal-only** | `components/member/offline-indicator.tsx` exists and works, wired only into `(member)` — absent from the other 3 portals |
-| "Coming soon" pattern | **Partial** | Just a disabled nav badge (`(enterprise)/layout.tsx:128-139`), no actual placeholder page |
-| Invitation-expired state | **Missing** | No invitation-flow page found anywhere |
-| Subscription-expired state | **Missing** | `billing/page.tsx` shows current plan only — no expired/lapsed/past-due state |
-| Payment-failed / payment-successful state | **Partial** | `mpesa/page.tsx` has status *badges* (`failed`/`timeout`/`cancelled`/`completed`) in a transaction list — no dedicated result screen or STK-push outcome modal |
+| 404 page | Missing | **Fixed** — `app/not-found.tsx` |
+| 403 / unauthorized page | Missing | **Fixed** — `app/unauthorized/page.tsx`, correctly wired |
+| Maintenance-mode page | Missing | Not re-verified, no signal it was touched |
+| Empty states (core lists) | Partial, 7 files, none of the core lists | **Unchanged in substance** — 8 files now, but the +1 is `not-found`/`unauthorized` themselves, not a core list |
+| Offline-mode handling | Member-portal-only | Not re-verified |
+| "Coming soon" pattern | Partial | Not re-verified |
+| Invitation-expired state | Missing | **Resolved for org invites** — `accept-org-invite/[token]/page.tsx`'s `error` step |
+| Subscription-expired state | Missing | Not re-verified |
+| Payment-failed/successful state | Partial (status badges only) | Not re-verified |
+| **New: pending-invitation visibility** | *(didn't exist yet)* | **Missing** — see §5 |
 
 ---
 
-## 5. Auth: real gaps (distinct from the prompt's imagined ones)
+## 5. New gap introduced by this week's own shipped work
 
-- **`(member)` has no auth guard** — `app/(member)/layout.tsx:16-18` is explicitly left ungated, still on mock `_data.ts`. This is the one genuinely serious auth-architecture gap, and it's not on the prompt's radar at all.
-- **Forgot-password isn't self-service** — `forgot-password/page.tsx` just toasts "contact your group admin," no OTP/reset flow.
-- No password-visibility toggle on either login form.
-- No "remember me."
-- No dark-mode styling on `(auth)` — hardcoded light gradient (`app/(auth)/layout.tsx:5`) despite dark-mode tokens existing platform-wide.
-- Loading/validation states on the forms themselves are actually solid — not a gap.
+The admin Staff card (`app/(admin)/admin/organizations/[id]/page.tsx:307-354`) reads exclusively from `listOrgStaff()` (`lib/services/organization-members.service.ts:101-114`), which only ever queries `organization_members`. There is no equivalent function querying `organization_invitations`, no hook in `hooks/use-admin.ts`, and no API route for listing/resending/cancelling an invite. Concretely: an admin clicks "Send invite" (`page.tsx:442-478`), and from that moment the invitation is invisible — no way to tell whether it's still `invited`, `otp_sent`, `verified`, expired, or to resend it if the email never arrived or bounced. This is precisely the kind of missing-state gap this audit series exists to catch, just in code that shipped in the last 24 hours rather than months ago.
+
+Two smaller gaps in the same feature:
+- `accept-org-invite/[token]/page.tsx`'s password step has two password fields (new + confirm) and, unlike its siblings on `/login` and `/admin-login`, no visibility toggle — arguably matters more here, not less, given there are two fields to keep in sync.
+- No "this isn't me" / decline path on the invite-acceptance page itself — only expiry or a hard server error routes to the `error` state. A wrong-email invite or a change of mind has no graceful exit today.
 
 ---
 
-## 6. Design-system adoption (real counts, 54 portal pages: 37 dashboard + 14 admin + 3 enterprise)
+## 6. Design-system adoption (re-verified — 54 portal pages: 37 dashboard + 14 admin + 3 enterprise)
 
-| Component | Adoption | Note |
+| Component | 2026-07-27 | 2026-07-28 |
 |---|---|---|
-| `PageHeader` | 12 / 54 (22%) | 42 pages still hand-roll an `<h1>` block |
-| `PaginatedTable` | 12 / 54 (22%) | 21 table-bearing pages still use a raw `<table>` — all 6 admin list pages with tables, plus `shares`, `sms`, all 3 enterprise pages, others |
-| `StatCard` | 2 / 54 (4%) | Component already exists (`components/shared/stat-card.tsx`); 35 pages hand-roll stat tiles instead |
-| `StatusPill` | 13 / 54 (24%) | Best-adopted of the four |
+| `PageHeader` | 12/54 (22%) | **53/54 (98%)** |
+| `PaginatedTable` | 12/54 (22%) | **30/54 (56%)** |
+| `StatCard` | 2/54 (4%) | **19/54 (35%)** |
+| `StatusPill` | 13/54 (24%) | **13/54 (24%) — unchanged, no sweep ran** |
 
-This is the single most consequential number in this report: three purpose-built components sit at 4–24% adoption while doing exactly the job the generic prompt's "Phase 8 Design System Consolidation" wants. The fix is a mechanical conversion sweep, not new component design — this project has done exactly this kind of sweep before (the `PaginatedTable` migration on journals/dividends/credit-scores/whatsapp, and the first `PageHeader` batch).
+The one page still without `PageHeader` is `app/(dashboard)/members/[id]/page.tsx` — a detail page whose title lives inside a bundled card (line 154), a plausible legitimate exception rather than an oversight, matching the pattern already noted for a similar skip in the original sweep.
+
+`StatusPill` is now the least-adopted of the four, having sat untouched through three separate sweeps of its siblings — worth its own pass (see roadmap).
+
+The new `app/(auth)/accept-org-invite/[token]/page.tsx` is correctly *not* counted in this denominator — it's an unauthenticated single-`Card` flow, not a portal listing/dashboard page, same category as `verify-group/confirm`.
 
 ---
 
-## 7. Landing page, pricing, footer
+## 7. Auth cosmetics & forgot-password (re-verified)
 
-**Landing (`app/page.tsx`, Server Component, 9 client sub-sections):** Hero, Stats, Personas/Solutions, Features, Ecosystem, How-it-Works, Testimonials, and CTA all exist with real content — quality gap is that hero/feature visuals are hand-built CSS/SVG, not real product screenshots. **Pricing is not on the landing page at all** — the footer links to `#pricing`, which resolves to nothing on that page. **No security page exists** — footer links to `/security`, which 404s. FAQ exists only on the standalone `/pricing` page, not on the landing page.
-
-**Pricing page:** self-contained, doesn't share the landing page's `Navbar`/`Footer`, 3 hardcoded plans, its own inline 4-item FAQ.
-
-**Footer (`components/landing/footer.tsx`):** a real 5-group structure (Solutions, Product, Company, Legal, Resources) already exists — it is not the flat, thin footer the prompt assumes it's building from scratch. It has **two live broken links** (`#pricing`, `/security`) and **no dedicated "Login" group** — sign-in is only reachable via the navbar button, and the closest thing to role-differentiated entry points (the Solutions group's Member/Group/Enterprise/Backoffice links) isn't framed as login options.
-
-Fraunces display typography, called out as a deliberate choice in the prior audit, is confirmed genuinely wired and visibly used across every landing section — not dead capability.
+Confirmed via direct file read, not assumed from commit messages:
+- **Password visibility toggle**: present on both `/login` and `/admin-login`.
+- **Remember me**: present on `/login` only (persists the identifier field in `localStorage`, not the session) — absent on `/admin-login`, which is defensible given it's a 2FA-gated staff surface.
+- **`(auth)` dark mode**: still absent, but now confirmed to be a platform-wide non-feature (zero `dark:` classes or theme provider anywhere in the app), not an `(auth)`-specific gap — downgraded in priority accordingly.
+- **Forgot-password**: still a dead-end "contact your admin" toast (`forgot-password/page.tsx:27-36`). The blocking reason cited in its own code comment — "once the SMS OTP endpoint is live" — is now stale: this project has shipped two working email+SMS-OTP flows since that comment was written (`group-verification.service.ts`, and this week's org-invitations flow). Wiring self-service reset is now genuinely low-risk, high-leverage.
 
 ---
 
 ## 8. Prioritized roadmap
 
-Ordered by leverage (fixes real, evidenced gaps) rather than the generic prompt's phase order. Nothing here has been implemented yet — this is for your prioritization.
+Supersedes §8 of the original report. Ordered by leverage; nothing here has been implemented yet.
 
 **Quick, high-leverage, low-risk:**
-1. Fix the two broken footer links (`#pricing` → real anchor or `/pricing`; `/security` → build or remove the link).
-2. Add a global `not-found.tsx` and a 403/unauthorized page — currently zero of either exist anywhere.
-3. Gate `(member)` behind real auth (currently the one genuine "silent" security/product gap the prompt didn't even ask about) — or explicitly confirm it's intentionally still a prototype.
+1. **Gate `(member)` behind real auth.** Flagged as the single most serious gap in both this and the prior audit, zero movement in 24 hours despite six other commits landing. Either wire the real auth guard (mirroring `(dashboard)`'s pattern) or explicitly confirm it's staying an intentional prototype for now — but a silent, unflagged decision either way is worse than a stated one.
+2. **Add pending-invitation visibility to the admin Staff card** — list status (`invited`/`otp_sent`/`verified`/expired), with resend and cancel actions. The invite feature shipped without this and it's a real operational hole for admins the moment an email doesn't land.
+3. **Add a password-visibility toggle to `accept-org-invite`'s two password fields** — matches the pattern already shipped on `/login` and `/admin-login`, small and mechanical.
+4. **Fix `WorkspaceSwitcher`'s stale doc comment** and decide whether an in-app org switcher is now warranted (today, switching requires a full re-login through the `/admin-login` picker) — the comment fix is free; the switcher itself is a product call, see item 8 below.
 
-**Medium — mechanical, high-value, matches work already done twice this project:**
-4. Continue the `PageHeader`/`PaginatedTable` conversion sweep (22% → higher), same recipe as the prior batches.
-5. `StatCard` conversion sweep (4% → higher) — the component exists, this is pure adoption.
-6. Extend `EmptyState` to the core lists (members, loans, contributions, admin org/group lists) — currently only 7 files use it.
+**Medium — mechanical, high-value, matches work already done three times this project:**
+5. **Extend `EmptyState` to the actual core lists** (members, loans, contributions, admin org/group lists) — flagged in two consecutive audits with zero progress; the component and the pattern both already exist.
+6. **Wire self-service forgot-password via SMS OTP** — no longer blocked on missing infrastructure; reuse the proven `hashSecret`/`generateOtp`/`sendSingleSms` pattern from either existing OTP flow.
+7. **Continue the `PaginatedTable` (56%→higher) and `StatCard` (35%→higher) sweeps**, and start a first `StatusPill` sweep (still 24%, never touched) — same mechanical recipe used three times already.
 
-**Larger, needs a product decision first (not a pure UX task):**
-7. Resolve the three-way "Organization" naming collision across `(admin)`, `(dashboard)`, `(enterprise)` — this needs a naming/IA decision, not just a rename.
-8. Decide whether "Organization Login" or "Field Officer" are real product directions before building any UI for them — both would be new architecture, not refactors.
-9. Self-service forgot-password (OTP/reset flow) — currently just a "contact your admin" toast.
+**Larger, needs a product decision first:**
+8. **Decide whether `(enterprise)` needs a real in-app organization switcher** now that multi-org staff genuinely exists — today that data model exists but has no UI expression once a person is signed in.
+9. **Add a decline / "not me" path to the accept-org-invite flow** — a real workflow (typo'd email, changed mind) with no graceful exit today.
 
 **Deferred, lower urgency:**
-10. Password-visibility toggle, remember-me, dark-mode on `(auth)` — real gaps, but cosmetic relative to the above.
-11. Dedicated payment-result screens (success/failure) beyond the existing status badges.
-12. Subscription-expired / invitation-expired states — only worth building once those flows exist to need them.
+10. Dark-mode on `(auth)` — confirmed platform-wide non-issue, not worth isolated `(auth)` work ahead of a real theme system.
+11. Dedicated payment-result screens (success/failure) beyond existing status badges.
+12. Subscription-expired state — narrower now that invitation-expiry is handled; only remaining piece of the original item 12.
 
 ---
 
-## 9. What this audit deliberately did not do
+## 9. What this update deliberately did not do
 
-Per the scope agreed before this research started: no code was changed, no landing-page redesign was attempted, no login pages were built, and no bug hunt / performance audit / mobile-responsiveness pass was run (phases 7, 10, 11 of the original prompt). Those remain open, and — per §2's finding that several of the prompt's most expensive asks aren't real gaps — probably shouldn't be scoped 1:1 to the original prompt going forward.
+No code was changed as part of this update — it is a research-and-reprioritization pass only, per the same scope discipline as the original audit. Payment-result screens, maintenance-mode pages, and offline-mode handling beyond the member portal were not re-verified this round (no signal any of the last day's commits touched them) and should be re-checked before being treated as still-accurate.

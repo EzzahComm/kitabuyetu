@@ -35,8 +35,11 @@ describe('sendMemberStatements', () => {
 
   it('sends a statement per eligible member with the right props', async () => {
     mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'mem-1', full_name: 'Amina Hassan', email: 'amina@example.com', group_name: 'Umoja VSLA' }],
+    });
+    mockQuery.mockResolvedValueOnce({
       rows: [{
-        id: 'mem-1', full_name: 'Amina Hassan', email: 'amina@example.com', group_name: 'Umoja VSLA',
+        member_id: 'mem-1',
         savings: '84500.00', loan_balance: '18000.00', shares: '32000.00', contributed_this_period: '5000.00',
       }],
     });
@@ -62,10 +65,10 @@ describe('sendMemberStatements', () => {
 
   it('counts a failed send as skipped rather than throwing', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 'mem-1', full_name: 'Amina Hassan', email: 'amina@example.com', group_name: 'Umoja VSLA',
-        savings: '0', loan_balance: '0', shares: '0', contributed_this_period: '0',
-      }],
+      rows: [{ id: 'mem-1', full_name: 'Amina Hassan', email: 'amina@example.com', group_name: 'Umoja VSLA' }],
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ member_id: 'mem-1', savings: '0', loan_balance: '0', shares: '0', contributed_this_period: '0' }],
     });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     (sendReactEmail as jest.Mock).mockRejectedValueOnce(new Error('provider down'));

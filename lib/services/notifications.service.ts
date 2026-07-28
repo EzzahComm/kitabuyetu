@@ -33,6 +33,42 @@ export interface NotifyRecipient {
   /** Free-form linkage so the audit rows can be traced back to the event. */
   referenceType?: string;
   referenceId?:   string;
+  /** Shown in the (member) portal's in-app notifications list. Falls back to a
+   *  referenceType-derived label when omitted, so existing call sites don't
+   *  need to change. */
+  title?: string;
+}
+
+const DEFAULT_TITLE_BY_REFERENCE: Record<string, string> = {
+  loan_repayment:        'Loan reminder',
+  contribution_reminder: 'Contribution reminder',
+  stk_fallback:          'Payment issue',
+};
+
+function deriveTitle(rcpt: NotifyRecipient): string {
+  if (rcpt.title) return rcpt.title;
+  return DEFAULT_TITLE_BY_REFERENCE[rcpt.referenceType ?? ''] ?? 'Notification';
+}
+
+/**
+ * Best-effort write to the in-app `notifications` table (member-notifications
+ * .service.ts's read side, and the (member) portal's bell badge) alongside
+ * the real WhatsApp/SMS dispatch this file already does. A single choke
+ * point here organically populates the feed for every existing call site
+ * (lib/jobs/handlers.ts, lib/services/mpesa-stk.service.ts) without having
+ * to touch each one individually. Never throws — an in-app write failing
+ * must never break the real delivery this function exists for.
+ */
+async function writeInAppNotification(rcpt: NotifyRecipient): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO notifications (group_id, member_id, type, title, body, reference_type, reference_id)
+       VALUES ($1, $2, 'in_app', $3, $4, $5, $6)`,
+      [rcpt.groupId, rcpt.memberId, deriveTitle(rcpt), rcpt.body, rcpt.referenceType ?? null, rcpt.referenceId ?? null],
+    );
+  } catch (err) {
+    logger.error('[notifications] failed to write in-app notification row', err);
+  }
 }
 
 export interface NotifyOutcome {
@@ -66,6 +102,11 @@ async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean>
  * actually attempted (or both if the WA attempt failed and we fell over).
  */
 export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome> {
+  // In-app copy is independent of SMS/WhatsApp deliverability (invalid
+  // phone, opt-out, provider outage) — a member should still see it in the
+  // portal even if every external channel fails or is skipped.
+  await writeInAppNotification(rcpt);
+
   if (!isValidKenyanPhone(rcpt.phone)) {
     return { channel: 'none', status: 'failed', detail: 'invalid phone' };
   }
