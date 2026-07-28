@@ -7,9 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { StatCard } from '@/components/shared/stat-card';
-import { PaginatedTable } from '@/components/shared/paginated-table';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate, formatDateTime } from '@/lib/utils';
@@ -102,20 +102,10 @@ const fetchFunding      = () => api.get<ExternalFundingPage>('/treasury/external
 
 // ─── Shared display helpers ──────────────────────────────────────────────────
 
-const statusVariant: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-  completed: 'success',
-  resolved:  'success',
-  pending:   'warning',
-  initiated: 'warning',
-  running:   'warning',
-  failed:    'destructive',
-  timeout:   'destructive',
-  reversed:  'secondary',
-  cancelled: 'secondary',
-};
-
-function StatusBadge({ status }: { status: string }) {
-  return <Badge variant={statusVariant[status] ?? 'secondary'}>{status}</Badge>;
+function reconciliationDuration(run: ReconciliationRun): string {
+  if (!run.completed_at) return '—';
+  const durSec = Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000);
+  return `${durSec}s`;
 }
 
 const typeLabels: Record<string, string> = {
@@ -154,7 +144,7 @@ const txColumns = [
     key: 'status', header: 'Status',
     render: (r: MpesaTransaction) => (
       <div>
-        <StatusBadge status={r.status} />
+        <StatusPill status={r.status} size="sm" />
         {r.failure_reason && (
           <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate" title={r.failure_reason}>
             {r.failure_reason}
@@ -272,44 +262,21 @@ export default function TreasuryPage() {
 
           <Card>
             <CardHeader className="py-4"><CardTitle className="text-base">History</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              {reconcileQ.isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">Loading…</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {['Started', 'Status', 'Checked', 'Mismatches', 'Resolved', 'Duration'].map((h) => (
-                        <TableHead key={h}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reconcileQ.data?.map((run) => {
-                      const durSec = run.completed_at
-                        ? Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000)
-                        : null;
-                      return (
-                        <TableRow key={run.id}>
-                          <TableCell>{formatDateTime(run.started_at)}</TableCell>
-                          <TableCell><StatusBadge status={run.status} /></TableCell>
-                          <TableCell>{run.transactions_checked}</TableCell>
-                          <TableCell>{run.mismatches_found}</TableCell>
-                          <TableCell className="font-medium text-green-700">{run.resolved_count}</TableCell>
-                          <TableCell className="text-muted-foreground">{durSec !== null ? `${durSec}s` : '—'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {reconcileQ.data?.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                          No reconciliation runs yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="p-4 pt-0">
+              <PaginatedTable
+                data={singlePage(reconcileQ.data)}
+                isLoading={reconcileQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No reconciliation runs yet."
+                columns={[
+                  { key: 'started_at', header: 'Started', render: (run: ReconciliationRun) => formatDateTime(run.started_at) },
+                  { key: 'status', header: 'Status', render: (run: ReconciliationRun) => <StatusPill status={run.status} size="sm" /> },
+                  { key: 'transactions_checked', header: 'Checked', render: (run: ReconciliationRun) => run.transactions_checked },
+                  { key: 'mismatches_found', header: 'Mismatches', render: (run: ReconciliationRun) => run.mismatches_found },
+                  { key: 'resolved_count', header: 'Resolved', className: 'font-medium text-green-700', render: (run: ReconciliationRun) => run.resolved_count },
+                  { key: 'duration', header: 'Duration', className: 'text-muted-foreground', render: reconciliationDuration },
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -318,39 +285,21 @@ export default function TreasuryPage() {
         <TabsContent value="reversals">
           <Card>
             <CardHeader className="py-4"><CardTitle className="text-base">Reversal history</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              {reversalQ.isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">Loading…</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {['Original Receipt', 'Amount', 'Remarks', 'Status', 'Requested By', 'Date'].map((h) => (
-                        <TableHead key={h}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reversalQ.data?.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{r.original_receipt_number}</TableCell>
-                        <TableCell className="font-medium">{formatKES(r.amount)}</TableCell>
-                        <TableCell className="max-w-[180px] truncate">{r.remarks}</TableCell>
-                        <TableCell><StatusBadge status={r.status} /></TableCell>
-                        <TableCell>{r.requested_by_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {reversalQ.data?.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                          No reversals recorded.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="p-4 pt-0">
+              <PaginatedTable
+                data={singlePage(reversalQ.data)}
+                isLoading={reversalQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No reversals recorded."
+                columns={[
+                  { key: 'original_receipt_number', header: 'Original Receipt', className: 'font-mono text-xs', render: (r: ReversalRecord) => r.original_receipt_number },
+                  { key: 'amount', header: 'Amount', className: 'font-medium', render: (r: ReversalRecord) => formatKES(r.amount) },
+                  { key: 'remarks', header: 'Remarks', className: 'max-w-[180px] truncate', render: (r: ReversalRecord) => r.remarks },
+                  { key: 'status', header: 'Status', render: (r: ReversalRecord) => <StatusPill status={r.status} size="sm" /> },
+                  { key: 'requested_by_name', header: 'Requested By', render: (r: ReversalRecord) => r.requested_by_name },
+                  { key: 'created_at', header: 'Date', className: 'text-muted-foreground', render: (r: ReversalRecord) => formatDate(r.created_at) },
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -379,41 +328,23 @@ export default function TreasuryPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-0">
-              {fundingQ.isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">Loading…</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {['Organization', 'Program', 'Type', 'Amount', 'Status', 'Reference', 'Date'].map((h) => (
-                        <TableHead key={h}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(fundingQ.data?.items ?? []).map((d) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-medium">{d.organization_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{d.program_name ?? '—'}</TableCell>
-                        <TableCell className="capitalize">{d.disbursement_type.replace(/_/g, ' ')}</TableCell>
-                        <TableCell className="font-medium">{formatKES(d.amount)}</TableCell>
-                        <TableCell><StatusBadge status={d.status} /></TableCell>
-                        <TableCell className="font-mono text-xs">{d.reference}</TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(d.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(fundingQ.data?.items ?? []).length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                          No external funding received yet. When a partner organization
-                          disburses funds to this group, it appears here.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="p-4">
+              <PaginatedTable
+                data={singlePage(fundingQ.data?.items)}
+                isLoading={fundingQ.isLoading}
+                onPageChange={() => {}}
+                emptyMessage="No external funding received yet."
+                emptyDescription="When a partner organization disburses funds to this group, it appears here."
+                columns={[
+                  { key: 'organization_name', header: 'Organization', className: 'font-medium', render: (d: ExternalFundingItem) => d.organization_name },
+                  { key: 'program_name', header: 'Program', className: 'text-muted-foreground', render: (d: ExternalFundingItem) => d.program_name ?? '—' },
+                  { key: 'disbursement_type', header: 'Type', className: 'capitalize', render: (d: ExternalFundingItem) => d.disbursement_type.replace(/_/g, ' ') },
+                  { key: 'amount', header: 'Amount', className: 'font-medium', render: (d: ExternalFundingItem) => formatKES(d.amount) },
+                  { key: 'status', header: 'Status', render: (d: ExternalFundingItem) => <StatusPill status={d.status} size="sm" /> },
+                  { key: 'reference', header: 'Reference', className: 'font-mono text-xs', render: (d: ExternalFundingItem) => d.reference },
+                  { key: 'created_at', header: 'Date', className: 'text-muted-foreground', render: (d: ExternalFundingItem) => formatDate(d.created_at) },
+                ]}
+              />
             </CardContent>
           </Card>
         </TabsContent>

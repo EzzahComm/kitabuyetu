@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { api } from '@/lib/api/client';
+import type { Tone } from '@/lib/ui/tokens';
 
 interface OverdueLoan {
   loanId: string; memberId: string; firstName: string; lastName: string;
@@ -46,9 +47,11 @@ interface RiskAnalysis {
 const fmtMoney = (v: string | number | null | undefined) =>
   new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
 
-const TIER_BADGE: Record<HighRiskMember['reliabilityTier'], 'warning' | 'destructive'> = {
-  poor:      'warning',
-  high_risk: 'destructive',
+// Same reliability-tier → tone mapping as credit-scores/page.tsx and
+// credit-scores/[memberId]/page.tsx, for consistency across all three.
+const TIER_TONE: Record<HighRiskMember['reliabilityTier'], Tone> = {
+  poor:      'negative',
+  high_risk: 'negative',
 };
 
 export default function RiskAnalysisPage() {
@@ -162,7 +165,7 @@ export default function RiskAnalysisPage() {
                     },
                     { key: 'principal', header: 'Principal', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span> },
                     { key: 'outstanding', header: 'Outstanding', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span> },
-                    { key: 'status', header: 'Status', render: (l) => <Badge variant="destructive" className="capitalize">{l.status.replace('_', ' ')}</Badge> },
+                    { key: 'status', header: 'Status', render: (l) => <StatusPill status={l.status} tone="negative" /> },
                   ]}
                 />
               </CardContent>
@@ -190,7 +193,7 @@ export default function RiskAnalysisPage() {
                       ),
                     },
                     { key: 'overall', header: 'Overall', className: 'text-right', render: (m) => <span className="font-mono font-medium">{m.overallScore.toFixed(0)}</span> },
-                    { key: 'tier', header: 'Tier', render: (m) => <Badge variant={TIER_BADGE[m.reliabilityTier]} className="capitalize">{m.reliabilityTier.replace('_', ' ')}</Badge> },
+                    { key: 'tier', header: 'Tier', render: (m) => <StatusPill status={m.reliabilityTier} tone={TIER_TONE[m.reliabilityTier]} /> },
                     {
                       key: 'actions', header: '', className: 'text-right', render: (m) => (
                         <Button asChild size="sm" variant="ghost">

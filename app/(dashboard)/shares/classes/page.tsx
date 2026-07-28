@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatusPill } from '@/components/shared/status-pill';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -135,7 +136,7 @@ export default function ShareClassesPage() {
           { key: 'cap', header: 'Per-member cap', className: 'text-right', render: (c) => <span className="font-mono">{c.min_per_member ?? 0}–{c.max_per_member ?? '∞'}</span> },
           { key: 'voting', header: 'Voting', className: 'text-right', render: (c) => <span className="font-mono">{c.voting_weight}</span> },
           { key: 'lock', header: 'Lock days', className: 'text-right', render: (c) => <span className="font-mono">{c.lock_period_days}</span> },
-          { key: 'status', header: 'Status', render: (c) => <Badge variant={c.is_active ? 'success' : 'secondary'}>{c.is_active ? 'active' : 'inactive'}</Badge> },
+          { key: 'status', header: 'Status', render: (c) => <StatusPill status={c.is_active ? 'active' : 'inactive'} size="sm" /> },
         ]}
       />
 

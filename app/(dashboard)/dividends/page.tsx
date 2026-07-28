@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Coins, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,6 @@ interface ShareClass { id: string; name: string; code: string }
 
 const fmtMoney = (v: string | number | null | undefined) =>
   new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(Number(v ?? 0));
-
-const STATUS_BADGE: Record<string, 'default' | 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  draft:            'secondary',
-  pending_approval: 'warning',
-  approved:         'default',
-  paid:             'success',
-  cancelled:        'outline',
-};
 
 const POLICY_LABEL: Record<string, string> = {
   proportional_to_shares: 'Proportional to shares',
@@ -140,7 +132,7 @@ export default function DividendsPage() {
             </div>
           ) },
           { key: 'policy', header: 'Policy', render: (d) => <span className="text-xs text-muted-foreground">{POLICY_LABEL[d.policy_type] ?? d.policy_type}</span> },
-          { key: 'status', header: 'Status', render: (d) => <Badge variant={STATUS_BADGE[d.status] ?? 'outline'} className="capitalize">{d.status.replace('_', ' ')}</Badge> },
+          { key: 'status', header: 'Status', render: (d) => <StatusPill status={d.status} tone={d.status === 'pending_approval' ? 'pending' : undefined} /> },
           { key: 'pool', header: 'Pool', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.pool_amount)}</span> },
           { key: 'members', header: 'Members', className: 'text-right', render: (d) => <span className="font-mono">{d.total_eligible_members || '—'}</span> },
           { key: 'allocated', header: 'Allocated', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.total_allocated)}</span> },

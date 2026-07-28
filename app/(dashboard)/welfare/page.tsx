@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Plus, Heart, Wallet, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -39,15 +39,6 @@ const poolSchema = z.object({
 });
 
 type WelfarePoolForm = z.infer<typeof poolSchema>;
-
-const statusVariant: Record<string, 'warning' | 'secondary' | 'success' | 'default' | 'destructive'> = {
-  pending:      'warning',
-  under_review: 'secondary',
-  approved:     'success',
-  disbursed:    'default',
-  rejected:     'destructive',
-  cancelled:    'secondary',
-};
 
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
@@ -137,7 +128,7 @@ export default function WelfarePage() {
         <span className={`text-xs capitalize ${priorityClass[row.priority] ?? ''}`}>{row.priority}</span>
       ),
     },
-    { key: 'status', header: 'Status', render: (row: WelfareRequestRow) => <Badge variant={statusVariant[row.status] ?? 'secondary'} className="capitalize">{row.status?.replace('_',' ')}</Badge> },
+    { key: 'status', header: 'Status', render: (row: WelfareRequestRow) => <StatusPill status={row.status} /> },
     { key: 'created_at', header: 'Date', render: (row: WelfareRequestRow) => <span className="text-xs">{formatDate(row.created_at)}</span> },
     {
       key: 'actions', header: '',

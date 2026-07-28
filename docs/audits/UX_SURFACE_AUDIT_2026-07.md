@@ -88,12 +88,14 @@ Two smaller gaps in the same feature:
 
 ## 6. Design-system adoption (re-verified — 54 portal pages: 37 dashboard + 14 admin + 3 enterprise)
 
-| Component | 2026-07-27 | 2026-07-28 |
-|---|---|---|
-| `PageHeader` | 12/54 (22%) | **53/54 (98%)** |
-| `PaginatedTable` | 12/54 (22%) | **30/54 (56%)** |
-| `StatCard` | 2/54 (4%) | **19/54 (35%)** |
-| `StatusPill` | 13/54 (24%) | **13/54 (24%) — unchanged, no sweep ran** |
+| Component | 2026-07-27 | 2026-07-28 (AM) | 2026-07-28 (PM) |
+|---|---|---|---|
+| `PageHeader` | 12/54 (22%) | 53/54 (98%) | 53/54 (98%) |
+| `PaginatedTable` | 12/54 (22%) | 30/54 (56%) | **31/54 (57%)** |
+| `StatCard` | 2/54 (4%) | 19/54 (35%) | **21/54 (39%)** |
+| `StatusPill` | 13/54 (24%) | 13/54 (24%) — unchanged | **35/54 (65%) — first-ever sweep, now the best-adopted of the four** |
+
+Roadmap item 7 (this session): converted 5 remaining raw-`<table>` pages to `PaginatedTable` (treasury's 3 tables, email logs, accounting's trial balance), 5 remaining hand-rolled stat-tile grids to `StatCard`, and ran `StatusPill`'s first-ever sweep across 27 files (39 individual badge call sites). Deliberately left hand-rolled, same discipline as before: tiles/badges whose color is a genuine conditional signal (`StatCard`'s `value` still can't carry per-instance color even via `iconClass`) — investments' ROI tile, credit-scores' policy-source indicator (not a lifecycle status at all), two import-page error-count tiles, and the small handful of `PaginatedTable` skips already documented above (heatmap, `tfoot` totals rows, sticky+animation widget, inline-editable settings tables keyed by non-`id` fields).
 
 The one page still without `PageHeader` is `app/(dashboard)/members/[id]/page.tsx` — a detail page whose title lives inside a bundled card (line 154), a plausible legitimate exception rather than an oversight, matching the pattern already noted for a similar skip in the original sweep.
 
@@ -125,8 +127,8 @@ Supersedes §8 of the original report. Ordered by leverage; nothing here has bee
 
 **Medium — mechanical, high-value, matches work already done three times this project:**
 5. ~~Extend `EmptyState` to the actual core lists~~ — **Correction (2026-07-28): already resolved, this item was a false positive.** Direct file reads of all 5 pages (`(dashboard)/members`, `(dashboard)/loans`, `(dashboard)/contributions`, `admin/organizations`, `admin/groups`) confirm every one already renders a real, styled empty state (icon + title + description) via `PaginatedTable`, which wraps `EmptyState` internally and exposes it through `emptyMessage`/`emptyDescription`/`emptyIcon` props. The prior grep-based finding ("zero matches for the literal string `EmptyState`") was factually correct but the conclusion drawn from it was wrong — these pages configure the empty state indirectly through the shared component's props rather than importing `<EmptyState>` directly, so a literal-string grep alone can't see it. **Lesson matching this project's own prior grep-audit correction** (07-remediation-backlog.md's `mpesa_b2c` RLS false positive): a missing direct usage of a component is not proof a feature is absent when a shared wrapper might already provide it — check the wrapper's own implementation before writing up an absence.
-6. **Wire self-service forgot-password via SMS OTP** — no longer blocked on missing infrastructure; reuse the proven `hashSecret`/`generateOtp`/`sendSingleSms` pattern from either existing OTP flow.
-7. **Continue the `PaginatedTable` (56%→higher) and `StatCard` (35%→higher) sweeps**, and start a first `StatusPill` sweep (still 24%, never touched) — same mechanical recipe used three times already.
+6. ~~Wire self-service forgot-password via SMS OTP~~ — **Done (2026-07-28).** Reused the proven `hashSecret`/`generateOtp`/`sendSingleSms` pattern; a dormant, unused `ResetPasswordSchema` already had the exact right shape. Migration 104 added the OTP columns.
+7. ~~Continue the `PaginatedTable`/`StatCard` sweeps, start a first `StatusPill` sweep~~ — **Done (2026-07-28).** `PaginatedTable` 56%→57%, `StatCard` 35%→39%, `StatusPill` 24%→**65%** (first sweep, now the best-adopted of the four). See §6 for the full breakdown and what was deliberately left hand-rolled.
 
 **Larger, needs a product decision first:**
 8. **Decide whether `(enterprise)` needs a real in-app organization switcher** now that multi-org staff genuinely exists — today that data model exists but has no UI expression once a person is signed in.

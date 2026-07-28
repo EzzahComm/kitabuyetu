@@ -7,7 +7,6 @@ import {
   MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog, RotateCw, Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -267,9 +266,7 @@ export default function OrganizationDetailPage({
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
             {TYPE_LABEL[org.type] ?? org.type}
           </span>
-          <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
-            {org.is_active ? 'Active' : 'Inactive'}
-          </Badge>
+          <StatusPill status={org.is_active ? 'active' : 'inactive'} size="sm" />
         </div>
       </PageHeader>
 

@@ -9,9 +9,10 @@ import {
   Phone, Mail, Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -31,11 +32,10 @@ interface GroupActivityRow {
   created_at: string;
 }
 
-const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-  active:      'success',
-  pending:     'warning',
-  suspended:   'destructive',
-  deactivated: 'secondary',
+// active/pending/suspended are already mapped by STATUS_TONE; deactivated is
+// group-onboarding-specific and needs an explicit override.
+const GROUP_STATUS_TONE: Record<string, Tone> = {
+  deactivated: 'neutral',
 };
 
 const PLAN_BADGE: Record<string, string> = {
@@ -167,9 +167,7 @@ export default function GroupDetailPage({
           <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${PLAN_BADGE[grp.plan] ?? PLAN_BADGE.starter}`}>
             {grp.plan ?? 'starter'}
           </span>
-          <Badge variant={STATUS_VARIANT[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
-            {grp.onboarding_status?.replace('_', ' ')}
-          </Badge>
+          <StatusPill status={grp.onboarding_status} tone={GROUP_STATUS_TONE[grp.onboarding_status]} size="sm" />
         </div>
       </PageHeader>
 

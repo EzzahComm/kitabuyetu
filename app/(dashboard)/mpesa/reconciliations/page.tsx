@@ -5,9 +5,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Play, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { StatusPill } from '@/components/shared/status-pill';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
@@ -23,10 +23,6 @@ interface ReconRun {
   initiated_by_name: string | null;
   notes: string | null;
 }
-
-const statusVariant: Record<string, 'success' | 'warning' | 'destructive'> = {
-  completed: 'success', running: 'warning', failed: 'destructive',
-};
 
 export default function ReconciliationsPage() {
   const { toast } = useToast();
@@ -110,7 +106,7 @@ export default function ReconciliationsPage() {
         onPageChange={() => {}}
         emptyMessage="No reconciliation runs yet"
         columns={[
-          { key: 'status', header: 'Status', render: (r) => <Badge variant={statusVariant[r.status] ?? 'secondary'}>{r.status}</Badge> },
+          { key: 'status', header: 'Status', render: (r) => <StatusPill status={r.status} tone={r.status === 'running' ? 'pending' : undefined} size="sm" /> },
           { key: 'transactions_checked', header: 'Checked', render: (r) => r.transactions_checked },
           { key: 'mismatches_found', header: 'Mismatches', render: (r) => r.mismatches_found },
           { key: 'resolved_count', header: 'Resolved', className: 'font-medium', render: (r) => r.resolved_count },

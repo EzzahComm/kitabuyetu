@@ -7,7 +7,7 @@ import {
   PlayCircle, XCircle, ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
@@ -221,11 +221,7 @@ export default function OrganizationsPage() {
           { key: 'wallet', header: 'Wallet', className: 'text-right', render: (org) => <span className="text-green-600 font-medium">{formatKES(org.wallet_balance)}</span> },
           {
             key: 'status', header: 'Status',
-            render: (org) => (
-              <Badge variant={org.is_active ? 'success' : 'secondary'} className="text-xs">
-                {org.is_active ? 'Active' : 'Inactive'}
-              </Badge>
-            ),
+            render: (org) => <StatusPill status={org.is_active ? 'active' : 'inactive'} size="sm" />,
           },
           { key: 'onboarded', header: 'Onboarded', render: (org) => <span className="text-xs text-gray-500">{formatDate(org.created_at)}</span> },
           {

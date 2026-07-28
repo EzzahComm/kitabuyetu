@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -204,9 +205,7 @@ export default function UsersPage() {
           {
             key: 'status', header: 'Status',
             render: (u) => (
-              <Badge variant={u.status === 'active' ? 'success' : 'secondary'} className="text-xs capitalize">
-                {u.status}
-              </Badge>
+              <StatusPill status={u.status === 'active' ? 'active' : 'inactive'} size="sm" />
             ),
           },
           { key: 'joined', header: 'Joined', render: (u) => <span className="text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</span> },

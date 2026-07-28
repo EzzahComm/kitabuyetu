@@ -7,10 +7,11 @@ import {
   MoreHorizontal, ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,12 +38,12 @@ interface SupportTicketRow {
   created_at:     string;
 }
 
-const STATUS_VARIANT: Record<string, 'warning' | 'default' | 'secondary' | 'success'> = {
+const TICKET_STATUS_TONE: Record<string, Tone> = {
   open:        'warning',
-  in_progress: 'default',
-  waiting:     'secondary',
-  resolved:    'success',
-  closed:      'secondary',
+  in_progress: 'pending',
+  waiting:     'pending',
+  resolved:    'positive',
+  closed:      'neutral',
 };
 
 const PRIORITY_CLASS: Record<string, string> = {
@@ -204,9 +205,7 @@ export default function SupportPage() {
           {
             key: 'status', header: 'Status',
             render: (ticket) => (
-              <Badge variant={STATUS_VARIANT[ticket.status] ?? 'secondary'} className="text-xs capitalize">
-                {ticket.status?.replace('_', ' ')}
-              </Badge>
+              <StatusPill status={ticket.status} tone={TICKET_STATUS_TONE[ticket.status]} size="sm" />
             ),
           },
           { key: 'sla', header: 'SLA', render: (ticket) => <SlaChip breachAt={ticket.sla_breach_at} /> },

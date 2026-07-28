@@ -8,10 +8,11 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable } from '@/components/shared/paginated-table';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -38,13 +39,12 @@ interface AdminGroupRow {
   active_loans:        string;
 }
 
-const STATUS_BADGE: Record<string, 'success' | 'destructive' | 'warning' | 'secondary'> = {
-  active:      'success',
-  suspended:   'destructive',
-  pending:     'warning',
-  deactivated: 'secondary',
-  kyc_verified:'success',
-  kyc_submitted:'warning',
+// active/suspended/pending are already mapped by STATUS_TONE; only the
+// group-onboarding-specific statuses need an explicit override here.
+const GROUP_STATUS_TONE: Record<string, Tone> = {
+  deactivated:   'neutral',
+  kyc_verified:  'positive',
+  kyc_submitted: 'pending',
 };
 
 const PLAN_BADGE: Record<string, string> = {
@@ -187,9 +187,7 @@ export default function GroupsPage() {
           {
             key: 'status', header: 'Status',
             render: (grp) => (
-              <Badge variant={STATUS_BADGE[grp.onboarding_status] ?? 'secondary'} className="text-xs capitalize">
-                {grp.onboarding_status?.replace('_', ' ')}
-              </Badge>
+              <StatusPill status={grp.onboarding_status} tone={GROUP_STATUS_TONE[grp.onboarding_status]} size="sm" />
             ),
           },
           { key: 'member_count', header: 'Members', className: 'text-right', render: (grp) => <span className="font-medium">{grp.member_count}</span> },

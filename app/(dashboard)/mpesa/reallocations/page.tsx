@@ -12,9 +12,10 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRightLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -39,10 +40,17 @@ interface ContributionRow {
 }
 interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
 
-const STATUS_BADGE: Record<ReallocRow['status'], { label: string; variant: 'warning' | 'success' | 'destructive' }> = {
-  pending_approval: { label: 'Awaiting approval', variant: 'warning' },
-  executed:         { label: 'Executed',          variant: 'success' },
-  rejected:         { label: 'Rejected',          variant: 'destructive' },
+// rejected is already mapped by STATUS_TONE; pending_approval and executed
+// are reallocation-specific and need an explicit override. Labels preserved
+// from the original copy.
+const STATUS_LABEL: Record<ReallocRow['status'], string> = {
+  pending_approval: 'Awaiting approval',
+  executed:         'Executed',
+  rejected:         'Rejected',
+};
+const STATUS_TONE_OVERRIDE: Partial<Record<ReallocRow['status'], Tone>> = {
+  pending_approval: 'pending',
+  executed:         'positive',
 };
 
 export default function ReallocationsPage() {
@@ -169,14 +177,13 @@ export default function ReallocationsPage() {
       ) : (
         <div className="space-y-3">
           {items.map((row) => {
-            const badge = STATUS_BADGE[row.status];
             return (
               <Card key={row.id}>
                 <CardContent className="py-4 flex items-center justify-between flex-wrap gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{formatKES(Number(row.amount))}</span>
-                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                      <StatusPill status={row.status} tone={STATUS_TONE_OVERRIDE[row.status]} label={STATUS_LABEL[row.status]} size="sm" />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {row.from_member_name ?? 'Unknown'} → {row.to_member_name ?? 'Unknown'}

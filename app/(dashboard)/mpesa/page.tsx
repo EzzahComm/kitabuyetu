@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusPill } from '@/components/shared/status-pill';
+import type { Tone } from '@/lib/ui/tokens';
 import { api } from '@/lib/api/client';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
@@ -31,14 +33,12 @@ interface MpesaTxn {
 const TYPES   = ['', 'stk_push', 'c2b', 'b2c', 'b2b', 'reversal', 'balance_query', 'transaction_status'];
 const STATUSES = ['', 'initiated', 'pending', 'completed', 'failed', 'timeout', 'cancelled', 'reversed'];
 
-const statusVariant: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-  completed: 'success',
-  pending:   'warning',
-  initiated: 'warning',
-  failed:    'destructive',
-  timeout:   'destructive',
-  cancelled: 'secondary',
-  reversed:  'secondary',
+// completed/pending/failed/cancelled/reversed are already mapped by
+// STATUS_TONE; initiated and timeout are M-Pesa-specific and need an
+// explicit override.
+const MPESA_STATUS_TONE: Record<string, Tone> = {
+  initiated: 'pending',
+  timeout:   'negative',
 };
 
 export default function MpesaPage() {
@@ -77,7 +77,7 @@ export default function MpesaPage() {
       key: 'status', header: 'Status',
       render: (r: MpesaTxn) => (
         <div>
-          <Badge variant={statusVariant[r.status] ?? 'secondary'}>{r.status}</Badge>
+          <StatusPill status={r.status} tone={MPESA_STATUS_TONE[r.status]} size="sm" />
           {r.failure_reason && <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate">{r.failure_reason}</p>}
         </div>
       ),

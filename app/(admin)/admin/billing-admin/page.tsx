@@ -6,11 +6,11 @@ import {
   CheckCircle2, Clock, ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';
+import { StatusPill } from '@/components/shared/status-pill';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
@@ -26,20 +26,6 @@ const PLAN_COLORS: Record<string, string> = {
   starter:    '#94a3b8',
   growth:     '#3b82f6',
   enterprise: '#7c3aed',
-};
-
-const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-  completed: 'success',
-  pending:   'warning',
-  failed:    'destructive',
-  refunded:  'secondary',
-};
-
-const INVOICE_STATUS_VARIANT: Record<string, 'warning' | 'destructive' | 'success' | 'secondary'> = {
-  pending:  'warning',
-  overdue:  'destructive',
-  paid:     'success',
-  cancelled: 'secondary',
 };
 
 interface BillingSummary {
@@ -177,9 +163,7 @@ export default function BillingAdminPage() {
                     </div>
                     <div className="text-right ml-3 shrink-0">
                       <p className="text-sm font-bold text-gray-900">{formatKES(inv.amount_due)}</p>
-                      <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'secondary'} className="text-[10px]">
-                        {inv.status}
-                      </Badge>
+                      <StatusPill status={inv.status} size="sm" />
                     </div>
                   </div>
                 ))}
@@ -207,7 +191,7 @@ export default function BillingAdminPage() {
               { key: 'payment_method', header: 'Method', render: (p) => <span className="text-xs text-gray-500 capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</span> },
               {
                 key: 'status', header: 'Status',
-                render: (p) => <Badge variant={PAYMENT_STATUS_VARIANT[p.status] ?? 'secondary'} className="text-xs">{p.status}</Badge>,
+                render: (p) => <StatusPill status={p.status} size="sm" />,
               },
               { key: 'created_at', header: 'Date', render: (p) => <span className="text-xs text-gray-500">{formatDate(p.created_at)}</span> },
             ]}
