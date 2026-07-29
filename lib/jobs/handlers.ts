@@ -92,10 +92,10 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
       return handleCleanupExpiredTokens();
 
     case 'notify_loan_due_alerts':
-      return handleLoanDueAlerts();
+      return handleLoanDueAlerts(job);
 
     case 'notify_contribution_reminders':
-      return handleContributionReminders();
+      return handleContributionReminders(job);
 
     case 'sms_bulk_send':
       return handleSmsBulkSend(job.payload);
@@ -339,13 +339,16 @@ async function handleCleanupExpiredTokens(): Promise<HandlerResult> {
 
 // ── Notification handlers (E10.2) ─────────────────────────────
 
-async function handleLoanDueAlerts(): Promise<HandlerResult> {
+async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   const { renderBuiltin, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
-  const { notifyMany } = await import('@/lib/services/notifications.service');
+  const { sendOnce } = await import('@/lib/services/reminder.service');
 
-  // Pending installments due within the next 3 days OR already overdue.
-  // Limit cap protects the cron from running long on a backlog — a daily
-  // cadence means the next tick picks up anything left.
+  // Discrete day-offset stages, not a rolling "within 3 days OR overdue"
+  // window — reminder_dispatch_log dedupes per stage via sendOnce(), so a
+  // given installment is only ever notified once per stage no matter how
+  // many days this daily cron runs while it sits in 'pending'. Overdue
+  // buckets are ranges (not exact days) so a missed cron tick still catches
+  // the stage on the next run instead of skipping it silently.
   const { rows } = await pool.query<{
     repayment_id:    string;
     group_id:        string;
@@ -356,42 +359,52 @@ async function handleLoanDueAlerts(): Promise<HandlerResult> {
     closing_balance: string;
     due_date:        string;
     penalty_amount:  string;
-    overdue:         boolean;
+    days_until_due:  number;
+    reminder_stage:  string;
   }>(
-    `SELECT lr.id           AS repayment_id,
-            lr.group_id,
-            lr.member_id,
-            m.phone,
-            m.first_name,
-            lr.total_due,
-            lr.closing_balance,
-            to_char(lr.due_date, 'DD Mon YYYY') AS due_date,
-            lr.penalty_amount,
-            (lr.due_date < CURRENT_DATE)        AS overdue
-       FROM loan_repayments lr
-       JOIN loans   l  ON l.id   = lr.loan_id
-       JOIN members m  ON m.id   = lr.member_id
-       JOIN groups  g  ON g.id   = lr.group_id
-       JOIN group_members gm
-         ON gm.group_id = lr.group_id AND gm.member_id = lr.member_id
-      WHERE lr.status = 'pending'
-        AND g.status  = 'active'
-        AND gm.status = 'active'
-        AND m.phone IS NOT NULL AND m.phone <> ''
-        AND (
-          lr.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days'
-          OR lr.due_date < CURRENT_DATE
-        )
-      ORDER BY lr.due_date ASC
+    `WITH candidates AS (
+       SELECT lr.id AS repayment_id, lr.group_id, lr.member_id, m.phone, m.first_name,
+              lr.total_due, lr.closing_balance,
+              to_char(lr.due_date, 'DD Mon YYYY') AS due_date,
+              lr.penalty_amount,
+              (lr.due_date - CURRENT_DATE)::int AS days_until_due
+         FROM loan_repayments lr
+         JOIN loans   l  ON l.id   = lr.loan_id
+         JOIN members m  ON m.id   = lr.member_id
+         JOIN groups  g  ON g.id   = lr.group_id
+         JOIN group_members gm
+           ON gm.group_id = lr.group_id AND gm.member_id = lr.member_id
+        WHERE lr.status = 'pending'
+          AND g.status  = 'active'
+          AND gm.status = 'active'
+          AND m.phone IS NOT NULL AND m.phone <> ''
+          AND lr.due_date <= CURRENT_DATE + INTERVAL '3 days'
+     ),
+     staged AS (
+       SELECT *,
+         CASE
+           WHEN days_until_due = 3              THEN 'due_3_days'
+           WHEN days_until_due = 0               THEN 'due_today'
+           WHEN days_until_due BETWEEN -6  AND -3 THEN 'overdue_3_days'
+           WHEN days_until_due BETWEEN -13 AND -7 THEN 'overdue_7_days'
+           WHEN days_until_due <= -14              THEN 'overdue_14_days'
+         END AS reminder_stage
+       FROM candidates
+     )
+     SELECT * FROM staged
+      WHERE reminder_stage IS NOT NULL
+      ORDER BY days_until_due ASC
       LIMIT 500`,
   );
 
   if (rows.length === 0) {
-    return { message: 'Loan-due alerts: no candidates', attempted: 0, sent: 0 };
+    return { message: 'Loan-due alerts: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
   }
 
-  const recipients = rows.map((r) => {
-    const body = r.overdue
+  let sent = 0, skipped = 0, failed = 0;
+  for (const r of rows) {
+    const overdue = r.days_until_due < 0;
+    const body = overdue
       ? renderBuiltin(TEMPLATE_KEYS.LOAN_OVERDUE, {
           first_name:     r.first_name,
           amount:         r.total_due,
@@ -403,45 +416,57 @@ async function handleLoanDueAlerts(): Promise<HandlerResult> {
           due_date:   r.due_date,
           balance:    r.closing_balance,
         });
-    return {
-      groupId:       r.group_id,
-      memberId:      r.member_id,
-      phone:         r.phone,
-      body,
-      referenceType: 'loan_repayment',
-      referenceId:   r.repayment_id,
-    };
-  });
 
-  const tally = await notifyMany(recipients);
+    const result = await sendOnce({
+      groupId:        r.group_id,
+      memberId:       r.member_id,
+      phone:          r.phone,
+      body,
+      referenceType:  'loan_repayment',
+      referenceId:    r.repayment_id,
+      reminderStage:  r.reminder_stage,
+      jobExecutionId: job.id,
+    });
+    if (result.sent) sent++;
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    else failed++;
+  }
+
   return {
-    message:  `Loan-due alerts processed (${rows.length} candidates)`,
-    ...tally,
+    message: `Loan-due alerts processed (${rows.length} candidates)`,
+    attempted: rows.length, sent, skipped, failed,
   };
 }
 
-async function handleContributionReminders(): Promise<HandlerResult> {
+async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   const { renderTemplate } = await import('@/lib/sms/templates');
-  const { notifyMany } = await import('@/lib/services/notifications.service');
+  const { sendOnce } = await import('@/lib/services/reminder.service');
 
   // Active members of active groups who recorded NO completed contribution
   // in the previous calendar month. NOT EXISTS keeps the planner using
   // idx_contributions_member_id (member_id, status, contribution_date is
-  // already covered well enough at our cardinality).
+  // already covered well enough at our cardinality). gm.id doubles as the
+  // reminder's reference_id — a missed month has no row of its own to
+  // reference, so the stable membership row stands in, with the actual
+  // period folded into reminder_stage so each month is a distinct claim.
   const { rows } = await pool.query<{
-    group_id:   string;
-    member_id:  string;
-    phone:      string;
-    first_name: string;
-    group_name: string;
-    last_month: string;
+    membership_id: string;
+    group_id:      string;
+    member_id:     string;
+    phone:         string;
+    first_name:    string;
+    group_name:    string;
+    last_month:    string;
+    period_key:    string;
   }>(
-    `SELECT gm.group_id,
+    `SELECT gm.id AS membership_id,
+            gm.group_id,
             gm.member_id,
             m.phone,
             m.first_name,
             g.name AS group_name,
-            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'Mon YYYY') AS last_month
+            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'Mon YYYY') AS last_month,
+            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'YYYY-MM')  AS period_key
        FROM group_members gm
        JOIN members m ON m.id = gm.member_id
        JOIN groups  g ON g.id = gm.group_id
@@ -461,30 +486,37 @@ async function handleContributionReminders(): Promise<HandlerResult> {
   );
 
   if (rows.length === 0) {
-    return { message: 'Contribution reminders: no candidates', attempted: 0, sent: 0 };
+    return { message: 'Contribution reminders: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
   }
 
   const template =
     'Dear {{first_name}}, our records show no contribution for {{group_name}} in {{last_month}}. ' +
     'Kindly contribute when you can. Thank you.';
 
-  const recipients = rows.map((r) => ({
-    groupId:       r.group_id,
-    memberId:      r.member_id,
-    phone:         r.phone,
-    body:          renderTemplate(template, {
-      first_name: r.first_name,
-      group_name: r.group_name,
-      last_month: r.last_month,
-    }),
-    referenceType: 'contribution_reminder',
-    referenceId:   undefined,
-  }));
+  let sent = 0, skipped = 0, failed = 0;
+  for (const r of rows) {
+    const result = await sendOnce({
+      groupId:        r.group_id,
+      memberId:       r.member_id,
+      phone:          r.phone,
+      body:           renderTemplate(template, {
+        first_name: r.first_name,
+        group_name: r.group_name,
+        last_month: r.last_month,
+      }),
+      referenceType:  'contribution_reminder',
+      referenceId:    r.membership_id,
+      reminderStage:  `missing_contribution:${r.period_key}`,
+      jobExecutionId: job.id,
+    });
+    if (result.sent) sent++;
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    else failed++;
+  }
 
-  const tally = await notifyMany(recipients);
   return {
     message: `Contribution reminders processed (${rows.length} candidates)`,
-    ...tally,
+    attempted: rows.length, sent, skipped, failed,
   };
 }
 
