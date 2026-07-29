@@ -23,6 +23,7 @@ import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
 } from '@/lib/services/governance.service';
 import type { searchPlatform } from '@/lib/services/admin-search.service';
+import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -83,6 +84,8 @@ type AcknowledgedAlert        = Awaited<ReturnType<typeof acknowledgeAlert>>;
 type ResolvedAlert            = Awaited<ReturnType<typeof resolveAlert>>;
 type GroupGovernanceSnapshot  = Awaited<ReturnType<typeof getGroupGovernanceSnapshot>>;
 type PlatformSearchResults    = Awaited<ReturnType<typeof searchPlatform>>;
+type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>;
+type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -220,6 +223,23 @@ export function useOrganizationComparison() {
   return useQuery({
     queryKey: ['admin', 'organizations', 'compare'],
     queryFn:  () => adminFetch<OrgComparisonList>('/api/admin/organizations/compare'),
+    staleTime: 60_000,
+  });
+}
+
+export function useCountyGeography() {
+  return useQuery({
+    queryKey: ['admin', 'geography', 'counties'],
+    queryFn:  () => adminFetch<CountyAggregationList>('/api/admin/geography/counties'),
+    staleTime: 60_000,
+  });
+}
+
+export function useWardGeography(countyId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin', 'geography', 'counties', countyId, 'wards'],
+    queryFn:  () => adminFetch<WardAggregationList>(`/api/admin/geography/counties/${countyId}/wards`),
+    enabled:  enabled && !!countyId,
     staleTime: 60_000,
   });
 }
