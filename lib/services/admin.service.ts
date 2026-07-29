@@ -368,7 +368,7 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
 
 export async function getMonitoringDashboardData(): Promise<MonitoringDashboardPayload> {
   return cached(keys.cache('monitoring-dashboard', 'platform'), 20, () => withAdminDb(async (db: PoolClient) => {
-    const [channels, smsHealth, hourly, smsUsage, transactions] = await Promise.all([
+    const [channels, smsHealth, hourly, smsUsage, transactions, stuckCallbacks] = await Promise.all([
       // Per-channel M-Pesa health from real transactions (last 24h): success
       // rate + average round-trip latency (completed_at − initiated_at).
       db.query(`
@@ -412,6 +412,19 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         ORDER BY created_at DESC
         LIMIT 12
       `),
+      // Callbacks the DLQ replay (mpesa_replay_callbacks, every 5 min) has had
+      // many chances at and is still failing — a real signal something is
+      // structurally broken (e.g. a schema/code mismatch), not just transient
+      // provider flakiness. This is the "surfaced for administrator action"
+      // half of the retry story; replay itself already exists and is
+      // idempotent (lib/services/mpesa-callbacks.service.ts).
+      db.query(`
+        SELECT COUNT(*) AS stuck
+        FROM public.mpesa_callbacks
+        WHERE processed = false
+          AND callback_type IN ('stk_push','c2b_confirmation')
+          AND created_at < NOW() - INTERVAL '30 minutes'
+      `),
     ]);
 
     // ── Build real service-health rows from the channel aggregates ──────
@@ -451,6 +464,17 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
       latency: 0,
       success: Math.round(smsSuccess * 10) / 10,
       note: smsTotal ? `${smsTotal} sent in last 24h` : 'No SMS in last 24h',
+    });
+
+    const stuck = Number(stuckCallbacks.rows[0]?.stuck ?? 0);
+    services.push({
+      id: 'mpesa-callback-dlq', name: 'Callback Processing (DLQ)', group: 'M-Pesa / Daraja' as const,
+      status: stuck === 0 ? 'operational' : stuck >= 5 ? 'down' : 'degraded',
+      latency: 0,
+      success: stuck === 0 ? 100 : 0,
+      note: stuck === 0
+        ? 'No callbacks stuck after retry'
+        : `${stuck} callback${stuck === 1 ? '' : 's'} unprocessed after 30+ min of retries — needs investigation`,
     });
 
     const sms = smsUsage.rows[0] ?? {};
