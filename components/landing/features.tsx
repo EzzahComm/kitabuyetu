@@ -11,80 +11,67 @@ const features = [
   {
     icon: Smartphone,
     title: 'M-Pesa payment prompts',
-    description:
-      'Send a payment request to any member’s phone. They enter their M-Pesa PIN, and the contribution records itself.',
+    description: 'STK Push straight to a member’s phone.',
   },
   {
     icon: Landmark,
     title: 'PayBill payments',
-    description:
-      'Members pay your PayBill and we match each payment to the right person — no manual entry.',
+    description: 'Every PayBill payment matched to the right member.',
   },
   {
     icon: Send,
     title: 'Send money out',
-    description:
-      'Send approved loans, welfare payouts, and dividends straight to members’ phones.',
+    description: 'Loans, welfare, and dividends — paid to any phone.',
   },
   {
     icon: SplitSquareHorizontal,
     title: 'Auto-split contributions',
-    description:
-      'Split each payment across savings, welfare, and loans automatically — down to the last cent.',
+    description: 'Split into savings, welfare, and loans automatically.',
   },
   {
     icon: RefreshCw,
     title: 'Payments that reconcile themselves',
-    description:
-      'We check for stuck or missing payments every few minutes and sort them out. Anything unmatched waits safely in a review queue.',
+    description: 'Stuck or missing payments caught within minutes.',
   },
   {
     icon: BookOpenCheck,
     title: 'Books that stay balanced',
-    description:
-      'Every shilling is recorded correctly, so your reports are always ready — no spreadsheets to chase.',
+    description: 'Every shilling recorded correctly — reports always ready.',
   },
   {
     icon: ReceiptText,
     title: 'Receipts & fees',
-    description:
-      'Members get branded PDF receipts, and every M-Pesa charge is tracked to the cent.',
+    description: 'Branded PDF receipts, every M-Pesa fee tracked.',
   },
   {
     icon: MessageSquare,
     title: 'SMS & WhatsApp alerts',
-    description:
-      'Send confirmations, contribution reminders, and loan-due alerts by WhatsApp or SMS.',
+    description: 'Confirmations and reminders, sent automatically.',
   },
   {
     icon: Users,
     title: 'Members, loans & shares',
-    description:
-      'Manage members, roles, loans, shares, dividends, and credit scores — all in one place.',
+    description: 'Roles, loans, shares, and dividends — one place.',
   },
   {
     icon: Wallet,
     title: 'Member app',
-    description:
-      'Every member gets a phone wallet with their passbook, savings goals, loan balance, and one-tap M-Pesa pay.',
+    description: 'Passbook, savings goals, loan balance, one-tap pay.',
   },
   {
     icon: ShieldAlert,
     title: 'Fraud & member checks',
-    description:
-      'Risk alerts, fraud checks, and member verification — every payment confirmed and logged before money moves.',
+    description: 'Every payment verified before money moves.',
   },
   {
     icon: Activity,
     title: 'Live monitoring',
-    description:
-      'See the health of payments and messaging live, and spot any problem the moment it happens.',
+    description: 'Payment and messaging health, live.',
   },
   {
     icon: KeyRound,
     title: 'API & branding',
-    description:
-      'API access, multi-branch views, and your own branding for larger networks.',
+    description: 'API access and your own branding for larger networks.',
   },
 ];
 

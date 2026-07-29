@@ -3,77 +3,32 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
-  Wallet, LayoutDashboard, Send, RefreshCw, Building2,
   Handshake, ShieldCheck, TrendingUp, ClipboardCheck, ArrowRight,
 } from 'lucide-react';
 
-// Nine capability tiers, each framed as Feature → Solution. The first five
-// overlap the mechanics in "The whole book" (#features) but are re-voiced here
-// at the role/tier altitude; the last four (Credit Marketplace onward) are the
-// ecosystem's reach beyond a single group's book.
+// Only the tiers that reach beyond a single group's book — the mechanics
+// (members, treasurers, payments, accounting) already live in "The whole
+// book" (#features) and shouldn't be re-explained here.
 const tiers = [
-  {
-    icon: Wallet,
-    title: 'Members',
-    feature: 'A wallet on every member’s phone.',
-    solution:
-      'Financial inclusion. No need to physically meet or travel to hand over cash — members participate from anywhere, on any phone.',
-  },
-  {
-    icon: LayoutDashboard,
-    title: 'Treasurers',
-    feature: 'One dashboard that records every entry for you.',
-    solution:
-      'Human error, eliminated. Treasurers run the whole book digitally — no lost ledgers, no arithmetic mistakes, no lag in recording transactions.',
-  },
-  {
-    icon: Send,
-    title: 'Payment Processing',
-    feature: 'Direct M-Pesa integration.',
-    solution:
-      'Frictionless transactions. Members contribute and pay fees without typing codes or exchanging cash — funds stay secure end to end.',
-  },
-  {
-    icon: RefreshCw,
-    title: 'Accounting',
-    feature: 'Every M-Pesa payment matched automatically.',
-    solution:
-      'Instant reporting and compliance. 100% certainty on who has paid, zero end-of-month reconciliation, and an audit trail everyone trusts.',
-  },
-  {
-    icon: Building2,
-    title: 'SACCO Federation',
-    feature: 'Manage every branch from one place.',
-    solution:
-      "Institutional visibility. A real-time, bird's-eye view of cash flow, liquidity, and member liabilities across every branch — not delayed, fragmented reports.",
-  },
   {
     icon: Handshake,
     title: 'Credit Marketplace',
-    feature: 'Credit scores and lender access built in.',
-    solution:
-      'Data-driven capital access. Groups skip the paperwork; lenders issue de-risked loans against verified M-Pesa transaction history.',
+    description: 'Credit scores built in — lenders issue loans against verified M-Pesa history.',
   },
   {
     icon: ShieldCheck,
     title: 'Micro-Insurance Distribution',
-    feature: 'Offer insurance cover to members in a few taps.',
-    solution:
-      'Automated risk mitigation. Members get health, agricultural, or life cover fit to community risk — with zero admin overhead for agents.',
+    description: 'Health, agricultural, or life cover for members, in a few taps.',
   },
   {
     icon: TrendingUp,
     title: 'Investment Portfolio Management',
-    feature: 'Track investments and assets, each in its own book.',
-    solution:
-      'Asset diversification and growth. Groups track real estate, agriculture, or money market ventures separately, out of a single app — no mixing with operational funds.',
+    description: 'Track real estate, agriculture, or money-market ventures in their own book.',
   },
   {
     icon: ClipboardCheck,
     title: 'Grant & Donor Governance',
-    feature: 'Give donors read-only access and clear reports.',
-    solution:
-      "Institutional trust. Donors track fund utilization in real time, cutting manual impact reporting and raising the group's odds of future funding.",
+    description: 'Donors get read-only access and real-time impact reports.',
   },
 ];
 
@@ -117,9 +72,9 @@ export default function Ecosystem() {
             transition={{ delay: 0.2 }}
             className="mt-5 text-lg leading-relaxed text-brand-blue-900/60"
           >
-            Kitabu Yetu doesn&apos;t stop at contributions and reconciliation. As a
-            group grows — into a federation, a lending relationship, an insured
-            membership, or a donor-funded project — the same book grows with it.
+            Kitabu Yetu doesn&apos;t stop at contributions and reconciliation — a
+            lending relationship, an insured membership, an investment portfolio,
+            or a donor-funded project all run on the same book.
           </motion.p>
         </div>
 
@@ -128,7 +83,7 @@ export default function Ecosystem() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-80px' }}
-          className="grid gap-px overflow-hidden rounded-2xl border border-brand-blue-900/10 bg-brand-blue-900/10 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-px overflow-hidden rounded-2xl border border-brand-blue-900/10 bg-brand-blue-900/10 sm:grid-cols-2 lg:grid-cols-4"
         >
           {tiers.map((tier) => (
             <motion.div
@@ -139,17 +94,8 @@ export default function Ecosystem() {
               <div className="mb-5 inline-flex rounded-xl bg-brand-50 p-3 ring-1 ring-brand-500/15 transition-transform duration-300 group-hover:-translate-y-0.5">
                 <tier.icon className="h-6 w-6 text-brand-600" />
               </div>
-              <h3 className="mb-4 text-lg font-bold text-brand-blue-900">{tier.title}</h3>
-
-              <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-blue-700">
-                Feature
-              </p>
-              <p className="mb-4 leading-relaxed text-brand-blue-900/60">{tier.feature}</p>
-
-              <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-600">
-                Solution
-              </p>
-              <p className="leading-relaxed text-brand-blue-900/60">{tier.solution}</p>
+              <h3 className="mb-2.5 text-lg font-bold text-brand-blue-900">{tier.title}</h3>
+              <p className="leading-relaxed text-brand-blue-900/60">{tier.description}</p>
             </motion.div>
           ))}
         </motion.div>

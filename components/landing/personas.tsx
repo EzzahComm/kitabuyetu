@@ -10,9 +10,7 @@ const personas = [
     icon: Smartphone,
     kicker: 'For members',
     title: 'A wallet in every pocket',
-    description:
-      'Members get an app with their savings balance, passbook, goals, and one-tap M-Pesa payments. It works offline too.',
-    points: ['Passbook & receipts', 'Savings goals', 'Loan balance & repay'],
+    description: 'Passbook, savings goals, and one-tap M-Pesa pay — offline too.',
     cta: 'Open the member app',
     href: '/me',
   },
@@ -20,9 +18,7 @@ const personas = [
     icon: Users,
     kicker: 'For group leaders',
     title: 'Chairperson, treasurer & secretary',
-    description:
-      'Run your whole group from one dashboard — contributions, loans, welfare, shares, and dividends. A simple to-do list shows what needs your attention.',
-    points: ['Contributions & loans', 'M-Pesa matching', 'Members & meetings'],
+    description: 'Contributions, loans, welfare, shares, and dividends — one dashboard.',
     cta: 'Start your group',
     href: '/register',
   },
@@ -30,9 +26,7 @@ const personas = [
     icon: Building2,
     kicker: 'For SACCOs, Organizations & federations',
     title: 'Portfolios across every branch',
-    description:
-      'See savings, loans, and impact across all your groups. Compare branches, pay out in bulk, and add your own branding.',
-    points: ['Multi-branch view', 'Impact reports', 'API & your own branding'],
+    description: 'Savings and loans across every branch, with your own branding.',
     cta: 'Explore Enterprise',
     href: '/enterprise',
   },
@@ -40,9 +34,7 @@ const personas = [
     icon: ShieldCheck,
     kicker: 'For platform & operations teams',
     title: 'A control room for the network',
-    description:
-      'Review queues, risk and fraud alerts, member checks, and live payment health — all in one place.',
-    points: ['Risk & fraud monitoring', 'Member verification', 'Live payment & SMS health'],
+    description: 'Risk, fraud, and payment health — all in one place.',
     cta: 'Backoffice sign in',
     href: '/admin-login',
   },
@@ -116,18 +108,7 @@ export default function Personas() {
               <h3 className="mt-1.5 text-xl font-bold text-brand-blue-900">{p.title}</h3>
               <p className="mt-2.5 leading-relaxed text-brand-blue-900/60">{p.description}</p>
 
-              <ul className="mt-4 flex flex-wrap gap-2">
-                {p.points.map((pt) => (
-                  <li
-                    key={pt}
-                    className="rounded-full bg-brand-blue-900/5 px-2.5 py-1 text-xs font-medium text-brand-blue-900/70"
-                  >
-                    {pt}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-6 pt-1">
+              <div className="mt-5 pt-1">
                 <Button asChild variant="ghost" className="px-0 text-brand-600 hover:bg-transparent hover:text-brand-700">
                   <Link href={p.href}>
                     {p.cta}
