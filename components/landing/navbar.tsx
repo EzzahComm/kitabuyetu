@@ -27,7 +27,6 @@ const navLinks = [
   { label: 'Features', href: '#features' },
   { label: 'Ecosystem', href: '#ecosystem' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Testimonials', href: '#testimonials' },
 ];
 
 export default function Navbar() {

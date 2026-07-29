@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/landing/navbar';
 import Hero from '@/components/landing/hero';
-import Stats from '@/components/landing/stats';
 import Personas from '@/components/landing/personas';
 import Features from '@/components/landing/features';
 import Ecosystem from '@/components/landing/ecosystem';
 import HowItWorks from '@/components/landing/how-it-works';
-import Testimonials from '@/components/landing/testimonials';
 import CtaSection from '@/components/landing/cta';
 import Footer from '@/components/landing/footer';
 
@@ -50,12 +48,10 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <Stats />
         <Personas />
         <Features />
         <Ecosystem />
         <HowItWorks />
-        <Testimonials />
         <CtaSection />
       </main>
       <Footer />
