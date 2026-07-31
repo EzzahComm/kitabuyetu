@@ -30,7 +30,8 @@ export async function sendMemberStatements(
 ): Promise<{ sent: number; skipped: number }> {
   const { rows: members } = await withAdminDb((db) =>
     db.query<MemberStatementRow>(
-      `SELECT m.id, m.full_name, m.email, g.name AS group_name
+      `SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
+              g.name AS group_name
        FROM members m
        JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
        JOIN groups g ON g.id = gm.group_id

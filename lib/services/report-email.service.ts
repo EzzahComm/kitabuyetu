@@ -54,7 +54,7 @@ export async function broadcastFinancialReport(opts: {
 }): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
-      `SELECT m.email, m.full_name, gm.role
+      `SELECT m.email, m.first_name || ' ' || m.last_name AS full_name, gm.role
        FROM members m
        JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
        WHERE m.email IS NOT NULL
@@ -110,7 +110,11 @@ export async function sendWeeklySummaries(): Promise<void> {
       ),
       withAdminDb((db) =>
         db.query(
-          `SELECT COALESCE(SUM(amount),0) AS total FROM loan_repayments
+          // loan_repayments has no `amount` column — the money column is
+          // `amount_paid` (opening_balance/principal_component/
+          // interest_component/total_due/amount_paid). `amount` threw
+          // "column does not exist" on every run of this job.
+          `SELECT COALESCE(SUM(amount_paid),0) AS total FROM loan_repayments
            WHERE group_id=$1 AND status='completed'
              AND created_at >= NOW() - INTERVAL '7 days'`,
           [group.id],
@@ -135,7 +139,7 @@ export async function sendWeeklySummaries(): Promise<void> {
 
     const { rows: officers } = await withAdminDb((db) =>
       db.query(
-        `SELECT m.email, m.full_name FROM members m
+        `SELECT m.email, m.first_name || ' ' || m.last_name AS full_name FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
          WHERE m.email IS NOT NULL AND gm.role IN ('chairperson','treasurer')`,
         [group.id],

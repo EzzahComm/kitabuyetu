@@ -14,8 +14,19 @@ jest.mock('@/lib/logger', () => ({ logger: { warn: jest.fn(), error: jest.fn(), 
 
 const mockQuery = pool.query as jest.Mock;
 
-function mockRows(minEntryDate: string | null, defaultPartitionCount: string) {
+/**
+ * `relkind` defaults to 'p' (partitioned) because that is the state every
+ * pre-existing test here assumes. Production is currently 'r' — migrations
+ * 094/095 were never applied — which is what the last test in this file
+ * covers.
+ */
+function mockRows(
+  minEntryDate: string | null,
+  defaultPartitionCount: string,
+  relkind: 'p' | 'r' = 'p',
+) {
   mockQuery.mockImplementation((sql: string) => {
+    if (sql.includes('pg_class')) return Promise.resolve({ rows: [{ relkind }] });
     if (sql.includes('MIN(entry_date)')) return Promise.resolve({ rows: [{ min: minEntryDate }] });
     if (sql.includes('journal_lines_default')) return Promise.resolve({ rows: [{ count: defaultPartitionCount }] });
     return Promise.resolve({ rows: [] });
@@ -76,5 +87,31 @@ describe('ensureJournalLinesPartitions', () => {
       expect.stringContaining('fell behind'),
       expect.objectContaining({ rows: 3 }),
     );
+  });
+
+  /**
+   * PRODUCTION_SCHEMA_DRIFT_AUDIT.md (M1/M2): production's journal_lines is
+   * an ordinary table (relkind 'r'), so `CREATE TABLE ... PARTITION OF` and
+   * the journal_lines_default row count both raise. This job is scheduled on
+   * the 1st of the month at 09:00 UTC and had never run; without this guard
+   * its first execution would simply fail.
+   */
+  it('no-ops with a warning when journal_lines is not partitioned (094/095 unapplied)', async () => {
+    mockRows('2026-05-12', '0', 'r');
+
+    const result = await ensureJournalLinesPartitions();
+
+    expect(result).toEqual({ created: [], defaultPartitionRowCount: 0, skipped: true });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('not a partitioned table'),
+    );
+
+    // Critically: none of the DDL that would have thrown was attempted.
+    const ddl = mockQuery.mock.calls.filter(([sql]) =>
+      String(sql).includes('PARTITION OF') ||
+      String(sql).includes('CREATE CONSTRAINT TRIGGER') ||
+      String(sql).includes('journal_lines_default'),
+    );
+    expect(ddl).toHaveLength(0);
   });
 });
