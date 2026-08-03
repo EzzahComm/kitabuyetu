@@ -7,16 +7,28 @@
  * built during the accounting-audit series) — this is the first frontend
  * page for either.
  */
-import { useQuery } from '@tanstack/react-query';
-import { FileBarChart, TrendingUp, TrendingDown } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileBarChart, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { cn, getErrorMessage } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
+
+const PROGRAM_TYPES = [
+  'grant', 'revolving_fund', 'loan_capital', 'matching_contribution',
+  'seed_capital', 'emergency_support', 'operational_support',
+  'scholarship', 'insurance', 'investment',
+] as const;
 
 function UtilizationBar({ pct }: { pct: number }) {
   const clamped = Math.min(100, Math.max(0, pct));
@@ -148,13 +160,127 @@ function DonorSpendTab() {
   );
 }
 
+function NewProgramDialog({ open, onOpenChange, onCreated }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => Promise<unknown>;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = useState('');
+  const [programType, setProgramType] = useState<typeof PROGRAM_TYPES[number]>('grant');
+  const [budget, setBudget] = useState('');
+  const [fundingSource, setFundingSource] = useState('');
+  const [description, setDescription] = useState('');
+  const [startsOn, setStartsOn] = useState('');
+  const [endsOn, setEndsOn] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const reset = () => {
+    setName(''); setProgramType('grant'); setBudget('');
+    setFundingSource(''); setDescription(''); setStartsOn(''); setEndsOn('');
+  };
+
+  const submit = async () => {
+    const parsedBudget = parseFloat(budget);
+    if (name.trim().length < 3 || !(parsedBudget > 0)) {
+      toast({ variant: 'destructive', title: 'Give the program a name (3+ chars) and a positive budget' });
+      return;
+    }
+    setBusy(true);
+    try {
+      await organizationApi.createProgram({
+        name: name.trim(),
+        programType,
+        budget: parsedBudget,
+        fundingSource: fundingSource.trim() || undefined,
+        description: description.trim() || undefined,
+        startsOn: startsOn || undefined,
+        endsOn: endsOn || undefined,
+      });
+      toast({ title: 'Funding program created' });
+      reset();
+      onOpenChange(false);
+      await onCreated();
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Could not create program', description: getErrorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>New funding program</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 2026 Youth Enterprise Fund" />
+          </div>
+          <div className="space-y-1">
+            <Label>Type</Label>
+            <select
+              value={programType}
+              onChange={(e) => setProgramType(e.target.value as typeof programType)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm capitalize"
+            >
+              {PROGRAM_TYPES.map((t) => (
+                <option key={t} value={t} className="capitalize">{t.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Budget (KES)</Label>
+            <Input type="number" min="1" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="space-y-1">
+            <Label>Funding source (optional)</Label>
+            <Input value={fundingSource} onChange={(e) => setFundingSource(e.target.value)} placeholder="e.g. Ford Foundation" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Starts on (optional)</Label>
+              <Input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Ends on (optional)</Label>
+              <Input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Description (optional)</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this program funds" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} loading={busy}>Create program</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function ReportsPage() {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+
+  const refreshPrograms = () => Promise.all([
+    qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'budget'] }),
+    qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'donor'] }),
+    qc.invalidateQueries({ queryKey: ['enterprise', 'programs'] }),
+  ]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports"
         description="Budget variance across your funding programs and spend broken down by donor."
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Reports' }]}
+        actions={
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <Plus size={15} className="mr-2" /> New program
+          </Button>
+        }
       />
 
       <Tabs defaultValue="budget">
@@ -169,6 +295,8 @@ export default function ReportsPage() {
           <DonorSpendTab />
         </TabsContent>
       </Tabs>
+
+      <NewProgramDialog open={creating} onOpenChange={setCreating} onCreated={refreshPrograms} />
     </div>
   );
 }

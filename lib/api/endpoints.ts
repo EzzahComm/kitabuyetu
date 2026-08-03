@@ -392,6 +392,11 @@ export const organizationApi = {
   // first frontend client wiring for it.
   wallet: () => api.get<{ wallet: OrgWallet }>('/organization/wallet'),
   programs: () => api.get<{ items: FundingProgram[] }>('/organization/programs'),
+  createProgram: (body: {
+    name: string; programType: string; budget: number;
+    fundingSource?: string; description?: string;
+    startsOn?: string; endsOn?: string;
+  }) => api.post<FundingProgram>('/organization/programs', body),
   // Note: this route returns {items,total,page,limit} (organization-finance
   // .service.ts's own listDisbursements shape), not the {pageSize,totalPages}
   // shape PaginatedResult<T> elsewhere in this file assumes.

@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, ChevronsUpDown, Check, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { organizationApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/lib/auth/context';
@@ -56,8 +56,12 @@ export function WorkspaceSwitcher() {
       setOpen(false);
       router.push('/enterprise');
       router.refresh();
-    } catch {
-      setError('Switch failed — try again');
+    } catch (err) {
+      // Surface the real reason (e.g. "You are already in this organization"
+      // from switch-org's SAME_ORG guard) instead of a generic message that
+      // hides an actionable error — matches app/(admin)/admin/organizations/
+      // [id]/page.tsx's existing getErrorMessage usage.
+      setError(getErrorMessage(err));
     } finally {
       setSwitchingTo(null);
     }
