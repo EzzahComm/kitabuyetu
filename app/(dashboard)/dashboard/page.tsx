@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Users, Heart, ArrowRight, AlertCircle, CheckCircle2,
   Landmark, ReceiptText, UserX, Wallet, Smartphone, Plus,
+  PiggyBank, TrendingDown, CalendarClock, HandCoins, UserPlus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +14,17 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
+import { QuickActions, type QuickAction } from '@/components/shared/quick-actions';
 import { useMembers } from '@/hooks/use-members';
 import { useContributions } from '@/hooks/use-contributions';
 import { useLoans } from '@/hooks/use-loans';
 import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { api } from '@/lib/api/client';
+import { loansApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate } from '@/lib/utils';
 import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
+import type { LoanRepayment } from '@/types/db.types';
 
 interface TaskRowProps {
   icon: React.ElementType;
@@ -95,6 +99,24 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  // Total Savings / Outstanding Loans / This Month's Contributions — all
+  // three already computed by the executive-analytics endpoint (built for
+  // /analytics), just not previously surfaced on the dashboard.
+  const { data: execSummary } = useQuery<{
+    contributions: { totalAmount: string; monthlyBuckets: { bucket: string; amount: string }[] };
+    loans: { outstandingBalance: string };
+  }>({
+    queryKey: ['dashboard', 'executive-summary'],
+    queryFn:  () => api.get('/analytics/executive?period=12mo'),
+    staleTime: 60_000,
+  });
+
+  const { data: upcomingRepayments } = useQuery<(LoanRepayment & { member_name: string })[]>({
+    queryKey: ['dashboard', 'upcoming-repayments'],
+    queryFn:  () => loansApi.upcomingRepayments(5),
+    staleTime: 60_000,
+  });
+
   const totalMembers       = membersData?.total ?? 0;
   const recentContribs     = contributionsData?.items ?? [];
   const pendingLoanList    = pendingLoans?.items ?? [];
@@ -113,6 +135,24 @@ export default function DashboardPage() {
 
   const taskCount =
     unroutedList.length + pendingLoanList.length + pendingWelfareList.length + (nonContrib?.count ?? 0);
+
+  const totalSavings          = Number(execSummary?.contributions.totalAmount ?? 0);
+  const outstandingLoans      = Number(execSummary?.loans.outstandingBalance ?? 0);
+  // monthlyBuckets is ordered ASC over the trailing 12 months — the last
+  // bucket is the current (possibly partial) calendar month.
+  const thisMonthContribs     = Number(
+    execSummary?.contributions.monthlyBuckets.at(-1)?.amount ?? 0,
+  );
+  const upcomingRepaymentList = upcomingRepayments ?? [];
+
+  const quickActions: QuickAction[] = [
+    { label: 'Record contribution', icon: ReceiptText, href: '/contributions', tint: 'bg-green-50 text-green-600' },
+    { label: 'Disburse loan',       icon: Landmark,     href: '/loans',        tint: 'bg-blue-50 text-blue-600' },
+    { label: 'Receive repayment',   icon: HandCoins,    href: '/loans',        tint: 'bg-blue-50 text-blue-600' },
+    { label: 'Send money',          icon: Smartphone,   onClick: () => setStkOpen(true), tint: 'bg-purple-50 text-purple-600' },
+    { label: 'Add member',          icon: UserPlus,     href: '/members',      tint: 'bg-amber-50 text-amber-600' },
+    { label: 'Record welfare',      icon: Heart,        href: '/welfare',      tint: 'bg-red-50 text-red-600' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -134,6 +174,13 @@ export default function DashboardPage() {
           </>
         }
       />
+
+      {/* Quick Actions */}
+      <Card>
+        <CardContent className="pt-5">
+          <QuickActions actions={quickActions} />
+        </CardContent>
+      </Card>
 
       {/* Zone 1 — Needs you now */}
       <Card>
@@ -245,7 +292,59 @@ export default function DashboardPage() {
             className="transition-colors group-hover:border-primary/40"
           />
         </Link>
+        <Link href="/contributions" className="block group">
+          <StatCard
+            title="Total savings"
+            value={formatKES(totalSavings)}
+            description="All-time contributions"
+            icon={PiggyBank}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
+        <Link href="/loans" className="block group">
+          <StatCard
+            title="Outstanding loans"
+            value={formatKES(outstandingLoans)}
+            icon={TrendingDown}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
+        <Link href="/contributions" className="block group">
+          <StatCard
+            title="This month's contributions"
+            value={formatKES(thisMonthContribs)}
+            icon={ReceiptText}
+            className="transition-colors group-hover:border-primary/40"
+          />
+        </Link>
       </div>
+
+      {/* Zone 2b — Upcoming loan repayments */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <CalendarClock size={16} className="text-muted-foreground" />
+            <CardTitle className="text-base">Upcoming Loan Repayments</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {upcomingRepaymentList.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No repayments due</p>
+          ) : (
+            <div className="space-y-3">
+              {upcomingRepaymentList.map((r) => (
+                <div key={r.id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-medium">{r.member_name}</p>
+                    <p className="text-xs text-muted-foreground">Due {formatDate(r.due_date)} · Installment #{r.installment_number}</p>
+                  </div>
+                  <p className="font-semibold">{formatKES(r.total_due)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Zone 3 — Recent activity */}
       <Card>

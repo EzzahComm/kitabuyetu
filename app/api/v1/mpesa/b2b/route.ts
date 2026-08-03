@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { initiateB2B } from '@/lib/services/daraja.service';
 import { handleB2BResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated B2B initiation
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'payments.disburse', async (auth) => {
     try {
       const input = B2BSchema.parse(await req.json());
       const res   = await initiateB2B({
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'mpesa.view', async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(

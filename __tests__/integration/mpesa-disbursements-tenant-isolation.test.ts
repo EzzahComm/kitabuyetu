@@ -36,7 +36,7 @@ describe('mpesa disbursements tenant isolation', () => {
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer' }),
+        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer', permissions: ['payouts.manage'] }),
         body: { action: 'approve' },
       }),
       { params: Promise.resolve({ id }) },
@@ -51,7 +51,7 @@ describe('mpesa disbursements tenant isolation', () => {
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer' }),
+        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer', permissions: ['payouts.manage'] }),
         body: { action: 'reject', reason: 'not my group' },
       }),
       { params: Promise.resolve({ id }) },
@@ -66,7 +66,7 @@ describe('mpesa disbursements tenant isolation', () => {
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({ userId: secondOfficerBId, groupId: groupBId, role: 'treasurer' }),
+        headers: authHeaders({ userId: secondOfficerBId, groupId: groupBId, role: 'treasurer', permissions: ['payouts.manage'] }),
         body: { action: 'reject', reason: 'test rejection' },
       }),
       { params: Promise.resolve({ id }) },
@@ -81,7 +81,7 @@ describe('mpesa disbursements tenant isolation', () => {
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({ userId: initiatorBId, groupId: groupBId, role: 'treasurer' }),
+        headers: authHeaders({ userId: initiatorBId, groupId: groupBId, role: 'treasurer', permissions: ['payouts.manage'] }),
         body: { action: 'approve' },
       }),
       { params: Promise.resolve({ id }) },

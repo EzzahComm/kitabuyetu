@@ -14,7 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { ChartCard, TrendChart } from '@/components/shared/charts';
-import { tone, type Tone } from '@/lib/ui/tokens';
+import type { Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import type { MonitoringDashboardPayload } from '@/lib/services/admin.service';
 import { adminFetch } from '@/hooks/use-admin';
@@ -37,8 +37,6 @@ const SERVICE_GROUPS: { title: MonitoringDashboardPayload['services'][number]['g
   { title: 'Messaging', Icon: MessageSquare },
   { title: 'Platform', Icon: Server },
 ];
-
-const FEED_CAP = 40;
 
 export default function MonitoringPage() {
   const { data, isLoading, error } = useQuery<MonitoringDashboardPayload>({

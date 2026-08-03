@@ -68,6 +68,9 @@ interface KyJwtPayload extends JWTPayload {
   membershipNo?:   string;
   authVersion?:    number;
   sessionVersion?: number;
+  // RBAC permission activation — resolved at issue time from
+  // group_members.role_id -> roles.permissions. Missing on legacy tokens.
+  permissions?:    string[];
   // Backoffice claims
   platformRole?: string;
   organizationId?:        string;
@@ -95,6 +98,7 @@ const CLAIM_HEADERS = [
   'x-user-id', 'x-aud', 'x-group-id', 'x-role',
   'x-group-status', 'x-organization-id', 'x-platform-role',
   'x-membership-id', 'x-membership-no', 'x-auth-version', 'x-session-version',
+  'x-permissions',
 ] as const;
 
 function sanitizedHeaders(req: NextRequest): Headers {
@@ -179,6 +183,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // no session by definition. Same OTP-is-the-proof shape as the flows above.
     '/api/v1/auth/forgot-password/start',
     '/api/v1/auth/forgot-password/reset',
+    // Staff/backoffice forgot-password (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
+    // Phase 1) — same reasoning, email-link-is-the-proof instead of SMS OTP.
+    '/api/v1/auth/admin/forgot-password/start',
+    '/api/v1/auth/admin/forgot-password/reset',
   ]);
 
   if (
@@ -247,6 +255,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     if (payload.membershipNo)         requestHeaders.set('x-membership-no',   payload.membershipNo);
     if (payload.authVersion != null)  requestHeaders.set('x-auth-version',    String(payload.authVersion));
     if (payload.sessionVersion != null) requestHeaders.set('x-session-version', String(payload.sessionVersion));
+    // Comma-joined, not JSON: permission strings are always `[a-z_.]+` (never
+    // contain commas), matching the existing plain-string header convention
+    // above rather than paying JSON parse overhead per request.
+    if (payload.permissions?.length) requestHeaders.set('x-permissions', payload.permissions.join(','));
 
     // Phase D Part 2 — gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management

@@ -204,6 +204,16 @@ export default function LoginPage() {
             Register your group
           </Link>
         </p>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
+          Organization staff?{' '}
+          <Link href="/enterprise/login" className="text-brand-600 hover:underline font-medium">
+            Sign in here
+          </Link>
+          {' '}· Kitabu Yetu team?{' '}
+          <Link href="/admin-login" className="text-brand-600 hover:underline font-medium">
+            Sign in here
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

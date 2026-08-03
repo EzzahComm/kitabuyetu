@@ -5,7 +5,7 @@ import { withAuth } from '@/lib/auth/middleware';
 import { initiateSTKPush } from '@/lib/services/mpesa.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { withIdempotencyKey } from '@/lib/utils/idempotency';
-import { ok, handleError } from '@/lib/utils/response';
+import { ok } from '@/lib/utils/response';
 
 const StkPushSchema = z.object({
   phone:           z.string().refine(isValidKenyanPhone, 'Invalid phone number'),

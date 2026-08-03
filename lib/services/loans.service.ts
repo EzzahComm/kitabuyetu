@@ -41,6 +41,32 @@ export const loansService = {
     });
   },
 
+  /**
+   * Next N unpaid installments due across every active loan in the group,
+   * soonest first — the dashboard's "Upcoming Loan Repayments" card
+   * (SIMPLIFICATION_AND_RBAC_AUDIT.md §4: no group-wide aggregation existed
+   * before this; `loan_repayments` itself is a real, DB-trigger-generated
+   * schedule per loan, so this is a straightforward cross-loan query, not a
+   * new amortization computation).
+   */
+  async listUpcomingRepayments(
+    ctx: TenantContext,
+    limit = 5,
+  ): Promise<(LoanRepayment & { member_name: string })[]> {
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<LoanRepayment & { member_name: string }>(
+        `SELECT lr.*, m.first_name || ' ' || m.last_name AS member_name
+         FROM loan_repayments lr
+         JOIN members m ON m.id = lr.member_id
+         WHERE lr.group_id = $1 AND lr.status = 'pending'
+         ORDER BY lr.due_date ASC
+         LIMIT $2`,
+        [ctx.groupId, limit],
+      );
+      return rows;
+    });
+  },
+
   async getById(ctx: TenantContext, id: string): Promise<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }> {
     return withDb(ctx, async (client) => {
       const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(

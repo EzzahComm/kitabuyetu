@@ -31,6 +31,11 @@ export interface AuthContext {
   membershipNo?:   string;
   authVersion?:    number;
   sessionVersion?: number;
+  // RBAC permission activation (SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4).
+  // Resolved from group_members.role_id -> roles.permissions at token-issue
+  // time (login/refresh/switch-group); same "drift bounded by the
+  // access-token TTL" model as the epochs above. Absent on legacy tokens.
+  permissions?: string[];
 }
 
 // ------------------------------------------------------------------

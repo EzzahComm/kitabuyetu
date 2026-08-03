@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth } from '@/lib/auth/middleware';
 import { loansService } from '@/lib/services/loans.service';
 import { LoanQuerySchema, ApplyLoanSchema } from '@/lib/validators/loan.schema';
 import { ok, created } from '@/lib/utils/response';

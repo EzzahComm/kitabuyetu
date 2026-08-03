@@ -13,7 +13,7 @@
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withRole, withPermission } from '@/lib/auth/middleware';
 import {
   billManagerOptIn,
   updateBillManagerOptIn,
@@ -23,7 +23,6 @@ import {
   updateBulkInvoices,
   cancelSingleInvoice,
   cancelBulkInvoices,
-  reconcileBillManagerPayment,
   type BillManagerInvoice,
 } from '@/lib/services/daraja.service';
 import { ok, handleError } from '@/lib/utils/response';
@@ -50,7 +49,7 @@ function callerIp(req: NextRequest): string {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
     try {
       const status = req.nextUrl.searchParams.get('status');
       const rows = await withAdminDb(async (db) => {
@@ -114,7 +113,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'invoice') {
-    return withRole(req, 'chairperson', async (auth) => {
+    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await sendSingleInvoice(input as BillManagerInvoice);
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'bulk') {
-    return withRole(req, 'chairperson', async (auth) => {
+    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
       try {
         const invoices = z.array(InvoiceSchema).min(1).max(100).parse(await req.json());
         await sendBulkInvoices(invoices as BillManagerInvoice[]);
@@ -181,7 +180,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'cancel') {
-    return withRole(req, 'chairperson', async (auth) => {
+    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
       try {
         const { externalReferences } = z.object({
           externalReferences: z.array(z.string()).min(1),
@@ -216,7 +215,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   const action = req.nextUrl.searchParams.get('action');
 
   if (action === 'invoice') {
-    return withRole(req, 'chairperson', async () => {
+    return withPermission(req, 'mpesa.bill_manager.manage', async () => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await updateSingleInvoice(input as BillManagerInvoice);
@@ -228,7 +227,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   }
 
   if (action === 'bulk') {
-    return withRole(req, 'chairperson', async () => {
+    return withPermission(req, 'mpesa.bill_manager.manage', async () => {
       try {
         const invoices = z.array(InvoiceSchema).min(1).parse(await req.json());
         await updateBulkInvoices(invoices as BillManagerInvoice[]);

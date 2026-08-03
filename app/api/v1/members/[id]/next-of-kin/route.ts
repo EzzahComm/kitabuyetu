@@ -4,8 +4,7 @@ import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
 import { CreateNextOfKinSchema } from '@/lib/validators/member.schema';
 import { ok, created } from '@/lib/utils/response';
-import { ROLES } from '@/lib/auth/rbac';
-import { ForbiddenError } from '@/lib/utils/errors';
+import { requirePermission } from '@/lib/auth/permissions';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,7 +18,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {
-    if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
+    requirePermission(auth, 'members.manage');
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const rows = await membersService.listNextOfKin(ctx, id);
     return ok(rows);
@@ -31,7 +30,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {
-    if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
+    requirePermission(auth, 'members.manage');
     const body  = await req.json();
     const input = CreateNextOfKinSchema.parse(body);
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

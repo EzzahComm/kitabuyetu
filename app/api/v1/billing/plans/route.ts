@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { billingService } from '@/lib/services/billing.service';
 import { UpgradePlanSchema } from '@/lib/validators/billing.schema';
 import { PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES } from '@/types/enums';
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'billing.manage', async (auth) => {
     const input = UpgradePlanSchema.parse(await req.json());
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await billingService.upgradePlan(ctx, input.planType));

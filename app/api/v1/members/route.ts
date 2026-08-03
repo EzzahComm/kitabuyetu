@@ -1,9 +1,9 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
 import { MemberQuerySchema, CreateMemberSchema } from '@/lib/validators/member.schema';
-import { ok, created, handleError } from '@/lib/utils/response';
+import { ok, created } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'secretary', async (auth) => {
+  return withPermission(req, 'members.manage', async (auth) => {
     const body  = await req.json();
     const input = CreateMemberSchema.parse(body);
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

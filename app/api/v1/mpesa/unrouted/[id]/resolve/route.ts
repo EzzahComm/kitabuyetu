@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { resolveUnrouted } from '@/lib/services/mpesa.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
+import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError } from '@/lib/utils/response';
 
 const Schema = z.object({
@@ -21,10 +22,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'payments.request', async (auth) => {
     try {
       // Sensitive op (§2.5): allocation of unrouted money re-checks epochs.
-      await assertAuthFresh(auth);
+      // Re-verify against LIVE roles.permissions, not just the token's claim.
+      const freshPermissions = await assertAuthFresh(auth);
+      requirePermission({ role: auth.role, permissions: freshPermissions }, 'payments.request');
 
       const { id } = await params;
       const input  = Schema.parse(await req.json());

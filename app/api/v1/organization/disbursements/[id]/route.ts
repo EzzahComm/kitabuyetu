@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
+import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { ok, handleError } from '@/lib/utils/response';
 
@@ -19,7 +19,7 @@ const ActionSchema = z.discriminatedUnion('action', [
  */
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.disbursements.manage', async (auth) => {
     try {
       const input = ActionSchema.parse(await req.json());
       const ctx   = {

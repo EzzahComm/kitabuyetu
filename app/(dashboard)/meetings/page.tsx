@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Calendar, Users, CheckSquare, Clock, MapPin, Video } from 'lucide-react';
+import { Plus, Users, MapPin, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -13,12 +13,12 @@ import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
-import { useMeetings, useMeetingStats, useCreateMeeting, useUpdateMeeting, type MeetingRow } from '@/hooks/use-meetings';
+import { useMeetings, useMeetingStats, useCreateMeeting, type MeetingRow } from '@/hooks/use-meetings';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, formatDateTime, getErrorMessage } from '@/lib/utils';
+import { formatDate, getErrorMessage } from '@/lib/utils';
 
 const createSchema = z.object({
   title:          z.string().min(3),

@@ -11,7 +11,6 @@ import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { openCommandPalette } from '@/components/admin/command-palette';
 import { SearchTrigger } from '@/components/shared/search-trigger';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,

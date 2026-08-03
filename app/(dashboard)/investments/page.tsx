@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, TrendingUp, TrendingDown, DollarSign, BarChart2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

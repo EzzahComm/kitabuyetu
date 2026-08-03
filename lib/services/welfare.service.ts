@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
+import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal } from './posting-templates.service';
 import { z } from 'zod';

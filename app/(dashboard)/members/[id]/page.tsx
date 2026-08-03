@@ -76,7 +76,6 @@ interface NextOfKin {
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: member, isLoading: loadingMember } = useMember(id);

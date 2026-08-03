@@ -191,7 +191,7 @@ async function applyStatusUpdate(s: WaStatus): Promise<void> {
   }
 }
 
-async function recordInboundMessage(m: WaInboundMessage, fromPhoneId?: string): Promise<void> {
+async function recordInboundMessage(m: WaInboundMessage, _fromPhoneId?: string): Promise<void> {
   // Inbound messages don't carry our group context, so resolve via the
   // sender's phone matching a member row. If no match, skip silently —
   // we don't store unsolicited messages from unknown numbers.

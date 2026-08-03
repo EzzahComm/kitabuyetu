@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
@@ -10,7 +10,7 @@ import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/campaign â€” list campaigns
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'secretary', async (auth) => {
+  return withPermission(req, 'messaging.send', async (auth) => {
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit  = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // POST /api/v1/sms/campaign â€” create & optionally send
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'secretary', async (auth) => {
+  return withPermission(req, 'messaging.send', async (auth) => {
     const body  = await req.json();
     const input = CampaignCreateSchema.parse(body);
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/campaign?id=xxx â€” cancel
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'messaging.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
 

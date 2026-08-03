@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Heart, Wallet, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Wallet, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -48,7 +48,6 @@ const priorityClass: Record<string, string> = {
 };
 
 export default function WelfarePage() {
-  const [tab, setTab]               = useState('requests');
   const [page, setPage]             = useState(1);
   const [statusFilter, setStatus]   = useState('all');
   const [openRequest, setOpenRequest] = useState(false);

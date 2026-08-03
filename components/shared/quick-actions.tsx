@@ -17,6 +17,8 @@ export interface QuickAction {
  * Big, thumb-friendly action grid — the WhatsApp-level "what can I do" row.
  * Large tap targets (min 64px), icon + short label, minimal text. Built for
  * low digital-literacy users: every primary task is one tap from home.
+ * Originally member-portal-only; moved to components/shared when the
+ * officer dashboard adopted the same pattern (SIMPLIFICATION_AND_RBAC_AUDIT.md §4).
  */
 export function QuickActions({ actions }: { actions: QuickAction[] }) {
   return (

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withOneOf } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { ok } from '@/lib/utils/response';
@@ -18,10 +18,14 @@ type Ctx = { params: Promise<{ id: string }> };
  * are now scoped to `auth.groupId` like every other tenant route, except
  * for `super_admin` which (matching analytics/route.ts's existing
  * precedent) can see/manage any group's campaigns.
+ *
+ * Outer gate added (messaging.send, matching SMS campaigns' equivalent GET
+ * gate) — the `scoped` ternary below is untouched, it's visibility scope,
+ * not the access gate.
  */
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'messaging.send', async (auth) => {
     const scoped = auth.role !== 'super_admin';
     const { rows } = await withAdminDb((db) =>
       db.query(
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+  return withPermission(req, 'messaging.manage', async (auth) => {
     const { action } = ActionSchema.parse(await req.json());
 
     const scoped = auth.role !== 'super_admin';

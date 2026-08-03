@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
+import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { ok } from '@/lib/utils/response';
 
@@ -28,7 +28,7 @@ const DisburseSchema = z.object({
 });
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.disbursements.manage', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const page  = parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10);
     const limit = parseInt(req.nextUrl.searchParams.get('limit') ?? '25', 10);
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.disbursements.manage', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const input = DisburseSchema.parse(await req.json());
     return ok(await organizationFinanceService.disburse(ctx, input), 201);

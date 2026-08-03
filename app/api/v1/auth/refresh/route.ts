@@ -21,6 +21,7 @@ interface MembershipRow {
   person_id:       string;
   membership_no:   string;
   group_status:    string;
+  permissions:     string[];   // roles.permissions via gm.role_id (RBAC activation)
 }
 
 /**
@@ -120,11 +121,13 @@ export async function POST(req: NextRequest): Promise<Response> {
         `SELECT m.id, m.platform_role, m.session_version,
                 gm.id AS membership_id, gm.group_id, gm.role, gm.auth_version,
                 gm.person_id, gm.membership_no,
-                g.status AS group_status
+                g.status AS group_status,
+                COALESCE(r.permissions, '{}') AS permissions
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.status = 'active'
          JOIN groups g         ON g.id = gm.group_id
                                AND g.status NOT IN ('suspended','archived')
+         LEFT JOIN roles r     ON r.id = gm.role_id
          WHERE m.id = $1 AND m.is_active = true
            ${payload.groupId ? 'AND gm.group_id = $2' : ''}
          ORDER BY g.created_at`,
@@ -180,6 +183,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       membershipNo:   membership.membership_no,
       authVersion:    membership.auth_version,
       sessionVersion: membership.session_version,
+      permissions:    membership.permissions,
     });
 
     // ── Rotate: issue the successor in the same lineage ────────────────────

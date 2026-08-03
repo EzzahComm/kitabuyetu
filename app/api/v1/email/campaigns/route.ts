@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withOneOf } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { createCampaign } from '@/lib/services/campaign.service';
 import { enqueueJob } from '@/lib/jobs';
@@ -17,8 +17,10 @@ const CreateCampaignSchema = z.object({
   launch:           z.boolean().optional(),
 });
 
+// Was withAuth only (any authenticated member) — matches SMS campaigns'
+// existing messaging.send gate on its equivalent GET (list) route.
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'messaging.send', async (auth) => {
     const { rows } = await withAdminDb((db) =>
       db.query(
         `SELECT id, name, subject, status, total_recipients, sent_count, failed_count,
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+  return withPermission(req, 'messaging.manage', async (auth) => {
     const body = CreateCampaignSchema.parse(await req.json());
 
     const id = await createCampaign({

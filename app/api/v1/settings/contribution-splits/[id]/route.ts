@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { contributionSplitsService } from '@/lib/services/contribution-splits.service';
 import { UpdateContributionSplitSchema } from '@/lib/validators/contribution-splits.schema';
 import { ok, handleError } from '@/lib/utils/response';
@@ -10,7 +10,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const { id } = await params;
       const input  = UpdateContributionSplitSchema.parse(await req.json());
@@ -28,7 +28,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const { id } = await params;
       const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

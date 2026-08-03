@@ -36,22 +36,22 @@ const NAV: NavSection[] = [
     items: [
       { href: '/enterprise', label: 'Portfolio', icon: LayoutDashboard },
       { href: '/enterprise/branches', label: 'Branches', icon: Network },
-      { href: '/enterprise/reports', label: 'Reports', icon: FileBarChart, soon: true },
+      { href: '/enterprise/reports', label: 'Reports', icon: FileBarChart },
     ],
   },
   {
     title: 'Operations',
     items: [
-      { href: '/enterprise/members', label: 'Members', icon: Users2, soon: true },
-      { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote, soon: true },
+      { href: '/enterprise/members', label: 'Members', icon: Users2 },
+      { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
     ],
   },
   {
     title: 'Developer & Brand',
     items: [
       { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound },
-      { href: '/enterprise/branding', label: 'White-label', icon: Palette, soon: true },
-      { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText, soon: true },
+      { href: '/enterprise/branding', label: 'White-label', icon: Palette },
+      { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText },
     ],
   },
 ];
@@ -65,7 +65,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
   React.useEffect(() => {
     if (isLoading) return;
     if (!user || audience !== 'backoffice') {
-      router.replace('/admin-login');
+      router.replace('/enterprise/login');
       return;
     }
     if (!ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole)) {

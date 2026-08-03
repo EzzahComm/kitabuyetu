@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { paymentRequestsService } from '@/lib/services/payment-requests.service';
 import { ok, created, handleError } from '@/lib/utils/response';
 
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 /** POST /api/v1/payment-requests — open a request so an inbound payment lands on the intended product (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'payments.request', async (auth) => {
     try {
       const input = CreateSchema.parse(await req.json());
       const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

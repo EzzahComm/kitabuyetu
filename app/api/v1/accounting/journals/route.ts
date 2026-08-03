@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { accountingService } from '@/lib/services/accounting.service';
 import { CreateJournalSchema, VoidJournalSchema } from '@/lib/validators/accounting.schema';
 import { ok, created } from '@/lib/utils/response';
@@ -8,7 +8,7 @@ import type { JournalEntry } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     const { searchParams } = req.nextUrl;
     const page   = parseInt(searchParams.get('page')  ?? '1',  10);
     const limit  = parseInt(searchParams.get('limit') ?? '20', 10);
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     const body  = await req.json();
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   Search, Plus,
   Clock, CheckCircle2, AlertTriangle,
-  MoreHorizontal, ArrowUpRight,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -14,6 +14,11 @@ export interface AuthHeaderInput {
   role: string;
   organizationId?: string;
   membershipId?: string;
+  /** RBAC permission activation — simulates the resolved x-permissions claim without a real login round trip. */
+  permissions?: string[];
+  /** Simulates the token's authVersion/sessionVersion epoch claims — only set when a test needs to exercise assertAuthFresh's live DB re-check (both omitted = no-op, matching legacy tokens). */
+  authVersion?: number;
+  sessionVersion?: number;
 }
 
 export function authHeaders(input: AuthHeaderInput): Record<string, string> {
@@ -24,6 +29,9 @@ export function authHeaders(input: AuthHeaderInput): Record<string, string> {
   };
   if (input.organizationId) headers['x-organization-id'] = input.organizationId;
   if (input.membershipId) headers['x-membership-id'] = input.membershipId;
+  if (input.permissions?.length) headers['x-permissions'] = input.permissions.join(',');
+  if (input.authVersion != null) headers['x-auth-version'] = String(input.authVersion);
+  if (input.sessionVersion != null) headers['x-session-version'] = String(input.sessionVersion);
   return headers;
 }
 
@@ -34,8 +42,15 @@ export function buildRequest(
   const headers = new Headers(opts.headers);
   const init: RequestInit = { method: opts.method ?? 'GET', headers };
   if (opts.body !== undefined) {
-    init.body = JSON.stringify(opts.body);
-    headers.set('content-type', 'application/json');
+    if (opts.body instanceof FormData) {
+      // Pass through as-is — fetch/undici sets the correct multipart
+      // boundary Content-Type itself; JSON.stringify would corrupt it.
+      // Used by routes that call req.formData() (e.g. CSV import uploads).
+      init.body = opts.body;
+    } else {
+      init.body = JSON.stringify(opts.body);
+      headers.set('content-type', 'application/json');
+    }
   }
   return new NextRequest(new URL(path, 'http://localhost'), init);
 }

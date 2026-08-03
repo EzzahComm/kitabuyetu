@@ -11,8 +11,7 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
 import { useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/lib/auth/context';
-import { cn, formatKES, getErrorMessage } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 
 const PLANS = [
   { type: 'starter',    label: 'Starter',    price: 0,     maxMembers: 10,   features: ['Basic reporting', 'M-Pesa integration', 'SMS (50/mo)'] },
@@ -21,7 +20,6 @@ const PLANS = [
 ];
 
 export default function BillingPage() {
-  const { user }  = useAuth();
   const { toast } = useToast();
   const { data: billingData, isLoading } = useBillingPlans();
   const upgradePlan = useUpgradePlan();

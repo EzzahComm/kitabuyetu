@@ -701,6 +701,8 @@ function LogsTab() {
         }
       />
 
+      <SummaryStatsGrid items={usageStats} />
+
       <PaginatedTable
         data={data}
         isLoading={isLoading}

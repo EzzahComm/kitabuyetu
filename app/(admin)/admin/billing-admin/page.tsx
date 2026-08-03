@@ -2,11 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import {
-  CreditCard, TrendingUp, AlertCircle,
-  CheckCircle2, Clock, ArrowRight,
+  CreditCard, AlertCircle,
+  CheckCircle2, Clock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';

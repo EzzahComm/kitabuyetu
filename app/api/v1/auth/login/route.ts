@@ -51,6 +51,7 @@ interface GroupMembershipRow {
   group_name:    string;
   group_status:  string;     // groups.status
   officer_role:  string | null;
+  permissions:   string[];   // roles.permissions via gm.role_id (RBAC activation)
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -105,13 +106,15 @@ export async function POST(req: NextRequest): Promise<Response> {
            gm.role                    AS group_role,
            gm.auth_version,
            g.group_code, g.name       AS group_name, g.status AS group_status,
-           go.role                    AS officer_role
+           go.role                    AS officer_role,
+           COALESCE(r.permissions, '{}') AS permissions
          FROM   group_members gm
          JOIN   groups g ON g.id = gm.group_id
          LEFT JOIN group_officers go
            ON go.group_id  = gm.group_id
           AND go.member_id = gm.member_id
           AND go.removed_at IS NULL
+         LEFT JOIN roles r ON r.id = gm.role_id
          WHERE  gm.member_id = $1
            AND  gm.status    = 'active'
            AND  g.status     NOT IN ('suspended','archived')
@@ -198,6 +201,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       membershipNo:   chosen.membership_no,
       authVersion:    chosen.auth_version,
       sessionVersion: member.session_version,
+      permissions:    chosen.permissions,
     });
 
     // Pin the chosen group to the refresh token so token refreshes revalidate

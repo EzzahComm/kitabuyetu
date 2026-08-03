@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Search, LogOut, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, LogOut, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
@@ -13,6 +13,14 @@ export interface PortalNavItem {
   label:  string;
   icon:   React.ElementType;
   badge?: number;
+  /**
+   * Turns this item into a collapsible group instead of a direct link —
+   * SIMPLIFICATION_AND_RBAC_AUDIT.md §3's "More"/overflow primitive.
+   * `href` is ignored for a group (nothing to navigate to); it stays
+   * required on the type so every item can still be used as a plain link
+   * when `children` is omitted, without a second interface to keep in sync.
+   */
+  children?: PortalNavItem[];
 }
 
 export interface PortalNavSection {
@@ -51,6 +59,7 @@ const V = {
     footerCollapsed:'px-1',
     signOut:        'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors',
     signOutIcon:    15,
+    subGroupBorder: 'border-gray-200',
   },
   dark: {
     overlay:        'bg-black/50',
@@ -73,6 +82,7 @@ const V = {
     footerCollapsed:'',
     signOut:        'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors',
     signOutIcon:    18,
+    subGroupBorder: 'border-gray-700',
   },
 } as const;
 
@@ -105,6 +115,7 @@ export function PortalSidebar({
   const { logout, refreshToken } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const v = V[variant];
 
   const handleLogout = async () => {
@@ -116,9 +127,40 @@ export function PortalSidebar({
     if (!searchable || !query) return sections;
     return sections.map((s) => ({
       ...s,
-      items: s.items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase())),
+      items: s.items.filter((i) =>
+        i.label.toLowerCase().includes(query.toLowerCase()) ||
+        i.children?.some((c) => c.label.toLowerCase().includes(query.toLowerCase())),
+      ),
     })).filter((s) => s.items.length > 0);
   }, [sections, searchable, query]);
+
+  // Auto-expand (never auto-collapse) any group containing the active route,
+  // so landing on a "More"-bucketed page doesn't hide the very link that got
+  // you there.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const section of sections) {
+        for (const item of section.items) {
+          if (item.children?.some((c) => isActive(c.href)) && !next.has(item.label)) {
+            next.add(item.label);
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [sections, isActive]);
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -187,7 +229,59 @@ export function PortalSidebar({
               )}
               <div className={v.itemsWrap}>
                 {section.items.map((item) => {
-                  const Icon   = item.icon;
+                  const Icon = item.icon;
+
+                  if (item.children) {
+                    const expanded    = expandedGroups.has(item.label);
+                    const groupActive = item.children.some((c) => isActive(c.href));
+                    return (
+                      <div key={item.label}>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(item.label)}
+                          title={collapsed ? item.label : undefined}
+                          aria-expanded={expanded}
+                          className={cn(
+                            v.link, 'w-full',
+                            groupActive ? v.linkActive : v.linkInactive,
+                            collapsed && 'justify-center',
+                          )}
+                        >
+                          <Icon size={v.iconSize} className={cn(groupActive ? v.iconActive : v.iconInactive)} />
+                          {!collapsed && <span className="flex-1 truncate text-left">{item.label}</span>}
+                          {!collapsed && (
+                            <ChevronDown
+                              size={14}
+                              className={cn('shrink-0 transition-transform', expanded && 'rotate-180')}
+                            />
+                          )}
+                        </button>
+                        {expanded && !collapsed && (
+                          <div className={cn('ml-4 mt-0.5 space-y-0.5 border-l pl-3', v.subGroupBorder)}>
+                            {item.children.map((child) => {
+                              const ChildIcon   = child.icon;
+                              const childActive = isActive(child.href);
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  onClick={onClose}
+                                  className={cn(
+                                    v.link,
+                                    childActive ? v.linkActive : v.linkInactive,
+                                  )}
+                                >
+                                  <ChildIcon size={v.iconSize - 2} className={cn(childActive ? v.iconActive : v.iconInactive)} />
+                                  <span className="flex-1 truncate">{child.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
                   const active = isActive(item.href);
                   return (
                     <Link

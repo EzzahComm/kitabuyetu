@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
+import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { ok } from '@/lib/utils/response';
 
@@ -10,7 +10,7 @@ import { ok } from '@/lib/utils/response';
  * active programs).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.dashboard.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     return ok(await organizationFinanceService.getDashboard(ctx));
   });

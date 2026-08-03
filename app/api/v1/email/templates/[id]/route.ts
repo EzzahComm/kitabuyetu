@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withOneOf } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 import { NotFoundError, ForbiddenError } from '@/lib/utils/errors';
@@ -44,7 +44,7 @@ async function assertOwnership(id: string, auth: { groupId: string; role: string
 
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'messaging.templates.view', async (auth) => {
     const { rows } = await withAdminDb((db) =>
       db.query(
         `SELECT * FROM email_templates WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)`,
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 
 export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+  return withPermission(req, 'messaging.templates.manage', async (auth) => {
     await assertOwnership(id, auth);
     const body = UpdateTemplateSchema.parse(await req.json());
 
@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> 
 
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+  return withPermission(req, 'messaging.templates.manage', async (auth) => {
     await assertOwnership(id, auth);
 
     await withAdminDb((db) =>

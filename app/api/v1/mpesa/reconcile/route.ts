@@ -14,7 +14,7 @@
  */
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { runReconciliation, sweepPaybillTransactions } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Treasurer+ — matches the rest of the M-Pesa ops surface (the /mpesa
   // dashboard that links here is treasurer-accessible). Reconciliation is
   // idempotent (queries Daraja or sweeps C2B).
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     try {
       const result = type === 'paybill'
         ? await sweepPaybillTransactions(auth.groupId, auth.userId)
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
+import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { ok } from '@/lib/utils/response';
 
@@ -15,7 +15,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.programs.manage', async (auth) => {
     const { id } = await params;
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const { status } = UpdateSchema.parse(await req.json());

@@ -5,12 +5,12 @@
  * Query params: page, limit, type, status, phone, dateFrom, dateTo
  */
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'mpesa.view', async (auth) => {
     try {
       const sp       = req.nextUrl.searchParams;
       const page     = Math.max(1, parseInt(sp.get('page') ?? '1', 10));

@@ -1,13 +1,13 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withAdminDb } from '@/lib/db';
 import { ScheduleCreateSchema } from '@/lib/validators/sms.schema';
 import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/schedules
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'secretary', async (auth) => {
+  return withPermission(req, 'messaging.schedules.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return withDb(ctx, async (client) => {
       const { rows } = await client.query(
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // POST /api/v1/sms/schedules
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const body  = await req.json();
     const input = ScheduleCreateSchema.parse(body);
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // PATCH /api/v1/sms/schedules?id=xxx
 export async function PATCH(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const id   = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
     const body  = await req.json();
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/schedules?id=xxx
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
 

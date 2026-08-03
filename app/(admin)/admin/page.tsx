@@ -4,11 +4,10 @@ import { useRouter } from 'next/navigation';
 import {
   Building2, Users, CreditCard, TrendingUp,
   Headphones, AlertTriangle, CheckCircle2,
-  ArrowRight, Clock, Circle,
+  ArrowRight,
 } from 'lucide-react';
 import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';

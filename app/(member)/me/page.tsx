@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { HandCoins, Receipt, Target, FileText, ChevronRight, Bell, Landmark, AlertCircle } from 'lucide-react';
 import { WalletCard } from '@/components/member/wallet-card';
-import { QuickActions, type QuickAction } from '@/components/member/quick-actions';
+import { QuickActions, type QuickAction } from '@/components/shared/quick-actions';
 import { SavingsGoalCard } from '@/components/member/savings-goal-card';
 import { PassbookRow } from '@/components/member/passbook-row';
 import { MoneyActionDialog } from '@/components/shared/confirm-dialog';

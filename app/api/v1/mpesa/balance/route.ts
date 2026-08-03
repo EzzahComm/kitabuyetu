@@ -6,7 +6,7 @@
  * POST /api/v1/mpesa/balance?type=timeout â€” Safaricom timeout callback
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { queryAccountBalance } from '@/lib/services/daraja.service';
 import { handleBalanceResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated balance query trigger â€” treasurer, chairperson, or super_admin
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'mpesa.view', async (auth) => {
     try {
       const shortcode = process.env.MPESA_SHORTCODE ?? '';
       const res = await queryAccountBalance(shortcode);
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 /** Return the latest balance result stored in mpesa_transactions for this group */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'mpesa.view', async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(
