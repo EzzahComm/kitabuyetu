@@ -24,6 +24,20 @@ import { createTestGroup } from './helpers/fixtures';
 import { rawQuery } from './helpers/db';
 import { resetDatabase } from './helpers/cleanup';
 
+// Redis is a real, external Upstash instance in every environment (no local
+// emulator) — mocked the same way any other external dependency is elsewhere
+// in this suite (email/SMS in organization-members.test.ts). Without this,
+// handleSTKCallback's cache/lock calls try to reach the env's placeholder
+// Upstash URL for real and fail with a TLS mismatch locally or ENOTFOUND in
+// CI, masking the actual pipeline assertions below with an unrelated network
+// error. acquireStkLock must resolve `true` (lock acquired) so the real
+// allocation logic actually runs instead of being skipped as "already locked."
+jest.mock('@/lib/redis', () => ({
+  cacheMpesaStatus: jest.fn().mockResolvedValue(undefined),
+  acquireStkLock: jest.fn().mockResolvedValue(true),
+  releaseStkLock: jest.fn().mockResolvedValue(undefined),
+}));
+
 function stkSuccessBody(checkoutRequestId: string, receipt: string, amount: number, phone: string): StkCallbackBody {
   return {
     Body: {
