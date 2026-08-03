@@ -15,6 +15,14 @@ import { authHeaders, buildRequest } from '../helpers/request';
 import { createTestOrganization } from '../helpers/fixtures';
 import { resetDatabase } from '../helpers/cleanup';
 
+// These routes never read ctx.groupId — but it still flows into the real
+// Postgres session GUC (setTenantLocals) and app_current_group_id() casts
+// it to ::uuid whenever any RLS policy references it (e.g. groups_select,
+// via listGroupSummaries' JOIN). A non-UUID placeholder like 'irrelevant'
+// works fine under BYPASSRLS but throws under real RLS enforcement — caught
+// by the app_tenant CI job. Use a syntactically valid (if non-existent) UUID.
+const NO_GROUP = '00000000-0000-0000-0000-000000000000';
+
 describe('Organization/* permission gates (platform-role axis)', () => {
   let organizationId: string, coordinatorId: string;
 
@@ -29,35 +37,35 @@ describe('Organization/* permission gates (platform-role axis)', () => {
 
   it('a plain member-role caller (no group context relevant here) is denied on every organization route', async () => {
     const res = await profileGet(buildRequest('/api/v1/organization/profile', {
-      headers: authHeaders({ userId: coordinatorId, groupId: 'irrelevant', role: 'member', organizationId }),
+      headers: authHeaders({ userId: coordinatorId, groupId: NO_GROUP, role: 'member', organizationId }),
     }));
     expect(res.status).toBe(403);
   });
 
   it('a group-side treasurer (highest member_role rank below chairperson) is still denied — this is a different axis entirely', async () => {
     const res = await groupsGet(buildRequest('/api/v1/organization/groups', {
-      headers: authHeaders({ userId: coordinatorId, groupId: 'irrelevant', role: 'treasurer', organizationId }),
+      headers: authHeaders({ userId: coordinatorId, groupId: NO_GROUP, role: 'treasurer', organizationId }),
     }));
     expect(res.status).toBe(403);
   });
 
   it('organization_coordinator with organizationId set CAN reach the profile route', async () => {
     const res = await profileGet(buildRequest('/api/v1/organization/profile', {
-      headers: authHeaders({ userId: coordinatorId, groupId: 'irrelevant', role: 'organization_coordinator', organizationId }),
+      headers: authHeaders({ userId: coordinatorId, groupId: NO_GROUP, role: 'organization_coordinator', organizationId }),
     }));
     expect(res.status).toBe(200);
   });
 
   it('organization_coordinator WITHOUT an organizationId claim is denied (context required)', async () => {
     const res = await profileGet(buildRequest('/api/v1/organization/profile', {
-      headers: authHeaders({ userId: coordinatorId, groupId: 'irrelevant', role: 'organization_coordinator' }),
+      headers: authHeaders({ userId: coordinatorId, groupId: NO_GROUP, role: 'organization_coordinator' }),
     }));
     expect(res.status).toBe(403);
   });
 
   it('super_admin bypasses the organization gate too (platform god-role, mirrors withPlatformRole precedent)', async () => {
     const res = await walletGet(buildRequest('/api/v1/organization/wallet', {
-      headers: authHeaders({ userId: coordinatorId, groupId: 'irrelevant', role: 'super_admin', organizationId }),
+      headers: authHeaders({ userId: coordinatorId, groupId: NO_GROUP, role: 'super_admin', organizationId }),
     }));
     expect(res.status).toBe(200);
   });
