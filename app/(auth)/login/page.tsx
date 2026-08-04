@@ -11,10 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient, ApiError } from '@/lib/api/client';
 import { getErrorMessage } from '@/lib/utils';
+import { postLoginPath } from '@/lib/auth/post-login-path';
 import { useToast } from '@/hooks/use-toast';
 import { isGroupSelectionNeeded } from '@/types/api.types';
 import type { NeedsGroupSelection } from '@/types/api.types';
@@ -52,7 +53,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (user) router.replace('/dashboard');
+    if (user) router.replace(postLoginPath(isTenantUser(user) ? user.groupRole : undefined));
   }, [user, router]);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function LoginPage() {
       if (rememberMe) localStorage.setItem(REMEMBERED_IDENTIFIER_KEY, values.identifier);
       else            localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
       login(result);
-      router.push('/dashboard');
+      router.push(postLoginPath(result.member.groupRole));
     } catch (err) {
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({

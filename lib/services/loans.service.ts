@@ -91,7 +91,10 @@ export const loansService = {
       // Borrower must hold an active membership in THIS group (§5); the
       // membership id is stamped on the loan (§6a). The guarantor, when
       // named, must be an active member of the same group too.
-      const { membershipId } = await assertActiveMembership(client, ctx.groupId, ctx.userId);
+      // The borrower is data.memberId when an officer applies on someone's
+      // behalf (route-gated on loans.approve), otherwise the caller.
+      const borrowerId = data.memberId ?? ctx.userId;
+      const { membershipId } = await assertActiveMembership(client, ctx.groupId, borrowerId);
       if (data.guarantorId) {
         await assertActiveMembership(client, ctx.groupId, data.guarantorId);
       }
@@ -102,9 +105,15 @@ export const loansService = {
          WHERE group_id = $1 AND member_id = $2
            AND status IN ('approved','disbursed','active')
          LIMIT 1`,
-        [ctx.groupId, ctx.userId],
+        [ctx.groupId, borrowerId],
       );
-      if (active[0]) throw new ValidationError('You already have an active loan');
+      if (active[0]) {
+        throw new ValidationError(
+          borrowerId === ctx.userId
+            ? 'You already have an active loan'
+            : 'This member already has an active loan',
+        );
+      }
 
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
@@ -113,7 +122,7 @@ export const loansService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
-          ctx.groupId, ctx.userId, membershipId,
+          ctx.groupId, borrowerId, membershipId,
           data.principalAmount.toFixed(2),
           data.interestRate.toFixed(2),
           data.loanTermMonths,

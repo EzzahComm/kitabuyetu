@@ -80,7 +80,7 @@ export default function OrganizationsPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [confirm, setConfirm] = useState<{ id: string; name: string; action: 'activate' | 'deactivate' } | null>(null);
 
-  const { data, isLoading } = useAdminOrganizations({ page, limit: 25, search, type, status });
+  const { data, isLoading, isError, error } = useAdminOrganizations({ page, limit: 25, search, type, status });
   const createOrg    = useCreateOrganization();
   const updateStatus = useUpdateOrganizationStatus();
 
@@ -186,6 +186,8 @@ export default function OrganizationsPage() {
       <PaginatedTable<AdminOrgRow>
         data={{ items, total, page, pageSize: 25, totalPages }}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No organizations yet"
         emptyDescription="Onboard a bank, SACCO, or foundation to get started."

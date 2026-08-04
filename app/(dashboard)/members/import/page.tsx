@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 /**
  * Bulk-import wizard for members. Three states drive the UI:
@@ -65,7 +67,15 @@ const PREVIEW_VISIBLE_ROWS = 25;
 export default function MembersImportPage() {
   const [phase, setPhase]   = useState<Phase>('idle');
   const [job,   setJob]     = useState<ImportJob | null>(null);
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — see data-import/page.tsx; this is
+  // the sibling native-confirm() rollback guard.
+  const [rollbackOpen, setRollbackOpen] = useState(false);
   const { toast }           = useToast();
+
+  const canPreview  = useHasPermission('import.preview');
+  const canCancel   = useHasPermission('import.cancel');
+  const canCommit   = useHasPermission('import.commit');
+  const canRollback = useHasPermission('import.rollback');
 
   // ── Upload & preview ───────────────────────────────────────────────────
 
@@ -119,7 +129,6 @@ export default function MembersImportPage() {
 
   const rollback = async () => {
     if (!job) return;
-    if (!confirm('Roll back this import? This permanently removes the imported members from your group.')) return;
     try {
       const result = await api.post<ImportJob>(`/import/${job.id}/rollback`, { reason: 'User requested undo' });
       setJob(result);
@@ -133,7 +142,7 @@ export default function MembersImportPage() {
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start gap-3">
         <Link href="/members" className="text-muted-foreground hover:text-foreground mt-1">
           <ArrowLeft className="h-5 w-5" />
@@ -141,7 +150,7 @@ export default function MembersImportPage() {
         <PageHeader className="flex-1" title="Import Members" />
       </div>
 
-      {phase === 'idle' && <IdleView onUpload={uploadFile} />}
+      {phase === 'idle' && <IdleView onUpload={uploadFile} canPreview={canPreview} />}
 
       {phase === 'uploading' && (
         <Card><CardContent className="flex items-center justify-center gap-3 py-12">
@@ -151,7 +160,7 @@ export default function MembersImportPage() {
       )}
 
       {phase === 'preview' && job && (
-        <PreviewView job={job} onCommit={commit} onDiscard={discard} />
+        <PreviewView job={job} onCommit={commit} onDiscard={discard} canCommit={canCommit} canCancel={canCancel} />
       )}
 
       {phase === 'committing' && (
@@ -162,21 +171,31 @@ export default function MembersImportPage() {
       )}
 
       {phase === 'result' && job && (
-        <ResultView job={job} onRollback={rollback} onStartOver={() => { setJob(null); setPhase('idle'); }} />
+        <ResultView job={job} onRollback={() => setRollbackOpen(true)} onStartOver={() => { setJob(null); setPhase('idle'); }} canRollback={canRollback} />
       )}
+
+      <ConfirmDialog
+        open={rollbackOpen}
+        onOpenChange={setRollbackOpen}
+        variant="danger"
+        title="Roll back this import?"
+        description="This permanently removes the imported members from your group."
+        confirmLabel="Roll back"
+        onConfirm={rollback}
+      />
     </div>
   );
 }
 
 // ── Idle: drag-drop + template download ─────────────────────────────────
 
-function IdleView({ onUpload }: { onUpload: (file: File) => void }) {
+function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; canPreview: boolean }) {
   const [drag, setDrag]         = useState(false);
   const [downloading, setDownloading] = useState(false);
   const inputEl                 = useRef<HTMLInputElement>(null);
   const { toast }               = useToast();
 
-  const handleFile = (f: File | undefined) => { if (f) onUpload(f); };
+  const handleFile = (f: File | undefined) => { if (f && canPreview) onUpload(f); };
 
   const downloadTemplate = async () => {
     setDownloading(true);
@@ -201,25 +220,31 @@ function IdleView({ onUpload }: { onUpload: (file: File) => void }) {
         <CardHeader><CardTitle>Upload CSV</CardTitle></CardHeader>
         <CardContent>
           <div
-            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragOver={(e) => { e.preventDefault(); if (canPreview) setDrag(true); }}
             onDragLeave={() => setDrag(false)}
             onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files?.[0]); }}
-            onClick={() => inputEl.current?.click()}
+            onClick={() => canPreview && inputEl.current?.click()}
             role="button"
-            tabIndex={0}
-            className={`cursor-pointer rounded-lg border-2 border-dashed p-10 text-center transition-colors
+            tabIndex={canPreview ? 0 : -1}
+            aria-disabled={!canPreview}
+            className={`rounded-lg border-2 border-dashed p-10 text-center transition-colors
+              ${!canPreview ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
               ${drag ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-primary/60'}`}
           >
             <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-3 font-medium">Drag &amp; drop your CSV here</p>
             <p className="text-sm text-muted-foreground">or click to browse</p>
             <p className="mt-3 text-xs text-muted-foreground">Maximum 5MB · up to 5000 rows · CSV only</p>
+            {!canPreview && (
+              <p className="mt-2 text-xs text-amber-600">Requires secretary, treasurer, or chairperson role.</p>
+            )}
             <input
               ref={inputEl}
               type="file"
               accept=".csv,text/csv"
               className="hidden"
               aria-label="Upload CSV file"
+              disabled={!canPreview}
               onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ''; }}
             />
           </div>
@@ -253,7 +278,9 @@ function IdleView({ onUpload }: { onUpload: (file: File) => void }) {
 
 // ── Preview: errors + sample rows + commit/discard CTAs ─────────────────
 
-function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: () => void; onDiscard: () => void }) {
+function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
+  job: ImportJob; onCommit: () => void; onDiscard: () => void; canCommit: boolean; canCancel: boolean;
+}) {
   const rows = job.preview_rows ?? [];
   const visible = rows.slice(0, PREVIEW_VISIBLE_ROWS);
   const hiddenCount = Math.max(rows.length - PREVIEW_VISIBLE_ROWS, 0);
@@ -327,10 +354,12 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
       )}
 
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onDiscard}>Discard</Button>
-        <Button onClick={onCommit} disabled={job.valid_rows === 0}>
-          Confirm import ({job.valid_rows} member{job.valid_rows === 1 ? '' : 's'})
-        </Button>
+        {canCancel && <Button variant="outline" onClick={onDiscard}>Discard</Button>}
+        {canCommit && (
+          <Button onClick={onCommit} disabled={job.valid_rows === 0}>
+            Confirm import ({job.valid_rows} member{job.valid_rows === 1 ? '' : 's'})
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -338,7 +367,9 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
 
 // ── Result: outcome + rollback CTA ──────────────────────────────────────
 
-function ResultView({ job, onRollback, onStartOver }: { job: ImportJob; onRollback: () => void; onStartOver: () => void }) {
+function ResultView({ job, onRollback, onStartOver, canRollback }: {
+  job: ImportJob; onRollback: () => void; onStartOver: () => void; canRollback: boolean;
+}) {
   const isCommitted  = job.status === 'committed';
   const isRolledBack = job.status === 'rolled_back';
 
@@ -387,7 +418,7 @@ function ResultView({ job, onRollback, onStartOver }: { job: ImportJob; onRollba
         <div className="flex justify-end gap-3">
           <Button asChild variant="outline"><Link href="/members">Back to members</Link></Button>
           <Button variant="outline" onClick={onStartOver}>Import another file</Button>
-          {isCommitted && (job.created_member_ids?.length ?? 0) > 0 && (
+          {isCommitted && (job.created_member_ids?.length ?? 0) > 0 && canRollback && (
             <Button variant="destructive" onClick={onRollback}>
               <RotateCcw className="mr-2 h-4 w-4" /> Roll back
             </Button>

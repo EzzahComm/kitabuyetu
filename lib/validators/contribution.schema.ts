@@ -42,3 +42,10 @@ export type CreateContributionInput = z.infer<typeof CreateContributionSchema>;
 export type UpdateContributionInput = z.infer<typeof UpdateContributionSchema>;
 export type ContributionQueryInput  = z.infer<typeof ContributionQuerySchema>;
 export type SetSavingsLimitsInput   = z.infer<typeof SetSavingsLimitsSchema>;
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type CreateContributionPayload = z.input<typeof CreateContributionSchema>;
+export type UpdateContributionPayload = z.input<typeof UpdateContributionSchema>;
+export type SetSavingsLimitsPayload = z.input<typeof SetSavingsLimitsSchema>;

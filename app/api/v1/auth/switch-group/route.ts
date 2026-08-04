@@ -132,6 +132,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           personId:     target.person_id,
           officerRole:  target.officer_role ?? undefined,
           groupStatus:  target.group_status,
+          permissions:  target.permissions,
         },
       };
       return ok(response);

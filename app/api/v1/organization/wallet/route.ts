@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
+import { DepositSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
@@ -11,13 +11,6 @@ import { ok } from '@/lib/utils/response';
  *
  * organization_coordinator only (asserted in the service; RLS backs it up).
  */
-
-const DepositSchema = z.object({
-  amount:    z.number().positive('Amount must be positive').max(1_000_000_000),
-  source:    z.string().max(160).optional(),
-  reference: z.string().max(64).optional(),
-  notes:     z.string().max(500).optional(),
-});
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationPermission(req, 'organization.wallet.view', async (auth) => {

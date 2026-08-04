@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Bell } from 'lucide-react';
+import { Bell, LayoutDashboard } from 'lucide-react';
 import { MemberBottomNav } from '@/components/member/bottom-nav';
 import { OfflineIndicator } from '@/components/member/offline-indicator';
 import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
@@ -71,6 +71,21 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
             <p className="truncate text-xs text-muted-foreground">{user.groupName}</p>
           </div>
           <OfflineIndicator className="hidden sm:inline-flex" />
+          {
+            // UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1 (C3): /me now
+            // defaults for plain members, but the reverse path must stay
+            // reachable — an officer viewing a group where they hold plain
+            // 'member' status, or a member who just wants the full app,
+            // shouldn't be stuck here with no way out.
+          }
+          <Link
+            href="/dashboard"
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted"
+            aria-label="Switch to full dashboard"
+            title="Full dashboard"
+          >
+            <LayoutDashboard size={20} />
+          </Link>
           <Link
             href="/me/notifications"
             className="relative rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted"

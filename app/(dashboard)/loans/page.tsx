@@ -26,7 +26,7 @@ const applySchema = z.object({
   memberId:       z.string().min(1),
   principalAmount: z.coerce.number().positive().min(100),
   interestRate:   z.coerce.number().positive().max(100),
-  termMonths:     z.coerce.number().int().positive().max(120),
+  loanTermMonths:     z.coerce.number().int().positive().max(120),
   purpose:        z.string().min(3),
 });
 type ApplyValues = z.infer<typeof applySchema>;
@@ -37,7 +37,7 @@ export default function LoansPage() {
   const [open, setOpen]   = useState(false);
   const { toast }         = useToast();
 
-  const { data, isLoading } = useLoans({ page, pageSize: 20, status: status === 'all' ? undefined : status });
+  const { data, isLoading, isError, error } = useLoans({ page, pageSize: 20, status: status === 'all' ? undefined : status });
   const { data: membersData } = useMembers({ pageSize: 200 });
   const { data: loanPolicy } = useLoanPolicy();
   const applyLoan = useApplyLoan();
@@ -49,13 +49,13 @@ export default function LoansPage() {
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
-    defaultValues: { interestRate: 10, termMonths: 12 },
+    defaultValues: { interestRate: 10, loanTermMonths: 12 },
   });
 
   const openApply = () => {
     reset({
       interestRate: policyTerms?.interestRate ?? 10,
-      termMonths:   policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
+      loanTermMonths:   policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
     } as Partial<ApplyValues> as ApplyValues);
     setOpen(true);
   };
@@ -83,7 +83,7 @@ export default function LoansPage() {
     { key: 'memberName', header: 'Member', render: (row: LoanRow) => row.member_name ?? row.member_id },
     { key: 'principalAmount', header: 'Principal', render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span> },
     { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}%` },
-    { key: 'termMonths', header: 'Term', render: (row: LoanRow) => `${row.loan_term_months}m` },
+    { key: 'term', header: 'Term', render: (row: LoanRow) => `${row.loan_term_months}m` },
     { key: 'status', header: 'Status', render: (row: LoanRow) => <StatusPill status={row.status} /> },
     { key: 'disbursedAt', header: 'Disbursed', render: (row: LoanRow) => row.disbursed_at ? formatDate(row.disbursed_at) : '—' },
   ];
@@ -107,7 +107,7 @@ export default function LoansPage() {
           ))}
         </TabsList>
         <TabsContent value={status} className="mt-4">
-          <PaginatedTable data={data} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No loans found" />
+          <PaginatedTable data={data} isLoading={isLoading} isError={isError} error={error} columns={columns} onPageChange={setPage} emptyMessage="No loans found" />
         </TabsContent>
       </Tabs>
 
@@ -142,7 +142,7 @@ export default function LoansPage() {
               </div>
               <div className="space-y-1">
                 <Label>Term (months)</Label>
-                <Input type="number" {...register('termMonths')} />
+                <Input type="number" {...register('loanTermMonths')} />
                 {policyTerms && (
                   <p className="text-xs text-muted-foreground">Policy max {policyTerms.maxTermMonths} months</p>
                 )}

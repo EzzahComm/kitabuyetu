@@ -21,6 +21,13 @@ export interface PortalNavItem {
    * when `children` is omitted, without a second interface to keep in sync.
    */
   children?: PortalNavItem[];
+  /**
+   * Renders the item as a non-interactive "Soon" row instead of a link — shows
+   * the planned IA without a dead destination. Ported from the enterprise
+   * portal's own sidebar when it merged in here
+   * (UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4).
+   */
+  soon?: boolean;
 }
 
 export interface PortalNavSection {
@@ -84,12 +91,37 @@ const V = {
     signOutIcon:    18,
     subGroupBorder: 'border-gray-700',
   },
+  // Customer-facing enterprise portal: brand green on semantic tokens, not the
+  // raw grays the two staff-facing variants above use.
+  brand: {
+    overlay:        'bg-black/40',
+    aside:          'bg-background border-r transition-transform',
+    headerExpanded: 'flex h-14 items-center justify-between border-b px-3 shrink-0',
+    headerCollapsed:'flex h-14 items-center justify-between border-b px-3 shrink-0',
+    closeBtn:       'lg:hidden rounded p-1 text-muted-foreground hover:text-foreground',
+    closeIcon:      16,
+    nav:            'flex-1 overflow-y-auto p-3 space-y-4',
+    sectionTitle:   'mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground',
+    sectionWrap:    '',
+    itemsWrap:      'space-y-0.5',
+    link:           'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
+    linkActive:     'bg-brand-50 text-brand-700',
+    linkInactive:   'text-muted-foreground hover:bg-muted hover:text-foreground',
+    iconActive:     'text-brand-600',
+    iconInactive:   'text-muted-foreground',
+    iconSize:       17,
+    footer:         'border-t p-3 shrink-0',
+    footerCollapsed:'',
+    signOut:        'w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors',
+    signOutIcon:    17,
+    subGroupBorder: 'border-border',
+  },
 } as const;
 
 interface PortalSidebarProps {
   open:      boolean;
   onClose:   () => void;
-  variant:   'light' | 'dark';
+  variant:   keyof typeof V;
   sections:  PortalNavSection[];
   isActive:  (href: string) => boolean;
   /** Brand/logo block; receives the collapsed state (always false unless collapsible). */
@@ -230,6 +262,26 @@ export function PortalSidebar({
               <div className={v.itemsWrap}>
                 {section.items.map((item) => {
                   const Icon = item.icon;
+
+                  if (item.soon) {
+                    return (
+                      <span
+                        key={item.href}
+                        title="Coming soon"
+                        className={cn(v.link, 'cursor-default text-muted-foreground/50', collapsed && 'justify-center')}
+                      >
+                        <Icon size={v.iconSize} className="text-muted-foreground/40" />
+                        {!collapsed && (
+                          <>
+                            <span className="flex-1 truncate">{item.label}</span>
+                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Soon
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    );
+                  }
 
                   if (item.children) {
                     const expanded    = expandedGroups.has(item.label);

@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { membersApi } from '@/lib/api/endpoints';
 import type { GroupMemberRow } from '@/types/api.types';
+import type { CreateMemberPayload } from '@/lib/validators/member.schema';
 
 // ─── Constants mirrored from validators/member.schema.ts ────────────────────
 const MEMBER_STATUSES = [
@@ -65,7 +66,7 @@ export default function MembersPage() {
     ...(status ? { status, includeArchived: status === 'archived' } : {}),
   }), [page, search, status]);
 
-  const { data, isLoading } = useMembers(queryParams);
+  const { data, isLoading, isError, error } = useMembers(queryParams);
   const createMember        = useCreateMember();
 
   // Counties for the create-form dropdown. The endpoint is already CDN-cached
@@ -86,11 +87,12 @@ export default function MembersPage() {
     try {
       // Strip empty strings so the validator's `.optional().nullable()` paths
       // accept them as missing.
-      const body: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(values)) {
-        if (v === '' || v === undefined) continue;
-        body[k] = v;
-      }
+      const body = Object.fromEntries(
+        Object.entries(values).filter(([, v]) => v !== '' && v !== undefined),
+        // The form schema is a superset-shaped mirror of CreateMemberSchema and
+        // every required field is required in both, so the stripped object is a
+        // valid payload — but Object.entries erases that, hence the assertion.
+      ) as unknown as CreateMemberPayload;
       await createMember.mutateAsync(body);
       toast({ title: 'Member added successfully' });
       setOpen(false);
@@ -180,9 +182,9 @@ export default function MembersPage() {
       },
     },
     { key: 'phone',      header: 'Phone',      render: (row: GroupMemberRow) => <span className="font-mono text-xs">{row.phone}</span> },
-    { key: 'occupation', header: 'Occupation', render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span> },
+    { key: 'occupation', header: 'Occupation', hideBelow: 'md' as const, render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span> },
     {
-      key: 'groupRole', header: 'Role',
+      key: 'groupRole', header: 'Role', hideBelow: 'lg' as const,
       render: (row: GroupMemberRow) => (
         <Badge variant="outline" className="capitalize">
           {row.group_role?.replace('_', ' ')}
@@ -195,7 +197,7 @@ export default function MembersPage() {
         <StatusPill status={row.group_status ?? (row.is_active ? 'active' : 'inactive')} />
       ),
     },
-    { key: 'joinedAt', header: 'Joined', render: (row: GroupMemberRow) => formatDate(row.joined_at ?? row.created_at) },
+    { key: 'joinedAt', header: 'Joined', hideBelow: 'lg' as const, render: (row: GroupMemberRow) => formatDate(row.joined_at ?? row.created_at) },
   ];
 
   return (
@@ -273,6 +275,8 @@ export default function MembersPage() {
       <PaginatedTable
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         columns={columns}
         onPageChange={setPage}
         emptyMessage="No members found"

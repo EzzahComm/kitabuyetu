@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
 import {
   handleB2CResult,
@@ -9,21 +8,12 @@ import {
 } from '@/lib/services/mpesa.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
 import { isValidCallbackToken } from '@/lib/services/daraja.service';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
-
-const B2CSchema = z.object({
-  phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  amount:    z.number().int().positive(),
-  occasion:  z.string().min(1).max(100),
-  commandId: z.enum(['BusinessPayment', 'SalaryPayment', 'PromotionPayment'])
-               .default('BusinessPayment'),
-  loanId:    z.string().uuid().optional(),
-});
+import { B2CSchema } from '@/lib/validators/mpesa.schema';
 
 function getCallerIp(req: NextRequest): string {
   return (

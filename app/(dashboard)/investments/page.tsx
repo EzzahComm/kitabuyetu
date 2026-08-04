@@ -18,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 const createSchema = z.object({
   name:               z.string().min(3),
@@ -44,8 +45,9 @@ export default function InvestmentsPage() {
   const [status, setStatus] = useState('all');
   const [open, setOpen]     = useState(false);
   const { toast } = useToast();
+  const canManage = useHasPermission('investments.manage');
 
-  const { data, isLoading }    = useInvestments({ page, limit: 20, ...(status !== 'all' ? { status } : {}) });
+  const { data, isLoading, isError, error } = useInvestments({ page, limit: 20, ...(status !== 'all' ? { status } : {}) });
   const { data: summary }      = useInvestmentSummary();
   const createInvestment       = useCreateInvestment();
 
@@ -112,9 +114,11 @@ export default function InvestmentsPage() {
         title="Investments"
         description="Group investment portfolio tracking"
         actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" /> Add Investment
-          </Button>
+          canManage ? (
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={16} className="mr-2" /> Add Investment
+            </Button>
+          ) : undefined
         }
       />
 
@@ -157,6 +161,8 @@ export default function InvestmentsPage() {
           <PaginatedTable
             data={data}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             columns={columns}
             onPageChange={setPage}
             emptyMessage="No investments recorded yet"
@@ -173,7 +179,7 @@ export default function InvestmentsPage() {
               <Input {...form.register('name')} placeholder="e.g. Nairobi Land Plot — Ruai" />
               {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message as string}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Type</Label>
                 <select {...form.register('investmentType')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">

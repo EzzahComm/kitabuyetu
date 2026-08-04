@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { billingApi, mpesaApi } from '@/lib/api/endpoints';
+import type { StkPushInput } from '@/lib/validators/mpesa.schema';
+import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
 
 export const billingKeys = {
   plans:    ['billing', 'plans'] as const,
@@ -17,14 +19,14 @@ export function useInvoices() {
 export function useUpgradePlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (planType: string) => billingApi.upgradePlan(planType),
+    mutationFn: (planType: UpgradePlanInput['planType']) => billingApi.upgradePlan(planType),
     onSuccess:  () => qc.invalidateQueries({ queryKey: billingKeys.plans }),
   });
 }
 
 export function useStkPush() {
   return useMutation({
-    mutationFn: (body: unknown) => mpesaApi.stkPush(body),
+    mutationFn: (body: StkPushInput) => mpesaApi.stkPush(body),
   });
 }
 

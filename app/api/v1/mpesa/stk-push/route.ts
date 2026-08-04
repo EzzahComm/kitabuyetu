@@ -1,20 +1,10 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
 import { initiateSTKPush } from '@/lib/services/mpesa.service';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { withIdempotencyKey } from '@/lib/utils/idempotency';
+import { StkPushSchema } from '@/lib/validators/mpesa.schema';
 import { ok } from '@/lib/utils/response';
-
-const StkPushSchema = z.object({
-  phone:           z.string().refine(isValidKenyanPhone, 'Invalid phone number'),
-  amount:          z.number().int().positive('Amount must be a positive integer (whole shillings)'),
-  accountReference: z.string().min(1).max(12),
-  description:     z.string().min(1).max(20),
-  invoiceId:       z.string().uuid().optional().nullable(),
-  purpose:         z.enum(['registration', 'subscription', 'sms_topup', 'contribution']),
-});
 
 export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, (auth) =>

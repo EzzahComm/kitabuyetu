@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contributionsApi } from '@/lib/api/endpoints';
+import type { CreateContributionPayload, SetSavingsLimitsPayload } from '@/lib/validators/contribution.schema';
 
 export const contributionKeys = {
   all:    ['contributions'] as const,
@@ -25,7 +26,7 @@ export function useContribution(id: string) {
 export function useRecordContribution() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => contributionsApi.create(body),
+    mutationFn: (body: CreateContributionPayload) => contributionsApi.create(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: contributionKeys.all }),
   });
 }
@@ -41,7 +42,7 @@ export function useSavingsPolicy() {
 export function useSetSavingsPolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => contributionsApi.setPolicy(body),
+    mutationFn: (body: SetSavingsLimitsPayload) => contributionsApi.setPolicy(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: [...contributionKeys.all, 'policy'] }),
   });
 }

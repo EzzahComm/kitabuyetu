@@ -76,7 +76,7 @@ export default function SupportPage() {
     subject: '', description: '', category: 'general', priority: 'normal',
   });
 
-  const { data, isLoading } = useAdminTickets({ page, limit: 20, status, priority, search });
+  const { data, isLoading, isError, error } = useAdminTickets({ page, limit: 20, status, priority, search });
   const updateTicket = useUpdateTicket();
   const createTicket = useCreateTicket();
 
@@ -117,7 +117,7 @@ export default function SupportPage() {
         title="Support Center"
         description="Triage, manage, and resolve customer support requests"
         actions={
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs"
+          <Button size="sm" className="text-xs"
             onClick={() => setNewTicket(true)}>
             <Plus size={14} className="mr-1" /> New Ticket
           </Button>
@@ -181,6 +181,8 @@ export default function SupportPage() {
       <PaginatedTable<SupportTicketRow>
         data={{ items, total, page, pageSize: 20, totalPages }}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No tickets found"
         columns={[

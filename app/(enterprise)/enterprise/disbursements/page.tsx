@@ -22,10 +22,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useHasOrganizationPermission } from '@/lib/auth/use-permission';
 import { organizationApi } from '@/lib/api/endpoints';
 import { ApiError } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
+import { DISBURSEMENT_TYPES } from '@/lib/validators/organization.schema';
 
 interface DisbursementRow {
   id: string; group_id: string; group_name?: string;
@@ -34,14 +36,10 @@ interface DisbursementRow {
   reference: string; notes: string | null; created_at: string;
 }
 
-const DISBURSEMENT_TYPES = [
-  'grant', 'revolving_fund', 'loan_capital', 'matching_contribution',
-  'seed_capital', 'emergency_support', 'operational_support',
-] as const;
-
 export default function DisbursementsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const canManageDisbursements = useHasOrganizationPermission();
   const [page, setPage] = useState(1);
 
   const [creating, setCreating] = useState(false);
@@ -68,7 +66,7 @@ export default function DisbursementsPage() {
     queryKey: ['enterprise', 'programs'],
     queryFn:  () => organizationApi.programs(),
   });
-  const { data, isLoading } = useQuery<PaginatedResult<DisbursementRow>>({
+  const { data, isLoading, isError, error } = useQuery<PaginatedResult<DisbursementRow>>({
     queryKey: ['enterprise', 'disbursements', page],
     queryFn:  async () => {
       const res = await organizationApi.disbursements({ page, limit: 20 });
@@ -154,9 +152,11 @@ export default function DisbursementsPage() {
         description="Send funds from your organization wallet to a branch, and approve pending requests."
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Disbursements' }]}
         actions={
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus size={15} className="mr-2" /> New disbursement
-          </Button>
+          canManageDisbursements ? (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus size={15} className="mr-2" /> New disbursement
+            </Button>
+          ) : undefined
         }
       />
 
@@ -179,6 +179,8 @@ export default function DisbursementsPage() {
       <PaginatedTable<DisbursementRow>
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No disbursements yet"
         emptyDescription="Send your first disbursement to a branch using the button above."
@@ -223,7 +225,7 @@ export default function DisbursementsPage() {
           {
             key: 'actions', header: '', className: 'text-right',
             render: (r) => (
-              r.status === 'pending_approval' ? (
+              r.status === 'pending_approval' && canManageDisbursements ? (
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="outline" onClick={() => { setRejecting(r); setRejectReason(''); }} disabled={busy}>
                     Reject
@@ -296,7 +298,7 @@ export default function DisbursementsPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={submitDisbursement} loading={busy}>Send disbursement</Button>
+            <Button onClick={submitDisbursement} loading={busy} disabled={!canManageDisbursements}>Send disbursement</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -329,7 +331,7 @@ export default function DisbursementsPage() {
             <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Why is this disbursement being rejected?" />
           </div>
           <DialogFooter>
-            <Button variant="destructive" onClick={reject} loading={busy}>Reject disbursement</Button>
+            <Button variant="destructive" onClick={reject} loading={busy} disabled={!canManageDisbursements}>Reject disbursement</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

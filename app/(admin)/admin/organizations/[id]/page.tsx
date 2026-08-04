@@ -479,7 +479,7 @@ export default function OrganizationDetailPage({
               <p className="text-xs text-muted-foreground">
                 Creates the account immediately with a temporary password. Best for someone who&apos;s already a known member.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>First name</Label>
                   <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />
@@ -514,7 +514,7 @@ export default function OrganizationDetailPage({
               <p className="text-xs text-muted-foreground">
                 Emails a link to confirm and set their own password — they also verify their phone by SMS code.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>First name</Label>
                   <Input value={staffFirst} onChange={(e) => setStaffFirst(e.target.value)} />

@@ -22,7 +22,7 @@ export default function MembersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useQuery<PaginatedResult<OrganizationMemberRow>>({
+  const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationMemberRow>>({
     queryKey: ['enterprise', 'members', page, search],
     queryFn:  () => organizationApi.members({ page, limit: 25, search: search || undefined }),
   });
@@ -48,6 +48,8 @@ export default function MembersPage() {
       <PaginatedTable<OrganizationMemberRow & { id: string }>
         data={data ? { ...data, items: data.items.map((m) => ({ ...m, id: m.memberId })) } : data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No members found"
         emptyDescription={search ? 'Try a different search term.' : 'Members appear here once branches enrol them.'}

@@ -68,7 +68,7 @@ export default function UsersPage() {
   const [roleUser,   setRoleUser]   = useState<AdminUserRow | null>(null);
   const [selRoleId,  setSelRoleId]  = useState('');
 
-  const { data, isLoading }  = useAdminUsers({ page, limit: 25, search, role: roleFilter });
+  const { data, isLoading, isError, error }  = useAdminUsers({ page, limit: 25, search, role: roleFilter });
   const updateRole           = useUpdateUserRole();
   const assignRole           = useAssignGroupRole();
   const { data: rolesData, isLoading: rolesLoading } = useAssignableRoles(roleUser?.group_id);
@@ -156,6 +156,8 @@ export default function UsersPage() {
       <PaginatedTable<AdminUserRow>
         data={{ items, total, page, pageSize: 25, totalPages }}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No users found"
         onRowClick={(u) => {
@@ -180,7 +182,7 @@ export default function UsersPage() {
             ),
           },
           {
-            key: 'contact', header: 'Contact',
+            key: 'contact', header: 'Contact', hideBelow: 'lg' as const,
             render: (u) => (
               <>
                 <p className="text-xs text-gray-600">{u.email ?? '—'}</p>
@@ -188,10 +190,10 @@ export default function UsersPage() {
               </>
             ),
           },
-          { key: 'org', header: 'Organization', render: (u) => <span className="text-sm text-gray-600">{u.organization_name ?? '—'}</span> },
-          { key: 'group', header: 'Group', render: (u) => <span className="text-sm text-gray-600">{u.group_name ?? '—'}</span> },
+          { key: 'org', header: 'Organization', hideBelow: 'lg' as const, render: (u) => <span className="text-sm text-gray-600">{u.organization_name ?? '—'}</span> },
+          { key: 'group', header: 'Group', hideBelow: 'md' as const, render: (u) => <span className="text-sm text-gray-600">{u.group_name ?? '—'}</span> },
           {
-            key: 'groupRole', header: 'Group Role',
+            key: 'groupRole', header: 'Group Role', hideBelow: 'lg' as const,
             render: (u) => (
               <span className="text-xs text-gray-600 capitalize">
                 {u.role_name ?? u.group_role?.replace('_', ' ') ?? '—'}
@@ -214,7 +216,7 @@ export default function UsersPage() {
               <StatusPill status={u.status === 'active' ? 'active' : 'inactive'} size="sm" />
             ),
           },
-          { key: 'joined', header: 'Joined', render: (u) => <span className="text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</span> },
+          { key: 'joined', header: 'Joined', hideBelow: 'md' as const, render: (u) => <span className="text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</span> },
           {
             key: 'actions', header: '',
             render: (u) => (

@@ -52,7 +52,7 @@ export default function MpesaPage() {
   if (status) qs.set('status', status);
   if (phone)  qs.set('phone', phone);
 
-  const { data, isLoading, refetch, isFetching } = useQuery<PaginatedResult<MpesaTxn>>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<PaginatedResult<MpesaTxn>>({
     queryKey: ['mpesa', 'transactions', page, type, status, phone],
     queryFn:  () => api.get<PaginatedResult<MpesaTxn>>(`/mpesa/transactions?${qs.toString()}`),
   });
@@ -143,6 +143,8 @@ export default function MpesaPage() {
       <PaginatedTable
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         columns={columns}
         onPageChange={setPage}
         emptyMessage="No M-Pesa transactions match these filters"

@@ -12,8 +12,11 @@ import { PageHeader } from '@/components/shared/page-header';
 import { useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
+import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
 
-const PLANS = [
+type PlanType = UpgradePlanInput['planType'];
+
+const PLANS: { type: PlanType; label: string; price: number; maxMembers: number; features: string[] }[] = [
   { type: 'starter',    label: 'Starter',    price: 0,     maxMembers: 10,   features: ['Basic reporting', 'M-Pesa integration', 'SMS (50/mo)'] },
   { type: 'growth',     label: 'Growth',     price: 2500,  maxMembers: 100,  features: ['All Starter features', 'Advanced reports', 'SMS (500/mo)', 'Accounting module'] },
   { type: 'enterprise', label: 'Enterprise', price: 8000,  maxMembers: 9999, features: ['All Growth features', 'Unlimited SMS', 'Enterprise portal', 'API access', 'Priority support'] },
@@ -27,7 +30,7 @@ export default function BillingPage() {
 
   const [checkoutId, setCheckoutId]   = useState<string | null>(null);
   const [polling, setPolling]         = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<PlanType | null>(null);
   const [phone, setPhone]             = useState('');
   const [mpesaOpen, setMpesaOpen]     = useState(false);
 
@@ -53,7 +56,7 @@ export default function BillingPage() {
     }
   }, [mpesaStatus, pendingPlan, toast, upgradePlan]);
 
-  const handleSelectPlan = (planType: string) => {
+  const handleSelectPlan = (planType: PlanType) => {
     if (planType === 'starter') return;
     setPendingPlan(planType);
     setMpesaOpen(true);
@@ -63,7 +66,19 @@ export default function BillingPage() {
     const plan = PLANS.find((p) => p.type === pendingPlan);
     if (!plan || !phone) return;
     try {
-      const res = await stkPush.mutateAsync({ phone, amount: plan.price, purpose: `${plan.label} plan subscription` });
+      // StkPushSchema (app/api/v1/mpesa/stk-push/route.ts) requires
+      // accountReference (<=12 chars) and description (<=20), and `purpose` is
+      // an enum — not free text. This used to send only {phone, amount, purpose}
+      // with purpose set to e.g. "Growth plan subscription", so it failed
+      // validation three ways over and the M-Pesa subscription button 400'd on
+      // every click. Found by the post-M3 client/server contract sweep.
+      const res = await stkPush.mutateAsync({
+        phone,
+        amount:           plan.price,
+        accountReference: 'SUBSCRIPT',
+        description:      `${plan.label} plan`.slice(0, 20),
+        purpose:          'subscription',
+      });
       setCheckoutId(res.checkoutRequestId);
       setPolling(true);
     } catch (err) {

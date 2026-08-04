@@ -76,3 +76,13 @@ export type CampaignCreateInput = z.infer<typeof CampaignCreateSchema>;
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;
 export type TemplateUpdateInput = z.infer<typeof TemplateUpdateSchema>;
 export type ScheduleCreateInput = z.infer<typeof ScheduleCreateSchema>;
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type SendSmsPayload = z.input<typeof SendSmsSchema>;
+export type BulkSmsPayload = z.input<typeof BulkSmsSchema>;
+export type CampaignCreatePayload = z.input<typeof CampaignCreateSchema>;
+export type TemplateCreatePayload = z.input<typeof TemplateCreateSchema>;
+export type TemplateUpdatePayload = z.input<typeof TemplateUpdateSchema>;
+export type ScheduleCreatePayload = z.input<typeof ScheduleCreateSchema>;

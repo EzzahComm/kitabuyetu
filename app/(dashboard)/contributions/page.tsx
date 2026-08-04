@@ -42,7 +42,7 @@ export default function ContributionsPage() {
   const { toast }         = useToast();
 
   const now = new Date();
-  const { data, isLoading } = useContributions({ page, pageSize: 20 });
+  const { data, isLoading, isError, error } = useContributions({ page, pageSize: 20 });
   // Only active members can receive a contribution. `limit` (not `pageSize`) is
   // the param the members API reads; its max is 100.
   const {
@@ -106,7 +106,7 @@ export default function ContributionsPage() {
         }
       />
 
-      <PaginatedTable data={data} isLoading={isLoading} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
+      <PaginatedTable data={data} isLoading={isLoading} isError={isError} error={error} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">

@@ -17,6 +17,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { StatusPill } from '@/components/shared/status-pill';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 interface ShareClass {
   id: string; name: string; code: string; description: string | null;
@@ -48,6 +49,7 @@ export default function ShareClassesPage() {
   const qc        = useQueryClient();
   const [open, setOpen]       = useState(false);
   const [editing, setEditing] = useState<ShareClass | null>(null);
+  const canManage = useHasPermission('shares.manage');
 
   const classesQ = useQuery<{ items: ShareClass[] }>({
     queryKey: ['share-classes', 'all'],
@@ -99,7 +101,7 @@ export default function ShareClassesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/shares" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
@@ -107,7 +109,7 @@ export default function ShareClassesPage() {
         <PageHeader
           title="Share Classes"
           description="Define the price, limits, and rules for each class of shares."
-          actions={<Button onClick={openCreate}><Plus size={16} className="mr-2" /> New class</Button>}
+          actions={canManage ? <Button onClick={openCreate}><Plus size={16} className="mr-2" /> New class</Button> : undefined}
           className="flex-1"
         />
       </div>
@@ -115,6 +117,8 @@ export default function ShareClassesPage() {
       <PaginatedTable
         data={singlePage(classes)}
         isLoading={classesQ.isLoading}
+        isError={classesQ.isError}
+        error={classesQ.error}
         onPageChange={() => {}}
         onRowClick={openEdit}
         emptyMessage="No share classes yet"

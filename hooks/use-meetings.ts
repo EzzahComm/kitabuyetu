@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { buildQuery } from '@/lib/utils';
-import type { meetingsService } from '@/lib/services/meetings.service';
+import type { meetingsService , CreateMeetingPayload, UpdateMeetingPayload, RecordAttendancePayload, AddResolutionPayload } from '@/lib/services/meetings.service';
 import type { PaginatedResult } from '@/types/db.types';
 
 const BASE = '/meetings';
@@ -58,7 +58,7 @@ export function useMeeting(id: string) {
 export function useCreateMeeting() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<MeetingRow>(BASE, body),
+    mutationFn: (body: CreateMeetingPayload) => api.post<MeetingRow>(BASE, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: meetingKeys.all });
       qc.invalidateQueries({ queryKey: meetingKeys.stats });
@@ -69,7 +69,7 @@ export function useCreateMeeting() {
 export function useUpdateMeeting(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.patch<MeetingRow>(`${BASE}/${id}`, body),
+    mutationFn: (body: UpdateMeetingPayload) => api.patch<MeetingRow>(`${BASE}/${id}`, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: meetingKeys.list() });
       qc.invalidateQueries({ queryKey: meetingKeys.detail(id) });
@@ -81,7 +81,7 @@ export function useUpdateMeeting(id: string) {
 export function useRecordAttendance(meetingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<MeetingRow>(`${BASE}/${meetingId}/attendance`, body),
+    mutationFn: (body: RecordAttendancePayload) => api.post<MeetingRow>(`${BASE}/${meetingId}/attendance`, body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: meetingKeys.detail(meetingId) }),
   });
 }
@@ -89,7 +89,7 @@ export function useRecordAttendance(meetingId: string) {
 export function useAddResolution(meetingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<unknown>(`${BASE}/${meetingId}/resolutions`, body),
+    mutationFn: (body: AddResolutionPayload) => api.post<unknown>(`${BASE}/${meetingId}/resolutions`, body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: meetingKeys.detail(meetingId) }),
   });
 }

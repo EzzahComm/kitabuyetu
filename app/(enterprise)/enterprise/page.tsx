@@ -12,9 +12,10 @@ import { MoneyDisplay } from '@/components/shared/money-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { organizationApi } from '@/lib/api/endpoints';
 import { api } from '@/lib/api/client';
-import { formatKES } from '@/lib/utils';
+import { formatKES, getErrorMessage } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
@@ -42,11 +43,11 @@ function ComingSoon({ title }: { title: string }) {
 }
 
 export default function EnterpriseDashboardPage() {
-  const { data: dash } = useQuery<OrgDashboard>({
+  const { data: dash, isLoading: dashLoading, isError: dashError, error: dashErr } = useQuery<OrgDashboard>({
     queryKey: ['enterprise', 'dashboard'],
     queryFn:  () => api.get('/organization/dashboard'),
   });
-  const { data: groupsPage, isLoading: groupsLoading } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
+  const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],
     queryFn:  () => organizationApi.groups(),
   });
@@ -57,6 +58,20 @@ export default function EnterpriseDashboardPage() {
     .slice(0, 5)
     .map((g) => ({ ...g, id: g.groupId }));
 
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C5: this landing page had zero
+  // loading/error handling on its KPI query — first paint and a fetch
+  // failure both showed "KES 0" tiles with no signal anything was wrong.
+  if (dashLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -64,6 +79,12 @@ export default function EnterpriseDashboardPage() {
         description="Performance across all your linked groups"
         actions={<Button variant="outline" size="sm"><Download className="h-4 w-4" /> Export</Button>}
       />
+
+      {dashError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Couldn&apos;t load portfolio data — figures below may be incomplete. {getErrorMessage(dashErr)}
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -99,6 +120,8 @@ export default function EnterpriseDashboardPage() {
             <PaginatedTable
               data={singlePage(topGroups)}
               isLoading={groupsLoading}
+              isError={groupsError}
+              error={groupsErr}
               onPageChange={() => {}}
               emptyMessage="No groups yet"
               columns={[

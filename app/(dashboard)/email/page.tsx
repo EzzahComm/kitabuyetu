@@ -29,7 +29,7 @@ export default function EmailDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Email Analytics"
         description="Monitor email delivery and engagement"
@@ -55,8 +55,8 @@ export default function EmailDashboardPage() {
             <Card key={s.label}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <s.icon className="h-4 w-4 text-gray-400" />
-                  <span className="text-xs text-gray-500">{s.label}</span>
+                  <s.icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
                 </div>
                 <Skeleton className="h-7 w-16" />
               </CardContent>
@@ -77,7 +77,7 @@ export default function EmailDashboardPage() {
                 {pct((stats?.sent ?? 0), (stats?.total ?? 0))}
               </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">{stats?.sent ?? 0} of {stats?.total ?? 0} emails</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.sent ?? 0} of {stats?.total ?? 0} emails</p>
           </CardContent>
         </Card>
         <Card>
@@ -88,7 +88,7 @@ export default function EmailDashboardPage() {
                 {pct(stats?.opened ?? 0, stats?.sent ?? 0)}
               </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">{stats?.opened ?? 0} opened</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.opened ?? 0} opened</p>
           </CardContent>
         </Card>
         <Card>
@@ -99,7 +99,7 @@ export default function EmailDashboardPage() {
                 {pct(stats?.bounced ?? 0, stats?.sent ?? 0)}
               </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">{stats?.bounced ?? 0} bounced</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.bounced ?? 0} bounced</p>
           </CardContent>
         </Card>
       </div>
@@ -133,7 +133,7 @@ export default function EmailDashboardPage() {
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {stats?.byDay.slice().reverse().map((row) => (
                 <div key={row.date} className="flex items-center gap-3 text-sm">
-                  <span className="text-gray-500 w-24 shrink-0">{new Date(row.date).toLocaleDateString('en-KE', { day:'2-digit', month:'short' })}</span>
+                  <span className="text-muted-foreground w-24 shrink-0">{new Date(row.date).toLocaleDateString('en-KE', { day:'2-digit', month:'short' })}</span>
                   <div className="flex gap-2">
                     <Badge variant="secondary">{row.sent} sent</Badge>
                     {row.failed > 0 && <Badge variant="destructive">{row.failed} failed</Badge>}

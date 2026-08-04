@@ -15,6 +15,7 @@ import { useSavingsPolicy, useSetSavingsPolicy } from '@/hooks/use-contributions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useHasPermission } from '@/lib/auth/use-permission';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree } from 'lucide-react';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
@@ -31,30 +32,35 @@ interface JournalLine { accountId: string; debit: number; credit: number; descri
 
 export default function AccountingPage() {
   const { toast } = useToast();
+  const canManageAccounting = useHasPermission('accounting.manage');
   const [tab, setTab] = useState('trial');
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<JournalLine[]>([
     { accountId: '', debit: 0, credit: 0, description: '' },
     { accountId: '', debit: 0, credit: 0, description: '' },
   ]);
-  const [memo, setMemo] = useState('');
+  // CreateJournalSchema requires `entryDate` and `description`; this form used
+  // to send `{ memo, lines }` and nothing else, so every submit 400'd. See the
+  // handleSubmitJournal comment.
+  const [description, setDescription] = useState('');
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const now = new Date();
   const from = `${now.getFullYear()}-01-01`;
   const to   = `${now.getFullYear()}-12-31`;
 
-  const { data: accounts, isLoading: loadingAccounts } = useAccounts();
-  const { data: trialBalance, isLoading: loadingTB }   = useTrialBalance();
+  const { data: accounts, isLoading: loadingAccounts, isError: errorAccounts, error: accountsError } = useAccounts();
+  const { data: trialBalance, isLoading: loadingTB, isError: errorTB, error: tbError }   = useTrialBalance();
   const [journalPage, setJournalPage] = useState(1);
-  const { data: journals, isLoading: loadingJournals } = useJournals({ page: journalPage, pageSize: 20 });
-  const { data: pnl, isLoading: loadingPnl }           = useProfitAndLoss(from, to);
+  const { data: journals, isLoading: loadingJournals, isError: errorJournals, error: journalsError } = useJournals({ page: journalPage, pageSize: 20 });
+  const { data: pnl, isLoading: loadingPnl, isError: errorPnl, error: pnlError }           = useProfitAndLoss(from, to);
   const asOfToday = now.toISOString().split('T')[0];
-  const { data: balanceSheet, isLoading: loadingBS }   = useBalanceSheet(asOfToday);
-  const { data: cashFlow, isLoading: loadingCF }       = useCashFlow(from, to);
+  const { data: balanceSheet, isLoading: loadingBS, isError: errorBS, error: bsError }   = useBalanceSheet(asOfToday);
+  const { data: cashFlow, isLoading: loadingCF, isError: errorCF, error: cfError }       = useCashFlow(from, to);
   const { data: equityChanges }                        = useEquityChanges(from, to);
   const createJournal = useCreateJournal();
 
-  const { data: fiscalPeriods, isLoading: loadingFP } = useFiscalPeriods();
+  const { data: fiscalPeriods, isLoading: loadingFP, isError: errorFP, error: fpError } = useFiscalPeriods();
   const closePeriod  = useClosePeriod();
   const reopenPeriod = useReopenPeriod();
   const [closeOpen, setCloseOpen]   = useState(false);
@@ -63,7 +69,7 @@ export default function AccountingPage() {
   const [reopenTarget, setReopenTarget] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState('');
 
-  const { data: policies, isLoading: loadingPolicies } = useApprovalPolicies();
+  const { data: policies, isLoading: loadingPolicies, isError: errorPolicies, error: policiesError } = useApprovalPolicies();
   const setPolicy = useSetApprovalPolicy();
   const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
 
@@ -71,14 +77,45 @@ export default function AccountingPage() {
   const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
   const balanced     = Math.abs(totalDebits - totalCredits) < 0.01 && totalDebits > 0;
 
+  /**
+   * Found by the post-M3 client/server contract sweep. This used to post
+   * `{ memo, lines }`, but `CreateJournalSchema` (lib/validators/accounting.schema.ts)
+   * requires `entryDate` (a date string) and `description` (min 3) and knows
+   * nothing about `memo` — so **every "Post journal" click 400'd**. Manual
+   * journal entry has never worked from this UI. It went unnoticed because
+   * `accountingApi.createJournal` takes `body: unknown`, so TypeScript could
+   * not compare the payload against the schema; the typed `CreateJournalInput`
+   * below is what stops this recurring.
+   */
   const handleSubmitJournal = async () => {
     if (!balanced) { toast({ variant: 'destructive', title: 'Journal must balance (debits = credits)' }); return; }
+    const payloadLines = lines.filter((l) => l.accountId);
+    // Schema floor is 2 lines. The filter above drops rows with no account
+    // picked, so a visually-complete 2-row form can still submit only 1.
+    if (payloadLines.length < 2) {
+      toast({ variant: 'destructive', title: 'Pick an account on at least 2 lines' });
+      return;
+    }
+    if (description.trim().length < 3) {
+      toast({ variant: 'destructive', title: 'Add a description', description: 'At least 3 characters.' });
+      return;
+    }
     try {
-      await createJournal.mutateAsync({ memo, lines: lines.filter((l) => l.accountId) });
+      await createJournal.mutateAsync({
+        entryDate,
+        description: description.trim(),
+        lines: payloadLines.map((l) => ({
+          accountId:   l.accountId,
+          debit:       l.debit,
+          credit:      l.credit,
+          description: l.description || null,
+        })),
+      });
       toast({ title: 'Journal entry posted' });
       setOpen(false);
       setLines([{ accountId:'',debit:0,credit:0,description:'' },{ accountId:'',debit:0,credit:0,description:'' }]);
-      setMemo('');
+      setDescription('');
+      setEntryDate(new Date().toISOString().slice(0, 10));
     } catch (err) {
       toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });
     }
@@ -89,7 +126,9 @@ export default function AccountingPage() {
       <PageHeader
         title="Accounting"
         description="Double-entry bookkeeping"
-        actions={<Button onClick={() => setOpen(true)}><Plus size={16} className="mr-2"/> New journal</Button>}
+        actions={canManageAccounting ? (
+          <Button onClick={() => setOpen(true)}><Plus size={16} className="mr-2"/> New journal</Button>
+        ) : undefined}
       />
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -105,7 +144,7 @@ export default function AccountingPage() {
         </TabsList>
 
         <TabsContent value="trial" className="mt-4">
-          {loadingTB ? <Skeleton className="h-64 w-full"/> : (
+          {errorTB ? <p className="text-sm text-destructive">{getErrorMessage(tbError)}</p> : loadingTB ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Trial Balance</CardTitle></CardHeader>
               <CardContent className="p-0">
@@ -131,6 +170,8 @@ export default function AccountingPage() {
           <PaginatedTable<JournalEntry>
             data={journals}
             isLoading={loadingJournals}
+            isError={errorJournals}
+            error={journalsError}
             onPageChange={setJournalPage}
             emptyMessage="No journal entries yet"
             emptyIcon={BookOpen}
@@ -146,7 +187,7 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="pnl" className="mt-4">
-          {loadingPnl ? <Skeleton className="h-64 w-full"/> : (
+          {errorPnl ? <p className="text-sm text-destructive">{getErrorMessage(pnlError)}</p> : loadingPnl ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Profit &amp; Loss — {now.getFullYear()}</CardTitle></CardHeader>
               <CardContent>
@@ -157,7 +198,7 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="balance" className="mt-4">
-          {loadingBS ? <Skeleton className="h-64 w-full"/> : (
+          {errorBS ? <p className="text-sm text-destructive">{getErrorMessage(bsError)}</p> : loadingBS ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Balance Sheet — as of {balanceSheet ? formatDate(balanceSheet.asOf) : ''}</CardTitle>
@@ -241,7 +282,7 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="cashflow" className="mt-4">
-          {loadingCF ? <Skeleton className="h-64 w-full"/> : (
+          {errorCF ? <p className="text-sm text-destructive">{getErrorMessage(cfError)}</p> : loadingCF ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Cash Flow Statement — {now.getFullYear()}</CardTitle>
@@ -310,12 +351,16 @@ export default function AccountingPage() {
                   Closing a period blocks new manual journal entries dated inside it. Automated postings from real M-Pesa events are never blocked.
                 </p>
               </div>
-              <Button size="sm" onClick={() => setCloseOpen(true)}><Lock size={15} className="mr-2"/> Close a period</Button>
+              {canManageAccounting && (
+                <Button size="sm" onClick={() => setCloseOpen(true)}><Lock size={15} className="mr-2"/> Close a period</Button>
+              )}
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <PaginatedTable
                 data={singlePage(fiscalPeriods)}
                 isLoading={loadingFP}
+                isError={errorFP}
+                error={fpError}
                 onPageChange={() => {}}
                 emptyMessage="No periods closed yet"
                 emptyIcon={CalendarClock}
@@ -326,7 +371,7 @@ export default function AccountingPage() {
                   { key: 'closed_by', header: 'Closed by', render: (p) => <span className="text-xs text-muted-foreground">{p.closed_by ?? '—'}</span> },
                   { key: 'closed_at', header: 'Closed at', render: (p) => <span className="text-xs text-muted-foreground">{p.closed_at ? formatDate(p.closed_at) : '—'}</span> },
                   { key: 'reopen_reason', header: 'Reopen reason', render: (p) => <span className="text-xs text-muted-foreground">{p.reopen_reason ?? '—'}</span> },
-                  { key: 'actions', header: '', className: 'text-right', render: (p) => p.status === 'closed' ? (
+                  { key: 'actions', header: '', className: 'text-right', render: (p) => (p.status === 'closed' && canManageAccounting) ? (
                     <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setReopenTarget(p.id); setReopenReason(''); }}>
                       <LockOpen size={13}/> Reopen
                     </Button>
@@ -341,6 +386,8 @@ export default function AccountingPage() {
           <PaginatedTable<Account>
             data={singlePage(accounts)}
             isLoading={loadingAccounts}
+            isError={errorAccounts}
+            error={accountsError}
             onPageChange={() => {}}
             emptyMessage="No accounts found"
             emptyIcon={ListTree}
@@ -364,7 +411,9 @@ export default function AccountingPage() {
               </p>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
-              {loadingPolicies ? <Skeleton className="h-32 w-full m-4"/> : (
+              {errorPolicies ? (
+                <p className="p-4 text-sm text-destructive">{getErrorMessage(policiesError)}</p>
+              ) : loadingPolicies ? <Skeleton className="h-32 w-full m-4"/> : (
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -395,7 +444,8 @@ export default function AccountingPage() {
                           <td className="px-4 py-2 text-right">
                             <Button
                               size="sm" variant="outline" className="h-8 gap-1.5"
-                              disabled={!dirty || setPolicy.isPending || !(parseFloat(editValue) >= 0)}
+                              disabled={!canManageAccounting || !dirty || setPolicy.isPending || !(parseFloat(editValue) >= 0)}
+                              title={canManageAccounting ? undefined : 'Requires treasurer or chairperson'}
                               onClick={async () => {
                                 try {
                                   await setPolicy.mutateAsync({ key: p.key, threshold: parseFloat(editValue) });
@@ -433,9 +483,20 @@ export default function AccountingPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>New Journal Entry</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>Memo</Label>
-              <Input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Description of transaction…"/>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor="entryDate">Entry date</Label>
+                <Input id="entryDate" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="journalDescription">Description</Label>
+                <Input
+                  id="journalDescription"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Description of transaction…"
+                />
+              </div>
             </div>
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -469,7 +530,7 @@ export default function AccountingPage() {
                       <Input type="number" step="0.01" className="text-right h-9 w-28" value={line.credit || ''} onChange={(e)=>{const nl=[...lines];nl[idx]={...nl[idx],credit:+e.target.value,debit:0};setLines(nl);}}/>
                     </td>
                     <td className="pb-2">
-                      <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Remove line" onClick={()=>setLines(lines.filter((_,i)=>i!==idx))}><Trash2 size={14}/></Button>
+                      <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Remove line" disabled={lines.length <= 2} title={lines.length <= 2 ? 'A journal entry needs at least 2 lines' : 'Remove line'} onClick={()=>setLines(lines.filter((_,i)=>i!==idx))}><Trash2 size={14}/></Button>
                     </td>
                   </tr>
                 ))}
@@ -490,7 +551,11 @@ export default function AccountingPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={()=>setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmitJournal} disabled={!balanced} loading={createJournal.isPending}>Post journal</Button>
+            <Button
+              onClick={handleSubmitJournal}
+              disabled={!balanced || !entryDate || description.trim().length < 3 || lines.filter((l) => l.accountId).length < 2}
+              loading={createJournal.isPending}
+            >Post journal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -589,8 +654,9 @@ interface TemplateLineUI { accountCode: string; side: 'debit' | 'credit'; amount
  */
 function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
   const { toast } = useToast();
-  const { data: templates, isLoading } = usePostingTemplates();
+  const { data: templates, isLoading, isError, error } = usePostingTemplates();
   const save = useSetPostingTemplate();
+  const canSetTemplates = useHasPermission('accounting.manage');
   const [edits, setEdits] = useState<Record<string, TemplateLineUI[]>>({});
 
   return (
@@ -604,7 +670,9 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
         </p>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
-        {isLoading ? <Skeleton className="h-40 w-full m-4"/> : (
+        {isError ? (
+          <p className="p-4 text-sm text-destructive">{getErrorMessage(error)}</p>
+        ) : isLoading ? <Skeleton className="h-40 w-full m-4"/> : (
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -657,7 +725,8 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
                     <td className="px-4 py-2 text-right">
                       <Button
                         size="sm" variant="outline" className="h-8 gap-1.5"
-                        disabled={!dirty || save.isPending}
+                        disabled={!canSetTemplates || !dirty || save.isPending}
+                        title={canSetTemplates ? undefined : 'Requires treasurer or chairperson'}
                         onClick={async () => {
                           try {
                             await save.mutateAsync({ event: t.event, lines });
@@ -689,8 +758,9 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
  */
 function LoanTermsCard() {
   const { toast } = useToast();
-  const { data, isLoading } = useLoanPolicy();
+  const { data, isLoading, isError, error } = useLoanPolicy();
   const save = useSetLoanPolicy();
+  const canSetLoanTerms = useHasPermission('loans.policy.manage');
   const [edits, setEdits] = useState<Record<string, string> | null>(null);
 
   const terms  = data?.terms;
@@ -719,7 +789,9 @@ function LoanTermsCard() {
         </p>
       </CardHeader>
       <CardContent>
-        {isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
+        {isError ? (
+          <p className="text-sm text-destructive">{getErrorMessage(error)}</p>
+        ) : isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
@@ -752,12 +824,13 @@ function LoanTermsCard() {
             <div className="flex justify-end">
               <Button
                 size="sm" variant="outline" className="gap-1.5"
-                disabled={!edits || save.isPending}
+                disabled={!canSetLoanTerms || !edits || save.isPending}
+                title={canSetLoanTerms ? undefined : 'Requires chairperson'}
                 onClick={async () => {
                   try {
                     await save.mutateAsync({
                       interestRate:   parseFloat(form.interestRate),
-                      interestMethod: form.interestMethod,
+                      interestMethod: form.interestMethod as 'flat' | 'reducing_balance',
                       maxTermMonths:  parseInt(form.maxTermMonths, 10),
                       loanMultiplier: parseFloat(form.loanMultiplier),
                     });
@@ -788,8 +861,9 @@ function LoanTermsCard() {
  */
 function SavingsPolicyCard() {
   const { toast } = useToast();
-  const { data, isLoading } = useSavingsPolicy();
+  const { data, isLoading, isError, error } = useSavingsPolicy();
   const save = useSetSavingsPolicy();
+  const canSetSavingsPolicy = useHasPermission('treasury.manage');
   const [edits, setEdits] = useState<Record<string, string> | null>(null);
 
   const limits = data?.limits;
@@ -817,7 +891,9 @@ function SavingsPolicyCard() {
         </p>
       </CardHeader>
       <CardContent>
-        {isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
+        {isError ? (
+          <p className="text-sm text-destructive">{getErrorMessage(error)}</p>
+        ) : isLoading || !form ? <Skeleton className="h-32 w-full"/> : (
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
@@ -839,7 +915,8 @@ function SavingsPolicyCard() {
             <div className="flex justify-end">
               <Button
                 size="sm" variant="outline" className="gap-1.5"
-                disabled={!edits || save.isPending}
+                disabled={!canSetSavingsPolicy || !edits || save.isPending}
+                title={canSetSavingsPolicy ? undefined : 'Requires treasurer or chairperson'}
                 onClick={async () => {
                   try {
                     await save.mutateAsync({
@@ -871,8 +948,9 @@ function SavingsPolicyCard() {
  */
 function FineScheduleCard() {
   const { toast } = useToast();
-  const { data, isLoading } = useFinePolicy();
+  const { data, isLoading, isError, error } = useFinePolicy();
   const save = useSetFinePolicy();
+  const canSetFineSchedule = useHasPermission('fines.manage');
   const [edits, setEdits] = useState<Array<{ category: string; amount: string }> | null>(null);
 
   const schedule = data?.schedule;
@@ -898,7 +976,9 @@ function FineScheduleCard() {
         </p>
       </CardHeader>
       <CardContent>
-        {isLoading || !rows ? <Skeleton className="h-32 w-full"/> : (
+        {isError ? (
+          <p className="text-sm text-destructive">{getErrorMessage(error)}</p>
+        ) : isLoading || !rows ? <Skeleton className="h-32 w-full"/> : (
           <div className="space-y-3">
             <div className="space-y-2">
               {rows.map((row, idx) => (
@@ -919,12 +999,15 @@ function FineScheduleCard() {
               ))}
             </div>
             <div className="flex items-center justify-between">
-              <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setEdits([...rows, { category: '', amount: '0' }])}>
-                <Plus size={13}/> Add offence
-              </Button>
+              {canSetFineSchedule && (
+                <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setEdits([...rows, { category: '', amount: '0' }])}>
+                  <Plus size={13}/> Add offence
+                </Button>
+              )}
               <Button
                 size="sm" variant="outline" className="gap-1.5"
-                disabled={!edits || save.isPending || rows.length === 0 || rows.some((r) => !r.category.trim() || !(parseFloat(r.amount) >= 0))}
+                disabled={!canSetFineSchedule || !edits || save.isPending || rows.length === 0 || rows.some((r) => !r.category.trim() || !(parseFloat(r.amount) >= 0))}
+                title={canSetFineSchedule ? undefined : 'Requires chairperson'}
                 onClick={async () => {
                   try {
                     const schedule: Record<string, number> = {};

@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import type { PaginatedResult } from '@/types/db.types';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ export default function SharesPage() {
   const { toast } = useToast();
   const qc        = useQueryClient();
   const [open, setOpen] = useState(false);
+  const canManage = useHasPermission('shares.manage');
 
   const summaryQ  = useQuery<GroupSummary>({
     queryKey: ['shares', 'summary'],
@@ -108,7 +110,7 @@ export default function SharesPage() {
   const noClasses = !classesQ.isLoading && classes.length === 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Share Capital"
         description="Allocate, sell, transfer and redeem member shares."
@@ -117,9 +119,11 @@ export default function SharesPage() {
             <Button asChild variant="outline">
               <Link href="/shares/classes"><SettingsIcon size={16} className="mr-2" /> Share classes</Link>
             </Button>
-            <Button disabled={noClasses} onClick={() => setOpen(true)}>
-              <Plus size={16} className="mr-2" /> New transaction
-            </Button>
+            {canManage && (
+              <Button disabled={noClasses} onClick={() => setOpen(true)}>
+                <Plus size={16} className="mr-2" /> New transaction
+              </Button>
+            )}
           </>
         }
       />
@@ -184,6 +188,8 @@ export default function SharesPage() {
               <PaginatedTable
                 data={singlePage((holdingsQ.data?.items ?? []).map((h) => ({ ...h, id: `${h.member_id}-${h.share_class_id}` })))}
                 isLoading={holdingsQ.isLoading}
+                isError={holdingsQ.isError}
+                error={holdingsQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No shareholders yet"
                 emptyIcon={Wallet}
@@ -227,6 +233,8 @@ export default function SharesPage() {
               <PaginatedTable
                 data={singlePage(ledgerQ.data?.items)}
                 isLoading={ledgerQ.isLoading}
+                isError={ledgerQ.isError}
+                error={ledgerQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No transactions yet"
                 emptyIcon={ListTree}
@@ -309,6 +317,8 @@ export default function SharesPage() {
               <PaginatedTable
                 data={singlePage((summary?.topHolders ?? []).map((h, i) => ({ ...h, id: h.memberId, rank: i + 1 })))}
                 isLoading={summaryQ.isLoading}
+                isError={summaryQ.isError}
+                error={summaryQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No shareholders yet"
                 emptyIcon={Trophy}

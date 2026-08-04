@@ -48,7 +48,7 @@ interface RecentPaymentRow {
 }
 
 export default function BillingAdminPage() {
-  const { data, isLoading } = useAdminBilling();
+  const { data, isLoading, isError, error } = useAdminBilling();
 
   const summary: Partial<BillingSummary> = data?.summary        ?? {};
   const byPlan: PlanRevenueRow[]          = data?.byPlan         ?? [];
@@ -181,6 +181,8 @@ export default function BillingAdminPage() {
           <PaginatedTable
             data={singlePage(recentPayments)}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             onPageChange={() => {}}
             emptyMessage="No payments yet"
             columns={[

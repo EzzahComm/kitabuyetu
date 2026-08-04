@@ -35,7 +35,7 @@ export default function AuditLogsPage() {
   const [from,    setFrom]    = useState('');
   const [to,      setTo]      = useState('');
 
-  const { data, isLoading } = useAuditLogs({ page, limit: 50, action, groupId, search, from, to });
+  const { data, isLoading, isError, error } = useAuditLogs({ page, limit: 50, action, groupId, search, from, to });
   // Backend already supports groupId filtering (app/api/admin/audit-logs/route.ts
   // → listAuditLogs) — this dropdown was the only missing piece
   // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). 200 is plenty for a filter dropdown;
@@ -100,6 +100,8 @@ export default function AuditLogsPage() {
       <PaginatedTable
         data={tableData}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No audit log entries"
         columns={[

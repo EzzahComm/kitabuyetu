@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Inbox } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
-import { formatKES, formatDate } from '@/lib/utils';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 
 interface Unrouted {
@@ -41,7 +42,7 @@ export default function UnroutedPage() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const { data, isLoading } = useQuery<{ items: Unrouted[] }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{ items: Unrouted[] }>({
     queryKey: ['mpesa', 'unrouted'],
     queryFn:  () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
   });
@@ -92,6 +93,21 @@ export default function UnroutedPage() {
 
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+      ) : isError ? (
+        // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C2 — a failed fetch used to render
+        // "All receipts are routed", telling a treasurer there is nothing to
+        // reconcile when in fact nothing loaded.
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              variant="error"
+              icon={AlertTriangle}
+              title="Couldn't load unrouted receipts"
+              description={getErrorMessage(error)}
+              action={<Button variant="outline" onClick={() => refetch()}>Try again</Button>}
+            />
+          </CardContent>
+        </Card>
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">

@@ -280,3 +280,10 @@ export const welfareService = {
     });
   },
 };
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type CreateWelfareRequestPayload = z.input<typeof CreateWelfareRequestSchema>;
+export type ReviewWelfareRequestPayload = z.input<typeof ReviewWelfareRequestSchema>;
+export type RecordWelfarePoolPayload = z.input<typeof RecordWelfarePoolSchema>;

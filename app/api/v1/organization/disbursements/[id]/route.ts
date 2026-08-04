@@ -1,16 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
+import { DisbursementActionSchema as ActionSchema } from '@/lib/validators/organization.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
-
-const ActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('approve') }),
-  z.object({ action: z.literal('reject'), reason: z.string().min(5).max(500) }),
-]);
 
 /**
  * POST /api/v1/organization/disbursements/:id — approve or reject a pending

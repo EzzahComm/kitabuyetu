@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
+import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
@@ -91,7 +92,7 @@ export default function WhatsAppPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="WhatsApp"
         description="Send WhatsApp Business messages and review the delivery log. Automated triggers come in E10.2."
@@ -177,6 +178,8 @@ export default function WhatsAppPage() {
             <PaginatedTable<WhatsAppMessage>
               data={logQ.data}
               isLoading={logQ.isLoading}
+              isError={logQ.isError}
+              error={logQ.error}
               onPageChange={setLogPage}
               emptyMessage="No messages sent yet"
               emptyIcon={MessageSquare}
@@ -192,7 +195,7 @@ export default function WhatsAppPage() {
                 ) },
                 { key: 'body', header: 'Body', className: 'max-w-md', render: (m) => (
                   <div className="text-xs">
-                    <p className="truncate" title={m.body ?? ''}>{m.body}</p>
+                    <ExpandableText>{m.body}</ExpandableText>
                     {m.error_message && (
                       <p className="mt-1 text-xs text-red-600">⚠ {m.error_message}</p>
                     )}

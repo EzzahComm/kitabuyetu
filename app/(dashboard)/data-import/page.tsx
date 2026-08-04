@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
@@ -97,6 +98,13 @@ export default function DataImportPage() {
   const [kind,  setKind]  = useState<Kind>('members');
   const [phase, setPhase] = useState<Phase>('idle');
   const [job,   setJob]   = useState<ImportJob | null>(null);
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — rollback used to gate on a native
+  // window.confirm(): unstyled, unbrandable, and on some mobile browsers
+  // suppressible entirely, which would silently skip the guard on a
+  // destructive action. The audit flagged this site; a repo grep found three
+  // more (members/import rollback, credit-scores recompute-all, next-of-kin
+  // removal), all converted to ConfirmDialog in the same pass.
+  const [rollbackOpen, setRollbackOpen] = useState(false);
   const { toast } = useToast();
 
   const uploadFile = useCallback(async (file: File) => {
@@ -142,7 +150,6 @@ export default function DataImportPage() {
 
   const rollback = async () => {
     if (!job) return;
-    if (!confirm(`Roll back this ${kind} import?\n\n${KIND_META[kind].rollback}`)) return;
     try {
       const result = await api.post<ImportJob>(`/import/${job.id}/rollback`, { reason: 'User requested undo' });
       setJob(result);
@@ -154,7 +161,7 @@ export default function DataImportPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
@@ -208,8 +215,18 @@ export default function DataImportPage() {
       )}
 
       {phase === 'result' && job && (
-        <ResultView job={job} onRollback={rollback} onStartOver={() => { setJob(null); setPhase('idle'); }} />
+        <ResultView job={job} onRollback={() => setRollbackOpen(true)} onStartOver={() => { setJob(null); setPhase('idle'); }} />
       )}
+
+      <ConfirmDialog
+        open={rollbackOpen}
+        onOpenChange={setRollbackOpen}
+        variant="danger"
+        title={`Roll back this ${KIND_META[kind].label.toLowerCase()} import?`}
+        description={KIND_META[kind].rollback}
+        confirmLabel="Roll back"
+        onConfirm={rollback}
+      />
     </div>
   );
 }

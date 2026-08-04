@@ -4,9 +4,8 @@ import { useRouter } from 'next/navigation';
 import {
   Building2, Users, CreditCard, TrendingUp,
   Headphones, AlertTriangle, CheckCircle2,
-  ArrowRight,
+  ArrowRight, Layers,
 } from 'lucide-react';
-import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -78,7 +77,7 @@ export default function AdminDashboardPage() {
               </Button>
             </Link>
             <Link href="/admin/support">
-              <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700">
+              <Button size="sm" className="text-xs">
                 Support Center
               </Button>
             </Link>
@@ -88,37 +87,37 @@ export default function AdminDashboardPage() {
 
       {/* Primary KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
+        <StatCard
           title="Groups"
           value={isLoading ? '—' : (parseInt(g.total ?? '0')).toLocaleString()}
-          sub={`${g.active ?? 0} active · ${g.new_this_month ?? 0} new this month`}
+          description={`${g.active ?? 0} active · ${g.new_this_month ?? 0} new this month`}
           icon={Building2}
           accent="blue"
           loading={isLoading}
           onClick={() => router.push('/admin/groups')}
         />
-        <MetricCard
+        <StatCard
           title="Total Members"
           value={isLoading ? '—' : parseInt(m.total ?? '0').toLocaleString()}
-          sub={`${m.new_this_month ?? 0} joined this month`}
+          description={`${m.new_this_month ?? 0} joined this month`}
           icon={Users}
           accent="purple"
           loading={isLoading}
           onClick={() => router.push('/admin/users')}
         />
-        <MetricCard
+        <StatCard
           title="Monthly Revenue"
           value={isLoading ? '—' : formatKES(mrr)}
-          sub={`${s.active_subscriptions ?? 0} active subscriptions`}
+          description={`${s.active_subscriptions ?? 0} active subscriptions`}
           icon={CreditCard}
           accent="green"
           loading={isLoading}
           onClick={() => router.push('/admin/billing-admin')}
         />
-        <MetricCard
+        <StatCard
           title="Platform Revenue"
           value={isLoading ? '—' : formatKES(parseFloat(r.this_month ?? '0'))}
-          sub={`${formatKES(parseFloat(r.this_week ?? '0'))} this week`}
+          description={`${formatKES(parseFloat(r.this_week ?? '0'))} this week`}
           icon={TrendingUp}
           accent="orange"
           loading={isLoading}
@@ -127,15 +126,14 @@ export default function AdminDashboardPage() {
 
       {/* Secondary KPIs */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-        <button
-          type="button"
+        <StatCard
+          title="Organizations"
+          value={o.total ?? 0}
+          description={`${o.active ?? 0} active · ${o.new_this_month ?? 0} new`}
+          icon={Layers}
+          accent="blue"
           onClick={() => router.push('/admin/organizations')}
-          className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:border-blue-300 transition-colors"
-        >
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Organizations</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{o.total ?? 0}</p>
-          <p className="text-xs text-gray-500 mt-1">{o.active ?? 0} active · {o.new_this_month ?? 0} new</p>
-        </button>
+        />
         <StatCard
           title="Active Subs"
           value={s.active_subscriptions ?? 0}
@@ -316,7 +314,7 @@ export default function AdminDashboardPage() {
               )}
 
               <Link href="/admin/support">
-                <Button className="w-full text-xs bg-blue-600 hover:bg-blue-700 h-8">
+                <Button className="w-full text-xs h-8">
                   Manage Support Queue
                 </Button>
               </Link>

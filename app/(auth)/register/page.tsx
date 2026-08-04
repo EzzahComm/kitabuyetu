@@ -165,8 +165,8 @@ export default function RegisterPage() {
 
           {/* ─── Group identity ─── */}
           <p className={sectionTitle}>Group</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>Group name</Label>
               <Input placeholder="Umoja Savings Group" {...register('groupName')} />
               {errors.groupName && <p className="text-xs text-destructive">{errors.groupName.message}</p>}
@@ -194,8 +194,8 @@ export default function RegisterPage() {
 
           {/* ─── Location ─── */}
           <p className={sectionTitle}>Location</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>County</Label>
               <select {...register('countyId')} className={selectCls} defaultValue="">
                 <option value="" disabled>
@@ -215,7 +215,7 @@ export default function RegisterPage() {
               <Label>Ward <span className="text-muted-foreground">(optional)</span></Label>
               <Input placeholder="e.g. Township" {...register('wardText')} />
             </div>
-            <div className="space-y-1.5 col-span-2">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>Village / estate <span className="text-muted-foreground">(optional)</span></Label>
               <Input placeholder="e.g. Sang'alo Plot 24" {...register('villageEstate')} />
             </div>
@@ -223,7 +223,7 @@ export default function RegisterPage() {
 
           {/* ─── Meeting schedule ─── */}
           <p className={sectionTitle}>Meeting schedule <span className="lowercase font-normal text-muted-foreground normal-case">(optional)</span></p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label>Frequency</Label>
               <select {...register('meetingFrequency')} className={selectCls} defaultValue="">
@@ -249,7 +249,7 @@ export default function RegisterPage() {
 
           {/* ─── About you ─── */}
           <p className={sectionTitle}>About you</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>First name</Label>
               <Input placeholder="Jane" {...register('firstName')} />
@@ -270,7 +270,7 @@ export default function RegisterPage() {
               <Input type="email" placeholder="jane@example.com" {...register('email')} />
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
-            <div className="space-y-1.5 col-span-2">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>Your role in the group</Label>
               <select {...register('creatorRole')} className={selectCls}>
                 <option value="chairperson">Chairperson</option>
@@ -286,7 +286,7 @@ export default function RegisterPage() {
 
           {/* ─── Credentials ─── */}
           <p className={sectionTitle}>Credentials</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Password</Label>
               <Input type="password" {...register('password')} />

@@ -45,7 +45,7 @@ export default function EmailCampaignsPage() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4">
       <PageHeader
         title="Email Campaigns"
         actions={
@@ -94,8 +94,8 @@ export default function EmailCampaignsPage() {
                         <span className="font-semibold">{c.name}</span>
                         <StatusPill status={c.status} size="sm" />
                       </div>
-                      <p className="text-sm text-gray-500">{c.subject}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <p className="text-sm text-muted-foreground">{c.subject}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Users className="h-3 w-3" />{c.total_recipients ?? 0} recipients</span>
                         <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.sent_count} sent</span>
                         <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-purple-500" />{c.opened_count} opened</span>
@@ -121,7 +121,7 @@ export default function EmailCampaignsPage() {
               </Card>
             ))}
         {!isLoading && campaigns.length === 0 && (
-          <div className="text-center py-12 text-gray-500">No campaigns yet. Create your first campaign above.</div>
+          <div className="text-center py-12 text-muted-foreground">No campaigns yet. Create your first campaign above.</div>
         )}
       </div>
     </div>

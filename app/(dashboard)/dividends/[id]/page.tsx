@@ -17,11 +17,13 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { StatCard } from '@/components/shared/stat-card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -74,6 +76,8 @@ export default function DividendDetailPage() {
   const id     = params.id;
   const qc     = useQueryClient();
   const { toast } = useToast();
+  const canManageDividends  = useHasPermission('dividends.manage');
+  const canApproveDividends = useHasPermission('dividends.approve');
 
   const declQ = useQuery<Declaration>({
     queryKey: ['dividend', id],
@@ -125,10 +129,21 @@ export default function DividendDetailPage() {
   finally { setBusy(false); } };
 
   if (declQ.isLoading) {
-    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 — a bare centred spinner gave no
+    // hint of the shape about to appear; every other list/detail surface in the
+    // app uses Skeleton placeholders that match the eventual layout.
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-64" />
+        <div className="grid gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
   if (!decl) {
-    return <div className="p-6"><p className="text-muted-foreground">Declaration not found.</p></div>;
+    return <div><p className="text-muted-foreground">Declaration not found.</p></div>;
   }
 
   const allocItems = allocsQ.data?.items ?? [];
@@ -137,7 +152,7 @@ export default function DividendDetailPage() {
   const allSelected = pendingSelectableIds.length > 0 && pendingSelectableIds.every((id) => selected.has(id));
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start gap-3">
         <Link href="/dividends" className="text-muted-foreground hover:text-foreground mt-1">
           <ArrowLeft className="h-5 w-5" />
@@ -150,28 +165,40 @@ export default function DividendDetailPage() {
             <>
               {decl.status === 'draft' && (
                 <>
-                  <Button onClick={onSubmit} disabled={busy}>
-                    {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Submit for approval
-                  </Button>
-                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  {canManageDividends && (
+                    <Button onClick={onSubmit} disabled={busy}>
+                      {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Submit for approval
+                    </Button>
+                  )}
+                  {canApproveDividends && (
+                    <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  )}
                 </>
               )}
               {decl.status === 'pending_approval' && (
                 <>
-                  <Button onClick={() => setApproveOpen(true)} disabled={busy}>
-                    {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                    Approve &amp; snapshot
-                  </Button>
-                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  {canApproveDividends && (
+                    <Button onClick={() => setApproveOpen(true)} disabled={busy}>
+                      {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                      Approve &amp; snapshot
+                    </Button>
+                  )}
+                  {canApproveDividends && (
+                    <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  )}
                 </>
               )}
               {decl.status === 'approved' && (
                 <>
-                  <Button disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
-                    <Wallet className="mr-2 h-4 w-4" /> Pay selected ({selected.size})
-                  </Button>
-                  <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  {canManageDividends && (
+                    <Button disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
+                      <Wallet className="mr-2 h-4 w-4" /> Pay selected ({selected.size})
+                    </Button>
+                  )}
+                  {canApproveDividends && (
+                    <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                  )}
                 </>
               )}
             </>
@@ -220,6 +247,8 @@ export default function DividendDetailPage() {
             <PaginatedTable
               data={singlePage(previewRows.map((r) => ({ ...r, id: r.memberId })))}
               isLoading={previewQ.isLoading || allocsQ.isLoading}
+              isError={previewQ.isError}
+              error={previewQ.error}
               onPageChange={() => {}}
               emptyIcon={Coins}
               emptyMessage="No eligible shareholders — at least one member with shares is required before approval."
@@ -242,11 +271,13 @@ export default function DividendDetailPage() {
             <PaginatedTable
               data={singlePage(allocItems)}
               isLoading={previewQ.isLoading || allocsQ.isLoading}
+              isError={allocsQ.isError}
+              error={allocsQ.error}
               onPageChange={() => {}}
               emptyIcon={Coins}
               emptyMessage="No allocations recorded."
               columns={[
-                ...(decl.status === 'approved' ? [{
+                ...(decl.status === 'approved' && canManageDividends ? [{
                   key: '_select',
                   header: (
                     <input
@@ -302,7 +333,7 @@ export default function DividendDetailPage() {
                 },
                 {
                   key: 'actions', header: '', className: 'text-right', render: (a) => (
-                    decl.status === 'approved' && a.status === 'pending' && (
+                    decl.status === 'approved' && a.status === 'pending' && canManageDividends && (
                       <Button size="sm" variant="outline" onClick={() => setPayOpen(a)}>
                         <Wallet className="mr-1.5 h-3 w-3" /> Pay
                       </Button>

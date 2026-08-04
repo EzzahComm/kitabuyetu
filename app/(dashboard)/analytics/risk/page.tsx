@@ -12,6 +12,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { api } from '@/lib/api/client';
+import { getErrorMessage } from '@/lib/utils';
 import type { Tone } from '@/lib/ui/tokens';
 
 interface OverdueLoan {
@@ -69,7 +70,7 @@ export default function RiskAnalysisPage() {
     (r?.staleWelfareRequests.length ?? 0);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start gap-3">
         <Link href="/analytics" className="text-muted-foreground hover:text-foreground mt-1">
           <ArrowLeft className="h-5 w-5" />
@@ -81,7 +82,11 @@ export default function RiskAnalysisPage() {
         />
       </div>
 
-      {riskQ.isLoading || !r ? (
+      {riskQ.isError ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Couldn&apos;t load risk data. {getErrorMessage(riskQ.error)}
+        </div>
+      ) : riskQ.isLoading || !r ? (
         <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : (
         <>

@@ -22,7 +22,7 @@ export default function AuditTrailPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useQuery<PaginatedResult<OrganizationAuditLogRow>>({
+  const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationAuditLogRow>>({
     queryKey: ['enterprise', 'audit-logs', page, search],
     queryFn:  () => organizationApi.auditLogs({ page, limit: 30, search: search || undefined }),
   });
@@ -48,6 +48,8 @@ export default function AuditTrailPage() {
       <PaginatedTable<OrganizationAuditLogRow & { id: string }>
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No audit activity yet"
         emptyDescription={search ? 'Try a different search term.' : 'Actions taken across your branches will appear here.'}

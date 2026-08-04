@@ -11,6 +11,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { Input } from '@/components/ui/input';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
@@ -63,6 +64,8 @@ export default function CreditScoresPage() {
   const qc        = useQueryClient();
   const router    = useRouter();
   const [busy, setBusy] = useState(false);
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — was a native window.confirm().
+  const [recomputeOpen, setRecomputeOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const summaryQ = useQuery<Summary>({
@@ -90,7 +93,6 @@ export default function CreditScoresPage() {
   const summary = summaryQ.data;
 
   const recomputeAll = async () => {
-    if (!confirm('Recompute scores for every active member? This may take a few seconds for large groups.')) return;
     setBusy(true);
     try {
       const result = await api.post<{ recomputed: number; failed: { memberId: string; reason: string }[] }>('/credit-scores/recompute', {});
@@ -111,12 +113,12 @@ export default function CreditScoresPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Credit Scores"
         description="Member reliability rated on contribution, loan repayment, savings, share ownership, and dividend history."
         actions={
-          <Button disabled={busy} onClick={recomputeAll}>
+          <Button disabled={busy} onClick={() => setRecomputeOpen(true)}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Recompute all
           </Button>
@@ -220,6 +222,8 @@ export default function CreditScoresPage() {
         <PaginatedTable<CreditScore>
           data={listQ.data}
           isLoading={listQ.isLoading}
+          isError={listQ.isError}
+          error={listQ.error}
           onPageChange={setPage}
           onRowClick={(s) => router.push(`/credit-scores/${s.member_id}`)}
           emptyMessage="No scored members yet"
@@ -239,6 +243,15 @@ export default function CreditScoresPage() {
           ]}
         />
       )}
+
+      <ConfirmDialog
+        open={recomputeOpen}
+        onOpenChange={setRecomputeOpen}
+        title="Recompute every member's score?"
+        description="Scores are recalculated for every active member. This may take a few seconds for large groups."
+        confirmLabel="Recompute all"
+        onConfirm={recomputeAll}
+      />
     </div>
   );
 }

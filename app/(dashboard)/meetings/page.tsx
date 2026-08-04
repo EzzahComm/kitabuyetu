@@ -19,6 +19,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 const createSchema = z.object({
   title:          z.string().min(3),
@@ -51,9 +52,10 @@ export default function MeetingsPage() {
   const [open, setOpen]     = useState(false);
   const { toast } = useToast();
 
-  const { data, isLoading } = useMeetings({ page, limit: 20, ...(status !== 'all' ? { status } : {}) });
+  const { data, isLoading, isError, error } = useMeetings({ page, limit: 20, ...(status !== 'all' ? { status } : {}) });
   const { data: stats }     = useMeetingStats();
   const createMeeting       = useCreateMeeting();
+  const canManage           = useHasPermission('meetings.manage');
 
   const form = useForm<CreateMeetingForm>({
     resolver: zodResolver(createSchema),
@@ -124,9 +126,11 @@ export default function MeetingsPage() {
         title="Meetings"
         description="Schedule, record minutes, and track resolutions"
         actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" /> Schedule Meeting
-          </Button>
+          canManage ? (
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={16} className="mr-2" /> Schedule Meeting
+            </Button>
+          ) : undefined
         }
       />
 
@@ -153,6 +157,8 @@ export default function MeetingsPage() {
           <PaginatedTable
             data={data}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             columns={columns}
             onPageChange={setPage}
             emptyMessage="No meetings found"
@@ -169,7 +175,7 @@ export default function MeetingsPage() {
               <Input {...form.register('title')} placeholder="e.g. June 2026 Monthly Meeting" />
               {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message as string}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Type</Label>
                 <select {...form.register('meetingType')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">

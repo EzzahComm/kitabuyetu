@@ -84,7 +84,7 @@ export default function GroupDetailPage({
   const updateStatus = useUpdateGroupStatus();
 
   const [memberPage, setMemberPage] = useState(1);
-  const { data: membersData, isLoading: membersLoading } = useAdminGroupMembers(id, memberPage);
+  const { data: membersData, isLoading: membersLoading, isError: membersIsError, error: membersError } = useAdminGroupMembers(id, memberPage);
   const { data: snapshot } = useGroupGovernanceSnapshot(id);
 
   const [confirmAction, setConfirmAction] = useState<{
@@ -377,6 +377,8 @@ export default function GroupDetailPage({
               totalPages: Math.ceil(membersData.total / membersData.limit),
             } : null}
             isLoading={membersLoading}
+            isError={membersIsError}
+            error={membersError}
             onPageChange={setMemberPage}
             emptyMessage="No active members"
             onRowClick={(m) => router.push(`/admin/groups/${id}/members/${m.id}`)}

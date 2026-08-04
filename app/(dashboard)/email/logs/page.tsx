@@ -15,7 +15,7 @@ export default function EmailLogsPage() {
   const [days, setDays]       = useState(30);
   const [page, setPage]       = useState(1);
 
-  const { data, isLoading } = useEmailLogs({
+  const { data, isLoading, isError, error } = useEmailLogs({
     status: status || undefined,
     category: category || undefined,
     days,
@@ -31,7 +31,7 @@ export default function EmailLogsPage() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4">
       <PageHeader title="Email Logs" />
 
       {/* Filters */}
@@ -77,6 +77,8 @@ export default function EmailLogsPage() {
           <PaginatedTable
             data={meta ? { items: logs, total: meta.total, page: meta.page, pageSize: meta.limit, totalPages: Math.ceil(meta.total / meta.limit) } : null}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             onPageChange={setPage}
             emptyMessage="No email logs found"
             columns={[
@@ -89,7 +91,7 @@ export default function EmailLogsPage() {
                   : '—',
               },
               { key: 'status', header: 'Status', render: (log: EmailLog) => <StatusPill status={log.status} size="sm" /> },
-              { key: 'provider', header: 'Provider', className: 'text-xs text-gray-500', render: (log: EmailLog) => log.provider ?? '—' },
+              { key: 'provider', header: 'Provider', className: 'text-xs text-muted-foreground', render: (log: EmailLog) => log.provider ?? '—' },
               { key: 'sent_at', header: 'Sent', className: 'text-xs', render: (log: EmailLog) => fmt(log.sent_at) },
               { key: 'opened_at', header: 'Opened', className: 'text-xs', render: (log: EmailLog) => log.opened_at ? fmt(log.opened_at) : '—' },
             ]}

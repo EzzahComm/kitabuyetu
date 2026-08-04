@@ -23,12 +23,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
-
-const PROGRAM_TYPES = [
-  'grant', 'revolving_fund', 'loan_capital', 'matching_contribution',
-  'seed_capital', 'emergency_support', 'operational_support',
-  'scholarship', 'insurance', 'investment',
-] as const;
+import { PROGRAM_TYPES } from '@/lib/validators/organization.schema';
 
 function UtilizationBar({ pct }: { pct: number }) {
   const clamped = Math.min(100, Math.max(0, pct));
