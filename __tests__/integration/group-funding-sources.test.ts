@@ -182,20 +182,40 @@ describe('group_funding_sources', () => {
   });
 
   describe('group deletion', () => {
-    it('cascades funding sources when a group is deleted', async () => {
+    // A group cannot actually be hard-deleted in this schema — accounts.group_id
+    // (among others) is a plain FK with no ON DELETE action, so `DELETE FROM
+    // groups` raises. Groups are retired via status/archived_at instead. So the
+    // ON DELETE CASCADE on our own group_id FK is a safety net for a path that
+    // does not exist today rather than a behaviour that can be exercised end to
+    // end; assert it at the schema level, which is what we actually control.
+    //
+    // (An earlier version of this test did DELETE FROM groups and was caught by
+    // the real-Postgres CI job — worth keeping the reason recorded.)
+    it('declares ON DELETE CASCADE on its group_id foreign key', async () => {
+      const rows = await rawQuery<{ delete_rule: string }>(
+        `SELECT rc.delete_rule
+         FROM information_schema.referential_constraints rc
+         JOIN information_schema.table_constraints tc
+           ON tc.constraint_name = rc.constraint_name
+          AND tc.constraint_schema = rc.constraint_schema
+         WHERE tc.table_name = 'group_funding_sources'
+           AND tc.constraint_type = 'FOREIGN KEY'
+           AND rc.unique_constraint_name IN (
+             SELECT constraint_name FROM information_schema.table_constraints
+             WHERE table_name = 'groups' AND constraint_type = 'PRIMARY KEY'
+           )`,
+      );
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].delete_rule).toBe('CASCADE');
+    });
+
+    it('blocks hard-deleting a group (documents why the cascade is untestable end to end)', async () => {
       const { groupId } = await createTestGroup('chairperson');
 
-      const before = await rawQuery<{ n: string }>(
-        `SELECT count(*) AS n FROM group_funding_sources WHERE group_id = $1`, [groupId],
-      );
-      expect(Number(before[0].n)).toBe(1);
-
-      await rawQuery(`DELETE FROM groups WHERE id = $1`, [groupId]);
-
-      const after = await rawQuery<{ n: string }>(
-        `SELECT count(*) AS n FROM group_funding_sources WHERE group_id = $1`, [groupId],
-      );
-      expect(Number(after[0].n)).toBe(0);
+      await expect(
+        rawQuery(`DELETE FROM groups WHERE id = $1`, [groupId]),
+      ).rejects.toThrow();
     });
   });
 });
