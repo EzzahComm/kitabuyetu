@@ -14,7 +14,7 @@ import type { TenantContext } from '@/lib/db';
 import { loansService } from '@/lib/services/loans.service';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { listForGroup, getLoanFundingSplits } from '@/lib/services/funding-sources.service';
-import { createTestOrganization, createTestGroup } from './helpers/fixtures';
+import { createTestOrganization, createTestGroup, addGroupOfficer } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
@@ -69,20 +69,20 @@ describe('loan funding attribution', () => {
     return { userId: officerId, groupId, role: 'chairperson' } as unknown as TenantContext;
   }
 
-  /** Applies + approves a loan for a fresh member, returning its id. */
+  /**
+   * Applies + approves a loan for a fresh member, returning its id.
+   *
+   * Creates the member through the real membersService (via addGroupOfficer)
+   * rather than hand-inserting into group_members — that table has grown across
+   * ~118 migrations and now requires person_id, which a hand-rolled INSERT
+   * silently misses. fixtures.ts makes exactly this point; a first draft here
+   * ignored it and every test in this file failed on the NOT NULL.
+   */
   async function approvedLoan(principal: number): Promise<string> {
-    const [m] = await rawQuery<{ member_id: string }>(
-      `INSERT INTO members (first_name, last_name, phone, password_hash)
-       VALUES ('Test', 'Borrower', '+2547' || lpad((random()*99999999)::bigint::text, 8, '0'), 'x')
-       RETURNING id AS member_id`,
-    );
-    await rawQuery(
-      `INSERT INTO group_members (group_id, member_id, role, status, is_active)
-       VALUES ($1,$2,'member','active',true)`, [groupId, m.member_id],
-    );
+    const borrowerId = await addGroupOfficer(groupId, officerId, 'member');
 
     const loan = await loansService.apply(groupCtx(), {
-      memberId: m.member_id, principalAmount: principal, interestRate: 10, loanTermMonths: 6,
+      memberId: borrowerId, principalAmount: principal, interestRate: 10, loanTermMonths: 6,
     } as never);
     await loansService.approve(groupCtx(), loan.id, {} as never);
     return loan.id;
