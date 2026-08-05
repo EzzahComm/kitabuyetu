@@ -55,6 +55,32 @@ describe('allocation → group funding source', () => {
     userId: coordId, groupId, role: 'chairperson',
   } as unknown as TenantContext);
 
+  it("lets an organization make its FIRST deposit without having opened the wallet screen", async () => {
+    // Pre-existing production bug, found by this job: deposit() row-locked the
+    // wallet with a helper that THREW when no wallet row existed, and
+    // createOrganization() seeds a chart of accounts but not a wallet — only
+    // getWallet() creates one, lazily. So an organization's very first deposit
+    // failed with "Organization wallet not found" unless a coordinator happened
+    // to view the wallet screen first. The live organization in production has
+    // no wallet row at all, so this blocked real onboarding.
+    const { organizationId, coordinatorId } = await createTestOrganization();
+    const freshCtx = {
+      userId: coordinatorId, groupId: null,
+      role: 'organization_coordinator', organizationId,
+    } as unknown as TenantContext;
+
+    const before = await rawQuery<{ n: string }>(
+      `SELECT count(*) AS n FROM organization_wallets WHERE organization_id = $1`, [organizationId],
+    );
+    expect(Number(before[0].n)).toBe(0);
+
+    const { wallet } = await organizationFinanceService.deposit(freshCtx, {
+      amount: 1_500_000, source: 'Cash',
+    });
+
+    expect(parseFloat(wallet.available_balance)).toBe(1_500_000);
+  });
+
   it('creates an organization_allocation funding source when a cash allocation settles', async () => {
     // The real shape: a 1.5M fund, 1M out to the group, paid in cash.
     const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {

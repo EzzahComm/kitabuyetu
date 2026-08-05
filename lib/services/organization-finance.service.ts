@@ -142,28 +142,23 @@ const orgId = (ctx: TenantContext): string => {
   return ctx.organizationId;
 };
 
-async function getWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
-  const { rows } = await db.query<OrgWallet>(
-    `SELECT * FROM organization_wallets
-     WHERE organization_id = $1 AND currency = 'KES' AND is_active
-     FOR UPDATE`,
-    [organizationId],
-  );
-  if (!rows[0]) throw new NotFoundError('Organization wallet');
-  return rows[0];
-}
-
 /**
- * Row-locks the org's wallet, creating it first if it doesn't exist yet.
+ * Row-locks the organization's wallet, creating it first if it doesn't exist.
  *
- * createOrganization() seeds a chart of accounts but NOT a wallet — the wallet
- * is created lazily by getWallet(). Capitalization only needs one because
- * organization_ledger.wallet_id is NOT NULL; no cash moves. So failing here
- * with "Organization wallet not found" would block capitalizing a product for
- * any organization that had never happened to open its wallet screen, which is
- * every newly-created organization. Mirrors getWallet's documented bootstrap.
+ * This USED to throw NotFoundError when no wallet row existed, which was a live
+ * bug: createOrganization() seeds a chart of accounts but NOT a wallet — only
+ * getWallet() creates one, lazily, when someone opens the wallet screen. So an
+ * organization's very first deposit() or disburse() failed with "Organization
+ * wallet not found" unless a coordinator happened to view that screen first.
+ * Found by the real-Postgres CI job while wiring Phase 2a; confirmed against
+ * production, where the live organization has no wallet row at all.
+ *
+ * Bootstrapping is the only sane behaviour here — a wallet is an implementation
+ * detail of holding a balance, not a thing a user opts into — so the throwing
+ * variant is deliberately gone rather than kept alongside this one, so no
+ * future caller can pick the footgun by accident.
  */
-async function getOrCreateWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
+async function getWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
   const { rows } = await db.query<OrgWallet>(
     `SELECT * FROM organization_wallets
      WHERE organization_id = $1 AND currency = 'KES' AND is_active
@@ -211,7 +206,7 @@ async function recordCapitalLedgerEntry(
   entryType: 'capitalization' | 'decapitalization',
   input: CapitalAdjustmentInput,
 ): Promise<void> {
-  const wallet = await getOrCreateWalletForUpdate(db, orgId(ctx));
+  const wallet = await getWalletForUpdate(db, orgId(ctx));
   const verb   = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
 
   await db.query(
