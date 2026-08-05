@@ -18,10 +18,26 @@ const globalWithPool = globalThis as typeof globalThis & {
 //   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
 //     isn't fully present in Node's default CA bundle on Lambda. The connection
 //     remains TLS-encrypted; we just stop pinning the chain.
-function buildPool(connectionString: string): Pool {
+function buildPool(connectionString: string | undefined): Pool {
+  // `connectionString` can legitimately be undefined HERE and only here: during
+  // `next build`, lib/env.ts deliberately skips Zod validation
+  // (NEXT_PHASE=phase-production-build) and returns raw process.env, so
+  // env.DATABASE_URL is undefined whenever the build environment lacks it.
+  // Next.js evaluates every route's module graph while collecting page data,
+  // and this module is imported by almost all of them — so an unguarded
+  // `.includes()` here threw "Cannot read properties of undefined" and failed
+  // the ENTIRE build at whichever route imported lib/db first, regardless of
+  // whether that route touches the database.
+  //
+  // Same trap as the module-scope throw in daraja.service.ts (fixed in b6ee340):
+  // anything that can fail at import time fails the whole build, not just the
+  // feature it guards. Nothing is weakened by tolerating it: at real runtime
+  // validateEnv() has already proven DATABASE_URL is a valid URL, and pg does
+  // not dial until .connect(), so a placeholder is never used to open a socket.
+  const dsn = connectionString ?? '';
   const isSupabase =
-    connectionString.includes('supabase.com') ||
-    connectionString.includes('supabase.co');
+    dsn.includes('supabase.com') ||
+    dsn.includes('supabase.co');
 
   const newPool = new Pool({
     connectionString,
