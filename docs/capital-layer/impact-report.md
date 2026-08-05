@@ -238,17 +238,31 @@ Drop the `cap_` prefix. It would create a second organization-finance domain sit
 
 ---
 
-## 7. Open questions requiring a decision before Phase 1
+## 7. Decisions — ALL RESOLVED 2026-08-05
 
-1. **D1** — confirm `liability` capital model.
-2. **D5** — member-level visibility to organizations under Kenya DPA; how `member_visibility` composes with `applyMemberMask`.
-3. **D-A** — service-layer transactions (recommended) vs. the spec's mandated RPC pattern.
-4. **D-B** — accept existing counters + rebuild/assert job (recommended) vs. pure-derived balances.
-5. **D-C** — org role model: extend `org_role` enum (reversing the `field_officer` decision) vs. permission strings on the live RBAC system (recommended).
-6. **D-F** — extend `organization_type` enum, or accept existing vocabulary.
+All six were put to the founder with recommendations and trade-offs; every one came back as the recommended option. **Phase 1 is unblocked.**
+
+| # | Decision | Resolution |
+|---|---|---|
+| **D1** | Capital model | **Liability.** An allocation is a debt the group owes the organization. `pass_through` stays reserved in the CHECK constraint, unimplemented. |
+| **D5** | Member visibility (Kenya DPA) | **Pseudonymous code only.** Organizations see `member_code`/`membership_no` plus financial data — never a name or contact detail. |
+| **D-A** | Money movement | **Service-layer transactions.** Keep `withAdminDb`/`withTransaction`; the spec's "single atomic Postgres RPC" non-negotiable is overridden, deliberately and on the record. |
+| **D-B** | Balances | **Keep counters + rebuild/assert.** Existing counters stay; add `rebuild_organization_capital_balances()` + a nightly reconciliation job writing drift to `capital_reconciliation_alerts`. |
+| **D-C** | Authorization | **Permission strings on the live RBAC.** `capital.*` permissions on `roles.permissions`; `org_role` stays `lead|staff`. The `field_officer` decision is NOT reversed. |
+| **D-F** | Organization types | **Keep the existing enum.** No `ADD VALUE` migration (non-transactional, irreversible). |
 
 Mechanical corrections already ruled and needing no decision: `numeric(15,2)` (D4), `flat|reducing_balance` (D3), `members(id)` not `auth.users` (D-E), interest rate as `numeric(5,2)` percentage.
 
+### D5 — implementation consequences, since this one is legally load-bearing
+
+The decision is stronger than the spec's own default and needs its constraints written down, because they are easy to erode later by accident:
+
+1. **`member_code` and `membership_no` are already populated on every `group_members` row** (24/24 in production), so this needs no new data, no backfill, and no consent-capture mechanism.
+2. **`applyMemberMask` does NOT redact names** — it masks `phone`, `email`, `national_id`, `date_of_birth`, `address` only. Composing with it is therefore *not sufficient* on its own; any organization-facing view must never select `first_name`/`last_name` at all. This was the specific misconception that made the question worth asking.
+3. Organization-facing reporting views must not join to `members` for identity fields. Enforce at the view/service boundary, not the UI.
+4. `member_visibility` stays on `funding_programs` as a reserved column, but only the pseudonymous behaviour is implemented. Widening it later is a product+legal decision, not a config change.
+5. Because no personal data crosses the organization boundary, **no lawful-basis or consent record is required** for the capital layer as scoped. That property is the point of the decision — do not trade it away for reporting convenience without going back to the founder.
+
 ---
 
-**Phase 0 ends here, per the spec's own instruction to stop for review. No migration has been written and no schema has been altered.**
+**Phase 0 is closed. Phase 1 may begin.** Migration 115 (`group_funding_sources`) shipped ahead of the gate as unblocked groundwork and is live in production.

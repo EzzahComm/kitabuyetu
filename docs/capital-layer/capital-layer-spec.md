@@ -3,7 +3,9 @@
 **This supersedes `kitabu-yetu-capital-layer-prompt.md` for implementation purposes.**
 The original spec's *business semantics are adopted wholesale*; its *schema, precision, vocabulary, and architectural mechanism are corrected* to match the codebase. See [impact-report.md](./impact-report.md) for the evidence behind every correction.
 
-**Status:** awaiting sign-off on the six open decisions in impact-report §7. Do not begin Phase 1 until they are answered.
+**Status:** all six decisions resolved 2026-08-05 (see [impact-report.md](./impact-report.md) §7). **Phase 1 is unblocked.**
+
+Resolutions, all as recommended: **D1** liability · **D5** pseudonymous member code only · **D-A** service-layer transactions · **D-B** keep counters plus a rebuild/assert job · **D-C** permission strings on the live RBAC · **D-F** keep the existing `organization_type` enum.
 
 ---
 
@@ -41,7 +43,8 @@ These replace the original §0 non-negotiables. Changes are marked.
 | Financial product | `cap_financial_products` (new) | **extend `funding_programs`** |
 | Allocation | `cap_allocations` (new) | **extend `organization_disbursements`** |
 | Capital movements | `cap_capital_movements` (new) | **extend `organization_ledger`** |
-| Org roles | `org_admin\|portfolio_manager\|field_officer\|finance\|auditor` | **pending D-C** — recommend permission strings on the live RBAC system, keeping `org_role ∈ {lead,staff}` |
+| Org roles | `org_admin\|portfolio_manager\|field_officer\|finance\|auditor` | **D-C resolved**: permission strings on the live RBAC system; `org_role` stays `lead\|staff`. `field_officer` is still not a role in this product. |
+| Member visibility | `member_visibility ∈ (aggregate, identified)` | **D5 resolved**: pseudonymous only — organizations see `member_code`/`membership_no`, never a name or contact field |
 
 ---
 
@@ -64,7 +67,7 @@ ALTER TABLE funding_programs
   ADD COLUMN revenue_owner         text NOT NULL DEFAULT 'organization',
   ADD COLUMN revenue_share_ratio   numeric(5,4),
   ADD COLUMN repayment_waterfall   jsonb,
-  ADD COLUMN member_visibility     text NOT NULL DEFAULT 'aggregate';
+  ADD COLUMN member_visibility     text NOT NULL DEFAULT 'pseudonymous';
 ```
 
 Database-level constraints (mirroring the original §5.2, adjusted):
@@ -134,6 +137,8 @@ The waterfall engine stays **a pure, separately-testable function** as the origi
 
 Waterfall rules are adopted unchanged from the original §7: configured order, per-component `revenue_split` summing to 1.0, residual handling, pro-rata multi-source apportionment (or `source_priority`), and rounding allocated to the last component so splits sum **exactly** to the repayment. Assert equality before commit; never let rounding create or destroy value.
 
+**D5 boundary — binding on every organization-facing read.** Organizations see `member_code`/`membership_no` and financial data; never `first_name`, `last_name`, `phone`, `email`, `national_id`, `date_of_birth`, or `address`. Note that `applyMemberMask` does **not** redact names, so composing with it is not sufficient — organization-facing queries must not select the name columns at all, and must not join `members` for identity. Enforce at the view/service boundary, never in the UI. This is what keeps the capital layer free of any consent/lawful-basis requirement; widening it is a product+legal decision, not a config change.
+
 Modified existing services — the highest-risk surface:
 - `loansService.disburse()` — accept a funding plan; write `loan_funding_splits`; **default to internal savings so existing behaviour cannot break**
 - `loansService.recordRepayment()` — write `repayment_splits`; propagate to allocation + `organization_ledger` in the same transaction
@@ -143,7 +148,7 @@ Modified existing services — the highest-risk surface:
 
 ## 5. Authorization
 
-Pending D-C. Recommended: permission strings on the existing RBAC system rather than an `org_role` enum fork —
+**D-C resolved**: permission strings on the existing RBAC system, not an `org_role` enum fork —
 
 ```
 capital.product.manage      capital.allocation.propose

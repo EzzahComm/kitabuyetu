@@ -23,6 +23,11 @@ import { postOrgSystemJournal } from './organization-accounting.service';
 import { getEffectiveThreshold } from './approval-policy.service';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+// Typed against the validator rather than a hand-written inline shape. A
+// parallel hand-maintained type is exactly what drifted in the client/server
+// contract audit — this way, adding a field to the schema is a compile error
+// here until it is persisted.
+import type { CreateProgramInput, CapitalAdjustmentInput } from '@/lib/validators/organization.schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +55,39 @@ export interface FundingProgram {
   ends_on:         string | null;
   status:          string;
   created_at:      string;
+  // Financial-product terms (migration 116). Every existing program is
+  // non-repayable by default, so these are all null/false for grants.
+  product_code:         string | null;
+  is_repayable:         boolean;
+  capital_model:        string;
+  loss_bearer:          string;
+  shared_loss_ratio:    string | null;
+  interest_method:      string | null;
+  /** PERCENTAGE (12.50 = 12.5%), matching loans.interest_rate — never a ratio. */
+  interest_rate_annual: string | null;
+  repayment_frequency:  string;
+  grace_period_days:    number;
+  tenor_months:         number | null;
+  revenue_owner:        string;
+  revenue_share_ratio:  string | null;
+  repayment_waterfall:  unknown | null;
+  member_visibility:    string;
+}
+
+/**
+ * A product's capital position. `budget` is a SPENDING AUTHORITY, not a cash
+ * balance — actual cash lives once, at organization_wallets. So:
+ *   available = totalCapital - allocated
+ */
+export interface ProductBalances {
+  programId:       string;
+  name:            string;
+  isRepayable:     boolean;
+  totalCapital:    number;
+  allocated:       number;
+  available:       number;
+  /** allocated / totalCapital, 0 when the product has no capital yet. */
+  utilizationRate: number;
 }
 
 export interface ProgramBudgetLine {
@@ -113,6 +151,85 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
   );
   if (!rows[0]) throw new NotFoundError('Organization wallet');
   return rows[0];
+}
+
+/**
+ * Row-locks the org's wallet, creating it first if it doesn't exist yet.
+ *
+ * createOrganization() seeds a chart of accounts but NOT a wallet — the wallet
+ * is created lazily by getWallet(). Capitalization only needs one because
+ * organization_ledger.wallet_id is NOT NULL; no cash moves. So failing here
+ * with "Organization wallet not found" would block capitalizing a product for
+ * any organization that had never happened to open its wallet screen, which is
+ * every newly-created organization. Mirrors getWallet's documented bootstrap.
+ */
+async function getOrCreateWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
+  const { rows } = await db.query<OrgWallet>(
+    `SELECT * FROM organization_wallets
+     WHERE organization_id = $1 AND currency = 'KES' AND is_active
+     FOR UPDATE`,
+    [organizationId],
+  );
+  if (rows[0]) return rows[0];
+
+  const { rows: created } = await db.query<OrgWallet>(
+    `INSERT INTO organization_wallets (organization_id) VALUES ($1)
+     ON CONFLICT (organization_id, currency) DO UPDATE SET updated_at = NOW()
+     RETURNING *`,
+    [organizationId],
+  );
+  return created[0];
+}
+
+/** Row-locks a product before adjusting its capital, mirroring getWalletForUpdate. */
+async function getProgramForUpdate(
+  db: PoolClient, organizationId: string, programId: string,
+): Promise<FundingProgram> {
+  const { rows } = await db.query<FundingProgram>(
+    `SELECT * FROM funding_programs
+     WHERE id = $1 AND organization_id = $2
+     FOR UPDATE`,
+    [programId, organizationId],
+  );
+  if (!rows[0]) throw new NotFoundError('Funding program', programId);
+  return rows[0];
+}
+
+/**
+ * Audit trail for a capital-authority change.
+ *
+ * organization_ledger.wallet_id is NOT NULL, so this attaches the org's wallet
+ * even though no cash moves — the row records WHICH product's authority
+ * changed (funding_program_id) and by how much. balance_after is the wallet's
+ * unchanged available balance, precisely because capitalization is not a cash
+ * event; reading a jump there would be the bug, not the feature.
+ */
+async function recordCapitalLedgerEntry(
+  db: PoolClient,
+  ctx: TenantContext,
+  program: FundingProgram,
+  entryType: 'capitalization' | 'decapitalization',
+  input: CapitalAdjustmentInput,
+): Promise<void> {
+  const wallet = await getOrCreateWalletForUpdate(db, orgId(ctx));
+  const verb   = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
+
+  await db.query(
+    `INSERT INTO organization_ledger
+       (organization_id, wallet_id, entry_type, direction, amount, balance_after,
+        funding_program_id, reference, description, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [
+      orgId(ctx), wallet.id, entryType,
+      entryType === 'capitalization' ? 'credit' : 'debit',
+      input.amount.toFixed(2),
+      parseFloat(wallet.available_balance).toFixed(2),
+      program.id,
+      input.reference ?? null,
+      input.notes ?? `${verb} — ${program.name}`,
+      ctx.userId,
+    ],
+  );
 }
 
 async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisbursement> {
@@ -477,14 +594,7 @@ export const organizationFinanceService = {
 
   async createProgram(
     ctx: TenantContext,
-    input: {
-      name: string; programType: string; budget: number;
-      fundingSource?: string; description?: string;
-      eligibilityCriteria?: Record<string, unknown>;
-      geographicCoverage?: string[];
-      reportingRequirements?: string;
-      startsOn?: string; endsOn?: string;
-    },
+    input: CreateProgramInput,
   ): Promise<FundingProgram> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.budget > 0)) throw new ValidationError('Budget must be positive');
@@ -494,8 +604,13 @@ export const organizationFinanceService = {
         `INSERT INTO funding_programs
            (organization_id, name, program_type, budget, funding_source, description,
             eligibility_criteria, geographic_coverage, reporting_requirements,
-            starts_on, ends_on, status, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,'active',$12)
+            starts_on, ends_on, status, created_by,
+            product_code, is_repayable, capital_model, loss_bearer, shared_loss_ratio,
+            interest_method, interest_rate_annual, repayment_frequency, grace_period_days,
+            tenor_months, revenue_owner, revenue_share_ratio, repayment_waterfall,
+            member_visibility)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,'active',$12,
+                 $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,$26)
          RETURNING *`,
         [
           orgId(ctx), input.name, input.programType, input.budget.toFixed(2),
@@ -505,9 +620,130 @@ export const organizationFinanceService = {
           input.reportingRequirements ?? null,
           input.startsOn ?? null, input.endsOn ?? null,
           ctx.userId,
+          // Financial-product terms. Defaults keep any caller that doesn't set
+          // them (i.e. every existing one) creating a plain non-repayable grant.
+          input.productCode ?? null,
+          input.isRepayable ?? false,
+          input.capitalModel ?? 'liability',
+          input.lossBearer ?? 'group',
+          input.sharedLossRatio ?? null,
+          input.interestMethod ?? null,
+          input.interestRateAnnual ?? null,
+          input.repaymentFrequency ?? 'none',
+          input.gracePeriodDays ?? 0,
+          input.tenorMonths ?? null,
+          input.revenueOwner ?? 'organization',
+          input.revenueShareRatio ?? null,
+          input.repaymentWaterfall ? JSON.stringify(input.repaymentWaterfall) : null,
+          input.memberVisibility ?? 'pseudonymous',
         ],
       );
       return rows[0];
+    });
+  },
+
+  // ─── Product capital (Phase 1) ─────────────────────────────────────────────
+
+  /**
+   * Add capital to a product.
+   *
+   * `budget` is a SPENDING AUTHORITY, not a pot of cash — actual money lives
+   * once, at organization_wallets, and is topped up by deposit(). So this
+   * raises what the product is allowed to allocate and records the change in
+   * organization_ledger for the audit trail. It deliberately posts NO GL
+   * journal: raising an authority is not a cash event, and inventing one would
+   * unbalance the organization's books against its own wallet.
+   */
+  async capitalizeProduct(
+    ctx: TenantContext,
+    programId: string,
+    input: CapitalAdjustmentInput,
+  ): Promise<FundingProgram> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    if (!(input.amount > 0)) throw new ValidationError('Capitalization amount must be positive');
+
+    return withTransaction(ctx, async (db) => {
+      const program = await getProgramForUpdate(db, orgId(ctx), programId);
+
+      const { rows } = await db.query<FundingProgram>(
+        `UPDATE funding_programs SET budget = budget + $1
+         WHERE id = $2 AND organization_id = $3
+         RETURNING *`,
+        [input.amount.toFixed(2), programId, orgId(ctx)],
+      );
+
+      await recordCapitalLedgerEntry(db, ctx, program, 'capitalization', input);
+      return rows[0];
+    });
+  },
+
+  /**
+   * Withdraw uncommitted capital from a product.
+   *
+   * Refuses to cut `budget` below what has already been allocated. The DB's
+   * funding_programs_budget_not_exceeded CHECK would catch this anyway, but as
+   * a raw 23514 — this turns it into a clean ValidationError the UI can show.
+   */
+  async decapitalizeProduct(
+    ctx: TenantContext,
+    programId: string,
+    input: CapitalAdjustmentInput,
+  ): Promise<FundingProgram> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    if (!(input.amount > 0)) throw new ValidationError('Decapitalization amount must be positive');
+
+    return withTransaction(ctx, async (db) => {
+      const program   = await getProgramForUpdate(db, orgId(ctx), programId);
+      const budget    = parseFloat(program.budget);
+      const allocated = parseFloat(program.disbursed_total);
+
+      if (input.amount > budget - allocated) {
+        throw new ValidationError(
+          `Cannot withdraw ${input.amount.toFixed(2)} — only ${(budget - allocated).toFixed(2)} of this product's capital is uncommitted`,
+        );
+      }
+
+      const { rows } = await db.query<FundingProgram>(
+        `UPDATE funding_programs SET budget = budget - $1
+         WHERE id = $2 AND organization_id = $3
+         RETURNING *`,
+        [input.amount.toFixed(2), programId, orgId(ctx)],
+      );
+
+      await recordCapitalLedgerEntry(db, ctx, program, 'decapitalization', input);
+      return rows[0];
+    });
+  },
+
+  /** Capital position per product — the read side of the capitalization flow. */
+  async productBalances(ctx: TenantContext, programId?: string): Promise<ProductBalances[]> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (db) => {
+      const { rows } = await db.query<{
+        id: string; name: string; is_repayable: boolean;
+        budget: string; disbursed_total: string;
+      }>(
+        `SELECT id, name, is_repayable, budget, disbursed_total
+         FROM funding_programs
+         WHERE organization_id = $1
+           AND ($2::uuid IS NULL OR id = $2::uuid)
+         ORDER BY created_at DESC`,
+        [orgId(ctx), programId ?? null],
+      );
+
+      return rows.map((r) => {
+        const totalCapital = parseFloat(r.budget);
+        const allocated    = parseFloat(r.disbursed_total);
+        return {
+          programId:       r.id,
+          name:            r.name,
+          isRepayable:     r.is_repayable,
+          totalCapital,
+          allocated,
+          available:       totalCapital - allocated,
+          utilizationRate: totalCapital > 0 ? allocated / totalCapital : 0,
+        };
+      });
     });
   },
 

@@ -25,6 +25,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (report === 'donor') {
       return ok({ items: await organizationFinanceService.donorSpendReport(ctx) });
     }
+    if (report === 'balances') {
+      return ok({ items: await organizationFinanceService.productBalances(ctx) });
+    }
     return ok({ items: await organizationFinanceService.listPrograms(ctx) });
   });
 }

@@ -35,6 +35,13 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.wallet.view',
   'organization.accounting.view',
   'organization.policies.manage',
+  // Capital & Investment Layer (docs/capital-layer/). These live here, on the
+  // code-level org axis, and NOT in roles.permissions — per the note above,
+  // roles.base_role is typed member_role and cannot represent org roles.
+  // Consequence: no roles migration, and no edit to clear-tenant-data.sql's
+  // reseed block (the drift trap documented at that file's line 141).
+  'capital.product.view',
+  'capital.product.manage',
 ] as const;
 export type OrganizationPermission = typeof ORGANIZATION_PERMISSIONS[number];
 
