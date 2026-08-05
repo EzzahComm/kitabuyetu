@@ -18,6 +18,31 @@ const globalWithPool = globalThis as typeof globalThis & {
 //   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
 //     isn't fully present in Node's default CA bundle on Lambda. The connection
 //     remains TLS-encrypted; we just stop pinning the chain.
+/**
+ * True only when the DSN's HOST is supabase.com/supabase.co or a subdomain of
+ * one. Deliberately not a substring test: this decides whether to relax TLS
+ * certificate verification, so `postgres://…@supabase.com.attacker.net/db` and
+ * `…@evilsupabase.com/db` must NOT match — both of which a plain
+ * `.includes('supabase.com')` accepted (CodeQL js/incomplete-url-substring-
+ * sanitization, high). Real hosts (aws-0-<region>.pooler.supabase.com,
+ * db.<ref>.supabase.co) still match.
+ *
+ * Returns false for an absent or unparseable DSN, which is the normal state
+ * during `next build` — see buildPool below.
+ */
+function isSupabaseHost(dsn: string | undefined): boolean {
+  if (!dsn) return false;
+  try {
+    const host = new URL(dsn).hostname.toLowerCase();
+    return (
+      host === 'supabase.com' || host.endsWith('.supabase.com') ||
+      host === 'supabase.co'  || host.endsWith('.supabase.co')
+    );
+  } catch {
+    return false;
+  }
+}
+
 function buildPool(connectionString: string | undefined): Pool {
   // `connectionString` can legitimately be undefined HERE and only here: during
   // `next build`, lib/env.ts deliberately skips Zod validation
@@ -34,10 +59,7 @@ function buildPool(connectionString: string | undefined): Pool {
   // feature it guards. Nothing is weakened by tolerating it: at real runtime
   // validateEnv() has already proven DATABASE_URL is a valid URL, and pg does
   // not dial until .connect(), so a placeholder is never used to open a socket.
-  const dsn = connectionString ?? '';
-  const isSupabase =
-    dsn.includes('supabase.com') ||
-    dsn.includes('supabase.co');
+  const isSupabase = isSupabaseHost(connectionString);
 
   const newPool = new Pool({
     connectionString,
