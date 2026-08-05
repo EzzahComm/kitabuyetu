@@ -17,6 +17,33 @@ function downstreamHeader(res: Response, name: string): string | null {
   return res.headers.get(`x-middleware-request-${name}`);
 }
 
+/**
+ * proxy.ts's checkRateLimit() does a REAL fetch() to Upstash whenever
+ * process.env.REDIS_URL is set — and next/jest loads .env*, so it always is.
+ * Every proxy() call below would otherwise make a live network round-trip:
+ * slow, and a genuine source of CI flakes (two tests in this file timed out at
+ * jest's 5s default on 2026-08-05, passing again on re-run).
+ *
+ * Rate limiting is not what this file tests. Deleting the variable makes
+ * checkRateLimit take its documented "not configured → allow" branch
+ * deterministically, with no network.
+ *
+ * It has to be deleted here rather than in the environment because lib/env.ts
+ * requires REDIS_URL and validates at import time (via lib/auth/jwt.ts above) —
+ * unsetting it before the run fails the whole suite. checkRateLimit reads
+ * process.env at call time, so removing it after import is both safe and
+ * sufficient.
+ */
+const ORIGINAL_REDIS_URL = process.env.REDIS_URL;
+
+beforeAll(() => {
+  delete process.env.REDIS_URL;
+});
+
+afterAll(() => {
+  if (ORIGINAL_REDIS_URL !== undefined) process.env.REDIS_URL = ORIGINAL_REDIS_URL;
+});
+
 describe('proxy: /api/v1/organization/* backoffice carve-out', () => {
   it('lets an organization_coordinator backoffice token reach /organization/* and reshapes it as tenant', async () => {
     const token = signBackofficeAccessToken({
