@@ -2,6 +2,7 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
+import { resolveFundingPlan } from './funding-sources.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -202,9 +203,30 @@ export const loansService = {
         ],
       );
 
+      // Attribute the money to its funding source(s) — migration 118.
+      //
+      // This is what distinguishes "the group lent its own savings" from "the
+      // group on-lent an organization's capital", which are otherwise the same
+      // row. With no plan supplied it defaults to internal savings, so every
+      // pre-existing caller keeps working unchanged.
+      //
+      // A deferred constraint trigger asserts these sum to the principal, so a
+      // loan can never reach 'disbursed' only partly attributed.
+      const principal = parseFloat(rows[0].principal_amount);
+      const plan = await resolveFundingPlan(client, ctx.groupId, principal, data.fundingPlan);
+
+      for (const split of plan) {
+        await client.query(
+          `INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (loan_id, funding_source_id) DO UPDATE SET amount = EXCLUDED.amount`,
+          [ctx.groupId, rows[0].id, split.fundingSourceId, split.amount.toFixed(2)],
+        );
+      }
+
       // Post disbursement journal
       await postLoanDisbursementJournal(client, {
-        groupId: ctx.groupId, loanId: rows[0].id, principal: parseFloat(rows[0].principal_amount),
+        groupId: ctx.groupId, loanId: rows[0].id, principal,
         entryDate: rows[0].disbursement_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
       });
 
