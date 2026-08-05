@@ -27,7 +27,7 @@ import { logger } from '@/lib/logger';
 // parallel hand-maintained type is exactly what drifted in the client/server
 // contract audit — this way, adding a field to the schema is a compile error
 // here until it is persisted.
-import type { CreateProgramInput, CapitalAdjustmentInput } from '@/lib/validators/organization.schema';
+import type { CreateProgramInput, CapitalAdjustmentInput, DisburseInput } from '@/lib/validators/organization.schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,28 +142,23 @@ const orgId = (ctx: TenantContext): string => {
   return ctx.organizationId;
 };
 
-async function getWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
-  const { rows } = await db.query<OrgWallet>(
-    `SELECT * FROM organization_wallets
-     WHERE organization_id = $1 AND currency = 'KES' AND is_active
-     FOR UPDATE`,
-    [organizationId],
-  );
-  if (!rows[0]) throw new NotFoundError('Organization wallet');
-  return rows[0];
-}
-
 /**
- * Row-locks the org's wallet, creating it first if it doesn't exist yet.
+ * Row-locks the organization's wallet, creating it first if it doesn't exist.
  *
- * createOrganization() seeds a chart of accounts but NOT a wallet — the wallet
- * is created lazily by getWallet(). Capitalization only needs one because
- * organization_ledger.wallet_id is NOT NULL; no cash moves. So failing here
- * with "Organization wallet not found" would block capitalizing a product for
- * any organization that had never happened to open its wallet screen, which is
- * every newly-created organization. Mirrors getWallet's documented bootstrap.
+ * This USED to throw NotFoundError when no wallet row existed, which was a live
+ * bug: createOrganization() seeds a chart of accounts but NOT a wallet — only
+ * getWallet() creates one, lazily, when someone opens the wallet screen. So an
+ * organization's very first deposit() or disburse() failed with "Organization
+ * wallet not found" unless a coordinator happened to view that screen first.
+ * Found by the real-Postgres CI job while wiring Phase 2a; confirmed against
+ * production, where the live organization has no wallet row at all.
+ *
+ * Bootstrapping is the only sane behaviour here — a wallet is an implementation
+ * detail of holding a balance, not a thing a user opts into — so the throwing
+ * variant is deliberately gone rather than kept alongside this one, so no
+ * future caller can pick the footgun by accident.
  */
-async function getOrCreateWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
+async function getWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
   const { rows } = await db.query<OrgWallet>(
     `SELECT * FROM organization_wallets
      WHERE organization_id = $1 AND currency = 'KES' AND is_active
@@ -211,7 +206,7 @@ async function recordCapitalLedgerEntry(
   entryType: 'capitalization' | 'decapitalization',
   input: CapitalAdjustmentInput,
 ): Promise<void> {
-  const wallet = await getOrCreateWalletForUpdate(db, orgId(ctx));
+  const wallet = await getWalletForUpdate(db, orgId(ctx));
   const verb   = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
 
   await db.query(
@@ -229,6 +224,107 @@ async function recordCapitalLedgerEntry(
       input.notes ?? `${verb} — ${program.name}`,
       ctx.userId,
     ],
+  );
+}
+
+interface AllocationTerms {
+  isRepayable:        boolean;
+  interestRateAnnual: string | null;
+  repaymentFrequency: string | null;
+  tenorMonths:        number | null;
+  firstRepaymentDate: string | null;
+  maturityDate:       string | null;
+}
+
+const GRANT_TERMS: AllocationTerms = {
+  isRepayable: false, interestRateAnnual: null, repaymentFrequency: null,
+  tenorMonths: null, firstRepaymentDate: null, maturityDate: null,
+};
+
+/**
+ * Copies a product's repayment terms for stamping onto a new allocation.
+ *
+ * Read ONCE, at disbursement. The allocation then owns its own terms forever —
+ * repricing a product must never retroactively change what an existing
+ * borrower owes, which is why organization_disbursements carries these columns
+ * rather than joining back to funding_programs.
+ *
+ * A disbursement with no funding programme, or from a non-repayable one, is a
+ * plain grant: every term stays null and org_disb_non_repayable_shape enforces
+ * that at the database level.
+ */
+async function snapshotProductTerms(
+  db: PoolClient, fundingProgramId: string | null,
+): Promise<AllocationTerms> {
+  if (!fundingProgramId) return GRANT_TERMS;
+
+  const { rows } = await db.query<{
+    is_repayable: boolean; interest_rate_annual: string | null;
+    repayment_frequency: string; tenor_months: number | null; grace_period_days: number;
+  }>(
+    `SELECT is_repayable, interest_rate_annual, repayment_frequency,
+            tenor_months, grace_period_days
+     FROM funding_programs WHERE id = $1`,
+    [fundingProgramId],
+  );
+
+  const p = rows[0];
+  if (!p || !p.is_repayable) return GRANT_TERMS;
+
+  // Dates are derived from the product's grace period and tenor at the moment
+  // of disbursement, so a later change to either leaves this allocation alone.
+  const first    = new Date();
+  first.setDate(first.getDate() + (p.grace_period_days ?? 0));
+  const maturity = new Date(first);
+  maturity.setMonth(maturity.getMonth() + (p.tenor_months ?? 0));
+  const iso = (d: Date): string => d.toISOString().slice(0, 10);
+
+  return {
+    isRepayable:        true,
+    interestRateAnnual: p.interest_rate_annual,
+    repaymentFrequency: p.repayment_frequency,
+    tenorMonths:        p.tenor_months,
+    firstRepaymentDate: iso(first),
+    maturityDate:       iso(maturity),
+  };
+}
+
+/**
+ * Creates the group-side funding source for a settled allocation.
+ *
+ * THIS IS THE KEYSTONE of the capital layer. Without it, money arriving from an
+ * organization is indistinguishable from the group's own savings, so a member
+ * loan funded by that money cannot be attributed back — and no organization
+ * portfolio reporting is possible.
+ *
+ * Idempotent via uq_group_funding_sources_allocation (migration 115): calling
+ * this twice for the same allocation is a no-op, matching
+ * settleOrgDisbursement's own idempotency.
+ */
+async function createAllocationFundingSource(
+  db: PoolClient,
+  allocation: {
+    id: string; organization_id: string; group_id: string;
+    funding_program_id: string | null; is_repayable: boolean;
+  },
+): Promise<void> {
+  const { rows } = await db.query<{ org_name: string; program_name: string | null }>(
+    `SELECT o.name AS org_name, p.name AS program_name
+     FROM organizations o
+     LEFT JOIN funding_programs p ON p.id = $2
+     WHERE o.id = $1`,
+    [allocation.organization_id, allocation.funding_program_id],
+  );
+
+  const orgName = rows[0]?.org_name ?? 'Organization';
+  const label   = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
+
+  await db.query(
+    `INSERT INTO group_funding_sources
+       (group_id, source_type, allocation_id, organization_id, label, is_repayable)
+     VALUES ($1, 'organization_allocation', $2, $3, $4, $5)
+     ON CONFLICT DO NOTHING`,
+    [allocation.group_id, allocation.id, allocation.organization_id, label, allocation.is_repayable],
   );
 }
 
@@ -251,10 +347,11 @@ async function settleOrgDisbursement(id: string): Promise<void> {
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
       id: string; organization_id: string; wallet_id: string; group_id: string;
-      funding_program_id: string | null; disbursement_type: string; amount: string; reference: string;
+      funding_program_id: string | null; disbursement_type: string; amount: string;
+      reference: string; is_repayable: boolean;
     }>(
       `SELECT id, organization_id, wallet_id, group_id, funding_program_id,
-              disbursement_type, amount, reference
+              disbursement_type, amount, reference, is_repayable
        FROM   organization_disbursements
        WHERE  id = $1 AND status = 'approved'
        FOR UPDATE`,
@@ -262,6 +359,11 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     );
     const disb = rows[0];
     if (!disb) return; // already settled
+
+    // The money has landed in the group's books, so record WHERE it came from.
+    // Without this the group cannot later attribute a member loan back to this
+    // organization's capital — see createAllocationFundingSource.
+    await createAllocationFundingSource(db, disb);
 
     if (disb.funding_program_id) {
       await db.query(
@@ -778,13 +880,9 @@ export const organizationFinanceService = {
    */
   async disburse(
     ctx: TenantContext,
-    input: {
-      groupId: string;
-      amount: number;
-      disbursementType: string;
-      fundingProgramId?: string;
-      notes?: string;
-    },
+    // Typed against the validator, not a parallel hand-written shape — the
+    // same drift that bit createProgram when product terms were added.
+    input: DisburseInput,
   ): Promise<OrgDisbursement & { needsApproval: boolean }> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.amount > 0)) throw new ValidationError('Disbursement amount must be positive');
@@ -854,17 +952,29 @@ export const organizationFinanceService = {
         [input.amount.toFixed(2), wallet.id],
       );
 
+      // 5b. SNAPSHOT the product's terms onto the allocation (migration 117).
+      //     Copied once, here, and never re-read: repricing a product must not
+      //     retroactively change what an existing borrower owes. A disbursement
+      //     with no funding programme, or from a non-repayable one, stays a
+      //     plain grant with all terms null.
+      const terms = await snapshotProductTerms(db, input.fundingProgramId ?? null);
+
       const { rows: disbRows } = await db.query<OrgDisbursement>(
         `INSERT INTO organization_disbursements
            (organization_id, wallet_id, funding_program_id, group_id,
-            disbursement_type, amount, status, reference, notes, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            disbursement_type, amount, status, reference, notes, created_by,
+            purpose, is_repayable, interest_rate_annual, repayment_frequency,
+            tenor_months, first_repayment_date, maturity_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,
         [
           organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
           input.disbursementType, input.amount.toFixed(2),
           requiresApproval ? 'pending_approval' : 'approved',
           reference, input.notes ?? null, ctx.userId,
+          input.purpose ?? null,
+          terms.isRepayable, terms.interestRateAnnual, terms.repaymentFrequency,
+          terms.tenorMonths, terms.firstRepaymentDate, terms.maturityDate,
         ],
       );
 

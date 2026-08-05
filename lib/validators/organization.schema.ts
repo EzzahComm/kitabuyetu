@@ -170,6 +170,8 @@ export const DisburseSchema = z.object({
   disbursementType: z.enum(DISBURSEMENT_TYPES),
   fundingProgramId: z.string().uuid().optional(),
   notes:            z.string().max(500).optional(),
+  /** What the allocation is for, e.g. "On-lending to members" (migration 117). */
+  purpose:          z.string().max(500).optional(),
 });
 
 export const DisbursementActionSchema = z.discriminatedUnion('action', [
