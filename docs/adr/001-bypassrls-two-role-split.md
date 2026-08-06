@@ -1,8 +1,10 @@
 # ADR 001: Stop relying on BYPASSRLS for tenant traffic via a two-role split
 
-**Status:** Accepted, partially implemented (Phase 0 shipped; Phase 1 code + CI
-verification shipped, production role creation pending; Phase 3 deferred).
-**Date:** 2026-07-22 (Phase 1 CI verification added 2026-07-27)
+**Status:** Accepted. **Phases 0 and 1 COMPLETE and live in production as of
+2026-08-05** — tenant traffic runs as `app_tenant` under real RLS enforcement.
+Phase 3 deferred.
+**Date:** 2026-07-22 (Phase 1 CI verification added 2026-07-27; production
+cutover completed 2026-08-05)
 **Related:** `docs/audits/OPTIMIZATION_CLEANUP_AUDIT.md` Critical #2, Medium-term
 roadmap item "Write down the BYPASSRLS decision explicitly."
 
@@ -129,15 +131,48 @@ for an unfiltered query. This is a continuously-re-verified CI gate, not a one-t
 check, and covers both halves of the "staging verification pass" this ADR calls for
 below — before production is ever touched.
 
+## Phase 1 completion — DONE (2026-08-05)
+
+The production cutover is live. `TENANT_DATABASE_URL` is set in Vercel Production,
+so `withDb()`/`withTransaction()` connect as `app_tenant` (`NOBYPASSRLS`,
+`NOSUPERUSER`) while `withAdminDb()` continues on `postgres` exactly as before.
+
+**The script's open question is answered: Supavisor DOES proxy a custom LOGIN role.**
+Connection facts, recorded so nobody has to rediscover them:
+
+- Pooler host `aws-1-eu-central-1.pooler.supabase.com:5432`, database `postgres`.
+  Note `aws-1-`, not `aws-0-` — the wrong prefix returns Supavisor's misleading
+  "tenant/user not found", which reads like the role is unsupported rather than
+  the host being wrong.
+- Supavisor username format is `<role>.<project_ref>`, i.e.
+  `app_tenant.<ref>` — not a bare `app_tenant`.
+- The direct host `db.<ref>.supabase.co` is IPv6-only and unreachable from
+  ordinary networks and from Vercel, matching `lib/db/index.ts`'s comment.
+
+**Verified before the switch** (against production, as `app_tenant` through the
+pooler): with no tenant GUC set, `SELECT count(*) FROM groups` returns 0; with a
+real group's GUCs set it returns exactly that group's rows; with a bogus group
+UUID it returns 0. **Verified after**: 14 pooled `app_tenant` connections appeared
+on the first real sign-in, alongside `postgres` connections for admin paths, with
+no `42501`/RLS errors in the Postgres log.
+
+`app_tenant`'s password was rotated during the cutover — this script ships a
+`REPLACE_ME_BEFORE_RUNNING` placeholder and there was no way to confirm it had
+been replaced. Note that Vercel environment variables are sensitive/write-only by
+default: `vercel env pull` returns empty strings for user secrets, so the value
+cannot be read back. Rotate rather than attempt to recover it.
+
+**Rollback**: `vercel env rm TENANT_DATABASE_URL production` + redeploy (~2 min);
+`lib/db` falls back to the admin pool. No schema change to undo.
+
+**Known gap**: Preview currently has no `TENANT_DATABASE_URL` (its stale value was
+removed during rotation, and `vercel env add ... preview` loops on a git-branch
+prompt even with `--yes --non-interactive`). Preview therefore falls back to the
+admin pool. CI's `app_tenant` job still exercises RLS on every PR, so coverage is
+retained; restoring Preview is a convenience, not a correctness gap.
+
 ## Follow-up (not yet done)
 
-- **Phase 1 completion**: run `scripts/ops/create-app-tenant-role.sql` against
-  production (pending confirmation that Supavisor will proxy a newly created custom
-  role — see the script's own header), set `TENANT_DATABASE_URL` (canary via Preview
-  first, since Preview shares the live database with Production), then promote to
-  Production. The functional-parity and RLS-enforcement proofs this now needs are
-  already continuously verified in CI (see above) — this step is the actual
-  production cutover, not further verification.
 - **Phase 3 (deferred, not blocking)**: incrementally migrate the ~130 "tenant data
   behind a weak gate" `withAdminDb` call sites (email/SMS/campaign services) onto
   `withDb(ctx, ...)` so they run under `app_tenant` too, service by service. Two
