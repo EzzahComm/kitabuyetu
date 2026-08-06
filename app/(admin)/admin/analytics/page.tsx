@@ -17,14 +17,6 @@ const TopGroupsChart = dynamic(() => import('./_charts').then((m) => m.TopGroups
   ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
 });
 
-const GROUP_TYPE_COLORS: Record<string, string> = {
-  chama:       '#3b82f6',
-  sacco:       '#7c3aed',
-  welfare:     '#f43f5e',
-  investment:  '#10b981',
-  organization_group:   '#f59e0b',
-};
-
 export default function AnalyticsPage() {
   const { data, isLoading } = useAdminAnalytics();
 

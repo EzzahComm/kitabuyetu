@@ -28,6 +28,7 @@ interface TargetRow {
   email:         string | null;
   platform_role: string;
   session_version: number;
+  permissions:   string[];   // roles.permissions via gm.role_id (RBAC activation)
 }
 
 /**
@@ -56,7 +57,8 @@ export async function POST(req: NextRequest): Promise<Response> {
                   g.group_code, g.name AS group_name, g.status AS group_status,
                   go.role AS officer_role,
                   m.first_name, m.last_name, m.phone, m.email,
-                  m.platform_role, m.session_version
+                  m.platform_role, m.session_version,
+                  COALESCE(r.permissions, '{}') AS permissions
            FROM   group_members gm
            JOIN   groups  g ON g.id = gm.group_id
                             AND g.status NOT IN ('suspended','archived')
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest): Promise<Response> {
            LEFT JOIN group_officers go
              ON go.group_id = gm.group_id AND go.member_id = gm.member_id
             AND go.removed_at IS NULL
+           LEFT JOIN roles r ON r.id = gm.role_id
            WHERE  gm.member_id = $1 AND gm.group_id = $2 AND gm.status = 'active'`,
           [auth.userId, input.groupId],
         );
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         membershipNo:   target.membership_no,
         authVersion:    target.auth_version,
         sessionVersion: target.session_version,
+        permissions:    target.permissions,
       });
 
       const { token: refreshToken } = signRefreshToken(
@@ -128,6 +132,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           personId:     target.person_id,
           officerRole:  target.officer_role ?? undefined,
           groupStatus:  target.group_status,
+          permissions:  target.permissions,
         },
       };
       return ok(response);

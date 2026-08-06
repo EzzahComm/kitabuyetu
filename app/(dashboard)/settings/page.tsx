@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { membersApi } from '@/lib/api/endpoints';
+import { membersApi, authApi } from '@/lib/api/endpoints';
 import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo, normalizeAccountRef } from '@/lib/utils/membership-no';
 import { getErrorMessage } from '@/lib/utils';
@@ -57,21 +57,20 @@ export default function SettingsPage() {
     }
   };
 
-  // NOTE: this silently does nothing today. PATCH /members/[id]'s
-  // UpdateMemberSchema (lib/validators/member.schema.ts) has no
-  // currentPassword/password fields at all, and members.service.ts's
-  // update() whitelists an explicit column fieldMap that doesn't include
-  // a password path either — Zod strips the unrecognized keys, the request
-  // succeeds, and password_hash is never touched. The toast below always
-  // fires "Password changed" even though nothing changed. Building a real
-  // password-change flow (verify currentPassword via bcrypt.compare, hash
-  // and store newPassword) is a genuine security-relevant feature gap, not
-  // a typing fix — flagging rather than silently shipping a fake success.
   const onPasswordChange = async (values: PasswordForm) => {
     if (!user) return;
     try {
-      await membersApi.update(user.id, { currentPassword: values.currentPassword, password: values.newPassword });
-      toast({ title: 'Password changed' });
+      // Real endpoint as of CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md — this used
+      // to PATCH /members/[id] with fields that schema ignores, so it always
+      // reported success without changing anything.
+      await authApi.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword:     values.newPassword,
+      });
+      toast({
+        title: 'Password changed',
+        description: 'Other devices have been signed out.',
+      });
       resetPwd();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(err) });

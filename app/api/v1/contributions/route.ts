@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { contributionsService } from '@/lib/services/contributions.service';
 import { ContributionQuerySchema, CreateContributionSchema } from '@/lib/validators/contribution.schema';
 import { ok, created } from '@/lib/utils/response';
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'contributions.record', async (auth) => {
     const input = CreateContributionSchema.parse(await req.json());
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const contribution = await contributionsService.create(ctx, input);

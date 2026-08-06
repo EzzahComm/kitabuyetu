@@ -34,6 +34,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
+        // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C6 — without a height cap a tall
+        // form (share class: 9 fields; journal entry: unbounded line items)
+        // overflows a ~650px phone viewport with Submit unreachable and no way
+        // to scroll to it. `dvh` (not `vh`) so a mobile browser's collapsing
+        // address bar doesn't push the footer off-screen. Call sites that set
+        // their own max-h/overflow still win — cn() is twMerge.
+        'max-h-[85dvh] overflow-y-auto',
         'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
         className,
       )}

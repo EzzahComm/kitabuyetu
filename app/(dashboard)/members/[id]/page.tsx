@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import type { CreateNextOfKinPayload, MemberStatus } from '@/lib/validators/member.schema';
 import type { Tone } from '@/lib/ui/tokens';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -76,7 +78,6 @@ interface NextOfKin {
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: member, isLoading: loadingMember } = useMember(id);
@@ -98,7 +99,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   });
 
   const [kinDialogOpen, setKinDialogOpen] = useState(false);
-  const [statusDialog,  setStatusDialog]  = useState<null | { target: string }>(null);
+  const [statusDialog,  setStatusDialog]  = useState<null | { target: MemberStatus }>(null);
   const [stkOpen,       setStkOpen]       = useState(false);
 
   if (loadingMember) {
@@ -146,7 +147,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             </Avatar>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold">{fullName}</h1>
+                <h1 className="text-2xl font-bold">{fullName}</h1>
                 <Badge variant={roleVariant[m.group_role] ?? 'outline'}>
                   {roleLabels[m.group_role] ?? m.group_role}
                 </Badge>
@@ -383,6 +384,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 function KinRow({ memberId, kin }: { memberId: string; kin: NextOfKin }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — was a native window.confirm().
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const del = useMutation({
     mutationFn: () => nextOfKinApi.remove(memberId, kin.id),
     onSuccess: () => {
@@ -412,13 +415,23 @@ function KinRow({ memberId, kin }: { memberId: string; kin: NextOfKin }) {
       </div>
       <Button
         size="sm" variant="ghost" type="button"
-        onClick={() => { if (confirm(`Remove ${kin.full_name}?`)) del.mutate(); }}
+        onClick={() => setConfirmOpen(true)}
         disabled={del.isPending}
         aria-label={`Remove ${kin.full_name}`}
         title="Remove"
       >
         <Trash2 size={14} className="text-destructive" />
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        variant="danger"
+        title={`Remove ${kin.full_name}?`}
+        description="This contact will no longer be listed as next of kin for this member."
+        confirmLabel="Remove"
+        onConfirm={() => del.mutateAsync()}
+      />
     </div>
   );
 }
@@ -455,7 +468,7 @@ function AddKinDialog({
   });
 
   const create = useMutation({
-    mutationFn: (body: unknown) => nextOfKinApi.create(memberId, body),
+    mutationFn: (body: CreateNextOfKinPayload) => nextOfKinApi.create(memberId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['next-of-kin', memberId] });
       toast({ title: 'Contact added' });
@@ -468,11 +481,12 @@ function AddKinDialog({
   });
 
   const onSubmit = (v: KinFormValues) => {
-    const body: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(v)) {
-      if (val === '' || val === undefined) continue;
-      body[k] = val;
-    }
+    // Same strip-empties-then-assert shape as members/page.tsx's create form:
+    // the form schema mirrors CreateNextOfKinSchema field-for-field, but
+    // Object.entries erases that so the assertion restores it.
+    const body = Object.fromEntries(
+      Object.entries(v).filter(([, val]) => val !== '' && val !== undefined),
+    ) as unknown as CreateNextOfKinPayload;
     create.mutate(body);
   };
 
@@ -486,7 +500,7 @@ function AddKinDialog({
             <Input {...register('fullName', { required: 'Required', minLength: 2 })} />
             {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Relationship</Label>
               <select
@@ -526,19 +540,19 @@ function AddKinDialog({
               <Label>Alt. phone</Label>
               <Input placeholder="0712345678" {...register('alternativePhone')} />
             </div>
-            <div className="space-y-1 col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label>Email <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input type="email" {...register('email')} />
             </div>
-            <div className="space-y-1 col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label>Address <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input {...register('address')} />
             </div>
-            <div className="space-y-1 col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label>National ID <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input {...register('nationalId')} />
             </div>
-            <div className="space-y-1 col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label>Notes</Label>
               <Input {...register('notes')} />
             </div>
@@ -570,7 +584,7 @@ function StatusDialog({
   memberId, target, onClose, onApplied,
 }: {
   memberId: string;
-  target: string | null;
+  target: MemberStatus | null;
   onClose: () => void;
   onApplied: () => void;
 }) {

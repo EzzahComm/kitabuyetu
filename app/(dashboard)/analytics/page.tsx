@@ -18,6 +18,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
+import { getErrorMessage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 // OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
@@ -98,7 +99,7 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Analytics"
         description="Executive view across members, finances, shares, dividends and credit health."
@@ -138,7 +139,11 @@ export default function AnalyticsPage() {
         }
       />
 
-      {summaryQ.isLoading || !s ? (
+      {summaryQ.isError ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Couldn&apos;t load analytics data. {getErrorMessage(summaryQ.error)}
+        </div>
+      ) : summaryQ.isLoading || !s ? (
         <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : (
         <>

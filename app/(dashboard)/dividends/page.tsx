@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { PaginatedResult } from '@/types/db.types';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 interface Declaration {
   id: string;
@@ -60,6 +61,7 @@ export default function DividendsPage() {
   const router    = useRouter();
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const canManage = useHasPermission('dividends.manage');
 
   const listQ = useQuery<PaginatedResult<Declaration>>({
     queryKey: ['dividends', 'list', page],
@@ -103,20 +105,24 @@ export default function DividendsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Dividends"
         description="Declare, approve, and pay out dividend distributions to shareholders."
         actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" /> New declaration
-          </Button>
+          canManage ? (
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={16} className="mr-2" /> New declaration
+            </Button>
+          ) : undefined
         }
       />
 
       <PaginatedTable<Declaration>
         data={listQ.data}
         isLoading={listQ.isLoading}
+        isError={listQ.isError}
+        error={listQ.error}
         onPageChange={setPage}
         onRowClick={(d) => router.push(`/dividends/${d.id}`)}
         emptyMessage="No dividend declarations yet"

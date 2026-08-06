@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { contributionSplitsService } from '@/lib/services/contribution-splits.service';
 import {
   CreateContributionSplitSchema,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 /** POST /api/v1/settings/contribution-splits — add one split rule (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const input = CreateContributionSplitSchema.parse(await req.json());
       const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 /** PUT /api/v1/settings/contribution-splits — replace the whole rule set (treasurer+). */
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const input = ReplaceContributionSplitsSchema.parse(await req.json());
       const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

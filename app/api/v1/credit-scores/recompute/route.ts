@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { creditScoresService } from '@/lib/services/credit-scores.service';
 import { ok } from '@/lib/utils/response';
 
@@ -10,7 +10,7 @@ import { ok } from '@/lib/utils/response';
  * potentially expensive batch operation and changes scoring for everyone.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'admin.recompute', async (auth) => {
     const result = await creditScoresService.recomputeAll(
       { userId: auth.userId, groupId: auth.groupId, role: auth.role },
     );

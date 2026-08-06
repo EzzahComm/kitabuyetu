@@ -4,6 +4,8 @@ import { handleError } from '@/lib/utils/response';
 import type { AuthContext } from '@/types/api.types';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 import { requireRole, requireOneOf } from './rbac';
+import { requirePermission, requireAnyPermission } from './permissions';
+import { requireOrganizationPermission, type OrganizationPermission } from './organization-permissions';
 
 // ─── Tenant (consumer) context ─────────────────────────────────────────
 
@@ -33,12 +35,14 @@ export function getAuthContext(req: NextRequest): AuthContext {
   const membershipNo  = req.headers.get('x-membership-no') ?? undefined;
   const authVersionH  = req.headers.get('x-auth-version');
   const sessionVersionH = req.headers.get('x-session-version');
+  const permissionsH  = req.headers.get('x-permissions');
 
   return {
     userId, groupId, role, organizationId,
     membershipId, membershipNo,
     authVersion:    authVersionH    != null ? Number(authVersionH)    : undefined,
     sessionVersion: sessionVersionH != null ? Number(sessionVersionH) : undefined,
+    permissions:    permissionsH    != null ? permissionsH.split(',').filter(Boolean) : undefined,
   };
 }
 
@@ -79,6 +83,51 @@ export function withOneOf(
 ): Promise<Response> {
   return withAuth(req, async (auth) => {
     requireOneOf(auth.role, allowed);
+    return handler(auth);
+  });
+}
+
+/**
+ * withAuth variant that enforces a specific permission string (RBAC
+ * activation — SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4), resolved from
+ * roles.permissions at token-issue time rather than a coarse role tier.
+ * super_admin bypasses this check (see lib/auth/permissions.ts).
+ */
+export function withPermission(
+  req: NextRequest,
+  required: string,
+  handler: (auth: AuthContext) => Promise<Response>,
+): Promise<Response> {
+  return withAuth(req, async (auth) => {
+    requirePermission(auth, required);
+    return handler(auth);
+  });
+}
+
+/** withAuth variant that enforces one-of-many allowed permission strings. */
+export function withAnyPermission(
+  req: NextRequest,
+  allowed: string[],
+  handler: (auth: AuthContext) => Promise<Response>,
+): Promise<Response> {
+  return withAuth(req, async (auth) => {
+    requireAnyPermission(auth, allowed);
+    return handler(auth);
+  });
+}
+
+/**
+ * withAuth variant for the /api/v1/organization/* platform-role axis
+ * (organization_coordinator / super_admin) — see lib/auth/organization-permissions.ts
+ * for why this is a flat allowlist rather than roles.permissions-backed.
+ */
+export function withOrganizationPermission(
+  req: NextRequest,
+  permission: OrganizationPermission,
+  handler: (auth: AuthContext) => Promise<Response>,
+): Promise<Response> {
+  return withAuth(req, async (auth) => {
+    requireOrganizationPermission(auth, permission);
     return handler(auth);
   });
 }

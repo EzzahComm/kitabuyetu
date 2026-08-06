@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withOneOf } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withOneOf(req, ['chairperson', 'super_admin'], async (auth) => {
+  return withPermission(req, 'messaging.manage', async (auth) => {
     const body = BrandingSchema.parse(await req.json());
 
     await withAdminDb((db) =>

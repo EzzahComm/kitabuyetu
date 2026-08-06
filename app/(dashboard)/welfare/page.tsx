@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Heart, Wallet, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Wallet, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { useHasPermission } from '@/lib/auth/use-permission';
 
 const requestSchema = z.object({
   requestType:     z.enum(['funeral','hospital','emergency','education','maternity','bereavement','disability','other']),
@@ -43,20 +44,23 @@ type WelfarePoolForm = z.infer<typeof poolSchema>;
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
   high:   'text-orange-500 font-medium',
-  normal: 'text-gray-700',
-  low:    'text-gray-400',
+  normal: 'text-foreground',
+  low:    'text-muted-foreground',
 };
 
 export default function WelfarePage() {
-  const [tab, setTab]               = useState('requests');
   const [page, setPage]             = useState(1);
   const [statusFilter, setStatus]   = useState('all');
   const [openRequest, setOpenRequest] = useState(false);
   const [openPool, setOpenPool]     = useState(false);
-  const [reviewId, setReviewId]     = useState<string | null>(null);
+  const [reviewRow, setReviewRow]   = useState<WelfareRequestRow | null>(null);
+  const [approveAmount, setApproveAmount] = useState('');
+  const [rejectReason,  setRejectReason]  = useState('');
+  const [reviewBusy,    setReviewBusy]    = useState(false);
   const { toast } = useToast();
+  const canManage = useHasPermission('welfare.manage');
 
-  const { data, isLoading }   = useWelfareRequests({
+  const { data, isLoading, isError, error } = useWelfareRequests({
     page, limit: 20,
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
   });
@@ -65,7 +69,7 @@ export default function WelfarePage() {
 
   const createReq = useCreateWelfareRequest();
   const recordPool = useRecordWelfarePoolContribution();
-  const reviewReq  = useReviewWelfareRequest(reviewId ?? '');
+  const reviewReq  = useReviewWelfareRequest(reviewRow?.id ?? '');
 
   const reqForm = useForm<WelfareRequestForm>({
     resolver: zodResolver(requestSchema),
@@ -92,12 +96,53 @@ export default function WelfarePage() {
     } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
   };
 
-  const onApprove = async (id: string, amountApproved: number) => {
+  const openReview = (row: WelfareRequestRow) => {
+    setReviewRow(row);
+    // Default to approving the full request; the officer edits this down for a
+    // partial award. Never 0 — see onApprove.
+    setApproveAmount(String(Number(row.amount_requested)));
+    setRejectReason('');
+  };
+  const closeReview = () => { setReviewRow(null); setApproveAmount(''); setRejectReason(''); };
+
+  /**
+   * UX_UI_OPTIMIZATION_AUDIT_2026-08.md M3. This previously called
+   * `onApprove(reviewId, 0)` — and 0 does not fail silently or record a zero
+   * award: ReviewWelfareRequestSchema declares `amountApproved` as
+   * `.positive().optional()`, so 0 is rejected by the validator and the
+   * request 400s. The Quick Review approve button could never approve
+   * anything. The officer now confirms an explicit amount, pre-filled with
+   * the full request (which is also what welfare.service.ts falls back to
+   * when the field is omitted: `data.amountApproved ?? req.amount_requested`).
+   */
+  const onApprove = async () => {
+    if (!reviewRow) return;
+    const amount = Number(approveAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast({ variant: 'destructive', title: 'Enter an approved amount', description: 'Must be greater than zero.' });
+      return;
+    }
+    setReviewBusy(true);
     try {
-      await reviewReq.mutateAsync({ action: 'approve', amountApproved });
-      toast({ title: 'Request approved' });
-      setReviewId(null);
+      await reviewReq.mutateAsync({ action: 'approve', amountApproved: amount });
+      toast({ title: 'Request approved', description: `Approved ${formatKES(amount)}` });
+      closeReview();
     } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
+    finally { setReviewBusy(false); }
+  };
+
+  /** Reject used to hard-code 'Declined by officer' as the reason, so the
+   *  audit trail recorded nothing about why. Matches the enterprise
+   *  disbursements flow: a typed reason is required. */
+  const onReject = async () => {
+    if (!reviewRow || rejectReason.trim().length < 5) return;
+    setReviewBusy(true);
+    try {
+      await reviewReq.mutateAsync({ action: 'reject', rejectionReason: rejectReason.trim() });
+      toast({ title: 'Request rejected' });
+      closeReview();
+    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
+    finally { setReviewBusy(false); }
   };
 
   const summary = poolData?.summary;
@@ -133,7 +178,7 @@ export default function WelfarePage() {
     {
       key: 'actions', header: '',
       render: (row: WelfareRequestRow) => row.status === 'pending' ? (
-        <Button size="sm" variant="outline" onClick={() => { setReviewId(row.id); }}>Review</Button>
+        <Button size="sm" variant="outline" onClick={() => openReview(row)}>Review</Button>
       ) : null,
     },
   ];
@@ -145,9 +190,11 @@ export default function WelfarePage() {
         description="Community welfare fund and member support"
         actions={
           <>
-            <Button variant="outline" onClick={() => setOpenPool(true)}>
-              <Wallet size={16} className="mr-2" /> Record Fund Contribution
-            </Button>
+            {canManage && (
+              <Button variant="outline" onClick={() => setOpenPool(true)}>
+                <Wallet size={16} className="mr-2" /> Record Fund Contribution
+              </Button>
+            )}
             <Button onClick={() => setOpenRequest(true)}>
               <Plus size={16} className="mr-2" /> Submit Request
             </Button>
@@ -190,6 +237,8 @@ export default function WelfarePage() {
           <PaginatedTable
             data={data}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             columns={columns}
             onPageChange={setPage}
             emptyMessage="No welfare requests found"
@@ -224,7 +273,7 @@ export default function WelfarePage() {
                 placeholder="Provide details about the welfare need…"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount Requested (KES)</Label>
                 <Input type="number" step="0.01" {...reqForm.register('amountRequested')} />
@@ -260,7 +309,7 @@ export default function WelfarePage() {
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (KES)</Label>
                 <Input type="number" step="0.01" {...poolForm.register('amount')} />
@@ -296,34 +345,86 @@ export default function WelfarePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Quick review dialog */}
-      {reviewId && (
-        <Dialog open={!!reviewId} onOpenChange={() => setReviewId(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Review Welfare Request</DialogTitle></DialogHeader>
+      {/* Quick review dialog — UX_UI_OPTIMIZATION_AUDIT_2026-08.md M3.
+          Was two bare buttons that fired immediately: approve sent a hardcoded
+          0 (which the API rejects outright) and reject sent a hardcoded
+          reason. Both decisions now require an explicit, typed input. */}
+      {reviewRow && (
+        <Dialog open={!!reviewRow} onOpenChange={(o) => { if (!o && !reviewBusy) closeReview(); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Review welfare request</DialogTitle></DialogHeader>
+
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Select an action for this welfare request.</p>
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  onClick={() => onApprove(reviewId, 0)}
-                >
-                  <CheckCircle2 size={16} className="mr-2" /> Approve
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={async () => {
-                    try {
-                      await reviewReq.mutateAsync({ action: 'reject', rejectionReason: 'Declined by officer' });
-                      toast({ title: 'Request rejected' }); setReviewId(null);
-                    } catch (e) { toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }); }
-                  }}
-                >
-                  Reject
-                </Button>
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">{reviewRow.title}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {reviewRow.request_type?.replace('_', ' ')} · {reviewRow.member_name}
+                </p>
+                <dl className="mt-2 flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Requested</dt>
+                  <dd className="font-mono font-semibold">{formatKES(reviewRow.amount_requested)}</dd>
+                </dl>
+              </div>
+
+              {!canManage && (
+                <p className="text-xs text-destructive">Requires treasurer or chairperson to approve or reject.</p>
+              )}
+
+              <div className="space-y-1">
+                <Label htmlFor="approveAmount">Amount to approve (KES)</Label>
+                <Input
+                  id="approveAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={approveAmount}
+                  disabled={!canManage || reviewBusy}
+                  onChange={(e) => setApproveAmount(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pre-filled with the full request. Lower it to approve a partial award.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="rejectReason">Rejection reason</Label>
+                <Input
+                  id="rejectReason"
+                  value={rejectReason}
+                  disabled={!canManage || reviewBusy}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Why is this request being declined?"
+                />
+                <p className="text-xs text-muted-foreground">Required to reject — recorded on the request.</p>
               </div>
             </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                variant="outline"
+                onClick={closeReview}
+                disabled={reviewBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={onReject}
+                loading={reviewBusy}
+                disabled={!canManage || rejectReason.trim().length < 5}
+                title={!canManage ? 'Requires treasurer or chairperson' : undefined}
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={onApprove}
+                loading={reviewBusy}
+                disabled={!canManage || !(Number(approveAmount) > 0)}
+                title={!canManage ? 'Requires treasurer or chairperson' : undefined}
+              >
+                <CheckCircle2 size={16} className="mr-2" /> Approve
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

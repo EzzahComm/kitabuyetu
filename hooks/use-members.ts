@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { membersApi } from '@/lib/api/endpoints';
+import type { CreateMemberPayload, UpdateMemberPayload } from '@/lib/validators/member.schema';
 
 export const memberKeys = {
   all:    ['members'] as const,
@@ -25,7 +26,7 @@ export function useMember(id: string) {
 export function useCreateMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => membersApi.create(body),
+    mutationFn: (body: CreateMemberPayload) => membersApi.create(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: memberKeys.all }),
   });
 }
@@ -33,7 +34,7 @@ export function useCreateMember() {
 export function useUpdateMember(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => membersApi.update(id, body),
+    mutationFn: (body: UpdateMemberPayload) => membersApi.update(id, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: memberKeys.list() });
       qc.invalidateQueries({ queryKey: memberKeys.detail(id) });

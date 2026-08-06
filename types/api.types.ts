@@ -31,6 +31,11 @@ export interface AuthContext {
   membershipNo?:   string;
   authVersion?:    number;
   sessionVersion?: number;
+  // RBAC permission activation (SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4).
+  // Resolved from group_members.role_id -> roles.permissions at token-issue
+  // time (login/refresh/switch-group); same "drift bounded by the
+  // access-token TTL" model as the epochs above. Absent on legacy tokens.
+  permissions?: string[];
 }
 
 // ------------------------------------------------------------------
@@ -57,6 +62,13 @@ export interface LoginResponse {
     officerRole?: string;   // formal governance role from group_officers (chair/sec/treas/etc.)
     // ── Phase D Part 2: group lifecycle ──
     groupStatus?: string;   // 'pending_verification' | 'active' | …
+    // RBAC permission activation frontend rollout (UX_UI_OPTIMIZATION_AUDIT_2026-08.md
+    // Phase 1). Same value already embedded in the signed access token
+    // (AuthContext.permissions) — surfaced here too so client components can
+    // gate UI without decoding the JWT. Stale only across a bare token
+    // refresh (refresh/route.ts returns no member object at all); a fresh
+    // login or group switch always re-syncs it.
+    permissions?: string[];
   };
 }
 

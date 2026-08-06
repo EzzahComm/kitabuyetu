@@ -6,10 +6,11 @@
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { requestReversal } from '@/lib/services/daraja.service';
 import { handleReversalResult } from '@/lib/services/mpesa.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
+import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -54,10 +55,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated reversal initiation (treasurer or above)
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
-      // Sensitive op (§2.5): reversals move money — re-check epochs.
-      await assertAuthFresh(auth);
+      // Sensitive op (§2.5): reversals move money — re-check epochs, and
+      // re-verify against LIVE roles.permissions, not just the token's claim.
+      const freshPermissions = await assertAuthFresh(auth);
+      requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');
 
       const input = ReversalSchema.parse(await req.json());
 
@@ -103,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 /** List reversals for the authenticated group */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(

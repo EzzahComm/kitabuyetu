@@ -22,6 +22,11 @@
  * Lockout namespace is `admin:<email>` so consumer attackers can't burn
  * an admin's lockout budget by guessing their phone. Decoy bcrypt
  * compare prevents email enumeration.
+ *
+ * Shared by two frontend surfaces — /admin-login (platform staff) and
+ * /enterprise/login (organization staff) — distinguished by `input.surface`
+ * and enforced via SURFACE_ALLOWED_ROLES. One MFA/token pipeline either way;
+ * only the pre-check of which platform_role is allowed on which page differs.
  */
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +58,16 @@ const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG
 
 const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
+
+// Two login surfaces, one shared MFA/token pipeline (see route doc comment
+// above). super_admin is allowed on both — it's the platform god-role and
+// needs access to both /admin (backoffice) and /enterprise (as an override).
+// organization_coordinator is /enterprise/login-only; support is
+// /admin-login-only.
+const SURFACE_ALLOWED_ROLES: Record<'platform' | 'organization', readonly AdminPlatformRole[]> = {
+  platform:     ['super_admin', 'support'],
+  organization: ['super_admin', 'organization_coordinator'],
+};
 
 interface AdminMemberRow {
   id:            string;
@@ -101,6 +116,17 @@ export async function POST(req: NextRequest): Promise<Response> {
         return { kind: 'invalid' as const };
       }
 
+      // Right password, real staff account — just the wrong surface
+      // (e.g. an organization_coordinator hitting /admin-login). Distinct
+      // from 'invalid': the password already proved account ownership, so
+      // a clearer message here doesn't create a new enumeration primitive
+      // (nothing is revealed without already knowing the password), and
+      // it's the whole point of having two surfaces — send them to the
+      // right one instead of a confusing false "wrong password".
+      if (!SURFACE_ALLOWED_ROLES[input.surface].includes(member.platform_role as AdminPlatformRole)) {
+        return { kind: 'wrongSurface' as const };
+      }
+
       // Look up existing MFA enrollment, if any.
       const { rows: mfa } = await client.query<{ member_id: string }>(
         `SELECT member_id FROM member_mfa_secrets WHERE member_id = $1`,
@@ -116,6 +142,15 @@ export async function POST(req: NextRequest): Promise<Response> {
         await lockAccount(lockKey, LOCKOUT_MINUTES);
       }
       return errorResponse('Invalid email or password', 'INVALID_CREDENTIALS', 401);
+    }
+
+    if (result.kind === 'wrongSurface') {
+      // Not a guessing attempt — don't burn lockout budget on it.
+      const otherPage = input.surface === 'organization' ? '/admin-login' : '/enterprise/login';
+      return errorResponse(
+        `This account isn't valid on this sign-in page. Try signing in at ${otherPage}.`,
+        'WRONG_LOGIN_SURFACE', 403,
+      );
     }
 
     const { member, enrolled } = result;

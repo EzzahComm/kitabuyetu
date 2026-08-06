@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Search, LogOut, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, LogOut, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
@@ -13,6 +13,21 @@ export interface PortalNavItem {
   label:  string;
   icon:   React.ElementType;
   badge?: number;
+  /**
+   * Turns this item into a collapsible group instead of a direct link —
+   * SIMPLIFICATION_AND_RBAC_AUDIT.md §3's "More"/overflow primitive.
+   * `href` is ignored for a group (nothing to navigate to); it stays
+   * required on the type so every item can still be used as a plain link
+   * when `children` is omitted, without a second interface to keep in sync.
+   */
+  children?: PortalNavItem[];
+  /**
+   * Renders the item as a non-interactive "Soon" row instead of a link — shows
+   * the planned IA without a dead destination. Ported from the enterprise
+   * portal's own sidebar when it merged in here
+   * (UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4).
+   */
+  soon?: boolean;
 }
 
 export interface PortalNavSection {
@@ -51,6 +66,7 @@ const V = {
     footerCollapsed:'px-1',
     signOut:        'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors',
     signOutIcon:    15,
+    subGroupBorder: 'border-gray-200',
   },
   dark: {
     overlay:        'bg-black/50',
@@ -73,13 +89,39 @@ const V = {
     footerCollapsed:'',
     signOut:        'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors',
     signOutIcon:    18,
+    subGroupBorder: 'border-gray-700',
+  },
+  // Customer-facing enterprise portal: brand green on semantic tokens, not the
+  // raw grays the two staff-facing variants above use.
+  brand: {
+    overlay:        'bg-black/40',
+    aside:          'bg-background border-r transition-transform',
+    headerExpanded: 'flex h-14 items-center justify-between border-b px-3 shrink-0',
+    headerCollapsed:'flex h-14 items-center justify-between border-b px-3 shrink-0',
+    closeBtn:       'lg:hidden rounded p-1 text-muted-foreground hover:text-foreground',
+    closeIcon:      16,
+    nav:            'flex-1 overflow-y-auto p-3 space-y-4',
+    sectionTitle:   'mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground',
+    sectionWrap:    '',
+    itemsWrap:      'space-y-0.5',
+    link:           'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
+    linkActive:     'bg-brand-50 text-brand-700',
+    linkInactive:   'text-muted-foreground hover:bg-muted hover:text-foreground',
+    iconActive:     'text-brand-600',
+    iconInactive:   'text-muted-foreground',
+    iconSize:       17,
+    footer:         'border-t p-3 shrink-0',
+    footerCollapsed:'',
+    signOut:        'w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors',
+    signOutIcon:    17,
+    subGroupBorder: 'border-border',
   },
 } as const;
 
 interface PortalSidebarProps {
   open:      boolean;
   onClose:   () => void;
-  variant:   'light' | 'dark';
+  variant:   keyof typeof V;
   sections:  PortalNavSection[];
   isActive:  (href: string) => boolean;
   /** Brand/logo block; receives the collapsed state (always false unless collapsible). */
@@ -105,6 +147,7 @@ export function PortalSidebar({
   const { logout, refreshToken } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const v = V[variant];
 
   const handleLogout = async () => {
@@ -116,9 +159,40 @@ export function PortalSidebar({
     if (!searchable || !query) return sections;
     return sections.map((s) => ({
       ...s,
-      items: s.items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase())),
+      items: s.items.filter((i) =>
+        i.label.toLowerCase().includes(query.toLowerCase()) ||
+        i.children?.some((c) => c.label.toLowerCase().includes(query.toLowerCase())),
+      ),
     })).filter((s) => s.items.length > 0);
   }, [sections, searchable, query]);
+
+  // Auto-expand (never auto-collapse) any group containing the active route,
+  // so landing on a "More"-bucketed page doesn't hide the very link that got
+  // you there.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const section of sections) {
+        for (const item of section.items) {
+          if (item.children?.some((c) => isActive(c.href)) && !next.has(item.label)) {
+            next.add(item.label);
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [sections, isActive]);
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -187,7 +261,79 @@ export function PortalSidebar({
               )}
               <div className={v.itemsWrap}>
                 {section.items.map((item) => {
-                  const Icon   = item.icon;
+                  const Icon = item.icon;
+
+                  if (item.soon) {
+                    return (
+                      <span
+                        key={item.href}
+                        title="Coming soon"
+                        className={cn(v.link, 'cursor-default text-muted-foreground/50', collapsed && 'justify-center')}
+                      >
+                        <Icon size={v.iconSize} className="text-muted-foreground/40" />
+                        {!collapsed && (
+                          <>
+                            <span className="flex-1 truncate">{item.label}</span>
+                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Soon
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    );
+                  }
+
+                  if (item.children) {
+                    const expanded    = expandedGroups.has(item.label);
+                    const groupActive = item.children.some((c) => isActive(c.href));
+                    return (
+                      <div key={item.label}>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(item.label)}
+                          title={collapsed ? item.label : undefined}
+                          aria-expanded={expanded}
+                          className={cn(
+                            v.link, 'w-full',
+                            groupActive ? v.linkActive : v.linkInactive,
+                            collapsed && 'justify-center',
+                          )}
+                        >
+                          <Icon size={v.iconSize} className={cn(groupActive ? v.iconActive : v.iconInactive)} />
+                          {!collapsed && <span className="flex-1 truncate text-left">{item.label}</span>}
+                          {!collapsed && (
+                            <ChevronDown
+                              size={14}
+                              className={cn('shrink-0 transition-transform', expanded && 'rotate-180')}
+                            />
+                          )}
+                        </button>
+                        {expanded && !collapsed && (
+                          <div className={cn('ml-4 mt-0.5 space-y-0.5 border-l pl-3', v.subGroupBorder)}>
+                            {item.children.map((child) => {
+                              const ChildIcon   = child.icon;
+                              const childActive = isActive(child.href);
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  onClick={onClose}
+                                  className={cn(
+                                    v.link,
+                                    childActive ? v.linkActive : v.linkInactive,
+                                  )}
+                                >
+                                  <ChildIcon size={v.iconSize - 2} className={cn(childActive ? v.iconActive : v.iconInactive)} />
+                                  <span className="flex-1 truncate">{child.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
                   const active = isActive(item.href);
                   return (
                     <Link

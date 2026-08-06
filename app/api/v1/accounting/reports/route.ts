@@ -1,12 +1,12 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { accountingService } from '@/lib/services/accounting.service';
 import { ReportQuerySchema, BalanceSheetQuerySchema } from '@/lib/validators/accounting.schema';
 import { ok, errorResponse } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'reports.view', async (auth) => {
     const { searchParams } = req.nextUrl;
     const type = searchParams.get('type') ?? 'trial_balance';
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

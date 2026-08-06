@@ -40,6 +40,8 @@ import { organizationApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
+import type { SetApprovalPolicyInput } from '@/lib/validators/accounting.schema';
+import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
@@ -86,21 +88,21 @@ interface DonorSpendLine {
   byGroup: { groupId: string; groupName: string | null; amount: number }[];
 }
 
-interface OrgPolicy {
-  key: string; threshold: number; source: 'group' | 'organization' | 'platform';
-}
-
 const ORG_POLICY_LABELS: Record<string, string> = {
   org_disbursement_threshold:   'Your own disbursement maker-checker',
   group_disbursement_threshold: 'Default for linked groups’ disbursements',
   journal_threshold:            'Default for linked groups’ manual journals',
 };
 
+// Value/label pairs mirrored from lib/validators/organization.schema.ts's
+// PROGRAM_TYPES (was missing 'insurance'/'investment' here, so this portal's
+// create-program dialog couldn't offer two program types the enterprise
+// portal's own equivalent dialog and the server both already support).
 const PROGRAM_TYPES = [
   ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
   ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
   ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
-  ['scholarship', 'Scholarship'],
+  ['scholarship', 'Scholarship'], ['insurance', 'Insurance'], ['investment', 'Investment'],
 ] as const;
 
 const DISBURSEMENT_TYPES = [
@@ -136,13 +138,13 @@ export default function FundingPortalPage() {
     staleTime: 30_000,
   });
 
-  const { data: accounting } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
+  const { data: accounting, isError: accountingIsError, error: accountingError } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
     queryKey: ['organization', 'accounting'],
     queryFn:  () => api.get('/organization/accounting'),
     staleTime: 30_000,
   });
 
-  const { data: budgetReport } = useQuery<{ items: ProgramBudgetLine[] }>({
+  const { data: budgetReport, isError: budgetReportIsError, error: budgetReportError } = useQuery<{ items: ProgramBudgetLine[] }>({
     queryKey: ['organization', 'budget-report'],
     queryFn:  () => api.get('/organization/programs?report=budget'),
     staleTime: 30_000,
@@ -154,14 +156,14 @@ export default function FundingPortalPage() {
     staleTime: 30_000,
   });
 
-  const { data: policies, isLoading: loadingPolicies } = useQuery<OrgPolicy[]>({
+  const { data: policies, isLoading: loadingPolicies } = useQuery<EffectiveThreshold[]>({
     queryKey: ['organization', 'policies'],
     queryFn:  organizationApi.policies,
     staleTime: 30_000,
   });
   const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
   const setPolicy = useMutation({
-    mutationFn: (body: { key: string; threshold: number }) => organizationApi.setPolicy(body),
+    mutationFn: (body: SetApprovalPolicyInput) => organizationApi.setPolicy(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['organization', 'policies'] });
       toast({ title: 'Policy updated' });
@@ -331,6 +333,8 @@ export default function FundingPortalPage() {
           <PaginatedTable
             data={singlePage((accounting?.trialBalance ?? []).map((line) => ({ ...line, id: line.accountCode })))}
             isLoading={false}
+            isError={accountingIsError}
+            error={accountingError}
             onPageChange={() => {}}
             emptyMessage="No activity posted yet."
             columns={[
@@ -357,6 +361,8 @@ export default function FundingPortalPage() {
           <PaginatedTable
             data={singlePage(budgetReport?.items)}
             isLoading={false}
+            isError={budgetReportIsError}
+            error={budgetReportError}
             onPageChange={() => {}}
             emptyMessage="No programs yet."
             columns={[
@@ -547,7 +553,7 @@ function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [source, setSource] = useState('');
 
   const deposit = useMutation({
-    mutationFn: () => api.post('/organization/wallet', {
+    mutationFn: () => organizationApi.deposit({
       amount: parseFloat(amount),
       source: source || undefined,
     }),
@@ -593,12 +599,12 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const qc = useQueryClient();
   const { toast } = useToast();
   const [name, setName]     = useState('');
-  const [type, setType]     = useState<string>('grant');
+  const [type, setType]     = useState<(typeof PROGRAM_TYPES)[number][0]>('grant');
   const [budget, setBudget] = useState('');
   const [source, setSource] = useState('');
 
   const create = useMutation({
-    mutationFn: () => api.post('/organization/programs', {
+    mutationFn: () => organizationApi.createProgram({
       name,
       programType: type,
       budget: parseFloat(budget),
@@ -623,12 +629,12 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
             <Label>Program name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Women Empowerment Fund" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Type</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={type} onChange={(e) => setType(e.target.value)}
+                value={type} onChange={(e) => setType(e.target.value as (typeof PROGRAM_TYPES)[number][0])}
               >
                 {PROGRAM_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
@@ -663,12 +669,12 @@ function DisburseDialog({ open, onClose, groups, programs }: {
   const { toast } = useToast();
   const [groupId, setGroupId]   = useState('');
   const [amount, setAmount]     = useState('');
-  const [type, setType]         = useState<string>('grant');
+  const [type, setType]         = useState<(typeof DISBURSEMENT_TYPES)[number][0]>('grant');
   const [programId, setProgramId] = useState('');
   const [notes, setNotes]       = useState('');
 
   const disburse = useMutation({
-    mutationFn: () => api.post('/organization/disbursements', {
+    mutationFn: () => organizationApi.disburse({
       groupId,
       amount: parseFloat(amount),
       disbursementType: type,
@@ -700,12 +706,12 @@ function DisburseDialog({ open, onClose, groups, programs }: {
               {groups.map((g) => <option key={g.groupId} value={g.groupId}>{g.groupName}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Type</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={type} onChange={(e) => setType(e.target.value)}
+                value={type} onChange={(e) => setType(e.target.value as (typeof DISBURSEMENT_TYPES)[number][0])}
               >
                 {DISBURSEMENT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>

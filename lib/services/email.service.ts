@@ -1,5 +1,5 @@
 import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
-import { renderTemplate, interpolate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
+import { renderTemplate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { enqueueJob } from '@/lib/jobs';
 import { withAdminDb } from '@/lib/db';

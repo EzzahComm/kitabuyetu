@@ -5,12 +5,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { getErrorMessage } from '@/lib/utils';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { Tone } from '@/lib/ui/tokens';
@@ -106,13 +109,30 @@ export default function CreditScoreDetailPage() {
   };
 
   if (latestQ.isLoading) {
-    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 — a bare centred spinner gave no
+    // hint of the shape about to appear; every other list/detail surface in the
+    // app uses Skeleton placeholders that match the eventual layout.
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-64" />
+        <div className="grid gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
-  const noScoreYet = latestQ.isError;
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M1 — "never scored" is specifically the
+  // service's NotFoundError (404). Any other failure (403, 500, network) is a
+  // real error and must not masquerade as a business state with a
+  // "Recompute now" call to action that will fail the same way.
+  const notFound  = latestQ.error instanceof ApiError && latestQ.error.status === 404;
+  const noScoreYet = latestQ.isError && notFound;
+  const loadFailed = latestQ.isError && !notFound;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start gap-3">
         <Link href="/credit-scores" className="text-muted-foreground hover:text-foreground mt-1">
           <ArrowLeft className="h-5 w-5" />
@@ -138,7 +158,23 @@ export default function CreditScoreDetailPage() {
         </PageHeader>
       </div>
 
-      {noScoreYet ? (
+      {loadFailed ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              variant="error"
+              icon={AlertTriangle}
+              title="Couldn't load this member's score"
+              description={getErrorMessage(latestQ.error)}
+              action={
+                <Button variant="outline" onClick={() => latestQ.refetch()}>
+                  <RefreshCw className="mr-2 h-4 w-4" /> Try again
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : noScoreYet ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
             <Activity className="h-10 w-10 text-muted-foreground" />

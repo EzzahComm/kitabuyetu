@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
 export const ApplyLoanSchema = z.object({
+  /**
+   * Borrower. Omit for a self-application; supply it to apply on behalf of
+   * another member, which POST /loans gates on `loans.approve`.
+   * Added because the loans page has always had a member picker whose value
+   * the server discarded — apply() hardcoded ctx.userId, so an officer filling
+   * the form for someone else would have silently created the loan against
+   * themselves (it never got that far: the form also sent `termMonths`, so the
+   * request 400'd before reaching the service).
+   */
+  memberId:         z.string().uuid().optional(),
   principalAmount:  z.number().positive(),
   interestRate:     z.number().min(0).max(100),
   loanTermMonths:   z.number().int().min(1).max(120),
@@ -16,11 +26,32 @@ export const RejectLoanSchema = z.object({
   reason: z.string().min(5).max(500),
 });
 
+/**
+ * Which funding source(s) finance this loan, and how much from each
+ * (migration 118). Omit it entirely and the loan is funded from the group's own
+ * internal savings — the behaviour every existing caller already relies on.
+ *
+ * Amounts must sum to the loan principal; a deferred constraint trigger
+ * enforces the same rule in the database, so this only exists to turn a
+ * mismatch into a clean 400 rather than a raw 23514.
+ */
+export const LoanFundingPlanSchema = z.array(
+  z.object({
+    fundingSourceId: z.string().uuid(),
+    amount:          z.number().positive(),
+  }),
+).min(1).max(10)
+  .refine(
+    (plan) => new Set(plan.map((p) => p.fundingSourceId)).size === plan.length,
+    'A funding source can only appear once in a plan — combine the amounts instead',
+  );
+
 export const DisburseLoanSchema = z.object({
   disbursementDate:    z.string().date(),
   paymentMethod:       z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
   mpesaReceiptNumber:  z.string().max(50).optional().nullable(),
   notes:               z.string().max(500).optional().nullable(),
+  fundingPlan:         LoanFundingPlanSchema.optional(),
 });
 
 export const MarkDefaultedSchema = z.object({
@@ -72,3 +103,28 @@ export type MarkDefaultedInput   = z.infer<typeof MarkDefaultedSchema>;
 export type WriteOffLoanInput    = z.infer<typeof WriteOffLoanSchema>;
 export type RecordRepaymentInput = z.infer<typeof RecordRepaymentSchema>;
 export type LoanQueryInput       = z.infer<typeof LoanQuerySchema>;
+
+/**
+ * PATCH /api/v1/loans/[id] dispatches on `body.action` and then parses with one
+ * of the five schemas above (which do not themselves carry the discriminant).
+ * This union reconstructs the real wire shape so a call site cannot, say, send
+ * `action: 'writeOff'` without the `reason` that action requires.
+ */
+export type LoanActionInput =
+  | ({ action: 'approve'  } & ApproveLoanPayload)
+  | ({ action: 'reject'   } & RejectLoanPayload)
+  | ({ action: 'disburse' } & DisburseLoanPayload)
+  | ({ action: 'default'  } & MarkDefaultedPayload)
+  | ({ action: 'writeOff' } & WriteOffLoanPayload);
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type ApplyLoanPayload = z.input<typeof ApplyLoanSchema>;
+export type RecordRepaymentPayload = z.input<typeof RecordRepaymentSchema>;
+export type SetLoanTermsPayload = z.input<typeof SetLoanTermsSchema>;
+export type ApproveLoanPayload = z.input<typeof ApproveLoanSchema>;
+export type RejectLoanPayload = z.input<typeof RejectLoanSchema>;
+export type DisburseLoanPayload = z.input<typeof DisburseLoanSchema>;
+export type MarkDefaultedPayload = z.input<typeof MarkDefaultedSchema>;
+export type WriteOffLoanPayload = z.input<typeof WriteOffLoanSchema>;

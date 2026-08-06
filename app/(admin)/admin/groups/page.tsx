@@ -83,7 +83,7 @@ export default function GroupsPage() {
   } | null>(null);
   const [reason,   setReason]   = useState('');
 
-  const { data, isLoading } = useAdminGroups({ page, limit: 25, search, status, plan });
+  const { data, isLoading, isError, error } = useAdminGroups({ page, limit: 25, search, status, plan });
   const updateStatus = useUpdateGroupStatus();
 
   const items: AdminGroupRow[] = data?.items ?? [];
@@ -165,6 +165,8 @@ export default function GroupsPage() {
       <PaginatedTable
         data={tableData}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No groups found"
         onRowClick={(grp) => router.push(`/admin/groups/${grp.id}`)}

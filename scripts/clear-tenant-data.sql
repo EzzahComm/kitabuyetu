@@ -126,6 +126,79 @@ RESTART IDENTITY CASCADE;
 -- platform-level system templates (rows with group_id IS NULL).
 DELETE FROM public.email_templates WHERE group_id IS NOT NULL;
 
+-- roles.group_id REFERENCES public.groups(id) — since public.groups is
+-- TRUNCATEd above with CASCADE, Postgres truncates the ENTIRE public.roles
+-- table too (TRUNCATE CASCADE truncates whole referencing tables, unlike
+-- ON DELETE CASCADE which only removes matching rows), wiping the 4
+-- platform-level system roles (group_id IS NULL) along with any real
+-- per-group custom roles. Unlike email_templates, there's no way to exempt
+-- roles from that cascade via a WHERE clause, so re-seed the system rows
+-- here instead — this must stay in sync with the seed from migrations
+-- 076/077/079/110/112 (guarded by NOT EXISTS, matching migration 076's own
+-- idempotent style, since a plain UNIQUE(group_id, code) constraint never
+-- treats two NULL group_id rows as conflicting).
+--
+-- IMPORTANT: every migration that changes roles.permissions (110, 112, and
+-- any future one) MUST update the literal arrays below too, or this reseed
+-- silently reverts chairperson/treasurer/secretary/member to a stale
+-- permission set the instant any test calls resetDatabase() — caught for
+-- real in Batch 6 (billing/fines) when fines.manage vanished after reset.
+INSERT INTO public.roles (group_id, code, name, description, base_role, rank, is_system, permissions)
+SELECT v.group_id, v.code, v.name, v.description, v.base_role, v.rank, v.is_system, v.permissions
+FROM (VALUES
+  (NULL::uuid, 'member', 'Member', 'Regular group member', 'member'::member_role, 20, true, ARRAY[
+    'dashboard.view','meetings.view',
+    'welfare.request','welfare.view','investments.view'
+  ]),
+  (NULL::uuid, 'secretary', 'Secretary', 'Manages members and meetings', 'secretary'::member_role, 40, true, ARRAY[
+    'dashboard.view','meetings.view',
+    'members.view','members.manage','analytics.view','meetings.manage',
+    'messaging.send','data.import',
+    'welfare.request','welfare.view','investments.view',
+    'import.preview','import.commit','import.cancel',
+    'messaging.templates.view','messaging.schedules.view'
+  ]),
+  (NULL::uuid, 'treasurer', 'Treasurer', 'Manages group finances', 'treasurer'::member_role, 60, true, ARRAY[
+    'dashboard.view','meetings.view',
+    'members.view','members.manage','analytics.view','meetings.manage',
+    'messaging.send','data.import',
+    'contributions.view','contributions.record','loans.view','loans.approve',
+    'mpesa.view','payments.request','payments.approve','expenses.approve',
+    'cashbook.view','accounting.manage','reports.view','governance.view',
+    'welfare.manage','shares.manage','cycles.manage','dividends.manage',
+    'treasury.manage','payouts.manage',
+    'welfare.request','welfare.view','investments.view',
+    'import.preview','import.commit','import.cancel',
+    'messaging.templates.view','messaging.schedules.view',
+    'import.start','investments.manage',
+    'credit_scores.recompute'
+  ]),
+  (NULL::uuid, 'chairperson', 'Chairperson', 'Group administrator', 'chairperson'::member_role, 80, true, ARRAY[
+    'dashboard.view','meetings.view',
+    'members.view','members.manage','analytics.view','meetings.manage',
+    'messaging.send','data.import',
+    'contributions.view','contributions.record','loans.view','loans.approve',
+    'mpesa.view','payments.request','payments.approve','expenses.approve',
+    'cashbook.view','accounting.manage','reports.view','governance.view',
+    'welfare.manage','shares.manage','cycles.manage','dividends.manage',
+    'treasury.manage','payouts.manage',
+    'billing.manage','roles.manage',
+    'dividends.approve','shares.reverse','payments.disburse',
+    'data.rollback','admin.recompute','group.manage','messaging.manage',
+    'welfare.request','welfare.view','investments.view',
+    'import.preview','import.commit','import.cancel',
+    'messaging.templates.view','messaging.schedules.view',
+    'import.start','investments.manage',
+    'import.rollback','messaging.templates.manage','messaging.schedules.manage',
+    'fines.manage',
+    'credit_scores.recompute',
+    'loans.policy.manage','credit_scores.policy.manage','mpesa.bill_manager.manage'
+  ])
+) AS v(group_id, code, name, description, base_role, rank, is_system, permissions)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.roles r WHERE r.group_id IS NULL AND r.code = v.code
+);
+
 -- Reset the human-readable group code sequence so the next registration
 -- starts at KY0000001. group_seq is a standalone SEQUENCE (not a SERIAL),
 -- so RESTART IDENTITY above does not touch it.
@@ -150,6 +223,7 @@ UNION ALL SELECT 'audit_logs',               count(*) FROM public.audit_logs
 UNION ALL SELECT 'refresh_tokens',           count(*) FROM public.refresh_tokens
 UNION ALL SELECT 'registrant_verifications', count(*) FROM public.registrant_verifications
 UNION ALL SELECT 'email_templates (system, kept)', count(*) FROM public.email_templates
+UNION ALL SELECT 'roles (system, kept, should be 4)', count(*) FROM public.roles WHERE group_id IS NULL
 UNION ALL SELECT 'counties (kept, should be 47)', count(*) FROM public.counties
 ORDER BY table_name;
 

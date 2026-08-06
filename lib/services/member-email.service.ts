@@ -71,7 +71,8 @@ export async function sendAccountUpdateEmail(opts: {
 export async function sendBirthdayEmails(): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
-      `SELECT m.id, m.full_name, m.email, g.name AS group_name, gm.group_id
+      `SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
+              g.name AS group_name, gm.group_id
        FROM members m
        JOIN group_members gm ON gm.member_id = m.id
        JOIN groups g ON g.id = gm.group_id
@@ -100,7 +101,7 @@ export async function sendBirthdayEmails(): Promise<void> {
 export async function sendMonthlyStatements(groupId: string, month: string): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
-      `SELECT m.id, m.full_name, m.email,
+      `SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
               COALESCE(SUM(c.amount) FILTER (WHERE DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', NOW())), 0) AS total_contributions,
               COALESCE(SUM(l.outstanding_balance), 0) AS loan_balance,
               g.name AS group_name
@@ -110,7 +111,7 @@ export async function sendMonthlyStatements(groupId: string, month: string): Pro
        LEFT JOIN contributions c ON c.member_id = m.id AND c.group_id = $1 AND c.status = 'completed'
        LEFT JOIN loans l ON l.member_id = m.id AND l.group_id = $1 AND l.status IN ('active','disbursed')
        WHERE m.email IS NOT NULL
-       GROUP BY m.id, m.full_name, m.email, g.name`,
+       GROUP BY m.id, m.first_name, m.last_name, m.email, g.name`,
       [groupId],
     ),
   );

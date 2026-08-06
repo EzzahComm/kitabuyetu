@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import {
   handleB2CResult,
   handleBalanceResult,
@@ -9,20 +8,12 @@ import {
 } from '@/lib/services/mpesa.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
 import { isValidCallbackToken } from '@/lib/services/daraja.service';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
+import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
-
-const B2CSchema = z.object({
-  phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  amount:    z.number().int().positive(),
-  occasion:  z.string().min(1).max(100),
-  commandId: z.enum(['BusinessPayment', 'SalaryPayment', 'PromotionPayment'])
-               .default('BusinessPayment'),
-  loanId:    z.string().uuid().optional(),
-});
+import { B2CSchema } from '@/lib/validators/mpesa.schema';
 
 function getCallerIp(req: NextRequest): string {
   return (
@@ -88,10 +79,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated: initiate a disbursement (spine: reserve → maker-checker → dispatch)
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'payouts.manage', async (auth) => {
     try {
       // Sensitive op (§2.5): outbound money must not ride a stale token.
-      await assertAuthFresh(auth);
+      // Re-verify against LIVE roles.permissions, not just the token's claim.
+      const freshPermissions = await assertAuthFresh(auth);
+      requirePermission({ role: auth.role, permissions: freshPermissions }, 'payouts.manage');
 
       const idempotencyKey = req.headers.get('idempotency-key');
       if (!idempotencyKey) {

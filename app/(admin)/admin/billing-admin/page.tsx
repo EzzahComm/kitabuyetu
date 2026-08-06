@@ -2,11 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import {
-  CreditCard, TrendingUp, AlertCircle,
-  CheckCircle2, Clock, ArrowRight,
+  CreditCard, AlertCircle,
+  CheckCircle2, Clock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';
@@ -49,7 +48,7 @@ interface RecentPaymentRow {
 }
 
 export default function BillingAdminPage() {
-  const { data, isLoading } = useAdminBilling();
+  const { data, isLoading, isError, error } = useAdminBilling();
 
   const summary: Partial<BillingSummary> = data?.summary        ?? {};
   const byPlan: PlanRevenueRow[]          = data?.byPlan         ?? [];
@@ -182,6 +181,8 @@ export default function BillingAdminPage() {
           <PaginatedTable
             data={singlePage(recentPayments)}
             isLoading={isLoading}
+            isError={isError}
+            error={error}
             onPageChange={() => {}}
             emptyMessage="No payments yet"
             columns={[

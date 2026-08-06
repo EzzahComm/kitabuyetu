@@ -2,6 +2,7 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
+import { resolveFundingPlan } from './funding-sources.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -41,6 +42,32 @@ export const loansService = {
     });
   },
 
+  /**
+   * Next N unpaid installments due across every active loan in the group,
+   * soonest first — the dashboard's "Upcoming Loan Repayments" card
+   * (SIMPLIFICATION_AND_RBAC_AUDIT.md §4: no group-wide aggregation existed
+   * before this; `loan_repayments` itself is a real, DB-trigger-generated
+   * schedule per loan, so this is a straightforward cross-loan query, not a
+   * new amortization computation).
+   */
+  async listUpcomingRepayments(
+    ctx: TenantContext,
+    limit = 5,
+  ): Promise<(LoanRepayment & { member_name: string })[]> {
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<LoanRepayment & { member_name: string }>(
+        `SELECT lr.*, m.first_name || ' ' || m.last_name AS member_name
+         FROM loan_repayments lr
+         JOIN members m ON m.id = lr.member_id
+         WHERE lr.group_id = $1 AND lr.status = 'pending'
+         ORDER BY lr.due_date ASC
+         LIMIT $2`,
+        [ctx.groupId, limit],
+      );
+      return rows;
+    });
+  },
+
   async getById(ctx: TenantContext, id: string): Promise<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }> {
     return withDb(ctx, async (client) => {
       const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(
@@ -65,7 +92,10 @@ export const loansService = {
       // Borrower must hold an active membership in THIS group (§5); the
       // membership id is stamped on the loan (§6a). The guarantor, when
       // named, must be an active member of the same group too.
-      const { membershipId } = await assertActiveMembership(client, ctx.groupId, ctx.userId);
+      // The borrower is data.memberId when an officer applies on someone's
+      // behalf (route-gated on loans.approve), otherwise the caller.
+      const borrowerId = data.memberId ?? ctx.userId;
+      const { membershipId } = await assertActiveMembership(client, ctx.groupId, borrowerId);
       if (data.guarantorId) {
         await assertActiveMembership(client, ctx.groupId, data.guarantorId);
       }
@@ -76,9 +106,15 @@ export const loansService = {
          WHERE group_id = $1 AND member_id = $2
            AND status IN ('approved','disbursed','active')
          LIMIT 1`,
-        [ctx.groupId, ctx.userId],
+        [ctx.groupId, borrowerId],
       );
-      if (active[0]) throw new ValidationError('You already have an active loan');
+      if (active[0]) {
+        throw new ValidationError(
+          borrowerId === ctx.userId
+            ? 'You already have an active loan'
+            : 'This member already has an active loan',
+        );
+      }
 
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
@@ -87,7 +123,7 @@ export const loansService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
-          ctx.groupId, ctx.userId, membershipId,
+          ctx.groupId, borrowerId, membershipId,
           data.principalAmount.toFixed(2),
           data.interestRate.toFixed(2),
           data.loanTermMonths,
@@ -167,9 +203,30 @@ export const loansService = {
         ],
       );
 
+      // Attribute the money to its funding source(s) — migration 118.
+      //
+      // This is what distinguishes "the group lent its own savings" from "the
+      // group on-lent an organization's capital", which are otherwise the same
+      // row. With no plan supplied it defaults to internal savings, so every
+      // pre-existing caller keeps working unchanged.
+      //
+      // A deferred constraint trigger asserts these sum to the principal, so a
+      // loan can never reach 'disbursed' only partly attributed.
+      const principal = parseFloat(rows[0].principal_amount);
+      const plan = await resolveFundingPlan(client, ctx.groupId, principal, data.fundingPlan);
+
+      for (const split of plan) {
+        await client.query(
+          `INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (loan_id, funding_source_id) DO UPDATE SET amount = EXCLUDED.amount`,
+          [ctx.groupId, rows[0].id, split.fundingSourceId, split.amount.toFixed(2)],
+        );
+      }
+
       // Post disbursement journal
       await postLoanDisbursementJournal(client, {
-        groupId: ctx.groupId, loanId: rows[0].id, principal: parseFloat(rows[0].principal_amount),
+        groupId: ctx.groupId, loanId: rows[0].id, principal,
         entryDate: rows[0].disbursement_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
       });
 

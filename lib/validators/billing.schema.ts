@@ -27,3 +27,8 @@ export type UpgradePlanInput             = z.infer<typeof UpgradePlanSchema>;
 export type RecordManualPaymentInput     = z.infer<typeof RecordManualPaymentSchema>;
 export type SmsTopupInput                = z.infer<typeof SmsTopupSchema>;
 export type UpdateBillingAccountInput    = z.infer<typeof UpdateBillingAccountSchema>;
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type RecordManualPaymentPayload = z.input<typeof RecordManualPaymentSchema>;

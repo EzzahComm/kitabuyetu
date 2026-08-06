@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { investmentsService, InvestmentQuerySchema, CreateInvestmentSchema } from '@/lib/services/investments.service';
 import { featureFlagsService } from '@/lib/services/feature-flags.service';
 import { ok, created } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'investments.view', async (auth) => {
     const params = InvestmentQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     await featureFlagsService.assertEnabled(ctx, 'investment_module');
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'investments.manage', async (auth) => {
     const body  = await req.json();
     const input = CreateInvestmentSchema.parse(body);
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

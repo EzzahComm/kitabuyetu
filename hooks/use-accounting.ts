@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountingApi } from '@/lib/api/endpoints';
+import type { CreateJournalPayload , SetPostingTemplatePayload, ClosePeriodInput, ReopenPeriodInput, SetApprovalPolicyInput } from '@/lib/validators/accounting.schema';
 
 export const accountingKeys = {
   accounts:      ['accounting', 'accounts'] as const,
@@ -39,7 +40,7 @@ export function useBalanceSheet(asOf?: string) {
 export function useCreateJournal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => accountingApi.createJournal(body),
+    mutationFn: (body: CreateJournalPayload) => accountingApi.createJournal(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['accounting'] }),
   });
 }
@@ -51,7 +52,7 @@ export function useFiscalPeriods() {
 export function useClosePeriod() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { periodStart: string; periodEnd: string }) => accountingApi.closePeriod(body),
+    mutationFn: (body: ClosePeriodInput) => accountingApi.closePeriod(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
   });
 }
@@ -59,7 +60,7 @@ export function useClosePeriod() {
 export function useReopenPeriod() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => accountingApi.reopenPeriod(id, { reason }),
+    mutationFn: ({ id, reason }: { id: string } & ReopenPeriodInput) => accountingApi.reopenPeriod(id, { reason }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.fiscalPeriods }),
   });
 }
@@ -87,7 +88,7 @@ export function usePostingTemplates() {
 export function useSetPostingTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => accountingApi.setPostingTemplate(body),
+    mutationFn: (body: SetPostingTemplatePayload) => accountingApi.setPostingTemplate(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.postingTemplates }),
   });
 }
@@ -99,7 +100,7 @@ export function useApprovalPolicies() {
 export function useSetApprovalPolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { key: string; threshold: number }) => accountingApi.setPolicy(body),
+    mutationFn: (body: SetApprovalPolicyInput) => accountingApi.setPolicy(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: accountingKeys.policies }),
   });
 }

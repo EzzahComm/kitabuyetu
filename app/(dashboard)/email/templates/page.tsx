@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +51,7 @@ function TemplateForm({
           placeholder="<p>Dear {{memberName}},</p>"
           className="font-mono text-sm"
         />
-        <p className="text-xs text-gray-500 mt-1">Use {'{{variable}}'} for interpolation.</p>
+        <p className="text-xs text-muted-foreground mt-1">Use {'{{variable}}'} for interpolation.</p>
       </div>
       <Button
         className="w-full"
@@ -85,7 +85,7 @@ export default function EmailTemplatesPage() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4">
       <PageHeader
         title="Email Templates"
         actions={
@@ -114,7 +114,7 @@ export default function EmailTemplatesPage() {
                       {!tpl.group_id && <Badge variant="secondary" className="text-xs">Global</Badge>}
                       {!tpl.is_active && <Badge variant="destructive" className="text-xs">Inactive</Badge>}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{tpl.subject}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{tpl.subject}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button

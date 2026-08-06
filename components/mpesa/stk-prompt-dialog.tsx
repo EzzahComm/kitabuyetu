@@ -59,13 +59,13 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   // Member picker (dashboard mode only) — active members with a phone.
   const { data: membersData, isLoading: loadingMembers } = useQuery({
     queryKey: ['members', 'stk-picker'],
-    queryFn:  () => membersApi.list({ page: 1, limit: 200 }),
+    queryFn:  () => membersApi.list({ page: 1, limit: 100, status: 'active' }),
     enabled:  open && !member,
     staleTime: 60_000,
   });
   const pickable = useMemo(
     () => (((membersData as { items?: GroupMemberRow[] } | undefined)?.items) ?? [])
-      .filter((m) => m.group_status === 'active' && m.phone),
+      .filter((m) => m.phone),
     [membersData],
   );
 

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
 import { billingService } from '@/lib/services/billing.service';
 import { IMPORT_KINDS, type ImportKind } from '@/lib/validators/import.schema';
@@ -13,7 +13,7 @@ import { created, errorResponse } from '@/lib/utils/response';
  * before the caller confirms with /[jobId]/commit.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'secretary', async (auth) => {
+  return withPermission(req, 'import.preview', async (auth) => {
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const type = (req.nextUrl.searchParams.get('type') ?? 'members') as ImportKind;
     if (!IMPORT_KINDS.includes(type)) {

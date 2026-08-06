@@ -20,7 +20,14 @@ export default function UnauthorizedPage() {
   const { user, audience, logout } = useAuth();
   const router = useRouter();
 
-  const signOutHref = audience === 'backoffice' ? '/admin-login' : '/login';
+  // Backoffice audience splits further by role now that organization staff
+  // and platform staff have separate login surfaces (SURFACE_ALLOWED_ROLES,
+  // app/api/v1/auth/admin/login/route.ts) — sending an organization_coordinator
+  // to /admin-login would just get them turned away again.
+  const signOutHref =
+    audience !== 'backoffice' ? '/login'
+    : user?.platformRole === 'organization_coordinator' ? '/enterprise/login'
+    : '/admin-login';
 
   const handleSignOut = () => {
     logout();

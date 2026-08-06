@@ -60,15 +60,26 @@ export async function assertActiveMembership(
  *
  * Legacy tokens without epoch claims skip the comparison (drift bounded by
  * the 15-minute access TTL; those tokens age out on their own).
+ *
+ * RBAC permission activation (SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4):
+ * also returns the CALLER'S LIVE roles.permissions (via group_members.role_id,
+ * the same join login/refresh use), so callers at these 8 sites can re-verify
+ * the specific permission string against current truth instead of trusting
+ * the JWT's (bounded-stale) permissions claim — closing the staleness window
+ * to zero for exactly the routes that already pay this DB round-trip's cost,
+ * without adding a live lookup to the other 100+ withPermission call sites.
  */
-export async function assertAuthFresh(auth: AuthContext): Promise<void> {
-  if (auth.authVersion == null && auth.sessionVersion == null) return;
+export async function assertAuthFresh(auth: AuthContext): Promise<string[] | undefined> {
+  if (auth.authVersion == null && auth.sessionVersion == null) return auth.permissions;
 
   const row = await withAdminDb(async (client) => {
-    const { rows } = await client.query<{ session_version: number; auth_version: number | null }>(
-      `SELECT m.session_version, gm.auth_version
+    const { rows } = await client.query<{
+      session_version: number; auth_version: number | null; permissions: string[] | null;
+    }>(
+      `SELECT m.session_version, gm.auth_version, r.permissions
        FROM   members m
        LEFT JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $2
+       LEFT JOIN roles r          ON r.id = gm.role_id
        WHERE  m.id = $1`,
       [auth.userId, auth.groupId],
     );
@@ -84,4 +95,5 @@ export async function assertAuthFresh(auth: AuthContext): Promise<void> {
   if (auth.authVersion != null && row.auth_version != null && row.auth_version !== auth.authVersion) {
     throw new UnauthorizedError('Your role or membership changed. Please sign in again.');
   }
+  return row.permissions ?? auth.permissions;
 }

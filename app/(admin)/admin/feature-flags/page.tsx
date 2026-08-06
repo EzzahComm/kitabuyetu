@@ -1,8 +1,7 @@
 'use client';
 
 import { Info, Users, Layers, User, Globe } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,13 +27,6 @@ const APPLIES_TO_ICON: Record<string, React.ElementType> = {
   plan:        Layers,
   group:       Users,
   member:      User,
-};
-
-const APPLIES_TO_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
-  all:    'default',
-  plan:   'secondary',
-  group:  'outline',
-  member: 'outline',
 };
 
 const FLAG_CATEGORY: Record<string, { label: string; color: string }> = {

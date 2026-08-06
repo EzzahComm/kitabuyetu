@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
+import { withOrganizationPermission } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
+import { DepositSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
@@ -12,15 +12,8 @@ import { ok } from '@/lib/utils/response';
  * organization_coordinator only (asserted in the service; RLS backs it up).
  */
 
-const DepositSchema = z.object({
-  amount:    z.number().positive('Amount must be positive').max(1_000_000_000),
-  source:    z.string().max(160).optional(),
-  reference: z.string().max(64).optional(),
-  notes:     z.string().max(500).optional(),
-});
-
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.wallet.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const page  = parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10);
     const limit = parseInt(req.nextUrl.searchParams.get('limit') ?? '25', 10);
@@ -33,7 +26,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withOrganizationPermission(req, 'organization.wallet.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const input = DepositSchema.parse(await req.json());
     const result = await organizationFinanceService.deposit(ctx, input);

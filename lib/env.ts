@@ -139,6 +139,52 @@ const envSchema = z.object({
   // ── Import limits ─────────────────────────────────────────────────────────
   CSV_MAX_ROWS: z.coerce.number().int().positive().default(5000),
 
+  // ── Auth / registration (previously read via raw process.env — SIMPLIFICATION_AND_RBAC_AUDIT.md) ──
+  BCRYPT_ROUNDS: z.coerce.number().int().positive().default(10),
+  REGISTRATION_FEE_KES: z.coerce.number().int().nonnegative().default(300),
+
+  // ── M-Pesa (additional, previously ungoverned) ────────────────────────────
+  // 'false' opts out; any other value (including unset) keeps the durable-ack
+  // path. Kept as a raw string, not coerced to boolean, so `!== 'false'` at
+  // call sites matches existing behavior exactly.
+  MPESA_DURABLE_ACK: z.string().optional(),
+  MPESA_C2B_VALIDATION: z.string().optional(),
+  // Falls back to MPESA_SHORTCODE when unset (daraja.service.ts).
+  MPESA_B2C_SHORTCODE: z.string().optional(),
+  // Comma-separated IP allowlist for Safaricom callbacks; unset = no restriction.
+  MPESA_ALLOWED_IPS: z.string().optional(),
+  // Deliberately NOT read from `env` at its one call site (daraja.service.ts) —
+  // that module reads process.env.MPESA_CALLBACK_TOKEN directly so a test can
+  // mutate it at runtime via jest.resetModules(); listed here for validation/
+  // documentation coverage only.
+  MPESA_CALLBACK_TOKEN: z.string().optional(),
+  MPESA_PUBLIC_CERT_PEM: z.string().optional(),
+  MPESA_PUBLIC_CERT_PATH: z.string().optional(),
+
+  // ── SMS (additional) ───────────────────────────────────────────────────────
+  TEXTSMS_BASE_URL: z.string().url().default('https://sms.textsms.co.ke'),
+
+  // ── Redis (additional) ──────────────────────────────────────────────────────
+  // Fallback when the token isn't embedded in REDIS_URL's password component.
+  REDIS_TOKEN: z.string().optional(),
+
+  // ── Email adapters (provider-specific — only the active EMAIL_PROVIDER's
+  // vars need to actually be set; all optional here for the same reason the
+  // existing RESEND_API_KEY/SENDGRID_API_KEY entries above are optional) ────
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  AWS_SES_REGION: z.string().default('us-east-1'),
+  MAILGUN_API_KEY: z.string().optional(),
+  MAILGUN_DOMAIN: z.string().optional(),
+  MAILGUN_REGION: z.string().default('us'),
+  EMAIL_FROM_NAME: z.string().default('Kitabu Yetu'),
+
+  // ── Public (client-exposed) ─────────────────────────────────────────────────
+  NEXT_PUBLIC_MPESA_PAYBILL: z.string().optional(),
+
   // ── Supabase JS client (Storage + Realtime) ───────────────────────────────
   // Not required for core auth/DB (which use raw pg), but needed for
   // Storage uploads, Realtime subscriptions, and the Supabase SSR client.

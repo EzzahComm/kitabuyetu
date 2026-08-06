@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone, AlertTriangle, Ban } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
@@ -16,21 +17,28 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLoan, useLoanAction, useRecordRepayment } from '@/hooks/use-loans';
+import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+// Mirrors RecordRepaymentSchema field-for-field. It used to be
+// {amount, paymentMethod, reference}, none of which the API accepts —
+// installmentNumber/amountPaid/paymentDate are all required there, so every
+// repayment recorded through this dialog 400'd.
 const repaySchema = z.object({
-  amount:        z.coerce.number().positive(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']),
-  reference:     z.string().optional(),
+  installmentNumber:  z.coerce.number().int().min(1),
+  amountPaid:         z.coerce.number().positive(),
+  paymentDate:        z.string().min(1),
+  paymentMethod:      z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
+  mpesaReceiptNumber: z.string().optional(),
+  penaltyAmount:      z.coerce.number().min(0).optional(),
 });
 
 export default function LoanDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router  = useRouter();
   const { toast } = useToast();
   const [repayOpen, setRepayOpen] = useState(false);
   const [mpesaOpen, setMpesaOpen] = useState(false);
@@ -38,42 +46,80 @@ export default function LoanDetailPage() {
   const [b2cAmount, setB2cAmount] = useState('');
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
   const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'disburse' | null>(null);
+  // Only 'approve' can go through a bare confirm — RejectLoanSchema needs a
+  // reason and DisburseLoanSchema needs a date + payment method, so those two
+  // get real dialogs instead (previously all three posted just {action} and
+  // reject/disburse 400'd every time).
+  const [confirmApprove, setConfirmApprove] = useState(false);
+  const [rejectOpen, setRejectOpen]     = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [disburseOpen, setDisburseOpen] = useState(false);
+  const [disburseDate, setDisburseDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [disburseMethod, setDisburseMethod] = useState<'cash' | 'bank_transfer' | 'cheque' | 'standing_order'>('cash');
+  const [disburseRef, setDisburseRef]   = useState('');
   const [defaultOpen, setDefaultOpen] = useState(false);
   const [defaultReason, setDefaultReason] = useState('');
   const [writeOffOpen, setWriteOffOpen] = useState(false);
   const [writeOffReason, setWriteOffReason] = useState('');
 
-  const { data: loan, isLoading } = useLoan(id);
+  const { data: loan, isLoading, isError, error } = useLoan(id);
   const loanAction   = useLoanAction(id);
   const recordRepay  = useRecordRepayment(id);
+  const canManageLoans = useHasPermission('loans.approve');
 
   type RepayForm = z.infer<typeof repaySchema>;
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RepayForm>({
     resolver: zodResolver(repaySchema),
-    defaultValues: { paymentMethod: 'mpesa' as const },
+    defaultValues: {
+      paymentMethod: 'mpesa' as const,
+      paymentDate:   new Date().toISOString().slice(0, 10),
+    },
   });
 
-  const handleAction = async (action: string) => {
+  const onApprove = async () => {
     try {
-      await loanAction.mutateAsync({ action });
-      toast({ title: `Loan ${action}d successfully` });
+      await loanAction.mutateAsync({ action: 'approve' });
+      toast({ title: 'Loan approved' });
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Action failed', description: getErrorMessage(err) });
+      toast({ variant: 'destructive', title: 'Approval failed', description: getErrorMessage(err) });
     }
   };
 
-  // NOTE: this form's payload ({amount, paymentMethod, reference}) does not
-  // match what POST /loans/[id]/repayments actually requires
-  // (RecordRepaymentSchema: installmentNumber, amountPaid, paymentDate,
-  // paymentMethod, + optional mpesaReceiptNumber/penaltyAmount) — recording a
-  // repayment through this dialog 400s server-side today. Fixing it needs an
-  // installment picker (which schedule row is being paid), a product/UX call
-  // beyond this typing pass — left as-is, typed honestly against the local
-  // form schema rather than papering over the mismatch.
+  const onReject = async () => {
+    try {
+      await loanAction.mutateAsync({ action: 'reject', reason: rejectReason.trim() });
+      toast({ title: 'Loan rejected' });
+      setRejectOpen(false); setRejectReason('');
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Rejection failed', description: getErrorMessage(err) });
+    }
+  };
+
+  const onDisburse = async () => {
+    try {
+      await loanAction.mutateAsync({
+        action:             'disburse',
+        disbursementDate:   disburseDate,
+        paymentMethod:      disburseMethod,
+        mpesaReceiptNumber: disburseRef.trim() || null,
+      });
+      toast({ title: 'Loan marked disbursed' });
+      setDisburseOpen(false); setDisburseRef('');
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Disbursement failed', description: getErrorMessage(err) });
+    }
+  };
+
   const onRepay = async (values: RepayForm) => {
     try {
-      await recordRepay.mutateAsync(values);
+      await recordRepay.mutateAsync({
+        installmentNumber:  values.installmentNumber,
+        amountPaid:         values.amountPaid,
+        paymentDate:        values.paymentDate,
+        paymentMethod:      values.paymentMethod,
+        mpesaReceiptNumber: values.mpesaReceiptNumber?.trim() || null,
+        penaltyAmount:      values.penaltyAmount ?? 0,
+      });
       toast({ title: 'Repayment recorded' });
       setRepayOpen(false);
       reset();
@@ -86,15 +132,21 @@ export default function LoanDetailPage() {
     return <div className="space-y-4">{Array.from({length:4}).map((_,i)=><Skeleton key={i} className="h-24 w-full"/>)}</div>;
   }
 
+  if (isError) return <p className="text-destructive">{getErrorMessage(error)}</p>;
   if (!loan) return <p className="text-muted-foreground">Loan not found</p>;
 
   const l = loan;
   const schedule = l.schedule ?? [];
+  // The picker offers only what can still be paid; the first entry is the
+  // earliest unpaid installment, which is the default the <select> lands on.
+  const unpaidSchedule = schedule.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => router.back()} className="mt-1"><ArrowLeft size={18}/></Button>
+        <Button variant="ghost" size="icon" aria-label="Go back" asChild className="mt-1">
+          <Link href="/loans"><ArrowLeft size={18}/></Link>
+        </Button>
         <PageHeader
           className="flex-1"
           title="Loan Details"
@@ -123,19 +175,19 @@ export default function LoanDetailPage() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {l.status === 'pending' && (
+        {l.status === 'pending' && canManageLoans && (
           <>
-            <Button variant="default" onClick={() => setConfirmAction('approve')} loading={loanAction.isPending}>
+            <Button variant="default" onClick={() => setConfirmApprove(true)} loading={loanAction.isPending}>
               <CheckCircle size={16} className="mr-2"/> Approve
             </Button>
-            <Button variant="destructive" onClick={() => setConfirmAction('reject')} loading={loanAction.isPending}>
+            <Button variant="destructive" onClick={() => setRejectOpen(true)} loading={loanAction.isPending}>
               <XCircle size={16} className="mr-2"/> Reject
             </Button>
           </>
         )}
-        {l.status === 'approved' && (
+        {l.status === 'approved' && canManageLoans && (
           <>
-            <Button onClick={() => setConfirmAction('disburse')} loading={loanAction.isPending} variant="outline">
+            <Button onClick={() => setDisburseOpen(true)} loading={loanAction.isPending} variant="outline">
               <DollarSign size={16} className="mr-2"/> Mark disbursed
             </Button>
             <Button onClick={() => {
@@ -152,7 +204,7 @@ export default function LoanDetailPage() {
             </Button>
           </>
         )}
-        {l.status === 'active' && (
+        {l.status === 'active' && canManageLoans && (
           <>
             <Button onClick={() => setRepayOpen(true)}>
               <DollarSign size={16} className="mr-2"/> Record repayment
@@ -162,7 +214,7 @@ export default function LoanDetailPage() {
             </Button>
           </>
         )}
-        {l.status === 'defaulted' && (
+        {l.status === 'defaulted' && canManageLoans && (
           <Button variant="destructive" onClick={() => setWriteOffOpen(true)}>
             <Ban size={16} className="mr-2"/> Write off
           </Button>
@@ -197,9 +249,26 @@ export default function LoanDetailPage() {
           <DialogHeader><DialogTitle>Record repayment</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onRepay)} className="space-y-4">
             <div className="space-y-1">
-              <Label>Amount (KES)</Label>
-              <Input type="number" step="0.01" {...register('amount')} />
-              {errors.amount && <p className="text-xs text-destructive">{errors.amount?.message as string}</p>}
+              <Label>Installment</Label>
+              <select {...register('installmentNumber')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                {unpaidSchedule.length === 0 && <option value="">No unpaid installments</option>}
+                {unpaidSchedule.map((row) => (
+                  <option key={row.installment_number} value={row.installment_number}>
+                    #{row.installment_number} · due {formatDate(row.due_date)} · {formatKES(row.total_due ?? 0)}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Defaults to the earliest unpaid installment.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Amount paid (KES)</Label>
+              <Input type="number" step="0.01" {...register('amountPaid')} />
+              {errors.amountPaid && <p className="text-xs text-destructive">{errors.amountPaid?.message as string}</p>}
+            </div>
+            <div className="space-y-1">
+              <Label>Payment date</Label>
+              <Input type="date" {...register('paymentDate')} />
+              {errors.paymentDate && <p className="text-xs text-destructive">{errors.paymentDate?.message as string}</p>}
             </div>
             <div className="space-y-1">
               <Label>Payment method</Label>
@@ -207,11 +276,19 @@ export default function LoanDetailPage() {
                 <option value="mpesa">M-Pesa</option>
                 <option value="cash">Cash</option>
                 <option value="bank_transfer">Bank Transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="standing_order">Standing order</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <Label>Reference (optional)</Label>
-              <Input {...register('reference')} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Penalty (KES)</Label>
+                <Input type="number" step="0.01" placeholder="0" {...register('penaltyAmount')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Receipt no. <span className="text-muted-foreground">(optional)</span></Label>
+                <Input {...register('mpesaReceiptNumber')} />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={()=>setRepayOpen(false)}>Cancel</Button>
@@ -289,30 +366,85 @@ export default function LoanDetailPage() {
       />
 
       <ConfirmDialog
-        open={confirmAction !== null}
-        onOpenChange={(o) => !o && setConfirmAction(null)}
-        title={
-          confirmAction === 'approve' ? 'Approve this loan?'
-          : confirmAction === 'disburse' ? 'Mark this loan disbursed?'
-          : 'Reject this loan?'
-        }
-        description={
-          confirmAction === 'approve'
-            ? 'The member will be able to receive disbursement once approved.'
-            : confirmAction === 'disburse'
-              ? `Records that ${formatKES(l.principal_amount)} was handed to ${l.member_name ?? 'the member'} outside M-Pesa (cash/bank) and posts the disbursement to the books. Use "Disburse via M-Pesa" instead if the money should actually be sent.`
-              : 'The member will be notified that their loan application was rejected.'
-        }
-        variant={confirmAction === 'reject' ? 'danger' : 'default'}
-        confirmLabel={
-          confirmAction === 'approve' ? 'Approve'
-          : confirmAction === 'disburse' ? 'Mark disbursed'
-          : 'Reject'
-        }
-        onConfirm={async () => {
-          if (confirmAction) await handleAction(confirmAction);
-        }}
+        open={confirmApprove}
+        onOpenChange={setConfirmApprove}
+        title="Approve this loan?"
+        description="The member will be able to receive disbursement once approved."
+        confirmLabel="Approve"
+        onConfirm={onApprove}
       />
+
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Reject this loan</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              The member will be notified that their application was rejected. The reason is recorded on the loan.
+            </p>
+            <div className="space-y-1">
+              <Label>Reason</Label>
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Why is this application being rejected?"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={rejectReason.trim().length < 5}
+              loading={loanAction.isPending}
+              onClick={onReject}
+            >
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={disburseOpen} onOpenChange={setDisburseOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Mark this loan disbursed</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Records that {formatKES(l.principal_amount)} was handed to {l.member_name ?? 'the member'} outside
+              M-Pesa and posts the disbursement to the books. Use &ldquo;Disburse via M-Pesa&rdquo; instead if the
+              money should actually be sent.
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="disburseDate">Disbursement date</Label>
+              <Input id="disburseDate" type="date" value={disburseDate} onChange={(e) => setDisburseDate(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="disburseMethod">Payment method</Label>
+              <select
+                id="disburseMethod"
+                value={disburseMethod}
+                onChange={(e) => setDisburseMethod(e.target.value as typeof disburseMethod)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="cash">Cash</option>
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="standing_order">Standing order</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="disburseRef">Reference <span className="text-muted-foreground">(optional)</span></Label>
+              <Input id="disburseRef" value={disburseRef} onChange={(e) => setDisburseRef(e.target.value)} placeholder="Cheque no., bank ref…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisburseOpen(false)}>Cancel</Button>
+            <Button disabled={!disburseDate} loading={loanAction.isPending} onClick={onDisburse}>
+              Mark disbursed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={defaultOpen} onOpenChange={setDefaultOpen}>
         <DialogContent className="max-w-sm">

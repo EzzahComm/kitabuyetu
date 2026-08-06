@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { StatCard } from '@/components/shared/stat-card';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { ExpandableText } from '@/components/shared/expandable-text';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { api } from '@/lib/api/client';
@@ -146,9 +147,9 @@ const txColumns = [
       <div>
         <StatusPill status={r.status} size="sm" />
         {r.failure_reason && (
-          <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate" title={r.failure_reason}>
+          <ExpandableText lines={2} className="text-[10px] text-destructive mt-0.5 max-w-[180px]">
             {r.failure_reason}
-          </p>
+          </ExpandableText>
         )}
       </div>
     ),
@@ -231,6 +232,8 @@ export default function TreasuryPage() {
           <PaginatedTable
             data={txQ.data ? { items: txQ.data.items, total: txQ.data.total, page, pageSize: 20, totalPages: txQ.data.totalPages } : null}
             isLoading={txQ.isLoading}
+            isError={txQ.isError}
+            error={txQ.error}
             columns={txColumns}
             onPageChange={setPage}
             emptyMessage="No transactions yet."
@@ -266,6 +269,8 @@ export default function TreasuryPage() {
               <PaginatedTable
                 data={singlePage(reconcileQ.data)}
                 isLoading={reconcileQ.isLoading}
+                isError={reconcileQ.isError}
+                error={reconcileQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No reconciliation runs yet."
                 columns={[
@@ -289,12 +294,14 @@ export default function TreasuryPage() {
               <PaginatedTable
                 data={singlePage(reversalQ.data)}
                 isLoading={reversalQ.isLoading}
+                isError={reversalQ.isError}
+                error={reversalQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No reversals recorded."
                 columns={[
                   { key: 'original_receipt_number', header: 'Original Receipt', className: 'font-mono text-xs', render: (r: ReversalRecord) => r.original_receipt_number },
                   { key: 'amount', header: 'Amount', className: 'font-medium', render: (r: ReversalRecord) => formatKES(r.amount) },
-                  { key: 'remarks', header: 'Remarks', className: 'max-w-[180px] truncate', render: (r: ReversalRecord) => r.remarks },
+                  { key: 'remarks', header: 'Remarks', className: 'max-w-[180px]', render: (r: ReversalRecord) => <ExpandableText>{r.remarks}</ExpandableText> },
                   { key: 'status', header: 'Status', render: (r: ReversalRecord) => <StatusPill status={r.status} size="sm" /> },
                   { key: 'requested_by_name', header: 'Requested By', render: (r: ReversalRecord) => r.requested_by_name },
                   { key: 'created_at', header: 'Date', className: 'text-muted-foreground', render: (r: ReversalRecord) => formatDate(r.created_at) },
@@ -332,6 +339,8 @@ export default function TreasuryPage() {
               <PaginatedTable
                 data={singlePage(fundingQ.data?.items)}
                 isLoading={fundingQ.isLoading}
+                isError={fundingQ.isError}
+                error={fundingQ.error}
                 onPageChange={() => {}}
                 emptyMessage="No external funding received yet."
                 emptyDescription="When a partner organization disburses funds to this group, it appears here."

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { buildQuery } from '@/lib/utils';
-import type { welfareService } from '@/lib/services/welfare.service';
+import type { welfareService , CreateWelfareRequestPayload, ReviewWelfareRequestPayload, RecordWelfarePoolPayload } from '@/lib/services/welfare.service';
 import type { PaginatedResult } from '@/types/db.types';
 
 const BASE = '/welfare';
@@ -63,7 +63,7 @@ export function useWelfareRequest(id: string) {
 export function useCreateWelfareRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<WelfareRequestRow>(BASE, body),
+    mutationFn: (body: CreateWelfareRequestPayload) => api.post<WelfareRequestRow>(BASE, body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: welfareKeys.all }),
   });
 }
@@ -71,7 +71,7 @@ export function useCreateWelfareRequest() {
 export function useReviewWelfareRequest(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.patch<WelfareRequestRow>(`${BASE}/${id}`, body),
+    mutationFn: (body: ReviewWelfareRequestPayload) => api.patch<WelfareRequestRow>(`${BASE}/${id}`, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: welfareKeys.list() });
       qc.invalidateQueries({ queryKey: welfareKeys.detail(id) });
@@ -89,7 +89,7 @@ export function useWelfarePool() {
 export function useRecordWelfarePoolContribution() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<unknown>(`${BASE}/pool`, body),
+    mutationFn: (body: RecordWelfarePoolPayload) => api.post<unknown>(`${BASE}/pool`, body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: welfareKeys.pool }),
   });
 }

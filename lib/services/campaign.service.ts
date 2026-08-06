@@ -50,7 +50,8 @@ export async function getCampaignRecipients(
   filter?: CampaignCreateInput['recipientFilter'],
 ): Promise<{ memberId: string; email: string; name: string }[]> {
   const parts: string[] = [
-    `SELECT m.id AS member_id, m.email, COALESCE(m.full_name, m.email) AS name
+    `SELECT m.id AS member_id, m.email,
+            COALESCE(NULLIF(TRIM(m.first_name || ' ' || m.last_name), ''), m.email) AS name
      FROM members m
      JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
      WHERE m.email IS NOT NULL`,

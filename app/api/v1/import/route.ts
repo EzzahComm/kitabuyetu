@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
 import { billingService } from '@/lib/services/billing.service';
 import { ok, errorResponse } from '@/lib/utils/response';
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest): Promise<Response> {
  * before changes hit the DB.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'import.start', async (auth) => {
     const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const type = req.nextUrl.searchParams.get('type') ?? 'contributions';
 

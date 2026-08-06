@@ -29,7 +29,7 @@ describe('payment-requests tenant isolation', () => {
     const res = await DELETE(
       buildRequest(`/api/v1/payment-requests/${id}`, {
         method: 'DELETE',
-        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer' }),
+        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer', permissions: ['payments.request'] }),
       }),
       { params: Promise.resolve({ id }) },
     );
@@ -43,7 +43,7 @@ describe('payment-requests tenant isolation', () => {
     const res = await DELETE(
       buildRequest(`/api/v1/payment-requests/${id}`, {
         method: 'DELETE',
-        headers: authHeaders({ userId: treasurerBId, groupId: groupBId, role: 'treasurer' }),
+        headers: authHeaders({ userId: treasurerBId, groupId: groupBId, role: 'treasurer', permissions: ['payments.request'] }),
       }),
       { params: Promise.resolve({ id }) },
     );

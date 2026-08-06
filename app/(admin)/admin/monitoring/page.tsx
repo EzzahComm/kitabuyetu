@@ -6,15 +6,15 @@ import {
   Activity, Play, Pause, Server, Smartphone, MessageSquare,
   ArrowDownLeft, ArrowUpRight, Zap, Info, RefreshCw,
 } from 'lucide-react';
-import { MetricCard } from '@/components/admin/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Progress } from '@/components/ui/progress';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { ChartCard, TrendChart } from '@/components/shared/charts';
-import { tone, type Tone } from '@/lib/ui/tokens';
+import type { Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import type { MonitoringDashboardPayload } from '@/lib/services/admin.service';
 import { adminFetch } from '@/hooks/use-admin';
@@ -37,8 +37,6 @@ const SERVICE_GROUPS: { title: MonitoringDashboardPayload['services'][number]['g
   { title: 'Messaging', Icon: MessageSquare },
   { title: 'Platform', Icon: Server },
 ];
-
-const FEED_CAP = 40;
 
 export default function MonitoringPage() {
   const { data, isLoading, error } = useQuery<MonitoringDashboardPayload>({
@@ -92,10 +90,10 @@ export default function MonitoringPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Transactions today" value={isLoading ? '—' : txnsToday.toLocaleString()} sub={isLoading ? 'Loading…' : formatKES(valueToday)} icon={Activity} accent="blue" />
-        <MetricCard title="M-Pesa success" value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`} sub={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'} icon={Smartphone} accent="green" />
-        <MetricCard title="STK Push p95" value={isLoading ? '—' : `${stk?.latency ?? 0}ms`} sub={isLoading ? 'Loading…' : stk?.note} icon={Zap} accent={stk?.status === 'operational' ? 'green' : 'orange'} />
-        <MetricCard title="SMS delivered" value={isLoading ? '—' : `${smsRate.toFixed(1)}%`} sub={isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`} icon={MessageSquare} accent="purple" />
+        <StatCard title="Transactions today" value={isLoading ? '—' : txnsToday.toLocaleString()} description={isLoading ? 'Loading…' : formatKES(valueToday)} icon={Activity} accent="blue" />
+        <StatCard title="M-Pesa success" value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`} description={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'} icon={Smartphone} accent="green" />
+        <StatCard title="STK Push p95" value={isLoading ? '—' : `${stk?.latency ?? 0}ms`} description={isLoading ? 'Loading…' : stk?.note} icon={Zap} accent={stk?.status === 'operational' ? 'green' : 'orange'} />
+        <StatCard title="SMS delivered" value={isLoading ? '—' : `${smsRate.toFixed(1)}%`} description={isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`} icon={MessageSquare} accent="purple" />
       </div>
 
       {/* Service health grid */}

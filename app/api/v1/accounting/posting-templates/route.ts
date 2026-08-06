@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { postingTemplatesService } from '@/lib/services/posting-templates.service';
 import { SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
 import { ok } from '@/lib/utils/response';
@@ -15,14 +15,14 @@ import { ok } from '@/lib/utils/response';
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await postingTemplatesService.getGroupTemplates(ctx));
   });
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'accounting.manage', async (auth) => {
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const input = SetPostingTemplateSchema.parse(await req.json());
     await postingTemplatesService.setGroupOverride(ctx, input.event, input.lines);

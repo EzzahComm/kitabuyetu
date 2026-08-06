@@ -31,7 +31,7 @@ export default function ReconciliationsPage() {
   const [reconType, setReconType] = useState<'stk' | 'paybill'>('stk');
   const [showTypeMenu, setShowTypeMenu] = useState(false);
 
-  const { data, isLoading } = useQuery<ReconRun[]>({
+  const { data, isLoading, isError, error } = useQuery<ReconRun[]>({
     queryKey: ['mpesa', 'reconciliations'],
     queryFn:  () => api.get<ReconRun[]>('/mpesa/reconcile'),
   });
@@ -78,7 +78,7 @@ export default function ReconciliationsPage() {
                   <ChevronDown size={14} />
                 </Button>
                 {showTypeMenu && (
-                  <div className="absolute top-full right-0 mt-1 bg-white border rounded-md shadow-md z-10 min-w-[150px]">
+                  <div className="absolute top-full right-0 mt-1 max-w-[calc(100vw-2rem)] min-w-[150px] rounded-md border bg-popover text-popover-foreground shadow-md z-10">
                     <button
                       onClick={() => { setReconType('stk'); setShowTypeMenu(false); }}
                       className={`w-full px-4 py-2 text-left text-sm hover:bg-muted ${reconType === 'stk' ? 'bg-muted font-medium' : ''}`}
@@ -103,6 +103,8 @@ export default function ReconciliationsPage() {
       <PaginatedTable
         data={singlePage(runs)}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={() => {}}
         emptyMessage="No reconciliation runs yet"
         columns={[

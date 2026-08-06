@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { buildQuery } from '@/lib/utils';
-import type { investmentsService } from '@/lib/services/investments.service';
+import type { investmentsService , CreateInvestmentPayload, UpdateInvestmentPayload, RecordReturnPayload } from '@/lib/services/investments.service';
 import type { PaginatedResult } from '@/types/db.types';
 
 const BASE = '/investments';
@@ -62,7 +62,7 @@ export function useInvestment(id: string) {
 export function useCreateInvestment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<InvestmentRow>(BASE, body),
+    mutationFn: (body: CreateInvestmentPayload) => api.post<InvestmentRow>(BASE, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: investmentKeys.all });
       qc.invalidateQueries({ queryKey: investmentKeys.summary });
@@ -73,7 +73,7 @@ export function useCreateInvestment() {
 export function useUpdateInvestment(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.patch<InvestmentRow>(`${BASE}/${id}`, body),
+    mutationFn: (body: UpdateInvestmentPayload) => api.patch<InvestmentRow>(`${BASE}/${id}`, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: investmentKeys.list() });
       qc.invalidateQueries({ queryKey: investmentKeys.detail(id) });
@@ -85,7 +85,7 @@ export function useUpdateInvestment(id: string) {
 export function useRecordInvestmentReturn(investmentId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => api.post<unknown>(`${BASE}/${investmentId}/returns`, body),
+    mutationFn: (body: RecordReturnPayload) => api.post<unknown>(`${BASE}/${investmentId}/returns`, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: investmentKeys.detail(investmentId) });
       qc.invalidateQueries({ queryKey: investmentKeys.summary });

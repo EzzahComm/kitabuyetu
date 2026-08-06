@@ -6,9 +6,12 @@ import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
   RefreshCw, Plus, Trash2, PauseCircle, PlayCircle,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
 import { smsApi } from '@/lib/api/endpoints';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
+import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
@@ -32,10 +35,10 @@ function CategoryBadge({ category }: { category: string }) {
     onboarding:   'bg-teal-50 text-teal-700',
     auth:         'bg-violet-50 text-violet-700',
     announcement: 'bg-indigo-50 text-indigo-700',
-    custom:       'bg-gray-50 text-gray-600',
+    custom:       'bg-muted/50 text-muted-foreground',
   };
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${cls[category] ?? 'bg-gray-50 text-gray-600'}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${cls[category] ?? 'bg-muted/50 text-muted-foreground'}`}>
       {category}
     </span>
   );
@@ -64,7 +67,7 @@ function ComposeTab() {
   const { data: templates } = useQuery({ queryKey: ['sms-templates'], queryFn: () => smsApi.templates() });
 
   const sendMutation = useMutation({
-    mutationFn: (body: unknown) => smsApi.bulk(body),
+    mutationFn: (body: BulkSmsPayload) => smsApi.bulk(body),
     onSuccess: (res) => {
       toast({ title: `Queued ${res.queued} messages for delivery` });
       setMessage(''); setPhones('');
@@ -99,14 +102,14 @@ function ComposeTab() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
-        <div className="bg-white rounded-xl border p-5 space-y-4">
-          <h2 className="font-semibold text-sm text-gray-900">Compose Message</h2>
+        <div className="bg-card rounded-xl border p-5 space-y-4">
+          <h2 className="font-semibold text-sm text-foreground">Compose Message</h2>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">Load Template</label>
+            <label className="text-xs font-medium text-foreground block mb-1">Load Template</label>
             <select
               aria-label="Load template"
-              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
               value={templateId}
               onChange={(e) => handleTemplateSelect(e.target.value)}
             >
@@ -118,22 +121,22 @@ function ComposeTab() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">Message</label>
+            <label className="text-xs font-medium text-foreground block mb-1">Message</label>
             <textarea
-              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               rows={5}
               placeholder="Type your message…"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
               <span>{charCount} chars</span>
               <span>{smsPages} SMS part{smsPages > 1 ? 's' : ''}</span>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-2">Recipients</label>
+            <label className="text-xs font-medium text-foreground block mb-2">Recipients</label>
             <div className="flex gap-2 mb-3">
               {(['all', 'active', 'custom'] as const).map((t) => (
                 <button
@@ -141,7 +144,7 @@ function ComposeTab() {
                   type="button"
                   onClick={() => setTarget(t)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    target === t ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-600 border-gray-200 hover:border-gray-300'
+                    target === t ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground border-input hover:border-ring'
                   }`}
                 >
                   {t === 'all' ? 'All Members' : t === 'active' ? 'Active Only' : 'Custom Phones'}
@@ -150,7 +153,7 @@ function ComposeTab() {
             </div>
             {target === 'custom' && (
               <textarea
-                className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                 rows={4}
                 placeholder="Enter phone numbers, one per line or comma-separated (254…)"
                 value={phones}
@@ -159,15 +162,15 @@ function ComposeTab() {
             )}
           </div>
 
-          <button
+          <Button
             type="button"
             onClick={handleSend}
-            disabled={!message.trim() || sendMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            disabled={!message.trim()}
+            loading={sendMutation.isPending}
           >
             <Send size={15} />
             {sendMutation.isPending ? 'Sending…' : 'Send SMS'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -199,28 +202,28 @@ function BalanceCard() {
   const bal = data;
 
   return (
-    <div className="bg-white rounded-xl border p-5">
+    <div className="bg-card rounded-xl border p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Provider Balance</span>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Provider Balance</span>
         <button
           type="button"
           onClick={() => refresh.mutate()}
           disabled={refresh.isPending}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors"
           title="Refresh balance"
         >
           <RefreshCw size={14} className={refresh.isPending ? 'animate-spin' : ''} />
         </button>
       </div>
       {isLoading ? (
-        <div className="h-8 bg-gray-100 rounded animate-pulse" />
+        <div className="h-8 bg-muted rounded animate-pulse" />
       ) : (
-        <p className="text-2xl font-bold text-gray-900">
+        <p className="text-2xl font-bold text-foreground">
           KES {bal?.balance != null ? Number(bal.balance).toFixed(2) : '—'}
         </p>
       )}
       {bal?.lastChecked && (
-        <p className="text-xs text-gray-400 mt-1">Checked {formatDate(bal.lastChecked)}</p>
+        <p className="text-xs text-muted-foreground mt-1">Checked {formatDate(bal.lastChecked)}</p>
       )}
     </div>
   );
@@ -234,17 +237,17 @@ function CampaignsTab() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName]         = useState('');
   const [message, setMessage]   = useState('');
-  const [recipType, setRecipType] = useState('all_members');
+  const [recipType, setRecipType] = useState<CampaignCreatePayload['recipientType']>('all_members');
   const [scheduledAt, setScheduledAt] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-campaigns'],
     queryFn: () => smsApi.campaigns(),
     staleTime: 30_000,
   });
 
   const create = useMutation({
-    mutationFn: (body: unknown) => smsApi.createCampaign(body),
+    mutationFn: (body: CampaignCreatePayload) => smsApi.createCampaign(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-campaigns'] });
       toast({ title: 'Campaign created' });
@@ -265,50 +268,46 @@ function CampaignsTab() {
       <SectionHeader
         title="SMS Campaigns"
         action={
-          <button
-            type="button"
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <Button type="button" size="sm" className="text-xs" onClick={() => setShowForm(!showForm)}>
             <Plus size={13} /> New Campaign
-          </button>
+          </Button>
         }
       />
 
       {showForm && (
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h3 className="text-sm font-medium text-gray-800">New Campaign</h3>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card rounded-xl border p-5 space-y-3">
+          <h3 className="text-sm font-medium text-foreground">New Campaign</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Name</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name" />
+              <label className="text-xs text-muted-foreground block mb-1">Name</label>
+              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name" />
             </div>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Recipients</label>
-              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value)}>
+              <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
+              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}>
                 <option value="all_members">All Members</option>
                 <option value="active_members">Active Members</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Message</label>
+            <label className="text-xs text-muted-foreground block mb-1">Message</label>
             <textarea className="w-full text-sm border rounded-lg px-3 py-2 resize-none" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message text…" />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Schedule (optional)</label>
+            <label className="text-xs text-muted-foreground block mb-1">Schedule (optional)</label>
             <input type="datetime-local" aria-label="Schedule date and time" className="text-sm border rounded-lg px-3 py-2" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => create.mutate({ name, message, recipientType: recipType, scheduledAt: scheduledAt || null })}
-              disabled={!name || !message || create.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={!name || !message}
+              loading={create.isPending}
             >
               {create.isPending ? 'Creating…' : scheduledAt ? 'Schedule' : 'Send Now'}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            </Button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
           </div>
         </div>
       )}
@@ -316,16 +315,18 @@ function CampaignsTab() {
       <PaginatedTable
         data={singlePage(campaigns)}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={() => {}}
         emptyMessage="No campaigns yet"
         columns={[
-          { key: 'name', header: 'Name', render: (c) => <span className="font-medium text-gray-900">{c.name}</span> },
+          { key: 'name', header: 'Name', render: (c) => <span className="font-medium text-foreground">{c.name}</span> },
           { key: 'status', header: 'Status', render: (c) => <StatusBadge status={c.status} /> },
-          { key: 'recipients', header: 'Recipients', render: (c) => <span className="text-gray-600">{c.recipient_count.toLocaleString()}</span> },
+          { key: 'recipients', header: 'Recipients', render: (c) => <span className="text-muted-foreground">{c.recipient_count.toLocaleString()}</span> },
           {
             key: 'sentFailed', header: 'Sent / Failed',
             render: (c) => (
-              <span className="text-gray-600">
+              <span className="text-muted-foreground">
                 <span className="text-green-600">{c.sent_count}</span>
                 {' / '}
                 <span className="text-red-500">{c.failed_count}</span>
@@ -334,7 +335,7 @@ function CampaignsTab() {
           },
           {
             key: 'scheduled', header: 'Scheduled',
-            render: (c) => <span className="text-gray-500 text-xs">{c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}</span>,
+            render: (c) => <span className="text-muted-foreground text-xs">{c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}</span>,
           },
           {
             key: 'actions', header: 'Actions',
@@ -364,16 +365,16 @@ function TemplatesTab() {
   const [key, setKey]       = useState('');
   const [name, setName]     = useState('');
   const [body, setBody]     = useState('');
-  const [category, setCategory] = useState('custom');
+  const [category, setCategory] = useState<TemplateCreatePayload['category']>('custom');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-templates'],
     queryFn: () => smsApi.templates(),
     staleTime: 60_000,
   });
 
   const create = useMutation({
-    mutationFn: (b: unknown) => smsApi.createTemplate(b),
+    mutationFn: (b: TemplateCreatePayload) => smsApi.createTemplate(b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-templates'] });
       toast({ title: 'Template created' });
@@ -395,60 +396,56 @@ function TemplatesTab() {
       <SectionHeader
         title="SMS Templates"
         action={
-          <button
-            type="button"
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <Button type="button" size="sm" className="text-xs" onClick={() => setShowForm(!showForm)}>
             <Plus size={13} /> New Template
-          </button>
+          </Button>
         }
       />
 
       {showForm && (
-        <div className="bg-white rounded-xl border p-5 space-y-3">
+        <div className="bg-card rounded-xl border p-5 space-y-3">
           <h3 className="text-sm font-medium">New Template</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Key (snake_case)</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={key} onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))} placeholder="my_template" />
+              <label className="text-xs text-muted-foreground block mb-1">Key (snake_case)</label>
+              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={key} onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))} placeholder="my_template" />
             </div>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Display Name</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Template" />
+              <label className="text-xs text-muted-foreground block mb-1">Display Name</label>
+              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Template" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Category</label>
-            <select aria-label="Template category" className="w-full text-sm border rounded-lg px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <label className="text-xs text-muted-foreground block mb-1">Category</label>
+            <select aria-label="Template category" className="w-full text-sm border rounded-lg px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value as TemplateCreatePayload['category'])}>
               {['transaction', 'loan', 'reminder', 'birthday', 'onboarding', 'auth', 'announcement', 'custom'].map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">
-              Body <span className="text-gray-400">(use {'{{variable}}'} for placeholders)</span>
+            <label className="text-xs text-muted-foreground block mb-1">
+              Body <span className="text-muted-foreground">(use {'{{variable}}'} for placeholders)</span>
             </label>
             <textarea
-              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Dear {{first_name}}, your balance is KES {{amount}}."
             />
-            <p className="text-xs text-gray-400 mt-1">{charCount} chars</p>
+            <p className="text-xs text-muted-foreground mt-1">{charCount} chars</p>
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => create.mutate({ templateKey: key, name, body, category })}
-              disabled={!key || !name || !body || create.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={!key || !name || !body}
+              loading={create.isPending}
             >
               {create.isPending ? 'Saving…' : 'Save Template'}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            </Button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
           </div>
         </div>
       )}
@@ -456,18 +453,20 @@ function TemplatesTab() {
       <PaginatedTable
         data={singlePage(templates)}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={() => {}}
         emptyMessage="No templates yet"
         columns={[
-          { key: 'name', header: 'Name', render: (t) => <span className="font-medium text-gray-900">{t.name}</span> },
-          { key: 'key', header: 'Key', render: (t) => <span className="font-mono text-xs text-gray-500">{t.template_key}</span> },
+          { key: 'name', header: 'Name', render: (t) => <span className="font-medium text-foreground">{t.name}</span> },
+          { key: 'key', header: 'Key', render: (t) => <span className="font-mono text-xs text-muted-foreground">{t.template_key}</span> },
           { key: 'category', header: 'Category', render: (t) => <CategoryBadge category={t.category} /> },
-          { key: 'variables', header: 'Variables', render: (t) => <span className="text-xs text-gray-500">{(t.variables ?? []).join(', ') || '—'}</span> },
-          { key: 'body', header: 'Body', className: 'max-w-[280px] truncate', render: (t) => <span className="text-gray-600 text-xs">{t.body}</span> },
+          { key: 'variables', header: 'Variables', render: (t) => <span className="text-xs text-muted-foreground">{(t.variables ?? []).join(', ') || '—'}</span> },
+          { key: 'body', header: 'Body', className: 'max-w-[280px]', render: (t) => <ExpandableText className="text-muted-foreground text-xs">{t.body}</ExpandableText> },
           {
             key: 'type', header: 'Type',
             render: (t) => (
-              <span className={`text-xs ${t.is_system ? 'text-blue-500' : 'text-gray-400'}`}>
+              <span className={`text-xs ${t.is_system ? 'text-blue-500' : 'text-muted-foreground'}`}>
                 {t.is_system ? 'System' : 'Custom'}
               </span>
             ),
@@ -498,20 +497,20 @@ function SchedulesTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [sName, setSName]           = useState('');
-  const [sType, setSType]           = useState('one_time');
+  const [sType, setSType]           = useState<ScheduleCreatePayload['scheduleType']>('one_time');
   const [sCron, setSCron]           = useState('');
   const [sNextRun, setSNextRun]     = useState('');
   const [sMessage, setSMessage]     = useState('');
-  const [recipType, setRecipType]   = useState('all_members');
+  const [recipType, setRecipType]   = useState<ScheduleCreatePayload['recipientType']>('all_members');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-schedules'],
     queryFn: () => smsApi.schedules(),
     staleTime: 60_000,
   });
 
   const create = useMutation({
-    mutationFn: (b: unknown) => smsApi.createSchedule(b),
+    mutationFn: (b: ScheduleCreatePayload) => smsApi.createSchedule(b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-schedules'] });
       toast({ title: 'Schedule created' });
@@ -540,55 +539,51 @@ function SchedulesTab() {
       <SectionHeader
         title="SMS Schedules"
         action={
-          <button
-            type="button"
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <Button type="button" size="sm" className="text-xs" onClick={() => setShowForm(!showForm)}>
             <Plus size={13} /> New Schedule
-          </button>
+          </Button>
         }
       />
 
       {showForm && (
-        <div className="bg-white rounded-xl border p-5 space-y-3">
+        <div className="bg-card rounded-xl border p-5 space-y-3">
           <h3 className="text-sm font-medium">New Schedule</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Name</label>
+              <label className="text-xs text-muted-foreground block mb-1">Name</label>
               <input className="w-full text-sm border rounded-lg px-3 py-2" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Schedule name" />
             </div>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Type</label>
-              <select aria-label="Schedule type" className="w-full text-sm border rounded-lg px-3 py-2" value={sType} onChange={(e) => setSType(e.target.value)}>
+              <label className="text-xs text-muted-foreground block mb-1">Type</label>
+              <select aria-label="Schedule type" className="w-full text-sm border rounded-lg px-3 py-2" value={sType} onChange={(e) => setSType(e.target.value as ScheduleCreatePayload['scheduleType'])}>
                 {SCHEDULE_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Recipients</label>
-              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value)}>
+              <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
+              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}>
                 <option value="all_members">All Members</option>
                 <option value="active_members">Active Members</option>
               </select>
             </div>
             {sType === 'one_time' ? (
               <div>
-                <label className="text-xs text-gray-600 block mb-1">Run At</label>
+                <label className="text-xs text-muted-foreground block mb-1">Run At</label>
                 <input type="datetime-local" aria-label="Schedule run date and time" className="w-full text-sm border rounded-lg px-3 py-2" value={sNextRun} onChange={(e) => setSNextRun(e.target.value)} />
               </div>
             ) : (
               <div>
-                <label className="text-xs text-gray-600 block mb-1">Cron Expression</label>
+                <label className="text-xs text-muted-foreground block mb-1">Cron Expression</label>
                 <input className="w-full text-sm border rounded-lg px-3 py-2 font-mono" value={sCron} onChange={(e) => setSCron(e.target.value)} placeholder="0 8 * * *" />
               </div>
             )}
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Message</label>
+            <label className="text-xs text-muted-foreground block mb-1">Message</label>
             <textarea className="w-full text-sm border rounded-lg px-3 py-2 resize-none" rows={3} value={sMessage} onChange={(e) => setSMessage(e.target.value)} placeholder="Message text…" />
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() =>
                 create.mutate({
@@ -598,12 +593,12 @@ function SchedulesTab() {
                   nextRunAt: sNextRun ? new Date(sNextRun).toISOString() : undefined,
                 })
               }
-              disabled={!sName || !sMessage || create.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={!sName || !sMessage}
+              loading={create.isPending}
             >
               {create.isPending ? 'Saving…' : 'Save Schedule'}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            </Button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
           </div>
         </div>
       )}
@@ -611,16 +606,18 @@ function SchedulesTab() {
       <PaginatedTable
         data={singlePage(schedules)}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={() => {}}
         emptyMessage="No schedules yet"
         columns={[
-          { key: 'name', header: 'Name', render: (s) => <span className="font-medium text-gray-900">{s.name}</span> },
-          { key: 'type', header: 'Type', render: (s) => <span className="capitalize text-gray-600 text-xs">{s.schedule_type.replace(/_/g, ' ')}</span> },
+          { key: 'name', header: 'Name', render: (s) => <span className="font-medium text-foreground">{s.name}</span> },
+          { key: 'type', header: 'Type', render: (s) => <span className="capitalize text-muted-foreground text-xs">{s.schedule_type.replace(/_/g, ' ')}</span> },
           {
             key: 'cron', header: 'Cron / Next Run',
-            render: (s) => <span className="text-xs text-gray-500 font-mono">{s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}</span>,
+            render: (s) => <span className="text-xs text-muted-foreground font-mono">{s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}</span>,
           },
-          { key: 'lastRun', header: 'Last Run', render: (s) => <span className="text-xs text-gray-400">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span> },
+          { key: 'lastRun', header: 'Last Run', render: (s) => <span className="text-xs text-muted-foreground">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span> },
           { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.is_active ? 'sent' : 'cancelled'} /> },
           {
             key: 'actions', header: '',
@@ -629,7 +626,7 @@ function SchedulesTab() {
                 <button
                   type="button"
                   onClick={() => toggle.mutate({ id: s.id, isActive: !s.is_active })}
-                  className="text-gray-400 hover:text-gray-700 transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                   title={s.is_active ? 'Pause' : 'Resume'}
                 >
                   {s.is_active ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
@@ -658,7 +655,7 @@ function LogsTab() {
   const [status, setStatus] = useState('');
   const { toast }           = useToast();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-logs', page, status],
     queryFn: () => smsApi.usage({ page, limit: 20, ...(status ? { status } : {}) }),
     staleTime: 30_000,
@@ -701,17 +698,21 @@ function LogsTab() {
         }
       />
 
+      <SummaryStatsGrid items={usageStats} />
+
       <PaginatedTable
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        error={error}
         onPageChange={setPage}
         emptyMessage="No SMS logs found"
         columns={[
-          { key: 'recipient', header: 'Recipient', render: (l) => <span className="font-mono text-xs text-gray-700">{l.recipient_phone}</span> },
-          { key: 'message', header: 'Message', className: 'max-w-[220px] truncate', render: (l) => <span className="text-gray-600 text-xs">{l.message_text}</span> },
+          { key: 'recipient', header: 'Recipient', render: (l) => <span className="font-mono text-xs text-foreground">{l.recipient_phone}</span> },
+          { key: 'message', header: 'Message', className: 'max-w-[220px]', render: (l) => <ExpandableText className="text-muted-foreground text-xs">{l.message_text}</ExpandableText> },
           { key: 'status', header: 'Status', render: (l) => <StatusBadge status={l.status} /> },
-          { key: 'credits', header: 'Credits', render: (l) => <span className="text-xs text-gray-500">{parseFloat(l.credits_deducted).toFixed(2)}</span> },
-          { key: 'sentAt', header: 'Sent At', render: (l) => <span className="text-xs text-gray-400">{l.sent_at ? formatDate(l.sent_at) : '—'}</span> },
+          { key: 'credits', header: 'Credits', render: (l) => <span className="text-xs text-muted-foreground">{parseFloat(l.credits_deducted).toFixed(2)}</span> },
+          { key: 'sentAt', header: 'Sent At', render: (l) => <span className="text-xs text-muted-foreground">{l.sent_at ? formatDate(l.sent_at) : '—'}</span> },
           {
             key: 'dlr', header: 'DLR',
             render: (l) => (l.provider_msg_id && l.status === 'sent') ? (
@@ -749,7 +750,7 @@ export default function SmsPage() {
             className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === key
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             <Icon size={15} />

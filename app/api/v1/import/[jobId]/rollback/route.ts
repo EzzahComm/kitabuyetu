@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
 import { RollbackBodySchema } from '@/lib/validators/import.schema';
 import { errorResponse, ok } from '@/lib/utils/response';
@@ -22,7 +22,7 @@ interface RouteParams { params: Promise<{ jobId: string }> }
  */
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { jobId } = await params;
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'import.rollback', async (auth) => {
     const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const body   = await req.json().catch(() => ({}));
     const parsed = RollbackBodySchema.parse(body);

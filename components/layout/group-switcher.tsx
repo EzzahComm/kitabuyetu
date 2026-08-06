@@ -12,9 +12,10 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronsUpDown, Check, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
+import { postLoginPath } from '@/lib/auth/post-login-path';
 import { authApi } from '@/lib/api/endpoints';
 import type { MembershipSwitcherItem } from '@/types/api.types';
 
@@ -37,8 +38,8 @@ export function GroupSwitcher() {
       try {
         const res = await authApi.memberships();
         setItems(res.items);
-      } catch {
-        setError('Could not load your groups');
+      } catch (err) {
+        setError(getErrorMessage(err));
       } finally {
         setLoading(false);
       }
@@ -54,10 +55,10 @@ export function GroupSwitcher() {
       login(data);            // new session replaces the stored one
       setOpen(false);
       setItems(null);         // stale isCurrent flags — refetch next open
-      router.push('/dashboard');
+      router.push(postLoginPath(data.member.groupRole));
       router.refresh();
-    } catch {
-      setError('Switch failed — try again');
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setSwitching(null);
     }

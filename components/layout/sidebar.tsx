@@ -6,52 +6,52 @@ import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
   MessageSquare, BarChart2, Building2, Settings,
   Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
-  Upload, Smartphone,
+  Upload, Smartphone, Wallet, MoreHorizontal,
 } from 'lucide-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
 
+// "Simple First" primary nav (SIMPLIFICATION_AND_RBAC_AUDIT.md §3): 7 primary
+// items max, with Finance and More as collapsible groups (portal-sidebar.tsx's
+// `children` primitive) rather than separate titled sections — replaces the
+// old 4-section (Money/Insights/Engage) flat-20-item layout.
 const NAV: PortalNavSection[] = [
   {
     title: null,
     items: [
       { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-      { href: '/contributions', label: 'Contributions',  icon: CreditCard },
+      { href: '/members',       label: 'Members',       icon: Users },
+      { href: '/contributions', label: 'Contributions', icon: CreditCard },
       { href: '/loans',         label: 'Loans',          icon: Landmark },
-      { href: '/mpesa',         label: 'M-Pesa',         icon: Smartphone },
-      { href: '/members',       label: 'Members',        icon: Users },
-    ],
-  },
-  {
-    title: 'Money',
-    items: [
-      { href: '/welfare',    label: 'Welfare',    icon: Heart },
-      { href: '/shares',     label: 'Shares',     icon: Coins },
-      { href: '/dividends',  label: 'Dividends',  icon: ReceiptText },
-      { href: '/treasury',   label: 'Treasury',   icon: Vault },
-      { href: '/accounting', label: 'Accounting', icon: BookOpen },
-      { href: '/billing',    label: 'Billing',    icon: Receipt },
-    ],
-  },
-  {
-    title: 'Insights',
-    items: [
-      { href: '/analytics',     label: 'Analytics',     icon: BarChart2 },
-      { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
-      { href: '/investments',   label: 'Investments',   icon: TrendingUp },
-      { href: '/reports',       label: 'Reports',       icon: BarChart2 },
-    ],
-  },
-  {
-    title: 'Engage',
-    items: [
-      { href: '/meetings',    label: 'Meetings',    icon: Calendar },
-      { href: '/sms',         label: 'SMS',         icon: MessageSquare },
-      { href: '/whatsapp',    label: 'WhatsApp',    icon: MessageSquare },
-      { href: '/email',       label: 'Email',       icon: Mail },
-      { href: '/data-import', label: 'Data import', icon: Upload },
+      {
+        href: '#', label: 'Finance', icon: Wallet,
+        children: [
+          { href: '/mpesa',      label: 'M-Pesa',     icon: Smartphone },
+          { href: '/treasury',   label: 'Treasury',   icon: Vault },
+          { href: '/welfare',    label: 'Welfare',    icon: Heart },
+          { href: '/shares',     label: 'Shares',     icon: Coins },
+          { href: '/dividends',  label: 'Dividends',  icon: ReceiptText },
+          { href: '/accounting', label: 'Accounting', icon: BookOpen },
+        ],
+      },
+      { href: '/reports', label: 'Reports', icon: BarChart2 },
+      {
+        href: '#', label: 'More', icon: MoreHorizontal,
+        children: [
+          { href: '/meetings',      label: 'Meetings',      icon: Calendar },
+          { href: '/sms',           label: 'SMS',           icon: MessageSquare },
+          { href: '/whatsapp',      label: 'WhatsApp',      icon: MessageSquare },
+          { href: '/email',         label: 'Email',         icon: Mail },
+          { href: '/investments',   label: 'Investments',   icon: TrendingUp },
+          { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
+          { href: '/analytics',     label: 'Analytics',     icon: BarChart2 },
+          { href: '/data-import',   label: 'Data import',   icon: Upload },
+          { href: '/billing',       label: 'Billing',       icon: Receipt },
+          { href: '/settings',      label: 'Settings',      icon: Settings },
+        ],
+      },
     ],
   },
 ];
@@ -97,15 +97,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </Link>
       )}
       preNav={isTenantUser(user) ? <GroupSwitcher /> : null}
-      footer={() => (
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-        >
-          <Settings size={18} />
-          Settings
-        </Link>
-      )}
     />
   );
 }

@@ -8,9 +8,24 @@
  * partition: unlike ordinary row-level triggers, which Postgres
  * automatically clones from a partitioned parent to every partition,
  * constraint triggers do not get that treatment and must be created on each
- * partition individually — confirmed against a scratch Postgres 17
- * container matching production's configured version (supabase/config.toml
- * major_version = 17), not just documentation.
+ * partition individually.
+ *
+ * IMPORTANT — migrations 094/095 are NOT applied to production. Verified
+ * 2026-07-30 against the live database: `journal_lines` has
+ * pg_class.relkind = 'r' (ordinary table), and neither
+ * journal_lines_partitioned, journal_lines_default, nor journal_lines_legacy
+ * exists. `ensureJournalLinesPartitions` therefore no-ops (see the relkind
+ * guard below) rather than throwing on `CREATE TABLE ... PARTITION OF` and
+ * on the missing journal_lines_default.
+ *
+ * A previous version of this comment claimed the constraint-trigger
+ * behaviour had been "confirmed against a scratch Postgres 17 container...
+ * not just documentation". That is not accurate and has been corrected:
+ * Docker was unreachable in the session that wrote migrations 094/095, so
+ * the partitioning SQL has never been executed against any real Postgres
+ * instance. The claim is sourced from PostgreSQL's documentation only. Do
+ * not treat 094/095 as verified — see
+ * docs/audits/PRODUCTION_SCHEMA_DRIFT_AUDIT.md (M2).
  */
 import { pool } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -48,9 +63,38 @@ async function ensurePartition(monthStart: Date, monthEnd: Date): Promise<string
   return name;
 }
 
+/**
+ * True only when journal_lines is an actual partitioned table (relkind 'p').
+ * Everything below — CREATE TABLE ... PARTITION OF, and the
+ * journal_lines_default row count — is invalid against an ordinary table and
+ * raises rather than returning an empty result, so this has to be checked
+ * before any of it runs.
+ */
+async function isJournalLinesPartitioned(): Promise<boolean> {
+  const { rows } = await pool.query<{ relkind: string }>(
+    `SELECT c.relkind FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname = 'journal_lines'`,
+  );
+  return rows[0]?.relkind === 'p';
+}
+
 export async function ensureJournalLinesPartitions(): Promise<{
-  created: string[]; defaultPartitionRowCount: number;
+  created: string[]; defaultPartitionRowCount: number; skipped?: true;
 }> {
+  // Migrations 094/095 are unapplied in production (see the file header).
+  // Without this guard the job's first-ever run — 1st of the month, 09:00
+  // UTC — fails outright. A no-op with a warning is the honest behaviour:
+  // there are no partitions to maintain on a non-partitioned table, and
+  // that is a deployment-state fact to surface, not an error to retry.
+  if (!(await isJournalLinesPartitioned())) {
+    logger.warn(
+      '[journal-lines-partitions] journal_lines is not a partitioned table — ' +
+      'migrations 094/095 are not applied. Skipping partition maintenance.',
+    );
+    return { created: [], defaultPartitionRowCount: 0, skipped: true };
+  }
+
   const now = new Date();
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + MONTHS_AHEAD + 1, 1));
 

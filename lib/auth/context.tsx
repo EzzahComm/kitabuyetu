@@ -24,6 +24,12 @@ interface TenantUser {
   officerRole?: string;
   // Phase D Part 2: group lifecycle — 'pending_verification' | 'active' | …
   groupStatus?: string;
+  // RBAC permission activation frontend rollout (UX_UI_OPTIMIZATION_AUDIT_2026-08.md
+  // Phase 1) — same claim already embedded in the access token, surfaced here
+  // so client components can gate UI via lib/auth/permissions.ts's
+  // hasPermission without decoding the JWT. Optional so pre-rollout
+  // localStorage payloads still parse.
+  permissions?: string[];
 }
 
 // Backoffice (platform staff) user shape — no group context.

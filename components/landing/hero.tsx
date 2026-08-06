@@ -97,23 +97,6 @@ export default function Hero() {
             <LedgerMockup />
           </motion.div>
         </div>
-
-        {/* ── Footprint bar ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-20 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-white/10 pt-8"
-        >
-          <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/50">
-            Keeping books across
-          </span>
-          {['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'].map((city) => (
-            <span key={city} className="font-mono text-xs text-white/70">
-              {city}
-            </span>
-          ))}
-        </motion.div>
       </div>
     </section>
   );

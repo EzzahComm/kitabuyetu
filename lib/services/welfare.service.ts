@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
+import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal } from './posting-templates.service';
 import { z } from 'zod';
@@ -280,3 +280,10 @@ export const welfareService = {
     });
   },
 };
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type CreateWelfareRequestPayload = z.input<typeof CreateWelfareRequestSchema>;
+export type ReviewWelfareRequestPayload = z.input<typeof ReviewWelfareRequestSchema>;
+export type RecordWelfarePoolPayload = z.input<typeof RecordWelfarePoolSchema>;

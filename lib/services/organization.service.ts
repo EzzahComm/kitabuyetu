@@ -3,6 +3,36 @@ import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
+export interface OrganizationBranding {
+  logoUrl:      string | null;
+  primaryColor: string | null;
+}
+
+export interface OrganizationAuditLogRow {
+  id:           string;
+  groupId:      string | null;
+  groupName:    string | null;
+  actorId:      string | null;
+  actorName:    string | null;
+  action:       string;
+  resourceType: string;
+  resourceId:   string | null;
+  createdAt:    string;
+}
+
+export interface OrganizationMemberRow {
+  memberId:   string;
+  firstName:  string;
+  lastName:   string;
+  phone:      string;
+  email:      string | null;
+  groupId:    string;
+  groupName:  string;
+  role:       string;
+  isActive:   boolean;
+  joinedAt:   string;
+}
+
 export const organizationService = {
 
   async assertOrganizationCoordinator(ctx: TenantContext): Promise<void> {
@@ -21,6 +51,41 @@ export const organizationService = {
       const { rows } = await client.query<OrganizationProfile>(
         `SELECT id, name, type FROM organizations WHERE id = $1`,
         [ctx.organizationId],
+      );
+      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      return rows[0];
+    });
+  },
+
+  /**
+   * White-label branding — logo + primary color only (migration 109,
+   * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4; custom domain
+   * explicitly deferred, see the audit's Phase 4/Phase 5 notes).
+   */
+  async getBranding(ctx: TenantContext): Promise<OrganizationBranding> {
+    await this.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<OrganizationBranding>(
+        `SELECT logo_url AS "logoUrl", primary_color AS "primaryColor" FROM organizations WHERE id = $1`,
+        [ctx.organizationId],
+      );
+      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      return rows[0];
+    });
+  },
+
+  async setBranding(
+    ctx: TenantContext,
+    input: { logoUrl?: string | null; primaryColor?: string | null },
+  ): Promise<OrganizationBranding> {
+    await this.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<OrganizationBranding>(
+        `UPDATE organizations
+         SET logo_url = $2, primary_color = $3
+         WHERE id = $1
+         RETURNING logo_url AS "logoUrl", primary_color AS "primaryColor"`,
+        [ctx.organizationId, input.logoUrl ?? null, input.primaryColor ?? null],
       );
       if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
       return rows[0];
@@ -85,6 +150,134 @@ export const organizationService = {
            ORDER BY g.name
            LIMIT $2 OFFSET $3`,
           [orgId, limit, (page - 1) * limit],
+        ),
+      ]);
+
+      const total = parseInt(countRows[0]?.n ?? '0', 10);
+      return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    });
+  },
+
+  /**
+   * Customer members across every branch (group) linked to this
+   * organization — distinct from organization-members.service.ts, which
+   * lists this org's own STAFF (coordinators/leads), not its customers.
+   * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — the enterprise
+   * portal's "Members" nav item had no backend at all until this.
+   */
+  async listMembers(
+    ctx: TenantContext,
+    params: { page?: number; limit?: number; search?: string } = {},
+  ): Promise<PaginatedResult<OrganizationMemberRow>> {
+    await this.assertOrganizationCoordinator(ctx);
+    const page   = Math.max(1, params.page ?? 1);
+    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const search = params.search?.trim();
+
+    return withDb(ctx, async (client) => {
+      const orgId = ctx.organizationId ?? ctx.groupId;
+      const searchPattern = search ? `%${search}%` : null;
+      // Distinct placeholder numbering per query — the count query has no
+      // limit/offset params, so `search` sits at a different position than
+      // in the list query below.
+      const countSearchClause = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $2 OR m.phone ILIKE $2)` : '';
+      const listSearchClause  = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $4 OR m.phone ILIKE $4)` : '';
+
+      const [{ rows: countRows }, { rows }] = await Promise.all([
+        client.query<{ n: string }>(
+          `SELECT COUNT(*) AS n
+           FROM group_members gm
+           JOIN groups g ON g.id = gm.group_id
+           JOIN organization_group_access nga
+             ON nga.group_id = g.id AND nga.organization_id = $1 AND nga.is_active = true
+           JOIN members m ON m.id = gm.member_id
+           WHERE g.is_active = true ${countSearchClause}`,
+          search ? [orgId, searchPattern] : [orgId],
+        ),
+        client.query<OrganizationMemberRow>(
+          `SELECT
+             m.id                AS "memberId",
+             m.first_name        AS "firstName",
+             m.last_name         AS "lastName",
+             m.phone,
+             m.email,
+             g.id                AS "groupId",
+             g.name              AS "groupName",
+             gm.role::text       AS "role",
+             gm.is_active        AS "isActive",
+             gm.joined_at::text  AS "joinedAt"
+           FROM group_members gm
+           JOIN groups g ON g.id = gm.group_id
+           JOIN organization_group_access nga
+             ON nga.group_id = g.id AND nga.organization_id = $1 AND nga.is_active = true
+           JOIN members m ON m.id = gm.member_id
+           WHERE g.is_active = true ${listSearchClause}
+           ORDER BY m.first_name, m.last_name
+           LIMIT $2 OFFSET $3`,
+          search
+            ? [orgId, limit, (page - 1) * limit, searchPattern]
+            : [orgId, limit, (page - 1) * limit],
+        ),
+      ]);
+
+      const total = parseInt(countRows[0]?.n ?? '0', 10);
+      return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    });
+  },
+
+  /**
+   * Audit trail scoped to this organization's own branches —
+   * `audit_logs.group_id` is the only scoping column that table has (no
+   * `organization_id`), so this joins through `organization_group_access`
+   * rather than filtering directly. Mirrors admin.service.ts's platform-wide
+   * `listAuditLogs`, narrowed to one organization's groups.
+   * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4.
+   */
+  async listAuditLogs(
+    ctx: TenantContext,
+    params: { page?: number; limit?: number; search?: string } = {},
+  ): Promise<PaginatedResult<OrganizationAuditLogRow>> {
+    await this.assertOrganizationCoordinator(ctx);
+    const page   = Math.max(1, params.page ?? 1);
+    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const search = params.search?.trim();
+
+    return withDb(ctx, async (client) => {
+      const orgId = ctx.organizationId ?? ctx.groupId;
+      const searchClause = search ? `AND al.resource_type ILIKE $2` : '';
+      const searchParam  = search ? [`%${search}%`] : [];
+
+      const [{ rows: countRows }, { rows }] = await Promise.all([
+        client.query<{ n: string }>(
+          `SELECT COUNT(*) AS n
+           FROM audit_logs al
+           WHERE al.group_id IN (
+             SELECT group_id FROM organization_group_access
+             WHERE organization_id = $1 AND is_active = true
+           ) ${searchClause}`,
+          [orgId, ...searchParam],
+        ),
+        client.query<OrganizationAuditLogRow>(
+          `SELECT
+             al.id,
+             al.group_id                          AS "groupId",
+             g.name                                AS "groupName",
+             al.actor_id                          AS "actorId",
+             (m.first_name || ' ' || m.last_name)  AS "actorName",
+             al.action,
+             al.resource_type                     AS "resourceType",
+             al.resource_id::text                 AS "resourceId",
+             al.created_at::text                  AS "createdAt"
+           FROM audit_logs al
+           LEFT JOIN groups g  ON g.id = al.group_id
+           LEFT JOIN members m ON m.id = al.actor_id
+           WHERE al.group_id IN (
+             SELECT group_id FROM organization_group_access
+             WHERE organization_id = $1 AND is_active = true
+           ) ${searchClause}
+           ORDER BY al.created_at DESC
+           LIMIT $${search ? 3 : 2} OFFSET $${search ? 4 : 3}`,
+          [orgId, ...searchParam, limit, (page - 1) * limit],
         ),
       ]);
 

@@ -5,15 +5,11 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
 import {
   ContributionCsvRowSchema,
-  CONTRIBUTION_CSV_COLUMNS,
   LoanCsvRowSchema,
-  LOAN_CSV_COLUMNS,
   MEMBER_CSV_COLUMNS,
   MemberCsvRowSchema,
   resolveCsvHeader,
   resolveHeaderFor,
-  type ContributionCsvColumn,
-  type LoanCsvColumn,
   type MemberCsvColumn,
   type ContributionCsvRow,
   type ImportKind,

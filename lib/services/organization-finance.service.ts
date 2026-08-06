@@ -23,6 +23,11 @@ import { postOrgSystemJournal } from './organization-accounting.service';
 import { getEffectiveThreshold } from './approval-policy.service';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+// Typed against the validator rather than a hand-written inline shape. A
+// parallel hand-maintained type is exactly what drifted in the client/server
+// contract audit — this way, adding a field to the schema is a compile error
+// here until it is persisted.
+import type { CreateProgramInput, CapitalAdjustmentInput, DisburseInput } from '@/lib/validators/organization.schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +55,39 @@ export interface FundingProgram {
   ends_on:         string | null;
   status:          string;
   created_at:      string;
+  // Financial-product terms (migration 116). Every existing program is
+  // non-repayable by default, so these are all null/false for grants.
+  product_code:         string | null;
+  is_repayable:         boolean;
+  capital_model:        string;
+  loss_bearer:          string;
+  shared_loss_ratio:    string | null;
+  interest_method:      string | null;
+  /** PERCENTAGE (12.50 = 12.5%), matching loans.interest_rate — never a ratio. */
+  interest_rate_annual: string | null;
+  repayment_frequency:  string;
+  grace_period_days:    number;
+  tenor_months:         number | null;
+  revenue_owner:        string;
+  revenue_share_ratio:  string | null;
+  repayment_waterfall:  unknown | null;
+  member_visibility:    string;
+}
+
+/**
+ * A product's capital position. `budget` is a SPENDING AUTHORITY, not a cash
+ * balance — actual cash lives once, at organization_wallets. So:
+ *   available = totalCapital - allocated
+ */
+export interface ProductBalances {
+  programId:       string;
+  name:            string;
+  isRepayable:     boolean;
+  totalCapital:    number;
+  allocated:       number;
+  available:       number;
+  /** allocated / totalCapital, 0 when the product has no capital yet. */
+  utilizationRate: number;
 }
 
 export interface ProgramBudgetLine {
@@ -104,6 +142,22 @@ const orgId = (ctx: TenantContext): string => {
   return ctx.organizationId;
 };
 
+/**
+ * Row-locks the organization's wallet, creating it first if it doesn't exist.
+ *
+ * This USED to throw NotFoundError when no wallet row existed, which was a live
+ * bug: createOrganization() seeds a chart of accounts but NOT a wallet — only
+ * getWallet() creates one, lazily, when someone opens the wallet screen. So an
+ * organization's very first deposit() or disburse() failed with "Organization
+ * wallet not found" unless a coordinator happened to view that screen first.
+ * Found by the real-Postgres CI job while wiring Phase 2a; confirmed against
+ * production, where the live organization has no wallet row at all.
+ *
+ * Bootstrapping is the only sane behaviour here — a wallet is an implementation
+ * detail of holding a balance, not a thing a user opts into — so the throwing
+ * variant is deliberately gone rather than kept alongside this one, so no
+ * future caller can pick the footgun by accident.
+ */
 async function getWalletForUpdate(db: PoolClient, organizationId: string): Promise<OrgWallet> {
   const { rows } = await db.query<OrgWallet>(
     `SELECT * FROM organization_wallets
@@ -111,8 +165,167 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
      FOR UPDATE`,
     [organizationId],
   );
-  if (!rows[0]) throw new NotFoundError('Organization wallet');
+  if (rows[0]) return rows[0];
+
+  const { rows: created } = await db.query<OrgWallet>(
+    `INSERT INTO organization_wallets (organization_id) VALUES ($1)
+     ON CONFLICT (organization_id, currency) DO UPDATE SET updated_at = NOW()
+     RETURNING *`,
+    [organizationId],
+  );
+  return created[0];
+}
+
+/** Row-locks a product before adjusting its capital, mirroring getWalletForUpdate. */
+async function getProgramForUpdate(
+  db: PoolClient, organizationId: string, programId: string,
+): Promise<FundingProgram> {
+  const { rows } = await db.query<FundingProgram>(
+    `SELECT * FROM funding_programs
+     WHERE id = $1 AND organization_id = $2
+     FOR UPDATE`,
+    [programId, organizationId],
+  );
+  if (!rows[0]) throw new NotFoundError('Funding program', programId);
   return rows[0];
+}
+
+/**
+ * Audit trail for a capital-authority change.
+ *
+ * organization_ledger.wallet_id is NOT NULL, so this attaches the org's wallet
+ * even though no cash moves — the row records WHICH product's authority
+ * changed (funding_program_id) and by how much. balance_after is the wallet's
+ * unchanged available balance, precisely because capitalization is not a cash
+ * event; reading a jump there would be the bug, not the feature.
+ */
+async function recordCapitalLedgerEntry(
+  db: PoolClient,
+  ctx: TenantContext,
+  program: FundingProgram,
+  entryType: 'capitalization' | 'decapitalization',
+  input: CapitalAdjustmentInput,
+): Promise<void> {
+  const wallet = await getWalletForUpdate(db, orgId(ctx));
+  const verb   = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
+
+  await db.query(
+    `INSERT INTO organization_ledger
+       (organization_id, wallet_id, entry_type, direction, amount, balance_after,
+        funding_program_id, reference, description, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [
+      orgId(ctx), wallet.id, entryType,
+      entryType === 'capitalization' ? 'credit' : 'debit',
+      input.amount.toFixed(2),
+      parseFloat(wallet.available_balance).toFixed(2),
+      program.id,
+      input.reference ?? null,
+      input.notes ?? `${verb} — ${program.name}`,
+      ctx.userId,
+    ],
+  );
+}
+
+interface AllocationTerms {
+  isRepayable:        boolean;
+  interestRateAnnual: string | null;
+  repaymentFrequency: string | null;
+  tenorMonths:        number | null;
+  firstRepaymentDate: string | null;
+  maturityDate:       string | null;
+}
+
+const GRANT_TERMS: AllocationTerms = {
+  isRepayable: false, interestRateAnnual: null, repaymentFrequency: null,
+  tenorMonths: null, firstRepaymentDate: null, maturityDate: null,
+};
+
+/**
+ * Copies a product's repayment terms for stamping onto a new allocation.
+ *
+ * Read ONCE, at disbursement. The allocation then owns its own terms forever —
+ * repricing a product must never retroactively change what an existing
+ * borrower owes, which is why organization_disbursements carries these columns
+ * rather than joining back to funding_programs.
+ *
+ * A disbursement with no funding programme, or from a non-repayable one, is a
+ * plain grant: every term stays null and org_disb_non_repayable_shape enforces
+ * that at the database level.
+ */
+async function snapshotProductTerms(
+  db: PoolClient, fundingProgramId: string | null,
+): Promise<AllocationTerms> {
+  if (!fundingProgramId) return GRANT_TERMS;
+
+  const { rows } = await db.query<{
+    is_repayable: boolean; interest_rate_annual: string | null;
+    repayment_frequency: string; tenor_months: number | null; grace_period_days: number;
+  }>(
+    `SELECT is_repayable, interest_rate_annual, repayment_frequency,
+            tenor_months, grace_period_days
+     FROM funding_programs WHERE id = $1`,
+    [fundingProgramId],
+  );
+
+  const p = rows[0];
+  if (!p || !p.is_repayable) return GRANT_TERMS;
+
+  // Dates are derived from the product's grace period and tenor at the moment
+  // of disbursement, so a later change to either leaves this allocation alone.
+  const first    = new Date();
+  first.setDate(first.getDate() + (p.grace_period_days ?? 0));
+  const maturity = new Date(first);
+  maturity.setMonth(maturity.getMonth() + (p.tenor_months ?? 0));
+  const iso = (d: Date): string => d.toISOString().slice(0, 10);
+
+  return {
+    isRepayable:        true,
+    interestRateAnnual: p.interest_rate_annual,
+    repaymentFrequency: p.repayment_frequency,
+    tenorMonths:        p.tenor_months,
+    firstRepaymentDate: iso(first),
+    maturityDate:       iso(maturity),
+  };
+}
+
+/**
+ * Creates the group-side funding source for a settled allocation.
+ *
+ * THIS IS THE KEYSTONE of the capital layer. Without it, money arriving from an
+ * organization is indistinguishable from the group's own savings, so a member
+ * loan funded by that money cannot be attributed back — and no organization
+ * portfolio reporting is possible.
+ *
+ * Idempotent via uq_group_funding_sources_allocation (migration 115): calling
+ * this twice for the same allocation is a no-op, matching
+ * settleOrgDisbursement's own idempotency.
+ */
+async function createAllocationFundingSource(
+  db: PoolClient,
+  allocation: {
+    id: string; organization_id: string; group_id: string;
+    funding_program_id: string | null; is_repayable: boolean;
+  },
+): Promise<void> {
+  const { rows } = await db.query<{ org_name: string; program_name: string | null }>(
+    `SELECT o.name AS org_name, p.name AS program_name
+     FROM organizations o
+     LEFT JOIN funding_programs p ON p.id = $2
+     WHERE o.id = $1`,
+    [allocation.organization_id, allocation.funding_program_id],
+  );
+
+  const orgName = rows[0]?.org_name ?? 'Organization';
+  const label   = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
+
+  await db.query(
+    `INSERT INTO group_funding_sources
+       (group_id, source_type, allocation_id, organization_id, label, is_repayable)
+     VALUES ($1, 'organization_allocation', $2, $3, $4, $5)
+     ON CONFLICT DO NOTHING`,
+    [allocation.group_id, allocation.id, allocation.organization_id, label, allocation.is_repayable],
+  );
 }
 
 async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisbursement> {
@@ -134,10 +347,11 @@ async function settleOrgDisbursement(id: string): Promise<void> {
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
       id: string; organization_id: string; wallet_id: string; group_id: string;
-      funding_program_id: string | null; disbursement_type: string; amount: string; reference: string;
+      funding_program_id: string | null; disbursement_type: string; amount: string;
+      reference: string; is_repayable: boolean;
     }>(
       `SELECT id, organization_id, wallet_id, group_id, funding_program_id,
-              disbursement_type, amount, reference
+              disbursement_type, amount, reference, is_repayable
        FROM   organization_disbursements
        WHERE  id = $1 AND status = 'approved'
        FOR UPDATE`,
@@ -145,6 +359,11 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     );
     const disb = rows[0];
     if (!disb) return; // already settled
+
+    // The money has landed in the group's books, so record WHERE it came from.
+    // Without this the group cannot later attribute a member loan back to this
+    // organization's capital — see createAllocationFundingSource.
+    await createAllocationFundingSource(db, disb);
 
     if (disb.funding_program_id) {
       await db.query(
@@ -477,14 +696,7 @@ export const organizationFinanceService = {
 
   async createProgram(
     ctx: TenantContext,
-    input: {
-      name: string; programType: string; budget: number;
-      fundingSource?: string; description?: string;
-      eligibilityCriteria?: Record<string, unknown>;
-      geographicCoverage?: string[];
-      reportingRequirements?: string;
-      startsOn?: string; endsOn?: string;
-    },
+    input: CreateProgramInput,
   ): Promise<FundingProgram> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.budget > 0)) throw new ValidationError('Budget must be positive');
@@ -494,8 +706,13 @@ export const organizationFinanceService = {
         `INSERT INTO funding_programs
            (organization_id, name, program_type, budget, funding_source, description,
             eligibility_criteria, geographic_coverage, reporting_requirements,
-            starts_on, ends_on, status, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,'active',$12)
+            starts_on, ends_on, status, created_by,
+            product_code, is_repayable, capital_model, loss_bearer, shared_loss_ratio,
+            interest_method, interest_rate_annual, repayment_frequency, grace_period_days,
+            tenor_months, revenue_owner, revenue_share_ratio, repayment_waterfall,
+            member_visibility)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,'active',$12,
+                 $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,$26)
          RETURNING *`,
         [
           orgId(ctx), input.name, input.programType, input.budget.toFixed(2),
@@ -505,9 +722,130 @@ export const organizationFinanceService = {
           input.reportingRequirements ?? null,
           input.startsOn ?? null, input.endsOn ?? null,
           ctx.userId,
+          // Financial-product terms. Defaults keep any caller that doesn't set
+          // them (i.e. every existing one) creating a plain non-repayable grant.
+          input.productCode ?? null,
+          input.isRepayable ?? false,
+          input.capitalModel ?? 'liability',
+          input.lossBearer ?? 'group',
+          input.sharedLossRatio ?? null,
+          input.interestMethod ?? null,
+          input.interestRateAnnual ?? null,
+          input.repaymentFrequency ?? 'none',
+          input.gracePeriodDays ?? 0,
+          input.tenorMonths ?? null,
+          input.revenueOwner ?? 'organization',
+          input.revenueShareRatio ?? null,
+          input.repaymentWaterfall ? JSON.stringify(input.repaymentWaterfall) : null,
+          input.memberVisibility ?? 'pseudonymous',
         ],
       );
       return rows[0];
+    });
+  },
+
+  // ─── Product capital (Phase 1) ─────────────────────────────────────────────
+
+  /**
+   * Add capital to a product.
+   *
+   * `budget` is a SPENDING AUTHORITY, not a pot of cash — actual money lives
+   * once, at organization_wallets, and is topped up by deposit(). So this
+   * raises what the product is allowed to allocate and records the change in
+   * organization_ledger for the audit trail. It deliberately posts NO GL
+   * journal: raising an authority is not a cash event, and inventing one would
+   * unbalance the organization's books against its own wallet.
+   */
+  async capitalizeProduct(
+    ctx: TenantContext,
+    programId: string,
+    input: CapitalAdjustmentInput,
+  ): Promise<FundingProgram> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    if (!(input.amount > 0)) throw new ValidationError('Capitalization amount must be positive');
+
+    return withTransaction(ctx, async (db) => {
+      const program = await getProgramForUpdate(db, orgId(ctx), programId);
+
+      const { rows } = await db.query<FundingProgram>(
+        `UPDATE funding_programs SET budget = budget + $1
+         WHERE id = $2 AND organization_id = $3
+         RETURNING *`,
+        [input.amount.toFixed(2), programId, orgId(ctx)],
+      );
+
+      await recordCapitalLedgerEntry(db, ctx, program, 'capitalization', input);
+      return rows[0];
+    });
+  },
+
+  /**
+   * Withdraw uncommitted capital from a product.
+   *
+   * Refuses to cut `budget` below what has already been allocated. The DB's
+   * funding_programs_budget_not_exceeded CHECK would catch this anyway, but as
+   * a raw 23514 — this turns it into a clean ValidationError the UI can show.
+   */
+  async decapitalizeProduct(
+    ctx: TenantContext,
+    programId: string,
+    input: CapitalAdjustmentInput,
+  ): Promise<FundingProgram> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    if (!(input.amount > 0)) throw new ValidationError('Decapitalization amount must be positive');
+
+    return withTransaction(ctx, async (db) => {
+      const program   = await getProgramForUpdate(db, orgId(ctx), programId);
+      const budget    = parseFloat(program.budget);
+      const allocated = parseFloat(program.disbursed_total);
+
+      if (input.amount > budget - allocated) {
+        throw new ValidationError(
+          `Cannot withdraw ${input.amount.toFixed(2)} — only ${(budget - allocated).toFixed(2)} of this product's capital is uncommitted`,
+        );
+      }
+
+      const { rows } = await db.query<FundingProgram>(
+        `UPDATE funding_programs SET budget = budget - $1
+         WHERE id = $2 AND organization_id = $3
+         RETURNING *`,
+        [input.amount.toFixed(2), programId, orgId(ctx)],
+      );
+
+      await recordCapitalLedgerEntry(db, ctx, program, 'decapitalization', input);
+      return rows[0];
+    });
+  },
+
+  /** Capital position per product — the read side of the capitalization flow. */
+  async productBalances(ctx: TenantContext, programId?: string): Promise<ProductBalances[]> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+    return withDb(ctx, async (db) => {
+      const { rows } = await db.query<{
+        id: string; name: string; is_repayable: boolean;
+        budget: string; disbursed_total: string;
+      }>(
+        `SELECT id, name, is_repayable, budget, disbursed_total
+         FROM funding_programs
+         WHERE organization_id = $1
+           AND ($2::uuid IS NULL OR id = $2::uuid)
+         ORDER BY created_at DESC`,
+        [orgId(ctx), programId ?? null],
+      );
+
+      return rows.map((r) => {
+        const totalCapital = parseFloat(r.budget);
+        const allocated    = parseFloat(r.disbursed_total);
+        return {
+          programId:       r.id,
+          name:            r.name,
+          isRepayable:     r.is_repayable,
+          totalCapital,
+          allocated,
+          available:       totalCapital - allocated,
+          utilizationRate: totalCapital > 0 ? allocated / totalCapital : 0,
+        };
+      });
     });
   },
 
@@ -542,13 +880,9 @@ export const organizationFinanceService = {
    */
   async disburse(
     ctx: TenantContext,
-    input: {
-      groupId: string;
-      amount: number;
-      disbursementType: string;
-      fundingProgramId?: string;
-      notes?: string;
-    },
+    // Typed against the validator, not a parallel hand-written shape — the
+    // same drift that bit createProgram when product terms were added.
+    input: DisburseInput,
   ): Promise<OrgDisbursement & { needsApproval: boolean }> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.amount > 0)) throw new ValidationError('Disbursement amount must be positive');
@@ -618,17 +952,29 @@ export const organizationFinanceService = {
         [input.amount.toFixed(2), wallet.id],
       );
 
+      // 5b. SNAPSHOT the product's terms onto the allocation (migration 117).
+      //     Copied once, here, and never re-read: repricing a product must not
+      //     retroactively change what an existing borrower owes. A disbursement
+      //     with no funding programme, or from a non-repayable one, stays a
+      //     plain grant with all terms null.
+      const terms = await snapshotProductTerms(db, input.fundingProgramId ?? null);
+
       const { rows: disbRows } = await db.query<OrgDisbursement>(
         `INSERT INTO organization_disbursements
            (organization_id, wallet_id, funding_program_id, group_id,
-            disbursement_type, amount, status, reference, notes, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            disbursement_type, amount, status, reference, notes, created_by,
+            purpose, is_repayable, interest_rate_annual, repayment_frequency,
+            tenor_months, first_repayment_date, maturity_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,
         [
           organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
           input.disbursementType, input.amount.toFixed(2),
           requiresApproval ? 'pending_approval' : 'approved',
           reference, input.notes ?? null, ctx.userId,
+          input.purpose ?? null,
+          terms.isRepayable, terms.interestRateAnnual, terms.repaymentFrequency,
+          terms.tenorMonths, terms.firstRepaymentDate, terms.maturityDate,
         ],
       );
 

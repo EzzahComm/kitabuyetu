@@ -69,9 +69,17 @@ export const RegisterSchema = z.object({
 // Email-only on purpose — staff identities are issued + recovered via email,
 // never phone. No group code field because backoffice context isn't
 // group-scoped.
+// `surface` disambiguates which login page the attempt came from
+// (/admin-login vs /enterprise/login) — the route enforces a different
+// allowed-role list per surface (see SURFACE_ALLOWED_ROLES). Client-supplied
+// and not itself a security boundary: it only narrows which pre-validated
+// role can pass, it never grants anything the account's real platform_role
+// wouldn't already allow. Optional + defaults to 'platform' so existing
+// callers (tests, any stale client) keep working unchanged.
 export const AdminLoginSchema = z.object({
   email:    z.string().email('Enter a valid work email'),
   password: z.string().min(1, 'Password is required'),
+  surface:  z.enum(['platform', 'organization']).optional().default('platform'),
 });
 
 // Step 2 of the backoffice login flow (Phase 2 — MFA). The `challenge`
@@ -110,6 +118,13 @@ export const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
+/**
+ * This schema was written but had **no route and no caller anywhere** until
+ * CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md — meanwhile the settings page's
+ * change-password form posted to PATCH /members/[id], which ignores password
+ * fields, so it always reported success without changing anything.
+ * `POST /api/v1/auth/change-password` now uses it.
+ */
 export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword:     z.string().min(8)
@@ -129,6 +144,21 @@ export const ResetPasswordSchema = z.object({
                .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
+// Backoffice/staff forgot-password — email-link based (staff identities are
+// recovered via email, never phone; see AdminLoginSchema's comment above).
+export const AdminForgotPasswordStartSchema = z.object({
+  email: z.string().email('Enter a valid work email'),
+});
+
+// The token itself is the proof of possession (mirrors VerifyStartSchema's
+// email-link shape) — no email/phone re-entered here.
+export const AdminResetPasswordSchema = z.object({
+  token:    z.string().min(32).max(128),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+               .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
 export type LoginInput            = z.infer<typeof LoginSchema>;
 export type AdminLoginInput       = z.infer<typeof AdminLoginSchema>;
 export type AdminLoginMfaVerifyInput = z.infer<typeof AdminLoginMfaVerifySchema>;
@@ -137,3 +167,11 @@ export type RefreshInput          = z.infer<typeof RefreshSchema>;
 export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;
 export type ForgotPasswordStartInput = z.infer<typeof ForgotPasswordStartSchema>;
 export type ResetPasswordInput    = z.infer<typeof ResetPasswordSchema>;
+export type AdminForgotPasswordStartInput = z.infer<typeof AdminForgotPasswordStartSchema>;
+export type AdminResetPasswordInput = z.infer<typeof AdminResetPasswordSchema>;
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type RegisterPayload = z.input<typeof RegisterSchema>;
+export type ChangePasswordPayload = z.input<typeof ChangePasswordSchema>;

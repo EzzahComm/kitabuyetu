@@ -26,6 +26,10 @@ const config = [
       // this was turned on, so it's a hard error from day one, not a
       // baseline/allowlist. See project memory for the fix commits.
       '@typescript-eslint/no-explicit-any': 'error',
+      // SIMPLIFICATION_AND_RBAC_AUDIT.md — codifies a convention already in
+      // use across the codebase (`_unused`, `_secret`, `_invert`, etc. for
+      // deliberately-unused destructured values) rather than fighting it.
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
   {

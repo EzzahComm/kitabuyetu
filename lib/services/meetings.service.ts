@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { NotFoundError } from '@/lib/utils/errors';
 import { z } from 'zod';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -292,3 +292,11 @@ export const meetingsService = {
     });
   },
 };
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type CreateMeetingPayload = z.input<typeof CreateMeetingSchema>;
+export type UpdateMeetingPayload = z.input<typeof UpdateMeetingSchema>;
+export type RecordAttendancePayload = z.input<typeof RecordAttendanceSchema>;
+export type AddResolutionPayload = z.input<typeof AddResolutionSchema>;

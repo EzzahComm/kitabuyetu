@@ -75,7 +75,7 @@ const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== 'false';
 async function processFulfillment(
   paymentId: string,
   amount: number,
-  receipt: string | null,
+  _receipt: string | null,
 ): Promise<void> {
   const payment = await withAdminDb(async (db) => {
     const { rows } = await db.query<{

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { loansApi } from '@/lib/api/endpoints';
+import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
 
 export const loanKeys = {
   all:    ['loans'] as const,
@@ -33,7 +34,7 @@ export function useLoanPolicy() {
 export function useSetLoanPolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => loansApi.setPolicy(body),
+    mutationFn: (body: SetLoanTermsPayload) => loansApi.setPolicy(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: [...loanKeys.all, 'policy'] }),
   });
 }
@@ -41,7 +42,7 @@ export function useSetLoanPolicy() {
 export function useApplyLoan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => loansApi.apply(body),
+    mutationFn: (body: ApplyLoanPayload) => loansApi.apply(body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: loanKeys.all }),
   });
 }
@@ -49,7 +50,7 @@ export function useApplyLoan() {
 export function useLoanAction(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => loansApi.action(id, body),
+    mutationFn: (body: LoanActionInput) => loansApi.action(id, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: loanKeys.list() });
       qc.invalidateQueries({ queryKey: loanKeys.detail(id) });
@@ -60,7 +61,7 @@ export function useLoanAction(id: string) {
 export function useRecordRepayment(loanId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: unknown) => loansApi.recordRepayment(loanId, body),
+    mutationFn: (body: RecordRepaymentPayload) => loansApi.recordRepayment(loanId, body),
     onSuccess:  () => qc.invalidateQueries({ queryKey: loanKeys.detail(loanId) }),
   });
 }

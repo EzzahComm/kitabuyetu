@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
-import { withRole } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { initiateAirtime, handleAirtimeResult } from '@/lib/services/mpesa.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { ok, handleError } from '@/lib/utils/response';
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Authenticated airtime purchase (chairperson or above)
-  return withRole(req, 'chairperson', async (auth) => {
+  return withPermission(req, 'payments.disburse', async (auth) => {
     try {
       const input = AirtimeSchema.parse(await req.json());
       const res   = await initiateAirtime({

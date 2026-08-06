@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { withAuth, withOneOf } from '@/lib/auth/middleware';
+import { withPermission, withAnyPermission } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { scheduleEmail } from '@/lib/services/email.service';
 import { ok } from '@/lib/utils/response';
@@ -21,8 +21,11 @@ const UpdateScheduleSchema = z.object({
   isActive: z.boolean(),
 });
 
+// Was withAuth only (any authenticated member) — the exact same gap as
+// email/templates' missing GET gate, mirrored here: SMS's equivalent
+// (GET /api/v1/sms/schedules) already requires messaging.schedules.view.
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'messaging.schedules.view', async (auth) => {
     const { rows } = await withAdminDb((db) =>
       db.query(
         `SELECT id, name, template_key, recipient_email, schedule_type,
@@ -37,8 +40,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
+// Was withOneOf(['chairperson','treasurer','super_admin']) — no single
+// existing permission string covers exactly {treasurer, chairperson}, so
+// this composes two that do (treasury.manage ⊆ {treasurer,chairperson},
+// messaging.manage ⊆ {chairperson}) rather than inventing a new one;
+// super_admin still bypasses via requireAnyPermission. Exact behavior match.
 export async function POST(req: NextRequest): Promise<Response> {
-  return withOneOf(req, ['chairperson', 'treasurer', 'super_admin'], async (auth) => {
+  return withAnyPermission(req, ['messaging.manage', 'treasury.manage'], async (auth) => {
     const body = CreateScheduleSchema.parse(await req.json());
 
     const id = await scheduleEmail({
@@ -57,8 +65,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
+// Was withAuth only (any member could toggle any schedule's isActive) —
+// same gap class as GET above; matches SMS schedules' PATCH gate.
 export async function PATCH(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const body = UpdateScheduleSchema.parse(await req.json());
 
     const { rowCount } = await withAdminDb((db) =>

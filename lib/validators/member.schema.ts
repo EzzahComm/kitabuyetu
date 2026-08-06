@@ -117,3 +117,11 @@ export type BulkMemberActionInput      = z.infer<typeof BulkMemberActionSchema>;
 export type CreateNextOfKinInput       = z.infer<typeof CreateNextOfKinSchema>;
 export type UpdateNextOfKinInput       = z.infer<typeof UpdateNextOfKinSchema>;
 export type MemberStatus               = (typeof MEMBER_STATUSES)[number];
+
+// Client request-body types. z.input, not z.infer: a field carrying
+// .default() is optional on the wire but present after parsing, so the
+// server-side *Input aliases above are the wrong shape for a caller.
+export type CreateMemberPayload = z.input<typeof CreateMemberSchema>;
+export type UpdateMemberPayload = z.input<typeof UpdateMemberSchema>;
+export type CreateNextOfKinPayload = z.input<typeof CreateNextOfKinSchema>;
+export type UpdateNextOfKinPayload = z.input<typeof UpdateNextOfKinSchema>;

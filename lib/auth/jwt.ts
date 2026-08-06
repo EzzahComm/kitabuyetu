@@ -30,6 +30,10 @@ export interface TenantAccessTokenPayload {
   membershipNo?:   string;   // e.g. BG102534
   authVersion?:    number;   // group_members.auth_version epoch
   sessionVersion?: number;   // members.session_version epoch
+  // RBAC permission activation — resolved from group_members.role_id ->
+  // roles.permissions at issue time. Optional for backward compatibility
+  // with tokens issued before this field existed.
+  permissions?: string[];
 }
 
 export interface BackofficeAccessTokenPayload {

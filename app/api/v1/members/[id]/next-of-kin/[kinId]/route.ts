@@ -4,8 +4,7 @@ import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
 import { UpdateNextOfKinSchema } from '@/lib/validators/member.schema';
 import { ok, noContent } from '@/lib/utils/response';
-import { ROLES } from '@/lib/auth/rbac';
-import { ForbiddenError } from '@/lib/utils/errors';
+import { requirePermission } from '@/lib/auth/permissions';
 
 type Ctx = { params: Promise<{ id: string; kinId: string }> };
 
@@ -13,7 +12,7 @@ type Ctx = { params: Promise<{ id: string; kinId: string }> };
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id, kinId } = await params;
   return withAuth(req, async (auth) => {
-    if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
+    requirePermission(auth, 'members.manage');
     const body  = await req.json();
     const input = UpdateNextOfKinSchema.parse(body);
     const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
@@ -26,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id, kinId } = await params;
   return withAuth(req, async (auth) => {
-    if (!ROLES.canManageMembers(auth.role)) throw new ForbiddenError();
+    requirePermission(auth, 'members.manage');
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     await membersService.deleteNextOfKin(ctx, id, kinId);
     return noContent();

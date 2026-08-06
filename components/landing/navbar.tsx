@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Menu, X, ChevronDown, Smartphone, Users, Building2, ShieldCheck, type LucideIcon,
+  Menu, X, ChevronDown, Smartphone, Users, Building2, ShieldCheck,
+  BookText, LifeBuoy, Activity, type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,22 +13,27 @@ import {
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { cn } from '@/lib/utils';
 
-interface SolutionLink { icon: LucideIcon; label: string; desc: string; href: string }
+interface MenuLink { icon: LucideIcon; label: string; desc: string; href: string }
 
 // Portal entry points — surfaced as a proper menu built on the shared
 // DropdownMenu primitive, so the landing nav matches the in-app design system.
-const solutionLinks: SolutionLink[] = [
+const solutionLinks: MenuLink[] = [
   { icon: Smartphone,  label: 'Member app',     desc: 'Wallet, passbook & savings goals', href: '/me' },
   { icon: Users,       label: 'Group dashboard', desc: 'Run your chama or SACCO',           href: '/register' },
   { icon: Building2,   label: 'Enterprise',     desc: 'Multi-branch, API & white-label',   href: '/enterprise' },
   { icon: ShieldCheck, label: 'Backoffice',     desc: 'Risk, KYC & live monitoring',       href: '/admin-login' },
 ];
 
+// Mirrors footer.tsx's Resources column — same 3 real pages.
+const resourceLinks: MenuLink[] = [
+  { icon: BookText, label: 'Documentation', desc: 'Guides for getting your group set up', href: '/docs' },
+  { icon: LifeBuoy,  label: 'Support',       desc: 'Talk to the Kitabu Yetu team',          href: '/support' },
+  { icon: Activity,  label: 'Status',        desc: 'Live platform & M-Pesa health',         href: '/status' },
+];
+
 const navLinks = [
   { label: 'Features', href: '#features' },
-  { label: 'Ecosystem', href: '#ecosystem' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Testimonials', href: '#testimonials' },
+  { label: 'Pricing', href: '/pricing' },
 ];
 
 export default function Navbar() {
@@ -102,14 +108,55 @@ export default function Navbar() {
             </DropdownMenu>
 
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className={cn('text-[16px] font-semibold uppercase tracking-wide transition-colors xl:text-[18px]', linkColor)}
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className={cn('text-[16px] font-semibold uppercase tracking-wide transition-colors xl:text-[18px]', linkColor)}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn('text-[16px] font-semibold uppercase tracking-wide transition-colors xl:text-[18px]', linkColor)}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
+
+            {/* Resources menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'group flex items-center gap-1 text-[16px] font-semibold uppercase tracking-wide transition-colors focus:outline-none xl:text-[18px]',
+                    linkColor,
+                  )}
+                >
+                  Resources
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={10} className="w-72">
+                {resourceLinks.map((r) => (
+                  <DropdownMenuItem key={r.href} asChild className="cursor-pointer gap-3 p-2.5">
+                    <Link href={r.href}>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                        <r.icon size={18} />
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-sm font-semibold text-foreground">{r.label}</span>
+                        <span className="text-xs text-muted-foreground">{r.desc}</span>
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
           {/* Desktop CTAs */}

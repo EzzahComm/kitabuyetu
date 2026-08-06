@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth, withRole } from '@/lib/auth/middleware';
+import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { dividendsService } from '@/lib/services/dividends.service';
 import { UpdateDividendDeclarationSchema } from '@/lib/validators/dividends.schema';
 import { ok } from '@/lib/utils/response';
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
 
 export async function PATCH(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { id } = await params;
-  return withRole(req, 'treasurer', async (auth) => {
+  return withPermission(req, 'dividends.manage', async (auth) => {
     const body  = await req.json();
     const input = UpdateDividendDeclarationSchema.parse(body);
     const decl  = await dividendsService.update(

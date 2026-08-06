@@ -14,7 +14,7 @@
  * enforcement via DB triggers, a trigger-maintained balance column).
  */
 import type { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { ValidationError } from '@/lib/utils/errors';
 import { organizationService } from './organization.service';

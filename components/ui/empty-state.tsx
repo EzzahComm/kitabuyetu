@@ -14,6 +14,10 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   secondaryAction?: React.ReactNode;
   /** Compact spacing for inline / in-card use. */
   size?: 'sm' | 'md';
+  /** 'error' swaps the icon tint to a danger color — a genuine fetch/permission
+   *  failure reads very differently from "there's nothing here yet" and
+   *  shouldn't look identical (UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1). */
+  variant?: 'empty' | 'error';
 }
 
 /**
@@ -22,7 +26,7 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
  * optional CTA so low-literacy users always know the next step.
  */
 export function EmptyState({
-  icon: Icon, title, description, action, secondaryAction, size = 'md', className, ...props
+  icon: Icon, title, description, action, secondaryAction, size = 'md', variant = 'empty', className, ...props
 }: EmptyStateProps) {
   return (
     <div
@@ -36,7 +40,8 @@ export function EmptyState({
       {Icon && (
         <div
           className={cn(
-            'flex items-center justify-center rounded-full bg-brand-50 text-brand-600',
+            'flex items-center justify-center rounded-full',
+            variant === 'error' ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600',
             size === 'md' ? 'h-14 w-14' : 'h-11 w-11',
           )}
         >
