@@ -1,7 +1,13 @@
 # Unified Messaging Architecture — Implementation Plan
 
 **Date:** 2026-08-06
-**Status:** Plan. Decisions A and B resolved 2026-08-06 (§7); Phase 1 implemented on `fix/sms-critical-phase1`. Decision C still open.
+**Status:** Phase 1 shipped (PRs #33/#34). **Phase 2a shipped** (migration 123 — reservation, attribution, five paths unified). Decisions A and B resolved 2026-08-06 (§7); Decision C still open. Phase 2b (bundled allowance, then billing on) is next.
+
+> **Phase 2a correction to §2 and §4.** Research during implementation found **five** send paths, not two: three OTP paths (`password-reset.service.ts`, `group-verification.service.ts`, `organization-members.service.ts`) called the provider directly with no billing, no consent check and **no log row at all**. They now write platform-funded rows via `sendServiceSms`.
+>
+> Two further corrections worth carrying forward:
+> - **`notifyMember` already threw.** `sendText` sat outside any try/catch, so a WhatsApp client throw escaped to callers that don't guard. The "never throws" contract was aspirational; Phase 2a made it real, because a reservation now sits downstream of it.
+> - **The two entry points could not merge into one function.** `/sms/send` needs `InsufficientSmsCreditsError` → 402 and the trigger engine catches to drive `retryOrFail`, while `notifyMember`'s callers need it never to throw. Convergence is at the **primitive** layer (`lib/services/messaging-billing.ts`) with two thin contracts over it — one place bills, one place writes the ledger.
 **Source:** A pasted architectural vision for SMS as a first-class platform service, adopted and reconciled against the actual codebase.
 **Companion:** [`docs/audits/SMS_MESSAGING_AUDIT_2026-08.md`](../audits/SMS_MESSAGING_AUDIT_2026-08.md) (score 38/100, three Critical defects proven in production).
 

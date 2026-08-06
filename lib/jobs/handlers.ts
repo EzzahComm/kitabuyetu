@@ -112,6 +112,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_trigger_fire':
       return handleSmsTriggerFire(job.payload);
 
+    case 'sms_low_balance_alert':
+      return handleSmsLowBalanceAlert(job.payload);
+
+    case 'sms_release_stale_reservations':
+      return handleSmsReleaseStaleReservations();
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -594,6 +600,127 @@ async function handleSmsPollDlr(): Promise<HandlerResult> {
   return {
     message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked})`,
     ...flattenResult(result),
+  };
+}
+
+/**
+ * Warn officers that SMS credits have run out or fallen below their threshold.
+ *
+ * Delivered by in-app notification and email ONLY — never by SMS. A payer is
+ * alerted precisely when it cannot afford to send an SMS, so routing this
+ * through notifyMember would make the warning unsendable exactly when it is
+ * needed. Please do not "unify" this into the messaging pipeline.
+ */
+async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const { withAdminDb } = await import('@/lib/db');
+  const { queueEmail }  = await import('@/lib/services/email.service');
+
+  const payerType = String(payload.payerType ?? 'group');
+  const groupId   = payload.groupId ? String(payload.groupId) : null;
+  const orgId     = payload.organizationId ? String(payload.organizationId) : null;
+
+  const title = 'SMS credits exhausted';
+  const body  = 'Your group has run out of SMS credits, so automated reminders and notifications are not being sent. Top up to resume messaging.';
+
+  let recipients = 0;
+
+  if (payerType === 'group' && groupId) {
+    // In-app rows for every active officer who can act on it.
+    recipients = await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO notifications (group_id, member_id, type, title, body, reference_type)
+         SELECT gm.group_id, gm.member_id, 'in_app', $2, $3, 'sms_low_balance'
+         FROM group_members gm
+         WHERE gm.group_id = $1 AND gm.is_active
+           AND gm.role IN ('chairperson','treasurer')`,
+        [groupId, title, body],
+      ).then((r) => r.rowCount ?? 0),
+    );
+
+    const { rows } = await withAdminDb((db) =>
+      db.query<{ email: string }>(
+        `SELECT m.email
+         FROM group_members gm JOIN members m ON m.id = gm.member_id
+         WHERE gm.group_id = $1 AND gm.is_active
+           AND gm.role IN ('chairperson','treasurer') AND m.email IS NOT NULL
+         LIMIT 5`,
+        [groupId],
+      ),
+    );
+    for (const r of rows) {
+      await queueEmail({
+        to:          r.email,
+        templateKey: 'sms_low_balance',
+        vars:        { title, body },
+        groupId,
+        referenceType: 'sms_low_balance',
+      }).catch(() => { /* best-effort */ });
+    }
+  } else if (payerType === 'organization' && orgId) {
+    const { rows } = await withAdminDb((db) =>
+      db.query<{ email: string }>(
+        `SELECT m.email
+         FROM organization_members om JOIN members m ON m.id = om.member_id
+         WHERE om.organization_id = $1 AND om.is_active
+           AND om.org_role = 'lead' AND m.email IS NOT NULL
+         LIMIT 5`,
+        [orgId],
+      ),
+    );
+    for (const r of rows) {
+      await queueEmail({
+        to:            r.email,
+        templateKey:   'sms_low_balance',
+        vars:          { title, body },
+        referenceType: 'sms_low_balance',
+      }).catch(() => { /* best-effort */ });
+      recipients++;
+    }
+  }
+
+  return { message: `Low-balance alert raised (${recipients} recipient(s))`, recipients };
+}
+
+/**
+ * Recover SMS credit reservations orphaned by a crash.
+ *
+ * notifyMember runs as a series of independent autocommit statements with no
+ * enclosing transaction, so a process death between the provider call and the
+ * settle write leaves an earmark stranded. A `finally` cannot cover that case;
+ * this sweeper is the backstop.
+ *
+ * The release/consume split is the whole point and must not be simplified into
+ * "release everything stale": a row the provider already accepted has already
+ * cost real money, so releasing it would hand out free SMS every time a settle
+ * write fails. Only rows the provider never confirmed are returned.
+ */
+async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
+  const { withAdminDb }        = await import('@/lib/db');
+  const { settleReservation }  = await import('@/lib/services/messaging-billing');
+
+  const { rows } = await withAdminDb((db) =>
+    db.query<{ id: string; provider_msg_id: string | null; status: string }>(
+      `SELECT id, provider_msg_id, status
+       FROM sms_usage_logs
+       WHERE billing_state = 'reserved'
+         AND reserved_at < NOW() - INTERVAL '15 minutes'
+       ORDER BY reserved_at ASC
+       LIMIT 500`,
+    ),
+  );
+
+  const consumeIds = rows
+    .filter((r) => r.provider_msg_id !== null || r.status === 'sent' || r.status === 'delivered')
+    .map((r) => r.id);
+  const releaseIds = rows.filter((r) => !consumeIds.includes(r.id)).map((r) => r.id);
+
+  await settleReservation(consumeIds, 'consume');
+  await settleReservation(releaseIds, 'release');
+
+  return {
+    message:  `Stale reservations settled (${consumeIds.length} consumed, ${releaseIds.length} released)`,
+    consumed: consumeIds.length,
+    released: releaseIds.length,
   };
 }
 

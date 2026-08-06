@@ -72,6 +72,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `sms_poll_dlr:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  // Recovers SMS credit earmarks orphaned by a crash between the provider call
+  // and the settle write. Low priority: correctness backstop, not time-critical.
+  queued.sms_release_stale_reservations = await safe('sms_release_stale_reservations', {}, {
+    priority:  3,
+    dedup_key: `sms_release_stale_reservations:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
   queued.mpesa_reconcile = await safe('mpesa_reconcile', {}, {
     priority:  10, // highest — payments are time-sensitive
     dedup_key: `mpesa_reconcile:${dateStr}T${hour}:${fiveMinBucket}`,
