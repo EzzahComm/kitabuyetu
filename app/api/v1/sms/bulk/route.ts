@@ -3,10 +3,14 @@ import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { enqueueJob } from '@/lib/jobs';
 import { BulkSmsSchema } from '@/lib/validators/sms.schema';
+import { enforceSmsRateLimit } from '@/lib/sms/rate-limit';
 import { ok } from '@/lib/utils/response';
 
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
+    const limited = await enforceSmsRateLimit('bulk', auth.groupId);
+    if (limited) return limited;
+
     const body  = await req.json();
     const input = BulkSmsSchema.parse(body);
 

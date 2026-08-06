@@ -14,7 +14,7 @@
 
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
-import { InsufficientSmsCreditsError, PaymentRequiredError } from '@/lib/utils/errors';
+import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import {
   sendSingleSms,
@@ -154,10 +154,19 @@ function payerCols(payer: SmsPayer): [string, string | null] {
 
 async function fetchBillingRow(client: import('pg').PoolClient, groupId: string) {
   const { rows } = await client.query<{ sms_credits: string; sms_rate: string }>(
+    // FOR UPDATE OF ba — NOT a bare FOR UPDATE. A bare row-locking clause
+    // applies to every table in the FROM, and PostgreSQL rejects locking the
+    // nullable side of an outer join at parse-analysis time:
+    //   0A000: FOR UPDATE cannot be applied to the nullable side of an outer join
+    // That failed unconditionally (not data-dependently), so every group-funded
+    // send — /sms/send, the whole trigger engine, all bulk campaigns — threw
+    // before billing. Production recorded it verbatim in sms_trigger_executions
+    // (SMS_MESSAGING_AUDIT_2026-08.md C1). Only `ba` needs locking anyway: the
+    // subscription join is a rate lookup, not a row we mutate.
     `SELECT ba.sms_credits, COALESCE(s.sms_rate,'0.90') AS sms_rate
      FROM billing_accounts ba
      LEFT JOIN subscriptions s ON s.group_id=ba.group_id AND s.status='active'
-     WHERE ba.group_id=$1 FOR UPDATE`,
+     WHERE ba.group_id=$1 FOR UPDATE OF ba`,
     [groupId],
   );
   return rows[0] ?? null;
@@ -480,7 +489,36 @@ export const smsService = {
     return { balance: result.balance, currency: result.currency };
   },
 
-  async getDlr(messageId: string): Promise<{ status: DlrClass; deliveredAt?: string }> {
+  /**
+   * Fetch and persist a delivery report for one provider message id.
+   *
+   * `scope` is required and explicit because `messageId` is supplied by the
+   * caller: a request-driven lookup must prove the message belongs to the
+   * caller's own group before touching it, while the DLR polling cron
+   * legitimately spans every tenant. Making the system case opt-in (rather
+   * than a defaultable/omittable argument) is what stops the request path
+   * from silently regaining cross-tenant reach — the shape of C3, where the
+   * route never applied a group predicate at all
+   * (SMS_MESSAGING_AUDIT_2026-08.md C3).
+   *
+   * The ownership check runs *before* the provider call, so a caller probing
+   * another tenant's message id learns nothing and costs us no outbound HTTP.
+   */
+  async getDlr(
+    messageId: string,
+    scope: { groupId: string } | { system: true },
+  ): Promise<{ status: DlrClass; deliveredAt?: string }> {
+    if ('groupId' in scope) {
+      const owned = await withAdminDb((db) =>
+        db.query(
+          `SELECT 1 FROM sms_usage_logs
+           WHERE provider_msg_id=$1 AND group_id=$2 LIMIT 1`,
+          [messageId, scope.groupId],
+        ).then((r) => r.rowCount ?? 0),
+      );
+      if (!owned) throw new NotFoundError('Message not found');
+    }
+
     const result = await getDeliveryReport(messageId);
     const cls    = classifyDlrStatus(result.status);
 
@@ -552,7 +590,7 @@ export const smsService = {
 
     for (const log of logs) {
       try {
-        const { status } = await this.getDlr(log.msg_id);
+        const { status } = await this.getDlr(log.msg_id, { system: true });
         if (status === 'delivered') delivered++;
         else if (status === 'failed') failed++;
         else pending++;

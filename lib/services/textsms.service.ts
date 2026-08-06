@@ -45,6 +45,46 @@ function codeDescription(code: number): string {
   return SMS_CODES[code] ?? `Unknown code: ${code}`;
 }
 
+/** Provider code for an uninterpretable response. */
+const SYSTEM_ERROR = 1005;
+/** The only code TextSMS treats as acceptance. */
+const SUCCESS_CODE = 200;
+
+/**
+ * Normalize the provider's response code to a number.
+ *
+ * TextSMS returns numeric fields as JSON *strings* — confirmed from provider
+ * payloads this system stored itself (sms_delivery_reports.raw_response carries
+ * "messageid": "655405696", "networkid": "1"). A strict `code === 200` therefore
+ * never matched, so every accepted message was recorded as failed while still
+ * carrying a real provider message id (SMS_MESSAGING_AUDIT_2026-08.md C2 — 112
+ * such rows in production, all with failed_reason "Success").
+ *
+ * Coercing here keeps the rest of the platform working against one internal
+ * contract regardless of how the provider formats its JSON. An uninterpretable
+ * code becomes SYSTEM_ERROR rather than NaN, so it fails the success check and
+ * still renders a sensible description — fail-closed is correct for a response
+ * we cannot read.
+ */
+function toResponseCode(raw: unknown): number {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : SYSTEM_ERROR;
+}
+
+/**
+ * One entry in a TextSMS send response. Every field is typed as it arrives on
+ * the wire, not as it reads — the provider stringifies its numerics, and typing
+ * `respose-code` as `number` is what let C2 typecheck cleanly while being wrong
+ * at runtime. `respose-code` is the provider's own spelling.
+ */
+interface ProviderResponseRow {
+  'respose-code':         number | string;
+  'response-description': string;
+  mobile:                 string;
+  messageid:              string | number;
+  networkid:              string | number;
+}
+
 export class TextSmsError extends Error {
   constructor(
     message: string,
@@ -119,28 +159,22 @@ export async function sendSingleSms(input: SingleSmsInput): Promise<SmsResponse>
   if (input.timeToSend) payload.timeToSend = input.timeToSend;
 
   const { data } = await axios.post<{
-    responses: {
-      'respose-code':         number;
-      'response-description': string;
-      mobile:                 string;
-      messageid:              string;
-      networkid:              string;
-    }[];
+    responses: ProviderResponseRow[];
   }>(`${BASE_URL}/api/services/sendsms/`, payload, {
     headers: { 'Content-Type': 'application/json' },
     timeout: 20_000,
   });
 
   const r    = data.responses?.[0];
-  const code = r?.['respose-code'] ?? 1005;
+  const code = toResponseCode(r?.['respose-code'] ?? SYSTEM_ERROR);
 
   return {
     responseCode:        code,
     responseDescription: r?.['response-description'] ?? codeDescription(code),
-    mobile:              r?.mobile ?? phone,
-    messageId:           r?.messageid ?? '',
-    networkId:           r?.networkid ?? '',
-    success:             code === 200,
+    mobile:              String(r?.mobile ?? phone),
+    messageId:           String(r?.messageid ?? ''),
+    networkId:           String(r?.networkid ?? ''),
+    success:             code === SUCCESS_CODE,
   };
 }
 
@@ -159,27 +193,21 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
   }));
 
   const { data } = await axios.post<{
-    responses: {
-      'respose-code':         number;
-      'response-description': string;
-      mobile:                 string;
-      messageid:              string;
-      networkid:              string;
-    }[];
+    responses: ProviderResponseRow[];
   }>(`${BASE_URL}/api/services/sendbulk/`, { count: smslist.length, smslist }, {
     headers: { 'Content-Type': 'application/json' },
     timeout: 60_000,
   });
 
   const responses: SmsResponse[] = (data.responses ?? []).map((r) => {
-    const code = r['respose-code'];
+    const code = toResponseCode(r['respose-code']);
     return {
       responseCode:        code,
       responseDescription: r['response-description'] ?? codeDescription(code),
-      mobile:              r.mobile,
-      messageId:           r.messageid ?? '',
-      networkId:           r.networkid ?? '',
-      success:             code === 200,
+      mobile:              String(r.mobile ?? ''),
+      messageId:           String(r.messageid ?? ''),
+      networkId:           String(r.networkid ?? ''),
+      success:             code === SUCCESS_CODE,
     };
   });
 
