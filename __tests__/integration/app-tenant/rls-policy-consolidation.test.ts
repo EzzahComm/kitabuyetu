@@ -210,6 +210,13 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
     it('both payer axes independently grant SELECT; an org coordinator cannot write (write stayed group-scoped only)', async () => {
       const { organizationId, coordinatorId } = await createTestOrganization();
       const { groupId, officerId } = await createTestGroup('treasurer');
+      // A group the coordinator has no relationship to at all — used as their
+      // tenant-context groupId so the group axis (group_id = app_current_group_id(),
+      // which has NO role check) can't accidentally satisfy the assertions below.
+      // Without this, the coordinator's own session would trivially match
+      // sms_usage_logs' group axis too if it reused `groupId`, masking whether
+      // the org-payer axis specifically is doing the granting/withholding.
+      const { groupId: unrelatedGroupId } = await createTestGroup('treasurer');
 
       const [groupFunded] = await rawQuery<{ id: string }>(
         `INSERT INTO sms_usage_logs (group_id, recipient_phone, message_text, credits_deducted, payer_type)
@@ -227,10 +234,11 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       expect(groupRows.map(r => r.id)).toEqual(expect.arrayContaining([groupFunded.id, orgFunded.id]));
 
       const coordinatorCtx: TenantContext = {
-        userId: coordinatorId, groupId, role: 'organization_coordinator', organizationId,
+        userId: coordinatorId, groupId: unrelatedGroupId, role: 'organization_coordinator', organizationId,
       };
       const coordinatorRows = await withDb(coordinatorCtx, (client) => client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then(r => r.rows));
       expect(coordinatorRows.map(r => r.id)).toContain(orgFunded.id);
+      expect(coordinatorRows.map(r => r.id)).not.toContain(groupFunded.id);
 
       await expect(
         withDb(coordinatorCtx, (client) =>
