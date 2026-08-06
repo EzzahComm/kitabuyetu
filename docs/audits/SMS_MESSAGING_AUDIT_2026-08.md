@@ -150,7 +150,13 @@ Combined with C1, the practical state is: **the path that bills doesn't work, an
 
 None of `send`, `bulk`, or `campaign` call any rate-limiting primitive. The repo's only helper, `checkRateLimit` (`lib/redis/index.ts:171`), is used exactly once, in `app/api/v1/mpesa/c2b/route.ts:96`. `BulkSmsSchema.phones` permits 5,000 recipients per call (`lib/validators/sms.schema.ts:22`) with no cooldown between calls. Once C1 is fixed, a compromised officer token can spend a group's entire credit balance in seconds. Fix C1 and H2 together — fixing C1 alone re-arms a money-spending endpoint that currently has no velocity control.
 
-### H3 — Campaign job retry re-bills and re-sends, without bound **[REPORTED]**
+### H3 — Campaign job retry re-bills and re-sends, without bound **[REPORTED]** — *partially fixed*
+
+> **Update 2026-08-06:** the **unbounded** half is fixed. `resetStuckJobs` now counts a timeout as an attempt and retires a job that exhausts `max_attempts`, so the loop terminates instead of re-billing forever. Verified with 4 real-Postgres tests.
+>
+> The **re-billing on each retry** half remains open: a retried campaign still re-runs `debitPayer` and re-inserts log rows for recipients it already billed. Fixing that needs a dispatch-level idempotency key, and `/sms/bulk` has no candidate today (it carries no campaign id) — so it is scoped with the credit-reservation work in Phase 2/3 of the architecture doc, which supplies exactly that key. Severity is now bounded at `max_attempts` (default 5) rather than unbounded.
+>
+> This became live-dangerous the moment C1 was fixed: while billing threw, none of it ran.
 
 `handleSmsBulkSend` has no per-recipient checkpoint (acknowledged at `lib/jobs/handlers.ts:530-535`). In `sendBulkCampaign`, the debit (`sms.service.ts:349`) is inside the transaction but the provider call (`:397`) is not wrapped — a throw propagates to the job processor, which retries the whole job, re-running `debitPayer` and inserting a second full set of log rows. Worse, `resetStuckJobs` (`lib/jobs/db.ts:41-51`) returns a timed-out job to `pending` **without incrementing `attempts`** (only the catch branch bumps it, `processor.ts:68`), so a campaign that reliably exceeds the handler budget re-bills and re-sends indefinitely.
 
