@@ -13,7 +13,7 @@
 | Category | Count | Level | Verdict |
 |---|---|---|---|
 | Multiple permissive RLS policies | 175 (25 tables × up to 7 roles) | WARN | **Real, structural** — every one of these tables evaluates 2-3 separate policies per row on every query, for every role including `anon` |
-| Unindexed foreign keys | 60 (28 tables) | INFO | **Real, mechanical** — joins/cascades on these columns are sequential scans today |
+| Unindexed foreign keys | 60 (29 tables) | INFO | **Real, mechanical** — joins/cascades on these columns are sequential scans today |
 | `auth_rls_initplan` (per-row re-evaluation) | 6 (6 tables) | WARN | **Real, trivial fix** — textbook Supabase footgun, one-line-per-policy correction |
 | Unused indexes | 296 (107 tables) | INFO | **Not actionable as reported** — see §2.4, the list is contaminated by indexes on tables that are days old |
 | Table bloat | 1 | INFO | **Not our schema** — `net._http_response`, a `pg_net` extension internal table, not application code |
@@ -36,7 +36,7 @@ The exact policy-name pairs (e.g. `share_classes_modify` + `share_classes_select
 
 ### F2. 60 foreign keys with no covering index, concentrated in money/audit-trail tables
 
-28 tables have at least one FK column with no index. The worst single table is `payment_reallocations` — **10** unindexed FK columns (`approved_by`, `from_group_membership_id`, `from_member_id`, `initiated_by`, `new_journal_entry_id`, `rejected_by`, `reversal_journal_entry_id`, `to_group_id`, `to_group_membership_id`, `to_member_id`). Next worst: `disbursement_requests` (5), `organization_disbursements` (5), `loans` (4), `payment_requests` (3), `organization_sms_credits` (3), `organization_ledger` (3), `organization_journal_entries` (3).
+29 tables have at least one FK column with no index. The worst single table is `payment_reallocations` — **10** unindexed FK columns (`approved_by`, `from_group_membership_id`, `from_member_id`, `initiated_by`, `new_journal_entry_id`, `rejected_by`, `reversal_journal_entry_id`, `to_group_id`, `to_group_membership_id`, `to_member_id`). Next worst: `disbursement_requests` (5), `organization_disbursements` (5), `loans` (4), `payment_requests` (3), `organization_sms_credits` (3), `organization_ledger` (3), `organization_journal_entries` (3).
 
 This matters concretely for two operations every one of these tables does regularly: **joins** (e.g. "show me this member's reallocations" filters on `from_member_id`/`to_member_id` with no index to use) and **`ON DELETE` cascade/restrict checks** (every delete or update to a referenced row triggers a full sequential scan of the referencing table to check for dependents, unless the FK column is indexed). `loans`, `payment_reallocations`, and `organization_disbursements` are exactly the tables real money moves through.
 
@@ -72,8 +72,8 @@ The one `table_bloat` finding is on `net._http_response`, an internal table owne
 
 Ordered by risk-adjusted leverage, not raw finding count:
 
-1. **F3 (6 `auth_rls_initplan` fixes)** — lowest risk, mechanical, well inside precedent. Good first PR.
-2. **F2 (60 unindexed FKs)** — additive-only migration, no RLS/behavior surface, highest real-world payoff given the tables involved (`payment_reallocations`, `loans`, `organization_disbursements` are all in the hot path for real money). Second PR.
+1. **F3 (6 `auth_rls_initplan` fixes)** — lowest risk, mechanical, well inside precedent. Good first PR. **Shipped**: PR #31, migration 120, validated against production inside `BEGIN...ROLLBACK` before opening.
+2. **F2 (60 unindexed FKs)** — additive-only migration, no RLS/behavior surface, highest real-world payoff given the tables involved (`payment_reallocations`, `loans`, `organization_disbursements` are all in the hot path for real money). Second PR. **Shipped**: PR #30, migration 121, same `BEGIN...ROLLBACK` validation.
 3. **F1 (25 tables' duplicate permissive policies)** — real fix, but touches live RLS on tables spanning geography reference data, shares, dividends, meetings, and org disbursements. Needs the `app_tenant` RLS test suite run per rewritten table, not a batch sweep. Scope as its own multi-PR effort, table-group by table-group (e.g. shares cluster, geography cluster, org-disbursement cluster) rather than one big diff.
 4. **F4 (unused indexes)** — do not act on the current list. Re-run the performance advisor after a genuine 30+ day production window, filter out any table newer than that window, and cross-reference survivors against real query code before dropping anything. Premature action here risks removing an index a slow-growing feature (e.g. `investments`, `meetings`) needs the moment real usage picks up.
 5. **F5 (`net._http_response` bloat)** — no code action; monitor only.
