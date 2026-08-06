@@ -5,6 +5,7 @@ import { withDb, withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
+import { enforceSmsRateLimit } from '@/lib/sms/rate-limit';
 import { ForbiddenError } from '@/lib/utils/errors';
 import { ok, notFound } from '@/lib/utils/response';
 
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 // POST /api/v1/sms/campaign â€” create & optionally send
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
+    const limited = await enforceSmsRateLimit('campaign', auth.groupId);
+    if (limited) return limited;
+
     const body  = await req.json();
     const input = CampaignCreateSchema.parse(body);
 

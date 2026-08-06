@@ -224,7 +224,13 @@ export async function dispatchExecution(executionId: string): Promise<void> {
 
   try {
     const logs = await smsService.send(
-      { userId: exec.created_by ?? 'system', groupId: exec.exec_group_id, role: 'chairperson' },
+      // Empty string, not 'system': app_current_user_id() is
+      // NULLIF(current_setting(...), '')::uuid, so '' becomes a NULL uuid while
+      // any non-uuid literal raises 22P02 on the first RLS policy that reads it.
+      // A platform-default rule has no created_by, so it would have failed every
+      // dispatch — masked until now by C1 throwing earlier in the same call
+      // (SMS_MESSAGING_AUDIT_2026-08.md M1).
+      { userId: exec.created_by ?? '', groupId: exec.exec_group_id, role: 'chairperson' },
       phones,
       message,
       exec.event_type,

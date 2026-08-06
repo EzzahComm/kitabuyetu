@@ -301,7 +301,16 @@ function CampaignsTab() {
           <div className="flex gap-2">
             <Button
               type="button"
-              onClick={() => create.mutate({ name, message, recipientType: recipType, scheduledAt: scheduledAt || null })}
+              // A datetime-local input yields "2026-08-06T14:30" — no timezone
+              // offset — but CampaignCreateSchema requires datetime({offset:true}),
+              // so every Schedule click 400'd (SMS_MESSAGING_AUDIT_2026-08.md H4).
+              // The Schedules tab below already converts correctly; match it.
+              onClick={() => create.mutate({
+                name,
+                message,
+                recipientType: recipType,
+                scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+              })}
               disabled={!name || !message}
               loading={create.isPending}
             >
