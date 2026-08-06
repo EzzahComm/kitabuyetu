@@ -18,6 +18,13 @@
 --   1. `name` is NOT NULL here but absent from 025's INSERT column list, so
 --      that statement now fails outright with 23502.
 --
+--      `name` itself is undocumented drift: added to production directly,
+--      never through a migration (same pattern migration 068 already works
+--      around for feature_flags.created_by/updated_by). A schema built fresh
+--      from migrations alone — CI's Tenant Isolation job, Supabase preview
+--      branches — has no such column, so this file adds it defensively
+--      below. Against production the ADD COLUMN is a no-op.
+--
 --   2. `rollout_pct smallint NOT NULL DEFAULT 0`, and isFeatureEnabled ends:
 --          if (flag.rollout_pct >= 100) return true;
 --          if (flag.rollout_pct <= 0)   return false;   ← line 93
@@ -36,6 +43,11 @@
 -- All three resolve to "allowed" before and after. The remaining eight rows are
 -- admin-portal toggles for unbuilt features, gated by nothing.
 -- ─────────────────────────────────────────────────────────────────────────────
+
+-- Table is empty at this point on every path (fresh build, and production
+-- per the count(*) = 0 finding above), so adding NOT NULL with no default
+-- cannot violate any existing row.
+ALTER TABLE public.feature_flags ADD COLUMN IF NOT EXISTS name character varying NOT NULL;
 
 INSERT INTO public.feature_flags (key, name, description, enabled, rollout_pct, applies_to, conditions) VALUES
   -- Gated by assertEnabled today. rollout_pct = 100 is load-bearing (see above).
