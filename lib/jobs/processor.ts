@@ -33,10 +33,17 @@ const BATCH_SIZE = 10;
 export async function processJobBatch(): Promise<ProcessResult> {
   const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
 
-  // Reset any jobs stuck from a prior timeout before claiming new ones
-  const reset = await resetStuckJobs(6);
-  if (reset > 0) {
-    logger.warn(`[jobs] Reset ${reset} stuck job(s) to pending`);
+  // Reset any jobs stuck from a prior timeout before claiming new ones. A
+  // timeout now counts as an attempt, so a job that never fits the function
+  // budget eventually fails permanently instead of looping (and, for
+  // sms_bulk_send, re-billing) forever.
+  const { released, failed } = await resetStuckJobs(6);
+  if (released > 0) {
+    logger.warn(`[jobs] Released ${released} stuck job(s) back to pending`);
+  }
+  if (failed > 0) {
+    result.failed += failed;
+    logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
   }
 
   const jobs = await claimPendingJobs(BATCH_SIZE);

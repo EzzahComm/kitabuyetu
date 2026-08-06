@@ -529,10 +529,17 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
  * + provider dispatch all happen here, inside the retry-managed job.
  *
  * NOTE: a very large campaign still runs in a single job invocation. If that
- * invocation times out it is reset to pending and re-run, which can re-bill and
- * re-send (no per-recipient checkpoint yet) — chunking + idempotency is tracked
- * as SMS-015/SMS-007. For current group sizes a single job is well within the
- * function budget.
+ * invocation times out it is reset to pending and re-run, which re-bills and
+ * re-sends the whole campaign (no per-recipient checkpoint yet) — chunking +
+ * idempotency is tracked as SMS-015/SMS-007 and needs a dispatch-level
+ * idempotency key, which /sms/bulk has no candidate for today (it carries no
+ * campaign id). Scoped with the credit-reservation work in
+ * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2/3.
+ *
+ * What *is* fixed: that re-run is now bounded. resetStuckJobs counts a timeout
+ * as an attempt, so a campaign that never fits the function budget fails after
+ * max_attempts instead of re-billing forever (SMS_MESSAGING_AUDIT_2026-08.md
+ * H3). For current group sizes a single job is well within the function budget.
  */
 async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<HandlerResult> {
   const { smsService } = await import('@/lib/services/sms.service');

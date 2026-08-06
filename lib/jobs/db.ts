@@ -37,17 +37,48 @@ export async function claimPendingJobs(limit = 10): Promise<Job[]> {
 /**
  * Reset jobs that have been stuck in 'processing' longer than the
  * threshold (safeguard against Vercel function timeouts).
+ *
+ * Counts the timeout as an attempt. Previously this only flipped the status
+ * back to 'pending' and left `attempts` untouched — but `attempts` is
+ * incremented *only* in processSingleJob's catch branch, which a timed-out
+ * invocation never reaches (the function died; nothing threw). A job that
+ * reliably exceeds the function budget was therefore reset forever, never
+ * approaching max_attempts.
+ *
+ * For `sms_bulk_send` that loop is not merely wasteful: each pass re-runs
+ * debitPayer and re-inserts log rows, so it re-bills and re-sends the whole
+ * campaign indefinitely (SMS_MESSAGING_AUDIT_2026-08.md H3). It was harmless
+ * only while C1 made billing throw before any of it ran; repairing C1 armed it.
+ *
+ * A job that exhausts its attempts here is marked 'failed' rather than
+ * released again, matching what the catch branch does on a thrown error.
+ * This bounds the retry loop; it does NOT make a retried campaign stop
+ * re-billing what it already billed — that needs a dispatch-level idempotency
+ * key and is tracked with the credit-reservation work (SMS-007/SMS-015,
+ * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2/3).
  */
-export async function resetStuckJobs(thresholdMinutes = 6): Promise<number> {
-  const { rowCount } = await pool.query(
+export async function resetStuckJobs(
+  thresholdMinutes = 6,
+): Promise<{ released: number; failed: number }> {
+  const { rows } = await pool.query<{ status: JobStatus }>(
     `UPDATE job_queue
-     SET    status     = 'pending',
+     SET    attempts   = attempts + 1,
+            status     = CASE
+                           WHEN attempts + 1 >= max_attempts THEN 'failed'
+                           ELSE 'pending'
+                         END,
+            last_error = 'Timed out in processing; reset by stuck-job sweep',
             updated_at = NOW()
      WHERE  status     = 'processing'
-       AND  updated_at < NOW() - ($1 || ' minutes')::INTERVAL`,
+       AND  updated_at < NOW() - ($1 || ' minutes')::INTERVAL
+     RETURNING status`,
     [thresholdMinutes],
   );
-  return rowCount ?? 0;
+
+  return {
+    released: rows.filter((r) => r.status === 'pending').length,
+    failed:   rows.filter((r) => r.status === 'failed').length,
+  };
 }
 
 export async function markJobCompleted(id: string): Promise<void> {
