@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Landmark, Users, CreditCard,
   Headphones, ScrollText,
-  BarChart3, Flag, ShieldAlert, Activity,
+  BarChart3, Flag, ShieldAlert, Activity, MapPin,
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
@@ -22,6 +22,7 @@ const NAV: PortalNavSection[] = [
       { href: '/admin/users',       label: 'Members',        icon: Users },
       { href: '/admin/billing-admin', label: 'Billing',      icon: CreditCard },
       { href: '/admin/analytics',   label: 'Analytics',      icon: BarChart3 },
+      { href: '/admin/geography',   label: 'Geography',      icon: MapPin },
     ],
   },
   {

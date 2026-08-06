@@ -12,6 +12,7 @@ import type {
 import type {
   listOrganizations, getOrganizationDetail, createOrganization,
   setOrganizationActive, assignGroupToOrganization, revokeGroupFromOrganization,
+  compareOrganizations,
 } from '@/lib/services/admin-organizations.service';
 import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
@@ -21,6 +22,8 @@ import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
 } from '@/lib/services/governance.service';
+import type { searchPlatform } from '@/lib/services/admin-search.service';
+import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -40,6 +43,7 @@ type AdminOrgCreated          = Awaited<ReturnType<typeof createOrganization>>;
 type SetOrgActiveResult       = Awaited<ReturnType<typeof setOrganizationActive>>;
 type AssignGroupToOrgResult   = Awaited<ReturnType<typeof assignGroupToOrganization>>;
 type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganization>>;
+type OrgComparisonList        = Awaited<ReturnType<typeof compareOrganizations>>;
 type OrgStaffList      = Awaited<ReturnType<typeof listOrgStaff>>;
 // `invitedBy` is injected server-side from the caller's own auth context
 // (see app/api/admin/organizations/[id]/staff/route.ts) — the client never
@@ -79,6 +83,9 @@ type GovernanceAlertList      = Awaited<ReturnType<typeof listGovernanceAlerts>>
 type AcknowledgedAlert        = Awaited<ReturnType<typeof acknowledgeAlert>>;
 type ResolvedAlert            = Awaited<ReturnType<typeof resolveAlert>>;
 type GroupGovernanceSnapshot  = Awaited<ReturnType<typeof getGroupGovernanceSnapshot>>;
+type PlatformSearchResults    = Awaited<ReturnType<typeof searchPlatform>>;
+type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>;
+type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -209,6 +216,31 @@ export function useAdminOrganization(id: string) {
     queryKey: ['admin', 'organizations', id],
     queryFn:  () => adminFetch<AdminOrgDetail>(`/api/admin/organizations/${id}`),
     enabled:  !!id,
+  });
+}
+
+export function useOrganizationComparison() {
+  return useQuery({
+    queryKey: ['admin', 'organizations', 'compare'],
+    queryFn:  () => adminFetch<OrgComparisonList>('/api/admin/organizations/compare'),
+    staleTime: 60_000,
+  });
+}
+
+export function useCountyGeography() {
+  return useQuery({
+    queryKey: ['admin', 'geography', 'counties'],
+    queryFn:  () => adminFetch<CountyAggregationList>('/api/admin/geography/counties'),
+    staleTime: 60_000,
+  });
+}
+
+export function useWardGeography(countyId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin', 'geography', 'counties', countyId, 'wards'],
+    queryFn:  () => adminFetch<WardAggregationList>(`/api/admin/geography/counties/${countyId}/wards`),
+    enabled:  enabled && !!countyId,
+    staleTime: 60_000,
   });
 }
 
@@ -579,5 +611,18 @@ export function useGroupGovernanceSnapshot(groupId: string) {
     queryFn:  () => adminFetch<GroupGovernanceSnapshot>(`/api/admin/governance/snapshots?groupId=${groupId}`),
     enabled: !!groupId,
     staleTime: 60_000,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified cross-entity search (command palette)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAdminSearch(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['admin', 'search', q],
+    queryFn:  () => adminFetch<PlatformSearchResults>(`/api/admin/search?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 2,
+    staleTime: 15_000,
   });
 }

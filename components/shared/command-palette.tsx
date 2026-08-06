@@ -32,12 +32,12 @@ export interface CommandPaletteGroup {
  */
 export function createCommandPalette(
   openEventName: string,
-  useGroups: () => CommandPaletteGroup[],
+  useGroups: (query: string) => CommandPaletteGroup[],
 ) {
   function CommandPalette() {
-    const groups = useGroups();
     const [open, setOpen] = React.useState(false);
     const [query, setQuery] = React.useState('');
+    const groups = useGroups(query);
     const [active, setActive] = React.useState(0);
     const listRef = React.useRef<HTMLDivElement>(null);
 

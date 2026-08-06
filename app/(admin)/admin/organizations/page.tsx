@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Landmark, MoreHorizontal, PlusCircle,
-  PlayCircle, XCircle, ArrowUpRight,
+  PlayCircle, XCircle, ArrowUpRight, BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -129,9 +129,14 @@ export default function OrganizationsPage() {
         title="Organizations"
         description={`${total.toLocaleString()} total · banks, SACCOs & foundations that oversee groups`}
         actions={
-          <Button size="sm" onClick={() => setOnboardOpen(true)}>
-            <PlusCircle size={15} className="mr-2" /> Onboard organization
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => router.push('/admin/organizations/compare')}>
+              <BarChart3 size={15} className="mr-2" /> Compare
+            </Button>
+            <Button size="sm" onClick={() => setOnboardOpen(true)}>
+              <PlusCircle size={15} className="mr-2" /> Onboard organization
+            </Button>
+          </div>
         }
       />
 
