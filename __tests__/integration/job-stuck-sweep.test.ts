@@ -73,13 +73,18 @@ describe('stuck-job sweep bounds the retry loop (H3)', () => {
     const id = await stuckJob(0, 3);
 
     // Simulate three consecutive ticks that each find the job still stuck.
+    //
+    // Note the job is re-stuck with a plain UPDATE and swept with a threshold
+    // of 0 rather than backdating updated_at: job_queue carries a BEFORE UPDATE
+    // trigger (trg_job_queue_updated_at) that stamps updated_at = NOW() on every
+    // write, so `SET updated_at = NOW() - INTERVAL '30 minutes'` is silently
+    // overwritten and the row would never look stuck. A 0-minute threshold
+    // means "updated_at < NOW()", which the previous statement's commit
+    // timestamp always satisfies. (The other cases here backdate via INSERT,
+    // which has no such trigger.)
     for (let i = 0; i < 3; i++) {
-      await rawQuery(
-        `UPDATE job_queue SET status='processing', updated_at = NOW() - INTERVAL '30 minutes'
-         WHERE id=$1 AND status='pending'`,
-        [id],
-      );
-      await resetStuckJobs(6);
+      await rawQuery(`UPDATE job_queue SET status='processing' WHERE id=$1`, [id]);
+      await resetStuckJobs(0);
     }
 
     const job = await readJob(id);
