@@ -25,6 +25,16 @@
 --      branches — has no such column, so this file adds it defensively
 --      below. Against production the ADD COLUMN is a no-op.
 --
+--      That fresh build is also NOT an empty table by the time this file
+--      runs: migration 025 already seeded these same 11 keys. Production is
+--      empty only because whatever created its table diverged from 025 (see
+--      above). So this can't be a plain INSERT ON CONFLICT DO NOTHING either
+--      — DO NOTHING silently no-ops against 025's rows on a fresh build,
+--      leaving name NULL and rollout_pct at 025's stale defaults. Use
+--      DO UPDATE so the end state converges to the same correct row set
+--      whether starting from 025's seed (fresh build) or an empty table
+--      (production).
+--
 --   2. `rollout_pct smallint NOT NULL DEFAULT 0`, and isFeatureEnabled ends:
 --          if (flag.rollout_pct >= 100) return true;
 --          if (flag.rollout_pct <= 0)   return false;   ← line 93
@@ -44,10 +54,9 @@
 -- admin-portal toggles for unbuilt features, gated by nothing.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Table is empty at this point on every path (fresh build, and production
--- per the count(*) = 0 finding above), so adding NOT NULL with no default
--- cannot violate any existing row.
-ALTER TABLE public.feature_flags ADD COLUMN IF NOT EXISTS name character varying NOT NULL;
+-- Nullable for now — 025's pre-existing rows (fresh build) don't have a name
+-- yet, and the UPSERT below fills every row's name before we require it.
+ALTER TABLE public.feature_flags ADD COLUMN IF NOT EXISTS name character varying;
 
 INSERT INTO public.feature_flags (key, name, description, enabled, rollout_pct, applies_to, conditions) VALUES
   -- Gated by assertEnabled today. rollout_pct = 100 is load-bearing (see above).
@@ -64,7 +73,17 @@ INSERT INTO public.feature_flags (key, name, description, enabled, rollout_pct, 
   ('multi_currency',          'Multi-Currency',          'Multi-currency support for international groups',       false, 0,   'plan', '{"min_plan": "enterprise"}'),
   ('api_access',              'API Access',              'REST API access for third-party integrations',          false, 0,   'plan', '{"min_plan": "enterprise"}'),
   ('white_label',             'White Label',             'White-label branding for enterprise deployments',       false, 0,   'plan', '{"min_plan": "enterprise"}')
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE SET
+  name        = EXCLUDED.name,
+  description = EXCLUDED.description,
+  enabled     = EXCLUDED.enabled,
+  rollout_pct = EXCLUDED.rollout_pct,
+  applies_to  = EXCLUDED.applies_to,
+  conditions  = EXCLUDED.conditions;
+
+-- Every row now has a name (either just inserted, or just updated from 025's
+-- pre-existing row) — safe to require it going forward.
+ALTER TABLE public.feature_flags ALTER COLUMN name SET NOT NULL;
 
 -- Assert the three gated flags resolve to ALLOWED, mirroring isFeatureEnabled's
 -- own logic. Without the rollout_pct clause this migration would ship an outage.
