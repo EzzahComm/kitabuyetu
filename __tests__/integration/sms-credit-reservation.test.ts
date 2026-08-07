@@ -102,6 +102,13 @@ describe('SMS credit reservation (migration 123)', () => {
          ON CONFLICT (group_id) DO UPDATE SET sms_credits = 50`,
         [other],
       );
+      // register_group (migration 050) gives every new group an active
+      // 'starter' subscription, so the no-subscription state has to be
+      // induced explicitly rather than left as a fixture default.
+      await rawQuery(
+        `UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`,
+        [other],
+      );
       await expect(reserve(other, 1)).rejects.toThrow();
     });
   });

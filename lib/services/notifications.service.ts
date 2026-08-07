@@ -361,7 +361,7 @@ async function insertSmsLog(
          payer_type, payer_organization_id
        ) VALUES (
          $1, $2, $3, $4, 'queued',
-         0, $5, $6, CASE WHEN $6 = 'reserved' THEN NOW() ELSE NULL END,
+         0, $5, $6::varchar, CASE WHEN $6 = 'reserved' THEN NOW() ELSE NULL END,
          $7, $8,
          $9, $10, 'textsms',
          $11, $12

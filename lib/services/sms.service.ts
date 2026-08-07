@@ -829,7 +829,7 @@ async function updateLogRow(
   try {
     await client.query(
       `UPDATE sms_usage_logs
-       SET status=$1, provider_msg_id=$2, network_id=$3,
+       SET status=$1::sms_status, provider_msg_id=$2, network_id=$3,
            sent_at=CASE WHEN $1='sent' THEN NOW() ELSE sent_at END,
            failed_reason=$4
        WHERE id=$5`,
