@@ -24,6 +24,13 @@ import {
   type BulkSmsItem,
 } from './textsms.service';
 import { renderTemplate, renderBuiltin, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import {
+  reserveCredits,
+  settleReservation,
+  raiseLowBalanceAlert,
+  type ReservationTarget,
+  type ReserveFailure,
+} from './messaging-billing';
 import type { SmsUsageLog, PaginatedResult } from '@/types/db.types';
 import type { SmsUsageQueryInput } from '@/lib/validators/sms.schema';
 
@@ -79,70 +86,39 @@ export interface BulkCampaignInput {
 }
 
 // ─── Credit helpers ───────────────────────────────────────────────────────────
+//
+// The provider SQLSTATE constants that used to live here moved to
+// lib/services/messaging-billing.ts along with debitPayer's logic — mapping
+// them in one place is the point of that module.
 
-/** Postgres SQLSTATEs raised by debit_organization_sms_credits (migration 051). */
-const PG_INSUFFICIENT_CREDITS = '22003';
-const PG_NO_BILLING_ACCOUNT   = '22023';
-const PG_NOT_AUTHORIZED       = '42501';
-
-interface DebitResult {
-  /** KES per SMS actually applied — stamped onto each log row. */
-  rate: number;
+/**
+ * Map this module's payer shape onto the shared reservation target.
+ *
+ * Billing itself now lives in lib/services/messaging-billing.ts, which is the
+ * single place credits are earmarked, charged or returned — the balance check,
+ * the row lock and the `FOR UPDATE OF ba` that Phase 1 fixed all moved into
+ * reserve_sms_credits() (migration 123).
+ */
+function toReservationTarget(groupId: string, payer: SmsPayer): ReservationTarget {
+  return payer.type === 'organization'
+    ? { payerType: 'organization', groupId, organizationId: payer.organizationId }
+    : { payerType: 'group', groupId };
 }
 
 /**
- * Charge `count` messages to the payer, inside the caller's transaction.
- *
- * Group path: locks billing_accounts and requires an active subscription.
- * Organization path: delegates to a SECURITY DEFINER function, because the
- * acting role is a group officer who has no RLS grant on the organization's
- * balance. That function re-checks that the group has active access under the
- * organization before debiting.
+ * Convert a reservation failure into the error this module's callers expect.
+ * `/sms/send` turns PaymentRequiredError/InsufficientSmsCreditsError into a
+ * 402, and trigger-engine.ts catches to drive retryOrFail — so this path must
+ * keep throwing even though the primitive underneath never does.
  */
-async function debitPayer(
-  client:  import('pg').PoolClient,
-  groupId: string,
-  payer:   SmsPayer,
-  count:   number,
-): Promise<DebitResult> {
-  if (payer.type === 'organization') {
-    try {
-      const { rows } = await client.query<{ rate: string }>(
-        `SELECT rate FROM debit_organization_sms_credits($1,$2,$3)`,
-        [payer.organizationId, groupId, count],
-      );
-      return { rate: parseFloat(rows[0].rate) };
-    } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === PG_INSUFFICIENT_CREDITS) throw new InsufficientSmsCreditsError();
-      if (code === PG_NO_BILLING_ACCOUNT || code === PG_NOT_AUTHORIZED) {
-        throw new PaymentRequiredError(
-          `Organization ${payer.organizationId} cannot fund SMS for this group.`,
-        );
-      }
-      throw err;
-    }
+function reserveFailureToError(reason: ReserveFailure, detail: string): Error {
+  switch (reason) {
+    case 'insufficient_credits': return new InsufficientSmsCreditsError();
+    case 'subscription_inactive': return new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
+    case 'not_authorized':        return new PaymentRequiredError('This organization cannot fund SMS for this group.');
+    case 'no_billing_account':    return new PaymentRequiredError('No billing account found.');
+    default:                      return new PaymentRequiredError(detail);
   }
-
-  const { rows: sub } = await client.query<{ status: string }>(
-    `SELECT status FROM subscriptions WHERE group_id=$1 AND status='active' LIMIT 1`,
-    [groupId],
-  );
-  if (!sub[0]) throw new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
-
-  const billing = await fetchBillingRow(client, groupId);
-  if (!billing) throw new PaymentRequiredError('No billing account found.');
-
-  const rate      = parseFloat(billing.sms_rate);
-  const credits   = parseFloat(billing.sms_credits);
-  const totalCost = rate * count;
-  if (credits < totalCost) throw new InsufficientSmsCreditsError();
-
-  await client.query(
-    `UPDATE billing_accounts SET sms_credits=sms_credits-$1 WHERE group_id=$2`,
-    [totalCost.toFixed(4), groupId],
-  );
-  return { rate };
 }
 
 /** payer_type / payer_organization_id columns for an sms_usage_logs insert. */
@@ -150,26 +126,6 @@ function payerCols(payer: SmsPayer): [string, string | null] {
   return payer.type === 'organization'
     ? ['organization', payer.organizationId]
     : ['group', null];
-}
-
-async function fetchBillingRow(client: import('pg').PoolClient, groupId: string) {
-  const { rows } = await client.query<{ sms_credits: string; sms_rate: string }>(
-    // FOR UPDATE OF ba — NOT a bare FOR UPDATE. A bare row-locking clause
-    // applies to every table in the FROM, and PostgreSQL rejects locking the
-    // nullable side of an outer join at parse-analysis time:
-    //   0A000: FOR UPDATE cannot be applied to the nullable side of an outer join
-    // That failed unconditionally (not data-dependently), so every group-funded
-    // send — /sms/send, the whole trigger engine, all bulk campaigns — threw
-    // before billing. Production recorded it verbatim in sms_trigger_executions
-    // (SMS_MESSAGING_AUDIT_2026-08.md C1). Only `ba` needs locking anyway: the
-    // subscription join is a rate lookup, not a row we mutate.
-    `SELECT ba.sms_credits, COALESCE(s.sms_rate,'0.90') AS sms_rate
-     FROM billing_accounts ba
-     LEFT JOIN subscriptions s ON s.group_id=ba.group_id AND s.status='active'
-     WHERE ba.group_id=$1 FOR UPDATE OF ba`,
-    [groupId],
-  );
-  return rows[0] ?? null;
 }
 
 async function fetchOptOuts(client: import('pg').PoolClient, groupId: string): Promise<Set<string>> {
@@ -272,17 +228,29 @@ export const smsService = {
       const eligible = normalized.filter((p) => !optOuts.has(p));
       if (!eligible.length) return [] as SmsUsageLog[];
 
-      const { rate } = await debitPayer(client, ctx.groupId, payer, eligible.length);
+      // Reserve, don't debit. Credits are earmarked here and only become a real
+      // charge once the provider accepts the message; a rejected send releases
+      // them (SMS_MESSAGING_AUDIT_2026-08.md H5, migration 123).
+      const reservation = await reserveCredits(client, toReservationTarget(ctx.groupId, payer), eligible.length);
+      if (!reservation.ok) {
+        // Reserve BEFORE inserting any row, so an unaffordable send leaves no
+        // trace — an existing integration test pins exactly this ordering.
+        void raiseLowBalanceAlert(toReservationTarget(ctx.groupId, payer));
+        throw reserveFailureToError(reservation.reason, reservation.detail);
+      }
+      const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
       const rows: SmsUsageLog[] = [];
       for (const phone of eligible) {
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
-             (group_id, recipient_phone, message_text, credits_deducted,
+             (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
+              billing_state, reserved_at, notification_type, correlation_id,
               reference_type, reference_id, provider, payer_type, payer_organization_id)
-           VALUES ($1,$2,$3,$4,$5,$6,'textsms',$7,$8) RETURNING *`,
+           VALUES ($1,$2,$3,0,$4,'reserved',NOW(),$5,$6,$7,$8,'textsms',$9,$10) RETURNING *`,
           [ctx.groupId, phone, message, rate.toFixed(4),
+           referenceType ?? null, referenceId ?? null,
            referenceType ?? null, referenceId ?? null, payerType, payerOrgId],
         );
         rows.push(inserted[0]);
@@ -293,12 +261,17 @@ export const smsService = {
     if (logs.length) {
       // recipient_phone preserves the eligible order the rows were inserted in,
       // so phones[i] ↔ logIds[i] pairing in dispatchBatch stays correct.
-      await dispatchBatch(
+      const { sentIds, failedIds } = await dispatchBatch(
         ctx.groupId,
         logs.map((l) => l.recipient_phone),
         message,
         logs.map((l) => l.id),
       );
+      // Provider accepted ⇒ charge. Provider rejected or the batch threw ⇒
+      // return the earmark. A later DLR-driven failure must NOT refund: the
+      // provider accepted and billed us for that one.
+      await settleReservation(sentIds, 'consume');
+      await settleReservation(failedIds, 'release');
     }
     return logs;
   },
@@ -334,14 +307,14 @@ export const smsService = {
     const phones = input.phones.map(normalizePhone);
     const payer  = input.payer ?? GROUP_PAYER;
 
-    // Billing + log creation happen in ONE transaction so credits can never be
-    // debited without the matching log rows (and vice-versa). The provider
+    // Reservation + log creation happen in ONE transaction so credits can never
+    // be earmarked without the matching log rows (and vice-versa). The provider
     // dispatch below runs *outside* this transaction so we never hold a DB
     // connection open across slow HTTP calls.
     //
-    // NOTE: like smsService.send(), credits are charged up-front for every
-    // eligible recipient regardless of per-message outcome. Refunding credits
-    // for provider-rejected sends is tracked separately (SMS-009).
+    // Credits are reserved, not charged, for every eligible recipient; the
+    // per-response settle below converts accepted messages into a real debit
+    // and returns the earmark for rejected ones (closes SMS-009).
     const batchSize = 200;
     const { eligible, logIds } = await withAdminDb(async (db) => {
       // Opt-out suppression
@@ -353,9 +326,14 @@ export const smsService = {
       const logIds: string[] = [];
       if (!eligible.length) return { eligible, logIds };
 
-      // Bill the stated payer: the group, or the organization running the
-      // campaign. Mirrors send()'s guards for each path.
-      const { rate } = await debitPayer(db, input.groupId, payer, eligible.length);
+      // Reserve against the stated payer: the group, or the organization
+      // running the campaign. Mirrors send()'s guards for each path.
+      const reservation = await reserveCredits(db, toReservationTarget(input.groupId, payer), eligible.length);
+      if (!reservation.ok) {
+        void raiseLowBalanceAlert(toReservationTarget(input.groupId, payer));
+        throw reserveFailureToError(reservation.reason, reservation.detail);
+      }
+      const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
       // Insert log rows in batches, each carrying its per-message credit cost
@@ -364,12 +342,14 @@ export const smsService = {
         for (const phone of batch) {
           const { rows } = await db.query<{ id: string }>(
             `INSERT INTO sms_usage_logs
-               (group_id, recipient_phone, message_text, credits_deducted,
+               (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
+                billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
                 payer_type, payer_organization_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,'textsms',$8,$9) RETURNING id`,
+             VALUES ($1,$2,$3,0,$4,'reserved',NOW(),'campaign',$5,$6,$7,$8,'textsms',$9,$10) RETURNING id`,
             [
               input.groupId, phone, input.message, rate.toFixed(4),
+              input.campaignId ?? null,
               input.referenceType ?? 'campaign',
               input.referenceId ?? input.campaignId ?? null,
               input.campaignId ?? null,
@@ -435,6 +415,20 @@ export const smsService = {
         );
       }
     });
+
+    // Settle the reservation per response: accepted ⇒ charge, rejected ⇒ return
+    // the earmark. Any row the provider never reported on stays 'reserved' and
+    // is recovered by the stale-reservation sweeper.
+    const acceptedIds: string[] = [];
+    const rejectedIds: string[] = [];
+    for (let i = 0; i < logIds.length; i++) {
+      const r = result.responses[i];
+      if (!r)              rejectedIds.push(logIds[i]);
+      else if (r.success)  acceptedIds.push(logIds[i]);
+      else                 rejectedIds.push(logIds[i]);
+    }
+    await settleReservation(acceptedIds, 'consume');
+    await settleReservation(rejectedIds, 'release');
 
     // Log failures for retry
     for (let i = 0; i < result.responses.length; i++) {
@@ -760,23 +754,34 @@ export const smsService = {
 
 // ─── Async dispatch helper ────────────────────────────────────────────────────
 
+/**
+ * Dispatch to the provider and report which messages it accepted.
+ *
+ * Returns the split rather than void because the caller has to settle the
+ * reservation: accepted ⇒ consume, rejected or thrown ⇒ release. Anything not
+ * reported here stays 'reserved' and is picked up by the stale-reservation
+ * sweeper, so a lost return value costs a delay, never a lost charge.
+ */
 async function dispatchBatch(
   groupId: string,
   phones: string[],
   message: string,
   logIds: string[],
-): Promise<void> {
+): Promise<{ sentIds: string[]; failedIds: string[] }> {
+  const sentIds: string[]   = [];
+  const failedIds: string[] = [];
+
   try {
     const sender = process.env.TEXTSMS_SENDER_ID ?? 'KITABU';
-
-    let sent = 0, failed = 0;
 
     if (phones.length === 1) {
       const res = await sendSingleSms({ mobile: phones[0], message, senderId: sender });
       const status = res.success ? 'sent' : 'failed';
       await updateLogRow(logIds[0], status, res.messageId, res.networkId, res.success ? null : res.responseDescription);
-      if (!res.success) { failed++; await logFailure(groupId, logIds[0], phones[0], message, res.responseCode, res.responseDescription); }
-      else sent++;
+      if (!res.success) {
+        failedIds.push(logIds[0]);
+        await logFailure(groupId, logIds[0], phones[0], message, res.responseCode, res.responseDescription);
+      } else sentIds.push(logIds[0]);
     } else {
       const items: BulkSmsItem[] = phones.map((mobile, i) => ({
         mobile, message, senderId: sender, clientSmsId: i + 1,
@@ -784,15 +789,20 @@ async function dispatchBatch(
       const result = await sendBulkSmsChunked(items);
       for (let i = 0; i < result.responses.length; i++) {
         const r = result.responses[i];
+        if (!logIds[i]) continue;
         await updateLogRow(logIds[i], r.success ? 'sent' : 'failed', r.messageId, r.networkId, r.success ? null : r.responseDescription);
         if (!r.success) {
-          failed++;
+          failedIds.push(logIds[i]);
           await logFailure(groupId, logIds[i], phones[i], message, r.responseCode, r.responseDescription);
-        } else sent++;
+        } else sentIds.push(logIds[i]);
       }
+      // A chunk that returned fewer responses than items leaves the tail
+      // unaccounted for. Treat those as failed so their earmark is returned
+      // rather than silently held.
+      for (let i = result.responses.length; i < logIds.length; i++) failedIds.push(logIds[i]);
     }
 
-    logger.info(`[sms] dispatched: ${sent} sent, ${failed} failed (group ${groupId})`);
+    logger.info(`[sms] dispatched: ${sentIds.length} sent, ${failedIds.length} failed (group ${groupId})`);
   } catch (err) {
     logger.error('[sms] dispatchBatch error:', err);
     const { pool } = await import('@/lib/db');
@@ -803,7 +813,11 @@ async function dispatchBatch(
         [String(err), logIds],
       );
     } finally { client.release(); }
+    // The provider never confirmed acceptance, so nothing here is chargeable.
+    return { sentIds: [], failedIds: logIds };
   }
+
+  return { sentIds, failedIds };
 }
 
 async function updateLogRow(
@@ -815,7 +829,7 @@ async function updateLogRow(
   try {
     await client.query(
       `UPDATE sms_usage_logs
-       SET status=$1, provider_msg_id=$2, network_id=$3,
+       SET status=$1::sms_status, provider_msg_id=$2, network_id=$3,
            sent_at=CASE WHEN $1='sent' THEN NOW() ELSE sent_at END,
            failed_reason=$4
        WHERE id=$5`,

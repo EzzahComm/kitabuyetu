@@ -31,7 +31,9 @@ export type JobType =
   | 'sms_retry_failed'            // Retry due rows in sms_failures (every 5 min)
   | 'sms_process_schedules'       // Fire due sms_schedules + scheduled campaigns (every 5 min)
   | 'sms_poll_dlr'                // Poll provider for delivery status of sent messages (every 5 min)
-  | 'sms_trigger_fire';           // Ad-hoc: dispatch a delayed/retried trigger-rule execution
+  | 'sms_trigger_fire'            // Ad-hoc: dispatch a delayed/retried trigger-rule execution
+  | 'sms_low_balance_alert'       // Ad-hoc: warn officers that SMS credits ran out (in-app + email, never SMS)
+  | 'sms_release_stale_reservations'; // Recover SMS credit reservations orphaned by a crash (every 5 min)
 
 export interface Job {
   id:           string;

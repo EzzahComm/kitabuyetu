@@ -33,7 +33,7 @@ import { BCRYPT_ROUNDS, generateTempPassword } from './members.service';
 import { updatePlatformUserRole } from './admin.service';
 import { hashSecret, generateEmailToken, generateOtp } from './group-verification.service';
 import { sendTemplatedEmail } from './email.service';
-import { sendSingleSms } from './textsms.service';
+import { sendServiceSms } from './notifications.service';
 
 /**
  * Finds an existing member by phone, or creates one with a temp/given
@@ -337,9 +337,12 @@ export async function confirmOrgInvitationEmail(token: string): Promise<{ phone:
     return inv.phone;
   });
 
-  await sendSingleSms({
-    mobile:  phone,
-    message: `Your Kitabu Yetu staff invite code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+  // Platform-funded: organization_invitations has no group_id, so there is no
+  // tenant to bill even in principle.
+  await sendServiceSms({
+    phone,
+    notificationType: 'auth_org_invite',
+    body: `Your Kitabu Yetu staff invite code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
   });
 
   return { phone };

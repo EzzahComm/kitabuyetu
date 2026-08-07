@@ -11,7 +11,7 @@
 import crypto from 'crypto';
 import { withAdminDb } from '@/lib/db';
 import { sendTemplatedEmail } from './email.service';
-import { sendSingleSms } from './textsms.service';
+import { sendServiceSms } from './notifications.service';
 import { AppError } from '@/lib/utils/errors';
 
 export type VerificationChannel = 'email' | 'sms';
@@ -82,9 +82,11 @@ export async function startGroupVerification(
       groupId: info.groupId,
     });
   } else {
-    await sendSingleSms({
-      mobile:  destination,
-      message: `Your Kitabu Yetu verification code is ${secret}. It expires in 10 minutes. If you did not request this, ignore this SMS.`,
+    await sendServiceSms({
+      phone:   destination,
+      groupId: info.groupId,
+      notificationType: 'auth_group_verification',
+      body: `Your Kitabu Yetu verification code is ${secret}. It expires in 10 minutes. If you did not request this, ignore this SMS.`,
     });
   }
 
