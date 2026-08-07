@@ -18,6 +18,7 @@
  * so any officer of any group could read and mutate another group's log row.
  */
 import { smsService } from '@/lib/services/sms.service';
+import { assignGroupMemberRole } from '@/lib/services/member-roles.service';
 import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
@@ -40,8 +41,15 @@ jest.mock('@/lib/services/textsms.service', () => ({
   getProviderBalance: jest.fn().mockResolvedValue({ balance: 100, currency: 'KES', raw: {} }),
 }));
 
-/** Give a group the billing state a group-funded send requires. */
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+/**
+ * Give a group the billing state a group-funded send requires.
+ *
+ * allowance defaults to 0 (not the column's own DEFAULT 50, migration 124) so
+ * this file's C1/C3 tests keep exercising pure paid-credit behaviour — the
+ * Decision B flip is proven separately, with its own explicit allowance,
+ * below.
+ */
+async function provisionBilling(groupId: string, credits: number, allowance = 0): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -49,10 +57,14 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
     [groupId, credits],
   );
   await rawQuery(
-    `INSERT INTO subscriptions (group_id, plan_type, status, sms_rate, monthly_fee)
-     VALUES ($1, 'starter', 'active', 0.90, 0)
+    `INSERT INTO subscriptions (group_id, plan_type, status, sms_rate, monthly_fee, sms_allowance_included)
+     VALUES ($1, 'starter', 'active', 0.90, 0, $2)
      ON CONFLICT DO NOTHING`,
-    [groupId],
+    [groupId, allowance],
+  );
+  await rawQuery(
+    `UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`,
+    [groupId, allowance],
   );
 }
 
@@ -105,6 +117,47 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
         `SELECT 1 FROM sms_usage_logs WHERE group_id=$1`, [poorGroup],
       );
       expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe('Decision B — a real notifyMember call site actually bills (Phase 2b, migration 124)', () => {
+    it('assignGroupMemberRole bills the role-change notice via the bundled allowance', async () => {
+      const { groupId: rgGroupId, officerId } = await createTestGroup('treasurer');
+      await provisionBilling(rgGroupId, 100, 50);
+
+      const [before] = await rawQuery<{ sms_allowance_used: number }>(
+        `SELECT sms_allowance_used FROM billing_accounts WHERE group_id=$1`, [rgGroupId],
+      );
+
+      const [{ id: memberRoleId }] = await rawQuery<{ id: string }>(
+        `SELECT id FROM public.roles WHERE group_id IS NULL AND code = 'member'`,
+      );
+
+      await assignGroupMemberRole({
+        actorId: officerId, memberId: officerId, groupId: rgGroupId, roleId: memberRoleId,
+      });
+
+      // Proves the Decision B flip actually took effect: before this PR,
+      // member-roles.service.ts's notifyMember call defaulted to
+      // billingMode 'unbilled' and never moved this counter at all.
+      const [after] = await rawQuery<{ sms_allowance_used: number; sms_allowance_reserved: number }>(
+        `SELECT sms_allowance_used, sms_allowance_reserved FROM billing_accounts WHERE group_id=$1`, [rgGroupId],
+      );
+      expect(after.sms_allowance_used).toBe(before.sms_allowance_used + 1);
+      // settleReservation runs synchronously inside sendSmsLeg's finally,
+      // awaited before assignGroupMemberRole returns — nothing left earmarked.
+      expect(after.sms_allowance_reserved).toBe(0);
+
+      const [log] = await rawQuery<{ payer_type: string; billing_state: string }>(
+        `SELECT payer_type, billing_state FROM sms_usage_logs
+         WHERE group_id=$1 AND reference_type='role_assignment'
+         ORDER BY created_at DESC LIMIT 1`,
+        [rgGroupId],
+      );
+      expect(log.payer_type).toBe('group');
+      // No longer the old hardcoded credits_deducted=0/billing_state='none'
+      // shape this call site had before the flip.
+      expect(log.billing_state).toBe('consumed');
     });
   });
 

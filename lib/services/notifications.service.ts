@@ -223,6 +223,7 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   const target = billingTarget(rcpt, mode);
 
   let reservedCredits = 0;
+  let fromAllowance   = 0;
   if (mode === 'billed') {
     const reservation = await reserveCredits(pool, target, 1);
     if (!reservation.ok) {
@@ -235,9 +236,13 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
       return { channel: 'sms', status: 'suppressed', detail: reservation.reason };
     }
     reservedCredits = reservation.total;
+    // Phase 2b (migration 124): this is always a single-message reservation
+    // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
+    // full reservedCredits.
+    fromAllowance   = reservation.fromAllowance;
   }
 
-  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits);
+  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance);
   let settleAs: 'consume' | 'release' = 'release';
 
   try {
@@ -347,6 +352,7 @@ async function insertSmsLog(
   toPhone: string,
   mode:    NotifyBillingMode,
   reserved: number,
+  fromAllowance: number = 0,
 ): Promise<string | null> {
   const isPlatform = mode === 'platform';
   const payerType  = isPlatform ? 'platform'
@@ -355,16 +361,16 @@ async function insertSmsLog(
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO sms_usage_logs (
          group_id, member_id, recipient_phone, message_text, status,
-         credits_deducted, credits_reserved, billing_state, reserved_at,
+         credits_deducted, credits_reserved, credits_from_allowance, billing_state, reserved_at,
          notification_type, correlation_id,
          reference_type, reference_id, provider,
          payer_type, payer_organization_id
        ) VALUES (
          $1, $2, $3, $4, 'queued',
-         0, $5, $6::varchar, CASE WHEN $6 = 'reserved' THEN NOW() ELSE NULL END,
-         $7, $8,
-         $9, $10, 'textsms',
-         $11, $12
+         0, $5, $6, $7::varchar, CASE WHEN $7 = 'reserved' THEN NOW() ELSE NULL END,
+         $8, $9,
+         $10, $11, 'textsms',
+         $12, $13
        ) RETURNING id`,
       [
         isPlatform ? null : rcpt.groupId,
@@ -374,6 +380,7 @@ async function insertSmsLog(
         toPhone,
         rcpt.body,
         reserved.toFixed(4),
+        fromAllowance.toFixed(4),
         mode === 'billed' ? 'reserved' : 'none',
         rcpt.notificationType ?? rcpt.referenceType ?? null,
         rcpt.correlationId ?? null,

@@ -213,6 +213,20 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
+  // ── 1st of month 01:00 UTC — SMS bundled-allowance monthly reset ─────
+  // Runs well before the 08:00 contribution-reminder sweep below, so that
+  // day's first billed sends see a freshly-reset allowance rather than the
+  // previous period's. Hour 1 is otherwise unused across this file, so this
+  // never competes with an existing monthly/daily bucket within the same
+  // tick (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
+  if (date === 1 && hour === 1) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.sms_allowance_monthly_reset = await safe('sms_allowance_monthly_reset', {}, {
+      priority:  4,
+      dedup_key: `sms_allowance_monthly_reset:${monthStr}`,
+    });
+  }
+
   // ── 1st of month 08:00 UTC — prune old jobs ───────────────────
   if (date === 1 && hour === 8) {
     const { pruneOldJobs } = await import('./db');

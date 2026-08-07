@@ -209,6 +209,9 @@ export async function assignGroupMemberRole(input: {
         body:  `KitabuYetu: Your role in ${membership.group_name} is now ${role.name}.`,
         referenceType: 'role_assignment',
         referenceId:   memberId,
+        // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
+        // bundled allowance now exists, so this real send-path bills.
+        billingMode:   'billed',
       });
       baseResult.notification.channel = out.channel;
       baseResult.notification.status  = out.status;

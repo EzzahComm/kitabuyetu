@@ -241,15 +241,23 @@ export const smsService = {
       const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
+      // Phase 2b: the reservation already split this batch between the
+      // bundled allowance and paid credits (migration 124) — spend the
+      // allowance count down per row so each row records its own true
+      // source. One row is one message, so the split is all-or-nothing per
+      // row: a message is never half-allowance/half-paid.
+      let allowanceLeft = reservation.fromAllowanceCount;
+
       const rows: SmsUsageLog[] = [];
       for (const phone of eligible) {
+        const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, rate) : 0;
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
              (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
-              billing_state, reserved_at, notification_type, correlation_id,
+              credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
               reference_type, reference_id, provider, payer_type, payer_organization_id)
-           VALUES ($1,$2,$3,0,$4,'reserved',NOW(),$5,$6,$7,$8,'textsms',$9,$10) RETURNING *`,
-          [ctx.groupId, phone, message, rate.toFixed(4),
+           VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,'textsms',$10,$11) RETURNING *`,
+          [ctx.groupId, phone, message, rate.toFixed(4), fromAllowance.toFixed(4),
            referenceType ?? null, referenceId ?? null,
            referenceType ?? null, referenceId ?? null, payerType, payerOrgId],
         );
@@ -336,19 +344,24 @@ export const smsService = {
       const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
+      // Phase 2b: spend the allowance count down per row (migration 124) —
+      // one row is one message, so the split is all-or-nothing per row.
+      let allowanceLeft = reservation.fromAllowanceCount;
+
       // Insert log rows in batches, each carrying its per-message credit cost
       for (let i = 0; i < eligible.length; i += batchSize) {
         const batch = eligible.slice(i, i + batchSize);
         for (const phone of batch) {
+          const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, rate) : 0;
           const { rows } = await db.query<{ id: string }>(
             `INSERT INTO sms_usage_logs
                (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
-                billing_state, reserved_at, notification_type, correlation_id,
+                credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
                 payer_type, payer_organization_id)
-             VALUES ($1,$2,$3,0,$4,'reserved',NOW(),'campaign',$5,$6,$7,$8,'textsms',$9,$10) RETURNING id`,
+             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11) RETURNING id`,
             [
-              input.groupId, phone, input.message, rate.toFixed(4),
+              input.groupId, phone, input.message, rate.toFixed(4), fromAllowance.toFixed(4),
               input.campaignId ?? null,
               input.referenceType ?? 'campaign',
               input.referenceId ?? input.campaignId ?? null,
