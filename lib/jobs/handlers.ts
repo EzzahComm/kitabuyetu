@@ -118,6 +118,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_release_stale_reservations':
       return handleSmsReleaseStaleReservations();
 
+    case 'sms_allowance_monthly_reset':
+      return handleSmsAllowanceMonthlyReset();
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -432,6 +435,9 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
       referenceId:    r.repayment_id,
       reminderStage:  r.reminder_stage,
       jobExecutionId: job.id,
+      // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
+      // bundled allowance now exists, so this real send-path bills.
+      billingMode:    'billed',
     });
     if (result.sent) sent++;
     else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
@@ -514,6 +520,9 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
       referenceId:    r.membership_id,
       reminderStage:  `missing_contribution:${r.period_key}`,
       jobExecutionId: job.id,
+      // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
+      // bundled allowance now exists, so this real send-path bills.
+      billingMode:    'billed',
     });
     if (result.sent) sent++;
     else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
@@ -722,6 +731,17 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
     consumed: consumeIds.length,
     released: releaseIds.length,
   };
+}
+
+/**
+ * Zero the bundled monthly SMS allowance for every group with an active
+ * subscription. Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) —
+ * driven by the sms_allowance_monthly_reset job, 1st of month, 01:00 UTC.
+ */
+async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
+  const { resetMonthlySmsAllowance } = await import('@/lib/services/messaging-billing');
+  const result = await resetMonthlySmsAllowance();
+  return { message: `SMS allowance reset for ${result.groupsReset} group(s)`, ...result };
 }
 
 /**

@@ -1,5 +1,6 @@
 /**
- * SMS credit reservation (Phase 2a, migration 123) against real Postgres.
+ * SMS credit reservation (Phase 2a migration 123, Phase 2b bundled allowance
+ * migration 124) against real Postgres.
  *
  * These are integration tests rather than unit tests on purpose: the whole
  * mechanism is a pair of SECURITY DEFINER plpgsql functions plus CHECK
@@ -8,51 +9,79 @@
  * a `FOR UPDATE` that no unit test could ever have caught.
  */
 import { rawQuery } from './helpers/db';
-import { createTestGroup } from './helpers/fixtures';
+import { createTestGroup, createTestOrganization } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { settleReservation } from '@/lib/services/messaging-billing';
 
-async function provision(groupId: string, credits: number): Promise<void> {
+async function provision(groupId: string, credits: number, allowance = 50): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
      ON CONFLICT (group_id) DO UPDATE SET sms_credits = EXCLUDED.sms_credits,
-                                          reserved_sms_credits = 0`,
+                                          reserved_sms_credits = 0,
+                                          sms_allowance_used = 0,
+                                          sms_allowance_reserved = 0`,
     [groupId, credits],
   );
   await rawQuery(
-    `INSERT INTO subscriptions (group_id, plan_type, status, sms_rate, monthly_fee)
-     VALUES ($1, 'starter', 'active', 0.90, 0)
+    `INSERT INTO subscriptions (group_id, plan_type, status, sms_rate, monthly_fee, sms_allowance_included)
+     VALUES ($1, 'starter', 'active', 0.90, 0, $2)
      ON CONFLICT DO NOTHING`,
-    [groupId],
+    [groupId, allowance],
+  );
+  // provision() can be called more than once per test (e.g. to re-baseline
+  // credits) — the ON CONFLICT DO NOTHING above means a second call would
+  // otherwise leave a stale allowance from the first call.
+  await rawQuery(
+    `UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`,
+    [groupId, allowance],
   );
 }
 
-async function balances(groupId: string): Promise<{ credits: number; reserved: number }> {
-  const [row] = await rawQuery<{ sms_credits: string; reserved_sms_credits: string }>(
-    `SELECT sms_credits, reserved_sms_credits FROM billing_accounts WHERE group_id = $1`,
+async function balances(groupId: string): Promise<{
+  credits: number; reserved: number; allowanceUsed: number; allowanceReserved: number;
+}> {
+  const [row] = await rawQuery<{
+    sms_credits: string; reserved_sms_credits: string;
+    sms_allowance_used: number; sms_allowance_reserved: number;
+  }>(
+    `SELECT sms_credits, reserved_sms_credits, sms_allowance_used, sms_allowance_reserved
+     FROM billing_accounts WHERE group_id = $1`,
     [groupId],
   );
-  return { credits: parseFloat(row.sms_credits), reserved: parseFloat(row.reserved_sms_credits) };
+  return {
+    credits:           parseFloat(row.sms_credits),
+    reserved:          parseFloat(row.reserved_sms_credits),
+    allowanceUsed:      row.sms_allowance_used,
+    allowanceReserved:  row.sms_allowance_reserved,
+  };
 }
 
-async function reserve(groupId: string, count: number) {
-  const [row] = await rawQuery<{ result: { rate: string; total: string; remaining: string } }>(
-    `SELECT reserve_sms_credits('group', $1, NULL, $2) AS result`,
-    [groupId, count],
+async function reserve(groupId: string, count: number, organizationId: string | null = null) {
+  const [row] = await rawQuery<{
+    result: {
+      rate: string; total: string; remaining: string;
+      fromAllowance: string; fromPaid: string;
+      fromAllowanceCount: number; fromPaidCount: number;
+    };
+  }>(
+    `SELECT reserve_sms_credits($3, $1, $4, $2) AS result`,
+    [groupId, count, organizationId ? 'organization' : 'group', organizationId],
   );
   return row.result;
 }
 
 /** A log row already in the reserved state, as the send path would leave it. */
-async function reservedLog(groupId: string, amount: number, extra: Record<string, unknown> = {}) {
+async function reservedLog(
+  groupId: string, amount: number, extra: Record<string, unknown> = {}, fromAllowance = 0,
+) {
   const [row] = await rawQuery<{ id: string }>(
     `INSERT INTO sms_usage_logs
        (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
-        billing_state, reserved_at, status, provider_msg_id, payer_type)
-     VALUES ($1,'254700000000','t',0,$2,'reserved',NOW(),$3,$4,'group')
+        credits_from_allowance, billing_state, reserved_at, status, provider_msg_id, payer_type)
+     VALUES ($1,'254700000000','t',0,$2,$3,'reserved',NOW(),$4,$5,'group')
      RETURNING id`,
-    [groupId, amount, extra.status ?? 'queued', extra.providerMsgId ?? null],
+    [groupId, amount, fromAllowance, extra.status ?? 'queued', extra.providerMsgId ?? null],
   );
   return row.id;
 }
@@ -66,7 +95,10 @@ describe('SMS credit reservation (migration 123)', () => {
   });
 
   beforeEach(async () => {
-    await provision(groupId, 100);
+    // allowance=0 here so this file's original (pre-124) tests keep exercising
+    // pure paid-credit behaviour unchanged. The bundled-allowance tests below
+    // set their own allowance explicitly via provision()'s 3rd argument.
+    await provision(groupId, 100, 0);
     await rawQuery(`DELETE FROM sms_usage_logs WHERE group_id = $1`, [groupId]);
   });
 
@@ -83,7 +115,7 @@ describe('SMS credit reservation (migration 123)', () => {
     });
 
     it('refuses when available is short, counting existing earmarks', async () => {
-      await provision(groupId, 1.0);
+      await provision(groupId, 1.0, 0);
       await reserve(groupId, 1); // 0.90 of 1.00 now earmarked
 
       // Only 0.10 available, so a second single message must be refused even
@@ -171,6 +203,149 @@ describe('SMS credit reservation (migration 123)', () => {
 
       const b = await balances(groupId);
       expect(b.credits).toBeCloseTo(0, 2);
+    });
+  });
+
+  describe('bundled monthly allowance (migration 124)', () => {
+    it('allowance fully covers the request, paid credits untouched', async () => {
+      await provision(groupId, 100, 50);
+      const res = await reserve(groupId, 5);
+
+      expect(res.fromAllowanceCount).toBe(5);
+      expect(res.fromPaidCount).toBe(0);
+      expect(parseFloat(res.fromPaid)).toBeCloseTo(0, 2);
+      expect(parseFloat(res.fromAllowance)).toBeCloseTo(4.5, 2); // 5 * 0.90
+
+      const b = await balances(groupId);
+      expect(b.credits).toBeCloseTo(100, 2);   // untouched
+      expect(b.reserved).toBeCloseTo(0, 2);    // paid earmark untouched
+      expect(b.allowanceReserved).toBe(5);
+    });
+
+    it('allowance partially covers, the remainder falls to paid credits', async () => {
+      await provision(groupId, 100, 3);
+      const res = await reserve(groupId, 5); // 3 from allowance, 2 from paid
+
+      expect(res.fromAllowanceCount).toBe(3);
+      expect(res.fromPaidCount).toBe(2);
+      expect(parseFloat(res.fromPaid)).toBeCloseTo(1.8, 2);      // 2 * 0.90
+      expect(parseFloat(res.fromAllowance)).toBeCloseTo(2.7, 2); // 3 * 0.90
+
+      const b = await balances(groupId);
+      expect(b.reserved).toBeCloseTo(1.8, 2);
+      expect(b.allowanceReserved).toBe(3);
+    });
+
+    it('allowance exhausted by a prior reservation falls entirely to paid', async () => {
+      await provision(groupId, 100, 2);
+      await reserve(groupId, 2); // exhausts the allowance (used=0 still — only advances on consume)
+
+      const res = await reserve(groupId, 1);
+      expect(res.fromAllowanceCount).toBe(0);
+      expect(res.fromPaidCount).toBe(1);
+
+      const b = await balances(groupId);
+      expect(b.reserved).toBeCloseTo(0.9, 2);
+      expect(b.allowanceReserved).toBe(2); // unchanged by the second reserve
+    });
+
+    it('allowance is gated only by its own remaining bucket, never by paid balance', async () => {
+      // Paid balance alone (0.5) could not cover 3 messages at 0.90 each — but
+      // every one of them is allowance-funded, so this must still succeed.
+      // This is the entire point of Decision B's bundled allowance.
+      await provision(groupId, 0.5, 5);
+      const res = await reserve(groupId, 3);
+
+      expect(res.fromAllowanceCount).toBe(3);
+      expect(res.fromPaidCount).toBe(0);
+
+      const b = await balances(groupId);
+      expect(b.credits).toBeCloseTo(0.5, 2); // untouched
+      expect(b.reserved).toBeCloseTo(0, 2);
+    });
+
+    // Real callers (sms.service.ts's send()/sendBulkCampaign()) insert ONE ROW
+    // PER MESSAGE from a single reservation, each row's own credits_from_allowance
+    // either 0 or exactly its own credits_reserved (never a fraction) — the
+    // `allowanceLeft` counter there decides which rows are allowance-funded.
+    // settle_sms_credit_reservation's allowance_count aggregates by ROW, so
+    // these tests must mirror that shape, not fabricate one row for a
+    // multi-message reservation.
+    async function reservedLogsFor(
+      groupId: string, res: { rate: string; fromAllowanceCount: number; fromPaidCount: number },
+    ): Promise<string[]> {
+      const rate = parseFloat(res.rate);
+      const ids: string[] = [];
+      for (let i = 0; i < res.fromAllowanceCount; i++) ids.push(await reservedLog(groupId, rate, {}, rate));
+      for (let i = 0; i < res.fromPaidCount; i++) ids.push(await reservedLog(groupId, rate, {}, 0));
+      return ids;
+    }
+
+    it('release returns both the allowance and paid earmarks', async () => {
+      await provision(groupId, 100, 3);
+      const res = await reserve(groupId, 5); // 3 allowance + 2 paid
+      const logIds = await reservedLogsFor(groupId, res);
+
+      await settleReservation(logIds, 'release');
+
+      const b = await balances(groupId);
+      expect(b.credits).toBeCloseTo(100, 2);           // untouched
+      expect(b.reserved).toBeCloseTo(0, 2);            // paid earmark returned
+      expect(b.allowanceReserved).toBe(0);             // allowance earmark returned too
+      expect(b.allowanceUsed).toBe(0);                 // never touched by a release
+
+      const rows = await rawQuery<{ billing_state: string }>(
+        `SELECT billing_state FROM sms_usage_logs WHERE id = ANY($1::uuid[])`, [logIds],
+      );
+      expect(rows.every((r) => r.billing_state === 'released')).toBe(true);
+    });
+
+    it('consume spends the allowance permanently, and only the paid portion debits sms_credits', async () => {
+      await provision(groupId, 100, 3);
+      const res = await reserve(groupId, 5); // 3 allowance + 2 paid = 1.80 paid
+      const logIds = await reservedLogsFor(groupId, res);
+
+      await settleReservation(logIds, 'consume');
+
+      const b = await balances(groupId);
+      expect(b.credits).toBeCloseTo(98.2, 2);  // only the 1.80 paid portion debited
+      expect(b.reserved).toBeCloseTo(0, 2);
+      expect(b.allowanceReserved).toBe(0);
+      expect(b.allowanceUsed).toBe(3);         // permanently spent
+
+      // Idempotent: settling the same already-consumed rows again must not
+      // double-spend the allowance (mirrors the existing paid-side guarantee).
+      await settleReservation(logIds, 'consume');
+      const b2 = await balances(groupId);
+      expect(b2.allowanceUsed).toBe(3);
+      expect(b2.credits).toBeCloseTo(98.2, 2);
+    });
+
+    it('does not affect the organization branch, which has no allowance', async () => {
+      const { organizationId, coordinatorId } = await createTestOrganization();
+      await rawQuery(
+        `INSERT INTO organization_group_access (organization_id, group_id, access_level, granted_by, is_active)
+         VALUES ($1, $2, 'read', $3, true)`,
+        [organizationId, groupId, coordinatorId],
+      );
+      await rawQuery(
+        `INSERT INTO organization_billing_accounts (organization_id, sms_credits, sms_rate, is_active)
+         VALUES ($1, 100, 0.90, true)
+         ON CONFLICT (organization_id) DO UPDATE SET sms_credits = 100, reserved_sms_credits = 0`,
+        [organizationId],
+      );
+
+      const res = await reserve(groupId, 3, organizationId);
+      expect(res.fromAllowanceCount).toBe(0);
+      expect(res.fromPaidCount).toBe(3);
+      expect(parseFloat(res.fromAllowance)).toBeCloseTo(0, 2);
+
+      const [org] = await rawQuery<{ sms_credits: string; reserved_sms_credits: string }>(
+        `SELECT sms_credits, reserved_sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+        [organizationId],
+      );
+      expect(parseFloat(org.sms_credits)).toBeCloseTo(100, 2);         // untouched
+      expect(parseFloat(org.reserved_sms_credits)).toBeCloseTo(2.7, 2); // 3 * 0.90, fully paid
     });
   });
 

@@ -557,5 +557,8 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
     phone:         stk.phone,
     body,
     referenceType: 'stk_fallback',
+    // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
+    // bundled allowance now exists, so this real send-path bills.
+    billingMode:   'billed',
   });
 }

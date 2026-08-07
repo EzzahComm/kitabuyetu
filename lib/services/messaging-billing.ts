@@ -49,11 +49,23 @@ export type ReserveFailure =
   | 'subscription_inactive';
 
 export type ReserveResult =
-  | { ok: true;  rate: number; total: number; remaining: number }
+  | {
+      ok: true; rate: number; total: number; remaining: number;
+      // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) — the
+      // bundled-allowance/paid split. fromAllowance/fromPaid are money
+      // values; fromAllowanceCount/fromPaidCount are message counts. Always
+      // fromAllowance=0/fromAllowanceCount=0 for an organization payer —
+      // organizations get no allowance, see migration 124.
+      fromAllowance: number; fromPaid: number;
+      fromAllowanceCount: number; fromPaidCount: number;
+    }
   | { ok: false; reason: ReserveFailure; detail: string };
 
 /** A `platform`-funded send is free by schema invariant — nothing to reserve. */
-export const PLATFORM_RATE_ZERO = { ok: true as const, rate: 0, total: 0, remaining: 0 };
+export const PLATFORM_RATE_ZERO = {
+  ok: true as const, rate: 0, total: 0, remaining: 0,
+  fromAllowance: 0, fromPaid: 0, fromAllowanceCount: 0, fromPaidCount: 0,
+};
 
 /**
  * Earmark credits for `count` messages without debiting them.
@@ -71,16 +83,26 @@ export async function reserveCredits(
   if (count <= 0) return PLATFORM_RATE_ZERO;
 
   try {
-    const { rows } = await client.query<{ result: { rate: string; total: string; remaining: string } }>(
+    const { rows } = await client.query<{
+      result: {
+        rate: string; total: string; remaining: string;
+        fromAllowance: string; fromPaid: string;
+        fromAllowanceCount: number; fromPaidCount: number;
+      };
+    }>(
       `SELECT reserve_sms_credits($1,$2,$3,$4) AS result`,
       [target.payerType, target.groupId, target.organizationId ?? null, count],
     );
     const r = rows[0].result;
     return {
-      ok:        true,
-      rate:      Number(r.rate),
-      total:     Number(r.total),
-      remaining: Number(r.remaining),
+      ok:                 true,
+      rate:               Number(r.rate),
+      total:              Number(r.total),
+      remaining:          Number(r.remaining),
+      fromAllowance:      Number(r.fromAllowance),
+      fromPaid:           Number(r.fromPaid),
+      fromAllowanceCount: Number(r.fromAllowanceCount),
+      fromPaidCount:      Number(r.fromPaidCount),
     };
   } catch (err) {
     return classifyReserveError(err, target);
@@ -208,4 +230,30 @@ export async function clearLowBalanceFlag(groupId: string): Promise<void> {
     `UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`,
     [groupId],
   ).catch(() => { /* best-effort */ });
+}
+
+/**
+ * Zero the bundled monthly SMS allowance for every group with an active
+ * subscription. Driven by the sms_allowance_monthly_reset job, 1st of month,
+ * 01:00 UTC (Phase 2b, migration 124).
+ *
+ * Deliberately does NOT touch sms_allowance_reserved: an in-flight
+ * reservation self-drains through the normal settle flow (consume or
+ * release), and zeroing it here would mask a genuinely stuck reservation
+ * instead of surfacing it to sms_release_stale_reservations, which exists
+ * precisely to catch that.
+ */
+export async function resetMonthlySmsAllowance(): Promise<{ groupsReset: number }> {
+  const { rowCount } = await withAdminDb((db) =>
+    db.query(
+      `UPDATE billing_accounts ba
+       SET sms_allowance_used = 0, updated_at = NOW()
+       WHERE sms_allowance_used <> 0
+         AND EXISTS (
+           SELECT 1 FROM subscriptions s
+           WHERE s.group_id = ba.group_id AND s.status = 'active'
+         )`,
+    ),
+  );
+  return { groupsReset: rowCount ?? 0 };
 }
