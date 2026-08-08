@@ -83,6 +83,14 @@ interface ProviderResponseRow {
   mobile:                 string;
   messageid:              string | number;
   networkid:              string | number;
+  /**
+   * Echoed back from the request's own `clientsmsid` (SMS_MESSAGING_AUDIT_2026-08.md
+   * H6). Optional in the type because we cannot be certain every response row
+   * always carries it — sendBulkSms's own mapping below falls back to
+   * positional matching wholesale (not per-row) when even one row lacks it,
+   * see that comment for why a partial fallback would be worse than none.
+   */
+  clientsmsid?: string | number;
 }
 
 export class TextSmsError extends Error {
@@ -112,6 +120,13 @@ export interface SmsResponse {
   messageId:           string;
   networkId:           string;
   success:             boolean;
+  /**
+   * Parsed from the response row's own clientsmsid when present (H6) — lets a
+   * caller align this response back to the exact request item it answers,
+   * immune to chunk-boundary drops/reordering that break positional indexing.
+   * undefined when the row didn't carry one (or wasn't a number).
+   */
+  clientSmsId?: number;
 }
 
 export interface BulkSmsItem {
@@ -201,6 +216,10 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
 
   const responses: SmsResponse[] = (data.responses ?? []).map((r) => {
     const code = toResponseCode(r['respose-code']);
+    // clientsmsid is the provider's own numeric echo of the request item's
+    // clientSmsId; Number(undefined) is NaN, so guard explicitly rather than
+    // let an absent field silently become the number 0.
+    const clientIdNum = r.clientsmsid != null ? Number(r.clientsmsid) : NaN;
     return {
       responseCode:        code,
       responseDescription: r['response-description'] ?? codeDescription(code),
@@ -208,6 +227,7 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
       messageId:           String(r.messageid ?? ''),
       networkId:           String(r.networkid ?? ''),
       success:             code === SUCCESS_CODE,
+      clientSmsId:         Number.isFinite(clientIdNum) ? clientIdNum : undefined,
     };
   });
 
