@@ -98,7 +98,7 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
       return handleContributionReminders(job);
 
     case 'sms_bulk_send':
-      return handleSmsBulkSend(job.payload);
+      return handleSmsBulkSend(job.payload, job.id);
 
     case 'sms_retry_failed':
       return handleSmsRetryFailed();
@@ -556,7 +556,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
  * max_attempts instead of re-billing forever (SMS_MESSAGING_AUDIT_2026-08.md
  * H3). For current group sizes a single job is well within the function budget.
  */
-async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<HandlerResult> {
+async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string): Promise<HandlerResult> {
   const { smsService } = await import('@/lib/services/sms.service');
   const phones = Array.isArray(payload.phones) ? (payload.phones as string[]) : [];
   if (!payload.groupId || phones.length === 0) {
@@ -580,6 +580,11 @@ async function handleSmsBulkSend(payload: Record<string, unknown>): Promise<Hand
     referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
     referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
     payer,
+    // SMS_MESSAGING_AUDIT_2026-08.md H3 — job_queue.id is stable across
+    // retries of the same job (only `attempts` changes), so it's a safe
+    // dedup key for ad-hoc sends that carry no real campaignId. Harmless to
+    // always pass: sendBulkCampaign prefers campaignId when both are set.
+    dispatchBatchId: jobId,
   });
 
   return { message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
