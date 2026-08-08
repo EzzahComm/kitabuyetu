@@ -72,6 +72,8 @@ export interface FundingProgram {
   revenue_share_ratio:  string | null;
   repayment_waterfall:  unknown | null;
   member_visibility:    string;
+  /** PERCENTAGE, retained by the org and deducted from what's disbursed (migration 125). */
+  processing_fee_pct:   string | null;
 }
 
 /**
@@ -134,6 +136,11 @@ export interface OrgDisbursement {
   reference:          string;
   notes:              string | null;
   created_at:         string;
+  /** SNAPSHOT from the product at disbursement time (migration 125). */
+  processing_fee_pct:    string | null;
+  processing_fee_amount: string;
+  /** amount - processing_fee_amount — the real cash the group received. */
+  net_disbursed_amount:  string;
 }
 
 const orgId = (ctx: TenantContext): string => {
@@ -234,11 +241,15 @@ interface AllocationTerms {
   tenorMonths:        number | null;
   firstRepaymentDate: string | null;
   maturityDate:       string | null;
+  /** SNAPSHOT of the product's processing_fee_pct (migration 125). Independent
+   *  of isRepayable — read below before the non-repayable early return. */
+  processingFeePct:   string | null;
 }
 
 const GRANT_TERMS: AllocationTerms = {
   isRepayable: false, interestRateAnnual: null, repaymentFrequency: null,
   tenorMonths: null, firstRepaymentDate: null, maturityDate: null,
+  processingFeePct: null,
 };
 
 /**
@@ -261,15 +272,21 @@ async function snapshotProductTerms(
   const { rows } = await db.query<{
     is_repayable: boolean; interest_rate_annual: string | null;
     repayment_frequency: string; tenor_months: number | null; grace_period_days: number;
+    processing_fee_pct: string | null;
   }>(
     `SELECT is_repayable, interest_rate_annual, repayment_frequency,
-            tenor_months, grace_period_days
+            tenor_months, grace_period_days, processing_fee_pct
      FROM funding_programs WHERE id = $1`,
     [fundingProgramId],
   );
 
   const p = rows[0];
-  if (!p || !p.is_repayable) return GRANT_TERMS;
+  if (!p) return GRANT_TERMS;
+
+  // processing_fee_pct is independent of is_repayable — a grant can still
+  // carry a processing fee, so this is read before (and outside) the
+  // non-repayable early return below.
+  if (!p.is_repayable) return { ...GRANT_TERMS, processingFeePct: p.processing_fee_pct };
 
   // Dates are derived from the product's grace period and tenor at the moment
   // of disbursement, so a later change to either leaves this allocation alone.
@@ -286,6 +303,7 @@ async function snapshotProductTerms(
     tenorMonths:        p.tenor_months,
     firstRepaymentDate: iso(first),
     maturityDate:       iso(maturity),
+    processingFeePct:   p.processing_fee_pct,
   };
 }
 
@@ -349,9 +367,11 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       id: string; organization_id: string; wallet_id: string; group_id: string;
       funding_program_id: string | null; disbursement_type: string; amount: string;
       reference: string; is_repayable: boolean;
+      processing_fee_amount: string; net_disbursed_amount: string;
     }>(
       `SELECT id, organization_id, wallet_id, group_id, funding_program_id,
-              disbursement_type, amount, reference, is_repayable
+              disbursement_type, amount, reference, is_repayable,
+              processing_fee_amount, net_disbursed_amount
        FROM   organization_disbursements
        WHERE  id = $1 AND status = 'approved'
        FOR UPDATE`,
@@ -397,10 +417,13 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       // the same CURRENT_DATE literal used for the parent journal_entries row
       // above (a BEFORE INSERT trigger deriving it after Postgres has already
       // routed the row to a partition is unsupported).
+      // net_disbursed_amount (migration 125), not the gross amount — the
+      // group's own cash account must reflect what it actually received; a
+      // processing fee never reaches the group.
       await db.query(
         `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
          VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)`,
-        [disb.group_id, groupJournalId, cashId, disb.amount, incomeId],
+        [disb.group_id, groupJournalId, cashId, disb.net_disbursed_amount, incomeId],
       );
     } else {
       // Never lose the money trail: the disbursement + org ledger still
@@ -410,23 +433,54 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       });
     }
 
-    await db.query(
+    // Wallet math (migration 125): the reservation at request time held the
+    // FULL gross amount in committed_balance. At settlement:
+    //   - committed_balance releases by the full gross (closes the reservation)
+    //   - available_balance gets the fee portion BACK (it never actually left
+    //     the org — retained as income, not disbursed)
+    //   - total_disbursed (lifetime counter) only counts the NET cash that
+    //     really went out the door
+    // Net effect on available_balance across request+settle: -gross+fee = -net.
+    const { rows: walletAfter } = await db.query<{ available_balance: string }>(
       `UPDATE organization_wallets
        SET    committed_balance = committed_balance - $1,
-              total_disbursed   = total_disbursed   + $1
-       WHERE  id = $2`,
-      [disb.amount, disb.wallet_id],
+              available_balance = available_balance + $2,
+              total_disbursed   = total_disbursed   + $3
+       WHERE  id = $4
+       RETURNING available_balance`,
+      [disb.amount, disb.processing_fee_amount, disb.net_disbursed_amount, disb.wallet_id],
     );
 
     // Organization's own side of the same transfer: DR 5001 Program
     // Disbursements / CR 1001 Cash and Bank — completes the dual-ledger
-    // transaction whose group-side half was posted above.
+    // transaction whose group-side half was posted above. net_disbursed_amount
+    // (migration 125): only the real cash outflow is posted here.
     await postOrgSystemJournal(
       db, disb.organization_id, null,
       `Disbursement to group — ${disb.disbursement_type.replace(/_/g, ' ')}`,
-      [{ accountCode: '5001', debit: parseFloat(disb.amount) }, { accountCode: '1001', credit: parseFloat(disb.amount) }],
+      [{ accountCode: '5001', debit: parseFloat(disb.net_disbursed_amount) }, { accountCode: '1001', credit: parseFloat(disb.net_disbursed_amount) }],
       { reference: disb.reference },
     );
+
+    // Processing fee audit trail (migration 125) — entry_type='fee' has
+    // existed on organization_ledger since migration 116 but was unused until
+    // now. Posts no GL journal (that would double-count against the
+    // disbursement journal above) — this row is the audit trail for the fee
+    // that was just credited back to available_balance in the wallet UPDATE
+    // above; balance_after is that same post-credit figure.
+    if (parseFloat(disb.processing_fee_amount) > 0) {
+      await db.query(
+        `INSERT INTO organization_ledger
+           (organization_id, wallet_id, entry_type, direction, amount, balance_after,
+            funding_program_id, group_id, disbursement_id, reference, description, created_by)
+         VALUES ($1,$2,'fee','credit',$3,$4,$5,$6,$7,$8,$9,NULL)`,
+        [
+          disb.organization_id, disb.wallet_id, disb.processing_fee_amount, walletAfter[0].available_balance,
+          disb.funding_program_id, disb.group_id, disb.id, disb.reference,
+          `Processing fee retained — ${disb.disbursement_type.replace(/_/g, ' ')}`,
+        ],
+      );
+    }
 
     await db.query(
       `UPDATE organization_disbursements
@@ -710,9 +764,9 @@ export const organizationFinanceService = {
             product_code, is_repayable, capital_model, loss_bearer, shared_loss_ratio,
             interest_method, interest_rate_annual, repayment_frequency, grace_period_days,
             tenor_months, revenue_owner, revenue_share_ratio, repayment_waterfall,
-            member_visibility)
+            member_visibility, processing_fee_pct)
          VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,'active',$12,
-                 $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,$26)
+                 $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,$26,$27)
          RETURNING *`,
         [
           orgId(ctx), input.name, input.programType, input.budget.toFixed(2),
@@ -738,6 +792,7 @@ export const organizationFinanceService = {
           input.revenueShareRatio ?? null,
           input.repaymentWaterfall ? JSON.stringify(input.repaymentWaterfall) : null,
           input.memberVisibility ?? 'pseudonymous',
+          input.processingFeePct ?? null,
         ],
       );
       return rows[0];
@@ -959,13 +1014,24 @@ export const organizationFinanceService = {
       //     plain grant with all terms null.
       const terms = await snapshotProductTerms(db, input.fundingProgramId ?? null);
 
+      // 5c. Processing fee (migration 125) — "deducted from what's disbursed".
+      //     The group's principal (input.amount, below) is unaffected; only
+      //     the CASH that actually leaves the wallet at settlement is net.
+      //     Reservation itself (step 5 above) still holds the full gross
+      //     amount — conservative, matches the existing approval-pending
+      //     window's behaviour for every other term.
+      const feePct       = terms.processingFeePct ? parseFloat(terms.processingFeePct) : 0;
+      const feeAmount    = Math.round(input.amount * feePct) / 100;
+      const netDisbursed = input.amount - feeAmount;
+
       const { rows: disbRows } = await db.query<OrgDisbursement>(
         `INSERT INTO organization_disbursements
            (organization_id, wallet_id, funding_program_id, group_id,
             disbursement_type, amount, status, reference, notes, created_by,
             purpose, is_repayable, interest_rate_annual, repayment_frequency,
-            tenor_months, first_repayment_date, maturity_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+            tenor_months, first_repayment_date, maturity_date,
+            processing_fee_pct, processing_fee_amount, net_disbursed_amount)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
          RETURNING *`,
         [
           organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
@@ -975,6 +1041,7 @@ export const organizationFinanceService = {
           input.purpose ?? null,
           terms.isRepayable, terms.interestRateAnnual, terms.repaymentFrequency,
           terms.tenorMonths, terms.firstRepaymentDate, terms.maturityDate,
+          terms.processingFeePct, feeAmount.toFixed(2), netDisbursed.toFixed(2),
         ],
       );
 
