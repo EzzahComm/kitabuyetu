@@ -22,6 +22,7 @@ import {
   getDeliveryReport,
   getProviderBalance,
   type BulkSmsItem,
+  type SmsResponse,
 } from './textsms.service';
 import { renderTemplate, renderBuiltin, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
 import {
@@ -398,11 +399,17 @@ export const smsService = {
 
     const result = await sendBulkSmsChunked(items);
 
+    // Align responses back to log rows by clientSmsId, not array position
+    // (SMS_MESSAGING_AUDIT_2026-08.md H6) — see alignBulkResponses's own
+    // comment for why positional indexing across chunked sends is unsafe.
+    const byLogId       = alignBulkResponses(result.responses, logIds);
+    const phoneByLogId  = new Map(logIds.map((id, i) => [id, eligible[i]]));
+
     // Update log rows with provider response
     await withAdminDb(async (db) => {
-      for (let i = 0; i < result.responses.length; i++) {
-        const r = result.responses[i];
-        if (!logIds[i]) continue;
+      for (const logId of logIds) {
+        const r = byLogId.get(logId);
+        if (!r) continue; // unmatched — handled as a rejection below, same as before
         await db.query(
           `UPDATE sms_usage_logs
            SET status=$1, provider_msg_id=$2, network_id=$3,
@@ -414,7 +421,7 @@ export const smsService = {
             r.messageId || null,
             r.networkId || null,
             r.success ? null : r.responseDescription,
-            logIds[i],
+            logId,
           ],
         );
       }
@@ -430,30 +437,31 @@ export const smsService = {
     });
 
     // Settle the reservation per response: accepted ⇒ charge, rejected ⇒ return
-    // the earmark. Any row the provider never reported on stays 'reserved' and
-    // is recovered by the stale-reservation sweeper.
+    // the earmark. A row the provider never answered is treated as rejected
+    // (not left 'reserved') — this function's own pre-existing choice, kept
+    // unchanged; only WHICH rows count as unanswered is now correct.
     const acceptedIds: string[] = [];
     const rejectedIds: string[] = [];
-    for (let i = 0; i < logIds.length; i++) {
-      const r = result.responses[i];
-      if (!r)              rejectedIds.push(logIds[i]);
-      else if (r.success)  acceptedIds.push(logIds[i]);
-      else                 rejectedIds.push(logIds[i]);
+    for (const logId of logIds) {
+      const r = byLogId.get(logId);
+      if (!r)              rejectedIds.push(logId);
+      else if (r.success)  acceptedIds.push(logId);
+      else                 rejectedIds.push(logId);
     }
     await settleReservation(acceptedIds, 'consume');
     await settleReservation(rejectedIds, 'release');
 
     // Log failures for retry
-    for (let i = 0; i < result.responses.length; i++) {
-      const r = result.responses[i];
-      if (!r.success) {
+    for (const logId of logIds) {
+      const r = byLogId.get(logId);
+      if (r && !r.success) {
         await withAdminDb((db) =>
           db.query(
             `INSERT INTO sms_failures
                (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
              VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
             [
-              input.groupId, logIds[i] ?? null, eligible[i],
+              input.groupId, logId, phoneByLogId.get(logId)!,
               input.message, String(r.responseCode), r.responseDescription,
             ],
           ),
@@ -787,6 +795,49 @@ export const smsService = {
 // ─── Async dispatch helper ────────────────────────────────────────────────────
 
 /**
+ * Align a chunked bulk-send's provider responses back to the log rows that
+ * requested them (SMS_MESSAGING_AUDIT_2026-08.md H6).
+ *
+ * The naive approach — `responses[i]` against `logIds[i]` — assumes the
+ * provider returns exactly one response per item, in submission order, for
+ * every 100-item chunk. If any single chunk returns fewer responses than it
+ * was sent, every subsequent index shifts: the wrong log row gets marked
+ * sent/failed, and sms_failures records the wrong phone.
+ *
+ * The request already carries a caller-assigned clientSmsId (1-based index
+ * into logIds) per item specifically so the response can be matched back
+ * unambiguously regardless of chunk boundaries, ordering, or drops. Prefer
+ * it — but only when EVERY response in the batch carries a usable one: a
+ * provider that omits it on some rows and not others is not a signal we can
+ * trust row-by-row, so a partial availability falls back to the exact
+ * historical positional behaviour wholesale rather than guessing which rows
+ * to trust. This is strictly no worse than before when the provider never
+ * echoes clientsmsid, and fixes the bug outright when it reliably does.
+ *
+ * Responses that end up unmatched (a dropped item, in the fallback path) are
+ * simply absent from the returned map — logIds not present in it stay
+ * 'reserved', which the stale-reservation sweeper already recovers.
+ */
+function alignBulkResponses(
+  responses: SmsResponse[], logIds: string[],
+): Map<string, SmsResponse> {
+  const byLogId = new Map<string, SmsResponse>();
+  const canUseClientId = responses.length > 0 && responses.every((r) => r.clientSmsId != null);
+
+  if (canUseClientId) {
+    for (const r of responses) {
+      const logId = logIds[r.clientSmsId! - 1];
+      if (logId) byLogId.set(logId, r);
+    }
+  } else {
+    for (let i = 0; i < responses.length; i++) {
+      if (logIds[i]) byLogId.set(logIds[i], responses[i]);
+    }
+  }
+  return byLogId;
+}
+
+/**
  * Dispatch to the provider and report which messages it accepted.
  *
  * Returns the split rather than void because the caller has to settle the
@@ -818,20 +869,22 @@ async function dispatchBatch(
       const items: BulkSmsItem[] = phones.map((mobile, i) => ({
         mobile, message, senderId: sender, clientSmsId: i + 1,
       }));
-      const result = await sendBulkSmsChunked(items);
-      for (let i = 0; i < result.responses.length; i++) {
-        const r = result.responses[i];
-        if (!logIds[i]) continue;
-        await updateLogRow(logIds[i], r.success ? 'sent' : 'failed', r.messageId, r.networkId, r.success ? null : r.responseDescription);
+      const result  = await sendBulkSmsChunked(items);
+      const byLogId = alignBulkResponses(result.responses, logIds);
+      const phoneByLogId = new Map(logIds.map((id, i) => [id, phones[i]]));
+
+      for (const logId of logIds) {
+        const r = byLogId.get(logId);
+        if (!r) continue; // unmatched — left 'reserved' for the stale-reservation sweeper
+        await updateLogRow(logId, r.success ? 'sent' : 'failed', r.messageId, r.networkId, r.success ? null : r.responseDescription);
         if (!r.success) {
-          failedIds.push(logIds[i]);
-          await logFailure(groupId, logIds[i], phones[i], message, r.responseCode, r.responseDescription);
-        } else sentIds.push(logIds[i]);
+          failedIds.push(logId);
+          await logFailure(groupId, logId, phoneByLogId.get(logId)!, message, r.responseCode, r.responseDescription);
+        } else sentIds.push(logId);
       }
-      // A chunk that returned fewer responses than items leaves the tail
-      // unaccounted for. Treat those as failed so their earmark is returned
-      // rather than silently held.
-      for (let i = result.responses.length; i < logIds.length; i++) failedIds.push(logIds[i]);
+      // Anything the provider never answered (a genuinely dropped item, or —
+      // in the positional fallback — a short chunk) stays out of both lists,
+      // matching this function's own documented "stays reserved" contract.
     }
 
     logger.info(`[sms] dispatched: ${sentIds.length} sent, ${failedIds.length} failed (group ${groupId})`);
