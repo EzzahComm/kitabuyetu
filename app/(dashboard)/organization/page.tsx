@@ -42,6 +42,7 @@ import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 import type { SetApprovalPolicyInput } from '@/lib/validators/accounting.schema';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
+import { INTEREST_METHODS, REPAYMENT_FREQUENCIES } from '@/lib/validators/organization.schema';
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
@@ -110,6 +111,18 @@ const DISBURSEMENT_TYPES = [
   ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
   ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
 ] as const;
+
+const INTEREST_METHOD_LABELS: Record<(typeof INTEREST_METHODS)[number], string> = {
+  flat: 'Flat', reducing_balance: 'Reducing balance',
+};
+const REPAYMENT_FREQUENCY_LABELS: Record<(typeof REPAYMENT_FREQUENCIES)[number], string> = {
+  none: 'None', weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', bullet: 'Bullet (single payment)',
+};
+/** Standard convention, matching this file's own hardcoded choice — see
+ *  ProgramDialog's comment for why the waterfall order isn't a user control. */
+const STANDARD_WATERFALL: { order: ('penalty' | 'interest' | 'principal')[] } = {
+  order: ['penalty', 'interest', 'principal'],
+};
 
 export default function FundingPortalPage() {
   const qc = useQueryClient();
@@ -603,23 +616,50 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [budget, setBudget] = useState('');
   const [source, setSource] = useState('');
 
+  // Financial-product terms (migration 116) — this dialog is the only place a
+  // product gets created, and until now none of these had a form field at
+  // all despite existing in the schema/validator since Phase 1.
+  const [repayable, setRepayable]           = useState(false);
+  const [interestMethod, setInterestMethod] = useState<(typeof INTEREST_METHODS)[number]>('flat');
+  const [interestRate, setInterestRate]     = useState('');
+  const [frequency, setFrequency]           = useState<(typeof REPAYMENT_FREQUENCIES)[number]>('monthly');
+  const [tenorMonths, setTenorMonths]       = useState('');
+  // Processing fee (migration 125) — independent of `repayable`, so its own
+  // field, always visible.
+  const [feePct, setFeePct] = useState('');
+
   const create = useMutation({
     mutationFn: () => organizationApi.createProgram({
       name,
       programType: type,
       budget: parseFloat(budget),
       fundingSource: source || undefined,
+      isRepayable: repayable,
+      ...(repayable ? {
+        interestMethod,
+        interestRateAnnual: parseFloat(interestRate),
+        repaymentFrequency: frequency,
+        tenorMonths: parseInt(tenorMonths, 10),
+        // Standard order, not exposed as a control — see STANDARD_WATERFALL.
+        repaymentWaterfall: STANDARD_WATERFALL,
+      } : {}),
+      processingFeePct: feePct ? parseFloat(feePct) : undefined,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['organization'] });
       toast({ title: 'Program created' });
       setName(''); setBudget(''); setSource(''); setType('grant');
+      setRepayable(false); setInterestMethod('flat'); setInterestRate('');
+      setFrequency('monthly'); setTenorMonths(''); setFeePct('');
       onClose();
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Create failed', description: e.message }),
   });
 
-  const ok = name.trim().length >= 3 && parseFloat(budget) > 0;
+  const ok = name.trim().length >= 3 && parseFloat(budget) > 0
+    && (!repayable || (parseFloat(interestRate) >= 0 && parseInt(tenorMonths, 10) > 0));
+  const monthlyEquivalent = parseFloat(interestRate) > 0 ? (parseFloat(interestRate) / 12).toFixed(2) : null;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
@@ -647,6 +687,82 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
           <div className="space-y-1">
             <Label>Funding source <span className="text-muted-foreground text-xs">(optional)</span></Label>
             <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Donor / internal budget line" />
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
+            <div>
+              <p className="text-sm font-medium">Repayable</p>
+              <p className="text-xs text-muted-foreground">Groups owe this capital back, with interest</p>
+            </div>
+            <input
+              type="checkbox" checked={repayable}
+              onChange={(e) => setRepayable(e.target.checked)}
+              className="h-4 w-4"
+            />
+          </div>
+
+          {repayable && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Interest method</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={interestMethod}
+                    onChange={(e) => setInterestMethod(e.target.value as (typeof INTEREST_METHODS)[number])}
+                  >
+                    {INTEREST_METHODS.map((m) => <option key={m} value={m}>{INTEREST_METHOD_LABELS[m]}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Interest rate — annual %</Label>
+                  <Input
+                    type="number" min={0} step="0.01" value={interestRate}
+                    onChange={(e) => setInterestRate(e.target.value)}
+                    placeholder="120"
+                  />
+                  {monthlyEquivalent && (
+                    <p className="text-xs text-muted-foreground">≈ {monthlyEquivalent}% per month</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Repayment frequency</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value as (typeof REPAYMENT_FREQUENCIES)[number])}
+                  >
+                    {REPAYMENT_FREQUENCIES.filter((f) => f !== 'none').map((f) => (
+                      <option key={f} value={f}>{REPAYMENT_FREQUENCY_LABELS[f]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Tenor (months)</Label>
+                  <Input
+                    type="number" min={1} value={tenorMonths}
+                    onChange={(e) => setTenorMonths(e.target.value)}
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="space-y-1">
+            <Label>Processing fee — % of allocated amount <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input
+              type="number" min={0} max={100} step="0.01" value={feePct}
+              onChange={(e) => setFeePct(e.target.value)}
+              placeholder="3"
+            />
+            <p className="text-xs text-muted-foreground">
+              Retained by the organization, deducted from what actually leaves the wallet —
+              the group&apos;s principal is unaffected. Enter a grossed-up amount at
+              disbursement time if you need a specific net figure to reach the group.
+            </p>
           </div>
         </div>
         <DialogFooter>
