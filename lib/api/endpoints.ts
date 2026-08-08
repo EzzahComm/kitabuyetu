@@ -352,6 +352,10 @@ export const smsApi = {
   checkBalance:    () => api.post<SmsProviderBalance>('/sms/balance', {}),
   // DLR
   dlr: (messageId: string) => api.get<unknown>(`/sms/dlr?messageId=${messageId}`),
+  // Self-service opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — scoped to the
+  // caller's own phone + active group.
+  preferences:       () => api.get<{ optedOut: boolean }>('/sms/preferences'),
+  setPreferences:    (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
 };
 
 // ------------------------------------------------------------------

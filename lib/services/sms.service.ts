@@ -763,6 +763,25 @@ export const smsService = {
       ),
     );
   },
+
+  /**
+   * Reverses optOut() — the missing half of the pair (SMS_MESSAGING_AUDIT_2026-08.md
+   * M5). Without this, a member who opts out via the self-service preference
+   * toggle has no way back in short of an officer editing the raw DB array.
+   * No-op (not an error) if the row or the phone in it doesn't exist —
+   * mirrors optOut()'s own "already in the desired state" tolerance.
+   */
+  async optIn(groupId: string, phone: string): Promise<void> {
+    const normalized = normalizePhone(phone);
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE sms_group_settings
+         SET opt_out_phones = array_remove(opt_out_phones, $2::text)
+         WHERE group_id = $1`,
+        [groupId, normalized],
+      ),
+    );
+  },
 };
 
 // ─── Async dispatch helper ────────────────────────────────────────────────────
