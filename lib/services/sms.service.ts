@@ -84,6 +84,16 @@ export interface BulkCampaignInput {
   referenceType?: string;
   referenceId?:   string;
   payer?:      SmsPayer;
+  /**
+   * Stable identifier for THIS dispatch attempt, used to deduplicate
+   * recipients on a job-level retry (SMS_MESSAGING_AUDIT_2026-08.md H3).
+   * Only meaningful when campaignId is absent — a real campaign already has
+   * one (its own id), so campaignId always takes priority when both are set.
+   * lib/jobs/handlers.ts's handleSmsBulkSend passes the job_queue row's own
+   * id, which is stable across retries of the same job (only its `attempts`
+   * counter changes).
+   */
+  dispatchBatchId?: string;
 }
 
 // ─── Credit helpers ───────────────────────────────────────────────────────────
@@ -315,6 +325,9 @@ export const smsService = {
   async sendBulkCampaign(input: BulkCampaignInput): Promise<SendSmsResult> {
     const phones = input.phones.map(normalizePhone);
     const payer  = input.payer ?? GROUP_PAYER;
+    // A real campaign already has a stable id of its own; dispatchBatchId is
+    // only consulted for ad-hoc job-triggered sends that have none.
+    const dispatchKey = input.campaignId ?? input.dispatchBatchId ?? null;
 
     // Reservation + log creation happen in ONE transaction so credits can never
     // be earmarked without the matching log rows (and vice-versa). The provider
@@ -325,15 +338,37 @@ export const smsService = {
     // per-response settle below converts accepted messages into a real debit
     // and returns the earmark for rejected ones (closes SMS-009).
     const batchSize = 200;
-    const { eligible, logIds } = await withAdminDb(async (db) => {
+    const { eligible, logIds, dedupedAway } = await withAdminDb(async (db) => {
       // Opt-out suppression
       const { rows: settingsRows } = await db.query<{ opt_out_phones: string[] }>(
         `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [input.groupId],
       );
       const optOuts  = new Set(settingsRows[0]?.opt_out_phones ?? []);
-      const eligible = phones.filter((p) => !optOuts.has(p));
+      let eligible = phones.filter((p) => !optOuts.has(p));
+
+      // H3 (SMS_MESSAGING_AUDIT_2026-08.md) — a job-level retry (e.g. after
+      // resetStuckJobs reclaims a timed-out job) re-invokes this with the
+      // SAME full phone list. Recipients already logged under this dispatch
+      // key — whether their first attempt was accepted or rejected — must
+      // not be billed or dispatched a second time; a rejected message's own
+      // retry goes through sms_failures' dedicated backoff (retryFailures()),
+      // not a wholesale re-run of the batch that created it.
+      let dedupedAway = 0;
+      if (dispatchKey) {
+        const { rows: already } = await db.query<{ recipient_phone: string }>(
+          `SELECT recipient_phone FROM sms_usage_logs WHERE group_id=$1 AND correlation_id=$2`,
+          [input.groupId, dispatchKey],
+        );
+        if (already.length) {
+          const alreadyLogged = new Set(already.map((r) => r.recipient_phone));
+          const before = eligible.length;
+          eligible = eligible.filter((p) => !alreadyLogged.has(p));
+          dedupedAway = before - eligible.length;
+        }
+      }
+
       const logIds: string[] = [];
-      if (!eligible.length) return { eligible, logIds };
+      if (!eligible.length) return { eligible, logIds, dedupedAway };
 
       // Reserve against the stated payer: the group, or the organization
       // running the campaign. Mirrors send()'s guards for each path.
@@ -363,9 +398,9 @@ export const smsService = {
              VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11) RETURNING id`,
             [
               input.groupId, phone, input.message, rate.toFixed(4), fromAllowance.toFixed(4),
-              input.campaignId ?? null,
+              dispatchKey,
               input.referenceType ?? 'campaign',
-              input.referenceId ?? input.campaignId ?? null,
+              input.referenceId ?? dispatchKey,
               input.campaignId ?? null,
               payerType, payerOrgId,
             ],
@@ -382,11 +417,30 @@ export const smsService = {
         );
       }
 
-      return { eligible, logIds };
+      return { eligible, logIds, dedupedAway };
     });
 
-    // Everyone opted out — nothing billed, nothing to dispatch.
-    if (!eligible.length) return { sent: 0, failed: 0, logs: [] };
+    // Nothing left to send — either everyone opted out, or (H3) this is a
+    // job-level retry that found every recipient already logged under this
+    // dispatch key. In the latter case an earlier attempt may have crashed
+    // between dispatching and marking the campaign complete; finish that now
+    // rather than leaving it stuck 'sending' forever, since nothing else
+    // will ever revisit it once this job stops retrying.
+    if (!eligible.length) {
+      if (dedupedAway > 0 && input.campaignId) {
+        await withAdminDb((db) =>
+          db.query(
+            `UPDATE sms_campaigns c
+             SET status = 'completed', completed_at = COALESCE(completed_at, NOW()),
+                 sent_count   = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'sent'),
+                 failed_count = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'failed')
+             WHERE c.id = $1 AND c.status <> 'completed'`,
+            [input.campaignId],
+          ),
+        );
+      }
+      return { sent: 0, failed: 0, logs: [] };
+    }
 
     // Dispatch via TextSMS bulk endpoint
     const items: BulkSmsItem[] = eligible.map((mobile, idx) => ({
@@ -427,11 +481,17 @@ export const smsService = {
       }
 
       if (input.campaignId) {
+        // Aggregated from the real rows, not result.sent/result.failed (this
+        // call's own batch only) — a partially-deduped retry (H3) would
+        // otherwise overwrite the campaign's totals with just the new
+        // recipients' counts, losing an earlier attempt's already-sent tally.
         await db.query(
-          `UPDATE sms_campaigns
-           SET status='completed', sent_count=$1, failed_count=$2, completed_at=NOW()
-           WHERE id=$3`,
-          [result.sent, result.failed, input.campaignId],
+          `UPDATE sms_campaigns c
+           SET status='completed', completed_at=NOW(),
+               sent_count   = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'sent'),
+               failed_count = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'failed')
+           WHERE id=$1`,
+          [input.campaignId],
         );
       }
     });
