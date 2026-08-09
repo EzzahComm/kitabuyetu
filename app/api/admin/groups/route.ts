@@ -14,6 +14,10 @@ export function GET(req: NextRequest) {
       search: p.get('search') ?? undefined,
       status: p.get('status') ?? undefined,
       plan:   p.get('plan')   ?? undefined,
+      // Whitelisted rather than passed through: this lands in the LATERAL's
+      // enum comparison, and an unknown string would fail the query outright
+      // instead of degrading to the default view. Migration 127.
+      product: p.get('product') === 'chama_reminder' ? 'chama_reminder' : 'kitabu_yetu',
     });
     return ok(data);
   });

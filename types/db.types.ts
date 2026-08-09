@@ -1,5 +1,5 @@
 import type {
-  PlanType, SubscriptionStatus, ContributionStatus, LoanStatus,
+  PlanType, SubscriptionProduct, SubscriptionStatus, ContributionStatus, LoanStatus,
   PaymentMethod, PaymentStatus, MemberRole, PlatformRole,
   AccountType, JournalStatus, SmsStatus, Gender, GroupType, OrganizationAccessLevel,
 } from './enums';
@@ -188,6 +188,8 @@ export interface BillingAccount {
 export interface Subscription {
   id:                 string;
   group_id:           string;
+  /** Migration 127. A group holds at most one ACTIVE row per product. */
+  product:            SubscriptionProduct;
   plan_type:          PlanType;
   status:             SubscriptionStatus;
   started_at:         Date;
@@ -195,6 +197,12 @@ export interface Subscription {
   next_billing_date:  Date | null;
   monthly_fee:        string;
   sms_rate:           string;
+  /**
+   * Messages included in this subscription's monthly bundle (migration 124).
+   * Was missing from this interface entirely until migration 127's pass.
+   * reserve_sms_credits SUMs this across a group's active subscriptions.
+   */
+  sms_allowance_included: number;
   max_members:        number | null;
   grace_period_days:  number;
   cancelled_at:       Date | null;

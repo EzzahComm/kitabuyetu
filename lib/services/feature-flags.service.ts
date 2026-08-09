@@ -66,14 +66,23 @@ export async function isFeatureEnabled(
       const minPlan = conditions.min_plan;
       if (minPlan !== undefined) {
         if (!(minPlan in PLAN_RANK) || !scope.groupId) return false;
+        // Since migration 127 a group can hold one subscription per product,
+        // so `ORDER BY started_at DESC LIMIT 1` would gate on whichever product
+        // was subscribed to most recently — an arbitrary answer that could flip
+        // a flag off just because the group added a second product.
+        //
+        // Take the HIGHEST-ranked plan the group holds anywhere instead: a
+        // min_plan condition asks "has this group paid up to at least X", and
+        // ranking happens in TS because PLAN_RANK has no SQL equivalent.
+        // Deliberately not scoped to kitabu_yetu — a Chama Reminder flag would
+        // need the same gate, and nothing here is product-specific.
         const { rows: subs } = await client.query<{ plan_type: string }>(
           `SELECT plan_type FROM subscriptions
-           WHERE group_id = $1 AND status IN ('active', 'trial')
-           ORDER BY started_at DESC LIMIT 1`,
+           WHERE group_id = $1 AND status IN ('active', 'trial')`,
           [scope.groupId],
         );
-        const plan = subs[0]?.plan_type;
-        if (plan === undefined || (PLAN_RANK[plan] ?? -1) < PLAN_RANK[minPlan]) return false;
+        const bestRank = subs.reduce((best, s) => Math.max(best, PLAN_RANK[s.plan_type] ?? -1), -1);
+        if (bestRank < PLAN_RANK[minPlan]) return false;
       }
       break;
     }
