@@ -16,15 +16,27 @@ import { configureApiClient } from '@/lib/api/client';
  *    A tenant token, even from a super_admin who has been signed in on the
  *    consumer side, is NOT accepted here — that's enforced server-side by
  *    the proxy too; this guard just renders a clean redirect.
- * 2. The token's platform role must be one of super_admin / support /
- *    organization_coordinator. The proxy already validates this on /api/admin/*,
- *    but checking client-side avoids a flash of forbidden UI.
+ * 2. The token's platform role must be super_admin.
+ *
+ * PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
+ * H7) found this comment/allowlist didn't match reality on two counts, fixed
+ * here: `organization_coordinator` can no longer even reach this page — the
+ * org-login-architecture split (app/api/v1/auth/admin/login/route.ts's
+ * SURFACE_ALLOWED_ROLES) restricts the 'platform' surface /admin-login uses
+ * to super_admin/support only; org_coordinator signs in via /enterprise/login
+ * instead. And every one of the 48 route handlers under app/api/admin/**
+ * gates on `withPlatformRole(req, 'super_admin', ...)` specifically — `support`
+ * can sign in here but 403s on every single data call, so including it in
+ * this allowlist just let a support login pass the shell before failing on
+ * every fetch behind it. Narrowed to match actual server-side reality;
+ * widening the *server* routes to genuinely admit `support` is a separate
+ * product decision, not made here.
  *
  * Visual treatment is intentionally distinct (red accent + persistent
  * "BACKOFFICE" badge) so staff never mistake the privileged context for
  * a tenant dashboard.
  */
-const ADMIN_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
+const ADMIN_ROLES = ['super_admin'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
