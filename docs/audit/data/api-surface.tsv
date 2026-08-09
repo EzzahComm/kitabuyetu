@@ -1,0 +1,209 @@
+path	methods	auth_wrappers	perm_or_role_args	tenant_scoping	service_role_direct	tables_touched
+app/api/admin/analytics/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/audit-logs/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/auth/my-organizations/route.ts	GET:13	14:withBackofficeAuth;16:withAdminDb	;	withAdminDb;	0	organization_members,organizations
+app/api/admin/auth/switch-org/route.ts	POST:35	36:withBackofficeAuth;43:withAdminDb;68:withAdminDb	;	withAdminDb;	0	members,organization_members,organizations,refresh_tokens
+app/api/admin/billing/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/dashboard/route.ts	GET:13	14:withPlatformRole	;super_admin		0	
+app/api/admin/feature-flags/route.ts	GET:9;PATCH:21	10:withPlatformRole;22:withPlatformRole	;super_admin		0	
+app/api/admin/geography/counties/[id]/wards/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/geography/counties/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/governance/alerts/[id]/route.ts	PATCH:11	12:withPlatformRole	;super_admin		0	
+app/api/admin/governance/alerts/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/governance/compute/route.ts	POST:17	18:withPlatformRole	;super_admin		0	
+app/api/admin/governance/snapshots/route.ts	GET:9	10:withPlatformRole	;super_admin		0	
+app/api/admin/groups/[id]/members/[memberId]/route.ts	GET:9	10:withPlatformRole	;super_admin		0	
+app/api/admin/groups/[id]/members/route.ts	GET:15	16:withPlatformRole	;super_admin		0	
+app/api/admin/groups/[id]/route.ts	GET:9;PATCH:23	10:withPlatformRole;24:withPlatformRole	;super_admin		0	
+app/api/admin/groups/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/members/[id]/role/route.ts	POST:23	24:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/groups/route.ts	POST:17;DELETE:32	18:withPlatformRole;33:withPlatformRole	;super_admin		0	this
+app/api/admin/organizations/[id]/route.ts	GET:11;PATCH:24	12:withPlatformRole;25:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/staff/[memberId]/route.ts	PATCH:14;DELETE:29	17:withPlatformRole;32:withPlatformRole	;super_admin		0	this
+app/api/admin/organizations/[id]/staff/invitations/[invitationId]/resend/route.ts	POST:9	10:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/staff/invitations/[invitationId]/route.ts	DELETE:9	10:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/staff/invitations/route.ts	GET:9	10:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/staff/invite/route.ts	POST:18	19:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/[id]/staff/route.ts	GET:17;POST:26	18:withPlatformRole;27:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/compare/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/organizations/route.ts	GET:11;POST:35	12:withPlatformRole;36:withPlatformRole	;super_admin		0	
+app/api/admin/policies/loan-terms/route.ts	GET:14;PUT:20	15:withPlatformRole;16:withAdminDb;21:withPlatformRole;23:withAdminDb;24:withAdminDb	;super_admin	withAdminDb;	0	
+app/api/admin/policies/loan/route.ts	GET:14;PUT:20	15:withPlatformRole;16:withAdminDb;21:withPlatformRole;23:withAdminDb;24:withAdminDb	;super_admin	withAdminDb;	0	
+app/api/admin/policies/posting-templates/route.ts	GET:15;PUT:21	16:withPlatformRole;17:withAdminDb;22:withPlatformRole;24:withAdminDb;25:withAdminDb	;super_admin	withAdminDb;	0	
+app/api/admin/policies/route.ts	GET:18;PUT:24	19:withPlatformRole;20:withAdminDb;25:withPlatformRole;27:withAdminDb;28:withAdminDb	;super_admin	withAdminDb;	0	unless
+app/api/admin/roles/route.ts	GET:13	14:withPlatformRole	;super_admin		0	
+app/api/admin/search/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/admin/support/[id]/route.ts	PATCH:14	15:withPlatformRole	;super_admin		0	
+app/api/admin/support/route.ts	GET:9;POST:32	10:withPlatformRole;33:withPlatformRole	;super_admin		0	
+app/api/admin/users/[id]/route.ts	PATCH:13	14:withPlatformRole	;super_admin		0	
+app/api/admin/users/route.ts	GET:8	9:withPlatformRole	;super_admin		0	
+app/api/cron/route.ts	POST:49		;		0	
+app/api/health/deep/route.ts	GET:51		;		0	access
+app/api/health/route.ts	GET:17		;		0	
+app/api/v1/accounting/accounts/route.ts	GET:8;POST:15	9:withAuth;16:withPermission	accounting.manage;	ctx.groupId;	0	
+app/api/v1/accounting/fiscal-periods/[id]/route.ts	POST:9	10:withPermission	accounting.manage;	ctx.groupId;	0	
+app/api/v1/accounting/fiscal-periods/route.ts	GET:8;POST:15	9:withPermission;16:withPermission	accounting.manage;	ctx.groupId;	0	
+app/api/v1/accounting/journals/route.ts	GET:10;POST:53	11:withPermission;19:withDb;54:withPermission	accounting.manage;	withDb;ctx.groupId;	0	journal_entries,journal_lines
+app/api/v1/accounting/policies/route.ts	GET:18;PUT:25	19:withPermission;26:withPermission	accounting.manage;	ctx.groupId;	0	
+app/api/v1/accounting/posting-templates/route.ts	GET:17;PUT:24	18:withPermission;25:withPermission	accounting.manage;	ctx.groupId;	0	
+app/api/v1/accounting/reports/route.ts	GET:8	9:withPermission	reports.view;	ctx.groupId;	0	
+app/api/v1/analytics/executive/route.ts	GET:14	15:withAuth	;	ctx.groupId;	0	
+app/api/v1/analytics/export/route.ts	GET:16	17:withOneOf	chairperson,secretary,super_admin,treasurer;	ctx.groupId;	0	
+app/api/v1/analytics/risk/route.ts	GET:16	17:withAuth	;	ctx.groupId;	0	
+app/api/v1/auth/admin/forgot-password/reset/route.ts	POST:8		;		0	
+app/api/v1/auth/admin/forgot-password/start/route.ts	POST:12		;		0	
+app/api/v1/auth/admin/login/route.ts	POST:82	96:withAdminDb	;	withAdminDb;	0	a,member_mfa_secrets,members,this
+app/api/v1/auth/admin/login/verify/route.ts	POST:65	83:withAdminDb;189:withAdminDb;206:withAdminDb;240:withAdminDb;280:withAdminDb	;	withAdminDb;	0	a,email,member_mfa_secrets,members,organization_members,organizations,refresh_tokens,step,the,your
+app/api/v1/auth/change-password/route.ts	POST:23	24:withAuth;36:withAdminDb	;	withAdminDb;ctx.groupId;	0	refresh_tokens,the
+app/api/v1/auth/forgot-password/reset/route.ts	POST:8		;		0	
+app/api/v1/auth/forgot-password/start/route.ts	POST:11		;		0	
+app/api/v1/auth/login/route.ts	POST:57	80:withAdminDb;184:withAdminDb;216:withAdminDb	;	withAdminDb;	0	a,group_officers,members,one,refresh_tokens,roles
+app/api/v1/auth/logout/route.ts	POST:8	19:withAdminDb	;	withAdminDb;	0	refresh_tokens
+app/api/v1/auth/memberships/route.ts	GET:15	16:withAuth;18:withAdminDb	;	withAdminDb;ctx.groupId;	0	
+app/api/v1/auth/refresh/route.ts	POST:51	75:withAdminDb;119:withAdminDb;161:withAdminDb;194:withAdminDb	;	withAdminDb;	0	current,group_members,groups,members,plain,refresh_tokens,roles,the
+app/api/v1/auth/register/route.ts	POST:46	88:withAdminDb;124:withAdminDb	;	withAdminDb;	0	creator_role,group_members,refresh_tokens
+app/api/v1/auth/switch-group/route.ts	POST:44	45:withAuth;52:withAdminDb;105:withAdminDb	;	withAdminDb;ctx.groupId;	0	group_officers,refresh_tokens,roles
+app/api/v1/auth/verify/complete/route.ts	POST:47	48:withAuth;53:withAdminDb;89:withAdminDb	;	withAdminDb;ctx.groupId;	0	group_members,group_officers,groups,members,refresh_tokens
+app/api/v1/auth/verify/email/route.ts	POST:22		;		0	their
+app/api/v1/auth/verify/start/route.ts	POST:27	28:withAuth;32:withAdminDb	;	withAdminDb;ctx.groupId;	0	groups,members
+app/api/v1/billing/invoices/route.ts	GET:7	8:withPermission	billing.manage;	ctx.groupId;	0	
+app/api/v1/billing/payments/route.ts	POST:8	9:withPermission	billing.manage;	ctx.groupId;	0	
+app/api/v1/billing/plans/route.ts	GET:9;POST:24	10:withAuth;25:withPermission	billing.manage;	ctx.groupId;	0	
+app/api/v1/contributions/[id]/receipt/route.ts	GET:18	21:withAuth;25:withDb	;	withDb;ctx.groupId;	0	contributions,group_members,groups,members
+app/api/v1/contributions/[id]/route.ts	GET:9;PATCH:17;DELETE:26	11:withAuth;19:withPermission;28:withPermission	contributions.record;	ctx.groupId;	0	
+app/api/v1/contributions/non-contributors/route.ts	GET:9	10:withPermission	contributions.view;	ctx.groupId;	0	
+app/api/v1/contributions/policy/route.ts	GET:17;PUT:24	18:withAuth;25:withPermission	treasury.manage;	ctx.groupId;	0	
+app/api/v1/contributions/route.ts	GET:8;POST:16	9:withAuth;17:withPermission	contributions.record;	ctx.groupId;	0	
+app/api/v1/credit-scores/[memberId]/history/route.ts	GET:11	13:withAuth	;	ctx.groupId;	0	
+app/api/v1/credit-scores/[memberId]/recompute/route.ts	POST:10	12:withPermission	credit_scores.recompute;	ctx.groupId;	0	
+app/api/v1/credit-scores/[memberId]/route.ts	GET:10	12:withAuth	;	ctx.groupId;	0	
+app/api/v1/credit-scores/policy/route.ts	GET:16;PUT:23	17:withAuth;24:withPermission	credit_scores.policy.manage;	ctx.groupId;	0	
+app/api/v1/credit-scores/recompute/route.ts	POST:12	13:withPermission	admin.recompute;	ctx.groupId;	0	
+app/api/v1/credit-scores/route.ts	GET:9	10:withAuth	;	ctx.groupId;	0	
+app/api/v1/credit-scores/summary/route.ts	GET:8	9:withAuth	;	ctx.groupId;	0	
+app/api/v1/daraja/c2b-confirm/route.ts	POST:21		;		0	
+app/api/v1/daraja/c2b-validate/route.ts	POST:22;GET:26		;		0	
+app/api/v1/dividends/[id]/allocations/[allocId]/pay/route.ts	POST:10	12:withPermission	dividends.manage;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/allocations/bulk-pay/route.ts	POST:10	12:withPermission	dividends.manage;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/allocations/route.ts	GET:10	12:withAuth	;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/approve/route.ts	POST:14	16:withPermission	dividends.approve;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/cancel/route.ts	POST:10	12:withPermission	dividends.approve;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/preview/route.ts	GET:10	12:withAuth	;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/route.ts	GET:10;PATCH:20	12:withAuth;22:withPermission	dividends.manage;	ctx.groupId;	0	
+app/api/v1/dividends/[id]/submit/route.ts	POST:9	11:withPermission	dividends.manage;	ctx.groupId;	0	
+app/api/v1/dividends/route.ts	GET:8;POST:17	9:withAuth;18:withPermission	dividends.manage;	ctx.groupId;	0	
+app/api/v1/email/analytics/route.ts	GET:6	7:withAuth	;	ctx.groupId;	0	
+app/api/v1/email/branding/route.ts	GET:17;PUT:30	18:withAuth;19:withAdminDb;31:withPermission;34:withAdminDb	messaging.manage;	withAdminDb;ctx.groupId;	0	group_email_branding
+app/api/v1/email/campaigns/[id]/route.ts	GET:26;POST:52	28:withPermission;30:withAdminDb;40:withAdminDb;54:withPermission;58:withAdminDb;79:withAdminDb	messaging.manage,messaging.send;	withAdminDb;ctx.groupId;	0	email_campaign_recipients,email_campaigns
+app/api/v1/email/campaigns/route.ts	GET:22;POST:38	23:withPermission;24:withAdminDb;39:withPermission	messaging.manage,messaging.send;	withAdminDb;ctx.groupId;	0	email_campaigns
+app/api/v1/email/logs/route.ts	GET:15	16:withAuth;41:withAdminDb;53:withAdminDb	;	withAdminDb;ctx.groupId;	0	email_logs
+app/api/v1/email/preferences/route.ts	GET:20;PUT:42	21:withAuth;22:withAdminDb;43:withAuth;47:withAdminDb;62:withAdminDb	;	withAdminDb;	0	email_preferences
+app/api/v1/email/schedules/route.ts	GET:27;POST:48;PATCH:70	28:withPermission;29:withAdminDb;43:withOneOf;49:withAnyPermission;71:withPermission;74:withAdminDb	chairperson,messaging.manage,messaging.schedules.manage,messaging.schedules.view,super_admin,treasurer,treasury.manage;	withAdminDb;ctx.groupId;	0	email_schedules
+app/api/v1/email/templates/[id]/route.ts	GET:45;PUT:59;DELETE:82	28:withAdminDb;47:withPermission;48:withAdminDb;61:withPermission;65:withAdminDb;84:withPermission;87:withAdminDb	messaging.templates.manage,messaging.templates.view;	withAdminDb;ctx.groupId;	0	email_templates
+app/api/v1/email/templates/route.ts	GET:17;POST:32	18:withPermission;19:withAdminDb;33:withPermission;36:withAdminDb	messaging.templates.manage,messaging.templates.view;	withAdminDb;ctx.groupId;	0	email_templates
+app/api/v1/email/webhooks/resend/route.ts	POST:25		;		0	
+app/api/v1/email/webhooks/sendgrid/route.ts	POST:27		;		0	
+app/api/v1/fines/policy/route.ts	GET:15;PUT:22	16:withAuth;23:withPermission	fines.manage;	ctx.groupId;	0	
+app/api/v1/import/[jobId]/commit/route.ts	POST:15	17:withPermission	import.commit;	ctx.groupId;	0	
+app/api/v1/import/[jobId]/rollback/route.ts	POST:23	25:withPermission	import.rollback;	ctx.groupId;	0	
+app/api/v1/import/[jobId]/route.ts	GET:10;DELETE:22	12:withAuth;24:withPermission	import.cancel;	ctx.groupId;	0	
+app/api/v1/import/preview/route.ts	POST:15	16:withPermission	import.preview;	ctx.groupId;	0	
+app/api/v1/import/route.ts	GET:12;POST:31	13:withAuth;32:withPermission	import.start;	ctx.groupId;	0	
+app/api/v1/import/template/route.ts	GET:15	16:withAuth	;		0	
+app/api/v1/investments/[id]/returns/route.ts	POST:9	11:withPermission	investments.manage;	ctx.groupId;	0	
+app/api/v1/investments/[id]/route.ts	GET:9;PATCH:17	11:withPermission;19:withPermission	investments.manage,investments.view;	ctx.groupId;	0	
+app/api/v1/investments/route.ts	GET:8;POST:19	9:withPermission;20:withPermission	investments.manage,investments.view;	ctx.groupId;	0	
+app/api/v1/jurisdictions/counties/route.ts	GET:17	19:withAdminDb	;	withAdminDb;	0	counties
+app/api/v1/loans/[id]/repayments/route.ts	POST:9	11:withPermission	loans.approve;	ctx.groupId;	0	
+app/api/v1/loans/[id]/route.ts	GET:11;PATCH:19	13:withAuth;21:withPermission	loans.approve;	ctx.groupId;	0	
+app/api/v1/loans/policy/route.ts	GET:17;PUT:24	18:withAuth;25:withPermission	loans.policy.manage;	ctx.groupId;	0	
+app/api/v1/loans/route.ts	GET:9;POST:17	10:withAuth;18:withAuth	;	ctx.groupId;	0	
+app/api/v1/loans/upcoming-repayments/route.ts	GET:8	9:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/goals/[id]/progress/route.ts	POST:11	13:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/goals/[id]/route.ts	PATCH:11;DELETE:22	13:withAuth;24:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/goals/route.ts	GET:9;POST:18	10:withAuth;19:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/notifications/[id]/route.ts	PATCH:10	12:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/notifications/mark-all-read/route.ts	POST:8	9:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/notifications/route.ts	GET:14	15:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/passbook/route.ts	GET:9	10:withAuth	;	ctx.groupId;	0	
+app/api/v1/me/wallet/route.ts	GET:8	9:withAuth	;	ctx.groupId;	0	
+app/api/v1/meetings/[id]/attendance/route.ts	POST:9	11:withPermission	meetings.manage;	ctx.groupId;	0	
+app/api/v1/meetings/[id]/resolutions/route.ts	POST:9	11:withPermission	meetings.manage;	ctx.groupId;	0	
+app/api/v1/meetings/[id]/route.ts	GET:9;PATCH:17	11:withPermission;19:withPermission	meetings.manage,meetings.view;	ctx.groupId;	0	
+app/api/v1/meetings/route.ts	GET:8;POST:20	9:withPermission;21:withPermission	meetings.manage,meetings.view;	ctx.groupId;	0	
+app/api/v1/members/[id]/next-of-kin/[kinId]/route.ts	PATCH:12;DELETE:25	14:withAuth;27:withAuth	;	ctx.groupId;	0	
+app/api/v1/members/[id]/next-of-kin/route.ts	GET:18;POST:30	20:withAuth;32:withAuth	;	ctx.groupId;	0	
+app/api/v1/members/[id]/route.ts	GET:11;PATCH:20;PUT:37;DELETE:53	13:withAuth;22:withAuth;39:withAuth;55:withAuth	;	ctx.groupId;	0	
+app/api/v1/members/[id]/status/route.ts	POST:21	23:withAuth	;	ctx.groupId;	0	
+app/api/v1/members/route.ts	GET:8;POST:18	9:withAuth;19:withPermission	members.manage;	ctx.groupId;	0	
+app/api/v1/mpesa/airtime/route.ts	POST:30	39:withAdminDb;56:withPermission	payments.disburse;	withAdminDb;ctx.groupId;	0	mpesa_callbacks
+app/api/v1/mpesa/b2b/route.ts	POST:34;GET:114	43:withAdminDb;59:withPermission;76:withAdminDb;115:withPermission;117:withAdminDb	mpesa.view,payments.disburse;	withAdminDb;ctx.groupId;	0	members,mpesa_b,mpesa_callbacks,mpesa_transactions
+app/api/v1/mpesa/b2c/route.ts	POST:31	53:withAdminDb;82:withPermission	payouts.manage;	withAdminDb;ctx.groupId;	0	Safaricom,mpesa_callbacks,the
+app/api/v1/mpesa/balance/route.ts	POST:22;GET:80	31:withAdminDb;48:withPermission;55:withAdminDb;81:withPermission;83:withAdminDb	mpesa.view;	withAdminDb;ctx.groupId;	0	mpesa_callbacks,mpesa_transactions
+app/api/v1/mpesa/bill-manager/route.ts	GET:51;POST:71;PUT:214	52:withPermission;55:withAdminDb;81:withAdminDb;93:withRole;116:withPermission;122:withAdminDb;149:withPermission;155:withAdminDb;183:withPermission;195:withAdminDb;218:withPermission;230:withPermission;242:withRole	mpesa.bill_manager.manage;super_admin	withAdminDb;ctx.groupId;	0	bill_manager_invoices,mpesa_callbacks
+app/api/v1/mpesa/c2b/route.ts	GET:28;POST:36		;		0	
+app/api/v1/mpesa/callback/route.ts	POST:21	80:withAdminDb;95:withAdminDb	;	withAdminDb;	0	Safaricom,invoice_items,payments,the
+app/api/v1/mpesa/disbursements/[id]/route.ts	POST:22	24:withPermission	payouts.manage;	ctx.groupId;	0	
+app/api/v1/mpesa/disbursements/route.ts	GET:15	16:withPermission	payouts.manage;	ctx.groupId;	0	
+app/api/v1/mpesa/qr/route.ts	POST:36	37:withAuth;47:withAdminDb	;	withAdminDb;ctx.groupId;	0	mpesa_qr_codes
+app/api/v1/mpesa/reallocations/[id]/route.ts	POST:22	24:withPermission	treasury.manage;	ctx.groupId;	0	
+app/api/v1/mpesa/reallocations/route.ts	GET:23;POST:36	24:withPermission;37:withPermission	treasury.manage;	ctx.groupId;	0	
+app/api/v1/mpesa/reconcile/route.ts	POST:34;GET:64	52:withPermission;65:withPermission;67:withAdminDb	accounting.manage;	withAdminDb;ctx.groupId;	0	members,mpesa_reconciliations
+app/api/v1/mpesa/reversal/route.ts	POST:32;GET:108	41:withAdminDb;58:withPermission;77:withAdminDb;109:withPermission;111:withAdminDb	treasury.manage;	withAdminDb;ctx.groupId;	0	members,mpesa_callbacks,mpesa_reversals
+app/api/v1/mpesa/status/route.ts	GET:13	14:withAuth;27:withAdminDb	;	withAdminDb;ctx.groupId;	0	payments
+app/api/v1/mpesa/stk-push/route.ts	POST:9	10:withAuth;13:withIdempotencyKey	;	ctx.groupId;	0	
+app/api/v1/mpesa/stk-query/route.ts	GET:18;POST:49	19:withAuth;50:withAuth	;		0	
+app/api/v1/mpesa/transaction-status/route.ts	POST:29	38:withAdminDb;59:withAuth;73:withAdminDb	;	withAdminDb;ctx.groupId;	0	mpesa_callbacks,mpesa_transactions
+app/api/v1/mpesa/transactions/route.ts	GET:12	13:withPermission;37:withAdminDb	mpesa.view;	withAdminDb;ctx.groupId;	0	mpesa_transactions
+app/api/v1/mpesa/unrouted/[id]/resolve/route.ts	POST:21	25:withPermission	payments.request;	ctx.groupId;	0	
+app/api/v1/mpesa/unrouted/route.ts	GET:8	9:withPermission	mpesa.view;	ctx.groupId;	0	
+app/api/v1/organization-invitations/complete/route.ts	POST:15		;		0	
+app/api/v1/organization-invitations/confirm-email/route.ts	POST:14		;		0	
+app/api/v1/organization-invitations/decline/route.ts	POST:14		;		0	
+app/api/v1/organization-invitations/lookup/route.ts	POST:14		;		0	
+app/api/v1/organization-invitations/verify-otp/route.ts	POST:13		;		0	
+app/api/v1/organization/accounting/route.ts	GET:13	14:withOrganizationPermission	organization.accounting.view;	ctx.groupId;	0	
+app/api/v1/organization/audit-logs/route.ts	GET:8	9:withOrganizationPermission	organization.audit_logs.view;	ctx.groupId;	0	
+app/api/v1/organization/branding/route.ts	GET:12;PUT:19	13:withOrganizationPermission;20:withOrganizationPermission	organization.branding.manage;	ctx.groupId;	0	
+app/api/v1/organization/dashboard/route.ts	GET:12	13:withOrganizationPermission	organization.dashboard.view;	ctx.groupId;	0	
+app/api/v1/organization/disbursements/[id]/route.ts	POST:15	17:withOrganizationPermission	organization.disbursements.manage;	ctx.groupId;	0	
+app/api/v1/organization/disbursements/route.ts	GET:17;POST:26	18:withOrganizationPermission;27:withOrganizationPermission	organization.disbursements.manage;	ctx.groupId;	0	
+app/api/v1/organization/groups/route.ts	GET:7	8:withOrganizationPermission	organization.groups.view;	ctx.groupId;	0	
+app/api/v1/organization/members/route.ts	GET:8	9:withOrganizationPermission	organization.members.view;	ctx.groupId;	0	
+app/api/v1/organization/policies/route.ts	GET:17;PUT:24	18:withOrganizationPermission;25:withOrganizationPermission	organization.policies.manage;	ctx.groupId;	0	
+app/api/v1/organization/profile/route.ts	GET:8	9:withOrganizationPermission	organization.profile.view;	ctx.groupId;	0	
+app/api/v1/organization/programs/[id]/route.ts	PATCH:18;POST:30	22:withOrganizationPermission;34:withOrganizationPermission	capital.product.manage,organization.programs.manage;	ctx.groupId;	0	
+app/api/v1/organization/programs/route.ts	GET:18;POST:35	19:withOrganizationPermission;36:withOrganizationPermission	organization.programs.manage;	ctx.groupId;	0	
+app/api/v1/organization/reports/route.ts	GET:7	8:withOrganizationPermission	organization.reports.view;	ctx.groupId;	0	
+app/api/v1/organization/wallet/route.ts	GET:15;POST:28	16:withOrganizationPermission;29:withOrganizationPermission	organization.wallet.view;	ctx.groupId;	0	
+app/api/v1/payment-requests/[id]/route.ts	DELETE:10	12:withPermission	payments.request;	ctx.groupId;	0	
+app/api/v1/payment-requests/route.ts	GET:29;POST:46	30:withAuth;47:withPermission	payments.request;	ctx.groupId;	0	
+app/api/v1/reports/route.ts	GET:7	8:withRole	;treasurer	ctx.groupId;	0	and
+app/api/v1/settings/contribution-splits/[id]/route.ts	PATCH:9;DELETE:27	13:withPermission;31:withPermission	treasury.manage;	ctx.groupId;	0	
+app/api/v1/settings/contribution-splits/route.ts	GET:12;POST:25;PUT:39	13:withAuth;26:withPermission;40:withPermission	treasury.manage;	ctx.groupId;	0	
+app/api/v1/share-classes/[id]/route.ts	GET:10;PATCH:20	12:withAuth;22:withPermission	shares.manage;	ctx.groupId;	0	
+app/api/v1/share-classes/route.ts	GET:9;POST:19	10:withAuth;20:withPermission	shares.manage;	ctx.groupId;	0	
+app/api/v1/shares/holdings/route.ts	GET:8	9:withAuth	;	ctx.groupId;	0	
+app/api/v1/shares/summary/route.ts	GET:7	8:withAuth	;	ctx.groupId;	0	
+app/api/v1/shares/transactions/[id]/certificate/route.ts	GET:20	23:withAuth;27:withDb	;	withDb;ctx.groupId;	0	group_members,groups,members,share_classes,share_transactions,the
+app/api/v1/shares/transactions/[id]/reverse/route.ts	POST:10	12:withPermission	shares.reverse;	ctx.groupId;	0	
+app/api/v1/shares/transactions/[id]/route.ts	GET:9	11:withAuth	;	ctx.groupId;	0	
+app/api/v1/shares/transactions/route.ts	GET:8;POST:17	9:withAuth;18:withPermission	shares.manage;	ctx.groupId;	0	
+app/api/v1/sms/balance/route.ts	GET:9;POST:26	10:withRole;11:withAdminDb;27:withRole	;treasurer	withAdminDb;	0	DB,TextSMS,sms_provider_balances
+app/api/v1/sms/bulk/route.ts	POST:9	10:withPermission	messaging.send;	ctx.groupId;	0	
+app/api/v1/sms/campaign/route.ts	GET:13;POST:47;DELETE:112	14:withPermission;21:withDb;48:withPermission;69:withAdminDb;113:withPermission;117:withAdminDb	messaging.manage,messaging.send;	withAdminDb;withDb;ctx.groupId;	0	sms_campaigns,this
+app/api/v1/sms/dlr/route.ts	GET:8	14:withPermission	messaging.send;	ctx.groupId;	0	
+app/api/v1/sms/preferences/route.ts	GET:27;PUT:37	20:withAdminDb;28:withAuth;38:withAuth	;	withAdminDb;ctx.groupId;	0	members,the
+app/api/v1/sms/schedules/route.ts	GET:9;POST:27;PATCH:62;DELETE:108	10:withPermission;12:withDb;28:withPermission;32:withAdminDb;63:withPermission;95:withAdminDb;109:withPermission;113:withAdminDb	messaging.schedules.manage,messaging.schedules.view;	withAdminDb;withDb;ctx.groupId;	0	sms_schedules,sms_templates
+app/api/v1/sms/send/route.ts	POST:9	10:withPermission	messaging.send;	ctx.groupId;	0	
+app/api/v1/sms/templates/route.ts	GET:17;POST:33;PATCH:52;DELETE:83	18:withPermission;20:withDb;34:withPermission;39:withAdminDb;53:withPermission;70:withAdminDb;84:withPermission;88:withAdminDb	messaging.templates.manage,messaging.templates.view;	withAdminDb;withDb;ctx.groupId;	0	sms_templates
+app/api/v1/sms/usage/route.ts	GET:9	10:withRole	;treasurer	ctx.groupId;	0	
+app/api/v1/treasury/external-funding/route.ts	GET:14	15:withAuth;19:withAdminDb	;	withAdminDb;ctx.groupId;	0	funding_programs,organization_disbursements,partner
+app/api/v1/webhooks/whatsapp/route.ts	GET:37;POST:57		;		0	group_members,members,unknown,whatsapp_messages
+app/api/v1/welfare/[id]/route.ts	GET:9;PATCH:19	11:withPermission;21:withPermission	welfare.manage,welfare.view;	ctx.groupId;	0	
+app/api/v1/welfare/pool/route.ts	GET:7;POST:21	8:withPermission;22:withPermission	welfare.manage,welfare.view;	ctx.groupId;	0	
+app/api/v1/welfare/route.ts	GET:8;POST:20	9:withPermission;21:withPermission	welfare.request,welfare.view;	ctx.groupId;	0	
+app/api/v1/whatsapp/messages/[id]/route.ts	GET:9	11:withAuth	;	ctx.groupId;	0	
+app/api/v1/whatsapp/messages/route.ts	GET:8;POST:17	9:withAuth;18:withRole	;secretary	ctx.groupId;	0	
+app/api/v1/whatsapp/status/route.ts	GET:11	12:withAuth	;		0	
+app/api/v1/workers/cron/route.ts	POST:34		;		0	
