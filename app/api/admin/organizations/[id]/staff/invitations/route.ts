@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** GET — every invitation ever sent for this organization, newest first. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;
     const invitations = await listOrgInvitations(id);
     return ok(invitations);

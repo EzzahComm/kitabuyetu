@@ -9,7 +9,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;
     const org = await getOrganizationDetail(id);
     if (!org) return notFound('Organization not found');

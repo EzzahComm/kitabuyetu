@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * group's custom roles). Super-admin only.
  */
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const groupId = new URL(req.url).searchParams.get('groupId');
     if (!groupId) return badRequest('groupId is required');
     const roles = await listAssignableRoles(groupId);

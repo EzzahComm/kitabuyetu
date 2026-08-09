@@ -16,27 +16,31 @@ import { configureApiClient } from '@/lib/api/client';
  *    A tenant token, even from a super_admin who has been signed in on the
  *    consumer side, is NOT accepted here — that's enforced server-side by
  *    the proxy too; this guard just renders a clean redirect.
- * 2. The token's platform role must be super_admin.
+ * 2. The token's platform role must be super_admin or support.
  *
  * PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
- * H7) found this comment/allowlist didn't match reality on two counts, fixed
- * here: `organization_coordinator` can no longer even reach this page — the
- * org-login-architecture split (app/api/v1/auth/admin/login/route.ts's
+ * H7) found `organization_coordinator` no longer reaches this page at all —
+ * the org-login-architecture split (app/api/v1/auth/admin/login/route.ts's
  * SURFACE_ALLOWED_ROLES) restricts the 'platform' surface /admin-login uses
  * to super_admin/support only; org_coordinator signs in via /enterprise/login
- * instead. And every one of the 48 route handlers under app/api/admin/**
- * gates on `withPlatformRole(req, 'super_admin', ...)` specifically — `support`
- * can sign in here but 403s on every single data call, so including it in
- * this allowlist just let a support login pass the shell before failing on
- * every fetch behind it. Narrowed to match actual server-side reality;
- * widening the *server* routes to genuinely admit `support` is a separate
- * product decision, not made here.
+ * instead — and dropped it from this list accordingly.
+ *
+ * `support` was ALSO dropped at that point, because every one of the 48 route
+ * handlers under app/api/admin/** gated on `withPlatformRole(req,
+ * 'super_admin', ...)` specifically, so a support login passed this shell and
+ * 403'd on every fetch behind it. Restored here once real (read-only) support
+ * access was decided and shipped: every GET handler under app/api/admin/**
+ * now accepts `['super_admin', 'support']`; every mutating handler (POST/PUT/
+ * PATCH/DELETE) is still super_admin-only, including
+ * app/api/admin/support/[id]'s own PATCH (ticket status) — support can see
+ * every ticket but not yet act on one; a deliberate scope line, not an
+ * oversight, revisit if that turns out to be too narrow in practice.
  *
  * Visual treatment is intentionally distinct (red accent + persistent
  * "BACKOFFICE" badge) so staff never mistake the privileged context for
  * a tenant dashboard.
  */
-const ADMIN_ROLES = ['super_admin'] as const;
+const ADMIN_ROLES = ['super_admin', 'support'] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

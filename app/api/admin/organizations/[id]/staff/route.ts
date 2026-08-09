@@ -15,7 +15,7 @@ const addStaffSchema = z.object({
 
 /** GET — list this organization's staff. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;
     const staff  = await listOrgStaff(id);
     return ok(staff);
