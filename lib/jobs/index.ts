@@ -126,11 +126,26 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 07:00 UTC — birthday emails ─────────────────────────
+  // ── Daily 07:00 UTC — birthday emails + birthday SMS ──────────
+  // SMS is a separate job type (billed, per-group opt-in via
+  // sms_group_settings.auto_send_birthday, defaults false) rather than
+  // folded into email_birthday — the two channels have independent
+  // opt-in/consent/cost models and reminder_dispatch_log deduplicates
+  // per-channel via reference_type already, so nothing forces them
+  // through one job. sms_schedules.schedule_type had a 'birthday' value
+  // sitting unprocessed for this (sms-scheduler.service.ts's own header
+  // comment: "left for a dedicated follow-up") — this is that follow-up,
+  // built as a global job like notify_loan_due_alerts rather than a
+  // per-group schedule row, since "who gets messaged" varies by the day
+  // (today's birthdays), not a fixed recipient list on a fixed cadence.
   if (hour === 7) {
     queued.email_birthday = await safe('email_birthday', {}, {
       priority:  3,
       dedup_key: `email_birthday:${dateStr}`,
+    });
+    queued.sms_birthday_reminders = await safe('sms_birthday_reminders', {}, {
+      priority:  6,
+      dedup_key: `sms_birthday_reminders:${dateStr}`,
     });
   }
 

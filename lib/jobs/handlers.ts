@@ -97,6 +97,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'notify_contribution_reminders':
       return handleContributionReminders(job);
 
+    case 'sms_birthday_reminders':
+      return handleSmsBirthdayReminders(job);
+
     case 'sms_bulk_send':
       return handleSmsBulkSend(job.payload, job.id);
 
@@ -450,6 +453,97 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   };
 }
 
+/**
+ * Birthday SMS — the SMS half of sms_group_settings.auto_send_birthday
+ * (docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md §6/Phase 1).
+ * The birthday-email equivalent (member-email.service.ts's sendBirthdayEmails,
+ * job email_birthday) sends unconditionally to every group; this one is
+ * gated on the per-group opt-in column (DEFAULT false) since it's billed
+ * (Decision B — bill everything) and a group shouldn't get charged for a
+ * channel it never turned on.
+ *
+ * A member in N active groups with the setting on gets N separate messages,
+ * one per group (billed to that group), matching how loan/contribution
+ * reminders already work per-membership rather than per-person.
+ *
+ * reminder_stage encodes the current year so the same member's birthday
+ * fires again next year — reminder_dispatch_log's UNIQUE constraint would
+ * otherwise treat "this member's birthday" as a single lifetime event.
+ * Deliberately no custom-template lookup (unlike sendTemplated()): this
+ * mirrors handleLoanDueAlerts/handleContributionReminders's own pattern of
+ * using renderBuiltin directly — per-group message customization here is
+ * new scope, not part of finishing the already-half-built feature.
+ */
+async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
+  const { renderBuiltin, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
+  const { sendOnce } = await import('@/lib/services/reminder.service');
+
+  const { rows } = await pool.query<{
+    membership_id: string;
+    member_id:     string;
+    group_id:      string;
+    phone:         string;
+    first_name:    string;
+    group_name:    string;
+  }>(
+    // gm.id (the membership row), not m.id, is the reference_id — same
+    // reasoning as handleContributionReminders: reminder_dispatch_log's
+    // UNIQUE constraint is (reference_type, reference_id, reminder_stage)
+    // with no group_id in the key, so a member in two opted-in groups keyed
+    // on member_id would have the second group's claim collide with the
+    // first (already 'sent') and silently never send/bill. gm.id is unique
+    // per (group, member), so each membership gets its own claim.
+    `SELECT gm.id AS membership_id, m.id AS member_id, gm.group_id, m.phone, m.first_name, g.name AS group_name
+       FROM members m
+       JOIN group_members gm ON gm.member_id = m.id
+       JOIN groups  g        ON g.id = gm.group_id
+       JOIN sms_group_settings sgs ON sgs.group_id = gm.group_id
+      WHERE gm.status = 'active'
+        AND g.status  = 'active'
+        AND sgs.auto_send_birthday = true
+        AND m.phone IS NOT NULL AND m.phone <> ''
+        AND m.date_of_birth IS NOT NULL
+        AND EXTRACT(MONTH FROM m.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(DAY   FROM m.date_of_birth) = EXTRACT(DAY   FROM CURRENT_DATE)
+      ORDER BY gm.group_id, m.id
+      LIMIT 1000`,
+  );
+
+  if (rows.length === 0) {
+    return { message: 'Birthday SMS: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+  }
+
+  const currentYear = new Date().getUTCFullYear();
+  let sent = 0, skipped = 0, failed = 0;
+
+  for (const r of rows) {
+    const body = renderBuiltin(TEMPLATE_KEYS.BIRTHDAY, {
+      first_name: r.first_name,
+      group_name: r.group_name,
+    });
+
+    const result = await sendOnce({
+      groupId:        r.group_id,
+      memberId:       r.member_id,
+      phone:          r.phone,
+      body,
+      referenceType:  'birthday',
+      referenceId:    r.membership_id,
+      reminderStage:  `birthday:${currentYear}`,
+      jobExecutionId: job.id,
+      billingMode:    'billed',
+    });
+    if (result.sent) sent++;
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    else failed++;
+  }
+
+  return {
+    message: `Birthday SMS processed (${rows.length} candidates)`,
+    attempted: rows.length, sent, skipped, failed,
+  };
+}
+
 async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   const { renderTemplate } = await import('@/lib/sms/templates');
   const { sendOnce } = await import('@/lib/services/reminder.service');
@@ -557,11 +651,29 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
  * H3). For current group sizes a single job is well within the function budget.
  */
 async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string): Promise<HandlerResult> {
-  const { smsService } = await import('@/lib/services/sms.service');
+  const { smsService, resolveRecipientVars } = await import('@/lib/services/sms.service');
   const phones = Array.isArray(payload.phones) ? (payload.phones as string[]) : [];
   if (!payload.groupId || phones.length === 0) {
     return { message: 'SMS bulk send skipped: no recipients', sent: 0, failed: 0 };
   }
+
+  // Per-recipient template rendering happens HERE rather than at any of the
+  // enqueue sites, because this handler is the one point all four bulk paths
+  // funnel through (/sms/bulk, /sms/campaign's immediate send, and the
+  // scheduler's two — processDueSmsSchedules and processDueScheduledCampaigns).
+  // Rendering at enqueue time would have to be repeated at each, and the
+  // immediate-campaign route in particular never did it — every campaign
+  // written with a {{first_name}} placeholder has been delivering that text
+  // literally. Resolving at dispatch time also means the names match current
+  // membership, the same guarantee resolveSmsRecipients() already gives the
+  // recipient list itself.
+  //
+  // Skipped entirely for messages with no placeholder — the overwhelmingly
+  // common case — so an ordinary campaign costs no extra queries.
+  const message = String(payload.message ?? '');
+  const varsByPhone = message.includes('{{')
+    ? await resolveRecipientVars(String(payload.groupId), phones)
+    : undefined;
 
   // An organization-funded campaign carries its payer through the queue, so a
   // job retried after a restart still bills the organization, not the group.
@@ -572,7 +684,8 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
   const result = await smsService.sendBulkCampaign({
     campaignId:    payload.campaignId    ? String(payload.campaignId)    : undefined,
     phones,
-    message:       String(payload.message ?? ''),
+    message,
+    varsByPhone,
     senderId:      payload.senderId      ? String(payload.senderId)      : undefined,
     timeToSend:    payload.timeToSend    ? String(payload.timeToSend)    : undefined,
     groupId:       String(payload.groupId),

@@ -17,10 +17,12 @@ import { withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { logger } from '@/lib/logger';
 import { resolveSmsRecipients } from './sms.service';
+import { renderTemplate } from '@/lib/sms/templates';
 
 interface ScheduleRow {
   id:             string;
   group_id:       string;
+  group_name:     string;
   schedule_type:  string;
   message:        string | null;
   template_body:  string | null;
@@ -33,12 +35,30 @@ interface ScheduleRow {
 interface CampaignRow {
   id:             string;
   group_id:       string;
+  group_name:     string;
   message:        string;
   recipient_type: string;
   raw_recipients: unknown;
   created_by:     string;
   payer_type:             string;
   payer_organization_id:  string | null;
+}
+
+/**
+ * Pre-render the GROUP-LEVEL variables (identical for every recipient in the
+ * batch) into a scheduled message before it is enqueued, so the queued payload
+ * and the sms_usage_logs rows behind it read as the real message rather than
+ * a raw template.
+ *
+ * Deliberately does NOT strip what it can't resolve: per-recipient variables
+ * ({{first_name}} and friends) are rendered later, in lib/jobs/handlers.ts's
+ * handleSmsBulkSend, against the phone→member map resolveRecipientVars()
+ * builds — stripping them here would destroy them before that step ever sees
+ * them. Anything still unresolved after that per-recipient pass is stripped
+ * there, so nothing reaches a handset as literal "{{...}}" text either way.
+ */
+function renderScheduledMessage(message: string, groupName: string): string {
+  return renderTemplate(message, { group_name: groupName });
 }
 
 /**
@@ -62,10 +82,11 @@ interface CampaignRow {
 export async function processDueSmsSchedules(): Promise<{ processed: number; skipped: number }> {
   const rows = await withAdminDb((db) =>
     db.query<ScheduleRow>(
-      `SELECT s.id, s.group_id, s.schedule_type, s.message, s.recipient_type,
+      `SELECT s.id, s.group_id, g.name AS group_name, s.schedule_type, s.message, s.recipient_type,
               s.raw_recipients, s.next_run_at, s.created_by,
               t.body AS template_body
        FROM sms_schedules s
+       JOIN groups g ON g.id = s.group_id
        LEFT JOIN sms_templates t ON t.id = s.template_id
        WHERE s.is_active = true
          AND s.next_run_at IS NOT NULL
@@ -81,7 +102,8 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
   let skipped   = 0;
 
   for (const s of rows) {
-    const message = s.template_body ?? s.message;
+    const rawMessage = s.template_body ?? s.message;
+    const message = rawMessage ? renderScheduledMessage(rawMessage, s.group_name) : null;
     // Resolve recipients (reads only) before opening the claim transaction, so
     // membership changes since scheduling are respected and the row lock is
     // held for as short a time as possible.
@@ -165,11 +187,12 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
 export async function processDueScheduledCampaigns(): Promise<{ processed: number }> {
   const rows = await withAdminDb((db) =>
     db.query<CampaignRow>(
-      `SELECT id, group_id, message, recipient_type, raw_recipients, created_by,
-              payer_type, payer_organization_id
-       FROM sms_campaigns
-       WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()
-       ORDER BY scheduled_at ASC
+      `SELECT c.id, c.group_id, g.name AS group_name, c.message, c.recipient_type, c.raw_recipients, c.created_by,
+              c.payer_type, c.payer_organization_id
+       FROM sms_campaigns c
+       JOIN groups g ON g.id = c.group_id
+       WHERE c.status='scheduled' AND c.scheduled_at IS NOT NULL AND c.scheduled_at <= NOW()
+       ORDER BY c.scheduled_at ASC
        LIMIT 100`,
       [],
     ).then((r) => r.rows),
@@ -178,6 +201,7 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
   let processed = 0;
 
   for (const c of rows) {
+    const message = renderScheduledMessage(c.message, c.group_name);
     const phones = await resolveSmsRecipients(c.group_id, c.recipient_type, c.raw_recipients);
 
     if (phones.length === 0) {
@@ -200,7 +224,7 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
       {
         campaignId: c.id,
         phones,
-        message:    c.message,
+        message,
         groupId:    c.group_id,
         sentBy:     c.created_by,
         // Carried from the campaign row so a scheduled organization campaign

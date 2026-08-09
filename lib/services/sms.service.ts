@@ -24,7 +24,7 @@ import {
   type BulkSmsItem,
   type SmsResponse,
 } from './textsms.service';
-import { renderTemplate, renderBuiltin, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import { renderTemplate, renderBuiltin, stripUnresolved, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
 import {
   reserveCredits,
   settleReservation,
@@ -94,6 +94,18 @@ export interface BulkCampaignInput {
    * counter changes).
    */
   dispatchBatchId?: string;
+  /**
+   * Per-recipient template variables, keyed by NORMALIZED phone (the same
+   * normalizePhone() form `phones` is mapped through below, so callers must
+   * not hand-build keys in another format).
+   *
+   * When present, `message` is rendered once per recipient instead of being
+   * sent verbatim — see personalize(). Built by resolveRecipientVars() and
+   * passed by lib/jobs/handlers.ts's handleSmsBulkSend, which is the single
+   * chokepoint every bulk path (immediate campaign, ad-hoc /sms/bulk,
+   * scheduled campaign, sms_schedules occurrence) funnels through.
+   */
+  varsByPhone?: Map<string, TemplateVars>;
 }
 
 // ─── Credit helpers ───────────────────────────────────────────────────────────
@@ -209,6 +221,83 @@ export async function resolveSmsRecipients(
   }
 
   return [];
+}
+
+/**
+ * Resolve the template variables a bulk send can personalize with, for one
+ * group: the group-level ones (identical for every recipient) merged into a
+ * per-recipient map keyed by normalized phone.
+ *
+ * A phone with no matching member — every `custom_phones` recipient, and any
+ * member removed from the group between scheduling and sending — is simply
+ * absent from the map. It still gets the group-level vars (see the merge
+ * below), and its per-recipient placeholders are stripped rather than sent
+ * as literal `{{first_name}}` text.
+ *
+ * Reads current membership at send time, exactly as resolveSmsRecipients()
+ * does, so the names rendered match the recipient list that was resolved.
+ */
+export async function resolveRecipientVars(
+  groupId: string,
+  phones:  string[],
+): Promise<Map<string, TemplateVars>> {
+  const wanted = new Set(phones.map(normalizePhone));
+  if (!wanted.size) return new Map();
+
+  const { groupName, members } = await withAdminDb(async (db) => {
+    const [{ rows: groupRows }, { rows: memberRows }] = await Promise.all([
+      db.query<{ name: string }>(`SELECT name FROM groups WHERE id=$1`, [groupId]),
+      db.query<{ phone: string; first_name: string; last_name: string }>(
+        `SELECT m.phone, m.first_name, m.last_name
+         FROM members m
+         JOIN group_members gm ON gm.member_id = m.id
+         WHERE gm.group_id=$1 AND m.phone IS NOT NULL AND m.phone <> ''
+         ORDER BY gm.created_at ASC`,
+        [groupId],
+      ),
+    ]);
+    return { groupName: groupRows[0]?.name ?? '', members: memberRows };
+  });
+
+  const byPhone = new Map<string, TemplateVars>();
+  for (const phone of wanted) {
+    byPhone.set(phone, { group_name: groupName });
+  }
+  for (const m of members) {
+    const key = normalizePhone(m.phone);
+    // Only recipients of THIS send, and only the first member holding a given
+    // phone — two members can share a handset (a spouse pair is common), and
+    // the send is one message to that number either way. Oldest membership
+    // wins, so the rendered name is stable run to run rather than dependent
+    // on row order.
+    if (!wanted.has(key)) continue;
+    const existing = byPhone.get(key);
+    if (existing?.first_name !== undefined) continue;
+    byPhone.set(key, {
+      ...existing,
+      first_name: m.first_name,
+      last_name:  m.last_name,
+      full_name:  `${m.first_name} ${m.last_name}`.trim(),
+    });
+  }
+  return byPhone;
+}
+
+/**
+ * Render one recipient's copy of a bulk message.
+ *
+ * The provider's bulk endpoint already carries an independent `message` per
+ * `mobile` (textsms.service.ts's BulkSmsItem), so personalization costs
+ * nothing at the wire level — what was missing was the phone→member mapping
+ * to render against (resolveRecipientVars, above).
+ *
+ * A message with no `{{` at all is returned untouched. stripUnresolved()
+ * collapses runs of whitespace, which would silently reflow an ordinary
+ * multi-line campaign body that has nothing to render in the first place.
+ */
+function personalize(message: string, vars: TemplateVars | undefined): string {
+  if (!message.includes('{{')) return message;
+  return stripUnresolved(renderTemplate(message, vars ?? {}));
 }
 
 // ─── Core send (single or multi recipients) ───────────────────────────────────
@@ -329,6 +418,21 @@ export const smsService = {
     // only consulted for ad-hoc job-triggered sends that have none.
     const dispatchKey = input.campaignId ?? input.dispatchBatchId ?? null;
 
+    // One rendered copy per recipient, computed once and reused by BOTH the
+    // sms_usage_logs insert and the provider items below — message_text must
+    // record what that number actually received, not the unrendered template.
+    // Memoized rather than rendered twice because a large campaign resolves
+    // to the same string for every recipient sharing a first name.
+    const rendered = new Map<string, string>();
+    const messageFor = (phone: string): string => {
+      let text = rendered.get(phone);
+      if (text === undefined) {
+        text = personalize(input.message, input.varsByPhone?.get(phone));
+        rendered.set(phone, text);
+      }
+      return text;
+    };
+
     // Reservation + log creation happen in ONE transaction so credits can never
     // be earmarked without the matching log rows (and vice-versa). The provider
     // dispatch below runs *outside* this transaction so we never hold a DB
@@ -397,7 +501,7 @@ export const smsService = {
                 payer_type, payer_organization_id)
              VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11) RETURNING id`,
             [
-              input.groupId, phone, input.message, rate.toFixed(4), fromAllowance.toFixed(4),
+              input.groupId, phone, messageFor(phone), rate.toFixed(4), fromAllowance.toFixed(4),
               dispatchKey,
               input.referenceType ?? 'campaign',
               input.referenceId ?? dispatchKey,
@@ -445,7 +549,7 @@ export const smsService = {
     // Dispatch via TextSMS bulk endpoint
     const items: BulkSmsItem[] = eligible.map((mobile, idx) => ({
       mobile,
-      message:   input.message,
+      message:   messageFor(mobile),
       senderId:  input.senderId,
       timeToSend: input.timeToSend,
       clientSmsId: idx + 1,

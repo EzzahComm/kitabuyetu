@@ -57,7 +57,17 @@ export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({ templa
 export const ScheduleCreateSchema = z.object({
   name:           z.string().min(1).max(100),
   description:    z.string().max(500).optional(),
-  scheduleType:   z.enum(['one_time', 'daily', 'weekly', 'monthly', 'birthday', 'loan_due']),
+  // 'birthday'/'loan_due' are deliberately excluded here even though the DB
+  // CHECK constraint (migration 013) still permits them historically — both
+  // are handled as dedicated global jobs (sms_birthday_reminders,
+  // notify_loan_due_alerts) with day-varying, rule-based recipients, not a
+  // fixed-audience row on a fixed cadence. sms-scheduler.service.ts's own
+  // processDueSmsSchedules() has never processed these two values (see its
+  // header comment) — a row created with either would previously sit inert
+  // forever. Blocking creation here, not widening the scheduler to handle
+  // them, since the recipient-selection model these two need doesn't fit
+  // this table's shape.
+  scheduleType:   z.enum(['one_time', 'daily', 'weekly', 'monthly']),
   templateId:     z.string().uuid().optional(),
   message:        z.string().min(1).max(320).optional(),
   recipientType:  z.enum(['all_members', 'active_members', 'selected', 'custom_phones']).default('all_members'),
