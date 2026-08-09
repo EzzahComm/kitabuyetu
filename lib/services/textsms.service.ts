@@ -13,13 +13,23 @@
 
 import axios from 'axios';
 import { normalizePhone } from '@/lib/utils/phone';
+import { env } from '@/lib/env';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
+//
+// Read through the validated `env` (lib/env.ts), not raw `process.env` with a
+// non-null assertion (SMS_MESSAGING_AUDIT_2026-08.md M6). TEXTSMS_API_KEY and
+// TEXTSMS_PARTNER_ID are both `z.string().min(1)` — required, not optional —
+// so this now fails fast at cold-start when unset, instead of silently
+// posting `"apikey": undefined` to the provider and surfacing as an opaque
+// 401/code-1006 far from the actual cause. TEXTSMS_SENDER_ID's Zod default
+// ('KitabuYetu') also replaces the second, drifted default ('KITABU') that
+// lived here.
 
-const BASE_URL   = (process.env.TEXTSMS_BASE_URL ?? 'https://sms.textsms.co.ke').replace(/\/$/, '');
-const API_KEY    = process.env.TEXTSMS_API_KEY!;
-const PARTNER_ID = process.env.TEXTSMS_PARTNER_ID!;
-const SENDER_ID  = process.env.TEXTSMS_SENDER_ID ?? 'KITABU';
+const BASE_URL   = env.TEXTSMS_BASE_URL.replace(/\/$/, '');
+const API_KEY    = env.TEXTSMS_API_KEY;
+const PARTNER_ID = env.TEXTSMS_PARTNER_ID;
+const SENDER_ID  = env.TEXTSMS_SENDER_ID;
 
 // ─── Response codes ───────────────────────────────────────────────────────────
 

@@ -16,6 +16,7 @@ import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/
 import { normalizePhone } from '@/lib/utils/phone';
 import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 import {
   sendSingleSms,
   sendBulkSmsChunked,
@@ -717,7 +718,9 @@ export const smsService = {
       ).then((r) => r.rows),
     );
 
-    const sender = process.env.TEXTSMS_SENDER_ID ?? 'KITABU';
+    // M6: read through validated env (lib/env.ts), not a second, drifted
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is 'KitabuYetu'.
+    const sender = env.TEXTSMS_SENDER_ID;
     let retried = 0, resolved = 0, failed = 0;
 
     for (const f of failures) {
@@ -915,7 +918,9 @@ async function dispatchBatch(
   const failedIds: string[] = [];
 
   try {
-    const sender = process.env.TEXTSMS_SENDER_ID ?? 'KITABU';
+    // M6: read through validated env (lib/env.ts), not a second, drifted
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is 'KitabuYetu'.
+    const sender = env.TEXTSMS_SENDER_ID;
 
     if (phones.length === 1) {
       const res = await sendSingleSms({ mobile: phones[0], message, senderId: sender });
