@@ -244,6 +244,8 @@ export const contributionsApi = {
     api.get<EffectiveSavingsLimits>('/contributions/policy'),
   setPolicy: (body: SetSavingsLimitsPayload) =>
     api.put<EffectiveSavingsLimits>('/contributions/policy', body),
+  remindNonContributors: () =>
+    api.post<{ attempted: number; sent: number; skipped: number; failed: number }>('/contributions/remind-non-contributors', {}),
 };
 
 // ------------------------------------------------------------------
