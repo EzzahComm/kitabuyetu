@@ -46,3 +46,10 @@ export function useSetSavingsPolicy() {
     onSuccess:  () => qc.invalidateQueries({ queryKey: [...contributionKeys.all, 'policy'] }),
   });
 }
+
+/** Dashboard "Remind" action — SMS nudge to this month's non-contributors. */
+export function useRemindNonContributors() {
+  return useMutation({
+    mutationFn: () => contributionsApi.remindNonContributors(),
+  });
+}

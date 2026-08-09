@@ -71,6 +71,78 @@ export const contributionsService = {
     });
   },
 
+  // Ad-hoc "Remind" action on the dashboard's non-contributors task row — an
+  // officer-triggered nudge for the *current*, still-open month. Deliberately
+  // a distinct referenceType/reminderStage from the scheduled
+  // `notify_contribution_reminders` job (lib/jobs/handlers.ts), which flags
+  // the *previous*, already-closed month: sharing a stage key would let this
+  // button's send silently satisfy that job's own once-per-month claim (or
+  // vice versa) via reminder_dispatch_log's UNIQUE constraint, suppressing a
+  // real reminder neither action actually sent. Idempotent per (member,
+  // month) regardless — clicking twice in the same month only sends once.
+  async remindNonContributors(ctx: TenantContext): Promise<{ attempted: number; sent: number; skipped: number; failed: number }> {
+    const { rows } = await withDb(ctx, (client) =>
+      client.query<{
+        membership_id: string; member_id: string; phone: string;
+        first_name: string; group_name: string; period_key: string; month_label: string;
+      }>(
+        `SELECT gm.id AS membership_id, gm.member_id, m.phone, m.first_name, g.name AS group_name,
+                to_char(CURRENT_DATE, 'YYYY-MM') AS period_key,
+                to_char(CURRENT_DATE, 'Mon YYYY') AS month_label
+         FROM group_members gm
+         JOIN members m ON m.id = gm.member_id
+         JOIN groups  g ON g.id = gm.group_id
+         WHERE gm.group_id = $1
+           AND gm.status = 'active'
+           AND m.phone IS NOT NULL AND m.phone <> ''
+           AND NOT EXISTS (
+             SELECT 1 FROM contributions c
+             WHERE c.member_id = m.id
+               AND c.group_id = $1
+               AND c.status = 'completed'
+               AND c.contribution_date >= date_trunc('month', CURRENT_DATE)
+           )
+         ORDER BY m.first_name, m.last_name`,
+        [ctx.groupId],
+      ),
+    );
+
+    if (rows.length === 0) {
+      return { attempted: 0, sent: 0, skipped: 0, failed: 0 };
+    }
+
+    const { renderTemplate } = await import('@/lib/sms/templates');
+    const { sendOnce } = await import('./reminder.service');
+    const template =
+      'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. Thank you.';
+
+    let sent = 0, skipped = 0, failed = 0;
+    for (const r of rows) {
+      const result = await sendOnce({
+        groupId:       ctx.groupId,
+        memberId:      r.member_id,
+        phone:         r.phone,
+        body:          renderTemplate(template, {
+          first_name: r.first_name,
+          group_name: r.group_name,
+          month:      r.month_label,
+        }),
+        referenceType:  'contribution_nudge',
+        referenceId:    r.membership_id,
+        reminderStage:  `contribution_nudge:${r.period_key}`,
+        // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision
+        // B): bundled allowance now exists, so this real send-path bills,
+        // same as the scheduled reminder it mirrors.
+        billingMode:    'billed',
+      });
+      if (result.sent) sent++;
+      else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+      else failed++;
+    }
+
+    return { attempted: rows.length, sent, skipped, failed };
+  },
+
   async getById(ctx: TenantContext, id: string): Promise<Contribution & { member_name: string }> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<Contribution & { member_name: string }>(
