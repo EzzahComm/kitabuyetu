@@ -23,8 +23,8 @@ import { env } from '@/lib/env';
 // so this now fails fast at cold-start when unset, instead of silently
 // posting `"apikey": undefined` to the provider and surfacing as an opaque
 // 401/code-1006 far from the actual cause. TEXTSMS_SENDER_ID's Zod default
-// ('KitabuYetu') also replaces the second, drifted default ('KITABU') that
-// lived here.
+// ('KITABU YETU', the registered sender ID) also replaces the second,
+// drifted default ('KITABU') that lived here.
 
 const BASE_URL   = env.TEXTSMS_BASE_URL.replace(/\/$/, '');
 const API_KEY    = env.TEXTSMS_API_KEY;

@@ -88,7 +88,7 @@ const envObjectSchema = z.object({
   // ── SMS (TextSMS Kenya — primary provider) ────────────────────────────────
   // All three required for production. Service falls back to dry_run when unset.
   TEXTSMS_API_KEY:    z.string().min(1, 'TEXTSMS_API_KEY is required'),
-  TEXTSMS_SENDER_ID: z.string().default('KitabuYetu'),
+  TEXTSMS_SENDER_ID: z.string().default('KITABU YETU'),
   TEXTSMS_PARTNER_ID: z.string().min(1, 'TEXTSMS_PARTNER_ID is required'),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────

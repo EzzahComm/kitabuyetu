@@ -719,7 +719,8 @@ export const smsService = {
     );
 
     // M6: read through validated env (lib/env.ts), not a second, drifted
-    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is 'KitabuYetu'.
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
+    // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
     let retried = 0, resolved = 0, failed = 0;
 
@@ -919,7 +920,8 @@ async function dispatchBatch(
 
   try {
     // M6: read through validated env (lib/env.ts), not a second, drifted
-    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is 'KitabuYetu'.
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
+    // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
 
     if (phones.length === 1) {
