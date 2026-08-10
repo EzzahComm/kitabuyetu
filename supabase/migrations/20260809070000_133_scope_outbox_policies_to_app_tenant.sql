@@ -21,7 +21,21 @@
 -- PUBLIC, so a future accidental grant to anon/authenticated would not
 -- resurrect the exposure — the policy simply wouldn't apply to them,
 -- defaulting to deny regardless of table-level GRANT state.
+--
+-- Guarded: unlike production (where app_tenant was provisioned out-of-band
+-- via scripts/ops/create-app-tenant-role.sql per ADR-001), a plain fresh
+-- migration replay — this project's CI "Tenant Isolation" base job included
+-- — has no app_tenant role at all at this point in the sequence. Caught by
+-- CI, not by the production-only BEGIN...ROLLBACK validation this migration
+-- was checked with before its first attempt. Skips cleanly when absent;
+-- CI's separate app-tenant-role suite (which provisions the role itself
+-- before replaying migrations) still exercises the real ALTER POLICY.
 -- =============================================================================
 
-ALTER POLICY event_outbox_all ON public.event_outbox TO app_tenant;
-ALTER POLICY membership_no_counters_all ON public.membership_no_counters TO app_tenant;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
+    EXECUTE 'ALTER POLICY event_outbox_all ON public.event_outbox TO app_tenant';
+    EXECUTE 'ALTER POLICY membership_no_counters_all ON public.membership_no_counters TO app_tenant';
+  END IF;
+END $$;
