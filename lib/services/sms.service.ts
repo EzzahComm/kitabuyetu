@@ -107,6 +107,23 @@ export interface BulkCampaignInput {
    * scheduled campaign, sms_schedules occurrence) funnels through.
    */
   varsByPhone?: Map<string, TemplateVars>;
+  /**
+   * Total recipient count for the campaign THIS call's `phones` is a chunk
+   * of. Only set by chunked QStash dispatch (lib/jobs/handlers.ts's
+   * handleSmsBulkSend — closes SMS_MESSAGING_AUDIT_2026-08.md H3, docs/
+   * messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3 item 10). Defaults
+   * to `phones.length` — i.e. "this call is the
+   * whole campaign" — which is exactly today's single-call behavior, so
+   * every existing caller is unaffected.
+   *
+   * Threading the true total through matters because `sms_campaigns
+   * .recipient_count`/`.status` are written per call: without it, a second
+   * chunk's call would overwrite `recipient_count` with just its own slice's
+   * size, and `status` would flip to 'completed' the moment the FIRST chunk
+   * finishes rather than the last. See the recipient_count/completion
+   * writes below for how this is used.
+   */
+  totalRecipientCount?: number;
 }
 
 // ─── Credit helpers ───────────────────────────────────────────────────────────
@@ -157,6 +174,40 @@ async function fetchOptOuts(client: import('pg').PoolClient, groupId: string): P
     `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
   );
   return new Set(rows[0]?.opt_out_phones ?? []);
+}
+
+/**
+ * Recompute a campaign's sent/failed tallies from its real `sms_usage_logs`
+ * rows and flip `status` to 'completed' only once every recipient has a
+ * terminal outcome — i.e. `resolved_count >= recipient_count`.
+ *
+ * Safe to call once per single-shot send (today's only caller shape) or
+ * once per chunk of a QStash-dispatched campaign (SMS_MESSAGING_AUDIT_
+ * 2026-08.md H3 — see BulkCampaignInput.totalRecipientCount): each call only ever advances
+ * status forward, never back, and a chunk that finishes before its
+ * siblings correctly leaves status at 'sending' rather than completing the
+ * campaign early. `recipient_count` itself must already reflect the true
+ * total (written once, idempotently, by sendBulkCampaign's caller-count
+ * write above) — see that call site's comment.
+ */
+async function syncCampaignCompletion(client: import('pg').PoolClient, campaignId: string): Promise<void> {
+  await client.query(
+    `WITH tallies AS (
+       SELECT
+         count(*) FILTER (WHERE status = 'sent')            AS sent_count,
+         count(*) FILTER (WHERE status = 'failed')           AS failed_count,
+         count(*) FILTER (WHERE status IN ('sent','failed')) AS resolved_count
+       FROM sms_usage_logs WHERE campaign_id = $1
+     )
+     UPDATE sms_campaigns c
+     SET sent_count   = t.sent_count,
+         failed_count = t.failed_count,
+         status       = CASE WHEN t.resolved_count >= c.recipient_count THEN 'completed' ELSE 'sending' END,
+         completed_at = CASE WHEN t.resolved_count >= c.recipient_count THEN COALESCE(c.completed_at, NOW()) ELSE c.completed_at END
+     FROM tallies t
+     WHERE c.id = $1`,
+    [campaignId],
+  );
 }
 
 // ─── Recipient resolution ──────────────────────────────────────────────────
@@ -515,10 +566,14 @@ export const smsService = {
       }
 
       if (input.campaignId) {
+        // recipient_count is the campaign's TOTAL, not this call's slice —
+        // see totalRecipientCount's doc comment. Every chunk of the same
+        // campaign writes the same value, so this is idempotent regardless
+        // of call order or how many chunks there are.
         await db.query(
-          `UPDATE sms_campaigns SET status='sending', started_at=NOW(),
+          `UPDATE sms_campaigns SET status='sending', started_at=COALESCE(started_at, NOW()),
            recipient_count=$1 WHERE id=$2`,
-          [eligible.length, input.campaignId],
+          [input.totalRecipientCount ?? eligible.length, input.campaignId],
         );
       }
 
@@ -532,17 +587,14 @@ export const smsService = {
     // rather than leaving it stuck 'sending' forever, since nothing else
     // will ever revisit it once this job stops retrying.
     if (!eligible.length) {
+      // Only re-syncs when THIS call's own dedup actually matched something
+      // (dedupedAway > 0) — an empty chunk with nothing to dedupe against
+      // (e.g. every one of its recipients opted out) has no evidence any
+      // other chunk finished, so it must not touch the campaign row.
+      // syncCampaignCompletion itself decides completion from the real
+      // aggregate against recipient_count, not from this call in isolation.
       if (dedupedAway > 0 && input.campaignId) {
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE sms_campaigns c
-             SET status = 'completed', completed_at = COALESCE(completed_at, NOW()),
-                 sent_count   = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'sent'),
-                 failed_count = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'failed')
-             WHERE c.id = $1 AND c.status <> 'completed'`,
-            [input.campaignId],
-          ),
-        );
+        await withAdminDb((db) => syncCampaignCompletion(db, input.campaignId!));
       }
       return { sent: 0, failed: 0, logs: [] };
     }
@@ -594,12 +646,7 @@ export const smsService = {
           );
         }
         if (input.campaignId) {
-          await db.query(
-            `UPDATE sms_campaigns
-             SET status='completed', completed_at=NOW(), sent_count=0, failed_count=$2
-             WHERE id=$1`,
-            [input.campaignId, logIds.length],
-          );
+          await syncCampaignCompletion(db, input.campaignId);
         }
       });
 
@@ -634,19 +681,15 @@ export const smsService = {
         );
       }
 
+      // Aggregated from the real rows, not result.sent/result.failed (this
+      // call's own batch only) — a partially-deduped retry (H3), or one
+      // chunk of a QStash-dispatched campaign, would otherwise
+      // overwrite the campaign's totals with just its own recipients'
+      // counts, losing every other call's already-sent tally. status only
+      // flips to 'completed' once the aggregate covers recipient_count —
+      // see syncCampaignCompletion's own comment.
       if (input.campaignId) {
-        // Aggregated from the real rows, not result.sent/result.failed (this
-        // call's own batch only) — a partially-deduped retry (H3) would
-        // otherwise overwrite the campaign's totals with just the new
-        // recipients' counts, losing an earlier attempt's already-sent tally.
-        await db.query(
-          `UPDATE sms_campaigns c
-           SET status='completed', completed_at=NOW(),
-               sent_count   = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'sent'),
-               failed_count = (SELECT count(*) FROM sms_usage_logs WHERE campaign_id = c.id AND status = 'failed')
-           WHERE id=$1`,
-          [input.campaignId],
-        );
+        await syncCampaignCompletion(db, input.campaignId);
       }
     });
 

@@ -1,7 +1,7 @@
 # Unified Messaging Architecture — Implementation Plan
 
 **Date:** 2026-08-06
-**Status:** Phase 1 shipped (PRs #33/#34). **Phase 2a shipped** (migration 123 — reservation, attribution, five paths unified). Decisions A and B resolved 2026-08-06 (§7); Decision C still open. Phase 2b (bundled allowance, then billing on) is next.
+**Status:** Phase 1 shipped (PRs #33/#34). **Phase 2a shipped** (migration 123 — reservation, attribution, five paths unified). Decisions A and B resolved 2026-08-06 (§7); Decision C still open. Phase 2b (bundled allowance, then billing on) is next. **Phase 3 item 10 shipped out of sequence, 2026-08-11** (§5, chunked QStash bulk-SMS dispatch) — pulled forward ahead of Phase 2b/4/5 because the Chama Reminder product ([`docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md`](../chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md)) depends on broadcast-scale SMS being safe before its portal (that report's Phase 4) ships.
 
 > **Phase 2a correction to §2 and §4.** Research during implementation found **five** send paths, not two: three OTP paths (`password-reset.service.ts`, `group-verification.service.ts`, `organization-members.service.ts`) called the provider directly with no billing, no consent check and **no log row at all**. They now write platform-funded rows via `sendServiceSms`.
 >
@@ -122,6 +122,8 @@ The architectural core. Requires Decision B (§7).
 ### Phase 3 — Reliability
 
 10. **H3** — per-recipient checkpointing in `handleSmsBulkSend`; fix `resetStuckJobs` (`lib/jobs/db.ts:41-51`) to increment `attempts` so retries are bounded.
+
+    > **Shipped 2026-08-11, out of sequence, ahead of Phase 2b/4/5.** `resetStuckJobs`'s bound (max_attempts) shipped earlier, per H3's own "partially fixed" note in the audit. The remaining re-billing-on-retry half is now closed differently than originally scoped: rather than a per-recipient checkpoint inside one long-running job, campaigns above 100 recipients split into 50-recipient chunks published to QStash (`lib/queue/qstash.ts`), each delivered as its own independent, retried call to `/api/v1/workers/sms-dispatch-chunk`. The idempotency key `sendBulkCampaign` needed (this item's own text: "a dispatch-level idempotency key, and `/sms/bulk` has no candidate today") is now `${jobId}:chunk:${chunkIndex}` — stable across both a QStash-level retry of one chunk and a job_queue-level retry of the whole publish loop. `sendBulkCampaign`'s `sms_campaigns.recipient_count`/`.status` writes were also fixed to aggregate across calls via `totalRecipientCount` (see `syncCampaignCompletion` in `sms.service.ts`) rather than assume one call is the whole campaign — required for chunking to report completion correctly, and covered by `__tests__/integration/sms-bulk-chunk-completion.test.ts`.
 11. **H6** — align chunked bulk responses on `clientSmsId` instead of array position.
 12. **M1** — platform-default rules pass `'system'` as `userId` → uuid cast failure (`trigger-engine.ts:227`). Currently masked by C1; it will surface the moment C1 is fixed. **Fix in Phase 1 or 3, not later.**
 13. **M5** — build a real opt-out write path. `smsService.optOut` has zero callers and `sms_group_settings` has 0 production rows, so members currently cannot opt out. Compliance-relevant.
@@ -197,3 +199,71 @@ They are recoverable (real provider message IDs; DLR is queryable). Cheap either
 - **Credit reservation changes failure semantics.** Today a failed send silently keeps the money; after reservation it returns it. That is correct but it is a real behavioural change to group balances.
 - **M1 is currently masked by C1.** Fixing C1 will expose it. Do not treat a green Phase 1 as proof the trigger engine works until a platform-default rule has dispatched successfully.
 - **Migrations are not auto-deployed here.** Any Phase 2/5 migration must be applied to production by hand and verified; a green Vercel deploy never proves schema is live.
+
+---
+
+## 9. Reconciled against a second pasted proposal — "QStash as the platform's standard async layer" (2026-08-11)
+
+A second pasted vision, arriving after Phase 3 item 10 shipped (§5), proposed QStash as the
+standard job/event layer for SMS, loan reminders, M-Pesa processing, contribution allocation,
+disbursements, all recurring jobs, and SMS billing — plus Upstash Workflow for multi-step
+processes. Checked against the codebase before adopting anything, per this doc's own §1 method.
+
+**Verdict: narrow adoption, same as §1's finding on the first proposal.** Most of what it asks
+for already exists, just not via QStash:
+
+- **"QStash may retry; the operation must be idempotent, enforced by Postgres uniqueness"** — not
+  new guidance, it's the pattern already in force: `mpesa_receipt_number`/`mpesa_transaction_id`
+  UNIQUE, `reminder_dispatch_log`'s `(reference_type, reference_id, reminder_stage)` UNIQUE +
+  claim/settle, `sms_trigger_executions`'s `ON CONFLICT (rule_id, event_id)`, and this doc's own
+  `${jobId}:chunk:${chunkIndex}` dispatch key (§5 item 10). Confirmation, not a new rule to add.
+- **"Persist raw → ack fast → process async → reconcile on callback"** for M-Pesa — already the
+  shape of `app/api/v1/mpesa/callback/route.ts`: `logMpesaCallback` durably persists before the
+  200-ack, `after()` runs processing in the background, and a failure marks the audit row for DLQ
+  replay instead of losing the event.
+- **Per-installment loan-reminder schedule with immutable per-stage job IDs** (`loan-due:
+  {installment_id}:D-3`, `:D-1`, `:D0`, `:D+3`) to stop a member being notified once per day —
+  **checked against `handleLoanDueAlerts` (`lib/jobs/handlers.ts:374`) and already solved**, by a
+  different mechanism than the proposal assumed. `reminder_stage` is computed as a *discrete*
+  CASE (`due_3_days` / `due_today` / `overdue_3_days` / `overdue_7_days` / `overdue_14_days`), not
+  a rolling "within N days" window, and `sendOnce()` dedupes per `(reference_type, reference_id,
+  reminder_stage)` — so a daily cron scanning the same pending installment for days only ever
+  fires each stage once, with no pre-scheduling needed at loan-creation time. **No change made
+  here** — pre-scheduling every stage as a separate job at creation time would be strictly worse:
+  it can't adapt when a loan is restructured, repaid early, or its due date changes, where the
+  current compute-stage-from-`due_date`-every-run approach self-corrects for free.
+- **A canonical idempotency-key string format** (`payment:{mpesa_receipt}`,
+  `disbursement:{disbursement_id}`, etc.) — **not adopted as proposed.** Every idempotency
+  boundary in this codebase already dedupes on a composite key (real typed/indexed DB columns, or
+  a DB-enforced UNIQUE constraint), which is strictly stronger than concatenating fields into one
+  string and parsing them back out. Collapsing `(reference_type, reference_id, reminder_stage)`
+  into a single colon-joined string would add a serialization layer for no correctness gain. The
+  convention actually in force, worth reusing verbatim for the next boundary that needs one:
+  compose the dedup key from the domain's own real columns (a composite UNIQUE index, or a
+  DB-generated stable id like `job_queue.id`), never a hand-built string, unless the target
+  system (like QStash's own `${jobId}:chunk:${chunkIndex}` message-level key) genuinely only
+  accepts a flat string.
+
+**One idea adopted as genuinely new: Upstash Workflow for the B2C disbursement flow.**
+`docs/audits/B2C_DISBURSEMENT_AUDIT.md` (34/100, 5 Critical) was the starting pointer, but is
+**stale on 4 of its 5 Criticals** — checked against the live code before planning anything, same
+discipline as everywhere else in this doc. `disbursements.service.ts`/`mpesa-spine.service.ts`
+(a "spine: reserve → maker-checker → dispatch" pipeline, per its own route comment) now enforce a
+required `Idempotency-Key` header (C2), an available-balance check and `reserved_amount` earmark
+before any Daraja call (C1), and second-officer approval with approver ≠ initiator (C3); Path A
+and Path B are the same call path (C4). This subsystem was rebuilt 2026-08-11 (see
+[[project_kitabu_yetu_settlements_vendor_payments]]), after the audit was written.
+
+**C5 alone is still live and verified current**: `runReconciliation()`
+(`mpesa-reconciliation.service.ts:108`) only sweeps `mpesa_stk_requests` — there is no equivalent
+sweep for `mpesa_b2c_transactions`. A B2C payout whose Result callback is dropped or delayed
+stays `initiated` forever with its true state unknown; `queryTransactionStatus`
+(`daraja.service.ts`) and its route/handler exist but are only invoked manually, never on a
+schedule against stuck B2C rows. This is the one gap Workflow's durable "wait for callback, with
+an explicit timeout that resumes into a status-query + reconcile step" genuinely closes, better
+than either today's callback-and-hope pattern or QStash's plain fire-and-retry messaging.
+**Scoped separately, not folded into this doc** — it's a disbursement-subsystem change targeting
+C5 specifically, not C1–C4 (already fixed) or the audit's other still-open items (per-group float
+segregation, H1 callback-origin verification, outbound DLQ/reporting), and per §8's own risk note
+it touches live money and needs `EnterPlanMode` + Explore agents before implementation, same as
+Phase 2 here.

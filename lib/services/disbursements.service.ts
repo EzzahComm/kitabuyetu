@@ -22,6 +22,7 @@ import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { getEffectiveThreshold } from './approval-policy.service';
+import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateDisbursementInput {
   loanId?:         string;
@@ -253,6 +254,16 @@ export const disbursementsService = {
  * do is guarantee the money never sits in an unknown state *silently*. Every
  * stuck row is logged (the paging signal) so a human reconciles it against
  * the daily Safaricom settlement report, per the audit's §11 recommendation.
+ *
+ * Also surfaces unreconciled 'timed_out' rows (the disbursement watchdog's
+ * own terminal state — lib/services/disbursement-watchdog.service.ts). This
+ * is required, not cosmetic: the moment the watchdog flips a row out of
+ * 'dispatched', it would otherwise silently vanish from this — the only
+ * existing mechanism anything queries for stuck payouts — trading "stuck
+ * forever, silently" for "resolved status, but now invisible to the one
+ * monitor that exists". A 'timed_out' row keeps paging every run until a
+ * human sets reconciled_at, same as a still-'dispatched' row keeps paging
+ * until it resolves.
  */
 export async function findStuckDisbursements(): Promise<{
   count: number;
@@ -265,8 +276,9 @@ export async function findStuckDisbursements(): Promise<{
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - dispatched_at)) / 60 AS age_minutes
        FROM   disbursement_requests
-       WHERE  status = 'dispatched'
-         AND  dispatched_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes'
+       WHERE  (status = 'dispatched'
+                AND dispatched_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes')
+          OR  (status = 'timed_out' AND reconciled_at IS NULL)
        ORDER  BY dispatched_at ASC
        LIMIT  20`,
     );
@@ -321,6 +333,12 @@ async function dispatchDisbursement(id: string): Promise<void> {
       disbursedBy: claimed.initiated_by,
       disbursementRequestId: claimed.id,
     });
+    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5): if Safaricom's
+    // result callback never lands, this bounds how long the row can sit
+    // 'dispatched' before being surfaced as 'timed_out' instead of silently
+    // stuck forever. Never blocks/fails a real dispatch that already
+    // succeeded — see triggerDisbursementWatchdog's own non-throwing contract.
+    await triggerDisbursementWatchdog({ kind: 'disbursement', rowId: claimed.id });
   } catch (err) {
     // The Daraja POST never landed — release the hold and mark failed so the
     // treasurer can see it and retry with a fresh idempotency key.

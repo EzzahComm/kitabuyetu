@@ -7,6 +7,7 @@
  */
 import type { Job } from './types';
 import { pool } from '@/lib/db';
+import { normalizePhone } from '@/lib/utils/phone';
 
 export interface HandlerResult {
   message:  string;
@@ -650,24 +651,39 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
 
 // ── SMS dispatch handler ──────────────────────────────────────
 
+// Above this many recipients, fan out via QStash instead of one in-process
+// loop — see the handler's own doc comment (SMS_MESSAGING_AUDIT_2026-08.md
+// H3 / SMS-007/SMS-015). 100 keeps a single-chunk (unchunked) campaign
+// comfortably inside the current provider-batch size (sendBulkCampaign's
+// own internal batchSize is 200) while giving genuinely large campaigns
+// real per-chunk isolation.
+const QSTASH_CHUNK_THRESHOLD = 100;
+const QSTASH_CHUNK_SIZE = 50;
+
 /**
  * Durable bulk/campaign SMS dispatch. Enqueued by /sms/bulk and /sms/campaign
  * so the provider calls survive serverless instance termination (the old
  * setImmediate path silently dropped them). Billing + opt-out + log creation
  * + provider dispatch all happen here, inside the retry-managed job.
  *
- * NOTE: a very large campaign still runs in a single job invocation. If that
- * invocation times out it is reset to pending and re-run, which re-bills and
- * re-sends the whole campaign (no per-recipient checkpoint yet) — chunking +
- * idempotency is tracked as SMS-015/SMS-007 and needs a dispatch-level
- * idempotency key, which /sms/bulk has no candidate for today (it carries no
- * campaign id). Scoped with the credit-reservation work in
- * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2/3.
+ * Chunking (closes SMS_MESSAGING_AUDIT_2026-08.md H3 / SMS-007/SMS-015 —
+ * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3 item 10):
+ * above QSTASH_CHUNK_THRESHOLD recipients, this handler's job changes from
+ * "dispatch every recipient" to "split into QSTASH_CHUNK_SIZE-recipient
+ * chunks and publish each to QStash" (lib/queue/qstash.ts) — each chunk is
+ * then delivered as its own independent call to /api/v1/workers/
+ * sms-dispatch-chunk, with QStash's own per-chunk retry/DLQ budget instead
+ * of one shared function-timeout for the whole campaign. If publishing
+ * itself throws partway through, this handler throws too and job_queue
+ * retries the WHOLE publish loop — safe because every chunk's dispatchKey
+ * is `${jobId}:chunk:${i}`, stable across retries of this job, so a
+ * chunk already delivered dedupes against itself exactly like the
+ * unchunked path already dedupes a retried job (H3 below).
  *
- * What *is* fixed: that re-run is now bounded. resetStuckJobs counts a timeout
- * as an attempt, so a campaign that never fits the function budget fails after
- * max_attempts instead of re-billing forever (SMS_MESSAGING_AUDIT_2026-08.md
- * H3). For current group sizes a single job is well within the function budget.
+ * Below the threshold — or when QStash isn't configured for this
+ * environment (see lib/queue/qstash.ts's header comment) — dispatch is
+ * unchanged: one direct sendBulkCampaign call, in-process, exactly as
+ * before this existed.
  */
 async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string): Promise<HandlerResult> {
   const { smsService, resolveRecipientVars } = await import('@/lib/services/sms.service');
@@ -700,17 +716,52 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     ? { type: 'organization' as const, organizationId: String(payload.payerOrganizationId) }
     : undefined;
 
+  const campaignId    = payload.campaignId    ? String(payload.campaignId)    : undefined;
+  const senderId       = payload.senderId      ? String(payload.senderId)      : undefined;
+  const timeToSend     = payload.timeToSend    ? String(payload.timeToSend)    : undefined;
+  const referenceType  = payload.referenceType ? String(payload.referenceType) : undefined;
+  const referenceId    = payload.referenceId   ? String(payload.referenceId)   : undefined;
+  const sentBy         = String(payload.sentBy ?? '');
+  const groupId        = String(payload.groupId);
+
+  const { isQstashConfigured, publishSmsChunk } = await import('@/lib/queue/qstash');
+
+  if (phones.length > QSTASH_CHUNK_THRESHOLD && isQstashConfigured()) {
+    // Normalized up front: varsByPhone (resolveRecipientVars) is keyed by
+    // normalizePhone() output, and sendBulkCampaign itself re-normalizes
+    // whatever it receives anyway (idempotent), so sending already-normalized
+    // numbers through the chunk payload changes nothing downstream — it just
+    // makes the varsByPhone.get(p) lookup below actually match.
+    const normalizedPhones = phones.map(normalizePhone);
+    const chunks: string[][] = [];
+    for (let i = 0; i < normalizedPhones.length; i += QSTASH_CHUNK_SIZE) chunks.push(normalizedPhones.slice(i, i + QSTASH_CHUNK_SIZE));
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkPhones = chunks[i];
+      const chunkVars = varsByPhone
+        ? Object.fromEntries(chunkPhones.flatMap((p) => (varsByPhone.has(p) ? [[p, varsByPhone.get(p)!]] : [])))
+        : undefined;
+
+      await publishSmsChunk({
+        jobId, chunkIndex: i, chunkCount: chunks.length,
+        groupId, campaignId, phones: chunkPhones, message,
+        senderId, timeToSend, referenceType, referenceId, sentBy,
+        totalRecipientCount: phones.length,
+        fundedBy:             payer?.type === 'organization' ? 'organization' : undefined,
+        payerOrganizationId:  payer?.type === 'organization' ? payer.organizationId : undefined,
+        varsByPhone: chunkVars,
+      });
+    }
+
+    return {
+      message: `SMS bulk send chunked (${chunks.length} chunks published, ${phones.length} recipients)`,
+      chunked: true, chunks: chunks.length, recipients: phones.length,
+    };
+  }
+
   const result = await smsService.sendBulkCampaign({
-    campaignId:    payload.campaignId    ? String(payload.campaignId)    : undefined,
-    phones,
-    message,
-    varsByPhone,
-    senderId:      payload.senderId      ? String(payload.senderId)      : undefined,
-    timeToSend:    payload.timeToSend    ? String(payload.timeToSend)    : undefined,
-    groupId:       String(payload.groupId),
-    sentBy:        String(payload.sentBy ?? ''),
-    referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
-    referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
+    campaignId, phones, message, varsByPhone,
+    senderId, timeToSend, groupId, sentBy, referenceType, referenceId,
     payer,
     // SMS_MESSAGING_AUDIT_2026-08.md H3 — job_queue.id is stable across
     // retries of the same job (only `attempts` changes), so it's a safe

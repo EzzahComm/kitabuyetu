@@ -130,9 +130,11 @@ Ordered so early phases are pure shared-platform fixes that pay off regardless o
 **Phase 0 — Decisions.** Resolve A, B, C above before any schema work.
 
 **Phase 1 — Shared-platform fixes (product-agnostic, safe to ship regardless of Phase 0's outcome).**
-- Finish birthday SMS: wire `sms_schedules.schedule_type = 'birthday'` processing into the scheduler, using `reminder_dispatch_log` for dedup (stage = the birthday year, so it can't re-fire twice in one year even across job retries) rather than the currently-inert `auto_send_birthday` boolean alone.
+- Finish birthday SMS: wire `sms_schedules.schedule_type = 'birthday'` processing into the scheduler, using `reminder_dispatch_log` for dedup (stage = the birthday year, so it can't re-fire twice in one year even across job retries) rather than the currently-inert `auto_send_birthday` boolean alone. **Shipped, PR #44.**
 - Fix `sendBirthdayEmails()` — it's currently broken; don't let a new SMS variant inherit the same bug blind.
-- Render templates in the bulk/scheduled send path (group-level vars pre-rendered before enqueue; per-recipient vars rendered inside `handleSmsBulkSend`'s loop).
+- Render templates in the bulk/scheduled send path (group-level vars pre-rendered before enqueue; per-recipient vars rendered inside `handleSmsBulkSend`'s loop). **Shipped, PR #44.**
+
+> **Additional Phase 1 shared-platform fix, shipped 2026-08-11 (pulled forward ahead of Phase 2):** chunked QStash bulk-SMS dispatch, closing `SMS_MESSAGING_AUDIT_2026-08.md` H3 (re-billing/re-sending a whole campaign on a single job timeout) — see `docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md` Phase 3 item 10 for the full design. Brought forward out of that doc's own sequence specifically for Chama Reminder: the product's core value is broadcast SMS at volumes existing Kitabu Yetu chamas don't reach, so the Phase 4 portal below should not ship against a bulk-send path with a known re-billing failure mode at scale.
 
 **Phase 2 — Product/entitlement model (per Decision A).** Migration widening the subscription uniqueness constraint to `(group, product)`, `product` enum/column, threading it through `register_group()`, `upgradePlan()`, `feature-flags.service.ts`'s plan-rank logic, and the admin groups-list filter.
 

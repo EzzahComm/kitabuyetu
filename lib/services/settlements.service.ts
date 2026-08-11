@@ -15,6 +15,7 @@ import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { recordApproval } from './settlement-approvals.service';
+import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateSettlementInput {
   bankAccountId:  string;
@@ -177,7 +178,12 @@ export const settlementsService = {
   },
 };
 
-/** Same shape as disbursements.service.ts's findStuckDisbursements. */
+/**
+ * Same shape as disbursements.service.ts's findStuckDisbursements, including
+ * the same requirement to also surface unreconciled 'timed_out' rows — see
+ * that function's own comment for why this isn't optional once the watchdog
+ * can write that status.
+ */
 export async function findStuckSettlements(): Promise<{
   count: number;
   samples: { id: string; groupId: string; amount: string; ageMinutes: number }[];
@@ -187,8 +193,9 @@ export async function findStuckSettlements(): Promise<{
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - requested_at)) / 60 AS age_minutes
        FROM   settlement_requests
-       WHERE  status = 'processing'
-         AND  requested_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes'
+       WHERE  (status = 'processing'
+                AND requested_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes')
+          OR  (status = 'timed_out' AND reconciled_at IS NULL)
        ORDER  BY requested_at ASC
        LIMIT  20`,
     );
@@ -243,6 +250,10 @@ async function dispatchSettlement(id: string): Promise<void> {
         [claimed.id, res.originatorConversationId],
       ),
     );
+    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to B2B —
+    // see disbursements.service.ts's dispatchDisbursement for the identical
+    // pattern). Never blocks/fails a dispatch that already succeeded.
+    await triggerDisbursementWatchdog({ kind: 'settlement', rowId: claimed.id });
   } catch (err) {
     logger.error('[settlements] dispatch failed before Daraja accepted the request', {
       settlementId: id, err: String(err),

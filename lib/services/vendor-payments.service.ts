@@ -15,6 +15,7 @@ import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { recordApproval } from './settlement-approvals.service';
+import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateVendorPaymentInput {
   channel:             'b2c' | 'b2b';
@@ -200,7 +201,12 @@ export const vendorPaymentsService = {
   },
 };
 
-/** Same shape as findStuckDisbursements / findStuckSettlements. */
+/**
+ * Same shape as findStuckDisbursements / findStuckSettlements, including the
+ * same requirement to also surface unreconciled 'timed_out' rows — see
+ * findStuckDisbursements' own comment for why this isn't optional once the
+ * watchdog can write that status.
+ */
 export async function findStuckVendorPayments(): Promise<{
   count: number;
   samples: { id: string; groupId: string; amount: string; ageMinutes: number }[];
@@ -210,8 +216,9 @@ export async function findStuckVendorPayments(): Promise<{
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - requested_at)) / 60 AS age_minutes
        FROM   vendor_payments
-       WHERE  status = 'processing'
-         AND  requested_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes'
+       WHERE  (status = 'processing'
+                AND requested_at BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '10 minutes')
+          OR  (status = 'timed_out' AND reconciled_at IS NULL)
        ORDER  BY requested_at ASC
        LIMIT  20`,
     );
@@ -284,6 +291,10 @@ async function dispatchVendorPayment(id: string): Promise<void> {
         [claimed.id, originatorConversationId],
       ),
     );
+    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to vendor
+    // payments — see disbursements.service.ts's dispatchDisbursement for the
+    // identical pattern). Never blocks/fails a dispatch that already succeeded.
+    await triggerDisbursementWatchdog({ kind: 'vendor_payment', rowId: claimed.id });
   } catch (err) {
     logger.error('[vendor-payments] dispatch failed before Daraja accepted the request', {
       vendorPaymentId: id, err: String(err),

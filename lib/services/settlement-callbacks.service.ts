@@ -20,6 +20,17 @@ import { logger } from '@/lib/logger';
 import { assertSafaricomIp } from './daraja.service';
 import { computeB2BCharge, computeB2CCharge } from './mpesa-charges.service';
 import { postSettlementSweepJournal, postVendorPaymentJournal } from './posting-templates.service';
+import { notifyDisbursementCallback } from '@/lib/queue/qstash';
+
+// What to tell the disbursement watchdog once a handler's transaction
+// commits — fired AFTER withAdminDb resolves, never from inside it. Same
+// "don't hold a FOR UPDATE lock open for a network call" reasoning as
+// mpesa-b2c.service.ts's handleB2CResult (see its own WatchdogNotifyInfo
+// comment for the full rationale).
+interface WatchdogNotifyInfo {
+  rowId:     string;
+  eventData: { status: 'failed' | 'completed'; failureReason?: string; receipt?: string | null };
+}
 
 interface DarajaResult {
   Result?: {
@@ -68,7 +79,7 @@ export async function handleSettlementB2BResult(
   if (!parsed) return;
   const rawBody = JSON.stringify(body);
 
-  await withAdminDb(async (db) => {
+  const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     const { rows } = await db.query<{
       id: string; group_id: string; amount: string;
     }>(
@@ -78,7 +89,7 @@ export async function handleSettlementB2BResult(
       [parsed.origId],
     );
     const row = rows[0];
-    if (!row) return; // not a settlement, or already settled (replayed callback)
+    if (!row) return undefined; // not a settlement, or already settled (replayed callback)
 
     if (!parsed.success) {
       await db.query(
@@ -94,7 +105,7 @@ export async function handleSettlementB2BResult(
         [row.group_id, parsed.origId, parsed.desc, String(parsed.code), rawBody],
       );
       await releaseCashReservation(db, row.group_id, row.amount);
-      return;
+      return { rowId: row.id, eventData: { status: 'failed', failureReason: parsed.desc } };
     }
 
     const amount = parseFloat(row.amount);
@@ -124,7 +135,12 @@ export async function handleSettlementB2BResult(
       [row.id, fee.toFixed(2)],
     );
     await releaseCashReservation(db, row.group_id, row.amount);
+    return { rowId: row.id, eventData: { status: 'completed', receipt: parsed.receipt } };
   });
+
+  if (watchdogNotify) {
+    await notifyDisbursementCallback('settlement', watchdogNotify.rowId, watchdogNotify.eventData);
+  }
 }
 
 /**
@@ -141,7 +157,7 @@ export async function handleVendorPaymentResult(
   if (!parsed) return;
   const rawBody = JSON.stringify(body);
 
-  await withAdminDb(async (db) => {
+  const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     const { rows } = await db.query<{
       id: string; group_id: string; amount: string; channel: 'b2c' | 'b2b';
       expense_account_code: string; payee_name: string;
@@ -153,7 +169,7 @@ export async function handleVendorPaymentResult(
       [parsed.origId],
     );
     const row = rows[0];
-    if (!row) return; // not a vendor payment, or already settled
+    if (!row) return undefined; // not a vendor payment, or already settled
 
     if (!parsed.success) {
       await db.query(
@@ -169,7 +185,7 @@ export async function handleVendorPaymentResult(
         [row.group_id, row.channel, parsed.origId, parsed.desc, String(parsed.code), rawBody],
       );
       await releaseCashReservation(db, row.group_id, row.amount);
-      return;
+      return { rowId: row.id, eventData: { status: 'failed', failureReason: parsed.desc } };
     }
 
     const amount = parseFloat(row.amount);
@@ -200,5 +216,10 @@ export async function handleVendorPaymentResult(
       [row.id, fee.toFixed(2)],
     );
     await releaseCashReservation(db, row.group_id, row.amount);
+    return { rowId: row.id, eventData: { status: 'completed', receipt: parsed.receipt } };
   });
+
+  if (watchdogNotify) {
+    await notifyDisbursementCallback('vendor_payment', watchdogNotify.rowId, watchdogNotify.eventData);
+  }
 }
