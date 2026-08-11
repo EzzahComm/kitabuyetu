@@ -4,7 +4,7 @@
  * is claimed (advanced under a row lock), and the send is enqueued on the *same*
  * transaction client as the claim, so the two commit together.
  */
-import { processDueSmsSchedules } from '@/lib/services/sms-scheduler.service';
+import { processDueSmsSchedules, processDueScheduledCampaigns } from '@/lib/services/sms-scheduler.service';
 import { enqueueJob } from '@/lib/jobs';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
 
@@ -20,9 +20,11 @@ jest.mock('@/lib/logger', () => ({
 type FakeClient = { query: jest.Mock };
 let clients: FakeClient[] = [];
 let claimResult: Array<{ occurrence: string }>;
+let campaignRows: Array<Record<string, unknown>>;
 const SCHEDULE = {
   id: 'sched-1',
   group_id: 'grp-1',
+  group_name: 'Umoja Chama',
   schedule_type: 'daily',
   message: 'Meeting reminder',
   template_body: null,
@@ -38,6 +40,7 @@ jest.mock('@/lib/db', () => ({
       query: jest.fn((sql: string) => {
         if (/FROM\s+sms_schedules s/i.test(sql)) return Promise.resolve({ rows: [SCHEDULE] });
         if (/WITH claimed/i.test(sql)) return Promise.resolve({ rows: claimResult });
+        if (/FROM\s+sms_campaigns c/i.test(sql)) return Promise.resolve({ rows: campaignRows });
         return Promise.resolve({ rows: [] });
       }),
     };
@@ -50,6 +53,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   clients = [];
   claimResult = [{ occurrence: '2026-07-11T08:00:00.000Z' }];
+  campaignRows = [];
+  SCHEDULE.message = 'Meeting reminder'; // tests mutate this; reset each run
   (resolveSmsRecipients as jest.Mock).mockResolvedValue(['254712345678']);
 });
 
@@ -91,6 +96,63 @@ describe('processDueSmsSchedules', () => {
     const res = await processDueSmsSchedules();
 
     expect(res).toEqual({ processed: 0, skipped: 1 });
+    expect(enqueueJob).not.toHaveBeenCalled();
+  });
+
+  it('pre-renders {{group_name}} but leaves per-recipient placeholders for the dispatch job', async () => {
+    SCHEDULE.message = 'Hi {{first_name}}, {{group_name}} meets tomorrow.';
+
+    await processDueSmsSchedules();
+
+    // {{first_name}} survives the enqueue on purpose — handleSmsBulkSend
+    // renders it per recipient against resolveRecipientVars()'s phone→member
+    // map, and strips whatever is still unresolved after that. Stripping it
+    // here would delete it before that step could ever resolve it.
+    expect(enqueueJob).toHaveBeenCalledWith(
+      'sms_bulk_send',
+      expect.objectContaining({ message: 'Hi {{first_name}}, Umoja Chama meets tomorrow.' }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+});
+
+describe('processDueScheduledCampaigns', () => {
+  const CAMPAIGN = {
+    id: 'camp-1',
+    group_id: 'grp-1',
+    group_name: 'Umoja Chama',
+    message: 'Reminder {{first_name}}: {{group_name}} dues are due.',
+    recipient_type: 'all_members',
+    raw_recipients: null,
+    created_by: 'user-1',
+    payer_type: 'group',
+    payer_organization_id: null,
+  };
+
+  it('pre-renders group_name but leaves per-recipient placeholders for the dispatch job', async () => {
+    campaignRows = [{ ...CAMPAIGN }];
+
+    const res = await processDueScheduledCampaigns();
+
+    expect(res).toEqual({ processed: 1 });
+    expect(enqueueJob).toHaveBeenCalledWith(
+      'sms_bulk_send',
+      expect.objectContaining({
+        campaignId: 'camp-1',
+        message:    'Reminder {{first_name}}: Umoja Chama dues are due.',
+      }),
+      expect.objectContaining({ dedup_key: 'sms_bulk_send:camp-1' }),
+    );
+  });
+
+  it('completes the campaign with zero counts when it resolves to no recipients', async () => {
+    campaignRows = [{ ...CAMPAIGN }];
+    (resolveSmsRecipients as jest.Mock).mockResolvedValue([]);
+
+    const res = await processDueScheduledCampaigns();
+
+    expect(res).toEqual({ processed: 0 });
     expect(enqueueJob).not.toHaveBeenCalled();
   });
 });

@@ -541,7 +541,10 @@ function SchedulesTab() {
 
   const schedules: SmsSchedule[] = data ?? [];
 
-  const SCHEDULE_TYPES = ['one_time', 'daily', 'weekly', 'monthly', 'birthday', 'loan_due'];
+  // 'birthday'/'loan_due' removed: those are dedicated global jobs
+  // (sms_birthday_reminders, notify_loan_due_alerts) now, not creatable
+  // schedule rows — see lib/validators/sms.schema.ts's ScheduleCreateSchema.
+  const SCHEDULE_TYPES = ['one_time', 'daily', 'weekly', 'monthly'];
 
   return (
     <div className="space-y-4">

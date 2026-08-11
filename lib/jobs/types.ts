@@ -23,6 +23,7 @@ export type JobType =
   | 'cleanup_expired_tokens'      // Remove expired refresh tokens (daily 02:00 UTC)
   | 'notify_loan_due_alerts'      // Loan repayment due/overdue alerts (daily 06:00 UTC)
   | 'notify_contribution_reminders' // Missed-contribution nudge (1st of month, 08:00 UTC)
+  | 'sms_birthday_reminders'      // Birthday SMS for opted-in groups (daily 07:00 UTC, alongside email_birthday)
   | 'outbox_dispatch'             // Drain the transactional event_outbox (every 5 min)
   | 'payment_orphan_monitor'      // Alert on completed payments stuck in allocation_status='received' (hourly)
   | 'disbursement_orphan_monitor' // Alert on B2C disbursements stuck 'dispatched' with no callback (hourly)

@@ -85,9 +85,18 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
     : 'failed';
   await withAdminDb((db) =>
     db.query(
+      // $2 is cast explicitly in BOTH the SET and the CASE below. Left
+      // implicit, node-pg's Parse message carries no type OIDs, so Postgres
+      // has to infer $2's type from context — and it sees two different
+      // contexts (the enum column, and a bare-string comparison in the CASE),
+      // which it refuses to unify: "inconsistent types deduced for parameter
+      // $2". This was live in production — notify_contribution_reminders
+      // failed outright (job_queue, 2026-08-01) the one time it actually
+      // reached a candidate; notify_loan_due_alerts happened to never hit it
+      // only because it never had a real candidate to settle either.
       `UPDATE reminder_dispatch_log
-       SET status=$2, channel=$3, reason=$4, attempts=attempts+1,
-           sent_at=CASE WHEN $2='sent' THEN NOW() ELSE sent_at END
+       SET status=$2::reminder_dispatch_status, channel=$3, reason=$4, attempts=attempts+1,
+           sent_at=CASE WHEN $2::reminder_dispatch_status='sent' THEN NOW() ELSE sent_at END
        WHERE id=$1 AND status IN ('pending','failed')`,
       [id, status, outcome.channel === 'none' ? null : outcome.channel, outcome.detail ?? null],
     ),
