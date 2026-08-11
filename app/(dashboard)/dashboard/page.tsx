@@ -17,10 +17,11 @@ import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
 import { QuickActions, type QuickAction } from '@/components/shared/quick-actions';
 import { useMembers } from '@/hooks/use-members';
-import { useContributions } from '@/hooks/use-contributions';
+import { useContributions, useRemindNonContributors } from '@/hooks/use-contributions';
 import { useLoans } from '@/hooks/use-loans';
 import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
+import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
 import { loansApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
@@ -33,8 +34,12 @@ interface TaskRowProps {
   count: number;
   label: string;
   preview?: string[];
-  href: string;
   cta: string;
+  /** Navigates — mutually exclusive with onAction. */
+  href?: string;
+  /** Runs in place instead of navigating (e.g. "Remind" sends SMS directly). */
+  onAction?: () => void;
+  loading?: boolean;
 }
 
 const toneMap = {
@@ -44,8 +49,20 @@ const toneMap = {
   amber:  { border: 'border-amber-200',  bg: 'bg-amber-50',  icon: 'text-amber-600',  text: 'text-amber-800',  sub: 'text-amber-700',  btn: 'border-amber-300' },
 } as const;
 
-function TaskRow({ icon: Icon, tone, count, label, preview, href, cta }: TaskRowProps) {
+function TaskRow({ icon: Icon, tone, count, label, preview, href, cta, onAction, loading }: TaskRowProps) {
   const c = toneMap[tone];
+  const button = (
+    <Button
+      size="sm"
+      variant="outline"
+      className={`h-7 text-xs ${c.btn} shrink-0`}
+      onClick={onAction}
+      loading={loading}
+      disabled={loading}
+    >
+      {cta}
+    </Button>
+  );
   return (
     <div className={`rounded-lg border ${c.border} ${c.bg} p-3`}>
       <div className="flex items-center justify-between gap-3">
@@ -55,11 +72,7 @@ function TaskRow({ icon: Icon, tone, count, label, preview, href, cta }: TaskRow
             <span className="font-bold">{count}</span> {label}
           </p>
         </div>
-        <Link href={href}>
-          <Button size="sm" variant="outline" className={`h-7 text-xs ${c.btn} shrink-0`}>
-            {cta}
-          </Button>
-        </Link>
+        {href ? <Link href={href}>{button}</Link> : button}
       </div>
       {preview && preview.length > 0 && (
         <div className="mt-2 space-y-0.5">
@@ -74,7 +87,9 @@ function TaskRow({ icon: Icon, tone, count, label, preview, href, cta }: TaskRow
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [stkOpen, setStkOpen] = useState(false);
+  const remindNonContributors = useRemindNonContributors();
 
   const { data: membersData, isLoading: loadingMembers, isError: errMembers, error: membersErr }             = useMembers({ page: 1, limit: 1 });
   const { data: contributionsData, isLoading: loadingContribs, isError: errContribs, error: contribsErr }     = useContributions({ page: 1, limit: 5 });
@@ -290,8 +305,17 @@ export default function DashboardPage() {
                   count={nonContrib!.count}
                   label="member(s) haven't contributed this month"
                   preview={nonContrib!.sample.map((m) => m.name)}
-                  href="/contributions"
                   cta="Remind"
+                  loading={remindNonContributors.isPending}
+                  onAction={() => remindNonContributors.mutate(undefined, {
+                    onSuccess: (res) => toast({
+                      title: 'Reminders sent',
+                      description: `${res.sent} sent${res.skipped ? `, ${res.skipped} already reminded this month` : ''}${res.failed ? `, ${res.failed} failed` : ''}`,
+                    }),
+                    onError: (err) => toast({
+                      variant: 'destructive', title: 'Failed to send reminders', description: getErrorMessage(err),
+                    }),
+                  })}
                 />
               )}
             </div>

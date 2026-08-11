@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const p  = new URL(req.url).searchParams;
     const data = await listSupportTickets({
       page:     parseInt(p.get('page')  ?? '1',  10),

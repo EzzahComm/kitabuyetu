@@ -8,6 +8,7 @@ import { postSystemJournal } from '@/lib/services/accounting.service';
 import {
   buildTemplateLines, postTemplatedJournal, postingTemplatesService,
   postLoanDisbursementJournal, postLoanRepaymentJournal,
+  postSettlementSweepJournal, postVendorPaymentJournal,
   DEFAULT_TEMPLATES, POSTING_EVENTS, type TemplateLine,
 } from '@/lib/services/posting-templates.service';
 import { ValidationError } from '@/lib/utils/errors';
@@ -340,5 +341,112 @@ describe('defaults', () => {
       expect(t.lines.some((l) => l.side === 'debit')).toBe(true);
       expect(t.lines.some((l) => l.side === 'credit')).toBe(true);
     }
+  });
+});
+
+// ─── Settlement sweep / vendor payment wrappers ──────────────────────────
+
+describe('postSettlementSweepJournal', () => {
+  beforeEach(() => {
+    (resolvePolicy as jest.Mock).mockResolvedValue(DEFAULT_TEMPLATES.settlement_sweep);
+  });
+
+  it('posts DR bank / CR cash and stamps the journal id onto the settlement', async () => {
+    // The fee lines reference BOTH 5001 and 1001, and the guard requires
+    // every referenced account to exist before posting the fee (same rule
+    // postLoanDisbursementJournal applies to its charge lines).
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] })
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE settlement_requests
+
+    const jeId = await postSettlementSweepJournal(mockClient as never, {
+      groupId: 'g1', settlementId: 'set-1', amount: 5000, fee: 20,
+      entryDate: '2026-08-11', createdBy: null,
+    });
+
+    expect(jeId).toBe('je-1');
+    const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
+    expect(lines).toEqual(expect.arrayContaining([
+      { accountCode: '1002', debit: 5000 },
+      { accountCode: '1001', credit: 5000 },
+      { accountCode: '5001', debit: 20 },
+      { accountCode: '1001', credit: 20 },
+    ]));
+
+    const update = mockQuery.mock.calls[1];
+    expect(String(update[0])).toContain('UPDATE settlement_requests');
+    expect(update[1]).toEqual(['je-1', 'set-1']);
+  });
+
+  it('drops just the fee lines when the fee account is missing (graceful degradation)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // fee account NOT in the group's chart
+      .mockResolvedValueOnce({ rows: [] });
+
+    await postSettlementSweepJournal(mockClient as never, {
+      groupId: 'g1', settlementId: 'set-1', amount: 5000, fee: 20,
+      entryDate: '2026-08-11', createdBy: null,
+    });
+
+    const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
+    expect(lines).toHaveLength(2); // principal only — the sweep still posts
+    expect(lines).toEqual(expect.arrayContaining([
+      { accountCode: '1002', debit: 5000 },
+      { accountCode: '1001', credit: 5000 },
+    ]));
+  });
+});
+
+describe('postVendorPaymentJournal', () => {
+  beforeEach(() => {
+    (resolvePolicy as jest.Mock).mockResolvedValue(DEFAULT_TEMPLATES.vendor_payment);
+  });
+
+  it('overrides the expense line with the row\'s own expense_account_code', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await postVendorPaymentJournal(mockClient as never, {
+      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000, fee: 10,
+      expenseAccountCode: '5010', entryDate: '2026-08-11', createdBy: null,
+    });
+
+    const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
+    // The main expense debit uses the per-row override, not the template's 5001.
+    expect(lines).toEqual(expect.arrayContaining([
+      { accountCode: '5010', debit: 1000 },
+      { accountCode: '1001', credit: 1000 },
+    ]));
+    // The fee line keeps the template's own account — the override is
+    // scoped to the payment's expense, not the Safaricom charge.
+    expect(lines).toEqual(expect.arrayContaining([{ accountCode: '5001', debit: 10 }]));
+  });
+
+  it('stamps the journal id onto the vendor payment row', async () => {
+    // No fee passed, so no fee-account lookup happens — the UPDATE is the
+    // only query.
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await postVendorPaymentJournal(mockClient as never, {
+      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000,
+      expenseAccountCode: '5001', entryDate: '2026-08-11', createdBy: null,
+    });
+
+    const update = mockQuery.mock.calls[mockQuery.mock.calls.length - 1];
+    expect(String(update[0])).toContain('UPDATE vendor_payments');
+    expect(update[1]).toEqual(['je-1', 'vp-1']);
+  });
+
+  it('returns null when the journal itself could not post', async () => {
+    (postSystemJournal as jest.Mock).mockResolvedValueOnce(null);
+    mockQuery.mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] });
+
+    const jeId = await postVendorPaymentJournal(mockClient as never, {
+      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000, fee: 10,
+      expenseAccountCode: '5001', entryDate: '2026-08-11', createdBy: null,
+    });
+
+    expect(jeId).toBeNull();
   });
 });

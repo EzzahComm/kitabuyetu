@@ -13,7 +13,7 @@ const querySchema = z.object({
 
 /** GET — active members of this group, for the member table on admin/groups/[id]. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;
     const parsed = querySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
