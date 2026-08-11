@@ -451,14 +451,63 @@ export const smsService = {
       timeToSend: input.timeToSend,
       clientSmsId: idx + 1,
     }));
+    // Built before the dispatch call (not after, as before) so the catch
+    // block below can attribute a thrown exception's rows back to phones too.
+    const phoneByLogId = new Map(logIds.map((id, i) => [id, eligible[i]]));
 
-    const result = await sendBulkSmsChunked(items);
+    let result: Awaited<ReturnType<typeof sendBulkSmsChunked>>;
+    try {
+      result = await sendBulkSmsChunked(items);
+    } catch (err) {
+      // The provider call never answered at all (network error, timeout, DNS
+      // failure) — distinct from a provider *rejection*, which
+      // sendBulkSmsChunked already resolves per-item without throwing.
+      // Previously uncaught here: the exception propagated out of
+      // sendBulkCampaign entirely, leaving every row in this batch at its
+      // INSERT default (status='queued', billing_state='reserved') — no
+      // sms_failures row, invisible to retryFailures(), and recoverable only
+      // ~15 minutes later when the stale-reservation sweeper released the
+      // credits without ever retrying the send itself
+      // (SMS_MESSAGING_AUDIT_2026-08.md H5's surviving half — the refund half
+      // is already covered by the reservation model, see settleReservation
+      // below and messaging-billing.ts's header comment).
+      logger.error('[sms] sendBulkCampaign dispatch error:', err);
+      const reason = err instanceof Error ? err.message : String(err);
+
+      await withAdminDb(async (db) => {
+        await db.query(
+          `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
+          [reason, logIds],
+        );
+        for (const logId of logIds) {
+          await db.query(
+            `INSERT INTO sms_failures
+               (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
+             VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
+            // -1: sentinel failure_code — there is no provider response to
+            // report, only a local/network exception.
+            [input.groupId, logId, phoneByLogId.get(logId)!, input.message, '-1', reason],
+          );
+        }
+        if (input.campaignId) {
+          await db.query(
+            `UPDATE sms_campaigns
+             SET status='completed', completed_at=NOW(), sent_count=0, failed_count=$2
+             WHERE id=$1`,
+            [input.campaignId, logIds.length],
+          );
+        }
+      });
+
+      // Nothing here is chargeable — return every reservation in this batch.
+      await settleReservation(logIds, 'release');
+      return { sent: 0, failed: logIds.length, logs: [] };
+    }
 
     // Align responses back to log rows by clientSmsId, not array position
     // (SMS_MESSAGING_AUDIT_2026-08.md H6) — see alignBulkResponses's own
     // comment for why positional indexing across chunked sends is unsafe.
-    const byLogId       = alignBulkResponses(result.responses, logIds);
-    const phoneByLogId  = new Map(logIds.map((id, i) => [id, eligible[i]]));
+    const byLogId = alignBulkResponses(result.responses, logIds);
 
     // Update log rows with provider response
     await withAdminDb(async (db) => {
@@ -957,15 +1006,26 @@ async function dispatchBatch(
     logger.info(`[sms] dispatched: ${sentIds.length} sent, ${failedIds.length} failed (group ${groupId})`);
   } catch (err) {
     logger.error('[sms] dispatchBatch error:', err);
+    const reason = err instanceof Error ? err.message : String(err);
     const { pool } = await import('@/lib/db');
     const client = await pool.connect();
     try {
       await client.query(
         `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
-        [String(err), logIds],
+        [reason, logIds],
       );
     } finally { client.release(); }
-    // The provider never confirmed acceptance, so nothing here is chargeable.
+    // The provider never confirmed acceptance, so nothing here is chargeable —
+    // the caller's settleReservation(failedIds, 'release') already returns the
+    // earmark. But unlike a provider *rejection* (handled per-row above via
+    // logFailure), this exception path previously wrote no sms_failures row at
+    // all, so it got no retry — SMS_MESSAGING_AUDIT_2026-08.md H5's surviving
+    // half (the refund half is already covered by the reservation model).
+    // -1 is a sentinel failure_code: there is no provider response to report,
+    // only a local/network exception.
+    for (let i = 0; i < logIds.length; i++) {
+      await logFailure(groupId, logIds[i], phones[i], message, -1, reason);
+    }
     return { sentIds: [], failedIds: logIds };
   }
 
