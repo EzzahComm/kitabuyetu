@@ -93,6 +93,80 @@ describe('TextSMS response normalization (C2)', () => {
     });
   });
 
+  /**
+   * Second live occurrence of the same bug class (2026-08-10): rows were
+   * again recorded 'failed' with failed_reason "Success" while carrying real
+   * provider_msg_id/network_id values — this time because only the
+   * misspelled `'respose-code'` key was ever read. A live getdlr/ probe on
+   * the same account returned a body keyed `"response-code"` (correctly
+   * spelled), so both spellings must resolve. The correctly-spelled cases
+   * below fail against the pre-fix code.
+   */
+  describe('response-code key spelling (2026-08-10 regression)', () => {
+    it('reads the correctly-spelled "response-code" key as success', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: {
+          responses: [{
+            'response-code':        '200',
+            'response-description': 'Success',
+            mobile:                 '254717548646',
+            messageid:              '800983636',
+            networkid:              '1',
+          }],
+        },
+      });
+
+      const res = await sendSingleSms({ mobile: '0717548646', message: 'hi' });
+      expect(res.success).toBe(true);
+      expect(res.responseCode).toBe(200);
+      expect(res.messageId).toBe('800983636');
+    });
+
+    it('reads a correctly-spelled error code as failure', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: {
+          responses: [{
+            'response-code':        1006,
+            'response-description': 'Invalid Credentials',
+            mobile:                 '254717548646',
+            messageid:              '',
+            networkid:              '',
+          }],
+        },
+      });
+
+      const res = await sendSingleSms({ mobile: '0717548646', message: 'hi' });
+      expect(res.success).toBe(false);
+      expect(res.responseCode).toBe(1006);
+    });
+
+    it('still reads the misspelled "respose-code" key (provider may send either)', async () => {
+      mockedAxios.post.mockResolvedValue({ data: { responses: [providerRow()] } });
+
+      const res = await sendSingleSms({ mobile: '0717548646', message: 'hi' });
+      expect(res.success).toBe(true);
+    });
+
+    it('counts correctly-spelled bulk rows as sent', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: {
+          responses: [
+            { 'response-code': '200', 'response-description': 'Success', mobile: '254717548646', messageid: '1', networkid: '1' },
+            { 'response-code': '1003', 'response-description': 'Invalid Mobile Number', mobile: '254717548647', messageid: '', networkid: '' },
+          ],
+        },
+      });
+
+      const res = await sendBulkSms([
+        { mobile: '0717548646', message: 'a' },
+        { mobile: '0717548647', message: 'b' },
+      ]);
+
+      expect(res.sent).toBe(1);
+      expect(res.failed).toBe(1);
+    });
+  });
+
   describe('sendBulkSms', () => {
     it('counts stringified "200" rows as sent, not failed', async () => {
       mockedAxios.post.mockResolvedValue({
