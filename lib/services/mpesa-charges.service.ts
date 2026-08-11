@@ -25,6 +25,21 @@ export async function computeB2CCharge(db: PoolClient, amount: number): Promise<
 }
 
 /**
+ * Same lookup, 'b2b' tier — added for the settlements/vendor-payments B2B
+ * flow (Bank Accounts / Settlements / Vendor Payments rebuild). The tier
+ * table already has 27 seeded 'b2b' rows (mig 047); only the wrapper was
+ * missing.
+ */
+export async function computeB2BCharge(db: PoolClient, amount: number): Promise<number> {
+  const { rows } = await db.query<{ charge: string | null }>(
+    `SELECT mpesa_charge_for_amount($1, 'b2b') AS charge`,
+    [amount.toFixed(2)],
+  );
+  const raw = rows[0]?.charge;
+  return raw != null ? parseFloat(raw) : 0;
+}
+
+/**
  * Records the Safaricom fee in mpesa_charges. Idempotent — the UNIQUE
  * (mpesa_transaction_id) constraint makes a duplicate callback a no-op.
  */

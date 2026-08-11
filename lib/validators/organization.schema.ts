@@ -62,6 +62,13 @@ const productTerms = {
   revenueShareRatio:   z.number().min(0).max(1).optional(),
   repaymentWaterfall:  RepaymentWaterfallSchema.optional(),
   memberVisibility:    z.enum(MEMBER_VISIBILITIES).optional(),
+  /**
+   * PERCENTAGE of the allocated amount, retained by the organization and
+   * deducted from what's disbursed (migration 125). Independent of
+   * isRepayable — a fee can apply to a grant too, so no superRefine
+   * cross-field rule ties it to the repayable branch below.
+   */
+  processingFeePct:    z.number().min(0).max(100).optional(),
 };
 
 export const CreateProgramSchema = z.object({

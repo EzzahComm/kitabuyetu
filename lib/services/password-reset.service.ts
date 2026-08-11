@@ -16,7 +16,7 @@ import { withAdminDb } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { ValidationError } from '@/lib/utils/errors';
 import { hashSecret, generateOtp } from './group-verification.service';
-import { sendSingleSms } from './textsms.service';
+import { sendServiceSms } from './notifications.service';
 import { BCRYPT_ROUNDS } from './members.service';
 
 const OTP_TTL_MINUTES = 10;
@@ -47,9 +47,17 @@ export async function startPasswordReset(phone: string): Promise<void> {
 
   if (!member) return; // no account for this phone — stay silent
 
-  await sendSingleSms({
-    mobile:  normalized,
-    message: `Your Kitabu Yetu password reset code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, ignore this SMS.`,
+  // sendServiceSms, not sendSingleSms: it writes a platform-funded ledger row
+  // (so the cost is visible) and never throws. The previous unguarded provider
+  // call was reachable only for phone numbers that DO exist — line 48 returns
+  // early otherwise — so a provider outage threw only for real accounts,
+  // contradicting this function's own "always resolves without error" contract
+  // and leaking account existence.
+  await sendServiceSms({
+    phone:    normalized,
+    memberId: member.id,
+    notificationType: 'auth_password_reset',
+    body: `Your Kitabu Yetu password reset code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, ignore this SMS.`,
   });
 }
 

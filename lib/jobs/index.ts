@@ -72,6 +72,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `sms_poll_dlr:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  // Recovers SMS credit earmarks orphaned by a crash between the provider call
+  // and the settle write. Low priority: correctness backstop, not time-critical.
+  queued.sms_release_stale_reservations = await safe('sms_release_stale_reservations', {}, {
+    priority:  3,
+    dedup_key: `sms_release_stale_reservations:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
   queued.mpesa_reconcile = await safe('mpesa_reconcile', {}, {
     priority:  10, // highest — payments are time-sensitive
     dedup_key: `mpesa_reconcile:${dateStr}T${hour}:${fiveMinBucket}`,
@@ -203,6 +210,20 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     queued.notify_loan_due_alerts = await safe('notify_loan_due_alerts', {}, {
       priority:  6,
       dedup_key: `notify_loan_due_alerts:${dateStr}`,
+    });
+  }
+
+  // ── 1st of month 01:00 UTC — SMS bundled-allowance monthly reset ─────
+  // Runs well before the 08:00 contribution-reminder sweep below, so that
+  // day's first billed sends see a freshly-reset allowance rather than the
+  // previous period's. Hour 1 is otherwise unused across this file, so this
+  // never competes with an existing monthly/daily bucket within the same
+  // tick (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
+  if (date === 1 && hour === 1) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.sms_allowance_monthly_reset = await safe('sms_allowance_monthly_reset', {}, {
+      priority:  4,
+      dedup_key: `sms_allowance_monthly_reset:${monthStr}`,
     });
   }
 

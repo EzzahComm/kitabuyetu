@@ -12,7 +12,7 @@ import { ok } from '@/lib/utils/response';
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     return ok(await withAdminDb((client) => loanPolicyService.getPlatformPolicy(client)));
   });
 }

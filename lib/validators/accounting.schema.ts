@@ -78,6 +78,7 @@ export const SetPostingTemplateSchema = z.object({
     'welfare_pool_contribution', 'dividend_declaration', 'dividend_payment',
     'subscription_payment', 'loan_writeoff',
     'loan_disbursement', 'loan_repayment',
+    'settlement_sweep', 'vendor_payment',
   ]),
   lines: z.array(z.object({
     accountCode: z.string().regex(/^\d{4}$/),

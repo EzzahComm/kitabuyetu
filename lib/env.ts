@@ -8,7 +8,9 @@
  */
 import { z } from 'zod';
 
-const envSchema = z.object({
+// Split from the cross-field `envSchema` below (which chains `.superRefine`)
+// so build-time parsing can read `.shape` directly — see `buildTimeEnv()`.
+const envObjectSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
 
   // ── App ──────────────────────────────────────────────────────────────────
@@ -86,7 +88,7 @@ const envSchema = z.object({
   // ── SMS (TextSMS Kenya — primary provider) ────────────────────────────────
   // All three required for production. Service falls back to dry_run when unset.
   TEXTSMS_API_KEY:    z.string().min(1, 'TEXTSMS_API_KEY is required'),
-  TEXTSMS_SENDER_ID: z.string().default('KitabuYetu'),
+  TEXTSMS_SENDER_ID: z.string().default('KITABU YETU'),
   TEXTSMS_PARTNER_ID: z.string().min(1, 'TEXTSMS_PARTNER_ID is required'),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────
@@ -191,7 +193,9 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-}).superRefine((data, ctx) => {
+});
+
+const envSchema = envObjectSchema.superRefine((data, ctx) => {
   // Production Daraja shortcodes ONLY accept HTTPS callback URLs.
   // Sandbox tolerates http:// (and ngrok plaintext tunnels), so we only
   // gate this in production.
@@ -231,17 +235,50 @@ function validateEnv(): Env {
   return result.data;
 }
 
-// Exported as a function so callers import `env` not `getEnv()`.
 // During Next.js build (NEXT_PHASE=phase-production-build) or when
-// SKIP_ENV_VALIDATION=1 is set, skip strict Zod validation so the build
-// succeeds without every production secret being present in the build env.
-// Real validation still runs at cold-start in the deployed runtime.
+// SKIP_ENV_VALIDATION=1 is set, every production secret isn't guaranteed to
+// be present in the build environment, so the full `envSchema` (required
+// fields + cross-field `.superRefine` checks that assume they're present)
+// can't run. But `next build`'s page-data-collection step imports every
+// route module, which evaluates any module-scope `env.X` read immediately —
+// so a field with a `.default()` (e.g. TEXTSMS_BASE_URL) still needs to
+// resolve to that default here, or callers reading it unguarded at module
+// scope crash the build the moment the var is unset in the build env.
+//
+// Relax only the fields that don't already have a `.default()`: wrap them in
+// `.optional()` so a missing required var parses to `undefined` (matching
+// the old raw-process.env fallback) without Zod erroring, while every
+// defaulted field keeps applying its default exactly as it would at runtime.
+function buildTimeEnv(): Env {
+  const relaxedShape = Object.fromEntries(
+    Object.entries(envObjectSchema.shape).map(([key, schema]) => [
+      key,
+      schema instanceof z.ZodDefault ? schema : (schema as z.ZodTypeAny).optional(),
+    ]),
+  );
+  const result = z.object(relaxedShape).safeParse(process.env);
+  if (!result.success) {
+    // A malformed (not just missing) var still gets flagged — as a warning,
+    // since throwing here would reintroduce the build failure this exists
+    // to avoid. Falls back to the pre-fix behavior for that one case.
+    const issues = result.error.issues
+      .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
+      .join('\n');
+    console.warn(`[env] build-time relaxed validation issues (non-fatal):\n${issues}`);
+    return process.env as unknown as Env;
+  }
+  return result.data as Env;
+}
+
+// Exported as a function so callers import `env` not `getEnv()`.
+// Real validation (all required fields + cross-field checks) still runs at
+// cold-start in the deployed runtime via validateEnv().
 export const env: Env = (() => {
   if (
     process.env.SKIP_ENV_VALIDATION === '1' ||
     process.env.NEXT_PHASE === 'phase-production-build'
   ) {
-    return process.env as unknown as Env;
+    return buildTimeEnv();
   }
   return validateEnv();
 })();

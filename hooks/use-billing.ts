@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { billingApi, mpesaApi } from '@/lib/api/endpoints';
+import { billingApi, mpesaApi, smsApi } from '@/lib/api/endpoints';
 import type { StkPushInput } from '@/lib/validators/mpesa.schema';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
 
 export const billingKeys = {
-  plans:    ['billing', 'plans'] as const,
-  invoices: ['billing', 'invoices'] as const,
+  plans:       ['billing', 'plans'] as const,
+  invoices:    ['billing', 'invoices'] as const,
+  smsCredits:  ['billing', 'sms-credits'] as const,
 };
 
 export function useBillingPlans() {
@@ -14,6 +15,10 @@ export function useBillingPlans() {
 
 export function useInvoices() {
   return useQuery({ queryKey: billingKeys.invoices, queryFn: billingApi.invoices });
+}
+
+export function useSmsCreditBalance() {
+  return useQuery({ queryKey: billingKeys.smsCredits, queryFn: smsApi.creditBalance });
 }
 
 export function useUpgradePlan() {

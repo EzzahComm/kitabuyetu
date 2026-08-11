@@ -61,7 +61,9 @@ export type PostingEvent =
   | 'subscription_payment'
   | 'loan_writeoff'
   | 'loan_disbursement'
-  | 'loan_repayment';
+  | 'loan_repayment'
+  | 'settlement_sweep'
+  | 'vendor_payment';
 
 export interface TemplateLine {
   accountCode: string;
@@ -127,6 +129,24 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1101', side: 'credit', amount: 'principal' },
     { accountCode: '1001', side: 'debit',  amount: 'interest' },
     { accountCode: '4002', side: 'credit', amount: 'interest' },
+  ]},
+  // Bank Accounts / Settlements / Vendor Payments rebuild. Matches migration
+  // 134's policies seed exactly — see postSettlementSweepJournal/
+  // postVendorPaymentJournal below for the wrapper functions.
+  settlement_sweep: { lines: [
+    { accountCode: '1002', side: 'debit',  amount: 'amount' },
+    { accountCode: '1001', side: 'credit', amount: 'amount' },
+    { accountCode: '5001', side: 'debit',  amount: 'fee' },
+    { accountCode: '1001', side: 'credit', amount: 'fee' },
+  ]},
+  // accountCode here is the *default* — postVendorPaymentJournal overrides
+  // the resolved expense-role line's account with the payment row's own
+  // expense_account_code before building lines (per-row, not per-tenant).
+  vendor_payment: { lines: [
+    { accountCode: '5001', side: 'debit',  amount: 'amount' },
+    { accountCode: '1001', side: 'credit', amount: 'amount' },
+    { accountCode: '5001', side: 'debit',  amount: 'fee' },
+    { accountCode: '1001', side: 'credit', amount: 'fee' },
   ]},
 };
 
@@ -297,6 +317,104 @@ export async function postLoanRepaymentJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.repaymentId]);
+  return jeId;
+}
+
+/**
+ * Posts a settlement sweep: DR Bank Account (1002) / CR Cash (1001), plus
+ * the Safaricom B2B fee (DR expense / CR cash), when a fee is passed and the
+ * resolved fee-role account exists — same graceful-degradation shape as
+ * postLoanDisbursementJournal's charge handling.
+ */
+export async function postSettlementSweepJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; settlementId: string; amount: number; fee?: number;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<string | null> {
+  const fee = args.fee ?? 0;
+  const template = await resolvePostingTemplate(client, 'settlement_sweep', { groupId: args.groupId });
+
+  let postFee = fee > 0;
+  if (postFee) {
+    const feeCodes = [...new Set(template.lines.filter((l) => l.amount === 'fee').map((l) => l.accountCode))];
+    const { rows } = await client.query<{ account_code: string }>(
+      `SELECT account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
+      [args.groupId, feeCodes],
+    );
+    postFee = rows.length === feeCodes.length;
+  }
+
+  const lines = buildTemplateLines(template, { amount: args.amount, fee: postFee ? fee : 0 });
+  if (lines.length === 0) return null;
+
+  const jeId = await postSystemJournal(
+    client, args.groupId, args.createdBy, `Settlement sweep — ${args.settlementId}`, lines,
+    {
+      reference:  args.reference ?? undefined,
+      entryDate:  toDateString(args.entryDate),
+      isTest:     args.isTest,
+    },
+  );
+  if (!jeId) return null;
+
+  await client.query(`UPDATE settlement_requests SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.settlementId]);
+  return jeId;
+}
+
+/**
+ * Posts a vendor payment: DR the row's own expense_account_code (per-row
+ * override, not a tenant-level template remap — resolved into the
+ * template's 'amount'-role line before building) / CR Cash, plus the same
+ * graceful-degradation fee handling as postSettlementSweepJournal.
+ *
+ * The override account was already validated to exist in the group's active
+ * chart at payment-creation time (vendor-payments.service.ts) — never
+ * deferred to here. If it was deactivated in between, postSystemJournal's
+ * all-or-nothing behavior drops the whole entry (not just the fee line,
+ * since expense is the main line) and this returns null; the caller logs
+ * that as a reconciliation gap rather than treating it as the payment
+ * itself failing (the money already moved via Daraja by the time this runs).
+ */
+export async function postVendorPaymentJournal(
+  client: PoolClient,
+  args: {
+    groupId: string; vendorPaymentId: string; amount: number; fee?: number;
+    expenseAccountCode: string;
+    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+  },
+): Promise<string | null> {
+  const fee = args.fee ?? 0;
+  const template = await resolvePostingTemplate(client, 'vendor_payment', { groupId: args.groupId });
+  const overriddenLines = template.lines.map((l) =>
+    l.amount === 'amount' && l.side === 'debit' ? { ...l, accountCode: args.expenseAccountCode } : l,
+  );
+
+  let postFee = fee > 0;
+  if (postFee) {
+    const feeCodes = [...new Set(overriddenLines.filter((l) => l.amount === 'fee').map((l) => l.accountCode))];
+    const { rows } = await client.query<{ account_code: string }>(
+      `SELECT account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
+      [args.groupId, feeCodes],
+    );
+    postFee = rows.length === feeCodes.length;
+  }
+
+  const lines = buildTemplateLines({ lines: overriddenLines }, { amount: args.amount, fee: postFee ? fee : 0 });
+  if (lines.length === 0) return null;
+
+  const jeId = await postSystemJournal(
+    client, args.groupId, args.createdBy, `Vendor payment — ${args.vendorPaymentId}`, lines,
+    {
+      reference:  args.reference ?? undefined,
+      entryDate:  toDateString(args.entryDate),
+      isTest:     args.isTest,
+    },
+  );
+  if (!jeId) return null;
+
+  await client.query(`UPDATE vendor_payments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.vendorPaymentId]);
   return jeId;
 }
 

@@ -24,6 +24,7 @@
 import { withAdminDb } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { logger } from '@/lib/logger';
+import { AppError } from '@/lib/utils/errors';
 import { smsService, resolveSmsRecipients, GROUP_PAYER, type SmsPayer } from '@/lib/services/sms.service';
 import { renderTemplate, stripUnresolved, DEFAULT_TEMPLATES } from './templates';
 import { evaluateCondition } from './conditions';
@@ -254,7 +255,20 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     );
     logger.info('[sms-trigger] sent', { rule: exec.name, recipients: logs.length });
   } catch (err) {
-    // Insufficient credits / inactive subscription / provider outage.
+    // Billing-configuration failures (insufficient credits, inactive
+    // subscription, no billing account — smsService.send's 402s, all thrown
+    // as AppError with statusCode 402) are deterministic: retrying with
+    // backoff can't fix "there is no money," it just re-attempts the same
+    // failure `max_retries` times before giving up anyway. Fail immediately
+    // instead — [PROVEN-PROD]: the payment.received rule for one group
+    // burned 4 attempts per event, 5 events in one evening, 100% "Insufficient
+    // SMS credits," zero of them ever going to reach a different outcome.
+    // Anything else here (provider outage, transient network error) still
+    // gets the normal retry/backoff below.
+    if (err instanceof AppError && err.statusCode === 402) {
+      logger.warn('[sms-trigger] billing failure — not retrying', { rule: exec.name, reason: err.message });
+      return settle(exec.execution_id, 'failed', err.message);
+    }
     await retryOrFail(exec, errText(err));
   }
 }

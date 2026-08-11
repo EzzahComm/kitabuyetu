@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,8 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
-import { useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa } from '@/hooks/use-billing';
+import {
+  useBillingPlans, useUpgradePlan, useStkPush, usePollMpesa, useSmsCreditBalance, billingKeys,
+} from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn, getErrorMessage } from '@/lib/utils';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
 
@@ -22,17 +25,31 @@ const PLANS: { type: PlanType; label: string; price: number; maxMembers: number;
   { type: 'enterprise', label: 'Enterprise', price: 8000,  maxMembers: 9999, features: ['All Growth features', 'Unlimited SMS', 'Enterprise portal', 'API access', 'Priority support'] },
 ];
 
+const SMS_TOPUP_PRESETS = [500, 1000, 2500, 5000];
+/** Below this many credits the balance card switches to a "Low balance" warning. */
+const LOW_SMS_CREDITS_THRESHOLD = 50;
+
+// One STK-push flow (phone entry → prompt → poll) is shared by both actions
+// this page can trigger — plan upgrade and SMS credit top-up — so there is
+// exactly one payment dialog, keyed off which action is pending.
+type PendingAction =
+  | { kind: 'plan';       planType: PlanType }
+  | { kind: 'sms_topup';  amount: number };
+
 export default function BillingPage() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const { data: billingData, isLoading } = useBillingPlans();
+  const { data: smsBalance, isLoading: smsBalanceLoading } = useSmsCreditBalance();
   const upgradePlan = useUpgradePlan();
   const stkPush     = useStkPush();
 
-  const [checkoutId, setCheckoutId]   = useState<string | null>(null);
-  const [polling, setPolling]         = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<PlanType | null>(null);
-  const [phone, setPhone]             = useState('');
-  const [mpesaOpen, setMpesaOpen]     = useState(false);
+  const [checkoutId, setCheckoutId]       = useState<string | null>(null);
+  const [polling, setPolling]             = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [phone, setPhone]                 = useState('');
+  const [mpesaOpen, setMpesaOpen]         = useState(false);
+  const [topupAmount, setTopupAmount]     = useState<number>(SMS_TOPUP_PRESETS[0]);
 
   const { data: mpesaStatus } = usePollMpesa(checkoutId, polling);
 
@@ -41,30 +58,43 @@ export default function BillingPage() {
   // status — this is the "subscribe to external system" pattern, not the
   // copy-data-to-state anti-pattern the rule normally guards against.
   useEffect(() => {
-    if (!mpesaStatus) return;
+    if (!mpesaStatus || !pendingAction) return;
     if (mpesaStatus.status === 'completed') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPolling(false);
       setMpesaOpen(false);
-      upgradePlan.mutate(pendingPlan!, {
-        onSuccess: () => toast({ title: 'Plan upgraded!', description: `Now on ${pendingPlan} plan` }),
-        onError:   (err) => toast({ variant: 'destructive', title: 'Upgrade failed', description: getErrorMessage(err) }),
-      });
+      if (pendingAction.kind === 'plan') {
+        upgradePlan.mutate(pendingAction.planType, {
+          onSuccess: () => toast({ title: 'Plan upgraded!', description: `Now on ${pendingAction.planType} plan` }),
+          onError:   (err) => toast({ variant: 'destructive', title: 'Upgrade failed', description: getErrorMessage(err) }),
+        });
+      } else {
+        // Crediting itself already happened server-side off the M-Pesa
+        // callback (mpesa/callback/route.ts → billingService.addSmsCredits) —
+        // nothing left to do here but refresh the balance and confirm.
+        qc.invalidateQueries({ queryKey: billingKeys.smsCredits });
+        toast({ title: 'Credits added', description: `KES ${pendingAction.amount.toLocaleString()} of SMS credits added to your balance` });
+      }
     } else if (mpesaStatus.status === 'failed') {
       setPolling(false);
       toast({ variant: 'destructive', title: 'Payment failed', description: 'M-Pesa payment was not completed' });
     }
-  }, [mpesaStatus, pendingPlan, toast, upgradePlan]);
+  }, [mpesaStatus, pendingAction, toast, upgradePlan, qc]);
 
   const handleSelectPlan = (planType: PlanType) => {
     if (planType === 'starter') return;
-    setPendingPlan(planType);
+    setPendingAction({ kind: 'plan', planType });
+    setMpesaOpen(true);
+  };
+
+  const handleBuySmsCredits = () => {
+    if (!topupAmount || topupAmount < 1) return;
+    setPendingAction({ kind: 'sms_topup', amount: Math.round(topupAmount) });
     setMpesaOpen(true);
   };
 
   const handleMpesaPay = async () => {
-    const plan = PLANS.find((p) => p.type === pendingPlan);
-    if (!plan || !phone) return;
+    if (!pendingAction || !phone) return;
     try {
       // StkPushSchema (app/api/v1/mpesa/stk-push/route.ts) requires
       // accountReference (<=12 chars) and description (<=20), and `purpose` is
@@ -72,13 +102,20 @@ export default function BillingPage() {
       // with purpose set to e.g. "Growth plan subscription", so it failed
       // validation three ways over and the M-Pesa subscription button 400'd on
       // every click. Found by the post-M3 client/server contract sweep.
-      const res = await stkPush.mutateAsync({
-        phone,
-        amount:           plan.price,
-        accountReference: 'SUBSCRIPT',
-        description:      `${plan.label} plan`.slice(0, 20),
-        purpose:          'subscription',
-      });
+      const payload = pendingAction.kind === 'plan'
+        ? {
+            amount:           PLANS.find((p) => p.type === pendingAction.planType)!.price,
+            accountReference: 'SUBSCRIPT',
+            description:      `${PLANS.find((p) => p.type === pendingAction.planType)!.label} plan`.slice(0, 20),
+            purpose:          'subscription' as const,
+          }
+        : {
+            amount:           pendingAction.amount,
+            accountReference: 'SMSTOPUP',
+            description:      'SMS credits top-up'.slice(0, 20),
+            purpose:          'sms_topup' as const,
+          };
+      const res = await stkPush.mutateAsync({ phone, ...payload });
       setCheckoutId(res.checkoutRequestId);
       setPolling(true);
     } catch (err) {
@@ -88,6 +125,11 @@ export default function BillingPage() {
 
   const current = billingData?.current;
   const currentPlanType = current?.planType ?? 'starter';
+
+  const smsCredits = smsBalance ? Number(smsBalance.credits) : null;
+  const smsRate    = smsBalance ? Number(smsBalance.rate) : null;
+  const smsKesValue = smsCredits != null && smsRate != null ? smsCredits * smsRate : null;
+  const smsLow = smsCredits != null && smsCredits < LOW_SMS_CREDITS_THRESHOLD;
 
   return (
     <div className="space-y-6">
@@ -137,6 +179,54 @@ export default function BillingPage() {
         })}
       </div>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare size={16} className="text-brand-500" />
+              SMS Credits
+            </CardTitle>
+            <CardDescription>Used for member notifications, reminders, and bulk campaigns.</CardDescription>
+          </div>
+          {smsLow && <Badge variant="warning">Low balance</Badge>}
+        </CardHeader>
+        <CardContent>
+          {smsBalanceLoading ? (
+            <div className="h-8 w-40 bg-muted rounded animate-pulse" />
+          ) : (
+            <p className="text-2xl font-bold text-foreground">
+              KES {smsKesValue != null ? smsKesValue.toFixed(2) : '0.00'}
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({smsCredits != null ? smsCredits.toFixed(0) : '0'} credits{smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
+              </span>
+            </p>
+          )}
+        </CardContent>
+        <CardFooter className="flex flex-wrap items-center gap-2">
+          {SMS_TOPUP_PRESETS.map((amt) => (
+            <Button
+              key={amt}
+              type="button"
+              size="sm"
+              variant={topupAmount === amt ? 'default' : 'outline'}
+              onClick={() => setTopupAmount(amt)}
+            >
+              KES {amt.toLocaleString()}
+            </Button>
+          ))}
+          <Input
+            type="number"
+            min={1}
+            value={topupAmount}
+            onChange={(e) => setTopupAmount(Number(e.target.value))}
+            className="w-28 h-9"
+          />
+          <Button className="ml-auto" onClick={handleBuySmsCredits}>
+            Buy via M-Pesa
+          </Button>
+        </CardFooter>
+      </Card>
+
       <Dialog open={mpesaOpen} onOpenChange={(o) => { if (!polling) setMpesaOpen(o); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -162,7 +252,12 @@ export default function BillingPage() {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   You will receive an M-Pesa prompt to pay{' '}
-                  <strong>KES {PLANS.find((p) => p.type === pendingPlan)?.price?.toLocaleString()}</strong>
+                  <strong>
+                    KES {(pendingAction?.kind === 'plan'
+                      ? PLANS.find((p) => p.type === pendingAction.planType)?.price
+                      : pendingAction?.amount
+                    )?.toLocaleString()}
+                  </strong>
                 </p>
                 <Button className="w-full" onClick={handleMpesaPay} loading={stkPush.isPending} disabled={!phone}>
                   Send M-Pesa prompt

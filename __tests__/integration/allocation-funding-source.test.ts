@@ -200,4 +200,133 @@ describe('allocation → group funding source', () => {
     );
     expect(g2Sources[0].is_repayable).toBe(true);
   });
+
+  describe('processing fee (migration 125) — deducted from what\'s disbursed', () => {
+    it('nets the fee out of wallet cash while the group owes the full gross principal', async () => {
+      const { groupId: g3 } = await createTestGroup('chairperson');
+      await rawQuery(
+        `INSERT INTO organization_group_access (organization_id, group_id, access_level, granted_by, is_active)
+         VALUES ($1, $2, 'read', $3, true) ON CONFLICT DO NOTHING`,
+        [orgId, g3, coordId],
+      );
+
+      const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {
+        name: 'Fee-bearing Seed Capital', programType: 'seed_capital', budget: 1_500_000,
+        isRepayable: true, interestMethod: 'flat', interestRateAnnual: 120,
+        repaymentFrequency: 'weekly', tenorMonths: 1,
+        repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] },
+        processingFeePct: 3,
+      });
+      await organizationFinanceService.deposit(orgCtx(coordId), { amount: 1_500_000, source: 'Cash' });
+
+      const before = await organizationFinanceService.getWallet(orgCtx(coordId));
+
+      // 1,030,928 grossed up so the NET lands at exactly 1,000,000 — the same
+      // trap flagged to the user: entering 1,000,000 under a 3% fee only
+      // nets 970,000, so a real operator entering "The Fionas get 1,000,000
+      // cash" must gross up. This test proves the math, not the UI prompt.
+      const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
+        groupId: g3, amount: 1_030_928, disbursementType: 'seed_capital',
+        fundingProgramId: fund.id, purpose: 'On-lending to members',
+      });
+      if (disb.status === 'pending_approval') {
+        await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
+      }
+
+      const [row] = await rawQuery<{
+        amount: string; processing_fee_pct: string; processing_fee_amount: string;
+        net_disbursed_amount: string;
+      }>(
+        `SELECT amount, processing_fee_pct, processing_fee_amount, net_disbursed_amount
+         FROM organization_disbursements WHERE id = $1`, [disb.id],
+      );
+      expect(parseFloat(row.processing_fee_pct)).toBe(3);
+      // 1,030,928 * 3% = 30,927.84
+      expect(parseFloat(row.processing_fee_amount)).toBeCloseTo(30_927.84, 2);
+      // Grossed-up amount minus the fee lands almost exactly on 1,000,000.
+      expect(parseFloat(row.net_disbursed_amount)).toBeCloseTo(1_000_000.16, 2);
+
+      // Wallet: net change in available_balance across request + settle is
+      // exactly -net (the fee portion never really left).
+      const after = await organizationFinanceService.getWallet(orgCtx(coordId));
+      const walletDelta = parseFloat(before.available_balance) - parseFloat(after.available_balance);
+      expect(walletDelta).toBeCloseTo(parseFloat(row.net_disbursed_amount), 2);
+      expect(parseFloat(after.committed_balance)).toBe(0);
+
+      // Group's own cash account reflects NET, not gross — the fee never
+      // reached the group.
+      const [groupCash] = await rawQuery<{ debit: string }>(
+        `SELECT jl.debit FROM journal_lines jl
+         JOIN accounts a ON a.id = jl.account_id
+         WHERE jl.group_id = $1 AND a.account_code = '1001'
+         ORDER BY jl.created_at DESC LIMIT 1`,
+        [g3],
+      );
+      expect(parseFloat(groupCash.debit)).toBeCloseTo(parseFloat(row.net_disbursed_amount), 2);
+
+      // The fee itself is recorded as an audit-trail ledger row.
+      const [feeEntry] = await rawQuery<{ direction: string; amount: string }>(
+        `SELECT direction, amount FROM organization_ledger
+         WHERE disbursement_id = $1 AND entry_type = 'fee'`, [disb.id],
+      );
+      expect(feeEntry.direction).toBe('credit');
+      expect(parseFloat(feeEntry.amount)).toBeCloseTo(30_927.84, 2);
+    });
+
+    it('a grant (non-repayable) can still carry a processing fee', async () => {
+      const { groupId: g4 } = await createTestGroup('chairperson');
+      await rawQuery(
+        `INSERT INTO organization_group_access (organization_id, group_id, access_level, granted_by, is_active)
+         VALUES ($1, $2, 'read', $3, true) ON CONFLICT DO NOTHING`,
+        [orgId, g4, coordId],
+      );
+
+      const grant = await organizationFinanceService.createProgram(orgCtx(coordId), {
+        name: 'Fee-bearing Grant', programType: 'grant', budget: 200_000,
+        processingFeePct: 2,
+      });
+      await organizationFinanceService.deposit(orgCtx(coordId), { amount: 200_000, source: 'Cash' });
+
+      const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
+        groupId: g4, amount: 50_000, disbursementType: 'grant', fundingProgramId: grant.id,
+      });
+      if (disb.status === 'pending_approval') {
+        await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
+      }
+
+      const [row] = await rawQuery<{ is_repayable: boolean; processing_fee_amount: string }>(
+        `SELECT is_repayable, processing_fee_amount FROM organization_disbursements WHERE id = $1`, [disb.id],
+      );
+      expect(row.is_repayable).toBe(false);
+      expect(parseFloat(row.processing_fee_amount)).toBe(1_000); // 50,000 * 2%
+    });
+
+    it('a product with no fee configured disburses at net === gross, unchanged from pre-125 behaviour', async () => {
+      const { groupId: g5 } = await createTestGroup('chairperson');
+      await rawQuery(
+        `INSERT INTO organization_group_access (organization_id, group_id, access_level, granted_by, is_active)
+         VALUES ($1, $2, 'read', $3, true) ON CONFLICT DO NOTHING`,
+        [orgId, g5, coordId],
+      );
+
+      const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {
+        name: 'No Fee Fund', programType: 'grant', budget: 100_000,
+      });
+      await organizationFinanceService.deposit(orgCtx(coordId), { amount: 100_000, source: 'Cash' });
+
+      const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
+        groupId: g5, amount: 40_000, disbursementType: 'grant', fundingProgramId: fund.id,
+      });
+      if (disb.status === 'pending_approval') {
+        await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
+      }
+
+      const [row] = await rawQuery<{ amount: string; net_disbursed_amount: string; processing_fee_amount: string }>(
+        `SELECT amount, net_disbursed_amount, processing_fee_amount FROM organization_disbursements WHERE id = $1`,
+        [disb.id],
+      );
+      expect(parseFloat(row.processing_fee_amount)).toBe(0);
+      expect(parseFloat(row.net_disbursed_amount)).toBe(parseFloat(row.amount));
+    });
+  });
 });

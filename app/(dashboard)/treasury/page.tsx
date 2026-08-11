@@ -2,18 +2,23 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wallet, Landmark, Receipt, RefreshCw } from 'lucide-react';
+import { Wallet, Landmark, Receipt, RefreshCw, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { StatCard } from '@/components/shared/stat-card';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ExpandableText } from '@/components/shared/expandable-text';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
+import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
-import { formatKES, formatDate, formatDateTime } from '@/lib/utils';
+import { formatKES, formatDate, formatDateTime, getErrorMessage } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +95,42 @@ interface ExternalFundingPage {
   totalReceived: string;
 }
 
+interface BankAccountRow {
+  id:             string;
+  bank_name:      string;
+  shortcode:      string;
+  account_number: string;
+  label:          string | null;
+  status:         'pending_approval' | 'active' | 'rejected' | 'disabled';
+  created_at:     string;
+  activated_at:   string | null;
+}
+
+interface SettlementRow {
+  id:                string;
+  bank_account_id:   string;
+  bank_name?:        string;
+  amount:            string;
+  status:            string;
+  requested_at:      string;
+  completed_at:      string | null;
+  failure_reason:    string | null;
+}
+
+interface VendorPaymentRow {
+  id:            string;
+  channel:       'b2c' | 'b2b';
+  payee_name:    string;
+  payee_phone:   string | null;
+  payee_shortcode: string | null;
+  payee_account: string | null;
+  amount:        string;
+  status:        string;
+  requested_at:  string;
+  completed_at:  string | null;
+  failure_reason: string | null;
+}
+
 // ─── API helpers — api.get / api.post return T directly ──────────────────────
 
 const fetchBalance      = () => api.get<BalanceResult | null>('/mpesa/balance');
@@ -162,7 +203,9 @@ const txColumns = [
 export default function TreasuryPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const [tab, setTab]   = useState<'transactions' | 'reconciliation' | 'reversals' | 'funding'>('transactions');
+  const [tab, setTab]   = useState<
+    'transactions' | 'reconciliation' | 'reversals' | 'funding' | 'bank-accounts' | 'settlements' | 'vendor-payments'
+  >('transactions');
   const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
 
   const balanceQ = useQuery({ queryKey: ['mpesa-balance'], queryFn: fetchBalance, staleTime: 60_000 });
@@ -225,6 +268,9 @@ export default function TreasuryPage() {
           <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
           <TabsTrigger value="reversals">Reversals</TabsTrigger>
           <TabsTrigger value="funding">External funding</TabsTrigger>
+          <TabsTrigger value="bank-accounts">Bank Accounts</TabsTrigger>
+          <TabsTrigger value="settlements">Settlements</TabsTrigger>
+          <TabsTrigger value="vendor-payments">Vendor Payments</TabsTrigger>
         </TabsList>
 
         {/* Transactions */}
@@ -357,7 +403,548 @@ export default function TreasuryPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="bank-accounts">
+          <BankAccountsTab />
+        </TabsContent>
+
+        <TabsContent value="settlements">
+          <SettlementsTab />
+        </TabsContent>
+
+        <TabsContent value="vendor-payments">
+          <VendorPaymentsTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ─── Bank Accounts tab ─────────────────────────────────────────────────────
+
+function BankAccountsTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [bankName, setBankName]     = useState('');
+  const [shortcode, setShortcode]   = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [label, setLabel]           = useState('');
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; action: 'activate' | 'disable' } | null>(null);
+  const [rejectTarget, setRejectTarget]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason]   = useState('');
+
+  const listQ = useQuery({
+    queryKey: ['treasury-bank-accounts'],
+    queryFn:  () => api.get<BankAccountRow[]>('/treasury/bank-accounts'),
+    staleTime: 30_000,
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['treasury-bank-accounts'] });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/treasury/bank-accounts', {
+      bankName, shortcode, accountNumber, label: label || undefined,
+    }),
+    onSuccess: () => {
+      setCreateOpen(false);
+      setBankName(''); setShortcode(''); setAccountNumber(''); setLabel('');
+      invalidate();
+      toast({ title: 'Bank account submitted', description: 'Awaiting a second officer’s activation.' });
+    },
+    onError: (err) => toast({ variant: 'destructive', title: 'Failed to add bank account', description: getErrorMessage(err) }),
+  });
+
+  const actionMut = useMutation({
+    mutationFn: (args: { id: string; action: 'activate' | 'reject' | 'disable'; reason?: string }) =>
+      api.post(`/treasury/bank-accounts/${args.id}`, { action: args.action, reason: args.reason }),
+    onSuccess: () => { invalidate(); toast({ title: 'Bank account updated' }); },
+    onError: (err) => toast({ variant: 'destructive', title: 'Action failed', description: getErrorMessage(err) }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={15} /> Add bank account</Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <PaginatedTable
+            data={singlePage(listQ.data)}
+            isLoading={listQ.isLoading}
+            isError={listQ.isError}
+            error={listQ.error}
+            onPageChange={() => {}}
+            emptyMessage="No bank accounts registered."
+            emptyDescription="Add one to enable M-Pesa float settlements to a real bank account."
+            columns={[
+              { key: 'bank_name', header: 'Bank', className: 'font-medium', render: (r: BankAccountRow) => r.bank_name },
+              { key: 'shortcode', header: 'Shortcode', className: 'font-mono text-xs', render: (r: BankAccountRow) => r.shortcode },
+              { key: 'account_number', header: 'Account No.', className: 'font-mono text-xs', render: (r: BankAccountRow) => r.account_number },
+              { key: 'label', header: 'Label', className: 'text-muted-foreground', render: (r: BankAccountRow) => r.label ?? '—' },
+              { key: 'status', header: 'Status', render: (r: BankAccountRow) => <StatusPill status={r.status} size="sm" /> },
+              { key: 'created_at', header: 'Added', className: 'text-muted-foreground', render: (r: BankAccountRow) => formatDate(r.created_at) },
+              {
+                key: 'actions', header: '', render: (r: BankAccountRow) => (
+                  <div className="flex gap-2 justify-end">
+                    {r.status === 'pending_approval' && (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmTarget({ id: r.id, action: 'activate' })}>
+                          Activate
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRejectTarget(r.id)}>
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {r.status === 'active' && (
+                      <Button size="sm" variant="outline" onClick={() => setConfirmTarget({ id: r.id, action: 'disable' })}>
+                        Disable
+                      </Button>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Add bank account</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Bank name</Label>
+              <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. Equity Bank" />
+            </div>
+            <div className="space-y-1">
+              <Label>Bank shortcode</Label>
+              <Input value={shortcode} onChange={(e) => setShortcode(e.target.value)} placeholder="e.g. 247247" />
+            </div>
+            <div className="space-y-1">
+              <Label>Account number</Label>
+              <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Label (optional)</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Main settlement account" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createMut.mutate()}
+              loading={createMut.isPending}
+              disabled={!bankName || !shortcode || !accountNumber}
+            >
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        onOpenChange={(o) => !o && setConfirmTarget(null)}
+        title={confirmTarget?.action === 'activate' ? 'Activate bank account' : 'Disable bank account'}
+        description={
+          confirmTarget?.action === 'activate'
+            ? 'This confirms the bank details are correct. Once active, this account becomes a valid settlement destination.'
+            : 'This account will no longer be available for new settlements.'
+        }
+        confirmLabel={confirmTarget?.action === 'activate' ? 'Activate' : 'Disable'}
+        onConfirm={async () => { if (confirmTarget) await actionMut.mutateAsync({ id: confirmTarget.id, action: confirmTarget.action }); }}
+      />
+
+      <ConfirmDialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(''); } }}
+        title="Reject bank account"
+        variant="danger"
+        description={
+          <div className="space-y-2">
+            <p>Why is this being rejected?</p>
+            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason" />
+          </div>
+        }
+        confirmLabel="Reject"
+        onConfirm={async () => { if (rejectTarget && rejectReason) await actionMut.mutateAsync({ id: rejectTarget, action: 'reject', reason: rejectReason }); }}
+      />
+    </div>
+  );
+}
+
+// ─── Settlements tab ───────────────────────────────────────────────────────
+
+/** Client-generated idempotency key — one per submit attempt, so a retry of
+ *  the SAME click reuses it while a fresh click gets a new one. */
+const newIdempotencyKey = () =>
+  (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+function SettlementsTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [bankAccountId, setBankAccountId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [approveTarget, setApproveTarget] = useState<SettlementRow | null>(null);
+  const [rejectTarget, setRejectTarget]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason]   = useState('');
+
+  const listQ = useQuery({
+    queryKey: ['treasury-settlements'],
+    queryFn:  () => api.get<SettlementRow[]>('/treasury/settlements'),
+    staleTime: 30_000,
+  });
+  const banksQ = useQuery({
+    queryKey: ['treasury-bank-accounts'],
+    queryFn:  () => api.get<BankAccountRow[]>('/treasury/bank-accounts'),
+    staleTime: 60_000,
+  });
+  const activeBanks = (banksQ.data ?? []).filter((b) => b.status === 'active');
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['treasury-settlements'] });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/treasury/settlements',
+      { bankAccountId, amount: Number(amount) },
+      { headers: { 'Idempotency-Key': newIdempotencyKey() } },
+    ),
+    onSuccess: () => {
+      setCreateOpen(false); setBankAccountId(''); setAmount('');
+      invalidate();
+      toast({ title: 'Settlement requested', description: 'Funds reserved — awaiting a second officer’s approval.' });
+    },
+    onError: (err) => toast({ variant: 'destructive', title: 'Failed to request settlement', description: getErrorMessage(err) }),
+  });
+
+  const actionMut = useMutation({
+    mutationFn: (args: { id: string; action: 'approve' | 'reject'; reason?: string }) =>
+      api.post(`/treasury/settlements/${args.id}`, { action: args.action, reason: args.reason }),
+    onSuccess: () => { invalidate(); toast({ title: 'Settlement updated' }); },
+    onError: (err) => toast({ variant: 'destructive', title: 'Action failed', description: getErrorMessage(err) }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => setCreateOpen(true)} disabled={activeBanks.length === 0}>
+          <Plus size={15} /> Request settlement
+        </Button>
+      </div>
+
+      {activeBanks.length === 0 && !banksQ.isLoading && (
+        <p className="text-sm text-muted-foreground bg-muted/40 border rounded-lg px-4 py-3">
+          Add and activate a bank account first — settlements can only be sent to an active destination.
+        </p>
+      )}
+
+      <Card>
+        <CardContent className="p-4">
+          <PaginatedTable
+            data={singlePage(listQ.data)}
+            isLoading={listQ.isLoading}
+            isError={listQ.isError}
+            error={listQ.error}
+            onPageChange={() => {}}
+            emptyMessage="No settlements yet."
+            emptyDescription="Sweep M-Pesa float to the group's bank account."
+            columns={[
+              { key: 'bank_name', header: 'Destination', className: 'font-medium', render: (r: SettlementRow) => r.bank_name ?? '—' },
+              { key: 'amount', header: 'Amount', className: 'font-medium', render: (r: SettlementRow) => formatKES(r.amount) },
+              { key: 'status', header: 'Status', render: (r: SettlementRow) => (
+                <div>
+                  <StatusPill status={r.status} size="sm" />
+                  {r.failure_reason && (
+                    <ExpandableText lines={2} className="text-[10px] text-destructive mt-0.5 max-w-[180px]">
+                      {r.failure_reason}
+                    </ExpandableText>
+                  )}
+                </div>
+              ) },
+              { key: 'requested_at', header: 'Requested', className: 'text-muted-foreground', render: (r: SettlementRow) => formatDate(r.requested_at) },
+              { key: 'completed_at', header: 'Completed', className: 'text-muted-foreground', render: (r: SettlementRow) => r.completed_at ? formatDate(r.completed_at) : '—' },
+              {
+                key: 'actions', header: '', render: (r: SettlementRow) => r.status === 'pending_approval' ? (
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => setApproveTarget(r)}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRejectTarget(r.id)}>Reject</Button>
+                  </div>
+                ) : null,
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Request settlement</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Destination bank account</Label>
+              <select
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={bankAccountId}
+                onChange={(e) => setBankAccountId(e.target.value)}
+              >
+                <option value="">Select an account…</option>
+                {activeBanks.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.bank_name} — {b.account_number}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Funds are reserved on request. The sweep only reaches M-Pesa after a
+              second officer approves.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createMut.mutate()}
+              loading={createMut.isPending}
+              disabled={!bankAccountId || !amount || Number(amount) <= 0}
+            >
+              Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <MoneyActionDialog
+        open={!!approveTarget}
+        onOpenChange={(o) => !o && setApproveTarget(null)}
+        title="Approve settlement"
+        amount={approveTarget ? Number(approveTarget.amount) : 0}
+        details={approveTarget ? [
+          { label: 'Destination', value: approveTarget.bank_name ?? '—' },
+          { label: 'Requested',   value: formatDate(approveTarget.requested_at) },
+        ] : []}
+        warning="Approving sends this sweep to M-Pesa immediately. It cannot be recalled."
+        confirmLabel="Approve & send"
+        onConfirm={async () => { if (approveTarget) await actionMut.mutateAsync({ id: approveTarget.id, action: 'approve' }); }}
+      />
+
+      <ConfirmDialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(''); } }}
+        title="Reject settlement"
+        variant="danger"
+        description={
+          <div className="space-y-2">
+            <p>Why is this being rejected? The reserved funds are released.</p>
+            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason (min 5 chars)" />
+          </div>
+        }
+        confirmLabel="Reject"
+        onConfirm={async () => { if (rejectTarget && rejectReason.length >= 5) await actionMut.mutateAsync({ id: rejectTarget, action: 'reject', reason: rejectReason }); }}
+      />
+    </div>
+  );
+}
+
+// ─── Vendor Payments tab ───────────────────────────────────────────────────
+
+function VendorPaymentsTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen]   = useState(false);
+  const [channel, setChannel]         = useState<'b2c' | 'b2b'>('b2c');
+  const [payeeName, setPayeeName]     = useState('');
+  const [payeePhone, setPayeePhone]   = useState('');
+  const [payeeShortcode, setPayeeShortcode] = useState('');
+  const [payeeAccount, setPayeeAccount]     = useState('');
+  const [amount, setAmount]           = useState('');
+  const [description, setDescription] = useState('');
+  const [approveTarget, setApproveTarget] = useState<VendorPaymentRow | null>(null);
+  const [rejectTarget, setRejectTarget]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason]   = useState('');
+
+  const listQ = useQuery({
+    queryKey: ['treasury-vendor-payments'],
+    queryFn:  () => api.get<VendorPaymentRow[]>('/treasury/vendor-payments'),
+    staleTime: 30_000,
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['treasury-vendor-payments'] });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/treasury/vendor-payments',
+      channel === 'b2c'
+        ? { channel, payeeName, payeePhone, amount: Number(amount), description: description || undefined }
+        : { channel, payeeName, payeeShortcode, payeeAccount, amount: Number(amount), description: description || undefined },
+      { headers: { 'Idempotency-Key': newIdempotencyKey() } },
+    ),
+    onSuccess: () => {
+      setCreateOpen(false);
+      setPayeeName(''); setPayeePhone(''); setPayeeShortcode(''); setPayeeAccount('');
+      setAmount(''); setDescription('');
+      invalidate();
+      toast({ title: 'Vendor payment requested', description: 'Funds reserved — awaiting a second officer’s approval.' });
+    },
+    onError: (err) => toast({ variant: 'destructive', title: 'Failed to request payment', description: getErrorMessage(err) }),
+  });
+
+  const actionMut = useMutation({
+    mutationFn: (args: { id: string; action: 'approve' | 'reject'; reason?: string }) =>
+      api.post(`/treasury/vendor-payments/${args.id}`, { action: args.action, reason: args.reason }),
+    onSuccess: () => { invalidate(); toast({ title: 'Vendor payment updated' }); },
+    onError: (err) => toast({ variant: 'destructive', title: 'Action failed', description: getErrorMessage(err) }),
+  });
+
+  const destination = (r: VendorPaymentRow) =>
+    r.channel === 'b2c' ? (r.payee_phone ?? '—') : `${r.payee_shortcode ?? '—'} / ${r.payee_account ?? '—'}`;
+
+  const canSubmit = payeeName && amount && Number(amount) > 0 &&
+    (channel === 'b2c' ? !!payeePhone : (!!payeeShortcode && !!payeeAccount));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={15} /> New vendor payment</Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <PaginatedTable
+            data={singlePage(listQ.data)}
+            isLoading={listQ.isLoading}
+            isError={listQ.isError}
+            error={listQ.error}
+            onPageChange={() => {}}
+            emptyMessage="No vendor payments yet."
+            emptyDescription="Pay suppliers directly from the group's M-Pesa float."
+            columns={[
+              { key: 'payee_name', header: 'Payee', className: 'font-medium', render: (r: VendorPaymentRow) => r.payee_name },
+              { key: 'channel', header: 'Channel', render: (r: VendorPaymentRow) => (
+                <Badge variant="outline" className="uppercase text-[10px]">{r.channel}</Badge>
+              ) },
+              { key: 'destination', header: 'Destination', className: 'font-mono text-xs', render: destination },
+              { key: 'amount', header: 'Amount', className: 'font-medium', render: (r: VendorPaymentRow) => formatKES(r.amount) },
+              { key: 'status', header: 'Status', render: (r: VendorPaymentRow) => (
+                <div>
+                  <StatusPill status={r.status} size="sm" />
+                  {r.failure_reason && (
+                    <ExpandableText lines={2} className="text-[10px] text-destructive mt-0.5 max-w-[180px]">
+                      {r.failure_reason}
+                    </ExpandableText>
+                  )}
+                </div>
+              ) },
+              { key: 'requested_at', header: 'Requested', className: 'text-muted-foreground', render: (r: VendorPaymentRow) => formatDate(r.requested_at) },
+              {
+                key: 'actions', header: '', render: (r: VendorPaymentRow) => r.status === 'pending_approval' ? (
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => setApproveTarget(r)}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRejectTarget(r.id)}>Reject</Button>
+                  </div>
+                ) : null,
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>New vendor payment</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Channel</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button" size="sm" className="flex-1"
+                  variant={channel === 'b2c' ? 'default' : 'outline'}
+                  onClick={() => setChannel('b2c')}
+                >
+                  Phone (B2C)
+                </Button>
+                <Button
+                  type="button" size="sm" className="flex-1"
+                  variant={channel === 'b2b' ? 'default' : 'outline'}
+                  onClick={() => setChannel('b2b')}
+                >
+                  Paybill / Till (B2B)
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Payee name</Label>
+              <Input value={payeeName} onChange={(e) => setPayeeName(e.target.value)} />
+            </div>
+            {channel === 'b2c' ? (
+              <div className="space-y-1">
+                <Label>Payee phone</Label>
+                <Input value={payeePhone} onChange={(e) => setPayeePhone(e.target.value)} placeholder="0712345678" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <Label>Paybill / Till shortcode</Label>
+                  <Input value={payeeShortcode} onChange={(e) => setPayeeShortcode(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Account number</Label>
+                  <Input value={payeeAccount} onChange={(e) => setPayeeAccount(e.target.value)} />
+                </div>
+              </>
+            )}
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Description (optional)</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => createMut.mutate()} loading={createMut.isPending} disabled={!canSubmit}>
+              Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <MoneyActionDialog
+        open={!!approveTarget}
+        onOpenChange={(o) => !o && setApproveTarget(null)}
+        title="Approve vendor payment"
+        amount={approveTarget ? Number(approveTarget.amount) : 0}
+        details={approveTarget ? [
+          { label: 'Payee',       value: approveTarget.payee_name },
+          { label: 'Channel',     value: approveTarget.channel.toUpperCase() },
+          { label: 'Destination', value: destination(approveTarget) },
+        ] : []}
+        warning="Approving sends this payment to M-Pesa immediately. It cannot be recalled."
+        confirmLabel="Approve & send"
+        onConfirm={async () => { if (approveTarget) await actionMut.mutateAsync({ id: approveTarget.id, action: 'approve' }); }}
+      />
+
+      <ConfirmDialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(''); } }}
+        title="Reject vendor payment"
+        variant="danger"
+        description={
+          <div className="space-y-2">
+            <p>Why is this being rejected? The reserved funds are released.</p>
+            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason (min 5 chars)" />
+          </div>
+        }
+        confirmLabel="Reject"
+        onConfirm={async () => { if (rejectTarget && rejectReason.length >= 5) await actionMut.mutateAsync({ id: rejectTarget, action: 'reject', reason: rejectReason }); }}
+      />
     </div>
   );
 }

@@ -75,7 +75,15 @@ export default function DisbursementsPage() {
   });
 
   const groups = groupsPage?.items ?? [];
-  const programs = (programsData as unknown as { items: { id: string; name: string; status: string }[] } | undefined)?.items ?? [];
+  const programs = (programsData as unknown as {
+    items: { id: string; name: string; status: string; processing_fee_pct: string | null }[];
+  } | undefined)?.items ?? [];
+  const selectedProgram = programs.find((p) => p.id === fundingProgramId);
+  const feePct = selectedProgram?.processing_fee_pct ? parseFloat(selectedProgram.processing_fee_pct) : 0;
+  const parsedAmountPreview = parseFloat(amount);
+  const netPreview = feePct > 0 && parsedAmountPreview > 0
+    ? parsedAmountPreview - Math.round(parsedAmountPreview * feePct) / 100
+    : null;
   const availableBalance = walletData ? parseFloat(walletData.wallet.available_balance) : null;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['enterprise', 'disbursements'] });
@@ -284,10 +292,20 @@ export default function DisbursementsPage() {
                 >
                   <option value="">None</option>
                   {programs.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.processing_fee_pct ? ` (${p.processing_fee_pct}% processing fee)` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
+            )}
+            {netPreview !== null && (
+              <p className="text-sm rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash
+                (KES {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) —
+                the branch still owes the full KES {parsedAmountPreview.toLocaleString()} as principal.
+                Enter a larger amount here if you need a specific net figure to reach the branch.
+              </p>
             )}
             <div className="space-y-1">
               <Label>Notes (optional)</Label>

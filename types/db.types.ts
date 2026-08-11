@@ -251,9 +251,13 @@ export interface Payment {
   updated_at:                Date;
 }
 
+/** Lifecycle of the credits attached to one message (migration 123). */
+export type SmsBillingState = 'none' | 'reserved' | 'consumed' | 'released';
+
 export interface SmsUsageLog {
   id:               string;
-  group_id:         string;
+  /** Null only on payer_type='platform' rows (auth/OTP sends belong to no group). */
+  group_id:         string | null;
   recipient_phone:  string;
   message_text:     string;
   status:           SmsStatus;
@@ -267,9 +271,18 @@ export interface SmsUsageLog {
   failed_reason:    string | null;
   reference_type:   string | null;
   reference_id:     string | null;
-  /** Who was billed. 'organization' rows always carry payer_organization_id (migration 051). */
-  payer_type:            'group' | 'organization';
+  /** Who was billed. 'organization' rows always carry payer_organization_id (migration 051). 'platform' rows can never carry a charge — enforced by CHECK. */
+  payer_type:            'group' | 'organization' | 'platform';
   payer_organization_id: string | null;
+  // ─── Attribution + reservation (migration 123) ───
+  member_id:         string | null;
+  notification_type: string | null;
+  correlation_id:    string | null;
+  channel:           string;
+  credits_reserved:  string;
+  billing_state:     SmsBillingState;
+  reserved_at:       Date | null;
+  settled_at:        Date | null;
   created_at:       Date;
   updated_at:       Date;
 }
