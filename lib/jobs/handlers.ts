@@ -285,14 +285,33 @@ async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
   return { message: 'Payment requests expiry sweep complete', ...result };
 }
 
+/**
+ * Stuck-payout monitor across every outbound money path. All three share the
+ * same limitation (Safaricom offers no generic "query by conversation ID"
+ * without a receipt), so none of them can auto-resolve — the job's job is to
+ * make sure money never sits in an unknown state *silently*. Each is logged
+ * by its own service; this handler aggregates the counts for the run record.
+ */
 async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
-  const { findStuckDisbursements } = await import('@/lib/services/disbursements.service');
-  const result = await findStuckDisbursements();
+  const { findStuckDisbursements }  = await import('@/lib/services/disbursements.service');
+  const { findStuckSettlements }    = await import('@/lib/services/settlements.service');
+  const { findStuckVendorPayments } = await import('@/lib/services/vendor-payments.service');
+
+  const [disbursements, settlements, vendorPayments] = await Promise.all([
+    findStuckDisbursements(),
+    findStuckSettlements(),
+    findStuckVendorPayments(),
+  ]);
+  const total = disbursements.count + settlements.count + vendorPayments.count;
+
   return {
-    message: result.count === 0
-      ? 'B2C disbursements: no stuck payouts'
-      : `B2C disbursements: ${result.count} STUCK payout(s) — investigate against the Safaricom statement`,
-    stuck: result.count,
+    message: total === 0
+      ? 'Outbound payments: no stuck payouts'
+      : `Outbound payments: ${total} STUCK payout(s) — investigate against the Safaricom statement`,
+    stuck:               total,
+    stuckDisbursements:  disbursements.count,
+    stuckSettlements:    settlements.count,
+    stuckVendorPayments: vendorPayments.count,
   };
 }
 
