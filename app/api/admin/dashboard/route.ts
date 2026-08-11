@@ -11,7 +11,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const url    = new URL(req.url);
     const widget = url.searchParams.get('widget');
 

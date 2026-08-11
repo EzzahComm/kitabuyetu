@@ -6,7 +6,7 @@ import { getBillingOverview } from '@/lib/services/admin.service';
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const data = await getBillingOverview();
     return ok(data);
   });

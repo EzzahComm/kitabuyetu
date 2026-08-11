@@ -1,7 +1,21 @@
 import { withDb, type TenantContext } from '@/lib/db';
-import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
+
+// PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
+// H3): the 3 call sites below used to fall back to `ctx.groupId` when
+// `ctx.organizationId` was absent. Not exploitable — on the
+// /api/v1/organization/* carve-out `ctx.groupId` is always the empty string
+// the proxy stamps, never client-influenced, so the fallback only ever
+// degraded to "0 rows match organization_id=''" — but it's a silent
+// wrong-answer rather than a loud one for a super_admin token minted with no
+// organizationId claim. Throws instead now, mirroring the identical
+// throw-on-missing helper already in organization-finance.service.ts.
+const orgId = (ctx: TenantContext): string => {
+  if (!ctx.organizationId) throw new ValidationError('Organization context is required');
+  return ctx.organizationId;
+};
 
 export interface OrganizationBranding {
   logoUrl:      string | null;
@@ -111,7 +125,7 @@ export const organizationService = {
     const limit = Math.min(500, Math.max(1, params.limit ?? 200));
 
     return withDb(ctx, async (client) => {
-      const orgId = ctx.organizationId ?? ctx.groupId;
+      const organizationId = orgId(ctx);
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
         client.query<{ n: string }>(
@@ -120,7 +134,7 @@ export const organizationService = {
            JOIN organization_group_access nga
              ON nga.group_id = g.id AND nga.organization_id = $1 AND nga.is_active = true
            WHERE g.is_active = true`,
-          [orgId],
+          [organizationId],
         ),
         client.query<OrganizationGroupSummary>(
           `SELECT
@@ -162,7 +176,7 @@ export const organizationService = {
            GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at
            ORDER BY g.name
            LIMIT $2 OFFSET $3`,
-          [orgId, limit, (page - 1) * limit],
+          [organizationId, limit, (page - 1) * limit],
         ),
       ]);
 
@@ -188,7 +202,7 @@ export const organizationService = {
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
-      const orgId = ctx.organizationId ?? ctx.groupId;
+      const organizationId = orgId(ctx);
       const searchPattern = search ? `%${search}%` : null;
       // Distinct placeholder numbering per query — the count query has no
       // limit/offset params, so `search` sits at a different position than
@@ -205,7 +219,7 @@ export const organizationService = {
              ON nga.group_id = g.id AND nga.organization_id = $1 AND nga.is_active = true
            JOIN members m ON m.id = gm.member_id
            WHERE g.is_active = true ${countSearchClause}`,
-          search ? [orgId, searchPattern] : [orgId],
+          search ? [organizationId, searchPattern] : [organizationId],
         ),
         client.query<OrganizationMemberRow>(
           `SELECT
@@ -228,8 +242,8 @@ export const organizationService = {
            ORDER BY m.first_name, m.last_name
            LIMIT $2 OFFSET $3`,
           search
-            ? [orgId, limit, (page - 1) * limit, searchPattern]
-            : [orgId, limit, (page - 1) * limit],
+            ? [organizationId, limit, (page - 1) * limit, searchPattern]
+            : [organizationId, limit, (page - 1) * limit],
         ),
       ]);
 
@@ -256,7 +270,7 @@ export const organizationService = {
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
-      const orgId = ctx.organizationId ?? ctx.groupId;
+      const organizationId = orgId(ctx);
       const searchClause = search ? `AND al.resource_type ILIKE $2` : '';
       const searchParam  = search ? [`%${search}%`] : [];
 
@@ -268,7 +282,7 @@ export const organizationService = {
              SELECT group_id FROM organization_group_access
              WHERE organization_id = $1 AND is_active = true
            ) ${searchClause}`,
-          [orgId, ...searchParam],
+          [organizationId, ...searchParam],
         ),
         client.query<OrganizationAuditLogRow>(
           `SELECT
@@ -290,7 +304,7 @@ export const organizationService = {
            ) ${searchClause}
            ORDER BY al.created_at DESC
            LIMIT $${search ? 3 : 2} OFFSET $${search ? 4 : 3}`,
-          [orgId, ...searchParam, limit, (page - 1) * limit],
+          [organizationId, ...searchParam, limit, (page - 1) * limit],
         ),
       ]);
 

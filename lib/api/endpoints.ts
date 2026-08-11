@@ -244,6 +244,8 @@ export const contributionsApi = {
     api.get<EffectiveSavingsLimits>('/contributions/policy'),
   setPolicy: (body: SetSavingsLimitsPayload) =>
     api.put<EffectiveSavingsLimits>('/contributions/policy', body),
+  remindNonContributors: () =>
+    api.post<{ attempted: number; sent: number; skipped: number; failed: number }>('/contributions/remind-non-contributors', {}),
 };
 
 // ------------------------------------------------------------------
@@ -350,6 +352,8 @@ export const smsApi = {
   // Provider balance
   providerBalance: () => api.get<SmsProviderBalance>('/sms/balance'),
   checkBalance:    () => api.post<SmsProviderBalance>('/sms/balance', {}),
+  // Tenant's own credit balance (distinct from the provider-wide balance above)
+  creditBalance:   () => api.get<{ credits: string; rate: string }>('/sms/credits'),
   // DLR
   dlr: (messageId: string) => api.get<unknown>(`/sms/dlr?messageId=${messageId}`),
   // Self-service opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — scoped to the

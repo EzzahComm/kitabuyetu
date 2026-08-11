@@ -13,13 +13,23 @@
 
 import axios from 'axios';
 import { normalizePhone } from '@/lib/utils/phone';
+import { env } from '@/lib/env';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
+//
+// Read through the validated `env` (lib/env.ts), not raw `process.env` with a
+// non-null assertion (SMS_MESSAGING_AUDIT_2026-08.md M6). TEXTSMS_API_KEY and
+// TEXTSMS_PARTNER_ID are both `z.string().min(1)` — required, not optional —
+// so this now fails fast at cold-start when unset, instead of silently
+// posting `"apikey": undefined` to the provider and surfacing as an opaque
+// 401/code-1006 far from the actual cause. TEXTSMS_SENDER_ID's Zod default
+// ('KITABU YETU', the registered sender ID) also replaces the second,
+// drifted default ('KITABU') that lived here.
 
-const BASE_URL   = (process.env.TEXTSMS_BASE_URL ?? 'https://sms.textsms.co.ke').replace(/\/$/, '');
-const API_KEY    = process.env.TEXTSMS_API_KEY!;
-const PARTNER_ID = process.env.TEXTSMS_PARTNER_ID!;
-const SENDER_ID  = process.env.TEXTSMS_SENDER_ID ?? 'KITABU';
+const BASE_URL   = env.TEXTSMS_BASE_URL.replace(/\/$/, '');
+const API_KEY    = env.TEXTSMS_API_KEY;
+const PARTNER_ID = env.TEXTSMS_PARTNER_ID;
+const SENDER_ID  = env.TEXTSMS_SENDER_ID;
 
 // ─── Response codes ───────────────────────────────────────────────────────────
 
@@ -72,13 +82,38 @@ function toResponseCode(raw: unknown): number {
 }
 
 /**
+ * A second, live occurrence of the C2 bug class (2026-08-10): every send
+ * through this file was being recorded 'failed' with failed_reason "Success"
+ * again, despite real provider_msg_id/network_id values — proving the
+ * request DID succeed and the response WAS being read (messageid/networkid
+ * parsed fine), just not the code field. Root cause this time: the code only
+ * ever checked the key spelled `'respose-code'` (missing the 'n') — asserted
+ * in the comment below as "the provider's own spelling" but never actually
+ * confirmed against a live send response, only against sms_delivery_reports'
+ * DLR payloads (a different endpoint). A direct read-only getdlr/ call made
+ * while diagnosing this (2026-08-10) returned a real error body keyed
+ * `"response-code"` — correctly spelled, matching `"response-description"`'s
+ * spelling — from the same live account. Checked both spellings below rather
+ * than assume the send endpoint is consistent with the DLR endpoint (no
+ * confirmed raw success payload for sendsms/sendbulk exists yet — see the
+ * follow-up note in SMS_MESSAGING_AUDIT_2026-08.md for capturing one).
+ */
+function extractResponseCode(row: Partial<ProviderResponseRow>): number {
+  const raw = row['response-code'] ?? row['respose-code'] ?? SYSTEM_ERROR;
+  return toResponseCode(raw);
+}
+
+/**
  * One entry in a TextSMS send response. Every field is typed as it arrives on
  * the wire, not as it reads — the provider stringifies its numerics, and typing
- * `respose-code` as `number` is what let C2 typecheck cleanly while being wrong
- * at runtime. `respose-code` is the provider's own spelling.
+ * the code field as `number` is what let C2 typecheck cleanly while being wrong
+ * at runtime. Both `'response-code'` and `'respose-code'` are accepted (see
+ * extractResponseCode) since which spelling a given response actually carries
+ * isn't fully confirmed yet.
  */
 interface ProviderResponseRow {
-  'respose-code':         number | string;
+  'response-code'?:       number | string;
+  'respose-code'?:        number | string;
   'response-description': string;
   mobile:                 string;
   messageid:              string | number;
@@ -181,7 +216,7 @@ export async function sendSingleSms(input: SingleSmsInput): Promise<SmsResponse>
   });
 
   const r    = data.responses?.[0];
-  const code = toResponseCode(r?.['respose-code'] ?? SYSTEM_ERROR);
+  const code = r ? extractResponseCode(r) : SYSTEM_ERROR;
 
   return {
     responseCode:        code,
@@ -215,7 +250,7 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
   });
 
   const responses: SmsResponse[] = (data.responses ?? []).map((r) => {
-    const code = toResponseCode(r['respose-code']);
+    const code = extractResponseCode(r);
     // clientsmsid is the provider's own numeric echo of the request item's
     // clientSmsId; Number(undefined) is NaN, so guard explicitly rather than
     // let an absent field silently become the number 0.
