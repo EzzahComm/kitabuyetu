@@ -8,8 +8,9 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
-import { initiateB2B } from '@/lib/services/daraja.service';
+import { initiateB2B, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleB2BResult } from '@/lib/services/mpesa.service';
+import { handleSettlementB2BResult, handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb } from '@/lib/db';
 import { toMpesaAmount } from '@/lib/utils/currency';
@@ -36,6 +37,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip   = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
+    // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
+    // callbacks carried no authenticity check at all until now — mirrors the
+    // B2C route's identical guard (daraja.service.ts's CALLBACK_TOKEN
+    // comment). Acked (not rejected) so a prober learns nothing.
+    if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+      logger.warn('[b2b callback] invalid or missing token — dropped', { type, ip });
+      return ack();
+    }
+
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
@@ -48,9 +58,22 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
+    // Three handlers, one callback: Daraja gives us only an
+    // OriginatorConversationID, and it may belong to mpesa_b2b_transactions,
+    // settlement_requests, or vendor_payments. Each handler is a safe no-op
+    // for a row it doesn't own (its own `WHERE originator_conversation_id`
+    // matches nothing), so calling all three is simpler and less brittle
+    // than a lookup-then-dispatch — and each is independently try/caught so
+    // one failing can't starve the others.
     after(async () => {
       try { await handleB2BResult(body, ip); }
       catch (err) { logger.error('[b2b result]', err); }
+
+      try { await handleSettlementB2BResult(body, ip); }
+      catch (err) { logger.error('[b2b result → settlement]', err); }
+
+      try { await handleVendorPaymentResult(body, ip); }
+      catch (err) { logger.error('[b2b result → vendor payment]', err); }
     });
     return ack();
   }

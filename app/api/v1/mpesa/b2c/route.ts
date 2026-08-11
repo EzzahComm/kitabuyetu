@@ -7,6 +7,7 @@ import {
   type B2CResultBody,
 } from '@/lib/services/mpesa.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
+import { handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
 import { isValidCallbackToken } from '@/lib/services/daraja.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
@@ -59,10 +60,18 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
+    // A vendor payment on the 'b2c' channel lands here rather than on the
+    // B2B route — same OriginatorConversationID correlation, different
+    // Daraja product. handleVendorPaymentResult is a safe no-op when the id
+    // isn't a vendor payment, so it can run unconditionally alongside the
+    // disbursement handler.
     after(async () => {
       try { await handleB2CResult(body, callerIp); } catch (err) {
         logger.error('[b2c result]', err);
       }
+
+      try { await handleVendorPaymentResult(body as unknown as Record<string, unknown>, callerIp); }
+      catch (err) { logger.error('[b2c result → vendor payment]', err); }
     });
     return ack();
   }

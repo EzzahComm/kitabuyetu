@@ -227,7 +227,7 @@ const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 function assertCallbackTokenConfigured(): void {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) {
     throw new Error(
-      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C ' +
+      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B ' +
       'Result/Timeout callbacks would carry no authenticity token.',
     );
   }
@@ -547,8 +547,16 @@ export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
     PartyB:                   input.receiverShortcode,
     AccountReference:         input.accountReference.slice(0, 20),
     Remarks:                  input.remarks.slice(0, 100),
-    QueueTimeOutURL:          `${CALLBACK_BASE}/api/v1/mpesa/b2b?type=timeout`,
-    ResultURL:                `${CALLBACK_BASE}/api/v1/mpesa/b2b?type=result`,
+    // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
+    // callbacks carried no authenticity token at all (unlike B2C, see the
+    // comment above CALLBACK_TOKEN) until now — closed before building
+    // settlement sweeps on top of B2B. Pre-deploy check required: confirm
+    // zero mpesa_b2b_transactions rows with status='initiated' before this
+    // ships, since any B2B call already dispatched before deploy has no
+    // token in its already-registered ResultURL and would be dropped by
+    // the now-enforcing route (app/api/v1/mpesa/b2b/route.ts).
+    QueueTimeOutURL:          withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2b?type=timeout`),
+    ResultURL:                withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2b?type=result`),
   };
   if (input.requester) payload.Requester = input.requester;
 
