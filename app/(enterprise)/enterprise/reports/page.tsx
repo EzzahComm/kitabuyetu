@@ -8,10 +8,13 @@
  * page for either.
  */
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileBarChart, TrendingUp, TrendingDown, Plus } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  FileBarChart, TrendingUp, TrendingDown, Plus, PauseCircle, PlayCircle, BookOpen,
+} from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { MoneyDisplay } from '@/components/shared/money-display';
+import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +24,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { cn, getErrorMessage } from '@/lib/utils';
+import { useHasOrganizationPermission } from '@/lib/auth/use-permission';
+import { cn, formatKES, getErrorMessage } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
 import { PROGRAM_TYPES } from '@/lib/validators/organization.schema';
 
@@ -36,11 +40,30 @@ function UtilizationBar({ pct }: { pct: number }) {
 }
 
 function BudgetReportTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const canManagePrograms = useHasOrganizationPermission();
   const { data, isLoading } = useQuery({
     queryKey: ['enterprise', 'reports', 'budget'],
     queryFn:  () => organizationApi.budgetReport(),
   });
   const items = data?.items ?? [];
+
+  // Pause/resume — the client typing this relies on (organizationApi
+  // .updateProgramStatus) replaces what used to be a raw, untyped
+  // api.patch('/organization/programs/:id', { status }) on the retired
+  // (dashboard)/organization Funding Portal page.
+  const toggleStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'active' | 'paused' }) =>
+      organizationApi.updateProgramStatus(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'budget'] });
+      qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'donor'] });
+      qc.invalidateQueries({ queryKey: ['enterprise', 'programs'] });
+      toast({ title: 'Program updated' });
+    },
+    onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: getErrorMessage(err) }),
+  });
 
   if (isLoading) {
     return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
@@ -65,9 +88,21 @@ function BudgetReportTab() {
                 <p className="font-medium text-foreground">{p.name}</p>
                 <p className="text-xs capitalize text-muted-foreground">{p.programType.replace(/_/g, ' ')} · {p.status}</p>
               </div>
-              <div className="text-right">
-                <MoneyDisplay amount={p.disbursed + p.reserved} size="sm" />
-                <p className="text-xs text-muted-foreground">of <MoneyDisplay amount={p.budget} size="sm" className="inline" /> budget</p>
+              <div className="flex items-start gap-2">
+                <div className="text-right">
+                  <MoneyDisplay amount={p.disbursed + p.reserved} size="sm" />
+                  <p className="text-xs text-muted-foreground">of <MoneyDisplay amount={p.budget} size="sm" className="inline" /> budget</p>
+                </div>
+                {canManagePrograms && (p.status === 'active' || p.status === 'paused') && (
+                  <Button
+                    size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0"
+                    title={p.status === 'active' ? 'Pause program' : 'Reactivate program'}
+                    disabled={toggleStatus.isPending}
+                    onClick={() => toggleStatus.mutate({ id: p.id, status: p.status === 'active' ? 'paused' : 'active' })}
+                  >
+                    {p.status === 'active' ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -152,6 +187,48 @@ function DonorSpendTab() {
         </Card>
       ))}
     </div>
+  );
+}
+
+/**
+ * The organization's own chart of accounts — deposits post to Cash/Donor
+ * Contributions, disbursements to Cash/Program Disbursements (see
+ * organization-accounting.service.ts). Ported from the retired
+ * (dashboard)/organization Funding Portal page, which was the only place
+ * this was previously visible.
+ */
+function TrialBalanceTab() {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['enterprise', 'accounting'],
+    queryFn:  () => organizationApi.accounting(),
+  });
+  const lines = data?.trialBalance ?? [];
+
+  if (isLoading) {
+    return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <PaginatedTable
+          data={singlePage(lines.map((line) => ({ ...line, id: line.accountCode })))}
+          isLoading={false}
+          isError={isError}
+          error={error}
+          onPageChange={() => {}}
+          emptyIcon={BookOpen}
+          emptyMessage="No activity posted yet"
+          emptyDescription="Your trial balance fills in once you record a deposit or disbursement."
+          columns={[
+            { key: 'accountCode', header: 'Code', className: 'font-mono text-xs text-muted-foreground', render: (line) => line.accountCode },
+            { key: 'accountName', header: 'Account', render: (line) => line.accountName },
+            { key: 'accountType', header: 'Type', className: 'text-xs capitalize text-muted-foreground', render: (line) => line.accountType },
+            { key: 'netBalance', header: 'Balance', className: 'text-right font-medium tabular-nums', render: (line) => formatKES(parseFloat(line.netBalance)) },
+          ]}
+        />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -269,7 +346,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Budget variance across your funding programs and spend broken down by donor."
+        description="Budget variance across your funding programs, spend broken down by donor, and your organization's own trial balance."
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Reports' }]}
         actions={
           <Button size="sm" onClick={() => setCreating(true)}>
@@ -282,12 +359,16 @@ export default function ReportsPage() {
         <TabsList>
           <TabsTrigger value="budget">Budget variance</TabsTrigger>
           <TabsTrigger value="donor">Donor spend</TabsTrigger>
+          <TabsTrigger value="trial">Trial balance</TabsTrigger>
         </TabsList>
         <TabsContent value="budget" className="mt-4">
           <BudgetReportTab />
         </TabsContent>
         <TabsContent value="donor" className="mt-4">
           <DonorSpendTab />
+        </TabsContent>
+        <TabsContent value="trial" className="mt-4">
+          <TrialBalanceTab />
         </TabsContent>
       </Tabs>
 
