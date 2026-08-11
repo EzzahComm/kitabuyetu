@@ -18,7 +18,8 @@ import type { CreateContributionPayload, UpdateContributionPayload, SetSavingsLi
 import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
 import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, TemplateUpdatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
 import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validators/billing.schema';
-import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload } from '@/lib/validators/organization.schema';
+import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput } from '@/lib/validators/organization.schema';
+import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
 import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
@@ -413,6 +414,15 @@ export const organizationApi = {
   deposit: (body: DepositPayload) => api.post<unknown>('/organization/wallet', body),
   programs: () => api.get<{ items: FundingProgram[] }>('/organization/programs'),
   createProgram: (body: CreateProgramPayload) => api.post<FundingProgram>('/organization/programs', body),
+  // Pause/resume a program. Typed here rather than left as a raw api.patch
+  // (which is how the retired (dashboard)/organization page called it) —
+  // an untyped body is exactly the drift trap CLIENT_SERVER_CONTRACT_AUDIT
+  // _2026-08.md documents, where a payload/schema mismatch is invisible to
+  // tsc and only surfaces as a 400 at runtime.
+  updateProgramStatus: (id: string, body: UpdateProgramStatusInput) =>
+    api.patch<FundingProgram>(`/organization/programs/${id}`, body),
+  // Organization's own trial balance (organization-accounting.service.ts).
+  accounting: () => api.get<{ trialBalance: OrgTrialBalanceLine[] }>('/organization/accounting'),
   // Note: this route returns {items,total,page,limit} (organization-finance
   // .service.ts's own listDisbursements shape), not the {pageSize,totalPages}
   // shape PaginatedResult<T> elsewhere in this file assumes.
