@@ -1,5 +1,6 @@
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
+import { DEFAULT_PRODUCT, type SubscriptionProduct } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
 
@@ -511,6 +512,12 @@ export interface GroupListParams {
   search?: string;
   status?: string;
   plan?:   string;
+  /**
+   * Which product's subscription the `plan`/`subscription_status` columns
+   * describe, and which the `plan` filter applies to. Defaults to kitabu_yetu,
+   * so the existing admin view is unchanged. Migration 127.
+   */
+  product?: SubscriptionProduct;
 }
 
 // Lists GROUPS (the platform tenants / chamas) for the admin portal. Named
@@ -521,8 +528,13 @@ export async function listGroups(params: GroupListParams) {
     const { page, limit, search, status, plan } = params;
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
-    const values: unknown[]    = [];
-    let   idx = 1;
+    // $1 is always the product, consumed by the subscription LATERAL below in
+    // BOTH the data and count queries — so it is pushed before any filter and
+    // filter placeholders start at $2, keeping the two queries' parameter
+    // lists identical (they already had to match; the count query reuses
+    // `values` verbatim).
+    const values: unknown[]    = [params.product ?? DEFAULT_PRODUCT];
+    let   idx = 2;
 
     if (search) {
       conditions.push(`(g.name ILIKE $${idx} OR g.registration_number ILIKE $${idx})`);
@@ -551,7 +563,17 @@ export async function listGroups(params: GroupListParams) {
           COALESCE(SUM(DISTINCT c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions,
           COALESCE(SUM(DISTINCT l.principal_amount) FILTER (WHERE l.status = 'active'), 0) AS active_loans
         FROM public.groups g
-        LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status = 'active'
+        -- LATERAL, not a plain LEFT JOIN: since migration 127 a group can hold
+        -- one active subscription per product, and s.plan_type is in the GROUP
+        -- BY below — so a plain join would emit one row PER PRODUCT and list
+        -- the same group twice, while the count query's COUNT(DISTINCT g.id)
+        -- kept counting it once, silently desynchronising the pagination.
+        -- Same shape the governance-health join below already uses.
+        LEFT JOIN LATERAL (
+          SELECT sub.plan_type, sub.status FROM public.subscriptions sub
+          WHERE sub.group_id = g.id AND sub.status = 'active' AND sub.product = $1
+          LIMIT 1
+        ) s ON true
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.status = 'active'
         LEFT JOIN public.contributions c ON c.group_id = g.id
         LEFT JOIN public.loans l ON l.group_id = g.id
@@ -567,7 +589,11 @@ export async function listGroups(params: GroupListParams) {
       db.query(`
         SELECT COUNT(DISTINCT g.id) AS total
         FROM public.groups g
-        LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status = 'active'
+        LEFT JOIN LATERAL (
+          SELECT sub.plan_type, sub.status FROM public.subscriptions sub
+          WHERE sub.group_id = g.id AND sub.status = 'active' AND sub.product = $1
+          LIMIT 1
+        ) s ON true
         ${where}
       `, values),
     ]);

@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const UpgradePlanSchema = z.object({
   planType: z.enum(['starter', 'growth', 'enterprise']),
+  // Migration 127. Optional and defaulted so every existing client body
+  // ({ planType }) keeps upgrading the Kitabu Yetu subscription exactly as it
+  // did; plan tiers are scoped within a product, not across them.
+  product:  z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
 });
 
 export const RecordManualPaymentSchema = z.object({

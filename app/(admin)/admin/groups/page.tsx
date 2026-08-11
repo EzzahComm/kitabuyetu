@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { useAdminGroups, useUpdateGroupStatus } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import type { SubscriptionProduct } from '@/types/enums';
 
 interface AdminGroupRow {
   id:                  string;
@@ -78,12 +79,17 @@ export default function GroupsPage() {
   const [search,   setSearch]   = useState('');
   const [status,   setStatus]   = useState('');
   const [plan,     setPlan]     = useState('');
+  // Which product the Plan column describes and the plan filter applies to.
+  // Not blank-able: every group has a product, so "all products" would mean
+  // showing a group once per product — exactly the duplication migration 127's
+  // LATERAL exists to prevent.
+  const [product,  setProduct]  = useState<SubscriptionProduct>('kitabu_yetu');
   const [confirm,  setConfirm]  = useState<{
     id: string; action: 'approve' | 'suspend' | 'activate' | 'deactivate'; name: string;
   } | null>(null);
   const [reason,   setReason]   = useState('');
 
-  const { data, isLoading, isError, error } = useAdminGroups({ page, limit: 25, search, status, plan });
+  const { data, isLoading, isError, error } = useAdminGroups({ page, limit: 25, search, status, plan, product });
   const updateStatus = useUpdateGroupStatus();
 
   const items: AdminGroupRow[] = data?.items ?? [];
@@ -137,6 +143,16 @@ export default function GroupsPage() {
             </select>
 
             <select
+              value={product}
+              onChange={(e) => { setProduct(e.target.value as SubscriptionProduct); setPage(1); }}
+              className="h-8 text-sm border border-input rounded-md px-2 bg-background"
+              aria-label="Product"
+            >
+              <option value="kitabu_yetu">Kitabu Yetu</option>
+              <option value="chama_reminder">Chama Reminder</option>
+            </select>
+
+            <select
               value={plan}
               onChange={(e) => { setPlan(e.target.value); setPage(1); }}
               className="h-8 text-sm border border-input rounded-md px-2 bg-background"
@@ -147,9 +163,11 @@ export default function GroupsPage() {
               <option value="enterprise">Enterprise</option>
             </select>
 
-            {(search || status || plan) && (
+            {(search || status || plan || product !== 'kitabu_yetu') && (
               <Button variant="ghost" size="sm" className="h-8 text-xs"
-                onClick={() => { setSearch(''); setStatus(''); setPlan(''); setPage(1); }}>
+                onClick={() => {
+                  setSearch(''); setStatus(''); setPlan(''); setProduct('kitabu_yetu'); setPage(1);
+                }}>
                 Clear
               </Button>
             )}

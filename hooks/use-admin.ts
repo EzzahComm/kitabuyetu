@@ -18,6 +18,7 @@ import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
+import type { SubscriptionProduct } from '@/types/enums';
 import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
@@ -139,13 +140,16 @@ export function useAdminRevenueTrend() {
 // ─────────────────────────────────────────────────────────────────────────────
 export function useAdminGroups(params: {
   page?: number; limit?: number; search?: string; status?: string; plan?: string;
+  /** Which product's plan the list shows and the `plan` filter applies to. */
+  product?: SubscriptionProduct;
 } = {}) {
   const p = new URLSearchParams();
-  if (params.page)   p.set('page',   String(params.page));
-  if (params.limit)  p.set('limit',  String(params.limit));
-  if (params.search) p.set('search', params.search);
-  if (params.status) p.set('status', params.status);
-  if (params.plan)   p.set('plan',   params.plan);
+  if (params.page)    p.set('page',    String(params.page));
+  if (params.limit)   p.set('limit',   String(params.limit));
+  if (params.search)  p.set('search',  params.search);
+  if (params.status)  p.set('status',  params.status);
+  if (params.plan)    p.set('plan',    params.plan);
+  if (params.product) p.set('product', params.product);
 
   return useQuery({
     queryKey: ['admin', 'groups', params],

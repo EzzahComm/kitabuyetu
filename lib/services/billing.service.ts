@@ -1,18 +1,32 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
-import { PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES, type PlanType } from '@/types/enums';
+import {
+  PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES, DEFAULT_PRODUCT,
+  type PlanType, type SubscriptionProduct, type PlanFeatures,
+} from '@/types/enums';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
 
+/**
+ * Every method here takes an optional `product`, defaulting to kitabu_yetu, so
+ * existing callers are unchanged. Since migration 127 a group can hold one
+ * ACTIVE subscription *per product*, which makes the bare
+ * `WHERE group_id = $1 AND status = 'active' LIMIT 1` these methods used to
+ * share an arbitrary pick rather than a lookup.
+ */
 export const billingService = {
 
-  async getSubscription(ctx: TenantContext): Promise<Subscription | null> {
+  async getSubscription(
+    ctx: TenantContext,
+    product: SubscriptionProduct = DEFAULT_PRODUCT,
+  ): Promise<Subscription | null> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<Subscription>(
-        `SELECT * FROM subscriptions WHERE group_id = $1 AND status = 'active' LIMIT 1`,
-        [ctx.groupId],
+        `SELECT * FROM subscriptions
+         WHERE group_id = $1 AND product = $2 AND status = 'active' LIMIT 1`,
+        [ctx.groupId, product],
       );
       return rows[0] ?? null;
     });
@@ -29,7 +43,11 @@ export const billingService = {
     });
   },
 
-  async createStarterSubscription(ctx: TenantContext, client: PoolClient): Promise<Subscription> {
+  async createStarterSubscription(
+    ctx: TenantContext,
+    client: PoolClient,
+    product: SubscriptionProduct = DEFAULT_PRODUCT,
+  ): Promise<Subscription> {
     // Called after group registration — provisions Starter plan + billing account
     await client.query<BillingAccount>(
       `INSERT INTO billing_accounts (group_id) VALUES ($1)
@@ -37,54 +55,71 @@ export const billingService = {
       [ctx.groupId],
     );
 
+    // The bare ON CONFLICT DO NOTHING (no target) still works across migration
+    // 127: it fires on whichever unique constraint is violated, which is now
+    // the wider (group_id, product) one.
     const { rows: sub } = await client.query<Subscription>(
       `INSERT INTO subscriptions
-         (group_id, plan_type, status, started_at, monthly_fee, sms_rate, max_members)
-       VALUES ($1, 'starter', 'active', NOW(), 0, $2, NULL)
+         (group_id, product, plan_type, status, started_at, monthly_fee, sms_rate, max_members)
+       VALUES ($1, $2, 'starter', 'active', NOW(), 0, $3, NULL)
        ON CONFLICT DO NOTHING
        RETURNING *`,
-      [ctx.groupId, SMS_RATES.starter(0).toFixed(4)],
+      [ctx.groupId, product, SMS_RATES[product].starter(0).toFixed(4)],
     );
     // ON CONFLICT DO NOTHING returns no rows when a subscription already exists.
     // In that case, fetch the existing active subscription instead.
     if (sub[0]) return sub[0];
     const { rows: existing } = await client.query<Subscription>(
-      `SELECT * FROM subscriptions WHERE group_id = $1 AND status = 'active' LIMIT 1`,
-      [ctx.groupId],
+      `SELECT * FROM subscriptions
+       WHERE group_id = $1 AND product = $2 AND status = 'active' LIMIT 1`,
+      [ctx.groupId, product],
     );
     return existing[0];
   },
 
-  async upgradePlan(ctx: TenantContext, planType: PlanType): Promise<Subscription> {
+  async upgradePlan(
+    ctx: TenantContext,
+    planType: PlanType,
+    product: SubscriptionProduct = DEFAULT_PRODUCT,
+  ): Promise<Subscription> {
     return withTransaction(ctx, async (client) => {
-      // Expire current subscription
+      // Expire the current subscription FOR THIS PRODUCT ONLY. Without the
+      // product predicate this cancelled every active row the group had, so
+      // upgrading Kitabu Yetu would silently cancel the group's Chama Reminder
+      // subscription — and the INSERT below would then be the only active row
+      // left, with no trace of what was destroyed.
       await client.query(
         `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW()
-         WHERE group_id = $1 AND status = 'active'`,
-        [ctx.groupId],
+         WHERE group_id = $1 AND product = $2 AND status = 'active'`,
+        [ctx.groupId, product],
       );
 
-      const fee        = PLAN_MONTHLY_FEES[planType];
-      const smsRate    = SMS_RATES[planType](0);
-      const maxMembers = PLAN_FEATURES[planType].maxMembers;
+      const fee        = PLAN_MONTHLY_FEES[product][planType];
+      const smsRate    = SMS_RATES[product][planType](0);
+      const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
       const { rows } = await client.query<Subscription>(
         `INSERT INTO subscriptions
-           (group_id, plan_type, status, started_at, next_billing_date, monthly_fee, sms_rate, max_members)
-         VALUES ($1,$2,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $3,$4,$5)
+           (group_id, product, plan_type, status, started_at, next_billing_date, monthly_fee, sms_rate, max_members)
+         VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6)
          RETURNING *`,
-        [ctx.groupId, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers],
+        [ctx.groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers],
       );
       return rows[0];
     });
   },
 
-  async assertFeatureAccess(ctx: TenantContext, feature: keyof typeof PLAN_FEATURES['starter']): Promise<void> {
-    const sub = await this.getSubscription(ctx);
+  async assertFeatureAccess(
+    ctx: TenantContext,
+    feature: keyof PlanFeatures,
+    product: SubscriptionProduct = DEFAULT_PRODUCT,
+  ): Promise<void> {
+    const sub = await this.getSubscription(ctx, product);
     if (!sub) throw new PaymentRequiredError('No active subscription');
-    const features = PLAN_FEATURES[sub.plan_type];
+    const plans    = PLAN_FEATURES[product];
+    const features = plans[sub.plan_type];
     if (!features[feature]) {
-      const requiredPlans = (Object.entries(PLAN_FEATURES) as [PlanType, typeof features][])
+      const requiredPlans = (Object.entries(plans) as [PlanType, PlanFeatures][])
         .filter(([, f]) => f[feature])
         .map(([p]) => p)
         .join(' or ');
@@ -92,19 +127,33 @@ export const billingService = {
     }
   },
 
+  /**
+   * Members are a GROUP-level resource — one member list, shared by every
+   * product the group holds — so the cap cannot be read off one arbitrary
+   * subscription. Take the most permissive entitlement the group has paid for:
+   * a single NULL (unlimited) anywhere wins outright, otherwise the largest cap.
+   *
+   * Inert today: PLAN_FEATURES sets maxMembers null on every plan, so
+   * bool_or(...) is always true and this returns early exactly as before.
+   */
   async assertMemberCap(ctx: TenantContext, client: PoolClient): Promise<void> {
-    const { rows: sub } = await client.query<{ max_members: number | null }>(
-      `SELECT max_members FROM subscriptions WHERE group_id = $1 AND status = 'active' LIMIT 1`,
+    const { rows: sub } = await client.query<{ unlimited: boolean; cap: number | null }>(
+      `SELECT bool_or(max_members IS NULL) AS unlimited, MAX(max_members) AS cap
+       FROM subscriptions WHERE group_id = $1 AND status = 'active'`,
       [ctx.groupId],
     );
-    if (!sub[0] || sub[0].max_members === null) return; // unlimited
+    // No active subscription at all → aggregate over zero rows gives
+    // unlimited=NULL and cap=NULL, which falls through to the same
+    // "no cap to enforce" early return the old LIMIT 1 miss produced.
+    const cap = sub[0]?.cap;
+    if (sub[0]?.unlimited !== false || cap === null || cap === undefined) return;
 
     const { rows: count } = await client.query<{ count: string }>(
       `SELECT COUNT(*) AS count FROM group_members WHERE group_id = $1 AND is_active = true`,
       [ctx.groupId],
     );
-    if (parseInt(count[0].count, 10) >= sub[0].max_members) {
-      throw new MemberCapError(sub[0].max_members);
+    if (parseInt(count[0].count, 10) >= cap) {
+      throw new MemberCapError(cap);
     }
   },
 
@@ -196,8 +245,14 @@ export const billingService = {
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
-      const { rows: sub } = await client.query<{ sms_rate: string }>(
-        `SELECT sms_rate FROM subscriptions WHERE group_id = $1 AND status = 'active' LIMIT 1`,
+      // MIN across every active subscription, matching reserve_sms_credits'
+      // own rule exactly (migration 127). These two must agree: this decides
+      // how many credits a top-up buys, that one decides what a send costs, and
+      // a group whose products disagree on rate would otherwise be sold credits
+      // at one price and charged at another.
+      const { rows: sub } = await client.query<{ sms_rate: string | null }>(
+        `SELECT MIN(sms_rate) AS sms_rate FROM subscriptions
+         WHERE group_id = $1 AND status = 'active'`,
         [ctx.groupId],
       );
       const rate     = parseFloat(sub[0]?.sms_rate ?? '0.90');

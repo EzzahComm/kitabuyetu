@@ -157,8 +157,21 @@ export const organizationService = {
            LEFT JOIN group_members gm ON gm.group_id = g.id
            LEFT JOIN contributions c  ON c.group_id  = g.id
            LEFT JOIN loans l          ON l.group_id  = g.id
-           LEFT JOIN subscriptions sub
-             ON sub.group_id = g.id AND sub.status = 'active'
+           -- LATERAL, not a plain join: since migration 127 a group can hold
+           -- one active subscription per product. A plain join would multiply
+           -- every contributions/loans row by the number of products and
+           -- inflate the un-DISTINCTed SUM(c.amount) / COUNT(l.id) above, as
+           -- well as listing the group once per product. Scoped to
+           -- kitabu_yetu because this is an organization's window onto the
+           -- savings/loan financials of groups it oversees — a group's Chama
+           -- Reminder subscription is not an organization's concern, and NULL
+           -- correctly reads as "no Kitabu Yetu plan".
+           LEFT JOIN LATERAL (
+             SELECT s.plan_type, s.status FROM subscriptions s
+             WHERE s.group_id = g.id AND s.status = 'active'
+               AND s.product = 'kitabu_yetu'
+             LIMIT 1
+           ) sub ON true
            WHERE g.is_active = true
            GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at
            ORDER BY g.name
@@ -329,7 +342,15 @@ export const organizationService = {
          LEFT JOIN group_members gm ON gm.group_id = g.id
          LEFT JOIN contributions c  ON c.group_id  = g.id
          LEFT JOIN loans l          ON l.group_id  = g.id
-         LEFT JOIN subscriptions sub ON sub.group_id = g.id AND sub.status = 'active'
+         -- Same LATERAL fix and same kitabu_yetu scoping as the list query
+         -- above — see its comment for why a plain join corrupts the
+         -- aggregates here (migration 127).
+         LEFT JOIN LATERAL (
+           SELECT s.plan_type, s.status FROM subscriptions s
+           WHERE s.group_id = g.id AND s.status = 'active'
+             AND s.product = 'kitabu_yetu'
+           LIMIT 1
+         ) sub ON true
          WHERE g.id = $1
          GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at`,
         [groupId],
