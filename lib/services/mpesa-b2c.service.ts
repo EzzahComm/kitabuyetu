@@ -13,6 +13,7 @@ import { postLoanDisbursementJournal } from './posting-templates.service';
 import { initiateB2C as _b2c, assertSafaricomIp } from './daraja.service';
 import { IS_SANDBOX } from './mpesa-spine.service';
 import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
+import { notifyDisbursementCallback } from '@/lib/queue/qstash';
 
 // ─── B2C ─────────────────────────────────────────────────────────────────────
 
@@ -117,12 +118,24 @@ export interface B2CResultBody {
   };
 }
 
+// What to tell the disbursement watchdog once the transaction below commits.
+// Deliberately built inside the transaction and fired AFTER it (see the
+// return-then-notify shape below) rather than calling
+// notifyDisbursementCallback from inside withAdminDb's callback — that
+// callback runs inside an explicit BEGIN/COMMIT holding this row's FOR
+// UPDATE lock, and a network call to QStash has no business extending how
+// long that lock is held.
+interface WatchdogNotifyInfo {
+  rowId:     string;
+  eventData: { status: 'failed' | 'completed'; failureReason?: string; mpesaReceiptNumber?: string | null };
+}
+
 export async function handleB2CResult(body: B2CResultBody, callerIp: string): Promise<void> {
   assertSafaricomIp(callerIp);
   const r       = body.Result;
   const rawBody = JSON.stringify(body);
 
-  await withAdminDb(async (db) => {
+  const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
       id:                      string;
@@ -171,8 +184,9 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
           status: 'failed', failureReason: r.ResultDesc,
         });
+        return { rowId: b2c.disbursement_request_id, eventData: { status: 'failed', failureReason: r.ResultDesc } };
       }
-      return;
+      return undefined;
     }
 
     // ── Success ──────────────────────────────────────────────────────────
@@ -256,9 +270,18 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
           status: 'completed', mpesaReceiptNumber: receipt,
         });
+        return { rowId: b2c.disbursement_request_id, eventData: { status: 'completed', mpesaReceiptNumber: receipt } };
       }
     }
+    return undefined;
   });
+
+  // Fired after the transaction above commits (see WatchdogNotifyInfo's own
+  // comment for why this must not happen from inside withAdminDb). Best-
+  // effort and non-throwing — see notifyDisbursementCallback's own contract.
+  if (watchdogNotify) {
+    await notifyDisbursementCallback('disbursement', watchdogNotify.rowId, watchdogNotify.eventData);
+  }
 }
 
 /**

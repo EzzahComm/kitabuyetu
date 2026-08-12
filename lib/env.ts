@@ -170,6 +170,22 @@ const envObjectSchema = z.object({
   // Fallback when the token isn't embedded in REDIS_URL's password component.
   REDIS_TOKEN: z.string().optional(),
 
+  // ── QStash (Upstash) ─────────────────────────────────────────────────────
+  // Chunked bulk-SMS fan-out — closes SMS_MESSAGING_AUDIT_2026-08.md H3
+  // (SMS-007/SMS-015: handleSmsBulkSend re-billing a whole campaign on a
+  // single function timeout), docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE
+  // .md Phase 3 item 10. All optional, same "falls back when unset" pattern
+  // as the other provider blocks above — handleSmsBulkSend keeps dispatching
+  // in-process, unchunked, exactly as it did before this existed (true for
+  // every environment except Production as of this writing).
+  QSTASH_URL: z.string().url().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  // Both signing keys are required together to verify inbound QStash
+  // webhook signatures (current + next cover key-rotation overlap) — see
+  // Receiver in lib/queue/qstash.ts.
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+
   // ── Email adapters (provider-specific — only the active EMAIL_PROVIDER's
   // vars need to actually be set; all optional here for the same reason the
   // existing RESEND_API_KEY/SENDGRID_API_KEY entries above are optional) ────
@@ -218,6 +234,20 @@ const envSchema = envObjectSchema.superRefine((data, ctx) => {
       code: z.ZodIssueCode.custom,
       path: ['MPESA_B2C_SECURITY_CREDENTIAL'],
       message: 'Set MPESA_B2C_INITIATOR_PASSWORD (auto-encrypted) or MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) for production B2C',
+    });
+  }
+  // QStash is all-or-nothing: a partial set (e.g. URL+TOKEN present but a
+  // signing key missing) would let publishing succeed while the receiving
+  // route can never verify the callback, silently dropping every chunk.
+  // isQstashConfigured() in lib/queue/qstash.ts checks the same four —
+  // this just fails fast at boot instead of at first dispatch.
+  const qstashVars = [data.QSTASH_URL, data.QSTASH_TOKEN, data.QSTASH_CURRENT_SIGNING_KEY, data.QSTASH_NEXT_SIGNING_KEY];
+  const qstashSetCount = qstashVars.filter(Boolean).length;
+  if (qstashSetCount > 0 && qstashSetCount < qstashVars.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['QSTASH_URL'],
+      message: 'QSTASH_URL, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY and QSTASH_NEXT_SIGNING_KEY must be set together, or all left unset',
     });
   }
 });

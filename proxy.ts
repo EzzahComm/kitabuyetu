@@ -158,7 +158,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // NOT by JWT, because external providers don't have access tokens.
   const isWebhook =
     pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
-    pathname.startsWith('/api/v1/email/webhooks/');     // email provider callbacks (Resend, SendGrid)
+    pathname.startsWith('/api/v1/email/webhooks/') ||   // email provider callbacks (Resend, SendGrid)
+    // QStash-triggered chunked SMS dispatch (closes SMS_MESSAGING_AUDIT_
+    // 2026-08.md H3 — docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md
+    // Phase 3 item 10). Same "signed payload, no JWT"
+    // shape as the webhooks above: Upstash signs every delivery with our
+    // QStash signing keys (verified via Receiver in the route itself), not
+    // a Bearer token. Scoped to this exact path, not the whole
+    // /api/v1/workers/ tree — /api/v1/workers/cron keeps requiring a JWT
+    // or WORKER_SECRET (see that route's own header comment) here.
+    pathname === '/api/v1/workers/sms-dispatch-chunk' ||
+    // Upstash Workflow disbursement watchdog (docs/messaging/
+    // UNIFIED_MESSAGING_ARCHITECTURE.md §9, B2C_DISBURSEMENT_AUDIT.md C5).
+    // Same signed-payload shape, but verified by serve() itself (from
+    // @upstash/workflow) rather than a manual Receiver call in the route —
+    // and unlike sms-dispatch-chunk, QStash re-POSTs this exact path once
+    // per workflow step (not just once), so every one of those step
+    // callbacks needs to clear this gate too, not just the initial trigger.
+    pathname === '/api/v1/workers/disbursement-watchdog';
 
   // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — this used to be a blanket
   // `pathname.startsWith('/api/v1/auth/')`, which also swept up
