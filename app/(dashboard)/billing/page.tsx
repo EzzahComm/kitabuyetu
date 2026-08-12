@@ -156,7 +156,11 @@ export default function BillingPage() {
   };
 
   const current = billingData?.current;
-  const currentPlanType = current?.planType ?? 'starter';
+  // null, not a 'starter' fallback: since migration 139 a group can genuinely
+  // hold no plan, and defaulting the display to starter told a locked group it
+  // was on the very plan it has not paid for — while marking that card
+  // "Current plan" and disabling the button that would let it pay.
+  const currentPlanType = current?.planType ?? null;
   const product = billingData?.product ?? 'kitabu_yetu';
 
   /** Server-quoted monthly fee. null while loading; 0 means negotiated, not free. */
@@ -175,7 +179,9 @@ export default function BillingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Billing"
-        description={`Current plan: ${currentPlanType.charAt(0).toUpperCase()}${currentPlanType.slice(1)}${current?.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : ''}`}
+        description={currentPlanType
+          ? `Current plan: ${currentPlanType.charAt(0).toUpperCase()}${currentPlanType.slice(1)}${current?.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : ''}`
+          : 'No active plan — choose one below to restore access.'}
       />
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">

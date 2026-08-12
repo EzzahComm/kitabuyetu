@@ -87,8 +87,9 @@ describe('payment-gated subscription activation', () => {
         groupId, planType: 'premium', product: 'kitabu_yetu', paymentId, amountPaid: fee - 1,
       }))).rejects.toThrow(/does not cover/i);
 
-    // Still on the starter plan register_group seeded — crucially, the old
-    // subscription was NOT cancelled on the way to failing.
+    // Crucially the existing plan was NOT cancelled on the way to failing: the
+    // fee checks run before any mutation, so a refused activation leaves the
+    // group exactly where it was rather than stranding it with nothing.
     expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
   });
 

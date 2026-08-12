@@ -6,6 +6,7 @@ import type { MemberRole, PlatformRole } from '@/types/enums';
 import { requireRole, requireOneOf } from './rbac';
 import { requirePermission, requireAnyPermission } from './permissions';
 import { requireOrganizationPermission, type OrganizationPermission } from './organization-permissions';
+import { assertSubscriptionActive } from './subscription-gate';
 
 // ─── Tenant (consumer) context ─────────────────────────────────────────
 
@@ -57,7 +58,14 @@ export function withAuth<T extends unknown[]>(
 ): Promise<Response> {
   try {
     const auth = getAuthContext(req);
-    return handler(auth, ...args).catch(handleError);
+    // Every tenant route reaches the handler through here — withRole,
+    // withOneOf, withPermission and withAnyPermission all delegate to it — so
+    // this is the one place a paid-subscription check covers the whole tenant
+    // surface. The gate carves out the routes a locked group needs in order to
+    // pay; see lib/auth/subscription-gate.ts.
+    return assertSubscriptionActive(req, auth)
+      .then(() => handler(auth, ...args))
+      .catch(handleError);
   } catch (err) {
     return Promise.resolve(handleError(err));
   }

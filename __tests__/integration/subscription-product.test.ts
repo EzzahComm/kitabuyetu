@@ -50,18 +50,19 @@ function ctxFor(groupId: string, userId: string): TenantContext {
 }
 
 describe('multi-product subscriptions (migration 127)', () => {
-  it('register_group stamps kitabu_yetu by default, and the named product when asked', async () => {
+  it('register_group grants no subscription — there is no free plan (migration 139)', async () => {
     await resetDatabase();
 
-    const { groupId } = await createTestGroup('treasurer');
-    const [defaulted] = await rawQuery<{ product: string }>(
-      `SELECT product FROM subscriptions WHERE group_id = $1`, [groupId],
-    );
-    expect(defaulted.product).toBe('kitabu_yetu');
+    // Bypass the fixture's own paid-subscription provisioning: what is under
+    // test here is precisely what register_group does on its own.
+    const { groupId } = await createTestGroup('treasurer', { subscribed: false });
+    expect(await rawQuery(
+      `SELECT id FROM subscriptions WHERE group_id = $1`, [groupId],
+    )).toHaveLength(0);
 
-    // An explicit product on the payload. Note the chart of accounts is still
-    // seeded either way — Decision C's GL-skip is deliberately Phase 4, and
-    // this asserts that rather than leaving it ambiguous.
+    // It used to insert starter/active at monthly_fee 0, which WAS the free
+    // tier. A group now holds nothing until it pays, and the subscription gate
+    // keeps it out of everything but sign-in and billing until then.
     const [row] = await rawQuery<{ result: { group_id: string } }>(
       `SELECT register_group($1::jsonb) AS result`,
       [JSON.stringify({
@@ -72,16 +73,21 @@ describe('multi-product subscriptions (migration 127)', () => {
       })],
     );
     const crGroupId = row.result.group_id;
+    expect(await rawQuery(
+      `SELECT id FROM subscriptions WHERE group_id = $1`, [crGroupId],
+    )).toHaveLength(0);
 
-    const [stamped] = await rawQuery<{ product: string }>(
-      `SELECT product FROM subscriptions WHERE group_id = $1`, [crGroupId],
-    );
-    expect(stamped.product).toBe('chama_reminder');
-
+    // Everything else the function does is untouched: a billing account to
+    // hold SMS credits once they pay, and the full chart of accounts. The
+    // GL-skip for chama_reminder-only groups is still deliberately Phase 4.
     const [accounts] = await rawQuery<{ n: string }>(
       `SELECT count(*) AS n FROM accounts WHERE group_id = $1`, [crGroupId],
     );
     expect(Number(accounts.n)).toBe(16);
+
+    expect(await rawQuery(
+      `SELECT group_id FROM billing_accounts WHERE group_id = $1`, [crGroupId],
+    )).toHaveLength(1);
   });
 
   it('allows one active subscription per product, and rejects a second for the same product', async () => {
