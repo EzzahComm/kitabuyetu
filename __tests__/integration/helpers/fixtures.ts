@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import type { TenantContext } from '@/lib/db';
+import { PLAN_MONTHLY_FEES, type PlanType, type SubscriptionProduct } from '@/types/enums';
 import { membersService } from '@/lib/services/members.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
 import { paymentRequestsService } from '@/lib/services/payment-requests.service';
@@ -23,9 +24,25 @@ export interface TestGroup {
   officerId: string;
 }
 
-/** Creates a fully valid group + founding officer via the app's own register_group() RPC — reuses real validated logic instead of hand-rolling INSERTs against a schema that's evolved across ~95 migrations since it was first defined. */
+/**
+ * Creates a fully valid group + founding officer via the app's own
+ * register_group() RPC — reuses real validated logic instead of hand-rolling
+ * INSERTs against a schema that's evolved across ~95 migrations since it was
+ * first defined.
+ *
+ * Since migration 139 register_group creates NO subscription (there is no free
+ * plan), and assertSubscriptionActive locks a group with none out of every
+ * route except sign-in and billing. A test group that can actually exercise
+ * the product is therefore a group that has PAID, so one is provisioned here
+ * by default — otherwise every route-level test would assert against a 402
+ * rather than the behaviour it is trying to cover.
+ *
+ * Pass `{ subscribed: false }` to get a genuinely unpaid group, which is what
+ * the lock's own tests need.
+ */
 export async function createTestGroup(
   creatorRole: 'chairperson' | 'secretary' | 'treasurer' = 'treasurer',
+  opts: { subscribed?: boolean } = {},
 ): Promise<TestGroup> {
   const phone = uniquePhone();
   const [row] = await rawQuery<{ result: { group_id: string; member_id: string } }>(
@@ -40,7 +57,32 @@ export async function createTestGroup(
       creatorRole,
     })],
   );
-  return { groupId: row.result.group_id, officerId: row.result.member_id };
+  const groupId = row.result.group_id;
+
+  if (opts.subscribed !== false) await subscribeTestGroup(groupId);
+
+  return { groupId, officerId: row.result.member_id };
+}
+
+/**
+ * Gives a group a paid active subscription, standing in for an M-Pesa purchase.
+ * Deliberately a plain INSERT rather than activateSubscriptionForPayment():
+ * fixtures should not depend on the very code path under test, and most suites
+ * want a subscribed group without caring how it was bought.
+ */
+export async function subscribeTestGroup(
+  groupId: string,
+  planType: PlanType = 'starter',
+  product: SubscriptionProduct = 'kitabu_yetu',
+): Promise<void> {
+  await rawQuery(
+    `INSERT INTO subscriptions
+       (group_id, product, plan_type, status, started_at, monthly_fee, sms_rate,
+        sms_allowance_included, max_members)
+     VALUES ($1,$2,$3,'active',NOW(),$4,0.9000,50,NULL)
+     ON CONFLICT DO NOTHING`,
+    [groupId, product, planType, PLAN_MONTHLY_FEES[product][planType].toFixed(2)],
+  );
 }
 
 /** Adds a second officer to an existing group via the real membersService (handles person_id/member_code correctly) — needed for maker-checker tests where approver must differ from initiator. */

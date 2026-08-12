@@ -23,6 +23,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     configureApiClient({
       getToken:       () => accessToken,
       onUnauthorized: () => { logout(); router.push('/login'); },
+      // 402: the group's subscription lapsed or was never paid for. Billing is
+      // outside the lock precisely so this redirect lands somewhere usable —
+      // the user can pick a plan and pay from there. Never redirect while
+      // already on /billing, or paying would bounce the page mid-flow.
+      onPaymentRequired: () => {
+        if (!window.location.pathname.startsWith('/billing')) router.push('/billing');
+      },
     });
   }, [accessToken, logout, router]);
 

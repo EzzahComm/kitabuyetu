@@ -37,15 +37,23 @@ export function getStoredAccessToken(): string | null {
 }
 
 let _onUnauthorized: (() => void) | null = null;
+let _onPaymentRequired: (() => void) | null = null;
 
 // Backwards-compatible signature: still accepts the old `getToken` field but
 // silently ignores it (the api client now reads localStorage). Pages can drop
 // the `getToken` arg in a follow-up cleanup without breaking anything.
 export function configureApiClient(opts: {
-  getToken?:      () => string | null;
-  onUnauthorized: () => void;
+  getToken?:           () => string | null;
+  onUnauthorized:      () => void;
+  /**
+   * Called on a 402 — the group has no active subscription. Optional so the
+   * admin/auth shells, which have no billing page to send anyone to, can skip
+   * it and let the error surface normally.
+   */
+  onPaymentRequired?:  () => void;
 }) {
-  _onUnauthorized = opts.onUnauthorized;
+  _onUnauthorized    = opts.onUnauthorized;
+  _onPaymentRequired = opts.onPaymentRequired ?? null;
 }
 
 function buildHeaders(body: unknown, multipart = false): Record<string, string> {
@@ -114,6 +122,12 @@ async function request<T>(
   const json = await res.json() as ApiResponse<T>;
 
   if (!json.success) {
+    // 402 — the group has no active subscription. Send the shell to the
+    // billing page rather than letting every widget render its own failure:
+    // the billing route is deliberately outside the lock, so paying from here
+    // is exactly what we want the user to do next. The error is still thrown
+    // so the calling query settles as an error instead of hanging.
+    if (res.status === 402) _onPaymentRequired?.();
     throw new ApiError(json.error, json.code, res.status);
   }
 
