@@ -258,19 +258,32 @@ export const billingService = {
       const rate     = parseFloat(sub[0]?.sms_rate ?? '0.90');
       const credits  = amountKes / rate;
 
-      await client.query(
-        `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`,
-        [credits.toFixed(4), ctx.groupId],
-      );
-
       const { rows: ba } = await client.query<{ id: string }>(
         `SELECT id FROM billing_accounts WHERE group_id = $1`, [ctx.groupId],
       );
 
-      await client.query(
+      // Ledger insert first, and it decides whether the balance moves. A
+      // replayed STK callback re-enters here with the same payment_id (the
+      // route re-runs processFulfillment on every replay — handleSTKCallback
+      // computes `alreadyDone` but never returns it), so the UNIQUE(payment_id)
+      // added in migration 137 is what makes a top-up exactly-once. If the
+      // insert is swallowed by ON CONFLICT we must NOT touch the balance,
+      // otherwise the replay credits the group a second time.
+      //
+      // Manual grants pass paymentId undefined -> NULL, and Postgres allows
+      // many NULLs under a UNIQUE constraint, so those still apply every time.
+      const { rows: inserted } = await client.query<{ id: string }>(
         `INSERT INTO sms_credits (group_id, billing_account_id, amount_paid, credits_added, rate_applied, payment_id)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (payment_id) DO NOTHING
+         RETURNING id`,
         [ctx.groupId, ba[0].id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), paymentId ?? null],
+      );
+      if (!inserted[0]) return;
+
+      await client.query(
+        `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`,
+        [credits.toFixed(4), ctx.groupId],
       );
     });
   },

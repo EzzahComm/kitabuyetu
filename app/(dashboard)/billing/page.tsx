@@ -69,9 +69,12 @@ export default function BillingPage() {
           onError:   (err) => toast({ variant: 'destructive', title: 'Upgrade failed', description: getErrorMessage(err) }),
         });
       } else {
-        // Crediting itself already happened server-side off the M-Pesa
-        // callback (mpesa/callback/route.ts → billingService.addSmsCredits) —
-        // nothing left to do here but refresh the balance and confirm.
+        // Crediting itself happens server-side off the M-Pesa callback
+        // (mpesa/callback/route.ts → billingService.addSmsCredits) — nothing
+        // left to do here but refresh the balance and confirm. Note the
+        // callback is processed asynchronously (Next's after()), so the
+        // invalidated balance query may still read the pre-credit value on the
+        // first refetch; the balance card catches up on the next poll/refocus.
         qc.invalidateQueries({ queryKey: billingKeys.smsCredits });
         toast({ title: 'Credits added', description: `KES ${pendingAction.amount.toLocaleString()} of SMS credits added to your balance` });
       }
