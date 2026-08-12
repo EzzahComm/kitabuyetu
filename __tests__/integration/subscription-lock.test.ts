@@ -20,15 +20,7 @@ import { createTestGroup, subscribeTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
-jest.mock('@/lib/redis', () => {
-  const actual = jest.requireActual('@/lib/redis');
-  return {
-    ...actual,
-    // The gate caches only positive results. Forcing a miss keeps each test
-    // reading live subscription state instead of a value another test warmed.
-    redis: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue('OK') },
-  };
-});
+import { __resetSubscriptionCache } from '@/lib/auth/subscription-gate';
 
 function headersFor(groupId: string, officerId: string, role = 'chairperson') {
   return authHeaders({
@@ -43,6 +35,10 @@ describe('paid-subscription lock', () => {
 
   beforeEach(async () => {
     await resetDatabase();
+    // The gate caches positive results for 60s in-process, which outlives a
+    // test. Clearing keeps each case reading live subscription state rather
+    // than an entitlement an earlier test warmed.
+    __resetSubscriptionCache();
     // Genuinely unpaid, exactly as register_group now leaves a new group.
     ({ groupId, officerId } = await createTestGroup('chairperson', { subscribed: false }));
   });
@@ -100,6 +96,14 @@ describe('paid-subscription lock', () => {
     await rawQuery(
       `UPDATE subscriptions SET status = 'expired' WHERE group_id = $1`, [groupId],
     );
+
+    // Losing entitlement is NOT instant, by design: a positive is cached for
+    // up to 60s, so the group keeps working until it lapses. That tradeoff is
+    // deliberate — staleness costs at most a minute of access for a group that
+    // just stopped paying, whereas caching negatives would leave a group that
+    // just PAID locked out. Clearing here asserts the post-expiry behaviour
+    // rather than waiting out the TTL.
+    __resetSubscriptionCache();
 
     expect((await contributionsGet(
       buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),

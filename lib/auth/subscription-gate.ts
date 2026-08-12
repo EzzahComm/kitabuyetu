@@ -1,7 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { withAdminDb } from '@/lib/db';
-import { redis, keys } from '@/lib/redis';
-import { logger } from '@/lib/logger';
 import { PaymentRequiredError } from '@/lib/utils/errors';
 import type { AuthContext } from '@/types/api.types';
 
@@ -48,7 +46,52 @@ const OPEN_PREFIXES: readonly string[] = [
 /** Roles that are never subject to a tenant's billing state. */
 const EXEMPT_ROLES: readonly string[] = ['super_admin', 'support'];
 
-const CACHE_TTL_SECONDS = 60;
+const CACHE_TTL_MS = 60_000;
+
+/**
+ * In-process, deliberately NOT Redis.
+ *
+ * This runs on every authenticated request, so anything here is on the hot
+ * path for the entire tenant API. A Redis round trip was the first attempt and
+ * was wrong twice over: it added a network hop per request, and when Upstash
+ * is unreachable the client retries with backoff, so an outage would slow down
+ * every request in the product rather than just the features that cache. CI
+ * proved the point immediately — it points REDIS_URL at a nonexistent host,
+ * and every authenticated test blew its 5s budget on retries.
+ *
+ * A per-group boolean needs no sharing between instances, so a Map is a better
+ * fit than a shared cache anyway: each instance independently re-checks at
+ * most once a minute per group.
+ */
+const activeUntil = new Map<string, number>();
+
+/**
+ * Bounded so a long-lived instance serving many groups cannot grow this
+ * without limit. Entries are worthless once expired, so a full sweep on
+ * overflow is both cheap and sufficient.
+ */
+const MAX_CACHE_ENTRIES = 10_000;
+
+function rememberActive(groupId: string): void {
+  if (activeUntil.size >= MAX_CACHE_ENTRIES) {
+    const now = Date.now();
+    for (const [key, expiry] of activeUntil) {
+      if (expiry <= now) activeUntil.delete(key);
+    }
+    // Still full — every entry is live. Drop the oldest insertion (Map
+    // preserves insertion order) rather than refuse to cache anything.
+    if (activeUntil.size >= MAX_CACHE_ENTRIES) {
+      const oldest = activeUntil.keys().next();
+      if (!oldest.done) activeUntil.delete(oldest.value);
+    }
+  }
+  activeUntil.set(groupId, Date.now() + CACHE_TTL_MS);
+}
+
+/** Test-only: drop cached entitlements so a suite can flip state mid-test. */
+export function __resetSubscriptionCache(): void {
+  activeUntil.clear();
+}
 
 /**
  * Throws PaymentRequiredError (402) when this group holds no active
@@ -60,8 +103,7 @@ const CACHE_TTL_SECONDS = 60;
  * plan, the group is unlocked — rather than staying locked for up to a minute
  * after paying, which reads as "I paid and it's still broken".
  *
- * Fails OPEN on any Redis error, matching the convention in lib/redis. It does
- * NOT fail open on a database error: that path throws, and a request that
+ * Does NOT fail open on a database error: that path throws, and a request that
  * cannot establish entitlement must not be served as though it had one.
  */
 export async function assertSubscriptionActive(
@@ -72,14 +114,10 @@ export async function assertSubscriptionActive(
   if (OPEN_PREFIXES.some((prefix) => path.startsWith(prefix))) return;
   if (EXEMPT_ROLES.includes(auth.role)) return;
 
-  const cacheKey = keys.cache('sub_active', auth.groupId);
-
-  try {
-    if (await redis.get(cacheKey)) return;
-  } catch (err) {
-    logger.warn('[subscription-gate] cache read failed — falling through to DB', {
-      groupId: auth.groupId, err: String(err),
-    });
+  const cached = activeUntil.get(auth.groupId);
+  if (cached !== undefined) {
+    if (cached > Date.now()) return;
+    activeUntil.delete(auth.groupId);
   }
 
   const active = await withAdminDb(async (db) => {
@@ -98,9 +136,5 @@ export async function assertSubscriptionActive(
     );
   }
 
-  redis.set(cacheKey, 1, { ex: CACHE_TTL_SECONDS }).catch((err) =>
-    logger.warn('[subscription-gate] cache write failed', {
-      groupId: auth.groupId, err: String(err),
-    }),
-  );
+  rememberActive(auth.groupId);
 }
