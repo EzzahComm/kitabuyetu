@@ -91,30 +91,39 @@ async function processFulfillment(
   // purpose enum is authoritative — it's set explicitly at initiation and
   // can't drift the way invoice-item wording can. The description ILIKE match
   // survives only as a fallback for legacy rows initiated without a purpose.
-  if (payment.invoice_id) {
-    const isTopup = await withAdminDb(async (db) => {
-      const { rows: stkRows } = await db.query<{ purpose: string | null }>(
-        `SELECT s.purpose
-         FROM   mpesa_stk_requests s
-         JOIN   payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
-         WHERE  p.id = $1
-         LIMIT  1`,
-        [paymentId],
-      );
-      const purpose = stkRows[0]?.purpose ?? null;
-      if (purpose !== null) return purpose === 'sms_topup';
+  //
+  // This must NOT be gated on payment.invoice_id. It was until 2026-08-12, and
+  // since the billing page never sends an invoiceId for a top-up (and
+  // generateInvoice() has no callers) that gate was always false: every real
+  // top-up took the money and credited nothing. Crediting is safe to run
+  // unconditionally here because addSmsCredits is exactly-once per payment_id
+  // (migration 137) — required, since this whole function re-runs on every
+  // replayed callback.
+  const isTopup = await withAdminDb(async (db) => {
+    const { rows: stkRows } = await db.query<{ purpose: string | null }>(
+      `SELECT s.purpose
+       FROM   mpesa_stk_requests s
+       JOIN   payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
+       WHERE  p.id = $1
+       LIMIT  1`,
+      [paymentId],
+    );
+    const purpose = stkRows[0]?.purpose ?? null;
+    if (purpose !== null) return purpose === 'sms_topup';
 
-      // Legacy fallback: no purpose recorded — infer from the invoice line.
-      const { rows } = await db.query<{ description: string }>(
-        `SELECT ii.description FROM invoice_items ii
-         WHERE ii.invoice_id=$1 AND ii.description ILIKE '%sms%' LIMIT 1`,
-        [payment.invoice_id],
-      );
-      return !!rows[0];
-    });
-    if (isTopup) {
-      await billingService.addSmsCredits(ctx, amount, paymentId);
-    }
+    // Legacy fallback: no purpose recorded — infer from the invoice line.
+    // Only reachable for rows predating the purpose column, which are also the
+    // only ones that could carry an invoice_id here.
+    if (!payment.invoice_id) return false;
+    const { rows } = await db.query<{ description: string }>(
+      `SELECT ii.description FROM invoice_items ii
+       WHERE ii.invoice_id=$1 AND ii.description ILIKE '%sms%' LIMIT 1`,
+      [payment.invoice_id],
+    );
+    return !!rows[0];
+  });
+  if (isTopup) {
+    await billingService.addSmsCredits(ctx, amount, paymentId);
   }
 
   // Receipt SMS (payment architecture §8 / audit M-2): the shared emitter
