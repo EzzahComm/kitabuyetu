@@ -18,7 +18,19 @@ export const StkPushSchema = z.object({
   description:      z.string().min(1).max(20),
   invoiceId:        z.string().uuid().optional().nullable(),
   purpose:          z.enum(['registration', 'subscription', 'sms_topup', 'contribution']),
-});
+  // Which plan is being bought. `enterprise` is intentionally absent: it is
+  // negotiated, not self-serve, and must never be activated by a payment
+  // whose amount the payer chose. The M-Pesa callback refuses it too — this
+  // is the first of the two gates, not the only one.
+  planType:         z.enum(['starter', 'growth', 'premium']).optional(),
+  product:          z.enum(['kitabu_yetu', 'chama_reminder']).optional(),
+}).refine(
+  (v) => v.purpose !== 'subscription' || (!!v.planType && !!v.product),
+  {
+    message: 'planType and product are required when purpose is "subscription"',
+    path:    ['planType'],
+  },
+);
 
 export type StkPushInput = z.infer<typeof StkPushSchema>;
 

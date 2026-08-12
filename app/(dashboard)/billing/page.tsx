@@ -16,13 +16,31 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn, getErrorMessage } from '@/lib/utils';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
+import type { PlanType } from '@/types/enums';
 
-type PlanType = UpgradePlanInput['planType'];
+/**
+ * The plans a group can actually buy here. Narrower than PlanType on purpose:
+ * enterprise is displayed but negotiated, so it can never be the subject of a
+ * payment action. Deriving it from the request schema keeps this in step with
+ * what the server will accept.
+ */
+type PurchasablePlan = UpgradePlanInput['planType'];
 
-const PLANS: { type: PlanType; label: string; price: number; maxMembers: number; features: string[] }[] = [
-  { type: 'starter',    label: 'Starter',    price: 0,     maxMembers: 10,   features: ['Basic reporting', 'M-Pesa integration', 'SMS (50/mo)'] },
-  { type: 'growth',     label: 'Growth',     price: 2500,  maxMembers: 100,  features: ['All Starter features', 'Advanced reports', 'SMS (500/mo)', 'Accounting module'] },
-  { type: 'enterprise', label: 'Enterprise', price: 8000,  maxMembers: 9999, features: ['All Growth features', 'Unlimited SMS', 'Enterprise portal', 'API access', 'Priority support'] },
+/**
+ * Display copy only — NO prices. Prices come from GET /billing/plans, which
+ * reads PLAN_MONTHLY_FEES, the same table the M-Pesa callback verifies the
+ * paid amount against. This array used to carry its own prices (growth 2500,
+ * enterprise 8000) that disagreed with the server's (1000, negotiated): the
+ * client's number was what customers were actually charged, while the server
+ * quoted a different one on the same page. With activation now gated on the
+ * server checking amount-paid against its own table, a second copy here would
+ * mean customers paying an amount that fails verification.
+ */
+const PLAN_COPY: { type: PlanType; label: string; features: string[] }[] = [
+  { type: 'starter',    label: 'Starter',    features: ['Basic reporting', 'M-Pesa integration', 'SMS included'] },
+  { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Advanced reports', 'Accounting module'] },
+  { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Priority support', 'Higher SMS allowance'] },
+  { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'] },
 ];
 
 const SMS_TOPUP_PRESETS = [500, 1000, 2500, 5000];
@@ -33,7 +51,7 @@ const LOW_SMS_CREDITS_THRESHOLD = 50;
 // this page can trigger — plan upgrade and SMS credit top-up — so there is
 // exactly one payment dialog, keyed off which action is pending.
 type PendingAction =
-  | { kind: 'plan';       planType: PlanType }
+  | { kind: 'plan';       planType: PurchasablePlan }
   | { kind: 'sms_topup';  amount: number };
 
 export default function BillingPage() {
@@ -85,7 +103,10 @@ export default function BillingPage() {
   }, [mpesaStatus, pendingAction, toast, upgradePlan, qc]);
 
   const handleSelectPlan = (planType: PlanType) => {
-    if (planType === 'starter') return;
+    // Every plan is paid now, so there is no free tier to short-circuit —
+    // only enterprise is excluded, and it is negotiated rather than bought.
+    // The narrowing here is what makes `planType` safe to put in the payload.
+    if (planType === 'enterprise' || priceOf(planType) == null) return;
     setPendingAction({ kind: 'plan', planType });
     setMpesaOpen(true);
   };
@@ -107,10 +128,18 @@ export default function BillingPage() {
       // every click. Found by the post-M3 client/server contract sweep.
       const payload = pendingAction.kind === 'plan'
         ? {
-            amount:           PLANS.find((p) => p.type === pendingAction.planType)!.price,
+            // Server-quoted price, and planType/product so the M-Pesa callback
+            // knows what to activate — account_reference is a constant and
+            // description is 20 chars, neither of which identifies a plan.
+            // The server re-checks this amount against its own table before
+            // activating, so a tampered value fails verification rather than
+            // buying a plan cheaply.
+            amount:           priceOf(pendingAction.planType)!,
             accountReference: 'SUBSCRIPT',
-            description:      `${PLANS.find((p) => p.type === pendingAction.planType)!.label} plan`.slice(0, 20),
+            description:      `${PLAN_COPY.find((p) => p.type === pendingAction.planType)!.label} plan`.slice(0, 20),
             purpose:          'subscription' as const,
+            planType:         pendingAction.planType,
+            product,
           }
         : {
             amount:           pendingAction.amount,
@@ -128,6 +157,14 @@ export default function BillingPage() {
 
   const current = billingData?.current;
   const currentPlanType = current?.planType ?? 'starter';
+  const product = billingData?.product ?? 'kitabu_yetu';
+
+  /** Server-quoted monthly fee. null while loading; 0 means negotiated, not free. */
+  const priceOf = (type: PlanType): number | null =>
+    billingData?.plans.find((p) => p.plan === type)?.monthlyFee ?? null;
+
+  /** Enterprise is negotiated — it is never sold through the self-serve STK flow. */
+  const isNegotiated = (type: PlanType) => type === 'enterprise';
 
   const smsCredits = smsBalance ? Number(smsBalance.credits) : null;
   const smsRate    = smsBalance ? Number(smsBalance.rate) : null;
@@ -141,9 +178,11 @@ export default function BillingPage() {
         description={`Current plan: ${currentPlanType.charAt(0).toUpperCase()}${currentPlanType.slice(1)}${current?.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : ''}`}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {PLANS.map((plan) => {
-          const isCurrent = plan.type === currentPlanType;
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+        {PLAN_COPY.map((plan) => {
+          const isCurrent  = plan.type === currentPlanType;
+          const price      = priceOf(plan.type);
+          const negotiated = isNegotiated(plan.type);
           return (
             <Card key={plan.type} className={cn('relative', isCurrent && 'ring-2 ring-brand-500')}>
               {isCurrent && (
@@ -154,11 +193,14 @@ export default function BillingPage() {
               <CardHeader>
                 <CardTitle>{plan.label}</CardTitle>
                 <CardDescription>
-                  {plan.price === 0 ? 'Free forever' : `KES ${plan.price.toLocaleString()} / month`}
+                  {negotiated
+                    ? 'Custom pricing'
+                    : price == null
+                      ? '—'
+                      : `KES ${price.toLocaleString()} / month`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Up to {plan.maxMembers === 9999 ? 'unlimited' : plan.maxMembers} members</p>
                 <ul className="space-y-2">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm">
@@ -170,11 +212,11 @@ export default function BillingPage() {
               <CardFooter>
                 <Button
                   className="w-full"
-                  variant={isCurrent ? 'outline' : 'default'}
-                  disabled={isCurrent || isLoading}
+                  variant={isCurrent || negotiated ? 'outline' : 'default'}
+                  disabled={isCurrent || isLoading || negotiated || price == null}
                   onClick={() => handleSelectPlan(plan.type)}
                 >
-                  {isCurrent ? 'Current plan' : plan.price === 0 ? 'Downgrade' : 'Upgrade via M-Pesa'}
+                  {isCurrent ? 'Current plan' : negotiated ? 'Contact sales' : 'Pay via M-Pesa'}
                 </Button>
               </CardFooter>
             </Card>
@@ -257,7 +299,7 @@ export default function BillingPage() {
                   You will receive an M-Pesa prompt to pay{' '}
                   <strong>
                     KES {(pendingAction?.kind === 'plan'
-                      ? PLANS.find((p) => p.type === pendingAction.planType)?.price
+                      ? priceOf(pendingAction.planType)
                       : pendingAction?.amount
                     )?.toLocaleString()}
                   </strong>

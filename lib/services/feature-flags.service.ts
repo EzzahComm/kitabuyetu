@@ -28,7 +28,11 @@ import type { PoolClient } from 'pg';
 import { withDb, type TenantContext } from '@/lib/db';
 import { ForbiddenError } from '@/lib/utils/errors';
 
-const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, enterprise: 2 };
+// Ordinal only — must stay in step with the plan_type enum's own ordering
+// (migration 138 inserted `premium` BEFORE 'enterprise' for the same reason).
+// An unranked plan scores -1 via the lookups below, so a missing entry fails
+// closed rather than granting access.
+const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, premium: 2, enterprise: 3 };
 
 interface FlagRow {
   enabled:     boolean;

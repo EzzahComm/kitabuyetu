@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 export const UpgradePlanSchema = z.object({
-  planType: z.enum(['starter', 'growth', 'enterprise']),
+  // `enterprise` is absent on purpose: it is negotiated, not self-serve, and
+  // this endpoint activates against a customer-initiated M-Pesa payment whose
+  // amount the customer chose. Enterprise is provisioned by ops instead.
+  planType: z.enum(['starter', 'growth', 'premium']),
   // Migration 127. Optional and defaulted so every existing client body
   // ({ planType }) keeps upgrading the Kitabu Yetu subscription exactly as it
   // did; plan tiers are scoped within a product, not across them.

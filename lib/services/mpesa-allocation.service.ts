@@ -26,6 +26,9 @@ export interface StkRequestRow {
   loan_repayment_id:  string | null;
   account_reference:  string;
   amount:             string;
+  /** Set only when purpose = 'subscription' (migration 138). */
+  plan_type:          string | null;
+  product:            string | null;
 }
 
 export interface FulfilmentInput {

@@ -7,6 +7,7 @@ import type {
   SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
 } from '@/types/api.types';
 import type { PaginatedResult, Account, SmsUsageLog, Contribution, Loan, LoanRepayment } from '@/types/db.types';
+import type { PlanType, SubscriptionProduct, PlanFeatures } from '@/types/enums';
 import type { SmsUsageSummary } from '@/lib/sms/analytics';
 import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
@@ -366,9 +367,31 @@ export const smsApi = {
 // ------------------------------------------------------------------
 // Billing
 // ------------------------------------------------------------------
+/**
+ * One row of GET /billing/plans. Typed against what the route actually
+ * returns, not what a client wishes it returned: `monthlyFee` here is the
+ * single source of truth for price. The billing page used to carry its own
+ * hardcoded prices (growth 2500, enterprise 8000) that disagreed with the
+ * server's table (1000 / negotiated) and were what customers were actually
+ * charged via STK.
+ */
+export interface BillingPlanRow {
+  plan:       PlanType;
+  product:    SubscriptionProduct;
+  monthlyFee: number;
+  smsRate:    number;
+  features:   PlanFeatures;
+  current:    boolean;
+}
+
 export const billingApi = {
-  plans:         () => api.get<{ plans: unknown[]; current: SubscriptionPublic | null }>('/billing/plans'),
-  upgradePlan:   (planType: UpgradePlanInput['planType']) => api.post<unknown>('/billing/plans', { planType }),
+  plans:         () => api.get<{
+    plans:   BillingPlanRow[];
+    current: SubscriptionPublic | null;
+    product: SubscriptionProduct;
+  }>('/billing/plans'),
+  upgradePlan:   (planType: UpgradePlanInput['planType'], product?: SubscriptionProduct) =>
+                   api.post<SubscriptionPublic>('/billing/plans', { planType, ...(product ? { product } : {}) }),
   invoices:      () => api.get<unknown[]>('/billing/invoices'),
   recordPayment: (body: RecordManualPaymentPayload) => api.post<unknown>('/billing/payments', body),
   smsTopup:      (amount: number) => api.post<unknown>('/billing/payments', { type: 'sms_topup', amount }),

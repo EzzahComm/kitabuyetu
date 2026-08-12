@@ -417,6 +417,10 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       loan_repayment_id: rpRows[0].id,
       account_reference: in_.billRef,
       amount:            in_.amount.toFixed(2),
+      // C2B PayBill payments never buy a subscription — this synthetic row
+      // exists only to reuse applyLoanRepayment's wiring.
+      plan_type:         null,
+      product:           null,
     };
     await applyLoanRepayment(
       db,

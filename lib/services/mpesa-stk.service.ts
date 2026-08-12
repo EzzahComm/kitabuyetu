@@ -10,7 +10,9 @@ import { cacheMpesaStatus, acquireStkLock, releaseStkLock } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { normalizePhone } from '@/lib/utils/phone';
 import { toMpesaAmount } from '@/lib/utils/currency';
+import type { PlanType, SubscriptionProduct } from '@/types/enums';
 import { notifyMember } from './notifications.service';
+import { billingService } from './billing.service';
 import { postContributionJournal } from './accounting.service';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
@@ -35,6 +37,9 @@ export interface StkPushParams {
   invoiceId?:       string;
   purpose?:         string;
   initiatedBy?:     string;
+  /** Required when purpose = 'subscription' — the callback activates these. */
+  planType?:        PlanType;
+  product?:         SubscriptionProduct;
 }
 
 export interface StkPushResult {
@@ -95,8 +100,8 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       `INSERT INTO mpesa_stk_requests
          (group_id, mpesa_transaction_id, checkout_request_id, merchant_request_id,
           phone, amount, account_reference, description, purpose,
-          status, invoice_id, initiated_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11)
+          status, invoice_id, initiated_by, plan_type, product)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13)
        ON CONFLICT (checkout_request_id) DO NOTHING`,
       [
         params.groupId, txId,
@@ -107,6 +112,8 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
         params.purpose ?? null,
         params.invoiceId ?? null,
         params.initiatedBy ?? null,
+        params.planType ?? null,
+        params.product ?? null,
       ],
     );
 
@@ -281,7 +288,7 @@ export async function handleSTKCallback(
     // 2. Lock the STK request row (FOR UPDATE) so duplicate callbacks serialise.
     const { rows: stkRows } = await db.query<StkRequestRow>(
       `SELECT id, group_id, purpose, invoice_id, loan_repayment_id,
-              account_reference, amount
+              account_reference, amount, plan_type, product
        FROM   mpesa_stk_requests
        WHERE  checkout_request_id=$1
        FOR UPDATE`,
@@ -395,9 +402,78 @@ async function fulfilStkCallback(
     return;
   }
 
-  // Other purposes (registration, subscription, sms_topup) are handled by
-  // the existing billing pipeline via the payments/invoices update above —
-  // no domain action needed here.
+  // Subscription — activate the plan that was actually paid for.
+  if (stkReq.purpose === 'subscription') {
+    await activateSubscriptionFromSTK(db, stkReq, in_);
+    return;
+  }
+
+  // sms_topup is fulfilled by processFulfillment() in the callback route
+  // rather than here, and `registration` has no domain action (group
+  // verification is email/OTP-based, not paid). Both are deliberate; see
+  // app/api/v1/mpesa/callback/route.ts.
+}
+
+/**
+ * Turn a confirmed subscription payment into an active plan.
+ *
+ * Runs inside the callback's own transaction, so the plan flips in the same
+ * commit that marks the payment completed. Failures here must not abort that
+ * commit — the money is real and the payment row must still be recorded — so
+ * anything that makes activation impossible (missing plan/product on the
+ * request, underpayment, a negotiated tier sold through self-serve) is logged
+ * and swallowed, leaving the group on its current plan for ops to resolve.
+ */
+async function activateSubscriptionFromSTK(
+  db:     PoolClient,
+  stkReq: StkRequestRow,
+  in_:    FulfilmentInput,
+): Promise<void> {
+  // Pre-138 rows, or a client that skipped the fields, carry no plan to
+  // activate. Nothing sane to guess here: the account reference is the
+  // constant 'SUBSCRIPT' and matching on amount alone would pick a plan by
+  // price collision across two products.
+  if (!stkReq.plan_type || !stkReq.product) {
+    logger.error('[mpesa] subscription payment with no plan recorded — not activating', {
+      stkRequestId: stkReq.id, groupId: stkReq.group_id, receipt: in_.receipt,
+    });
+    return;
+  }
+
+  const { rows: pay } = await db.query<{ id: string }>(
+    `SELECT id FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
+    [in_.receipt],
+  );
+  if (!pay[0]) {
+    logger.error('[mpesa] subscription payment row not found — not activating', {
+      stkRequestId: stkReq.id, receipt: in_.receipt,
+    });
+    return;
+  }
+
+  try {
+    const sub = await billingService.activateSubscriptionForPayment(db, {
+      groupId:    stkReq.group_id,
+      planType:   stkReq.plan_type as PlanType,
+      product:    stkReq.product as SubscriptionProduct,
+      paymentId:  pay[0].id,
+      amountPaid: in_.amount,
+    });
+    if (sub) {
+      logger.info('[mpesa] subscription activated', {
+        groupId: stkReq.group_id, product: stkReq.product,
+        planType: stkReq.plan_type, paymentId: pay[0].id,
+      });
+    }
+  } catch (err) {
+    // Underpayment or a non-self-serve tier. Deliberately not rethrown: the
+    // payment is legitimate and must stay recorded, and Safaricom must still
+    // get its 200.
+    logger.error('[mpesa] subscription payment could not be activated', {
+      groupId: stkReq.group_id, product: stkReq.product, planType: stkReq.plan_type,
+      paymentId: pay[0].id, amount: in_.amount, err: String(err),
+    });
+  }
 }
 
 async function applyContributionFromSTK(
