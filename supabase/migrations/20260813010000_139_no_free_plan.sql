@@ -253,7 +253,19 @@ $function$;
 -- self-registered Supabase Auth user create groups directly.
 REVOKE ALL ON FUNCTION public.register_group(jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.register_group(jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.register_group(jsonb) TO app_tenant;
+
+-- app_tenant is provisioned out-of-band in production (ADR-001,
+-- scripts/ops/create-app-tenant-role.sql), so a plain fresh replay -- CI's
+-- base "Tenant Isolation" job included -- has no such role at this point and
+-- a bare GRANT aborts the whole migration. Same guard, and the same reason,
+-- as migration 133. CI's separate app-tenant suite provisions the role before
+-- replaying, so the real GRANT is still exercised there.
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.register_group(jsonb) TO app_tenant';
+  END IF;
+END $do$;
 
 -- Expire the legacy free plans: exactly what the old signup handed out.
 -- All four predicates earn their place. plan_type='starter' spares negotiated
