@@ -1,4 +1,4 @@
-export type PlanType           = 'starter' | 'growth' | 'enterprise';
+export type PlanType           = 'starter' | 'growth' | 'premium' | 'enterprise';
 /**
  * Which product a subscription entitles a group to (migration 127).
  * A group holds at most one ACTIVE subscription per product, so these are
@@ -65,7 +65,7 @@ const ALL_FEATURES: PlanFeatures = {
 };
 
 const EVERY_PLAN = <T,>(value: T): Record<PlanType, T> => ({
-  starter: value, growth: value, enterprise: value,
+  starter: value, growth: value, premium: value, enterprise: value,
 });
 
 /**
@@ -78,18 +78,11 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
   chama_reminder: EVERY_PLAN(ALL_FEATURES),
 };
 
-/**
- * PLACEHOLDER PRICING FOR chama_reminder. These mirror Kitabu Yetu's numbers
- * because real Chama Reminder pricing has not been decided — inventing a rate
- * here would bury a made-up commercial number in code that bills customers.
- * Nothing reads them yet (no chama_reminder subscription exists until the
- * Phase 4 portal), so they are inert placeholders, not live prices. Set them
- * deliberately before the first Chama Reminder subscription is ever sold.
- */
 export const SMS_RATES: Record<SubscriptionProduct, Record<PlanType, (volume: number) => number>> = {
   kitabu_yetu: {
     starter:    (_) => 0.90,
     growth:     (_) => 0.90,
+    premium:    (_) => 0.90,
     enterprise: (volume) => {
       if (volume > 50000) return 0.60;
       if (volume > 10000) return 0.75;
@@ -99,6 +92,7 @@ export const SMS_RATES: Record<SubscriptionProduct, Record<PlanType, (volume: nu
   chama_reminder: {
     starter:    (_) => 0.90,
     growth:     (_) => 0.90,
+    premium:    (_) => 0.90,
     enterprise: (volume) => {
       if (volume > 50000) return 0.60;
       if (volume > 10000) return 0.75;
@@ -107,16 +101,33 @@ export const SMS_RATES: Record<SubscriptionProduct, Record<PlanType, (volume: nu
   },
 };
 
-/** See SMS_RATES' note — chama_reminder's figures are placeholders. */
+/**
+ * Monthly plan fees in KES. This is the ONLY source of truth for what a plan
+ * costs: the /billing/plans API quotes it, and the M-Pesa callback verifies
+ * the amount actually paid against it before activating anything. The billing
+ * page used to carry its own hardcoded copy (growth 2500, enterprise 8000)
+ * that disagreed with this table — customers were charged the client's number
+ * while the server believed a different one. It now reads these values.
+ *
+ * There is no free tier. Every plan below enterprise is self-serve via STK
+ * push; `enterprise` is 0 here because it is NEGOTIATED, not free — it must
+ * never be sold through the self-serve payment path, and the STK validator
+ * rejects it for exactly that reason.
+ */
 export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, number>> = {
   kitabu_yetu: {
-    starter:    0,
-    growth:     1000,
-    enterprise: 0, // negotiated
+    starter:    150,
+    growth:     300,
+    premium:    500,
+    enterprise: 0, // negotiated — never self-serve
   },
   chama_reminder: {
-    starter:    0,
-    growth:     1000,
-    enterprise: 0, // negotiated
+    starter:    100,
+    growth:     250,
+    premium:    400,
+    enterprise: 0, // negotiated — never self-serve
   },
 };
+
+/** Plans a group can buy itself. `enterprise` is negotiated and excluded. */
+export const SELF_SERVE_PLANS: readonly PlanType[] = ['starter', 'growth', 'premium'];

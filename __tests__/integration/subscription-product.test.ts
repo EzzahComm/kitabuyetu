@@ -123,15 +123,17 @@ describe('multi-product subscriptions (migration 127)', () => {
     expect(Number(result.fromPaid)).toBeCloseTo(50 * 0.80, 4);
   });
 
-  it('upgradePlan cancels only its own product, leaving the other subscription active', async () => {
+  it('activation cancels only its own product, leaving the other subscription active', async () => {
     await resetDatabase();
     const { groupId, officerId } = await createTestGroup('chairperson');
     await addChamaReminderSubscription(groupId);
 
-    // Without the product predicate on upgradePlan's cancel UPDATE, this call
-    // would cancel BOTH rows and leave the group silently unsubscribed from a
-    // product it still pays for.
-    const upgraded = await billingService.upgradePlan(ctxFor(groupId, officerId), 'growth');
+    // Without the product predicate on the cancel UPDATE, this call would
+    // cancel BOTH rows and leave the group silently unsubscribed from a
+    // product it still pays for. Exercised through the payment-free
+    // administrative path (migration 138 moved paid activation behind a
+    // confirmed payment); the product-scoping logic is shared by both.
+    const upgraded = await billingService.activatePlanWithoutPayment(ctxFor(groupId, officerId), 'growth');
     expect(upgraded.product).toBe('kitabu_yetu');
     expect(upgraded.plan_type).toBe('growth');
 

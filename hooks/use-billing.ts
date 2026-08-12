@@ -24,6 +24,8 @@ export function useSmsCreditBalance() {
 export function useUpgradePlan() {
   const qc = useQueryClient();
   return useMutation({
+    // Claims a completed M-Pesa payment rather than upgrading outright — the
+    // server refuses if no unconsumed payment exists for this plan.
     mutationFn: (planType: UpgradePlanInput['planType']) => billingApi.upgradePlan(planType),
     onSuccess:  () => qc.invalidateQueries({ queryKey: billingKeys.plans }),
   });

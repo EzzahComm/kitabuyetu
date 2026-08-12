@@ -77,17 +77,112 @@ export const billingService = {
     return existing[0];
   },
 
-  async upgradePlan(
+  /**
+   * Activate a paid plan against a CONFIRMED payment. This is the only way a
+   * paid subscription is ever created — see the note on upgradePlan below for
+   * what this replaced.
+   *
+   * Runs on a caller-supplied client so it can join the M-Pesa callback's own
+   * transaction: the subscription flips in the same commit that marks the
+   * payment completed, exactly as contributions and loan repayments do.
+   *
+   * Exactly-once per payment. Two callers race here by design — Safaricom's
+   * callback and the billing page claiming its own poll result — and a
+   * replayed callback re-enters on top of that. Serialising on the payment row
+   * plus the `already consumed` check makes every entrant after the first a
+   * no-op; UNIQUE(payment_id) (migration 138) is the backstop if two
+   * transactions somehow slip past the lock, in which case the loser's
+   * transaction aborts and nothing is half-applied.
+   *
+   * Returns the new subscription, or null when the payment was already
+   * consumed (which callers should treat as success, not failure).
+   */
+  async activateSubscriptionForPayment(
+    client: PoolClient,
+    params: {
+      groupId:   string;
+      planType:  PlanType;
+      product:   SubscriptionProduct;
+      paymentId: string;
+      amountPaid: number;
+    },
+  ): Promise<Subscription | null> {
+    const { groupId, planType, product, paymentId, amountPaid } = params;
+
+    // Serialise every activation attempt for this payment behind one lock, so
+    // the check-then-act below cannot interleave with a concurrent replay.
+    await client.query(`SELECT id FROM payments WHERE id = $1 FOR UPDATE`, [paymentId]);
+
+    const { rows: consumed } = await client.query<{ id: string }>(
+      `SELECT id FROM subscriptions WHERE payment_id = $1`, [paymentId],
+    );
+    if (consumed[0]) return null;
+
+    const fee = PLAN_MONTHLY_FEES[product][planType];
+
+    // Never activate a plan the payment does not cover. Underpayment is not an
+    // error the payer can be told about here (this runs inside a Safaricom
+    // callback), so it is refused and left for ops: the payment row stays
+    // completed and the group simply keeps its current plan.
+    if (fee <= 0) {
+      throw new PaymentRequiredError(
+        `Plan "${planType}" on ${product} is not self-serve — it is negotiated and must be activated manually.`,
+      );
+    }
+    if (amountPaid < fee) {
+      throw new PaymentRequiredError(
+        `Paid KES ${amountPaid} does not cover the ${planType} plan on ${product} (KES ${fee}).`,
+      );
+    }
+
+    // Cancel the current plan FOR THIS PRODUCT ONLY. Without the product
+    // predicate this cancelled every active row the group had, so upgrading
+    // Kitabu Yetu would silently cancel the group's Chama Reminder
+    // subscription — and the INSERT below would then be the only active row
+    // left, with no trace of what was destroyed. It also has to happen before
+    // the INSERT: idx_subscriptions_one_active_per_product forbids a second
+    // active row for the same (group, product).
+    await client.query(
+      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW()
+       WHERE group_id = $1 AND product = $2 AND status = 'active'`,
+      [groupId, product],
+    );
+
+    const smsRate    = SMS_RATES[product][planType](0);
+    const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
+
+    const { rows } = await client.query<Subscription>(
+      `INSERT INTO subscriptions
+         (group_id, product, plan_type, status, started_at, next_billing_date,
+          monthly_fee, sms_rate, max_members, payment_id)
+       VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7)
+       RETURNING *`,
+      [groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers, paymentId],
+    );
+    return rows[0];
+  },
+
+  /**
+   * Activate a plan WITHOUT payment. Administrative only.
+   *
+   * This used to be the public upgrade path, reachable by any chairperson via
+   * POST /api/v1/billing/plans, and it set status='active' unconditionally —
+   * so a group could self-upgrade to any plan with zero money changing hands.
+   * The billing page did run an STK push first, but that ordering was purely
+   * client-side and the server never checked it. Paid activation now goes
+   * through activateSubscriptionForPayment(), and the route requires a
+   * confirmed payment.
+   *
+   * What remains here is the genuinely payment-free cases: negotiated
+   * enterprise deals and support/ops corrections. Callers must enforce their
+   * own authorisation — nothing inside this function checks who is asking.
+   */
+  async activatePlanWithoutPayment(
     ctx: TenantContext,
     planType: PlanType,
     product: SubscriptionProduct = DEFAULT_PRODUCT,
   ): Promise<Subscription> {
     return withTransaction(ctx, async (client) => {
-      // Expire the current subscription FOR THIS PRODUCT ONLY. Without the
-      // product predicate this cancelled every active row the group had, so
-      // upgrading Kitabu Yetu would silently cancel the group's Chama Reminder
-      // subscription — and the INSERT below would then be the only active row
-      // left, with no trace of what was destroyed.
       await client.query(
         `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW()
          WHERE group_id = $1 AND product = $2 AND status = 'active'`,
@@ -107,6 +202,33 @@ export const billingService = {
       );
       return rows[0];
     });
+  },
+
+  /**
+   * Find a completed, not-yet-consumed M-Pesa payment for this group that was
+   * made for the given plan, so the billing page can claim its own poll result
+   * without trusting the client about whether money moved.
+   */
+  async findClaimablePayment(
+    client: PoolClient,
+    params: { groupId: string; planType: PlanType; product: SubscriptionProduct },
+  ): Promise<{ paymentId: string; amount: number } | null> {
+    const { rows } = await client.query<{ id: string; amount: string }>(
+      `SELECT p.id, p.amount
+       FROM   payments p
+       JOIN   mpesa_stk_requests s
+              ON s.checkout_request_id = p.mpesa_checkout_request_id
+       WHERE  p.group_id  = $1
+         AND  p.status    = 'completed'
+         AND  s.purpose   = 'subscription'
+         AND  s.plan_type = $2
+         AND  s.product   = $3
+         AND  NOT EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.payment_id = p.id)
+       ORDER BY p.payment_date DESC
+       LIMIT  1`,
+      [params.groupId, params.planType, params.product],
+    );
+    return rows[0] ? { paymentId: rows[0].id, amount: Number(rows[0].amount) } : null;
   },
 
   async assertFeatureAccess(

@@ -61,14 +61,39 @@ describe('client payload contracts', () => {
     // Mirrors (dashboard)/billing/page.tsx#handleMpesaPay.
     const subscription = {
       phone:            '0712345678',
-      amount:           2500,
+      amount:           300,
       accountReference: 'SUBSCRIPT',
       description:      'Growth plan',
       purpose:          'subscription' as const,
+      planType:         'growth' as const,
+      product:          'kitabu_yetu' as const,
     };
 
     it('accepts the billing page subscription payload', () => {
       expect(StkPushSchema.safeParse(subscription).success).toBe(true);
+    });
+
+    it('rejects a subscription payment that does not say which plan it buys', () => {
+      // Migration 138: the M-Pesa callback activates the plan named here.
+      // accountReference is the constant 'SUBSCRIPT' and description is 20
+      // chars of free text, so without these the callback cannot know what was
+      // bought and the payment strands — which is exactly what used to happen.
+      const { planType: _p, product: _pr, ...noPlan } = subscription;
+      expect(StkPushSchema.safeParse(noPlan).success).toBe(false);
+    });
+
+    it('rejects buying the negotiated enterprise tier through self-serve STK', () => {
+      expect(StkPushSchema.safeParse({
+        ...subscription, planType: 'enterprise',
+      }).success).toBe(false);
+    });
+
+    it('does not require a plan for non-subscription purposes', () => {
+      expect(StkPushSchema.safeParse({
+        phone: '0712345678', amount: 500,
+        accountReference: 'SMSTOPUP', description: 'SMS credits top-up',
+        purpose: 'sms_topup',
+      }).success).toBe(true);
     });
 
     it('accepts the contribution payload from StkPromptDialog', () => {
