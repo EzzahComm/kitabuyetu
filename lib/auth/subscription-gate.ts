@@ -23,25 +23,40 @@ import type { AuthContext } from '@/types/api.types';
 const OPEN_PREFIXES: readonly string[] = [
   // Sign in, refresh a token, switch group, sign out. Without this a locked
   // user cannot reach the app at all.
-  '/api/v1/auth/',
+  '/api/v1/auth',
   // See the plans and their prices, and claim a completed payment.
-  '/api/v1/billing/',
+  '/api/v1/billing',
   // Send the STK prompt, poll its status, and receive Safaricom's callback —
   // the actual act of paying.
-  '/api/v1/mpesa/',
-  // The dashboard shell reads the current user to render anything at all,
-  // including the billing page it redirects a locked group to.
+  '/api/v1/mpesa',
+  // The member's own self-service surface (goals, notifications, passbook,
+  // wallet). Note there is no route at /api/v1/me itself.
   '/api/v1/me',
-  // Liveness/readiness must never depend on a tenant's billing state.
-  '/api/v1/health',
   // Cron, queue workers and provider webhooks run with no interactive user;
   // gating them would silently stop billing itself from working.
-  '/api/v1/workers/',
-  '/api/v1/webhooks/',
-  '/api/v1/daraja/',
+  '/api/v1/workers',
+  '/api/v1/webhooks',
+  '/api/v1/daraja',
   // Organization/backoffice axis is a platform role, not a group subscription.
   '/api/v1/organization',
 ];
+
+/**
+ * Segment-aware prefix match. `startsWith` alone is wrong here and was wrong in
+ * production: '/api/v1/me' matched BOTH '/api/v1/members' and '/api/v1/meetings'
+ * by raw string prefix, so migration 139's lock never covered either of them —
+ * an unpaid group kept full access to the member list and to member creation.
+ *
+ * A prefix must match a whole path segment: exactly the prefix, or the prefix
+ * followed by '/'. This also lets the entries above drop their trailing slashes
+ * without changing what they cover.
+ *
+ * ('/api/v1/health' used to be listed here and matched nothing at all — health
+ * lives at /api/health, outside /api/v1. Removed.)
+ */
+function matchesPrefix(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(prefix + '/');
+}
 
 /** Roles that are never subject to a tenant's billing state. */
 const EXEMPT_ROLES: readonly string[] = ['super_admin', 'support'];
@@ -111,7 +126,7 @@ export async function assertSubscriptionActive(
   auth: AuthContext,
 ): Promise<void> {
   const path = req.nextUrl.pathname;
-  if (OPEN_PREFIXES.some((prefix) => path.startsWith(prefix))) return;
+  if (OPEN_PREFIXES.some((prefix) => matchesPrefix(path, prefix))) return;
   if (EXEMPT_ROLES.includes(auth.role)) return;
 
   const cached = activeUntil.get(auth.groupId);
