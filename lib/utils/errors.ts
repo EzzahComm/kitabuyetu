@@ -1,3 +1,5 @@
+import { PRODUCT_LABEL, type SubscriptionProduct } from '@/types/enums';
+
 export class AppError extends Error {
   constructor(
     public readonly message: string,
@@ -52,6 +54,27 @@ export class PaymentRequiredError extends AppError {
   constructor(message: string) {
     super(message, 'PAYMENT_REQUIRED', 402);
     this.name = 'PaymentRequiredError';
+  }
+}
+
+/**
+ * The group is paying — just not for the product this route belongs to
+ * (migration 140 / lib/auth/subscription-gate.ts).
+ *
+ * 402 rather than 403 because this is an entitlement condition with the same
+ * remedy as PAYMENT_REQUIRED — pay — and 403 would collide with
+ * requirePermission's ForbiddenError and read as an RBAC bug in triage. The
+ * distinct code is what lets a client route a Chama Reminder user to their own
+ * subscribe page instead of Kitabu Yetu's billing page.
+ */
+export class ProductNotEntitledError extends AppError {
+  constructor(product: SubscriptionProduct) {
+    super(
+      `This area requires an active ${PRODUCT_LABEL[product]} subscription.`,
+      'PRODUCT_NOT_ENTITLED',
+      402,
+    );
+    this.name = 'ProductNotEntitledError';
   }
 }
 

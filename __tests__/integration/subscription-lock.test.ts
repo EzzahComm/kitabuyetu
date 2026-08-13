@@ -15,6 +15,7 @@
  */
 import { GET as billingPlansGet } from '@/app/api/v1/billing/plans/route';
 import { GET as contributionsGet } from '@/app/api/v1/contributions/route';
+import { GET as smsUsageGet } from '@/app/api/v1/sms/usage/route';
 import { buildRequest, authHeaders } from './helpers/request';
 import { createTestGroup, subscribeTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
@@ -123,14 +124,43 @@ describe('paid-subscription lock', () => {
     expect(res.status).toBe(200);
   });
 
-  it('a subscription for a DIFFERENT product still counts as paid', async () => {
-    // The gate asks "is this group paying for anything", not "is it paying for
-    // kitabu_yetu" — a Chama Reminder subscriber is a customer, and locking
-    // them out of the shared shell would be wrong.
+  it('a subscription for a DIFFERENT product does NOT unlock this one', async () => {
+    // DELIBERATE REVERSAL (migration 140). This case used to assert 200: the
+    // gate asked "is this group paying for anything", not "is it paying for
+    // kitabu_yetu". That was right while Chama Reminder was only ever an add-on
+    // to a real Kitabu Yetu group, and became wrong the moment a group could
+    // register for Chama Reminder alone — register_group gives such a group no
+    // chart of accounts, so letting it in here does not grant it a working
+    // contributions page, it just moves the failure somewhere deeper and more
+    // confusing (a posting template complaining about missing account codes).
+    //
+    // The distinct code is what the client uses to send this group to its own
+    // subscribe page instead of Kitabu Yetu's billing page.
     await subscribeTestGroup(groupId, 'growth', 'chama_reminder');
 
     const res = await contributionsGet(
       buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
+    );
+    expect(res.status).toBe(402);
+
+    const body = await res.json() as { code: string };
+    expect(body.code).toBe('PRODUCT_NOT_ENTITLED');
+  });
+
+  it('but that subscription DOES unlock the surface it actually bought', async () => {
+    // The other half of the reversal above, and the reason it is safe: a Chama
+    // Reminder subscriber is a paying customer and must reach the product it
+    // paid for. If this ever fails, the previous test has stopped being a
+    // product boundary and started being an outage.
+    await subscribeTestGroup(groupId, 'growth', 'chama_reminder');
+
+    const res = await smsUsageGet(
+      buildRequest('/api/v1/sms/usage', {
+        headers: authHeaders({
+          userId: officerId, groupId, role: 'chairperson',
+          permissions: ['messaging.view', 'messaging.send'],
+        }),
+      }),
     );
     expect(res.status).toBe(200);
   });
