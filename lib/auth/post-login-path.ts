@@ -44,3 +44,21 @@ export function postLoginPath(
 
   return groupRole === 'member' ? '/me' : '/dashboard';
 }
+
+/**
+ * postLoginPath, with the entitlement lookup done for you.
+ *
+ * For the handful of places that route a session immediately after
+ * login/verify/switch and have no entitlements to hand. Deliberately NOT
+ * useEntitlements: these run inside async submit handlers, after a token
+ * change, where a hook's cached value would be the PREVIOUS session's.
+ *
+ * Falls back to the plain role-based path if the lookup fails, which is the
+ * pre-migration-140 behaviour — a routing helper must not be able to strand
+ * someone who has just signed in.
+ */
+export async function resolvePostLoginPath(groupRole?: string): Promise<string> {
+  const { billingApi } = await import('@/lib/api/endpoints');
+  const entitlements = await billingApi.entitlements().catch(() => undefined);
+  return postLoginPath(groupRole, entitlements);
+}

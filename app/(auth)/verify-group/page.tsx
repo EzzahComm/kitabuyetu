@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 type Step = 'choose' | 'email-sent' | 'sms-code';
 
@@ -32,11 +33,29 @@ export default function VerifyGroupPage() {
     configureApiClient({ getToken: () => accessToken, onUnauthorized: () => router.push('/login') });
   }, [accessToken, router]);
 
+  /**
+   * Where a verified group belongs.
+   *
+   * Resolved at redirect time rather than through useEntitlements, because for
+   * most of this page's life the group is still pending_verification and every
+   * such request 403s server-side — a hook here would fire a doomed call on
+   * mount. Falls back to the plain role-based path if the lookup fails, which
+   * is the pre-migration-140 behaviour.
+   *
+   * This matters here specifically: a standalone Chama Reminder signup LANDS on
+   * this page, and sending it to /dashboard drops it into a locked Kitabu Yetu
+   * shell quoting Kitabu Yetu prices with no route back to what it signed up
+   * for.
+   */
+  const goToPortal = useCallback(async (groupRole: string | undefined) => {
+    router.push(await resolvePostLoginPath(groupRole));
+  }, [router]);
+
   useEffect(() => {
     if (isLoading) return;
     if (!user || !isTenantUser(user)) { router.push('/login'); return; }
-    if (user.groupStatus !== 'pending_verification') { router.push('/dashboard'); }
-  }, [isLoading, user, router]);
+    if (user.groupStatus !== 'pending_verification') { void goToPortal(user.groupRole); }
+  }, [isLoading, user, router, goToPortal]);
 
   if (isLoading || !user || !isTenantUser(user)) return null;
 
@@ -62,9 +81,12 @@ export default function VerifyGroupPage() {
     setBusy(true);
     try {
       const data = await authApi.verifyComplete(code);
+      // login() writes the new token to localStorage synchronously, and the api
+      // client reads it from there — so the entitlements lookup inside
+      // goToPortal runs as the now-verified group.
       login(data);
-      toast({ title: 'Group verified!', description: 'Welcome to your dashboard.' });
-      router.push('/dashboard');
+      toast({ title: 'Group verified!', description: 'Welcome aboard.' });
+      await goToPortal(data.member.groupRole);
     } catch (err) {
       toast({ variant: 'destructive', title: 'Verification failed', description: getErrorMessage(err) });
     } finally {

@@ -15,7 +15,7 @@ import { ChevronsUpDown, Check, Loader2 } from 'lucide-react';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { postLoginPath } from '@/lib/auth/post-login-path';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { authApi } from '@/lib/api/endpoints';
 import type { MembershipSwitcherItem } from '@/types/api.types';
 
@@ -55,7 +55,8 @@ export function GroupSwitcher() {
       login(data);            // new session replaces the stored one
       setOpen(false);
       setItems(null);         // stale isCurrent flags — refetch next open
-      router.push(postLoginPath(data.member.groupRole));
+      // Switching groups can change the PRODUCT too, not just the role.
+      router.push(await resolvePostLoginPath(data.member.groupRole));
       router.refresh();
     } catch (err) {
       setError(getErrorMessage(err));
