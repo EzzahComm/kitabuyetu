@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,7 +122,7 @@ const PRODUCT_COPY = {
   },
 } as const;
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
@@ -353,5 +353,26 @@ export default function RegisterPage() {
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * useSearchParams() forces client-side rendering for whatever subtree reads it,
+ * so Next requires a Suspense boundary above it or the static prerender of
+ * /register fails the build outright. The form is the only thing that needs the
+ * ?product= value, so the boundary sits directly around it.
+ */
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardHeader>
+          <CardTitle>Create your group</CardTitle>
+          <CardDescription>Loading…</CardDescription>
+        </CardHeader>
+      </Card>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
