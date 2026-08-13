@@ -6,10 +6,11 @@ import { billingService } from '@/lib/services/billing.service';
 import { PaymentRequiredError } from '@/lib/utils/errors';
 import { UpgradePlanSchema } from '@/lib/validators/billing.schema';
 import {
-  PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES, DEFAULT_PRODUCT,
+  PLAN_FEATURES, PLAN_MONTHLY_FEES, DEFAULT_PRODUCT,
   type PlanType, type SubscriptionProduct,
 } from '@/types/enums';
 import { ok } from '@/lib/utils/response';
+import { getUnitPrice } from '@/lib/services/sms-pricing.service';
 
 /** ?product= — defaults to kitabu_yetu, so the existing billing page is unchanged. */
 function readProduct(req: NextRequest): SubscriptionProduct {
@@ -21,14 +22,17 @@ export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx     = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const product = readProduct(req);
-    const sub     = await billingService.getSubscription(ctx, product);
+    const sub      = await billingService.getSubscription(ctx, product);
+    // One lookup for the whole table: the active band is the same for every
+    // plan tier (SMS pricing is by VOLUME, not by subscription plan).
+    const smsRate  = await getUnitPrice(0);
     // Plan tiers are scoped within a product since migration 127, so the fee
     // and rate tables are indexed by [product][plan].
     const plans = Object.entries(PLAN_FEATURES[product]).map(([plan, features]) => ({
       plan,
       product,
       monthlyFee: PLAN_MONTHLY_FEES[product][plan as PlanType],
-      smsRate:    SMS_RATES[product][plan as PlanType](0),
+      smsRate,
       features,
       current:    sub?.plan_type === plan,
     }));
