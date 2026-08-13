@@ -133,7 +133,21 @@ Today: purchases are recorded (`sms_credits`), consumption is recorded (`sms_usa
 
 The spec itself says not to assume 0.50 works. **Someone has to supply the actual TextSMS per-message cost before the bottom tier can be approved.** Until then, margin reporting can be built with a configurable cost, but the tier table should not go live below a rate we know is profitable.
 
-> **STILL OPEN — the only decision code cannot supply.** Provider cost will be modelled as an admin-configurable value from the start (§15 requires that anyway, since provider pricing changes). Phases 1–2 proceed without it. What it gates is narrow and specific: **which tiers may be activated**, and whether §15's margin reporting shows real numbers or a placeholder. The KES 0.50 tier stays inactive until a real figure confirms it.
+> **DECIDED 2026-08-13: KES 0.35 per message.** Still modelled as an admin-configurable value rather than a constant — §15 requires that anyway, since provider pricing changes.
+>
+> **The first answer given was 3.50, and it was a typo worth catching.** Customers are charged 0.90 (verified live), so a 3.50 cost would mean losing **KES 2.60 on every message sent today**, and every tier in §2 would be catastrophically loss-making — the volume-discount strategy in §19 would be arithmetically impossible rather than merely unwise. Checking a supplied number against what the product actually charges, before encoding it, is the cheap step that prevented a pricing engine built on an inverted margin.
+
+At 0.35, the spec's proposed table is coherent and every tier clears:
+
+| Tier | Sell | Margin | Margin % |
+|---|---:|---:|---:|
+| 1–5,000 | 0.90 | 0.55 | 61% |
+| 5,001–10,000 | 0.80 | 0.45 | 56% |
+| 10,001–50,000 | 0.70 | 0.35 | 50% |
+| 50,001–100,000 | 0.60 | 0.25 | 42% |
+| 100,001+ | 0.50 | 0.15 | 30% |
+
+So §19's warning not to assume 0.50 is sustainable resolves in its favour — 30% gross at the floor. All five tiers may ship active. **Re-check this if the provider's rate ever moves**: the bottom tier is the first to go underwater, at a cost of just 0.50.
 
 ---
 
