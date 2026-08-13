@@ -6,12 +6,19 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
+import { useEntitlements } from '@/hooks/use-entitlements';
 import { configureApiClient } from '@/lib/api/client';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, isLoading, accessToken, audience, logout } = useAuth();
   const router = useRouter();
+  const entitlements = useEntitlements();
+
+  // Read as values, not as the object: useEntitlements returns a fresh object
+  // each render, so depending on it directly would re-run the effect endlessly.
+  const entitlementsLoading = entitlements.isLoading;
+  const reminderOnly        = entitlements.reminderOnly;
 
   // A backoffice (staff) session must never render the tenant dashboard —
   // otherwise a super-admin who follows a stray link lands in the consumer
@@ -42,8 +49,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // verification flow instead of a page full of failed requests.
     if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
       router.replace('/verify-group');
+      return;
     }
-  }, [isLoading, user, isBackoffice, router]);
+    // Same reasoning, one axis over (migration 140): a group holding only
+    // Chama Reminder is refused every financial route, so this shell would
+    // render a page of 402s. Reached by a stale bookmark or a shared link,
+    // not by any flow in the app. Wait for entitlements rather than guessing —
+    // a wrong bounce here would eject a legitimate Kitabu Yetu user.
+    if (!entitlementsLoading && reminderOnly) {
+      router.replace('/reminder');
+    }
+  }, [isLoading, user, isBackoffice, router, entitlementsLoading, reminderOnly]);
 
   if (isLoading) {
     return (
