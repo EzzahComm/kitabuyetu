@@ -235,7 +235,13 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
       // the same unaffordable send on every cron tick forever.
       return { channel: 'sms', status: 'suppressed', detail: reservation.reason };
     }
-    reservedCredits = reservation.total;
+    // Migration 144: credits are MESSAGE COUNTS, so this is fromPaid +
+    // fromAllowance, not `total`. `total` is the notional MONEY cost
+    // (rate * count) and using it here mixed units inside a single row:
+    // settle computes paid = credits_reserved - credits_from_allowance, so a
+    // 0.90 reserved against a 1 allowance gave -0.10 and GREW the balance on
+    // consume. The unit mismatch this migration closes had a second head.
+    reservedCredits = reservation.fromPaid + reservation.fromAllowance;
     // Phase 2b (migration 124): this is always a single-message reservation
     // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
     // full reservedCredits.

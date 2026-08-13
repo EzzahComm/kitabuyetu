@@ -105,26 +105,33 @@ describe('SMS credit reservation (migration 123)', () => {
   describe('reserve', () => {
     it('earmarks without debiting', async () => {
       const res = await reserve(groupId, 2);
+      // `total` is still MONEY — the notional cost of the send, for display
+      // and logging. It is the one value here that is not a message count.
       expect(parseFloat(res.total)).toBeCloseTo(1.8, 2);
 
       const b = await balances(groupId);
       // The balance itself must not move — that is the difference between a
       // reservation and the debit-on-attempt this replaced.
       expect(b.credits).toBeCloseTo(100, 2);
-      expect(b.reserved).toBeCloseTo(1.8, 2);
+      // Migration 144: one credit is one message, so 2 messages earmark 2 —
+      // not 2 * 0.90. Earmarking money against a message-count balance is
+      // what let a customer send more than they bought.
+      expect(b.reserved).toBeCloseTo(2, 2);
     });
 
     it('refuses when available is short, counting existing earmarks', async () => {
       await provision(groupId, 1.0, 0);
-      await reserve(groupId, 1); // 0.90 of 1.00 now earmarked
+      await reserve(groupId, 1); // the whole 1-message balance is now earmarked
 
-      // Only 0.10 available, so a second single message must be refused even
-      // though sms_credits alone still reads 1.00.
+      // Nothing available, so a second message must be refused even though
+      // sms_credits alone still reads 1.00. Before migration 144 this
+      // earmarked only 0.90 and left 0.10 spare — enough for the balance to
+      // fund more messages than were ever paid for.
       await expect(reserve(groupId, 1)).rejects.toThrow(/insufficient/i);
 
       const b = await balances(groupId);
       expect(b.credits).toBeCloseTo(1.0, 2);
-      expect(b.reserved).toBeCloseTo(0.9, 2);
+      expect(b.reserved).toBeCloseTo(1, 2);
     });
 
     it('refuses a group with no active subscription', async () => {
@@ -145,28 +152,63 @@ describe('SMS credit reservation (migration 123)', () => {
     });
   });
 
+  describe('one credit is one message (migration 144)', () => {
+    it('cannot fund more messages than were bought', async () => {
+      // THE REGRESSION THIS FILE EXISTS TO PREVENT.
+      //
+      // sms_credits was credited in MESSAGE COUNTS by the top-up path
+      // (amount_paid / rate) and debited in MONEY by reserve (count * rate).
+      // A group that bought exactly 100 messages could therefore reserve all
+      // 100 for only 90.00, leaving 10.00 spare — enough for 11 more messages
+      // nobody paid for. The error factor is 1/rate, so it grows as prices
+      // fall: at the 0.50 tier the spec proposes, a customer would have
+      // received double what they bought.
+      //
+      // If this test ever fails, revenue is leaking again.
+      await provision(groupId, 100, 0); // exactly 100 messages' worth
+      await reserve(groupId, 100);
+
+      const b = await balances(groupId);
+      expect(b.reserved).toBeCloseTo(100, 2);              // not 90
+      expect(b.credits - b.reserved).toBeCloseTo(0, 2);    // nothing spare
+
+      await expect(reserve(groupId, 1)).rejects.toThrow(/insufficient/i);
+    });
+
+    it('still reports the money cost of a send, which is a different thing', async () => {
+      // `total` remains rate * count. Losing it would be the opposite error:
+      // the balance is messages, but margin and invoicing need the money.
+      await provision(groupId, 100, 0);
+      const res = await reserve(groupId, 10);
+
+      expect(parseFloat(res.total)).toBeCloseTo(9, 2);   // 10 * 0.90, money
+      expect(res.fromPaidCount).toBe(10);                // messages
+      expect(parseFloat(res.fromPaid)).toBeCloseTo(10, 2); // credits = messages
+    });
+  });
+
   describe('settle', () => {
     it('consume converts the earmark into a real charge', async () => {
       await reserve(groupId, 1);
-      const logId = await reservedLog(groupId, 0.9);
+      const logId = await reservedLog(groupId, 1);
 
       await settleReservation([logId], 'consume');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(99.1, 2);
+      expect(b.credits).toBeCloseTo(99, 2);  // one message, one credit
       expect(b.reserved).toBeCloseTo(0, 2);
 
       const [log] = await rawQuery<{ billing_state: string; credits_deducted: string; credits_reserved: string }>(
         `SELECT billing_state, credits_deducted, credits_reserved FROM sms_usage_logs WHERE id = $1`, [logId],
       );
       expect(log.billing_state).toBe('consumed');
-      expect(parseFloat(log.credits_deducted)).toBeCloseTo(0.9, 2);
+      expect(parseFloat(log.credits_deducted)).toBeCloseTo(1, 2);
       expect(parseFloat(log.credits_reserved)).toBeCloseTo(0, 2);
     });
 
     it('release returns the earmark and charges nothing', async () => {
       await reserve(groupId, 1);
-      const logId = await reservedLog(groupId, 0.9);
+      const logId = await reservedLog(groupId, 1);
 
       await settleReservation([logId], 'release');
 
@@ -183,13 +225,13 @@ describe('SMS credit reservation (migration 123)', () => {
 
     it('is idempotent — settling twice does not double charge', async () => {
       await reserve(groupId, 1);
-      const logId = await reservedLog(groupId, 0.9);
+      const logId = await reservedLog(groupId, 1);
 
       await settleReservation([logId], 'consume');
       await settleReservation([logId], 'consume');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(99.1, 2);
+      expect(b.credits).toBeCloseTo(99, 2);
     });
 
     it('never drives a balance negative, so a post-send settle cannot fail', async () => {
@@ -197,7 +239,7 @@ describe('SMS credit reservation (migration 123)', () => {
       // raises 23514 with the SMS already sent, stranding the reservation and
       // making the sweeper retry the same failing consume forever.
       await provision(groupId, 0);
-      const logId = await reservedLog(groupId, 0.9);
+      const logId = await reservedLog(groupId, 1);
 
       await expect(settleReservation([logId], 'consume')).resolves.toBeDefined();
 
@@ -214,7 +256,8 @@ describe('SMS credit reservation (migration 123)', () => {
       expect(res.fromAllowanceCount).toBe(5);
       expect(res.fromPaidCount).toBe(0);
       expect(parseFloat(res.fromPaid)).toBeCloseTo(0, 2);
-      expect(parseFloat(res.fromAllowance)).toBeCloseTo(4.5, 2); // 5 * 0.90
+      // Message counts since migration 144, not 5 * 0.90.
+      expect(parseFloat(res.fromAllowance)).toBeCloseTo(5, 2);
 
       const b = await balances(groupId);
       expect(b.credits).toBeCloseTo(100, 2);   // untouched
@@ -228,11 +271,11 @@ describe('SMS credit reservation (migration 123)', () => {
 
       expect(res.fromAllowanceCount).toBe(3);
       expect(res.fromPaidCount).toBe(2);
-      expect(parseFloat(res.fromPaid)).toBeCloseTo(1.8, 2);      // 2 * 0.90
-      expect(parseFloat(res.fromAllowance)).toBeCloseTo(2.7, 2); // 3 * 0.90
+      expect(parseFloat(res.fromPaid)).toBeCloseTo(2, 2);
+      expect(parseFloat(res.fromAllowance)).toBeCloseTo(3, 2);
 
       const b = await balances(groupId);
-      expect(b.reserved).toBeCloseTo(1.8, 2);
+      expect(b.reserved).toBeCloseTo(2, 2);
       expect(b.allowanceReserved).toBe(3);
     });
 
@@ -245,12 +288,12 @@ describe('SMS credit reservation (migration 123)', () => {
       expect(res.fromPaidCount).toBe(1);
 
       const b = await balances(groupId);
-      expect(b.reserved).toBeCloseTo(0.9, 2);
+      expect(b.reserved).toBeCloseTo(1, 2);
       expect(b.allowanceReserved).toBe(2); // unchanged by the second reserve
     });
 
     it('allowance is gated only by its own remaining bucket, never by paid balance', async () => {
-      // Paid balance alone (0.5) could not cover 3 messages at 0.90 each — but
+      // Paid balance alone (0.5) could not cover 3 messages at 1 credit each — but
       // every one of them is allowance-funded, so this must still succeed.
       // This is the entire point of Decision B's bundled allowance.
       await provision(groupId, 0.5, 5);
@@ -274,10 +317,12 @@ describe('SMS credit reservation (migration 123)', () => {
     async function reservedLogsFor(
       groupId: string, res: { rate: string; fromAllowanceCount: number; fromPaidCount: number },
     ): Promise<string[]> {
-      const rate = parseFloat(res.rate);
+      // One credit per message since migration 144 — the row amount is 1, not
+      // the rate. res.rate is deliberately unused now; it prices the send, it
+      // does not size the earmark.
       const ids: string[] = [];
-      for (let i = 0; i < res.fromAllowanceCount; i++) ids.push(await reservedLog(groupId, rate, {}, rate));
-      for (let i = 0; i < res.fromPaidCount; i++) ids.push(await reservedLog(groupId, rate, {}, 0));
+      for (let i = 0; i < res.fromAllowanceCount; i++) ids.push(await reservedLog(groupId, 1, {}, 1));
+      for (let i = 0; i < res.fromPaidCount; i++) ids.push(await reservedLog(groupId, 1, {}, 0));
       return ids;
     }
 
@@ -302,13 +347,13 @@ describe('SMS credit reservation (migration 123)', () => {
 
     it('consume spends the allowance permanently, and only the paid portion debits sms_credits', async () => {
       await provision(groupId, 100, 3);
-      const res = await reserve(groupId, 5); // 3 allowance + 2 paid = 1.80 paid
+      const res = await reserve(groupId, 5); // 3 allowance + 2 paid
       const logIds = await reservedLogsFor(groupId, res);
 
       await settleReservation(logIds, 'consume');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(98.2, 2);  // only the 1.80 paid portion debited
+      expect(b.credits).toBeCloseTo(98, 2);    // only the 2 paid messages debited
       expect(b.reserved).toBeCloseTo(0, 2);
       expect(b.allowanceReserved).toBe(0);
       expect(b.allowanceUsed).toBe(3);         // permanently spent
@@ -318,7 +363,7 @@ describe('SMS credit reservation (migration 123)', () => {
       await settleReservation(logIds, 'consume');
       const b2 = await balances(groupId);
       expect(b2.allowanceUsed).toBe(3);
-      expect(b2.credits).toBeCloseTo(98.2, 2);
+      expect(b2.credits).toBeCloseTo(98, 2);
     });
 
     it('does not affect the organization branch, which has no allowance', async () => {
@@ -344,8 +389,10 @@ describe('SMS credit reservation (migration 123)', () => {
         `SELECT sms_credits, reserved_sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
         [organizationId],
       );
-      expect(parseFloat(org.sms_credits)).toBeCloseTo(100, 2);         // untouched
-      expect(parseFloat(org.reserved_sms_credits)).toBeCloseTo(2.7, 2); // 3 * 0.90, fully paid
+      expect(parseFloat(org.sms_credits)).toBeCloseTo(100, 2);       // untouched
+      // 3 messages, 3 credits — organizations use the same one-credit-one-
+      // message rule since migration 144, not 3 * their negotiated rate.
+      expect(parseFloat(org.reserved_sms_credits)).toBeCloseTo(3, 2);
     });
   });
 

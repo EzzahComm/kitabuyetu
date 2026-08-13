@@ -132,7 +132,11 @@ describe('multi-product subscriptions (migration 127)', () => {
     // SUM(50, 500) = 550 free, so 600 messages split 550 allowance / 50 paid.
     expect(Number(result.fromAllowanceCount)).toBe(550);
     expect(Number(result.fromPaidCount)).toBe(50);
-    expect(Number(result.fromPaid)).toBeCloseTo(50 * 0.80, 4);
+    // 50 credits, not 50 * 0.80 (migration 144): the balance counts MESSAGES,
+    // so the best rate decides what the send COSTS, never how much of the
+    // balance it consumes. `total` below is where the rate still shows up.
+    expect(Number(result.fromPaid)).toBeCloseTo(50, 4);
+    expect(Number(result.total)).toBeCloseTo(600 * 0.80, 4);
   });
 
   it('activation cancels only its own product, leaving the other subscription active', async () => {
