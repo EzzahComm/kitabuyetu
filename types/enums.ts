@@ -84,28 +84,20 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
   chama_reminder: EVERY_PLAN(ALL_FEATURES),
 };
 
-export const SMS_RATES: Record<SubscriptionProduct, Record<PlanType, (volume: number) => number>> = {
-  kitabu_yetu: {
-    starter:    (_) => 0.90,
-    growth:     (_) => 0.90,
-    premium:    (_) => 0.90,
-    enterprise: (volume) => {
-      if (volume > 50000) return 0.60;
-      if (volume > 10000) return 0.75;
-      return 0.90;
-    },
-  },
-  chama_reminder: {
-    starter:    (_) => 0.90,
-    growth:     (_) => 0.90,
-    premium:    (_) => 0.90,
-    enterprise: (volume) => {
-      if (volume > 50000) return 0.60;
-      if (volume > 10000) return 0.75;
-      return 0.90;
-    },
-  },
-};
+/**
+ * SMS_RATES lived here and is gone (migration 143).
+ *
+ * It was typed `(volume: number) => number` and read like a volume pricing
+ * engine, but it never priced anything: all four call sites passed 0, and the
+ * rate actually charged at send time comes from `subscriptions.sms_rate` — a
+ * scalar frozen onto the subscription at purchase, which reserve_sms_credits
+ * reads with MIN(). Its tiers (0.60/0.75/0.90) had also drifted from any
+ * agreed price list.
+ *
+ * Real, configurable volume pricing now lives in `sms_pricing_tiers` and is
+ * read through `lib/services/sms-pricing.service.ts`. Pricing is by VOLUME,
+ * not by subscription plan, which is why it is no longer keyed by PlanType.
+ */
 
 /**
  * Monthly plan fees in KES. This is the ONLY source of truth for what a plan

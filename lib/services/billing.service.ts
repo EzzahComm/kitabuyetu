@@ -2,12 +2,13 @@ import { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import {
-  PLAN_FEATURES, PLAN_MONTHLY_FEES, SMS_RATES, DEFAULT_PRODUCT,
+  PLAN_FEATURES, PLAN_MONTHLY_FEES, DEFAULT_PRODUCT,
   type PlanType, type SubscriptionProduct, type PlanFeatures,
 } from '@/types/enums';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
+import { getUnitPrice } from './sms-pricing.service';
 
 /**
  * Give a group the general ledger its new product needs.
@@ -113,7 +114,7 @@ export const billingService = {
        VALUES ($1, $2, 'starter', 'active', NOW(), 0, $3, NULL)
        ON CONFLICT DO NOTHING
        RETURNING *`,
-      [ctx.groupId, product, SMS_RATES[product].starter(0).toFixed(4)],
+      [ctx.groupId, product, (await getUnitPrice(0, client)).toFixed(4)],
     );
     // ON CONFLICT DO NOTHING returns no rows when a subscription already exists.
     // In that case, fetch the existing active subscription instead.
@@ -197,7 +198,7 @@ export const billingService = {
       [groupId, product],
     );
 
-    const smsRate    = SMS_RATES[product][planType](0);
+    const smsRate    = await getUnitPrice(0, client);
     const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
     const { rows } = await client.query<Subscription>(
@@ -242,7 +243,7 @@ export const billingService = {
       );
 
       const fee        = PLAN_MONTHLY_FEES[product][planType];
-      const smsRate    = SMS_RATES[product][planType](0);
+      const smsRate    = await getUnitPrice(0, client);
       const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
       const { rows } = await client.query<Subscription>(
