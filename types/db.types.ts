@@ -15,6 +15,14 @@ export interface Group {
   county:              string | null;
   logo_url:            string | null;
   is_active:           boolean;
+  /**
+   * Which product this group registered for (migration 140). Records intent
+   * only — what a group may actually use is decided by its active
+   * subscriptions. Needed because since migration 139 a new group holds no
+   * subscription row at all until it pays, so nothing else can answer "what
+   * did this group sign up for" for a never-paid group.
+   */
+  signup_product:      SubscriptionProduct;
   created_at:          Date;
   updated_at:          Date;
 }
