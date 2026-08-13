@@ -140,6 +140,7 @@ describe('route entitlement map', () => {
       '/api/v1/members/[id]/next-of-kin/[kinId]',
       '/api/v1/members/[id]/status',
       '/api/v1/sms/balance',
+      '/api/v1/sms/birthdays',
       '/api/v1/sms/bulk',
       '/api/v1/sms/campaign',
       '/api/v1/sms/credits',
@@ -147,6 +148,7 @@ describe('route entitlement map', () => {
       '/api/v1/sms/preferences',
       '/api/v1/sms/schedules',
       '/api/v1/sms/send',
+      '/api/v1/sms/settings',
       '/api/v1/sms/templates',
       '/api/v1/sms/usage',
     ]);
