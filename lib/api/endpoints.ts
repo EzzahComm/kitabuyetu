@@ -384,12 +384,26 @@ export interface BillingPlanRow {
   current:    boolean;
 }
 
+/** GET /billing/entitlements — what this group may use, and what it signed up for. */
+export interface EntitlementsResponse {
+  products:      SubscriptionProduct[];
+  signupProduct: SubscriptionProduct;
+}
+
 export const billingApi = {
-  plans:         () => api.get<{
+  /**
+   * `product` is not optional decoration: plan tiers are priced per product
+   * (Chama Reminder starter is KES 100, Kitabu Yetu's is 150), and the server
+   * verifies the amount paid against its own table. Omitting it here quotes
+   * Kitabu Yetu prices on a Chama Reminder page, and the resulting STK payment
+   * fails verification.
+   */
+  plans:         (product?: SubscriptionProduct) => api.get<{
     plans:   BillingPlanRow[];
     current: SubscriptionPublic | null;
     product: SubscriptionProduct;
-  }>('/billing/plans'),
+  }>(product ? `/billing/plans?product=${product}` : '/billing/plans'),
+  entitlements:  () => api.get<EntitlementsResponse>('/billing/entitlements'),
   upgradePlan:   (planType: UpgradePlanInput['planType'], product?: SubscriptionProduct) =>
                    api.post<SubscriptionPublic>('/billing/plans', { planType, ...(product ? { product } : {}) }),
   invoices:      () => api.get<unknown[]>('/billing/invoices'),
