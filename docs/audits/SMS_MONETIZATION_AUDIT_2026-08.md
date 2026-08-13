@@ -84,7 +84,7 @@ The spec's §14 consumption list is a strict subset. **Nothing needs adding here
 
 ---
 
-## 3. Open decisions — these block schema work
+## 3. Decisions — RESOLVED 2026-08-13 (A–C), D pending a provider number
 
 ### Decision A — is the wallet per group, or per organization?
 
@@ -99,7 +99,7 @@ Three options:
 2. **Consolidate onto a single wallet table with a polymorphic owner.** Closest to the spec's literal wording. Cost: a real migration of two live balances, and it flattens a distinction the org-funding feature depends on (orgs negotiate their own rate).
 3. Organization-only wallet. **Rejected outright** — most groups have no organization, so this would leave the majority of tenants with nowhere to hold credits.
 
-> **Recommendation: option 1.** The spec's actual requirement is "do not build a second billing implementation per feature", and that is already satisfied. Two *payer types* is not the fragmentation §1 warns about; two *billing implementations* would be, and there aren't any.
+> **DECIDED: option 1** — groups keep their own wallet, organizations keep theirs. The spec's actual requirement is "do not build a second billing implementation per feature", and that is already satisfied. Two *payer types* is not the fragmentation §1 warns about; two *billing implementations* would be, and there aren't any. No migration of live balances; the existing 3-way payer axis gets formalised rather than replaced.
 
 ### Decision B — do credits become message counts (§6)?
 
@@ -113,7 +113,7 @@ This is not a display change. It changes what the column *means*, and §21 forbi
 2. Convert in place. Cheaper, but irreversible and momentarily wrong for anyone mid-send.
 3. Keep money internally, divide for display only. Cheapest — but §4's per-lot pricing then has no integer quantity to attach to, so it blocks the package model.
 
-> **Recommendation: option 1**, and treat the conversion factor as a per-lot fact (each `sms_credits` row already knows its own `rate_applied`), not a global constant. Two real balances are affected today (111.11 and 0.00), so the migration is small — but it will not be small later.
+> **DECIDED: option 1.** Add `sms_credit_balance INTEGER` alongside the money column and migrate readers. The conversion factor is treated as a **per-lot fact** — each `sms_credits` row already stores its own `rate_applied` — not a global constant, so a group that bought at two different rates converts correctly. Two real balances are affected today (111.11 and 0.00); the migration will not be this small later.
 
 ### Decision C — how far does the immutable ledger go (§5)?
 
@@ -125,13 +125,15 @@ Today: purchases are recorded (`sms_credits`), consumption is recorded (`sms_usa
 2. Keep the mutable balance, add an append-only `sms_credit_ledger` alongside it for audit only.
 3. Status quo.
 
-> **Recommendation: option 2 first, option 1 later.** The balance column is read on the hot path by `reserve_sms_credits` under `FOR UPDATE`; making it a live aggregate is a performance and correctness change to the most concurrency-sensitive code in the SMS stack. Ship the audit trail first, then move the source of truth once it is proven to agree.
+> **DECIDED: option 2 first, option 1 later.** The balance column is read on the hot path by `reserve_sms_credits` under `FOR UPDATE`; making it a live aggregate is a performance and correctness change to the most concurrency-sensitive code in the SMS stack. Ship the append-only ledger plus a reconciliation job first, and move the source of truth only once the two are proven to agree in production.
 
 ### Decision D — is 0.50 sustainable? (§15, §19)
 
 **Cannot be answered from this codebase**: provider cost appears nowhere. Grepped `provider_cost`, `gross_margin`, `margin` across `lib/`, `app/`, `types/`, `supabase/migrations/` — zero hits.
 
 The spec itself says not to assume 0.50 works. **Someone has to supply the actual TextSMS per-message cost before the bottom tier can be approved.** Until then, margin reporting can be built with a configurable cost, but the tier table should not go live below a rate we know is profitable.
+
+> **STILL OPEN — the only decision code cannot supply.** Provider cost will be modelled as an admin-configurable value from the start (§15 requires that anyway, since provider pricing changes). Phases 1–2 proceed without it. What it gates is narrow and specific: **which tiers may be activated**, and whether §15's margin reporting shows real numbers or a placeholder. The KES 0.50 tier stays inactive until a real figure confirms it.
 
 ---
 
