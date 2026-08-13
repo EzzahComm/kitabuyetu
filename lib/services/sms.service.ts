@@ -133,6 +133,16 @@ export interface BulkCampaignInput {
 // them in one place is the point of that module.
 
 /**
+ * One SMS costs one credit (migration 144, spec §6).
+ *
+ * Named rather than a bare `1` because the value it replaced was `rate`, and
+ * the whole defect was that a rate looks equally plausible in these positions.
+ * A constant makes the unit an assertion instead of an assumption: credits
+ * count MESSAGES, and money only ever appears as `rate * count` for display.
+ */
+const CREDITS_PER_MESSAGE = 1;
+
+/**
  * Map this module's payer shape onto the shared reservation target.
  *
  * Billing itself now lives in lib/services/messaging-billing.ts, which is the
@@ -390,7 +400,6 @@ export const smsService = {
         void raiseLowBalanceAlert(toReservationTarget(ctx.groupId, payer));
         throw reserveFailureToError(reservation.reason, reservation.detail);
       }
-      const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
       // Phase 2b: the reservation already split this batch between the
@@ -398,18 +407,23 @@ export const smsService = {
       // allowance count down per row so each row records its own true
       // source. One row is one message, so the split is all-or-nothing per
       // row: a message is never half-allowance/half-paid.
+      //
+      // Migration 144: each row is worth ONE CREDIT, not `rate`. The balance is
+      // a message count (the top-up path credits amount_paid / rate), so
+      // recording money here debited a message-count balance in money and let a
+      // customer send more messages than they actually bought.
       let allowanceLeft = reservation.fromAllowanceCount;
 
       const rows: SmsUsageLog[] = [];
       for (const phone of eligible) {
-        const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, rate) : 0;
+        const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, CREDITS_PER_MESSAGE) : 0;
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
              (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
               credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
               reference_type, reference_id, provider, payer_type, payer_organization_id)
            VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,'textsms',$10,$11) RETURNING *`,
-          [ctx.groupId, phone, message, rate.toFixed(4), fromAllowance.toFixed(4),
+          [ctx.groupId, phone, message, CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4),
            referenceType ?? null, referenceId ?? null,
            referenceType ?? null, referenceId ?? null, payerType, payerOrgId],
         );
@@ -533,7 +547,6 @@ export const smsService = {
         void raiseLowBalanceAlert(toReservationTarget(input.groupId, payer));
         throw reserveFailureToError(reservation.reason, reservation.detail);
       }
-      const rate = reservation.rate;
       const [payerType, payerOrgId] = payerCols(payer);
 
       // Phase 2b: spend the allowance count down per row (migration 124) —
@@ -544,7 +557,8 @@ export const smsService = {
       for (let i = 0; i < eligible.length; i += batchSize) {
         const batch = eligible.slice(i, i + batchSize);
         for (const phone of batch) {
-          const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, rate) : 0;
+          // One credit per message (migration 144) — see the single-send path.
+          const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, CREDITS_PER_MESSAGE) : 0;
           const { rows } = await db.query<{ id: string }>(
             `INSERT INTO sms_usage_logs
                (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
@@ -553,7 +567,7 @@ export const smsService = {
                 payer_type, payer_organization_id)
              VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11) RETURNING id`,
             [
-              input.groupId, phone, messageFor(phone), rate.toFixed(4), fromAllowance.toFixed(4),
+              input.groupId, phone, messageFor(phone), CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4),
               dispatchKey,
               input.referenceType ?? 'campaign',
               input.referenceId ?? dispatchKey,

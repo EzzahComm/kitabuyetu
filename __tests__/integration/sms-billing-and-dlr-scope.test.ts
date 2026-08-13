@@ -92,13 +92,18 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       const [billing] = await rawQuery<{ sms_credits: string }>(
         `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
       );
-      // 100 - (0.90 * 1 recipient)
-      expect(parseFloat(billing.sms_credits)).toBeCloseTo(99.1, 2);
+      // 100 - 1 recipient. Was 99.1 (100 - 0.90 * 1) until migration 144:
+      // the balance is a MESSAGE COUNT, so charging it the money rate let a
+      // group send more messages than it bought.
+      expect(parseFloat(billing.sms_credits)).toBeCloseTo(99, 2);
 
       const [log] = await rawQuery<{ credits_deducted: string; payer_type: string }>(
         `SELECT credits_deducted, payer_type FROM sms_usage_logs WHERE group_id=$1`, [groupId],
       );
-      expect(parseFloat(log.credits_deducted)).toBeCloseTo(0.9, 2);
+      // One message, one credit (migration 144). The money cost of this send
+      // is still derivable as credits * the subscription's sms_rate; it is
+      // just no longer what the balance moves by.
+      expect(parseFloat(log.credits_deducted)).toBeCloseTo(1, 2);
       expect(log.payer_type).toBe('group');
     });
 

@@ -29,7 +29,7 @@ The single biggest risk in the spec is not any of its new features. It is **§6'
 | §3 Packages | Nothing | ❌ Gap |
 | §12 Super-admin pricing/package controls | Nothing | ❌ Gap |
 | §15 Provider cost & margin | Nothing — grepped, zero references | ❌ Gap |
-| §6 1 SMS = 1 credit | Credits are **money**, not messages | ❌ Unit change |
+| §6 1 SMS = 1 credit | **Credited in messages, debited in money — a live leak** | ❌ FIXED, migration 144 |
 
 ---
 
@@ -113,7 +113,30 @@ This is not a display change. It changes what the column *means*, and §21 forbi
 2. Convert in place. Cheaper, but irreversible and momentarily wrong for anyone mid-send.
 3. Keep money internally, divide for display only. Cheapest — but §4's per-lot pricing then has no integer quantity to attach to, so it blocks the package model.
 
-> **DECIDED: option 1.** Add `sms_credit_balance INTEGER` alongside the money column and migrate readers. The conversion factor is treated as a **per-lot fact** — each `sms_credits` row already stores its own `rate_applied` — not a global constant, so a group that bought at two different rates converts correctly. Two real balances are affected today (111.11 and 0.00); the migration will not be this small later.
+> **SUPERSEDED — the premise was wrong. See §3.5 below.**
+>
+> **DECIDED (as recorded): option 1.** Add `sms_credit_balance INTEGER` alongside the money column and migrate readers. The conversion factor is treated as a **per-lot fact** — each `sms_credits` row already stores its own `rate_applied` — not a global constant, so a group that bought at two different rates converts correctly. Two real balances are affected today (111.11 and 0.00); the migration will not be this small later.
+
+### §3.5 — CORRECTION: the balance was never money (2026-08-13)
+
+**This audit originally claimed `billing_accounts.sms_credits` holds money. That was wrong**, and the truth was worse: the column was credited in one unit and debited in another.
+
+| path | code | at rate 0.90 | unit |
+|---|---|---|---|
+| top-up | `credits += amount_paid / rate` | KES 100 → **+111.11** | message count |
+| send | `reserved += count * rate` | 1 message → **−0.90** | money |
+
+Verified against production: the only funded group paid `amount_paid = 100.00` at `rate_applied = 0.9000` for `credits_added = 111.11`, and its two settled messages deducted 1.80 — 0.90 each.
+
+**A customer who paid for 111 messages could send 123.** The error factor is `1/rate`, so it *worsens as prices fall* — at the 0.50 tier proposed in §2, a customer would have received **double** what they bought. The volume discount this project exists to introduce would have amplified the leak rather than being neutral to it.
+
+**Consequences for the plan:**
+
+- **Decision B's migration is not needed.** The stored balance was always produced by the top-up path, so it is *already* a message count — `111.11` really does mean 111 messages. Nothing needs converting; the deduction side needed to agree with it. Fixed in **migration 144** by earmarking counts instead of money (two lines), plus the TypeScript send paths that wrote `rate` per row and `reservation.total` (money) as a row's reserved amount.
+- **§6 is therefore already satisfied**, not pending.
+- Historical `sms_usage_logs` rows keep money values and are not retro-converted: rewriting billing records to amounts that were never charged would be worse than a documented unit change at a known date. In practice 270 of 286 production rows predate the reservation system entirely.
+
+**How it was missed here originally:** the column is named `sms_credits`, its sibling `sms_rate` sits beside it, and `NUMERIC(_,2)` reads like money. Only comparing `amount_paid` against `credits_added` on a real purchase row settles it — which is why the correction came from querying production rather than from reading the schema.
 
 ### Decision C — how far does the immutable ledger go (§5)?
 
