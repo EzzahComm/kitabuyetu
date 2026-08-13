@@ -32,6 +32,20 @@ async function ensureChartOfAccounts(
   await client.query(`SELECT seed_chart_of_accounts($1)`, [groupId]);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A TenantContext.userId that is safe to store in a UUID column.
+ *
+ * Background-driven paths (the M-Pesa callback most of all) run with no
+ * interactive user and pass the sentinel string 'system'. Writing that into a
+ * uuid column throws `invalid input syntax for type uuid` — which is exactly
+ * how the top-up suite caught this.
+ */
+function actorId(userId: string | undefined): string | null {
+  return userId && UUID_RE.test(userId) ? userId : null;
+}
+
 /**
  * Whether this group has a general ledger at all. Only a Chama-Reminder-only
  * group does not (migration 140), so this is true for every group that predates
@@ -454,9 +468,28 @@ export const billingService = {
       );
       if (!inserted[0]) return;
 
-      await client.query(
-        `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`,
+      const { rows: after } = await client.query<{ sms_credits: string }>(
+        `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2
+         RETURNING sms_credits`,
         [credits.toFixed(4), ctx.groupId],
+      );
+
+      // Ledger entry for the purchase (migration 141). Same transaction and
+      // after the ON CONFLICT guard above, so a replayed callback that credits
+      // nothing also records nothing — the ledger must never claim a movement
+      // the balance did not make, or reconciliation stops meaning anything.
+      //
+      // created_by is NULL for anything the M-Pesa callback drives: that path
+      // runs with no interactive user and passes the sentinel ctx.userId
+      // 'system', which is not a UUID. Recording "no human did this" is also
+      // the honest answer.
+      await client.query(
+        `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
+        [
+          'group', ctx.groupId, null, 'purchase',
+          credits.toFixed(4), 0, after[0]?.sms_credits ?? null,
+          'sms_topup', inserted[0].id, paymentId ?? null, actorId(ctx.userId), null,
+        ],
       );
     });
   },
