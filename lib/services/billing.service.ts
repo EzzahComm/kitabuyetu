@@ -10,6 +10,41 @@ import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
 
 /**
+ * Give a group the general ledger its new product needs.
+ *
+ * Since migration 140 a Chama Reminder signup gets NO chart of accounts —
+ * a communication-only group has nothing to post journals against. Buying
+ * Kitabu Yetu later is precisely the conversion the whole acquisition strategy
+ * exists for, and without this it would produce a group whose every accounting
+ * path throws "Account code(s) not in your chart of accounts" from deep inside
+ * a posting template, pointing nowhere near the cause.
+ *
+ * Idempotent (the SQL function is ON CONFLICT DO NOTHING), so this is a no-op
+ * for the groups that already have one — which is all of them today. Runs on
+ * the caller's client so it lands in the same commit as the activation.
+ */
+async function ensureChartOfAccounts(
+  client: PoolClient,
+  groupId: string,
+  product: SubscriptionProduct,
+): Promise<void> {
+  if (product !== 'kitabu_yetu') return;
+  await client.query(`SELECT seed_chart_of_accounts($1)`, [groupId]);
+}
+
+/**
+ * Whether this group has a general ledger at all. Only a Chama-Reminder-only
+ * group does not (migration 140), so this is true for every group that predates
+ * that migration.
+ */
+async function hasChartOfAccounts(client: PoolClient, groupId: string): Promise<boolean> {
+  const { rows } = await client.query(
+    `SELECT 1 FROM accounts WHERE group_id = $1 LIMIT 1`, [groupId],
+  );
+  return rows.length > 0;
+}
+
+/**
  * Every method here takes an optional `product`, defaulting to kitabu_yetu, so
  * existing callers are unchanged. Since migration 127 a group can hold one
  * ACTIVE subscription *per product*, which makes the bare
@@ -159,6 +194,9 @@ export const billingService = {
        RETURNING *`,
       [groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers, paymentId],
     );
+
+    await ensureChartOfAccounts(client, groupId, product);
+
     return rows[0];
   },
 
@@ -200,6 +238,9 @@ export const billingService = {
          RETURNING *`,
         [ctx.groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers],
       );
+
+      await ensureChartOfAccounts(client, ctx.groupId, product);
+
       return rows[0];
     });
   },
@@ -354,12 +395,22 @@ export const billingService = {
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
       // Subscription expense account was previously dead code — no payment
       // path ever posted to it.
-      await postTemplatedJournal(
-        client, ctx.groupId, ctx.userId, 'subscription_payment',
-        `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
-        { amount: data.amount },
-        { reference: rows[0].id },
-      );
+      //
+      // Skipped for a group with no chart of accounts (migration 140). This is
+      // reachable: /api/v1/billing is outside the subscription lock, so a
+      // Chama-Reminder-only group can record a payment here, and the template
+      // needs accounts 1001 and 5003 — it would fail with an account-codes
+      // error that says nothing about the real cause. Recording the payment
+      // still matters to such a group; posting a journal it has no ledger for
+      // does not.
+      if (await hasChartOfAccounts(client, ctx.groupId)) {
+        await postTemplatedJournal(
+          client, ctx.groupId, ctx.userId, 'subscription_payment',
+          `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
+          { amount: data.amount },
+          { reference: rows[0].id },
+        );
+      }
 
       return rows[0];
     });
