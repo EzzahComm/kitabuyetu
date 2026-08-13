@@ -24,6 +24,16 @@ export const LoginSchema = z.object({
 // Mirrors the public.register_group RPC signature + the v2 workflow spec.
 // Phase D MVP — verification (email/SMS) fields will be added in Part 2.
 export const RegisterSchema = z.object({
+  // Which product this group is signing up for (migration 140). Defaults to
+  // kitabu_yetu, so every existing caller is unchanged. A chama_reminder
+  // signup skips the chart-of-accounts seeding inside register_group() — it is
+  // a communication-only product with no journals to post.
+  //
+  // Client-supplied and that is fine: it grants nothing. The group still has to
+  // pay for whatever it wants to use, and buying Kitabu Yetu later seeds the
+  // ledger it skipped.
+  product:   z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
+
   // Group identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
   groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),

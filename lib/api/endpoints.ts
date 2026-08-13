@@ -17,7 +17,7 @@ import type { RegisterPayload, ChangePasswordPayload } from '@/lib/validators/au
 import type { CreateMemberPayload, UpdateMemberPayload, CreateNextOfKinPayload, UpdateNextOfKinPayload, UpdateMemberRoleInput, MemberStatusTransitionInput } from '@/lib/validators/member.schema';
 import type { CreateContributionPayload, UpdateContributionPayload, SetSavingsLimitsPayload } from '@/lib/validators/contribution.schema';
 import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
-import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, TemplateUpdatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
+import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, TemplateUpdatePayload, ScheduleCreatePayload, SmsGroupSettingsUpdateInput } from '@/lib/validators/sms.schema';
 import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validators/billing.schema';
 import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput } from '@/lib/validators/organization.schema';
 import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
@@ -362,7 +362,51 @@ export const smsApi = {
   // caller's own phone + active group.
   preferences:       () => api.get<{ optedOut: boolean }>('/sms/preferences'),
   setPreferences:    (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
+  // Per-group automation toggles. auto_send_birthday has existed since
+  // migration 013 and its job since Phase 1, but there was no way to turn it on
+  // from inside the product until now.
+  settings:          () => api.get<SmsGroupSettings>('/sms/settings'),
+  updateSettings:    (body: SmsGroupSettingsUpdateInput) =>
+                       api.put<SmsGroupSettings>('/sms/settings', body),
+  // Read-only view over the birthday job's own dispatch ledger.
+  birthdays:         () => api.get<BirthdaysResult>('/sms/birthdays'),
 };
+
+export interface SmsGroupSettings {
+  senderId:             string | null;
+  autoSendContribution: boolean;
+  autoSendLoan:         boolean;
+  autoSendMeeting:      boolean;
+  autoSendBirthday:     boolean;
+  dailySendLimit:       number | null;
+}
+
+export interface UpcomingBirthday {
+  memberId:     string;
+  membershipId: string;
+  firstName:    string;
+  lastName:     string;
+  dateOfBirth:  string;
+  nextBirthday: string;
+}
+
+export interface BirthdayDispatch {
+  id:        string;
+  status:    string;
+  channel:   string | null;
+  reason:    string | null;
+  attempts:  number;
+  sentAt:    string | null;
+  createdAt: string;
+  stage:     string;
+  firstName: string;
+  lastName:  string;
+}
+
+export interface BirthdaysResult {
+  upcoming: UpcomingBirthday[];
+  history:  BirthdayDispatch[];
+}
 
 // ------------------------------------------------------------------
 // Billing
@@ -384,12 +428,26 @@ export interface BillingPlanRow {
   current:    boolean;
 }
 
+/** GET /billing/entitlements — what this group may use, and what it signed up for. */
+export interface EntitlementsResponse {
+  products:      SubscriptionProduct[];
+  signupProduct: SubscriptionProduct;
+}
+
 export const billingApi = {
-  plans:         () => api.get<{
+  /**
+   * `product` is not optional decoration: plan tiers are priced per product
+   * (Chama Reminder starter is KES 100, Kitabu Yetu's is 150), and the server
+   * verifies the amount paid against its own table. Omitting it here quotes
+   * Kitabu Yetu prices on a Chama Reminder page, and the resulting STK payment
+   * fails verification.
+   */
+  plans:         (product?: SubscriptionProduct) => api.get<{
     plans:   BillingPlanRow[];
     current: SubscriptionPublic | null;
     product: SubscriptionProduct;
-  }>('/billing/plans'),
+  }>(product ? `/billing/plans?product=${product}` : '/billing/plans'),
+  entitlements:  () => api.get<EntitlementsResponse>('/billing/entitlements'),
   upgradePlan:   (planType: UpgradePlanInput['planType'], product?: SubscriptionProduct) =>
                    api.post<SubscriptionPublic>('/billing/plans', { planType, ...(product ? { product } : {}) }),
   invoices:      () => api.get<unknown[]>('/billing/invoices'),

@@ -77,14 +77,20 @@ describe('multi-product subscriptions (migration 127)', () => {
       `SELECT id FROM subscriptions WHERE group_id = $1`, [crGroupId],
     )).toHaveLength(0);
 
-    // Everything else the function does is untouched: a billing account to
-    // hold SMS credits once they pay, and the full chart of accounts. The
-    // GL-skip for chama_reminder-only groups is still deliberately Phase 4.
+    // DELIBERATE REVERSAL (migration 140). This asserted 16 accounts, with a
+    // comment saying the GL-skip for chama_reminder-only groups was "still
+    // deliberately Phase 4". This IS Phase 4: a communication-only group has
+    // nothing to post journals against, and the entitlement gate now keeps it
+    // out of every accounting surface, so seeding a ledger it can never reach
+    // would be dead data. Buying Kitabu Yetu later seeds it — see the
+    // conversion tests at the foot of this file.
     const [accounts] = await rawQuery<{ n: string }>(
       `SELECT count(*) AS n FROM accounts WHERE group_id = $1`, [crGroupId],
     );
-    expect(Number(accounts.n)).toBe(16);
+    expect(Number(accounts.n)).toBe(0);
 
+    // The billing account IS still created for both products — it holds the SMS
+    // credit balance, and Chama Reminder is entirely SMS.
     expect(await rawQuery(
       `SELECT group_id FROM billing_accounts WHERE group_id = $1`, [crGroupId],
     )).toHaveLength(1);
@@ -188,5 +194,58 @@ describe('multi-product subscriptions (migration 127)', () => {
     const crRows = (crPage.items as { id: string; plan: string }[]).filter((r) => r.id === groupId);
     expect(crRows).toHaveLength(1);
     expect(crRows[0].plan).toBe('growth');
+  });
+
+  // ── The chart of accounts, product-scoped (migration 140) ────────────────
+
+  async function accountCount(groupId: string): Promise<number> {
+    const [{ count }] = await rawQuery<{ count: string }>(
+      `SELECT count(*)::text AS count FROM accounts WHERE group_id = $1`, [groupId],
+    );
+    return Number(count);
+  }
+
+  it('a Chama Reminder signup gets no chart of accounts', async () => {
+    await resetDatabase();
+    const { groupId } = await createTestGroup('chairperson', {
+      subscribed: false, product: 'chama_reminder',
+    });
+    // A communication-only group has nothing to post journals against, and the
+    // entitlement gate keeps it out of every accounting surface.
+    expect(await accountCount(groupId)).toBe(0);
+  });
+
+  it('a Kitabu Yetu signup still gets all 16 accounts', async () => {
+    await resetDatabase();
+    const { groupId } = await createTestGroup('chairperson', { subscribed: false });
+    expect(await accountCount(groupId)).toBe(16);
+  });
+
+  it('buying Kitabu Yetu later seeds the ledger the group never had', async () => {
+    await resetDatabase();
+    // THE UPSELL. Chama Reminder exists to convert into Kitabu Yetu, and
+    // without this the converted group's every accounting path would throw
+    // "Account code(s) not in your chart of accounts" from inside a posting
+    // template — pointing nowhere near the cause.
+    const { groupId, officerId } = await createTestGroup('chairperson', {
+      subscribed: false, product: 'chama_reminder',
+    });
+    expect(await accountCount(groupId)).toBe(0);
+
+    await billingService.activatePlanWithoutPayment(ctxFor(groupId, officerId), 'starter');
+
+    expect(await accountCount(groupId)).toBe(16);
+  });
+
+  it('seeding is idempotent, so a second purchase does not duplicate accounts', async () => {
+    await resetDatabase();
+    const { groupId, officerId } = await createTestGroup('chairperson', { subscribed: false });
+    const ctx = ctxFor(groupId, officerId);
+
+    // Already has 16 from registration; activating twice more must not add any.
+    await billingService.activatePlanWithoutPayment(ctx, 'starter');
+    await billingService.activatePlanWithoutPayment(ctx, 'growth');
+
+    expect(await accountCount(groupId)).toBe(16);
   });
 });

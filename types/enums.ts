@@ -10,6 +10,12 @@ export type SubscriptionProduct = 'kitabu_yetu' | 'chama_reminder';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'suspended' | 'trial';
 
 export const DEFAULT_PRODUCT: SubscriptionProduct = 'kitabu_yetu';
+
+/** Customer-facing product names. Used anywhere a product is shown to a user. */
+export const PRODUCT_LABEL: Record<SubscriptionProduct, string> = {
+  kitabu_yetu:    'Kitabu Yetu',
+  chama_reminder: 'Chama Reminder',
+};
 export type ContributionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'overdue';
 export type LoanStatus         = 'pending' | 'approved' | 'rejected' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'written_off';
 export type PaymentMethod      = 'mpesa' | 'cash' | 'bank_transfer' | 'cheque' | 'standing_order';

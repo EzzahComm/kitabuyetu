@@ -11,7 +11,7 @@ import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import type { LoginResponse } from '@/types/api.types';
-import type { MemberRole, PlatformRole } from '@/types/enums';
+import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
 const BCRYPT_ROUNDS    = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 const REGISTRATION_FEE = parseInt(process.env.REGISTRATION_FEE_KES ?? '300', 10);
@@ -82,6 +82,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       nationalId:       input.nationalId ?? '',
       dateOfBirth:      input.dateOfBirth ?? '',
       gender:           input.gender ?? '',
+      // Migration 140 — decides whether register_group seeds a chart of
+      // accounts. Nothing else in the RPC branches on it.
+      product:          input.product,
     };
 
     stage = 'call_register_group_rpc';
@@ -143,6 +146,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       memberCode:      string;
       membershipNo?:   string;
       groupStatus:     string;
+      signupProduct:   SubscriptionProduct;
     } = {
       accessToken,
       refreshToken,
@@ -168,6 +172,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       memberCode:      result.member_code,
       membershipNo:    membershipNo ?? undefined,
       groupStatus:     result.group_status,
+      // Echoed back so the client knows which portal to send the new group to.
+      // It holds no subscription yet (migration 139), so this is the ONLY thing
+      // distinguishing a standalone Chama Reminder signup from an unpaid
+      // Kitabu Yetu one.
+      signupProduct:   input.product,
     };
 
     return created(response);

@@ -39,12 +39,20 @@ export interface TestGroup {
  *
  * Pass `{ subscribed: false }` to get a genuinely unpaid group, which is what
  * the lock's own tests need.
+ *
+ * Pass `{ product: 'chama_reminder' }` to register the way a standalone Chama
+ * Reminder signup does. CAVEAT WORTH KNOWING BEFORE YOU USE IT: since migration
+ * 140 such a group gets NO chart of accounts, so anything that posts a journal
+ * — `fundGroupCashAccount()` included, which UPDATEs the '1001' account and
+ * would silently affect zero rows — does not apply to it. That is the product
+ * working as designed, not a broken fixture.
  */
 export async function createTestGroup(
   creatorRole: 'chairperson' | 'secretary' | 'treasurer' = 'treasurer',
-  opts: { subscribed?: boolean } = {},
+  opts: { subscribed?: boolean; product?: SubscriptionProduct } = {},
 ): Promise<TestGroup> {
-  const phone = uniquePhone();
+  const phone   = uniquePhone();
+  const product = opts.product ?? 'kitabu_yetu';
   const [row] = await rawQuery<{ result: { group_id: string; member_id: string } }>(
     `SELECT register_group($1::jsonb) AS result`,
     [JSON.stringify({
@@ -55,11 +63,14 @@ export async function createTestGroup(
       phone,
       passwordHash: DUMMY_PASSWORD_HASH,
       creatorRole,
+      product,
     })],
   );
   const groupId = row.result.group_id;
 
-  if (opts.subscribed !== false) await subscribeTestGroup(groupId);
+  // Subscribe to the product it registered for, so a chama_reminder group is
+  // entitled to the reminder surface rather than to Kitabu Yetu.
+  if (opts.subscribed !== false) await subscribeTestGroup(groupId, 'starter', product);
 
   return { groupId, officerId: row.result.member_id };
 }

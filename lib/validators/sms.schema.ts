@@ -79,7 +79,20 @@ export const ScheduleCreateSchema = z.object({
   isActive:       z.boolean().default(true),
 });
 
+/**
+ * Per-group messaging automation toggles. Every field optional so a page can
+ * flip one without having to send (and risk clearing) the rest — the route
+ * COALESCEs each against its stored value.
+ */
+export const SmsGroupSettingsUpdateSchema = z.object({
+  autoSendContribution: z.boolean().optional(),
+  autoSendLoan:         z.boolean().optional(),
+  autoSendMeeting:      z.boolean().optional(),
+  autoSendBirthday:     z.boolean().optional(),
+});
+
 export type SendSmsInput        = z.infer<typeof SendSmsSchema>;
+export type SmsGroupSettingsUpdateInput = z.infer<typeof SmsGroupSettingsUpdateSchema>;
 export type SmsUsageQueryInput  = z.infer<typeof SmsUsageQuerySchema>;
 export type BulkSmsInput        = z.infer<typeof BulkSmsSchema>;
 export type CampaignCreateInput = z.infer<typeof CampaignCreateSchema>;

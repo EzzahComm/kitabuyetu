@@ -1,11 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import { configureApiClient, api, ApiError } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { getErrorMessage } from '@/lib/utils';
+import { postLoginPath } from '@/lib/auth/post-login-path';
+import type { SubscriptionProduct } from '@/types/enums';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
 // manually for now — single shared types lib is a Phase F cleanup.
@@ -98,11 +100,41 @@ const selectCls =
 
 const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-brand-blue-500 pt-2';
 
-export default function RegisterPage() {
+/**
+ * One form for both products, not two.
+ *
+ * register_group() validates the same fields regardless of product — the only
+ * Kitabu-Yetu-flavoured field is countyId, and that is a client-side nicety
+ * rather than an RPC requirement. A second, divergent signup form would be a
+ * permanent sync liability for one saved field, so the product changes the copy
+ * and the destination, nothing else.
+ */
+const PRODUCT_COPY = {
+  kitabu_yetu: {
+    title:    'Create your group',
+    subtitle: 'Simple Books. Stronger Groups.',
+    cta:      'Create group',
+  },
+  chama_reminder: {
+    title:    'Start with Chama Reminder',
+    subtitle: 'Remind. Inform. Celebrate. Mobilize.',
+    cta:      'Create group',
+  },
+} as const;
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const { toast } = useToast();
   const [counties, setCounties] = useState<County[]>([]);
+
+  // /register?product=chama_reminder is the standalone acquisition entry point.
+  // Anything else — including a tampered value — falls back to kitabu_yetu, and
+  // the server's own enum does the same.
+  const product: SubscriptionProduct =
+    searchParams.get('product') === 'chama_reminder' ? 'chama_reminder' : 'kitabu_yetu';
+  const copy = PRODUCT_COPY[product];
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -129,19 +161,27 @@ export default function RegisterPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       const { confirm: _unused, ...body } = values;
-      const data = await authApi.register(body) as Awaited<ReturnType<typeof authApi.register>> & {
-        groupCode?:    string;
-        membershipNo?: string;
+      const data = await authApi.register({ ...body, product }) as Awaited<ReturnType<typeof authApi.register>> & {
+        groupCode?:     string;
+        membershipNo?:  string;
+        signupProduct?: SubscriptionProduct;
       };
       login(data);
       // The Membership Number is the member's payment account number — the
       // only payment identifier we ever show (payment architecture §1.1).
       toast({
-        title:       'Welcome to Kitabu Yetu!',
+        title:       product === 'chama_reminder' ? 'Welcome to Chama Reminder!' : 'Welcome to Kitabu Yetu!',
         description: `Your group is ${data.groupCode ?? 'created'}.`
           + (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
       });
-      router.push(data.member.groupStatus === 'pending_verification' ? '/verify-group' : '/dashboard');
+      // Verification comes first either way; postLoginPath decides the portal
+      // once the group is active. The new group holds no subscription yet
+      // (migration 139), so signupProduct is the only thing that can route it.
+      router.push(
+        data.member.groupStatus === 'pending_verification'
+          ? '/verify-group'
+          : postLoginPath(data.member.groupRole, { signupProduct: product }),
+      );
     } catch (err) {
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
@@ -155,9 +195,12 @@ export default function RegisterPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create your group</CardTitle>
+        <CardTitle>{copy.title}</CardTitle>
         <CardDescription>
-          Simple Books. Stronger Groups. Free for up to 10 members.
+          {/* "Free for up to 10 members" used to sit here. Migration 139
+              retired the free tier — every plan is paid — so that line was
+              promising something the product no longer does. */}
+          {copy.subtitle}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -310,5 +353,26 @@ export default function RegisterPage() {
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * useSearchParams() forces client-side rendering for whatever subtree reads it,
+ * so Next requires a Suspense boundary above it or the static prerender of
+ * /register fails the build outright. The form is the only thing that needs the
+ * ?product= value, so the boundary sits directly around it.
+ */
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardHeader>
+          <CardTitle>Create your group</CardTitle>
+          <CardDescription>Loading…</CardDescription>
+        </CardHeader>
+      </Card>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
