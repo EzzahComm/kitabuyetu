@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
+import { SmsCreditsPanel } from '@/components/sms/sms-credits-panel';
 import {
   TABS, type TabKey,
   ComposeTab, CampaignsTab, TemplatesTab, SchedulesTab, LogsTab,
@@ -32,6 +33,9 @@ export default function SmsPage() {
           </button>
         ))}
       </div>
+
+      {/* Spec §13 — the customer-facing credits view, above the working tabs. */}
+      <SmsCreditsPanel />
 
       {tab === 'compose'   && <ComposeTab />}
       {tab === 'campaigns' && <CampaignsTab />}

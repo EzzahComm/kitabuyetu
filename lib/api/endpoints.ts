@@ -9,6 +9,7 @@ import type {
 import type { PaginatedResult, Account, SmsUsageLog, Contribution, Loan, LoanRepayment } from '@/types/db.types';
 import type { PlanType, SubscriptionProduct, PlanFeatures } from '@/types/enums';
 import type { SmsUsageSummary } from '@/lib/sms/analytics';
+import type { SmsUsageAnalytics } from '@/lib/services/sms-analytics.service';
 import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
 import type { CreateJournalPayload , CreateAccountPayload, SetPostingTemplatePayload, SetApprovalPolicyInput, ClosePeriodInput, ReopenPeriodInput } from '@/lib/validators/accounting.schema';
@@ -370,6 +371,9 @@ export const smsApi = {
                        api.put<SmsGroupSettings>('/sms/settings', body),
   // Read-only view over the birthday job's own dispatch ledger.
   birthdays:         () => api.get<BirthdaysResult>('/sms/birthdays'),
+  // Spec §8. Deliberately carries no provider cost — see
+  // lib/services/sms-analytics.service.ts.
+  analytics:         () => api.get<SmsUsageAnalytics>('/sms/analytics'),
 };
 
 export interface SmsGroupSettings {
