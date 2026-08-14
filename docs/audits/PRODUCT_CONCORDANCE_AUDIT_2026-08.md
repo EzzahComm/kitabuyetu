@@ -155,9 +155,17 @@ By contrast, single/transactional sends (birthday reminders, one-off notificatio
 
 This bug predates the last 36 hours. What's new: PR #62 moved `ComposeTab` out of a private, Kitabu-Yetu-only function into the shared, exported `components/sms/tabs.tsx` — so it is now reachable, unmodified, from inside the Chama Reminder portal too, a product whose entire value proposition is broadcast SMS at volume. A Chama Reminder group with 150 members clicking "Send to All Members" today silently reaches 20 of them.
 
+> **Correction, 2026-08-14.** The roadmap below called this a "one-line fix (`pageSize`→`limit`)". It is not one, and the one-line version is worse than the bug: `limit` is capped at `.max(100)`, so `limit: 500` fails validation outright and the members query 422s — the compose screen would then send to *nobody*. `limit: 100` merely moves the silent cap from 20 to 100. Any client-side fix is bounded by a page size, because the client can only ask for a page.
+>
+> What shipped instead: `/sms/bulk` accepts `recipientType: 'all_members' | 'active_members'` and resolves the audience server-side through `resolveSmsRecipients()` — the same helper campaigns and the scheduler already use, so the three paths cannot disagree about who a group's members are. The client sends phone numbers only when a human typed them.
+
 ### 3.2 The SMS pricing admin screen reproduces a fixed bug class
 
 `app/(admin)/admin/sms-pricing/page.tsx:51,58,65` calls `api.get`/`api.post` directly with bodies typed `unknown` (`lib/api/client.ts:183-188`), instead of adding typed helpers to `lib/api/endpoints.ts`. The two payloads sent today (`activate_tiers`, `provider_cost`) happen to match `lib/validators/sms-pricing.schema.ts` exactly, so nothing is broken *right now* — but there is zero compiler protection against the next change drifting it, reproducing verbatim the pattern `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md` already closed out everywhere else (its own §4 follow-up specifically fixed `organizationApi.deposit`'s equivalent raw call).
+
+> **Correction, 2026-08-14 (found while fixing this in Phase 3).** "Nothing is broken right now" was wrong, and the reason is the raw call itself. `api` prefixes every path with `/api/v1` (`lib/api/client.ts:5`), so `api.get('/admin/sms-pricing')` requests `/api/v1/admin/sms-pricing` — a path that does not exist (there is no `admin` tree under `app/api/v1/`; the route is at `/api/admin/sms-pricing`). It never gets as far as a 404: `proxy.ts:260` sees a tenant-audience URL carrying the backoffice token a super_admin actually holds and returns **403 "This route requires a tenant session. Sign in at /login."**
+>
+> So all three calls fail, always. The SMS Pricing screen has not loaded once since it shipped in PR #68 — a correctly signed-in super admin is told to sign in. This is what the typed-helper convention is *for*: `adminFetch` is the only client that speaks to `/api/admin/*`, and going through it makes the URL right by construction rather than by memory. The payload-drift risk described above was real but was the smaller half.
 
 ### 3.3 Dead code: tier/package creation has no UI
 
@@ -166,6 +174,8 @@ This bug predates the last 36 hours. What's new: PR #62 moved `ComposeTab` out o
 ### 3.4 Minor: no loading guard on tier activation
 
 The "Use the flat rate" / "Switch to volume pricing" buttons derive `tierIds` from `data?.tiers ?? []` with no loading check. A click that lands before the initial fetch resolves sends `tierIds: []` — schema-legal, and would deactivate every band, leaving nothing priced. Low-probability (the buttons aren't rendered disabled during load, but a very fast double-click could still race it) but cheap to guard.
+
+> **Fixed in Phase 3, ahead of its Phase 5 slot.** It was inert while §3.2 kept the screen from loading at all; fixing that armed it. Shipping a newly-reachable "deactivate every band" click and scheduling the guard for later was not a real option, so both landed together: the buttons are disabled until the config resolves, and an empty `tierIds` is refused with a message rather than sent.
 
 ### 3.5 Confirmed clean
 
@@ -211,9 +221,11 @@ Ordered by leverage and blast radius, matching this project's established phasin
 
 *Shipped: a `#chama-reminder` section on `/pricing` rendering its real tiers through the same `PlanGrid` component as Kitabu Yetu, entries in both the navbar Solutions menu and the footer Solutions column, and a pointer from the homepage pricing section. Every buy link carries `?product=chama_reminder` — without it `register_group()` seeds an unused chart of accounts and quotes the wrong price.*
 
-**Phase 3 — the two code bugs**:
+**Phase 3 — the two code bugs**: **✅ done — PR #72.**
 - Fix `ComposeTab`'s `pageSize`→`limit` mismatch (one-line fix, closes a real silent-partial-send bug now live in two portals).
 - Type `app/(admin)/admin/sms-pricing/page.tsx`'s two raw `api.get`/`api.post` calls through `lib/api/endpoints.ts`, matching the established pattern.
+
+*Both items turned out to be worse than written up, and neither fix is the one described above — see the corrections in §3.1 and §3.2. The recipient cap could not be fixed client-side at all (`limit` maxes at 100), so the audience moved server-side; the "typing nicety" on the admin screen was in fact a 403 on every call, meaning that screen had never once loaded. §3.4's guard came along with it, because fixing §3.2 is what made it reachable.*
 
 **Phase 4 — the analytics signal-loss bug**:
 - Thread the real `referenceType`/feature category into `sendBulkCampaign`'s `notification_type` column instead of the hardcoded `'campaign'` literal — restores per-feature attribution for the highest-volume send path, which is what the new usage-analytics screen exists to show.
@@ -222,6 +234,6 @@ Ordered by leverage and blast radius, matching this project's established phasin
 - Delete `billing.service.ts`'s dead `createStarterSubscription()` (removes a live footgun for the free-tier bug's return).
 - Add `payment_id` to the `Subscription` TS interface; add the missing columns to `settlements.service.ts`/`vendor-payments.service.ts`'s local row types.
 - Either wire `settlement_requests.source_account` (per its own migration's stated intent) or remove it if it's no longer needed.
-- Add a loading guard to the tier-activation buttons.
+- ~~Add a loading guard to the tier-activation buttons.~~ Done in Phase 3 (PR #72) — see §3.4.
 
 **Deliberately not recommended**: rushing `sms_packages`/`vw_sms_credit_reconciliation`'s unused grants to be revoked — they're correctly locked down today and provisioning ahead of a feature is normal; only worth tightening if Phase 0 decides those features stay dormant long-term.

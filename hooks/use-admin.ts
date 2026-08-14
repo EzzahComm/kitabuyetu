@@ -24,6 +24,9 @@ import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
 } from '@/lib/services/governance.service';
 import type { searchPlatform } from '@/lib/services/admin-search.service';
+import type {
+  getPricingConfig, setActiveTiers, setProviderCost,
+} from '@/lib/services/sms-pricing-admin.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -85,6 +88,9 @@ type AcknowledgedAlert        = Awaited<ReturnType<typeof acknowledgeAlert>>;
 type ResolvedAlert            = Awaited<ReturnType<typeof resolveAlert>>;
 type GroupGovernanceSnapshot  = Awaited<ReturnType<typeof getGroupGovernanceSnapshot>>;
 type PlatformSearchResults    = Awaited<ReturnType<typeof searchPlatform>>;
+type SmsPricingConfig         = Awaited<ReturnType<typeof getPricingConfig>>;
+type SmsTiersActivated        = Awaited<ReturnType<typeof setActiveTiers>>;
+type SmsProviderCostSaved     = Awaited<ReturnType<typeof setProviderCost>>;
 type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>;
 type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
 
@@ -615,6 +621,51 @@ export function useGroupGovernanceSnapshot(groupId: string) {
     queryFn:  () => adminFetch<GroupGovernanceSnapshot>(`/api/admin/governance/snapshots?groupId=${groupId}`),
     enabled: !!groupId,
     staleTime: 60_000,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMS pricing configuration (spec §12, super_admin only)
+//
+// These exist because the pricing screen originally called the api client
+// (`api.get('/admin/sms-pricing')`), which prefixes every path with `/api/v1`.
+// That sent a BACKOFFICE-audience token at a TENANT-audience URL, so proxy.ts
+// rejected all three calls with "This route requires a tenant session. Sign in
+// at /login." before Next could even report that no such route exists — a
+// super_admin who was correctly signed in saw a sign-in error on a screen that
+// had never once loaded. adminFetch is the only client that speaks to
+// /api/admin/*; going through it is what makes the URL right by construction.
+// See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §3.2.
+// ─────────────────────────────────────────────────────────────────────────────
+export function useSmsPricingConfig() {
+  return useQuery({
+    queryKey: ['admin', 'sms-pricing'],
+    queryFn:  () => adminFetch<SmsPricingConfig>('/api/admin/sms-pricing'),
+    staleTime: 60_000,
+  });
+}
+
+export function useActivateSmsTiers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tierIds: string[]) =>
+      adminFetch<SmsTiersActivated>('/api/admin/sms-pricing', {
+        method: 'POST',
+        json: { kind: 'activate_tiers', tierIds },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'sms-pricing'] }),
+  });
+}
+
+export function useSetSmsProviderCost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (unitCost: number) =>
+      adminFetch<SmsProviderCostSaved>('/api/admin/sms-pricing', {
+        method: 'POST',
+        json: { kind: 'provider_cost', unitCost },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'sms-pricing'] }),
   });
 }
 

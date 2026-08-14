@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SectionHeader } from '@/components/dashboard/sms/shared';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/api/client';
+import { useSmsPricingConfig, useActivateSmsTiers, useSetSmsProviderCost } from '@/hooks/use-admin';
 import { getErrorMessage } from '@/lib/utils';
 
 /**
@@ -27,45 +26,18 @@ import { getErrorMessage } from '@/lib/utils';
  * makes it live.
  */
 
-interface Tier {
-  id: string; name: string; min_credits: number; max_credits: number | null;
-  unit_price: string; is_active: boolean;
-}
-interface SmsPackage {
-  id: string; name: string; credits: number; price: string;
-  is_active: boolean; is_recommended: boolean;
-}
-interface Config {
-  tiers: Tier[];
-  packages: SmsPackage[];
-  providerCost: { unit_cost: string; effective_from: string } | null;
-}
-
+/**
+ * Row shapes are NOT redeclared here. They come from the hooks, which derive
+ * them from `sms-pricing-admin.service.ts`'s own return types — a local copy is
+ * how a screen ends up rendering fields the server stopped sending.
+ */
 export default function SmsPricingPage() {
   const { toast } = useToast();
-  const qc = useQueryClient();
   const [newCost, setNewCost] = useState('');
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'sms-pricing'],
-    queryFn:  () => api.get<Config>('/admin/sms-pricing'),
-  });
-
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'sms-pricing'] });
-
-  const activate = useMutation({
-    mutationFn: (tierIds: string[]) =>
-      api.post('/admin/sms-pricing', { kind: 'activate_tiers', tierIds }),
-    onSuccess: () => { invalidate(); toast({ title: 'Price list updated' }); },
-    onError:   (e) => toast({ variant: 'destructive', title: 'Could not switch price list', description: getErrorMessage(e) }),
-  });
-
-  const saveCost = useMutation({
-    mutationFn: (unitCost: number) =>
-      api.post('/admin/sms-pricing', { kind: 'provider_cost', unitCost }),
-    onSuccess: () => { invalidate(); setNewCost(''); toast({ title: 'Provider cost recorded' }); },
-    onError:   (e) => toast({ variant: 'destructive', title: 'Could not save cost', description: getErrorMessage(e) }),
-  });
+  const { data, isLoading } = useSmsPricingConfig();
+  const activate = useActivateSmsTiers();
+  const saveCost = useSetSmsProviderCost();
 
   const cost = data?.providerCost ? Number(data.providerCost.unit_cost) : null;
   /** What a band earns per message. Null when no provider cost is on record. */
@@ -73,6 +45,34 @@ export default function SmsPricingPage() {
 
   const tiersNamed = (pred: (name: string) => boolean) =>
     (data?.tiers ?? []).filter((t) => pred(t.name)).map((t) => t.id);
+
+  const handleSaveCost = () =>
+    saveCost.mutate(Number(newCost), {
+      onSuccess: () => { setNewCost(''); toast({ title: 'Provider cost recorded' }); },
+      onError:   (e) => toast({ variant: 'destructive', title: 'Could not save cost', description: getErrorMessage(e) }),
+    });
+
+  /**
+   * An empty `tierIds` is schema-legal and means "deactivate everything", which
+   * would leave custom quantities unpriced. Before the fetch resolves, or if a
+   * band gets renamed, `tiersNamed()` legitimately returns [] — so a click that
+   * lands early would send exactly that. Refusing it here means the only way to
+   * clear the live set is to mean it.
+   */
+  const handleActivate = (tierIds: string[]) => {
+    if (!tierIds.length) {
+      toast({
+        variant: 'destructive',
+        title: 'No matching bands',
+        description: isLoading ? 'Still loading the price list — try again in a moment.' : 'Nothing was activated.',
+      });
+      return;
+    }
+    activate.mutate(tierIds, {
+      onSuccess: () => toast({ title: 'Price list updated' }),
+      onError:   (e) => toast({ variant: 'destructive', title: 'Could not switch price list', description: getErrorMessage(e) }),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -105,7 +105,7 @@ export default function SmsPricingPage() {
               />
             </div>
             <Button
-              onClick={() => saveCost.mutate(Number(newCost))}
+              onClick={handleSaveCost}
               loading={saveCost.isPending}
               disabled={!newCost || Number.isNaN(Number(newCost))}
             >
@@ -183,13 +183,15 @@ export default function SmsPricingPage() {
           <Button
             variant="outline"
             loading={activate.isPending}
-            onClick={() => activate.mutate(tiersNamed((n) => n === 'Standard'))}
+            disabled={isLoading || activate.isPending}
+            onClick={() => handleActivate(tiersNamed((n) => n === 'Standard'))}
           >
             Use the flat rate
           </Button>
           <Button
             loading={activate.isPending}
-            onClick={() => activate.mutate(tiersNamed((n) => n.startsWith('Volume')))}
+            disabled={isLoading || activate.isPending}
+            onClick={() => handleActivate(tiersNamed((n) => n.startsWith('Volume')))}
           >
             Switch to volume pricing
           </Button>

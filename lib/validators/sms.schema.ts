@@ -18,14 +18,40 @@ export const SmsUsageQuerySchema = z.object({
   to:      z.string().date().optional(),
 });
 
+/**
+ * Two mutually exclusive ways to address a bulk send:
+ *
+ * - `phones` — an explicit list the operator typed in (the "Custom Phones" box).
+ * - `recipientType` — a membership query the SERVER resolves, via the same
+ *   `resolveSmsRecipients()` campaigns and schedules already use.
+ *
+ * The second one exists because the browser cannot reliably enumerate a group's
+ * membership: it can only page through `/members`, which caps at 100 rows.
+ * `ComposeTab` used to try, asking for a non-existent `pageSize: 500` that Zod
+ * silently stripped — so "Send to All Members" reached the default 20 and no
+ * error was raised anywhere. Sending to "everyone" is a question about the
+ * group, and the group's row set lives on the server; asking the client to
+ * assemble the answer is what made a wrong answer possible.
+ * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §3.1.
+ *
+ * `.max(5000)` binds only the client-supplied list. A server-resolved audience
+ * is the group's real membership and is not truncated to fit a request cap.
+ */
 export const BulkSmsSchema = z.object({
-  phones:        z.array(phoneSchema).min(1).max(5000),
+  phones:        z.array(phoneSchema).min(1).max(5000).optional(),
+  recipientType: z.enum(['all_members', 'active_members']).optional(),
   message:       z.string().min(1).max(320),
   senderId:      z.string().max(20).optional(),
   timeToSend:    z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/).optional(),
   referenceType: z.string().max(50).optional().nullable(),
   referenceId:   z.string().uuid().optional().nullable(),
-});
+}).refine(
+  (d) => (d.phones !== undefined) !== (d.recipientType !== undefined),
+  {
+    message: 'Provide exactly one of `phones` or `recipientType`.',
+    path: ['phones'],
+  },
+);
 
 export const CampaignCreateSchema = z.object({
   name:           z.string().min(1).max(100),

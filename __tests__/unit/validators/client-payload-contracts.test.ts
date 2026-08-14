@@ -24,6 +24,7 @@ import {
   ApplyLoanSchema, RejectLoanSchema, DisburseLoanSchema, RecordRepaymentSchema,
 } from '@/lib/validators/loan.schema';
 import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
+import { BulkSmsSchema } from '@/lib/validators/sms.schema';
 
 describe('client payload contracts', () => {
   describe('accounting: POST /accounting/journals', () => {
@@ -205,6 +206,51 @@ describe('client payload contracts', () => {
     it('enforces the uppercase + digit rules', () => {
       expect(ChangePasswordSchema.safeParse({ currentPassword: 'x', newPassword: 'alllowercase1' }).success).toBe(false);
       expect(ChangePasswordSchema.safeParse({ currentPassword: 'x', newPassword: 'NoDigitsHere' }).success).toBe(false);
+    });
+  });
+
+  /**
+   * The variant of this bug class that Zod could not catch: `ComposeTab` sent
+   * `useMembers({ pageSize: 500 })` at a schema with no `pageSize`, so instead
+   * of a 400 the key was stripped and the list came back at the default 20.
+   * "Send to All Members" reached 20 people and reported success.
+   *
+   * The fix moves the question to the server, which is why these tests are
+   * about the shape of the ASK rather than the size of the answer.
+   * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §3.1.
+   */
+  describe('sms: POST /sms/bulk', () => {
+    const message = 'Meeting on Saturday at 10am.';
+
+    it('accepts a server-resolved audience, which is what the tab now sends', () => {
+      expect(BulkSmsSchema.safeParse({ recipientType: 'all_members', message }).success).toBe(true);
+      expect(BulkSmsSchema.safeParse({ recipientType: 'active_members', message }).success).toBe(true);
+    });
+
+    it('accepts an explicit list, which is what "Custom Phones" sends', () => {
+      expect(BulkSmsSchema.safeParse({ phones: ['254712345678'], message }).success).toBe(true);
+    });
+
+    it('rejects both at once — the server would have to guess which one wins', () => {
+      expect(BulkSmsSchema.safeParse({
+        phones: ['254712345678'], recipientType: 'all_members', message,
+      }).success).toBe(false);
+    });
+
+    it('rejects neither, which would silently address nobody', () => {
+      expect(BulkSmsSchema.safeParse({ message }).success).toBe(false);
+    });
+
+    it('rejects an audience it cannot resolve', () => {
+      // 'selected'/'custom_phones' are campaign vocabulary: they need a
+      // rawRecipients payload this route does not accept.
+      expect(BulkSmsSchema.safeParse({ recipientType: 'selected', message }).success).toBe(false);
+    });
+
+    it('still rejects a member-count key it does not understand as a recipient source', () => {
+      // The original bug's shape. `pageSize` is not a recipient selector, so
+      // this must fail the exactly-one rule rather than send to a default page.
+      expect(BulkSmsSchema.safeParse({ pageSize: 500, message }).success).toBe(false);
     });
   });
 });
