@@ -461,8 +461,13 @@ export const billingService = {
       // Manual grants pass paymentId undefined -> NULL, and Postgres allows
       // many NULLs under a UNIQUE constraint, so those still apply every time.
       const { rows: inserted } = await client.query<{ id: string }>(
-        `INSERT INTO sms_credits (group_id, billing_account_id, amount_paid, credits_added, rate_applied, payment_id)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        // remaining_credits starts at the full purchase (migration 146): a lot
+        // is drawn down FIFO as messages are actually consumed, which is what
+        // lets §4 hold — this batch keeps the rate it was bought at no matter
+        // what later purchases cost.
+        `INSERT INTO sms_credits
+           (group_id, billing_account_id, amount_paid, credits_added, remaining_credits, rate_applied, payment_id)
+         VALUES ($1,$2,$3,$4,$4,$5,$6)
          ON CONFLICT (payment_id) DO NOTHING
          RETURNING id`,
         [ctx.groupId, ba[0].id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), paymentId ?? null],
