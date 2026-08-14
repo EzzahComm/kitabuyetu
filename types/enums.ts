@@ -129,3 +129,32 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
 
 /** Plans a group can buy itself. `enterprise` is negotiated and excluded. */
 export const SELF_SERVE_PLANS: readonly PlanType[] = ['starter', 'growth', 'premium'];
+
+/**
+ * Display copy only — NO prices. Prices always come from `PLAN_MONTHLY_FEES`
+ * above (or the live `/billing/plans` API, which reads the same table). This
+ * used to be a private const inside `components/billing/plan-purchase.tsx`;
+ * moved here so the PUBLIC pricing page and preview can share the exact same
+ * per-tier bullets instead of maintaining an independent, driftable copy of
+ * their own — which is what produced fictional member-count and SMS-quota
+ * claims on the public pages while this list (real, reviewed, already sold
+ * to authenticated customers) sat one import away.
+ *
+ * Keyed by product: Kitabu Yetu's "Accounting module" and "Advanced reports"
+ * are meaningless on a communication-only plan, and a Chama Reminder customer
+ * reading them would reasonably expect to get them.
+ */
+export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: string; features: string[] }[]> = {
+  kitabu_yetu: [
+    { type: 'starter',    label: 'Starter',    features: ['Basic reporting', 'M-Pesa integration', 'SMS included'] },
+    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Advanced reports', 'Accounting module'] },
+    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Priority support', 'Higher SMS allowance'] },
+    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'] },
+  ],
+  chama_reminder: [
+    { type: 'starter',    label: 'Starter',    features: ['Member list & SMS', 'Birthday greetings', 'SMS included'] },
+    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Scheduled campaigns', 'Message templates'] },
+    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Higher SMS allowance', 'Priority support'] },
+    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Custom sender ID', 'Dedicated support'] },
+  ],
+};

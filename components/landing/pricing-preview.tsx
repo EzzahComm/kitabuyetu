@@ -4,30 +4,29 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PLAN_MONTHLY_FEES, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
 
-// Mirrors app/pricing/page.tsx's PLANS exactly — this is a preview, the full
-// page is the single source of truth for plan details. Keep both in sync if
-// pricing ever changes.
-const plans = [
-  {
-    type: 'starter', label: 'Starter', price: 'Free', period: 'forever',
-    blurb: 'Up to 10 members',
-    features: ['Basic contribution tracking', 'Loan management', 'M-Pesa integration'],
-    highlight: false,
-  },
-  {
-    type: 'growth', label: 'Growth', price: 'KES 2,500', period: '/month',
-    blurb: 'Up to 100 members',
-    features: ['Double-entry accounting', 'Advanced reporting', '500 SMS/month'],
-    highlight: true,
-  },
-  {
-    type: 'enterprise', label: 'Enterprise', price: 'KES 8,000', period: '/month',
-    blurb: 'Unlimited members',
-    features: ['Multi-group organization portal', 'API access & custom branding', 'Priority support'],
-    highlight: false,
-  },
-];
+/**
+ * Reads the real PLAN_COPY/PLAN_MONTHLY_FEES from types/enums.ts — the same
+ * source app/pricing/page.tsx and the in-app billing page both use — instead
+ * of a hand-maintained array that only claimed to mirror the full page. That
+ * claim was false the moment the full page's numbers changed and this file
+ * wasn't touched; importing the real constant is what makes it true going
+ * forward rather than by convention. See
+ * docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1.
+ *
+ * Only the self-serve tiers appear here — Enterprise is negotiated, not a
+ * flat price, so it belongs on the full page (which the link below leads to),
+ * not a homepage teaser.
+ */
+const plans = PLAN_COPY.kitabu_yetu
+  .filter((p) => SELF_SERVE_PLANS.includes(p.type))
+  .map((p) => ({
+    ...p,
+    price: `KES ${PLAN_MONTHLY_FEES.kitabu_yetu[p.type].toLocaleString()}`,
+    period: '/month',
+    highlight: p.type === 'growth',
+  }));
 
 const container = {
   hidden: { opacity: 0 },
@@ -58,7 +57,7 @@ export default function PricingPreview() {
             transition={{ delay: 0.1 }}
             className="font-display text-4xl font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl"
           >
-            Free to start,
+            Simple pricing that
             {' '}
             <span className="italic text-brand-600">grows with your group</span>.
           </motion.h2>
@@ -69,7 +68,7 @@ export default function PricingPreview() {
             transition={{ delay: 0.2 }}
             className="mt-5 text-lg leading-relaxed text-brand-blue-900/60"
           >
-            No card required to start. Every plan includes full M-Pesa integration.
+            Every plan includes full M-Pesa integration — pay via STK push, no manual invoicing.
           </motion.p>
         </div>
 
@@ -100,8 +99,6 @@ export default function PricingPreview() {
                 <span className="font-display text-4xl font-normal text-brand-blue-900">{p.price}</span>
                 <span className="text-sm text-brand-blue-900/50">{p.period}</span>
               </div>
-              <p className="mt-1.5 text-sm text-brand-blue-900/60">{p.blurb}</p>
-
               <ul className="mt-6 flex-1 space-y-2.5">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-brand-blue-900/75">

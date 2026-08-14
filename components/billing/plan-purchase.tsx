@@ -11,38 +11,15 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { MpesaPayDialog } from './mpesa-pay-dialog';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
-import type { PlanType, SubscriptionProduct } from '@/types/enums';
+import { PLAN_COPY, type PlanType, type SubscriptionProduct } from '@/types/enums';
 
 type PurchasablePlan = UpgradePlanInput['planType'];
 
-/**
- * Display copy only — NO prices. Prices come from GET /billing/plans, which
- * reads PLAN_MONTHLY_FEES, the same table the M-Pesa callback verifies the
- * paid amount against. This array used to carry its own prices (growth 2500,
- * enterprise 8000) that disagreed with the server's (1000, negotiated): the
- * client's number was what customers were actually charged, while the server
- * quoted a different one on the same page. With activation now gated on the
- * server checking amount-paid against its own table, a second copy here would
- * mean customers paying an amount that fails verification.
- *
- * Keyed by product: Kitabu Yetu's "Accounting module" and "Advanced reports"
- * are meaningless on a communication-only plan, and a Chama Reminder customer
- * reading them would reasonably expect to get them.
- */
-const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: string; features: string[] }[]> = {
-  kitabu_yetu: [
-    { type: 'starter',    label: 'Starter',    features: ['Basic reporting', 'M-Pesa integration', 'SMS included'] },
-    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Advanced reports', 'Accounting module'] },
-    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Priority support', 'Higher SMS allowance'] },
-    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'] },
-  ],
-  chama_reminder: [
-    { type: 'starter',    label: 'Starter',    features: ['Member list & SMS', 'Birthday greetings', 'SMS included'] },
-    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Scheduled campaigns', 'Message templates'] },
-    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Higher SMS allowance', 'Priority support'] },
-    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Custom sender ID', 'Dedicated support'] },
-  ],
-};
+// PLAN_COPY (display bullets, no prices — those come from GET /billing/plans,
+// which reads PLAN_MONTHLY_FEES) now lives in types/enums.ts so the public
+// pricing page and preview can share the exact same per-tier copy instead of
+// maintaining an independent, driftable list of their own. See that file for
+// the full rationale — this used to be a private const here.
 
 const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
   kitabu_yetu:    'SUBSCRIPT',
