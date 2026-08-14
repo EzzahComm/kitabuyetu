@@ -92,8 +92,11 @@ export default function HowItWorks() {
               Register/Sign-Up <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
+          {/* Was "No card required · Free for small groups" — no plan is free
+              (migration 139 retired the free tier); see
+              docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1. */}
           <p className="font-mono text-xs uppercase tracking-wider text-white/40">
-            No card required · Free for small groups
+            Pay via M-Pesa STK · Plans from KES 150/month
           </p>
         </motion.div>
       </div>

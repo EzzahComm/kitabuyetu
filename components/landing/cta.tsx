@@ -5,11 +5,16 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Every bullet here is a real, currently-true claim — see
+// docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1 for why that's stated
+// explicitly: this line used to advertise a free tier that migration 139
+// retired, and a second, differently-wrong member cap than the pricing page's
+// own (10 vs 20) — neither number ever existed server-side.
 const bullets = [
-  'Free for groups up to 20 members',
+  'Plans from KES 150/month',
   'Daraja M-Pesa included — STK, PayBill & B2C',
   'Auto-reconciliation & double-entry ledger',
-  'No card required',
+  'No manual invoicing — pay by STK push',
 ];
 
 export default function CtaSection() {
