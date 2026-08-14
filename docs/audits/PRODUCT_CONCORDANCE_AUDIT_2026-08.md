@@ -199,13 +199,17 @@ Ordered by leverage and blast radius, matching this project's established phasin
 - Is Chama Reminder ready for a real public marketing presence now, or is the standalone-signup path deliberately soft-launched/unlinked for now? This determines whether Phase 1 includes new landing content or just a fix to what already exists.
 - Should `sms_packages` go live on a real purchase screen in this pass, or stay dormant (as `sms_pricing_tiers`' volume bands currently do, deliberately)?
 
-**Phase 1 — stop the false claims** (no schema change, highest leverage, lowest risk):
+**Phase 1 — stop the false claims** (no schema change, highest leverage, lowest risk): **✅ done — PR #70.**
 - Fix `app/pricing/page.tsx` and `components/landing/pricing-preview.tsx`'s numbers and remove every free-tier claim (`cta.tsx`, `how-it-works.tsx` included) — whether via live fetch or corrected static values per the Phase 0 decision.
 - Remove or correct the fictional member-cap and SMS-quota feature bullets.
 - Add the `premium` tier to both pricing surfaces.
 
-**Phase 2 — Chama Reminder acquisition surface** (per the Phase 0 decision):
+*Resolution of the Phase 0 fetch-vs-static question: neither. `PLAN_COPY` moved into `types/enums.ts` beside `PLAN_MONTHLY_FEES`, and the public pages — which are server components — import them directly. That gets a live fetch's drift-proofing (one table, read by the pricing page, the billing page and the M-Pesa callback alike) at a static page's cost: no new public API surface, no client bundle, still prerendered.*
+
+**Phase 2 — Chama Reminder acquisition surface** (per the Phase 0 decision): **✅ done — PR #71.**
 - If greenlit: a real link/section on the homepage or navbar to `/register?product=chama_reminder`, and pricing content for its own (100/250/400/negotiated) tiers.
+
+*Shipped: a `#chama-reminder` section on `/pricing` rendering its real tiers through the same `PlanGrid` component as Kitabu Yetu, entries in both the navbar Solutions menu and the footer Solutions column, and a pointer from the homepage pricing section. Every buy link carries `?product=chama_reminder` — without it `register_group()` seeds an unused chart of accounts and quotes the wrong price.*
 
 **Phase 3 — the two code bugs**:
 - Fix `ComposeTab`'s `pageSize`→`limit` mismatch (one-line fix, closes a real silent-partial-send bug now live in two portals).
