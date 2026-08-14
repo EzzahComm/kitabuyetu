@@ -110,6 +110,44 @@ ALTER TABLE sms_credits
   ADD CONSTRAINT sms_credits_remaining_sane
     CHECK (remaining_credits >= 0 AND remaining_credits <= credits_added);
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 1b. Make the column tolerant of an insert that omits it.
+--
+-- WITHOUT THIS THERE IS NO SAFE DEPLOY ORDER, which is worse than migration
+-- 144's situation rather than the same. remaining_credits is NOT NULL with no
+-- default, so during any window where schema and code disagree:
+--
+--   old code + new schema -> INSERT omits the column -> NOT NULL violation
+--   new code + old schema -> INSERT names a column that does not exist
+--
+-- Both break a top-up, and a top-up that fails after M-Pesa has taken the money
+-- is exactly the incident migration 137 exists because of.
+--
+-- A DEFAULT cannot help: the right value is another column on the same row
+-- (credits_added), which DEFAULT expressions cannot reference. A BEFORE INSERT
+-- trigger can, so the schema now fills it in for any caller that does not — old
+-- deploys, ops scripts, anything. An explicit value still wins, so the
+-- application path is unchanged.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.sms_credits_default_remaining()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  -- A fresh purchase is entirely unspent.
+  IF NEW.remaining_credits IS NULL THEN
+    NEW.remaining_credits := NEW.credits_added;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+CREATE TRIGGER trg_sms_credits_default_remaining
+  BEFORE INSERT ON sms_credits
+  FOR EACH ROW EXECUTE FUNCTION public.sms_credits_default_remaining();
+
 CREATE INDEX idx_sms_credits_fifo
   ON sms_credits (group_id, created_at)
   WHERE remaining_credits > 0;
