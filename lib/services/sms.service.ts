@@ -553,6 +553,25 @@ export const smsService = {
       // one row is one message, so the split is all-or-nothing per row.
       let allowanceLeft = reservation.fromAllowanceCount;
 
+      /**
+       * What feature spent these credits. One value, written to both columns,
+       * exactly as the single-send path above does it.
+       *
+       * `notification_type` used to be the hardcoded literal 'campaign' while
+       * the very next column carried the real category — so every scheduled
+       * reminder, the highest-volume path in the product and the whole of Chama
+       * Reminder's mechanism, landed in the analytics screen's per-feature
+       * breakdown under one uninformative label. The rows were not missing,
+       * which is why nothing looked wrong: they were all present, all saying
+       * the same useless thing.
+       *
+       * Campaigns pass no referenceType and keep falling back to 'campaign',
+       * which is what they are — and they stay separately attributed by
+       * campaign id regardless.
+       * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
+       */
+      const feature = input.referenceType ?? 'campaign';
+
       // Insert log rows in batches, each carrying its per-message credit cost
       for (let i = 0; i < eligible.length; i += batchSize) {
         const batch = eligible.slice(i, i + batchSize);
@@ -565,11 +584,12 @@ export const smsService = {
                 credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
                 payer_type, payer_organization_id)
-             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11) RETURNING id`,
+             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,'textsms',$11,$12) RETURNING id`,
             [
               input.groupId, phone, messageFor(phone), CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4),
+              feature,
               dispatchKey,
-              input.referenceType ?? 'campaign',
+              feature,
               input.referenceId ?? dispatchKey,
               input.campaignId ?? null,
               payerType, payerOrgId,

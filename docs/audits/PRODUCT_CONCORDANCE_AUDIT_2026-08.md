@@ -134,6 +134,8 @@ VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$
 
 `notification_type` is always the literal string `'campaign'`, regardless of the caller's real `referenceType` — even though the *next* column, `reference_type`, correctly carries the real category. This line was directly touched by migration 144's commit (only the `rate`→`CREDITS_PER_MESSAGE` change) and the hardcoding was carried forward unfixed.
 
+> **Fixed 2026-08-14 (PR #73), forward-only.** Rows already written carry `'campaign'` and are not backfilled: `reference_type` preserves the real category for anyone who needs to reconstruct history, but rewriting settled billing rows to make a chart read better is not a trade worth making. The analytics screen already declares `hasUnattributedHistory` for exactly this reason.
+
 By contrast, single/transactional sends (birthday reminders, one-off notifications) correctly set `notification_type` via `notifications.service.ts:391`. **Consequence**: `sms-analytics.service.ts`'s `byFeature` breakdown — the exact metric the SMS monetization audit's "~5% populated" finding is about — will keep every scheduled/bulk send bucketed under the single uninformative label `'campaign'` forever, rather than the real feature. The population *percentage* will likely improve (rows stop being NULL), but the *useful signal* — which feature actually consumed the credits — stays lost for the highest-volume path in the product.
 
 ### 2.6 Type drift and dead code
@@ -227,8 +229,10 @@ Ordered by leverage and blast radius, matching this project's established phasin
 
 *Both items turned out to be worse than written up, and neither fix is the one described above — see the corrections in §3.1 and §3.2. The recipient cap could not be fixed client-side at all (`limit` maxes at 100), so the audience moved server-side; the "typing nicety" on the admin screen was in fact a 403 on every call, meaning that screen had never once loaded. §3.4's guard came along with it, because fixing §3.2 is what made it reachable.*
 
-**Phase 4 — the analytics signal-loss bug**:
+**Phase 4 — the analytics signal-loss bug**: **✅ done — PR #73.**
 - Thread the real `referenceType`/feature category into `sendBulkCampaign`'s `notification_type` column instead of the hardcoded `'campaign'` literal — restores per-feature attribution for the highest-volume send path, which is what the new usage-analytics screen exists to show.
+
+*As written. One value now feeds both columns, exactly as the single-send path already does it. Campaigns pass no `referenceType` and keep the `'campaign'` label, which is what they are — and they stay separately attributed by campaign id regardless. Verified by running the new test against the pre-fix code first: it reported `Received: "campaign"` where `'schedule'` belonged.*
 
 **Phase 5 — low-risk cleanup**:
 - Delete `billing.service.ts`'s dead `createStarterSubscription()` (removes a live footgun for the free-tier bug's return).
