@@ -48,6 +48,12 @@ describe('POST /api/v1/sms/campaign', () => {
     await resetDatabase();
   });
 
+  // 20s, not the 5s default: the route calls enforceSmsRateLimit, which
+  // reaches for Redis/Upstash over the network (lib/redis's checkRateLimit,
+  // fail-open by design — see rate-limit.ts's own header comment). Neither
+  // this sandbox nor CI has real egress to it, so it fails open, but not
+  // instantly — same shape as feedback_no_network_on_the_auth_hot_path,
+  // just not worth widening that fix's scope for on this hotfix.
   it('creates an immediate campaign (no scheduledAt) as draft — was a 500 on every call', async () => {
     const res = await smsCampaignPost(buildRequest('/api/v1/sms/campaign', {
       method: 'POST',
@@ -59,7 +65,7 @@ describe('POST /api/v1/sms/campaign', () => {
     const body = await res.json();
     expect(body.data.status).toBe('draft');
     expect(body.data.scheduled_at).toBeNull();
-  });
+  }, 20_000);
 
   it('creates a scheduled campaign as scheduled, not sent immediately', async () => {
     const scheduledAt = new Date(Date.now() + 86_400_000).toISOString();
@@ -77,5 +83,5 @@ describe('POST /api/v1/sms/campaign', () => {
     const body = await res.json();
     expect(body.data.status).toBe('scheduled');
     expect(new Date(body.data.scheduled_at).toISOString()).toBe(scheduledAt);
-  });
+  }, 20_000);
 });
