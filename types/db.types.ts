@@ -215,6 +215,13 @@ export interface Subscription {
   grace_period_days:  number;
   cancelled_at:       Date | null;
   cancel_reason:      string | null;
+  /**
+   * The payment that activated this row (migration 138). NULL for
+   * pre-payment-gating rows and for legacy/manually-activated plans.
+   * UNIQUE — activateSubscriptionForPayment's exactly-once guarantee lives
+   * partly on this constraint, not just the check-then-act above it.
+   */
+  payment_id:         string | null;
   created_at:         Date;
   updated_at:         Date;
 }
