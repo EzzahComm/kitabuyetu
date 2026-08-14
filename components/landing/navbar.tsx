@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Menu, X, ChevronDown, Smartphone, Users, Building2, ShieldCheck,
+  Menu, X, ChevronDown, Smartphone, Users, Building2, ShieldCheck, BellRing,
   BookText, LifeBuoy, Activity, type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,14 +12,28 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { cn } from '@/lib/utils';
+import { PLAN_MONTHLY_FEES, PRODUCT_LABEL } from '@/types/enums';
 
 interface MenuLink { icon: LucideIcon; label: string; desc: string; href: string }
 
 // Portal entry points — surfaced as a proper menu built on the shared
 // DropdownMenu primitive, so the landing nav matches the in-app design system.
+//
+// Chama Reminder is a separate purchasable product, not a Kitabu Yetu feature,
+// so it needs its own entry point AND its own `?product=` — without the query
+// string `register_group()` seeds a chart of accounts the buyer never uses and
+// bills them the Kitabu Yetu price. Its "from" price is read from the real fee
+// table rather than typed here; see
+// docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.2.
 const solutionLinks: MenuLink[] = [
   { icon: Smartphone,  label: 'Member app',     desc: 'Wallet, passbook & savings goals', href: '/me' },
   { icon: Users,       label: 'Group dashboard', desc: 'Run your chama or SACCO',           href: '/register' },
+  {
+    icon: BellRing,
+    label: PRODUCT_LABEL.chama_reminder,
+    desc: `SMS reminders only — from KES ${PLAN_MONTHLY_FEES.chama_reminder.starter}/mo`,
+    href: '/register?product=chama_reminder',
+  },
   { icon: Building2,   label: 'Enterprise',     desc: 'Multi-branch, API & white-label',   href: '/enterprise' },
   { icon: ShieldCheck, label: 'Backoffice',     desc: 'Risk, KYC & live monitoring',       href: '/admin-login' },
 ];

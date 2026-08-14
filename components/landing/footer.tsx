@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
+import { PRODUCT_LABEL } from '@/types/enums';
 
 // Every href below must resolve to a real page — the prior version linked
 // 10 of 16 entries (Pricing, Security, all of Company/Legal, most of
@@ -8,10 +9,14 @@ import { BrandLogo } from '@/components/branding/BrandLogo';
 // Cookies) are deliberately absent rather than stubbed: fabricated legal
 // text for a product handling real money and PII would be actively worse
 // than no link. See docs/audits/UX_SURFACE_AUDIT_2026-07.md §8.
+//
+// Solutions mirrors navbar.tsx's `solutionLinks` — same entries, same order,
+// same hrefs (Chama Reminder included). Add to one, add to the other.
 const footerLinks = {
   Solutions: [
     { label: 'Member app', href: '/me' },
     { label: 'Group dashboard', href: '/register' },
+    { label: PRODUCT_LABEL.chama_reminder, href: '/register?product=chama_reminder' },
     { label: 'Enterprise', href: '/enterprise' },
     { label: 'Backoffice', href: '/admin-login' },
   ],

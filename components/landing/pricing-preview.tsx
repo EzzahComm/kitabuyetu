@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PLAN_MONTHLY_FEES, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
+import { PLAN_MONTHLY_FEES, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL } from '@/types/enums';
 
 /**
  * Reads the real PLAN_COPY/PLAN_MONTHLY_FEES from types/enums.ts — the same
@@ -135,6 +135,19 @@ export default function PricingPreview() {
             Compare full plan details
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
+
+          {/* Chama Reminder's only public mention used to be a footnote on
+              /pricing linking straight into the signup form — this is the
+              homepage acquisition surface it never had. Price comes from the
+              real fee table, same as the cards above. */}
+          <p className="mt-4 text-sm text-brand-blue-900/60">
+            Only need to reach your members?{' '}
+            <Link href="/pricing#chama-reminder" className="font-semibold text-brand-600 hover:underline">
+              {PRODUCT_LABEL.chama_reminder}
+            </Link>{' '}
+            does SMS reminders, greetings and announcements on their own — from{' '}
+            KES {PLAN_MONTHLY_FEES.chama_reminder.starter.toLocaleString()}/month.
+          </p>
         </motion.div>
       </div>
     </section>
