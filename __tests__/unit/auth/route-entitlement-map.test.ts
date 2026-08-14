@@ -139,6 +139,7 @@ describe('route entitlement map', () => {
       '/api/v1/members/[id]/next-of-kin',
       '/api/v1/members/[id]/next-of-kin/[kinId]',
       '/api/v1/members/[id]/status',
+      '/api/v1/sms/analytics',
       '/api/v1/sms/balance',
       '/api/v1/sms/birthdays',
       '/api/v1/sms/bulk',
