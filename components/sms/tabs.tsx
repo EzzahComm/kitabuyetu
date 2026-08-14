@@ -25,7 +25,6 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
-import { useMembers } from '@/hooks/use-members';
 import { StatusPill } from '@/components/shared/status-pill';
 import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
@@ -74,7 +73,6 @@ export function ComposeTab() {
   const [phones, setPhones]     = useState('');
   const [templateId, setTemplateId] = useState('');
 
-  const { data: members } = useMembers({ pageSize: 500 });
   const { data: templates } = useQuery({ queryKey: ['sms-templates'], queryFn: () => smsApi.templates() });
 
   const sendMutation = useMutation({
@@ -86,17 +84,31 @@ export function ComposeTab() {
     onError: (err) => toast({ variant: 'destructive', title: 'Send failed', description: getErrorMessage(err) }),
   });
 
+  /**
+   * "All Members" / "Active Only" name an audience; they do not enumerate one.
+   * This used to build the phone list here from `useMembers({ pageSize: 500 })`
+   * — a key `MemberQuerySchema` does not have, so Zod stripped it and the list
+   * came back at the default 20. A 150-member group reached 20 of them with no
+   * error shown. The server now answers the membership question itself; the
+   * client only sends phone numbers a human typed.
+   */
   const handleSend = () => {
     if (!message.trim()) return;
-    let recipientPhones: string[] = [];
+
     if (target === 'custom') {
-      recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
-    } else if (target === 'active') {
-      recipientPhones = (members?.items ?? []).filter((m) => m.group_status === 'active').map((m) => m.phone);
-    } else {
-      recipientPhones = (members?.items ?? []).map((m) => m.phone);
+      const recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
+      if (!recipientPhones.length) {
+        toast({ variant: 'destructive', title: 'Add at least one phone number' });
+        return;
+      }
+      sendMutation.mutate({ phones: recipientPhones, message });
+      return;
     }
-    sendMutation.mutate({ phones: recipientPhones, message });
+
+    sendMutation.mutate({
+      recipientType: target === 'active' ? 'active_members' : 'all_members',
+      message,
+    });
   };
 
   const tplList: SmsTemplate[] = templates ?? [];

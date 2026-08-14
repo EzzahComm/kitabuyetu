@@ -13,6 +13,60 @@ import { ValidationError, NotFoundError } from '@/lib/utils/errors';
  * sms-margin.service.ts (reporting). This module only writes.
  */
 
+/**
+ * Row shapes for the three pricing tables (migration 143), snake_case exactly
+ * as Postgres returns them. Declared here so `getPricingConfig()`'s return type
+ * is real rather than `any[]`, which is what lets the admin screen derive its
+ * types from this service instead of hand-writing a parallel set that drifts —
+ * the same failure `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md` catalogued.
+ *
+ * NUMERIC columns arrive as strings: node-postgres will not narrow a
+ * NUMERIC(12,2) to a float without losing precision, so it hands back the text.
+ * Typing them as `string` is what stops a caller doing arithmetic on them by
+ * accident.
+ */
+export interface SmsPricingTierRow {
+  id:            string;
+  name:          string;
+  min_credits:   number;
+  max_credits:   number | null;
+  unit_price:    string;
+  currency:      string;
+  is_active:     boolean;
+  display_order: number;
+  notes:         string | null;
+  created_at:    string;
+  updated_at:    string;
+}
+
+export interface SmsPackageRow {
+  id:             string;
+  name:           string;
+  description:    string | null;
+  credits:        number;
+  price:          string;
+  currency:       string;
+  is_active:      boolean;
+  is_recommended: boolean;
+  display_order:  number;
+  created_at:     string;
+  updated_at:     string;
+}
+
+/** What `setActiveTiers` reports back: the whole band list either side of the swap. */
+export type TierActivationRow = Pick<SmsPricingTierRow, 'id' | 'name' | 'is_active'>;
+
+export interface SmsProviderCostRow {
+  id:             string;
+  provider:       string;
+  unit_cost:      string;
+  currency:       string;
+  effective_from: string;
+  effective_to:   string | null;
+  notes:          string | null;
+  created_at:     string;
+}
+
 export interface TierInput {
   name:         string;
   minCredits:   number;
@@ -56,9 +110,9 @@ async function audit(
 export async function getPricingConfig() {
   return withAdminDb(async (db) => {
     const [tiers, packages, cost] = await Promise.all([
-      db.query(`SELECT * FROM sms_pricing_tiers ORDER BY display_order, min_credits`),
-      db.query(`SELECT * FROM sms_packages ORDER BY display_order, credits`),
-      db.query(
+      db.query<SmsPricingTierRow>(`SELECT * FROM sms_pricing_tiers ORDER BY display_order, min_credits`),
+      db.query<SmsPackageRow>(`SELECT * FROM sms_packages ORDER BY display_order, credits`),
+      db.query<SmsProviderCostRow>(
         `SELECT * FROM sms_provider_costs
          WHERE provider = 'textsms' AND effective_to IS NULL
          ORDER BY effective_from DESC LIMIT 1`,
@@ -137,7 +191,7 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
   return withAdminDb(async (db) => {
     await db.query('SET CONSTRAINTS sms_tier_no_overlap DEFERRED');
 
-    const { rows: before } = await db.query(
+    const { rows: before } = await db.query<TierActivationRow>(
       `SELECT id, name, is_active FROM sms_pricing_tiers ORDER BY display_order`,
     );
 
@@ -149,7 +203,7 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
       );
     }
 
-    const { rows: after } = await db.query(
+    const { rows: after } = await db.query<TierActivationRow>(
       `SELECT id, name, is_active FROM sms_pricing_tiers ORDER BY display_order`,
     );
     await audit(db, actorId, 'sms_pricing.tiers_activated', null, before, after);
@@ -223,7 +277,7 @@ export async function setProviderCost(actorId: string, unitCost: number, notes?:
   // Again no manual transaction — withAdminDb provides one, and closing the old
   // window plus opening the new one must land together or not at all.
   return withAdminDb(async (db) => {
-    const { rows: before } = await db.query(
+    const { rows: before } = await db.query<SmsProviderCostRow>(
       `SELECT * FROM sms_provider_costs
        WHERE provider = 'textsms' AND effective_to IS NULL`,
     );
@@ -232,7 +286,7 @@ export async function setProviderCost(actorId: string, unitCost: number, notes?:
       `UPDATE sms_provider_costs SET effective_to = CURRENT_DATE - 1
        WHERE provider = 'textsms' AND effective_to IS NULL`,
     );
-    const { rows } = await db.query(
+    const { rows } = await db.query<SmsProviderCostRow>(
       `INSERT INTO sms_provider_costs (provider, unit_cost, effective_from, notes)
        VALUES ('textsms', $1, CURRENT_DATE, $2) RETURNING *`,
       [unitCost.toFixed(4), notes ?? null],
