@@ -66,14 +66,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     const phones = await resolveSmsRecipients(auth.groupId, input.recipientType, input.rawRecipients);
 
     // Insert campaign row
+    //
+    // $9 (scheduled_at) is reused a second time inside the CASE below to
+    // derive `status` — the same parameter-type-inference failure class this
+    // codebase has hit three times already (sms.service.ts's updateLogRow,
+    // notifications.service.ts's insertSmsLog, reminder_dispatch_log.settle):
+    // node-pg sends no type OIDs, and a bare $9 used only via `IS NOT NULL`
+    // on its second occurrence gives Postgres nothing to resolve a type from,
+    // so it throws `could not determine data type of parameter $9` — on
+    // EVERY call, not just scheduled ones, since this fails at parse time
+    // before any value is even bound. Cast explicitly at both occurrences.
     const { rows: [campaign] } = await withAdminDb((db) =>
       db.query(
         `INSERT INTO sms_campaigns
            (group_id, name, description, message, template_id, recipient_type,
             recipient_count, raw_recipients, scheduled_at, created_by, status,
             payer_type, payer_organization_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-           CASE WHEN $9 IS NOT NULL THEN 'scheduled' ELSE 'draft' END, $11, $12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::timestamptz,$10,
+           CASE WHEN $9::timestamptz IS NOT NULL THEN 'scheduled' ELSE 'draft' END, $11, $12)
          RETURNING *`,
         [
           auth.groupId, input.name, input.description ?? null,
