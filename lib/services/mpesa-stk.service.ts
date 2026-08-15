@@ -8,7 +8,11 @@ import { withAdminDb } from '@/lib/db';
 import { ConflictError } from '@/lib/utils/errors';
 import { cacheMpesaStatus, acquireStkLock, releaseStkLock } from '@/lib/redis';
 import { logger } from '@/lib/logger';
-import { normalizePhone } from '@/lib/utils/phone';
+// normalizePhone (throwing) is still correct for initiateSTK below: that phone
+// is the prompt TARGET supplied by our own code, so a bad number must fail
+// loudly rather than silently prompt nobody. The safe variant is for the
+// inbound callback, where the phone is only recorded.
+import { normalizePhone, safeNormalizePhone, UNKNOWN_PAYER_PHONE } from '@/lib/utils/phone';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import type { PlanType, SubscriptionProduct } from '@/types/enums';
 import { notifyMember } from './notifications.service';
@@ -266,11 +270,35 @@ export async function handleSTKCallback(
   }
 
   // ── Success branch (all in one transaction) ────────────────────────────────
-  const items   = cb.CallbackMetadata!.Item;
+  // `?? []` rather than the old `CallbackMetadata!` non-null assertion: a
+  // success payload without metadata is malformed, but it must not crash the
+  // handler before the guard below can classify it.
+  const items   = cb.CallbackMetadata?.Item ?? [];
   const getItem = (name: string) => items.find((i) => i.Name === name)?.Value;
   const receipt = getItem('MpesaReceiptNumber') as string;
   const amount  = getItem('Amount') as number;
-  const phone   = normalizePhone(String(getItem('PhoneNumber') ?? ''));
+
+  // The receipt is the ONE field this branch genuinely cannot proceed without —
+  // it is the idempotency key and the ledger's reference. Treat a
+  // ResultCode-0 callback that lacks one as the failure it actually is,
+  // rather than inserting a row keyed on `undefined`.
+  if (!receipt) {
+    logger.error('[mpesa] STK success callback carried no MpesaReceiptNumber', {
+      checkoutRequestId: cb.CheckoutRequestID,
+    });
+    return { success: false, mpesaReceiptNumber: null, amount: null, paymentId: null };
+  }
+
+  // Incidental, exactly as in handleC2BConfirmation — the payment is
+  // identified by the STK request row and its AccountReference, never by the
+  // prompted phone (which may legitimately belong to a third party). This
+  // used to be `normalizePhone(...)`, which throws; Safaricom already sends a
+  // HASHED MSISDN on this org's C2B confirmations, and that exact throw
+  // silently discarded every direct PayBill payment for ~11 weeks (PR #77).
+  // STK has not been hit, but it is the same provider, the same shortcode and
+  // the same shape — and STK is the primary payment path, so the blast radius
+  // would be larger. Degrade the record; never reject the money.
+  const phone   = safeNormalizePhone(String(getItem('PhoneNumber') ?? '')) ?? UNKNOWN_PAYER_PHONE;
 
   const result = await withAdminDb(async (db) => {
     // 1. Idempotency: if this receipt is already completed, no-op.
@@ -498,7 +526,13 @@ async function applyContributionFromSTK(
   // Fallback: resolve by phone within the group. gm.status is the single
   // membership liveness signal — the legacy is_active boolean is never
   // updated by status transitions and reads true forever (audit C-2).
-  if (!memberId) {
+  //
+  // Skipped entirely when the payer phone is unknown (hashed/absent MSISDN):
+  // matching the sentinel against `members.phone` can only ever be wrong —
+  // either it finds nothing, or a member has literally stored 'unknown' and
+  // would be credited for someone else's payment. Falling through to the
+  // unrouted path below is the correct outcome.
+  if (!memberId && in_.phone !== UNKNOWN_PAYER_PHONE) {
     const { rows: memberRows } = await db.query<{ id: string }>(
       `SELECT m.id
        FROM   members m
