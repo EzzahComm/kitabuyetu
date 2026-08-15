@@ -768,17 +768,50 @@ export const smsService = {
     };
   },
 
-  async getBalance(ctx: TenantContext): Promise<{ credits: string; rate: string }> {
+  /**
+   * A group's SMS position: PURCHASED credits and the plan's BUNDLED
+   * allowance, which are two different pools and were previously conflated.
+   *
+   * Only `credits` (purchased top-ups) used to be returned, so a group that
+   * had just paid for a plan including 50 messages saw a balance of 0 and
+   * reasonably concluded its package came with nothing. The allowance is
+   * real — reserve_sms_credits draws from it first — it simply had no way to
+   * reach the UI. Reported in production right after a Starter purchase.
+   */
+  async getBalance(ctx: TenantContext): Promise<{
+    credits: string; rate: string;
+    allowanceIncluded: number; allowanceUsed: number; allowanceRemaining: number;
+  }> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<{ sms_credits: string; sms_rate: string }>(
-        `SELECT ba.sms_credits, COALESCE(s.sms_rate,'0.90') AS sms_rate
+      const { rows } = await client.query<{
+        sms_credits: string; sms_rate: string;
+        allowance_included: number; allowance_used: number;
+      }>(
+        // SUM the allowance across active subscriptions, matching what
+        // reserve_sms_credits itself does for a group holding more than one
+        // product — taking a single row would under-report a group with both.
+        `SELECT ba.sms_credits,
+                COALESCE(MIN(s.sms_rate)::text,'0.90')            AS sms_rate,
+                COALESCE(SUM(s.sms_allowance_included), 0)::int   AS allowance_included,
+                COALESCE(MAX(ba.sms_allowance_used), 0)::int      AS allowance_used
          FROM billing_accounts ba
          LEFT JOIN subscriptions s ON s.group_id=ba.group_id AND s.status='active'
-         WHERE ba.group_id=$1`,
+         WHERE ba.group_id=$1
+         GROUP BY ba.sms_credits`,
         [ctx.groupId],
       );
-      if (!rows[0]) return { credits: '0.00', rate: '0.90' };
-      return { credits: rows[0].sms_credits, rate: rows[0].sms_rate };
+      if (!rows[0]) {
+        return { credits: '0.00', rate: '0.90', allowanceIncluded: 0, allowanceUsed: 0, allowanceRemaining: 0 };
+      }
+      const included = rows[0].allowance_included;
+      const used     = rows[0].allowance_used;
+      return {
+        credits: rows[0].sms_credits,
+        rate:    rows[0].sms_rate,
+        allowanceIncluded:  included,
+        allowanceUsed:      used,
+        allowanceRemaining: Math.max(included - used, 0),
+      };
     });
   },
 

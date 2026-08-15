@@ -2,9 +2,10 @@ import { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import {
-  PLAN_FEATURES, PLAN_MONTHLY_FEES, DEFAULT_PRODUCT,
+  PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
   type PlanType, type SubscriptionProduct, type PlanFeatures,
 } from '@/types/enums';
+import { logger } from '@/lib/logger';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
@@ -31,6 +32,93 @@ async function ensureChartOfAccounts(
 ): Promise<void> {
   if (product !== 'kitabu_yetu') return;
   await client.query(`SELECT seed_chart_of_accounts($1)`, [groupId]);
+}
+
+/**
+ * Confirm an activated subscription to the person who bought it.
+ *
+ * Written after a real incident: a group paid KES 150 for Starter, the plan
+ * activated correctly, and the only message sent was the GENERIC M-Pesa
+ * receipt — which was wrong twice over.
+ *
+ *  1. It went to `payments.mpesa_phone`, the number that paid, NOT the
+ *     member's registered number. The registered chairperson received
+ *     nothing at all.
+ *  2. Its template variables came from a UNION over contributions /
+ *     loan_repayments / welfare_pool_contributions. A subscription payment is
+ *     none of those, so group_name / membership_no / product / balance all
+ *     resolved empty and the SMS read literally:
+ *       "KES 150 received for (A/C ). Receipt: UHFQZ2SPYV. Balance: KES ."
+ *
+ * A subscription is its own event and deserves its own message, so this sends
+ * one directly via notifyMember (the proven path — it honours opt-out, writes
+ * the in-app copy, and never throws) rather than through the receipt template.
+ *
+ * Best-effort by design: a failure to CONFIRM a subscription must never roll
+ * back the subscription itself. The caller's transaction is already committed
+ * money.
+ */
+async function sendSubscriptionConfirmation(
+  client: PoolClient,
+  args: {
+    groupId:  string;
+    paymentId: string | null;
+    planType: PlanType;
+    product:  SubscriptionProduct;
+    amount:   number;
+    receipt:  string | null;
+  },
+): Promise<void> {
+  try {
+    // The registered member, not the payer. Prefer whoever initiated the
+    // payment; fall back to the group's chairperson so a group whose payment
+    // came in headless (callback replay, ops correction) still gets told.
+    const { rows: [target] } = await client.query<{
+      member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
+    }>(
+      `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
+              p.mpesa_receipt_number AS receipt
+       FROM   groups g
+       JOIN   group_members gm ON gm.group_id = g.id AND gm.status = 'active'
+       JOIN   members m        ON m.id = gm.member_id AND m.is_active = true
+       LEFT   JOIN payments p  ON p.id = $2
+       WHERE  g.id = $1
+       ORDER  BY (p.initiated_by IS NOT NULL AND m.id = p.initiated_by) DESC,
+                 (gm.role = 'chairperson') DESC,
+                 gm.created_at ASC
+       LIMIT  1`,
+      [args.groupId, args.paymentId],
+    );
+    if (!target) return;
+
+    const planLabel = PLAN_COPY[args.product].find((p) => p.type === args.planType)?.label
+      ?? args.planType;
+    const productLabel = PRODUCT_LABEL[args.product];
+    const receipt = args.receipt ?? target.receipt;
+
+    const body =
+      `Dear ${target.first_name}, your ${productLabel} ${planLabel} subscription for `
+      + `${target.group_name} is now active. Amount paid: KES ${args.amount.toLocaleString()}.`
+      + (receipt ? ` Receipt: ${receipt}.` : '')
+      + ' Thank you.';
+
+    const { notifyMember } = await import('./notifications.service');
+    await notifyMember({
+      groupId:  args.groupId,
+      memberId: target.member_id,
+      phone:    target.phone,
+      body,
+      title:            'Subscription active',
+      referenceType:    'subscription',
+      referenceId:      args.paymentId ?? undefined,
+      notificationType: 'subscription.activated',
+      billingMode:      'unbilled',
+    });
+  } catch (err) {
+    logger.error('[billing] subscription confirmation failed to send (non-fatal)', {
+      groupId: args.groupId, err: String(err),
+    });
+  }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,6 +265,12 @@ export const billingService = {
     );
 
     await ensureChartOfAccounts(client, groupId, product);
+
+    await sendSubscriptionConfirmation(client, {
+      groupId, paymentId, planType, product,
+      amount: fee,
+      receipt: null,
+    });
 
     return rows[0];
   },

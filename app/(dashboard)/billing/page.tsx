@@ -74,12 +74,27 @@ export default function BillingPage() {
           {smsBalanceLoading ? (
             <div className="h-8 w-40 bg-muted rounded animate-pulse" />
           ) : (
-            <p className="text-2xl font-bold text-foreground">
-              KES {smsKesValue != null ? smsKesValue.toFixed(2) : '0.00'}
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({smsCredits != null ? smsCredits.toFixed(0) : '0'} credits{smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
-              </span>
-            </p>
+            <>
+              <p className="text-2xl font-bold text-foreground">
+                KES {smsKesValue != null ? smsKesValue.toFixed(2) : '0.00'}
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  ({smsCredits != null ? smsCredits.toFixed(0) : '0'} purchased{smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
+                </span>
+              </p>
+              {/* The plan's BUNDLED messages, a separate pool from purchased
+                  top-ups and drawn from first. Showing only the purchased
+                  balance made a group that had just paid for a plan including
+                  50 SMS believe its package came with none. */}
+              {smsBalance && smsBalance.allowanceIncluded > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Plan allowance:{' '}
+                  <span className="font-medium text-foreground">
+                    {smsBalance.allowanceRemaining} of {smsBalance.allowanceIncluded}
+                  </span>{' '}
+                  messages left this month
+                </p>
+              )}
+            </>
           )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center gap-2">

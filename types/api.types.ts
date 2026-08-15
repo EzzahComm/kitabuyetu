@@ -361,6 +361,8 @@ export interface SubscriptionPublic {
   monthlyFee:       string;
   smsRate:          string;
   maxMembers:       number | null;
+  /** Messages included in the plan each period — distinct from purchased credits. */
+  smsAllowanceIncluded?: number;
 }
 
 // ------------------------------------------------------------------
