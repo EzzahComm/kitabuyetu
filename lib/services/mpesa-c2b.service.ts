@@ -7,7 +7,7 @@
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { normalizePhone } from '@/lib/utils/phone';
+import { safeNormalizePhone, UNKNOWN_PAYER_PHONE } from '@/lib/utils/phone';
 import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/lib/utils/mpesa-bill-ref';
 import { looksLikeMembershipNo, isValidMembershipNo, parseAccountRef } from '@/lib/utils/membership-no';
 import { registerC2BUrls as _registerC2B, assertSafaricomIp, type C2BApiVersion } from './daraja.service';
@@ -113,7 +113,21 @@ export async function handleC2BConfirmation(
 ): Promise<void> {
   if (!opts?.skipIpCheck) assertSafaricomIp(callerIp);
 
-  const phone   = normalizePhone(body.MSISDN);
+  // Safaricom sends a HASHED MSISDN (64-char SHA-256, not a number) on C2B
+  // confirmations depending on shortcode configuration. This used to be
+  // `normalizePhone(body.MSISDN)`, which throws — on the first line of the
+  // handler, so a hashed MSISDN killed the whole crediting path before the
+  // idempotency check, before account-number routing, and before the
+  // unrouted-queue insert that exists precisely to catch what cannot be
+  // routed. Every direct PayBill payment was received by Safaricom and
+  // recorded nowhere; 5 real ones (KES 15,631) were lost that way between
+  // 2026-05-28 and 2026-07-12 before this was found.
+  //
+  // The payer phone is INCIDENTAL here and always was — see the routing
+  // comment below: the member is identified by the ACCOUNT NUMBER, never by
+  // the paying phone, because third parties may pay. So an unusable MSISDN
+  // must degrade the record, never reject the money.
+  const phone   = safeNormalizePhone(body.MSISDN) ?? UNKNOWN_PAYER_PHONE;
   const amount  = parseFloat(body.TransAmount);
   const rawBody = JSON.stringify(body);
   const route   = parseBillRefNumber(body.BillRefNumber);
@@ -172,7 +186,14 @@ export async function handleC2BConfirmation(
         groupId:        hit.groupId,
         memberId:       hit.memberId!,
         fulfil,
-        thirdPartyPhone: hit.memberPhone && hit.memberPhone !== phone ? phone : null,
+        // Only claim a third party paid when we actually know who did. With an
+        // unusable MSISDN the honest answer is "unknown payer", not "someone
+        // other than the member" — recording the sentinel here would assert a
+        // third-party payment that was never established.
+        thirdPartyPhone:
+          phone !== UNKNOWN_PAYER_PHONE && hit.memberPhone && hit.memberPhone !== phone
+            ? phone
+            : null,
         preferRepaymentId: gate !== 'force_loan' ? resolved.entityId : null,
       });
       return;
@@ -310,8 +331,14 @@ async function resolveC2BGroupId(
     if (rows[0]) return rows[0].group_id;
   }
 
-  // 3. Phone-only fallback (only when member is in exactly one group)
-  const phone = normalizePhone(body.MSISDN);
+  // 3. Phone-only fallback (only when member is in exactly one group).
+  //    A hashed/unusable MSISDN simply cannot match a stored phone, so this
+  //    fallback has nothing to offer — return null and let the caller file the
+  //    payment as unrouted. It must NOT throw: this is the last resolution
+  //    step, and throwing here discards a real payment instead of queueing it
+  //    for a human.
+  const phone = safeNormalizePhone(body.MSISDN);
+  if (!phone) return null;
   const { rows: phoneRows } = await db.query<{ group_id: string }>(
     `SELECT gm.group_id
      FROM   group_members gm
