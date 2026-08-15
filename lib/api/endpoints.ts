@@ -14,7 +14,7 @@ import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
 import type { CreateJournalPayload , CreateAccountPayload, SetPostingTemplatePayload, SetApprovalPolicyInput, ClosePeriodInput, ReopenPeriodInput } from '@/lib/validators/accounting.schema';
 import type { StkPushInput , B2CInput } from '@/lib/validators/mpesa.schema';
-import type { RegisterPayload, ChangePasswordPayload } from '@/lib/validators/auth.schema';
+import type { RegisterPayload, ChangePasswordPayload, CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema';
 import type { CreateMemberPayload, UpdateMemberPayload, CreateNextOfKinPayload, UpdateNextOfKinPayload, UpdateMemberRoleInput, MemberStatusTransitionInput } from '@/lib/validators/member.schema';
 import type { CreateContributionPayload, UpdateContributionPayload, SetSavingsLimitsPayload } from '@/lib/validators/contribution.schema';
 import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
@@ -67,6 +67,14 @@ export const authApi = {
 
   switchGroup: (groupId: string) =>
     api.post<LoginResponse>('/auth/switch-group', { groupId }),
+
+  // Found an additional group under the caller's EXISTING identity — the
+  // authenticated counterpart to `register`, for a member who already has an
+  // account and would otherwise 409 on their own phone number.
+  createGroup: (body: CreateAdditionalGroupPayload) =>
+    api.post<LoginResponse & { groupCode: string; memberCode: string; groupStatus: string; signupProduct: SubscriptionProduct }>(
+      '/auth/create-group', body,
+    ),
 
   logout:  (refreshToken?: string) =>
     api.post<void>('/auth/logout', { refreshToken }),

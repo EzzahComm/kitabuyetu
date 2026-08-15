@@ -11,7 +11,8 @@
  */
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronsUpDown, Check, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronsUpDown, Check, Loader2, Plus } from 'lucide-react';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
@@ -135,11 +136,20 @@ export function GroupSwitcher() {
               </div>
             </button>
           ))}
-          {items !== null && items.length === 1 && (
-            <p className="px-2 pb-1 text-[11px] text-gray-500">
-              You belong to one group. Join another to switch here.
-            </p>
-          )}
+          {/*
+            Was dead-end text ("Join another to switch here") with no actual
+            way to join anything — this is that capability, for real, always
+            visible rather than only when items.length === 1: an existing
+            member can found an ADDITIONAL group (Kitabu Yetu or Chama
+            Reminder) under their current identity without a new phone
+            number. Migration 147 / POST /api/v1/auth/create-group.
+          */}
+          <Link
+            href="/groups/new"
+            className="flex items-center gap-2 rounded px-2 py-2 text-[11px] text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+          >
+            <Plus size={12} className="shrink-0" /> Create another group
+          </Link>
         </div>
       )}
     </div>
