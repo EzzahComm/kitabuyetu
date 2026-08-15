@@ -58,6 +58,81 @@ async function ensureChartOfAccounts(
  * back the subscription itself. The caller's transaction is already committed
  * money.
  */
+/**
+ * Confirm an SMS credit top-up to the person who bought it.
+ *
+ * Top-ups used to be covered by the generic M-Pesa receipt, which resolved
+ * its variables from a UNION over contributions / loan_repayments /
+ * welfare_pool_contributions. A top-up is none of those, so the only message
+ * a buyer ever got read "KES 100 received for (A/C ). Balance: KES ." — and
+ * once that receipt was correctly suppressed (it could not say what the money
+ * did) top-ups were left with no confirmation at all. This is the replacement
+ * that can actually describe the purchase.
+ *
+ * Same shape and same reasoning as sendSubscriptionConfirmation below:
+ * addressed by first name, names the group, sent to the REGISTERED number
+ * rather than whichever M-Pesa line happened to pay, and best-effort so a
+ * failure to confirm can never roll back credits already bought.
+ */
+async function sendTopupConfirmation(
+  client: PoolClient,
+  args: {
+    groupId:      string;
+    paymentId:    string | null;
+    amountKes:    number;
+    creditsAdded: number;
+    newBalance:   string | null;
+  },
+): Promise<void> {
+  try {
+    const { rows: [target] } = await client.query<{
+      member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
+    }>(
+      `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
+              p.mpesa_receipt_number AS receipt
+       FROM   groups g
+       JOIN   group_members gm ON gm.group_id = g.id AND gm.status = 'active'
+       JOIN   members m        ON m.id = gm.member_id AND m.is_active = true
+       LEFT   JOIN payments p  ON p.id = $2
+       WHERE  g.id = $1
+       ORDER  BY (p.initiated_by IS NOT NULL AND m.id = p.initiated_by) DESC,
+                 (gm.role = 'treasurer') DESC,
+                 (gm.role = 'chairperson') DESC,
+                 gm.created_at ASC
+       LIMIT  1`,
+      [args.groupId, args.paymentId],
+    );
+    if (!target) return;
+
+    const credits = Math.round(args.creditsAdded);
+    const balance = args.newBalance != null ? Math.round(Number(args.newBalance)) : null;
+
+    const body =
+      `Dear ${target.first_name}, KES ${args.amountKes.toLocaleString()} of SMS credits `
+      + `has been added to ${target.group_name}. Credits added: ${credits.toLocaleString()}.`
+      + (balance != null ? ` New balance: ${balance.toLocaleString()} messages.` : '')
+      + (target.receipt ? ` Receipt: ${target.receipt}.` : '')
+      + ' Thank you.';
+
+    const { notifyMember } = await import('./notifications.service');
+    await notifyMember({
+      groupId:  args.groupId,
+      memberId: target.member_id,
+      phone:    target.phone,
+      body,
+      title:            'SMS credits added',
+      referenceType:    'sms_topup',
+      referenceId:      args.paymentId ?? undefined,
+      notificationType: 'sms_topup.credited',
+      billingMode:      'unbilled',
+    });
+  } catch (err) {
+    logger.error('[billing] top-up confirmation failed to send (non-fatal)', {
+      groupId: args.groupId, err: String(err),
+    });
+  }
+}
+
 async function sendSubscriptionConfirmation(
   client: PoolClient,
   args: {
@@ -557,6 +632,17 @@ export const billingService = {
           'sms_topup', inserted[0].id, paymentId ?? null, actorId(ctx.userId), null,
         ],
       );
+
+      // Inside the ON CONFLICT guard, so a replayed callback that credits
+      // nothing also confirms nothing — a second "your credits are topped up"
+      // for one purchase is exactly as wrong as a second credit.
+      await sendTopupConfirmation(client, {
+        groupId:   ctx.groupId,
+        paymentId: paymentId ?? null,
+        amountKes,
+        creditsAdded: credits,
+        newBalance:   after[0]?.sms_credits ?? null,
+      });
     });
   },
 };
