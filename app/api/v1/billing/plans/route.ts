@@ -36,7 +36,37 @@ export async function GET(req: NextRequest): Promise<Response> {
       features,
       current:    sub?.plan_type === plan,
     }));
-    return ok({ plans, current: sub, product });
+    // Mapped to the declared SubscriptionPublic shape rather than returned
+    // raw. `sub` is the snake_case DB row, but the client contract
+    // (types/api.types.ts SubscriptionPublic, which lib/api/endpoints.ts's
+    // billingApi.plans declares) is camelCase — so `current.planType` was
+    // ALWAYS undefined and useCurrentPlanSummary reported "No active plan"
+    // even for a group with a live, paid subscription. Reported in
+    // production immediately after a real KES 150 Starter purchase.
+    //
+    // Fixed here, not by making the client read snake_case: this is the
+    // declared wire contract, and the raw row also carries internals
+    // (group_id, payment_id, cancel_reason) that have no business being
+    // sent to a browser. Exactly the failure mode
+    // CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md documents — a client interface
+    // that does not match the wire suppresses the very error it pretends to
+    // prevent.
+    const current = sub ? {
+      id:              sub.id,
+      planType:        sub.plan_type,
+      status:          sub.status,
+      startedAt:       sub.started_at,
+      expiresAt:       sub.expires_at,
+      nextBillingDate: sub.next_billing_date,
+      monthlyFee:      sub.monthly_fee,
+      smsRate:         sub.sms_rate,
+      maxMembers:      sub.max_members,
+      // The plan's bundled monthly SMS, so the billing page can show what the
+      // subscription actually includes instead of only purchased top-ups.
+      smsAllowanceIncluded: sub.sms_allowance_included,
+    } : null;
+
+    return ok({ plans, current, product });
   });
 }
 
