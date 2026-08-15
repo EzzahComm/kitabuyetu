@@ -3,12 +3,12 @@
  * `/api/admin/organizations|groups/[id]` routes are `super_admin`-only by
  * design (global access, nothing to scope), so the meaningful admin-tier
  * isolation boundary is `organization_coordinator`, tested here via
- * `POST /api/v1/organization/disbursements/[id]`
+ * `POST /api/admin/organization/disbursements/[id]`
  * (organizationFinanceService.approveDisbursement/rejectDisbursement,
  * `WHERE id = $1 AND organization_id = $2 ... FOR UPDATE`).
  */
-import { POST } from '@/app/api/v1/organization/disbursements/[id]/route';
-import { authHeaders, buildRequest } from './helpers/request';
+import { POST } from '@/app/api/admin/organization/disbursements/[id]/route';
+import { backofficeHeaders, buildRequest } from './helpers/request';
 import {
   createTestGroup, createTestOrganization, createOrgCoordinator, createTestOrgDisbursement,
 } from './helpers/fixtures';
@@ -35,10 +35,10 @@ describe('organization disbursements tenant isolation', () => {
     const { id } = await createTestOrgDisbursement(orgBId, coordinatorBId, groupBId);
 
     const res = await POST(
-      buildRequest(`/api/v1/organization/disbursements/${id}`, {
+      buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({
-          userId: coordinatorAId, groupId: groupBId, role: 'organization_coordinator', organizationId: orgAId,
+        headers: backofficeHeaders({
+          userId: coordinatorAId, platformRole: 'organization_coordinator', organizationId: orgAId,
         }),
         body: { action: 'approve' },
       }),
@@ -52,10 +52,10 @@ describe('organization disbursements tenant isolation', () => {
     const { id } = await createTestOrgDisbursement(orgBId, coordinatorBId, groupBId);
 
     const res = await POST(
-      buildRequest(`/api/v1/organization/disbursements/${id}`, {
+      buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({
-          userId: coordinatorAId, groupId: groupBId, role: 'organization_coordinator', organizationId: orgAId,
+        headers: backofficeHeaders({
+          userId: coordinatorAId, platformRole: 'organization_coordinator', organizationId: orgAId,
         }),
         body: { action: 'reject', reason: 'not my organization' },
       }),
@@ -69,10 +69,10 @@ describe('organization disbursements tenant isolation', () => {
     const { id } = await createTestOrgDisbursement(orgBId, coordinatorBId, groupBId);
 
     const res = await POST(
-      buildRequest(`/api/v1/organization/disbursements/${id}`, {
+      buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({
-          userId: secondCoordinatorBId, groupId: groupBId, role: 'organization_coordinator', organizationId: orgBId,
+        headers: backofficeHeaders({
+          userId: secondCoordinatorBId, platformRole: 'organization_coordinator', organizationId: orgBId,
         }),
         body: { action: 'approve' },
       }),
@@ -86,10 +86,10 @@ describe('organization disbursements tenant isolation', () => {
     const { id } = await createTestOrgDisbursement(orgBId, coordinatorBId, groupBId);
 
     const res = await POST(
-      buildRequest(`/api/v1/organization/disbursements/${id}`, {
+      buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
-        headers: authHeaders({
-          userId: coordinatorBId, groupId: groupBId, role: 'organization_coordinator', organizationId: orgBId,
+        headers: backofficeHeaders({
+          userId: coordinatorBId, platformRole: 'organization_coordinator', organizationId: orgBId,
         }),
         body: { action: 'approve' },
       }),

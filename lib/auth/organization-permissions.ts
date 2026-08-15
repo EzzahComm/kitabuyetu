@@ -14,7 +14,6 @@
  * DB schema for an axis nothing else uses permission strings for.
  */
 import type { MemberRole, PlatformRole } from '@/types/enums';
-import type { AuthContext } from '@/types/api.types';
 import { ForbiddenError } from '@/lib/utils/errors';
 
 // Every permission below currently maps to the exact same two roles because
@@ -51,8 +50,20 @@ export function hasOrganizationPermission(role: MemberRole | PlatformRole): bool
   return ORG_AXIS_ROLES.includes(role);
 }
 
+/**
+ * Structural subset of what this check actually reads. Deliberately NOT
+ * `AuthContext`: the same rule has to apply to a backoffice/organization
+ * caller too (whose role lives on `platformRole` and who has no group at
+ * all), and duplicating the rule per context shape is how the two would
+ * drift. Both `AuthContext` and an adapted backoffice context satisfy this.
+ */
+export interface OrganizationActor {
+  role:            MemberRole | PlatformRole;
+  organizationId?: string;
+}
+
 /** _permission is unused today (flat map) but kept in the signature so a future narrower split doesn't need every call site rewritten. */
-export function requireOrganizationPermission(auth: AuthContext, _permission: OrganizationPermission): void {
+export function requireOrganizationPermission(auth: OrganizationActor, _permission: OrganizationPermission): void {
   if (!hasOrganizationPermission(auth.role)) {
     throw new ForbiddenError(
       `Role '${auth.role}' cannot perform this action — organization_coordinator or super_admin required`,

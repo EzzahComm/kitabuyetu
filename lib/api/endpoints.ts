@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, adminApi } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
   LoginResponse, LoginResult, RefreshResponse, AdminLoginResult, AdminLoginVerifyResult,
@@ -492,67 +492,67 @@ export const reportsApi = {
 // Organization
 // ------------------------------------------------------------------
 export const organizationApi = {
-  profile: () => api.get<OrganizationProfile>('/organization/profile'),
+  profile: () => adminApi.get<OrganizationProfile>('/organization/profile'),
   groups:  (params?: { page?: number; limit?: number }) =>
-    api.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),
-  detail:  (groupId: string) => api.get<unknown>(`/organization/reports?groupId=${groupId}`),
-  policies: () => api.get<EffectiveThreshold[]>('/organization/policies'),
+    adminApi.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),
+  detail:  (groupId: string) => adminApi.get<unknown>(`/organization/reports?groupId=${groupId}`),
+  policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: SetApprovalPolicyInput) =>
-    api.put<EffectiveThreshold[]>('/organization/policies', body),
+    adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — disbursements page.
   // Backend (organization-finance.service.ts) already existed; this is the
   // first frontend client wiring for it.
-  wallet: () => api.get<{ wallet: OrgWallet }>('/organization/wallet'),
-  deposit: (body: DepositPayload) => api.post<unknown>('/organization/wallet', body),
-  programs: () => api.get<{ items: FundingProgram[] }>('/organization/programs'),
-  createProgram: (body: CreateProgramPayload) => api.post<FundingProgram>('/organization/programs', body),
-  // Pause/resume a program. Typed here rather than left as a raw api.patch
+  wallet: () => adminApi.get<{ wallet: OrgWallet }>('/organization/wallet'),
+  deposit: (body: DepositPayload) => adminApi.post<unknown>('/organization/wallet', body),
+  programs: () => adminApi.get<{ items: FundingProgram[] }>('/organization/programs'),
+  createProgram: (body: CreateProgramPayload) => adminApi.post<FundingProgram>('/organization/programs', body),
+  // Pause/resume a program. Typed here rather than left as a raw adminApi.patch
   // (which is how the retired (dashboard)/organization page called it) —
   // an untyped body is exactly the drift trap CLIENT_SERVER_CONTRACT_AUDIT
   // _2026-08.md documents, where a payload/schema mismatch is invisible to
   // tsc and only surfaces as a 400 at runtime.
   updateProgramStatus: (id: string, body: UpdateProgramStatusInput) =>
-    api.patch<FundingProgram>(`/organization/programs/${id}`, body),
+    adminApi.patch<FundingProgram>(`/organization/programs/${id}`, body),
   // Organization's own trial balance (organization-accounting.service.ts).
-  accounting: () => api.get<{ trialBalance: OrgTrialBalanceLine[] }>('/organization/accounting'),
+  accounting: () => adminApi.get<{ trialBalance: OrgTrialBalanceLine[] }>('/organization/accounting'),
   // Note: this route returns {items,total,page,limit} (organization-finance
   // .service.ts's own listDisbursements shape), not the {pageSize,totalPages}
   // shape PaginatedResult<T> elsewhere in this file assumes.
   disbursements: (params?: { page?: number; limit?: number }) =>
-    api.get<{ items: OrgDisbursement[]; total: number; page: number; limit: number }>(
+    adminApi.get<{ items: OrgDisbursement[]; total: number; page: number; limit: number }>(
       `/organization/disbursements${buildQuery(params ?? {})}`,
     ),
   disburse: (body: DisbursePayload) =>
-    api.post<OrgDisbursement & { needsApproval: boolean }>('/organization/disbursements', body),
+    adminApi.post<OrgDisbursement & { needsApproval: boolean }>('/organization/disbursements', body),
   disbursementAction: (id: string, body: DisbursementActionInput) =>
-    api.post<OrgDisbursement>(`/organization/disbursements/${id}`, body),
+    adminApi.post<OrgDisbursement>(`/organization/disbursements/${id}`, body),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — reports page. Both
   // reports already existed server-side (organization-finance.service.ts);
   // this is the first frontend wiring for either.
-  budgetReport: () => api.get<{ items: ProgramBudgetLine[] }>('/organization/programs?report=budget'),
-  donorSpendReport: () => api.get<{ items: DonorSpendLine[] }>('/organization/programs?report=donor'),
+  budgetReport: () => adminApi.get<{ items: ProgramBudgetLine[] }>('/organization/programs?report=budget'),
+  donorSpendReport: () => adminApi.get<{ items: DonorSpendLine[] }>('/organization/programs?report=donor'),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — members page. New
   // backend (organization.service.ts's listMembers) — customer members
   // across the org's branches, distinct from organization staff.
   members: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get<PaginatedResult<OrganizationMemberRow>>(`/organization/members${buildQuery(params ?? {})}`),
+    adminApi.get<PaginatedResult<OrganizationMemberRow>>(`/organization/members${buildQuery(params ?? {})}`),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — audit trail page. New
   // backend (organization.service.ts's listAuditLogs), joining the
   // platform-wide audit_logs table through organization_group_access.
   auditLogs: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get<PaginatedResult<OrganizationAuditLogRow>>(`/organization/audit-logs${buildQuery(params ?? {})}`),
+    adminApi.get<PaginatedResult<OrganizationAuditLogRow>>(`/organization/audit-logs${buildQuery(params ?? {})}`),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — branding page.
   // New backend (migration 109 + organization.service.ts's getBranding/
   // setBranding). Scope: logo + primary color only (decision recorded in
   // the audit doc's Phase 4 section) — no custom domain.
-  branding: () => api.get<OrganizationBranding>('/organization/branding'),
+  branding: () => adminApi.get<OrganizationBranding>('/organization/branding'),
   setBranding: (body: BrandingPayload) =>
-    api.put<OrganizationBranding>('/organization/branding', body),
+    adminApi.put<OrganizationBranding>('/organization/branding', body),
 };
 
 // ------------------------------------------------------------------

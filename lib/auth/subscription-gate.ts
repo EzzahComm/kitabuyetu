@@ -74,8 +74,11 @@ export const ENTITLEMENT_RULES: ReadonlyArray<readonly [string, RouteEntitlement
   ['/api/v1/workers', 'open'],
   ['/api/v1/webhooks', 'open'],
   ['/api/v1/daraja', 'open'],
-  // Organization/backoffice axis is a platform role, not a group subscription.
-  ['/api/v1/organization', 'open'],
+  // The organization axis used to be listed here as 'open'. It has moved to
+  // /api/admin/organization/* (backoffice audience), and this gate only ever
+  // runs inside withAuth — the backoffice guards never call it — so a rule for
+  // it would be dead. Organization access is a platform role, not a group
+  // subscription, which is exactly why it never belonged behind this lock.
 
   // ── any active product: the shared surface ──────────────────────────────
   // This IS the Chama Reminder product surface. Both entries are shared rather
