@@ -1,5 +1,6 @@
 import { withAdminDb } from '@/lib/db';
-import type { PoolClient } from 'pg';
+import { DatabaseError, type PoolClient } from 'pg';
+import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { DEFAULT_PRODUCT, type SubscriptionProduct } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
@@ -673,6 +674,207 @@ export async function updateGroupStatus(
     `, [statusMap[action], adminId, reason ?? null, groupId]);
 
     return { success: true };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Super-admin corrections
+//
+// Until now a super_admin could change a group's STATUS and nothing else —
+// there was no way anywhere in the product to fix a typo in a group's name or
+// a member's name. These two functions are that, deliberately scoped:
+//
+//   - Group: name + profile fields.
+//   - Member: first/last name and email.
+//   - Member PHONE is NOT editable, by decision. It is the login identity and
+//     is UNIQUE platform-wide, so changing it changes who can sign in to the
+//     account — a different and much riskier operation than fixing a typo.
+//
+// Both write an audit_logs row with old AND new values: these edit real
+// member PII across tenant boundaries, so "who changed this, from what, to
+// what" has to survive the change.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Fields a super_admin may correct on a group. All optional — only what is sent is changed. */
+export interface UpdateGroupProfileInput {
+  name?:             string;
+  type?:             string;
+  countyId?:         string | null;
+  subCounty?:        string | null;
+  ward?:             string | null;
+  villageEstate?:    string | null;
+  primaryObjective?: string | null;
+  meetingFrequency?: string | null;
+  meetingDay?:       string | null;
+  meetingTime?:      string | null;
+}
+
+const GROUP_PROFILE_COLUMNS: Record<keyof UpdateGroupProfileInput, string> = {
+  name:             'name',
+  type:             '"type"',
+  countyId:         'county_id',
+  subCounty:        'sub_county',
+  ward:             'ward',
+  villageEstate:    'village_estate',
+  primaryObjective: 'primary_objective',
+  meetingFrequency: 'meeting_frequency',
+  meetingDay:       'meeting_day',
+  meetingTime:      'meeting_time',
+};
+
+/**
+ * Postgres enum columns need an explicit cast when fed a text parameter.
+ * Without these the UPDATE fails with "column X is of type Y but expression
+ * is of type text" — the same class of parameter-typing failure this codebase
+ * has been bitten by repeatedly.
+ */
+const GROUP_PROFILE_CASTS: Partial<Record<keyof UpdateGroupProfileInput, string>> = {
+  type:             '::group_type',
+  primaryObjective: '::primary_objective',
+  meetingFrequency: '::meeting_frequency',
+  meetingDay:       '::meeting_day',
+  meetingTime:      '::time',
+  countyId:         '::uuid',
+};
+
+export async function updateGroupProfile(
+  groupId: string,
+  input:   UpdateGroupProfileInput,
+  adminId: string,
+) {
+  const entries = (Object.keys(input) as (keyof UpdateGroupProfileInput)[])
+    .filter((k) => input[k] !== undefined);
+  if (entries.length === 0) throw new ValidationError('No fields to update');
+
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows: beforeRows } = await db.query(
+      `SELECT name, "type", county_id, sub_county, ward, village_estate,
+              primary_objective, meeting_frequency, meeting_day, meeting_time
+       FROM public.groups WHERE id = $1`,
+      [groupId],
+    );
+    if (!beforeRows[0]) throw new NotFoundError('Group', groupId);
+
+    const sets: string[] = [];
+    const vals: unknown[] = [groupId];
+    let idx = 2;
+    for (const key of entries) {
+      sets.push(`${GROUP_PROFILE_COLUMNS[key]} = $${idx}${GROUP_PROFILE_CASTS[key] ?? ''}`);
+      vals.push(input[key] === '' ? null : input[key]);
+      idx += 1;
+    }
+
+    let after;
+    try {
+      const { rows } = await db.query(
+        `UPDATE public.groups SET ${sets.join(', ')}, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, name, "type", county_id, sub_county, ward, village_estate,
+                   primary_objective, meeting_frequency, meeting_day, meeting_time`,
+        vals,
+      );
+      after = rows[0];
+    } catch (err) {
+      // uq_group_name_per_county: (lower(trim(name)), county) must be unique
+      // among non-archived groups. A rename into an existing name is a real,
+      // reachable user action — answer it with a readable 409 rather than
+      // letting a raw constraint violation surface as a 500.
+      if (err instanceof DatabaseError && err.code === '23505') {
+        throw new ConflictError(
+          'Another group in this county already uses that name. Pick a different name.',
+        );
+      }
+      throw err;
+    }
+
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, 'group.profile_update', 'group', $1, $3::jsonb, $4::jsonb)`,
+      [groupId, adminId, JSON.stringify(beforeRows[0]), JSON.stringify(after)],
+    );
+
+    return after;
+  });
+}
+
+/** Fields a super_admin may correct on a member. Phone is deliberately absent — see above. */
+export interface UpdateMemberProfileInput {
+  firstName?: string;
+  lastName?:  string;
+  email?:     string | null;
+}
+
+export async function updateMemberProfile(
+  memberId: string,
+  input:    UpdateMemberProfileInput,
+  adminId:  string,
+  groupId?: string,
+) {
+  const wantsName  = input.firstName !== undefined || input.lastName !== undefined;
+  const wantsEmail = input.email !== undefined;
+  if (!wantsName && !wantsEmail) throw new ValidationError('No fields to update');
+
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows: beforeRows } = await db.query<{
+      first_name: string; last_name: string; email: string | null;
+    }>(
+      `SELECT first_name, last_name, email FROM members WHERE id = $1`,
+      [memberId],
+    );
+    if (!beforeRows[0]) throw new NotFoundError('Member', memberId);
+    const before = beforeRows[0];
+
+    const sets: string[] = [];
+    const vals: unknown[] = [memberId];
+    let idx = 2;
+    if (input.firstName !== undefined) { sets.push(`first_name = $${idx++}`); vals.push(input.firstName); }
+    if (input.lastName  !== undefined) { sets.push(`last_name  = $${idx++}`); vals.push(input.lastName); }
+    if (wantsEmail) { sets.push(`email = $${idx++}`); vals.push(input.email === '' ? null : input.email); }
+
+    let after;
+    try {
+      const { rows } = await db.query(
+        `UPDATE members SET ${sets.join(', ')}, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone`,
+        vals,
+      );
+      after = rows[0];
+    } catch (err) {
+      // members.email carries a UNIQUE constraint.
+      if (err instanceof DatabaseError && err.code === '23505') {
+        throw new ConflictError('That email address is already in use by another member.');
+      }
+      throw err;
+    }
+
+    // A member's name also lives on `person`, the CROSS-GROUP identity record
+    // that group_members rows point at. Updating only `members` would leave
+    // the same human showing the old name in every other group they belong to
+    // — the correction would look applied and silently not be. Kept in the
+    // same transaction so the two can never disagree.
+    if (wantsName) {
+      const fullName = `${after.first_name} ${after.last_name}`.trim();
+      await db.query(
+        `UPDATE person p
+         SET    full_name = $2
+         FROM   group_members gm
+         WHERE  gm.person_id = p.id AND gm.member_id = $1`,
+        [memberId, fullName],
+      );
+    }
+
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, 'member.profile_update', 'member', $3, $4::jsonb, $5::jsonb)`,
+      [
+        groupId ?? null, adminId, memberId,
+        JSON.stringify(before),
+        JSON.stringify({ first_name: after.first_name, last_name: after.last_name, email: after.email }),
+      ],
+    );
+
+    return after;
   });
 }
 
