@@ -2,52 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import {
-  Menu, X, ChevronDown, Smartphone, Users, Building2, ShieldCheck, BellRing,
-  BookText, LifeBuoy, Activity, type LucideIcon,
-} from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { cn } from '@/lib/utils';
-import { PLAN_MONTHLY_FEES, PRODUCT_LABEL } from '@/types/enums';
 
-interface MenuLink { icon: LucideIcon; label: string; desc: string; href: string }
-
-// Portal entry points — surfaced as a proper menu built on the shared
-// DropdownMenu primitive, so the landing nav matches the in-app design system.
-//
-// Chama Reminder is a separate purchasable product, not a Kitabu Yetu feature,
-// so it needs its own entry point AND its own `?product=` — without the query
-// string `register_group()` seeds a chart of accounts the buyer never uses and
-// bills them the Kitabu Yetu price. Its "from" price is read from the real fee
-// table rather than typed here; see
-// docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.2.
-const solutionLinks: MenuLink[] = [
-  { icon: Smartphone,  label: 'Member app',     desc: 'Wallet, passbook & savings goals', href: '/me' },
-  { icon: Users,       label: 'Group dashboard', desc: 'Run your chama or SACCO',           href: '/register' },
-  {
-    icon: BellRing,
-    label: PRODUCT_LABEL.chama_reminder,
-    desc: `SMS reminders only — from KES ${PLAN_MONTHLY_FEES.chama_reminder.starter}/mo`,
-    href: '/register?product=chama_reminder',
-  },
-  { icon: Building2,   label: 'Enterprise',     desc: 'Multi-branch, API & white-label',   href: '/enterprise' },
-  { icon: ShieldCheck, label: 'Backoffice',     desc: 'Risk, KYC & live monitoring',       href: '/admin-login' },
-];
-
-// Mirrors footer.tsx's Resources column — same 3 real pages.
-const resourceLinks: MenuLink[] = [
-  { icon: BookText, label: 'Documentation', desc: 'Guides for getting your group set up', href: '/docs' },
-  { icon: LifeBuoy,  label: 'Support',       desc: 'Talk to the Kitabu Yetu team',          href: '/support' },
-  { icon: Activity,  label: 'Status',        desc: 'Live platform & M-Pesa health',         href: '/status' },
-];
-
+/**
+ * The primary bar: five flat items, no dropdowns.
+ *
+ * This replaced a Solutions dropdown + Features anchor + Resources dropdown.
+ * Each item is a real page (see app/bookkeeper, app/chama-reminder,
+ * app/fundraise, app/ecosystem) — the footer's own comment records a version
+ * that shipped 10 of 16 dead links, so "every href resolves" is an invariant
+ * here, not an aspiration.
+ *
+ * The portal entry points that used to live in the Solutions dropdown
+ * (Member app, Group dashboard, Organizations, Backoffice) are in the
+ * footer's Ecosystem column and on /ecosystem; Sign In / Register cover the
+ * common case from the bar itself.
+ */
 const navLinks = [
-  { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '/pricing' },
+  { label: 'Bookkeeper',     href: '/bookkeeper' },
+  { label: 'Chama Reminder', href: '/chama-reminder' },
+  { label: 'Fundraise',      href: '/fundraise' },
+  { label: 'Ecosystem',      href: '/ecosystem' },
+  { label: 'Pricing',        href: '/pricing' },
 ];
 
 export default function Navbar() {
@@ -86,41 +65,6 @@ export default function Navbar() {
 
           {/* Desktop nav — shown at lg+ (like Safaricom hiding its menu on smaller screens) */}
           <nav className="hidden lg:flex items-center gap-7">
-            {/* Solutions menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'group flex items-center gap-1 text-[16px] font-semibold uppercase tracking-wide transition-colors focus:outline-none xl:text-[18px]',
-                    linkColor,
-                  )}
-                >
-                  Solutions
-                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={10} className="w-72">
-                {solutionLinks.map((s) => (
-                  <DropdownMenuItem key={s.href} asChild className="cursor-pointer gap-3 p-2.5">
-                    <Link href={s.href}>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                        <s.icon size={18} />
-                      </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-sm font-semibold text-foreground">{s.label}</span>
-                        <span className="text-xs text-muted-foreground">{s.desc}</span>
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer justify-center text-sm font-medium text-brand-600 focus:text-brand-700">
-                  <a href="#solutions">Compare all solutions</a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
@@ -140,37 +84,6 @@ export default function Navbar() {
                 </Link>
               )
             ))}
-
-            {/* Resources menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'group flex items-center gap-1 text-[16px] font-semibold uppercase tracking-wide transition-colors focus:outline-none xl:text-[18px]',
-                    linkColor,
-                  )}
-                >
-                  Resources
-                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={10} className="w-72">
-                {resourceLinks.map((r) => (
-                  <DropdownMenuItem key={r.href} asChild className="cursor-pointer gap-3 p-2.5">
-                    <Link href={r.href}>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                        <r.icon size={18} />
-                      </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-sm font-semibold text-foreground">{r.label}</span>
-                        <span className="text-xs text-muted-foreground">{r.desc}</span>
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </nav>
 
           {/* Desktop CTAs */}
@@ -206,36 +119,17 @@ export default function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div className="lg:hidden bg-white border-t border-slate-100 px-4 py-4">
-          <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Solutions</p>
-          <div className="space-y-0.5">
-            {solutionLinks.map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-brand-50"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                  <s.icon size={16} />
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-sm font-medium text-slate-800">{s.label}</span>
-                  <span className="text-xs text-slate-500">{s.desc}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-
-          <div className="my-2 border-t border-slate-100" />
+          {/* Same five items as the desktop bar, from the same array — the two
+              used to be parallel hand-maintained lists, which is how they drift. */}
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
-              className="block rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600"
+              className="block rounded-md px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-700 hover:bg-brand-50 hover:text-brand-600"
               onClick={() => setOpen(false)}
             >
               {link.label}
-            </a>
+            </Link>
           ))}
 
           <div className="pt-3 mt-2 border-t border-slate-100 flex flex-col gap-2">

@@ -32,9 +32,9 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-const TAGLINE = 'Simple Books. Stronger Groups.';
+const TAGLINE = 'Build Vibrant Communities';
 const LONG_DESCRIPTION =
-  'Kitabu Yetu — Simple Books. Stronger Groups. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
+  'Kitabu Yetu — Build Vibrant Communities Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.com'),

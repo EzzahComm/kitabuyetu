@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Navbar from '@/components/landing/navbar';
 import Hero from '@/components/landing/hero';
 import ProblemSolution from '@/components/landing/problem-solution';
+import DigitalTools from '@/components/landing/digital-tools';
 import Personas from '@/components/landing/personas';
 import Features from '@/components/landing/features';
 import Showcase from '@/components/landing/showcase';
@@ -14,9 +15,9 @@ import CtaSection from '@/components/landing/cta';
 import Footer from '@/components/landing/footer';
 
 export const metadata: Metadata = {
-  title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+  title: 'Kitabu Yetu — Build Vibrant Communities',
   description:
-    'The digital ledger for Kenya\'s chamas, SACCOs, and welfare groups. Collect by M-Pesa (STK, PayBill, B2C), auto-reconcile every payment, split contributions across accounts, and keep an audit-ready double-entry book.',
+    'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs to create vibrant communities across East Africa.',
   keywords: [
     'chama management',
     'SACCO software',
@@ -31,16 +32,16 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: 'website',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+    title: 'Kitabu Yetu — Build Vibrant Communities',
     description:
-      'Collect by M-Pesa, auto-reconcile every shilling, and keep an audit-ready ledger — built for Kenya\'s community groups.',
+      'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs to create vibrant communities across East Africa.',
     siteName: 'Kitabu Yetu',
     locale: 'en_KE',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
-    description: 'The digital ledger for Kenya\'s chamas, SACCOs, and welfare groups.',
+    title: 'Kitabu Yetu — Build Vibrant Communities',
+    description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
   },
   alternates: {
     canonical: process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke',
@@ -54,6 +55,7 @@ export default function HomePage() {
       <main>
         <Hero />
         <ProblemSolution />
+        <DigitalTools />
         <Personas />
         <Features />
         <Showcase />

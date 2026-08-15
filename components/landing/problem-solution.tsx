@@ -103,7 +103,7 @@ export default function ProblemSolution() {
           className="mt-10"
         >
           <a
-            href="#solutions"
+            href="#digital-tools"
             className="group inline-flex items-center gap-2 text-base font-semibold text-brand-600 transition-colors hover:text-brand-700"
           >
             See what changes for your role

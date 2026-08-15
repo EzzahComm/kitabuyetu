@@ -10,7 +10,7 @@ export default function AboutPage() {
   return (
     <MarketingPageShell
       title="About Kitabu Yetu"
-      description="Simple Books. Stronger Groups."
+      description="Build Vibrant Communities"
     >
       <p>
         Kitabu Yetu is a digital bookkeeping platform built for the way Kenya&apos;s community
