@@ -10,26 +10,34 @@ import { PRODUCT_LABEL } from '@/types/enums';
 // text for a product handling real money and PII would be actively worse
 // than no link. See docs/audits/UX_SURFACE_AUDIT_2026-07.md §8.
 //
-// Solutions mirrors navbar.tsx's `solutionLinks` — same entries, same order,
-// same hrefs (Chama Reminder included). Add to one, add to the other.
+// Column ORDER is the render order: Company first, as requested.
+//
+// "Digital Tools" is the three products, matching navbar.tsx's primary bar and
+// the landing page's own section — add to one, add to the others.
+// "Ecosystem" replaced the old "Products" column and carries the portal entry
+// points that used to sit in the navbar's Solutions dropdown.
 const footerLinks = {
-  Solutions: [
-    { label: 'Member app', href: '/me' },
-    { label: 'Group dashboard', href: '/register' },
-    { label: PRODUCT_LABEL.chama_reminder, href: '/register?product=chama_reminder' },
-    { label: 'Enterprise', href: '/enterprise' },
-    { label: 'Backoffice', href: '/admin-login' },
-  ],
-  Product: [
-    { label: 'Features', href: '#features' },
-    { label: 'Ecosystem', href: '#ecosystem' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Pricing', href: '/pricing' },
-  ],
   Company: [
     { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },
   ],
+  'Digital Tools': [
+    { label: 'Kitabu Yetu Bookkeeper', href: '/bookkeeper' },
+    { label: PRODUCT_LABEL.chama_reminder, href: '/chama-reminder' },
+    { label: 'Fundraise / Changi$ha', href: '/fundraise' },
+    { label: 'Pricing', href: '/pricing' },
+  ],
+  Ecosystem: [
+    { label: 'The ecosystem', href: '/ecosystem' },
+    { label: 'Member app', href: '/me' },
+    { label: 'Group dashboard', href: '/register' },
+    { label: 'Organizations', href: '/enterprise' },
+    { label: 'Backoffice', href: '/admin-login' },
+  ],
+  // Legal pages (Terms/Privacy/Legal Assurances) are still deliberately
+  // ABSENT, per the note above — fabricated legal text for a product handling
+  // real money and PII is worse than no link. They go here once real,
+  // approved wording exists.
   Resources: [
     { label: 'Documentation', href: '/docs' },
     { label: 'Status', href: '/status' },
@@ -50,7 +58,7 @@ export default function Footer() {
               <span className="text-lg font-bold text-slate-900">Kitabu Yetu</span>
             </Link>
             <p className="mt-3 text-sm font-medium text-brand-600">
-              Simple Books. Stronger Groups.
+              Build Vibrant Communities
             </p>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-500">
               Digital bookkeeping for chamas, SACCOs, welfare groups, and investment
@@ -62,10 +70,10 @@ export default function Footer() {
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
                 <a
-                  href="mailto:kitabuyetu@gmail.com"
+                  href="mailto:info@kitabuyetu.co.ke"
                   className="hover:text-green-600 transition-colors"
                 >
-                  kitabuyetu@gmail.com
+                  info@kitabuyetu.co.ke
                 </a>
               </div>
               <div className="flex items-start gap-2">

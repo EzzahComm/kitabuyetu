@@ -12,7 +12,7 @@ import { brandGreen, brandNavy, brandNeutral } from '@/lib/ui/brand-palette';
 
 export const BRAND = {
   name:    'Kitabu Yetu',
-  tagline: 'Simple Books. Stronger Groups.',
+  tagline: 'Build Vibrant Communities',
 
   // Hex values sourced from lib/ui/brand-palette.ts (also consumed by
   // tailwind.config.ts and lib/ui/tokens.ts) — do not hand-copy shades here.

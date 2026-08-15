@@ -41,15 +41,14 @@ export default function Hero() {
             </div>
 
             <h1 className="font-display text-5xl font-light leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Simple books.
+              Build vibrant
               <br />
-              <span className="font-normal italic text-brand-400">Stronger&nbsp;groups.</span>
+              <span className="font-normal italic text-brand-400">communities.</span>
             </h1>
 
             <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/80">
-              Kitabu Yetu helps Kenya&apos;s savings groups manage money in one place.
-              Members save and pay with M-Pesa from their phone, treasurers keep the
-              books, and every shilling is matched automatically.
+              Digital bookkeeping for chamas, SACCOs, welfare groups and investment
+              clubs to create vibrant communities across East Africa.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">

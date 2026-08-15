@@ -88,7 +88,7 @@ export default function DesignSystemPage() {
             <p className="font-display text-4xl font-semibold">Display / Fraunces</p>
             <p className="text-3xl font-bold tracking-tight">Heading 1 — Inter Bold</p>
             <p className="text-xl font-semibold">Heading 2 — Inter Semibold</p>
-            <p className="text-base">Body — Inter Regular. Simple books, stronger groups.</p>
+            <p className="text-base">Body — Inter Regular. Build vibrant communities.</p>
             <p className="text-sm text-muted-foreground">Muted caption — supporting copy.</p>
             <p className="money font-mono text-lg">KES 1,234,567.00 — DM Mono, tabular figures</p>
           </CardContent>

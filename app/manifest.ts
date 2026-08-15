@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+    name: 'Kitabu Yetu — Build Vibrant Communities',
     short_name: 'Kitabu Yetu',
     description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
     start_url: '/dashboard',

@@ -112,7 +112,7 @@ const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-brand-
 const PRODUCT_COPY = {
   kitabu_yetu: {
     title:    'Create your group',
-    subtitle: 'Simple Books. Stronger Groups.',
+    subtitle: 'Build Vibrant Communities',
     cta:      'Create group',
   },
   chama_reminder: {

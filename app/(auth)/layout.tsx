@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           />
           <h1 className="text-2xl font-bold text-brand-blue-500">Kitabu Yetu</h1>
           <p className="text-sm font-medium text-brand-600 mt-1">
-            Simple Books. Stronger Groups.
+            Build Vibrant Communities
           </p>
         </div>
         {children}
