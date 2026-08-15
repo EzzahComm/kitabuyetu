@@ -21,9 +21,17 @@ export const LoginSchema = z.object({
                 .optional(),
 });
 
-// Mirrors the public.register_group RPC signature + the v2 workflow spec.
-// Phase D MVP — verification (email/SMS) fields will be added in Part 2.
-export const RegisterSchema = z.object({
+// Shared by RegisterSchema (public, unauthenticated — creates a new person
+// AND a new group) and CreateAdditionalGroupSchema (authenticated — reuses
+// the caller's existing person/member identity, only creates the group).
+// Every field here is group-only; none of it touches members/person.
+//
+// Every field is required or optional exactly the same way regardless of
+// product (checked before extracting this, so this is a fact, not an
+// assumption): primaryObjective/meetingFrequency/meetingDay/meetingTime are
+// optional for both kitabu_yetu and chama_reminder alike, and
+// groupName/groupType/countyId/creatorRole are required for both.
+const groupDetailsFields = {
   // Which product this group is signing up for (migration 140). Defaults to
   // kitabu_yetu, so every existing caller is unchanged. A chama_reminder
   // signup skips the chart-of-accounts seeding inside register_group() — it is
@@ -37,15 +45,6 @@ export const RegisterSchema = z.object({
   // Group identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
   groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
-
-  // Registrant identity
-  firstName: z.string().min(2).max(100),
-  lastName:  z.string().min(2).max(100),
-  phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  email:     z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
-  password:  z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-               .regex(/[0-9]/, 'Password must contain at least one number'),
 
   // Governance — the registrant must take one of the three mandatory roles (spec §2).
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
@@ -68,12 +67,33 @@ export const RegisterSchema = z.object({
   meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
   meetingDay:       z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']).optional(),
   meetingTime:      z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time must be HH:MM').optional().or(z.literal('')),
+} as const;
+
+// Mirrors the public.register_group RPC signature + the v2 workflow spec.
+// Phase D MVP — verification (email/SMS) fields will be added in Part 2.
+export const RegisterSchema = z.object({
+  ...groupDetailsFields,
+
+  // Registrant identity
+  firstName: z.string().min(2).max(100),
+  lastName:  z.string().min(2).max(100),
+  phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+  email:     z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
+  password:  z.string().min(8, 'Password must be at least 8 characters')
+               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+               .regex(/[0-9]/, 'Password must contain at least one number'),
 
   // Optional KYC details — when present, populate the shared person record.
   nationalId:    z.string().max(32).optional().or(z.literal('')),
   dateOfBirth:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional().or(z.literal('')),
   gender:        z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
+
+// Mirrors the public.create_additional_group RPC (migration 147). Group-only
+// — no person/KYC fields, since an authenticated caller already has an
+// identity; the route resolves it server-side from the verified session, the
+// same trust model app/api/v1/auth/switch-group/route.ts already uses.
+export const CreateAdditionalGroupSchema = z.object(groupDetailsFields);
 
 // Backoffice login (super_admin / support / organization_coordinator).
 // Email-only on purpose — staff identities are issued + recovered via email,
@@ -173,6 +193,7 @@ export type LoginInput            = z.infer<typeof LoginSchema>;
 export type AdminLoginInput       = z.infer<typeof AdminLoginSchema>;
 export type AdminLoginMfaVerifyInput = z.infer<typeof AdminLoginMfaVerifySchema>;
 export type RegisterInput         = z.infer<typeof RegisterSchema>;
+export type CreateAdditionalGroupInput = z.infer<typeof CreateAdditionalGroupSchema>;
 export type RefreshInput          = z.infer<typeof RefreshSchema>;
 export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;
 export type ForgotPasswordStartInput = z.infer<typeof ForgotPasswordStartSchema>;
@@ -184,4 +205,5 @@ export type AdminResetPasswordInput = z.infer<typeof AdminResetPasswordSchema>;
 // .default() is optional on the wire but present after parsing, so the
 // server-side *Input aliases above are the wrong shape for a caller.
 export type RegisterPayload = z.input<typeof RegisterSchema>;
+export type CreateAdditionalGroupPayload = z.input<typeof CreateAdditionalGroupSchema>;
 export type ChangePasswordPayload = z.input<typeof ChangePasswordSchema>;

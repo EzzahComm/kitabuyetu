@@ -183,6 +183,25 @@ function RegisterForm() {
           : postLoginPath(data.member.groupRole, { signupProduct: product }),
       );
     } catch (err) {
+      // A duplicate phone means this person already has an account somewhere
+      // on the platform — register_group() always creates a brand-new one, so
+      // it can never be the fix here. Point them at logging in instead of a
+      // dead-end error; "Create another group" (from their dashboard once
+      // logged in) is the real path to founding this second group.
+      if (err instanceof ApiError && err.code === 'DUPLICATE_PHONE') {
+        const productLabel = product === 'chama_reminder' ? 'Chama Reminder' : 'Kitabu Yetu';
+        toast({
+          variant: 'destructive',
+          title:   'This phone number already has an account',
+          description: (
+            <>
+              <Link href="/login" className="underline">Log in</Link>, then use &ldquo;Create
+              another group&rdquo; from your dashboard to add {productLabel}.
+            </>
+          ),
+        });
+        return;
+      }
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
         variant:     'destructive',
