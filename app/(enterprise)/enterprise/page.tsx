@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { organizationApi } from '@/lib/api/endpoints';
-import { api } from '@/lib/api/client';
+import { adminApi } from '@/lib/api/client';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -45,7 +45,7 @@ function ComingSoon({ title }: { title: string }) {
 export default function EnterpriseDashboardPage() {
   const { data: dash, isLoading: dashLoading, isError: dashError, error: dashErr } = useQuery<OrgDashboard>({
     queryKey: ['enterprise', 'dashboard'],
-    queryFn:  () => api.get('/organization/dashboard'),
+    queryFn:  () => adminApi.get('/organization/dashboard'),
   });
   const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],

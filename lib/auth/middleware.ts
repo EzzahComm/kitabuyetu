@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { UnauthorizedError, ForbiddenError } from '@/lib/utils/errors';
 import { handleError } from '@/lib/utils/response';
 import type { AuthContext } from '@/types/api.types';
+import type { TenantContext } from '@/lib/db';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 import { requireRole, requireOneOf } from './rbac';
 import { requirePermission, requireAnyPermission } from './permissions';
@@ -124,21 +125,13 @@ export function withAnyPermission(
   });
 }
 
-/**
- * withAuth variant for the /api/v1/organization/* platform-role axis
- * (organization_coordinator / super_admin) — see lib/auth/organization-permissions.ts
- * for why this is a flat allowlist rather than roles.permissions-backed.
- */
-export function withOrganizationPermission(
-  req: NextRequest,
-  permission: OrganizationPermission,
-  handler: (auth: AuthContext) => Promise<Response>,
-): Promise<Response> {
-  return withAuth(req, async (auth) => {
-    requireOrganizationPermission(auth, permission);
-    return handler(auth);
-  });
-}
+// The old `withOrganizationPermission` lived here. It was built on
+// withAuth/getAuthContext and so required a TENANT token with a groupId,
+// which an organization coordinator never has — see withOrganizationAccess
+// at the foot of this file for the full story. Deleted rather than left
+// unused: it typechecks fine and reads plausibly, so the next organization
+// route to be added would have reached for it and silently reintroduced the
+// same outage.
 
 // ─── Backoffice (platform staff) context ───────────────────────────────
 
@@ -207,6 +200,49 @@ export function withPlatformRole(
       );
     }
     return handler(ctx);
+  });
+}
+
+/**
+ * Guard for the organization axis under `/api/admin/organization/*`.
+ *
+ * Replaces the old `withOrganizationPermission`, which was built on
+ * `withAuth`/`getAuthContext` and therefore demanded a TENANT token carrying a
+ * `groupId`. An organization coordinator signs in through the enterprise
+ * portal and holds a BACKOFFICE token: `aud: 'backoffice'`, a `platformRole`,
+ * an `organizationId`, and no group whatsoever. `getAuthContext` rejects that
+ * token on both counts, so every organization route answered "Missing
+ * authentication context" and the portal built to consume them could never
+ * load. Same audience-bucket defect that already forced `switch-org` from
+ * `/api/v1/` to `/api/admin/`; the routes now live in the bucket whose token
+ * they actually receive.
+ *
+ * The handler is given a `TenantContext` with NO `groupId` — organization
+ * scoping is `organizationId` (+ the app.current_organization_id GUC), and
+ * the services only ever read `ctx.organizationId` for it.
+ */
+export function withOrganizationAccess(
+  req: NextRequest,
+  permission: OrganizationPermission,
+  handler: (ctx: TenantContext) => Promise<Response>,
+): Promise<Response> {
+  return withBackofficeAuth(req, async (bo) => {
+    requireOrganizationPermission(
+      { role: bo.platformRole, organizationId: bo.organizationId },
+      permission,
+    );
+    return handler({
+      userId:         bo.userId,
+      // No group, and that is the point. '' is the sentinel
+      // app_current_group_id() already reads as "no group"
+      // (NULLIF(current_setting(...), '')::uuid), so group-scoped RLS matches
+      // nothing — correct for an organization coordinator. TenantContext
+      // keeps groupId required so no group-scoped service loses that
+      // guarantee; this tree simply never reads it.
+      groupId:        '',
+      role:           bo.platformRole,
+      organizationId: bo.organizationId,
+    });
   });
 }
 

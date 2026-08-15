@@ -59,7 +59,6 @@ describe('route entitlement map', () => {
       ['/api/v1/workers/jobs',          'open'],
       ['/api/v1/webhooks/textsms',      'open'],
       ['/api/v1/daraja/b2c/result',     'open'],
-      ['/api/v1/organization',          'open'],
 
       // The shared surface — this is the Chama Reminder product.
       ['/api/v1/sms',            'any'],
@@ -171,7 +170,9 @@ describe('route entitlement map', () => {
       '/api/v1/daraja',
       '/api/v1/me',
       '/api/v1/mpesa',
-      '/api/v1/organization',
+      // '/api/v1/organization' was here until the organization tree moved to
+      // the backoffice audience (/api/admin/organization/*). This gate only
+      // runs inside withAuth, so there is nothing left for a rule to match.
       '/api/v1/webhooks',
       '/api/v1/workers',
     ]);

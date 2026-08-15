@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
-  MessageSquare, BarChart2, Building2, Settings, LogOut,
+  MessageSquare, BarChart2, Settings, LogOut,
   Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
   Upload, Smartphone, Inbox, RefreshCw,
 } from 'lucide-react';
@@ -21,7 +21,7 @@ import { createCommandPalette, type CommandPaletteGroup } from '@/components/sha
  */
 function useDashboardCommandGroups(): CommandPaletteGroup[] {
   const router = useRouter();
-  const { user, logout, refreshToken } = useAuth();
+  const { logout, refreshToken } = useAuth();
 
   const go = React.useCallback((href: string) => () => router.push(href), [router]);
 
@@ -53,12 +53,11 @@ function useDashboardCommandGroups(): CommandPaletteGroup[] {
       ],
     };
 
-    if (user?.platformRole === 'organization_coordinator') {
-      goTo.commands.push({
-        id: 'funding-portal', label: 'Funding Portal', icon: Building2,
-        keywords: 'organization funder programs disbursements ecosystem', run: go('/organization'),
-      });
-    }
+    // The Funding Portal entry lived here pointing at /organization. That
+    // screen moved to the Organizations portal (/enterprise/funding) and is
+    // reached from its own sidebar — this palette serves the GROUP portal, so
+    // offering a jump into a different portal's screen would just 403 anyone
+    // whose session isn't an organization one.
 
     const actions: CommandPaletteGroup = {
       heading: 'Actions',
@@ -73,7 +72,7 @@ function useDashboardCommandGroups(): CommandPaletteGroup[] {
     };
 
     return [goTo, actions];
-  }, [go, logout, refreshToken, user?.platformRole]);
+  }, [go, logout, refreshToken]);
 }
 
 export const { CommandPalette, openCommandPalette } = createCommandPalette(

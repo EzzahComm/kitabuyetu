@@ -3,6 +3,7 @@
 import type { ApiResponse } from '@/types/api.types';
 
 const BASE        = '/api/v1';
+const ADMIN_BASE  = '/api/admin';
 const STORAGE_KEY = 'ky_auth';  // mirrors lib/auth/context.tsx
 
 // Read the access token directly from localStorage on every request. This
@@ -110,10 +111,10 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options?: { multipart?: boolean; headers?: Record<string, string> },
+  options?: { multipart?: boolean; headers?: Record<string, string>; base?: string },
 ): Promise<T> {
   const headers = { ...buildHeaders(body, options?.multipart), ...options?.headers };
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${options?.base ?? BASE}${path}`, {
     method,
     headers,
     body: buildRequestBody(body, options?.multipart),
@@ -188,4 +189,21 @@ export const api = {
   delete: <T>(path: string)                           => request<T>('DELETE', path),
   upload: <T>(path: string, formData: FormData)       => request<T>('POST',   path, formData, { multipart: true }),
   openBlob,
+};
+
+/**
+ * Same client, pointed at the BACKOFFICE audience bucket.
+ *
+ * The organization API tree lives at /api/admin/organization/* because an
+ * organization coordinator holds a backoffice token (see
+ * withOrganizationAccess). Routed through this shared `request` rather than a
+ * bespoke fetch so org calls keep the 401/402 handling — a hand-rolled
+ * fetch would silently lose the session-expiry redirect.
+ */
+export const adminApi = {
+  get:    <T>(path: string)                => request<T>('GET',    path, undefined, { base: ADMIN_BASE }),
+  post:   <T>(path: string, body: unknown) => request<T>('POST',   path, body,      { base: ADMIN_BASE }),
+  patch:  <T>(path: string, body: unknown) => request<T>('PATCH',  path, body,      { base: ADMIN_BASE }),
+  put:    <T>(path: string, body: unknown) => request<T>('PUT',    path, body,      { base: ADMIN_BASE }),
+  delete: <T>(path: string)                => request<T>('DELETE', path, undefined, { base: ADMIN_BASE }),
 };

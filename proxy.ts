@@ -142,16 +142,20 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
   }
 
-  // Narrow carve-out: /api/v1/organization/* is a tenant-audience API tree
-  // (its routes use getAuthContext/withOrganizationPermission), but since the
-  // org-login split, organization_coordinator/super_admin only ever
-  // authenticate via /enterprise/login or /admin-login — both mint a
-  // BACKOFFICE-audience token. Without this, the entire enterprise portal's
-  // /organization/* calls (workspace switcher, Portfolio dashboard, any
-  // future program-management UI) always 403 with no way to reach this API
-  // at all. Scoped to exactly this path prefix — every other /api/v1/* route
-  // still requires a real tenant token.
-  const isOrganizationApiCarveOut = pathname.startsWith('/api/v1/organization/');
+  // The organization API tree used to live at /api/v1/organization/* and
+  // needed a carve-out here so a BACKOFFICE token (the only kind
+  // organization_coordinator/super_admin can hold since the org-login split)
+  // could reach a tenant-audience path at all. That carve-out reshaped the
+  // claims to look tenant-ish, including `x-group-id: ''` because the tree is
+  // organization-scoped and no handler reads a group.
+  //
+  // It never worked: getAuthContext guards with `!groupId`, and '' is falsy in
+  // JavaScript, so every organization request threw "Missing authentication
+  // context" and the enterprise Portfolio dashboard could never load. Rather
+  // than loosen that guard — and keep stamping `x-aud: 'tenant'` onto a token
+  // that is genuinely backoffice — the tree moved to /api/admin/organization/*,
+  // the bucket whose token it actually receives, behind withOrganizationAccess.
+  // Same resolution the switch-org route needed for the same reason.
 
   // These tenant paths are intentionally unauthenticated.
   // Webhooks authenticate via signed payloads (HMAC-SHA256, svix, ECDSA),
@@ -257,7 +261,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (isBackofficeApi && aud !== 'backoffice') {
     return forbidden('This route requires a backoffice session. Sign in at /admin-login.');
   }
-  if (isTenantApi && aud !== 'tenant' && !(isOrganizationApiCarveOut && aud === 'backoffice')) {
+  if (isTenantApi && aud !== 'tenant') {
     return forbidden('This route requires a tenant session. Sign in at /login.');
   }
 
@@ -313,26 +317,6 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         );
       }
     }
-  } else if (isOrganizationApiCarveOut) {
-    // Backoffice-audience token reaching /api/v1/organization/* (see the
-    // carve-out check above). The JWT signature and its real 'backoffice'
-    // audience were already verified — this is purely reshaping the claims
-    // into what getAuthContext()/withOrganizationPermission expect, not a
-    // second, weaker check. x-aud is stamped 'tenant' so getAuthContext
-    // (which otherwise rejects any backoffice-audience token outright)
-    // accepts it; x-role carries the platform role, which
-    // requireOrganizationPermission still restricts to
-    // organization_coordinator/super_admin regardless of what's stamped
-    // here. groupId is empty — this API tree is organization-scoped, never
-    // group-scoped, and no handler under it reads ctx.groupId.
-    if (!payload.platformRole) {
-      return unauthorized('Incomplete backoffice token payload');
-    }
-    requestHeaders.set('x-aud',           'tenant');
-    requestHeaders.set('x-group-id',      '');
-    requestHeaders.set('x-role',          payload.platformRole);
-    requestHeaders.set('x-platform-role', payload.platformRole);
-    if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
   } else {
     requestHeaders.set('x-aud', aud);
     if (!payload.platformRole) {

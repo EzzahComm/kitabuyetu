@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
-  MessageSquare, BarChart2, Building2, Settings,
+  MessageSquare, BarChart2, Settings,
   Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
   Upload, Smartphone, Wallet, MoreHorizontal,
 } from 'lucide-react';
@@ -56,14 +56,6 @@ const NAV: PortalNavSection[] = [
   },
 ];
 
-// "Funding Portal" — the Organization funder/monitor's own view (see
-// (dashboard)/organization/page.tsx doc comment). Labeled distinctly from
-// admin's "Organizations" registry and the unrelated (enterprise) Workspace concept.
-const ECOSYSTEM: PortalNavSection = {
-  title: 'Ecosystem',
-  items: [{ href: '/organization', label: 'Funding Portal', icon: Building2 }],
-};
-
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -75,9 +67,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
-  const sections = user?.platformRole === 'organization_coordinator'
-    ? [...NAV, ECOSYSTEM]
-    : NAV;
+  // The Funding Portal used to be appended here as an "Ecosystem" section for
+  // organization_coordinator. It has moved to the Organizations (enterprise)
+  // portal at /enterprise/funding, where the rest of the organization surface
+  // lives — this is the GROUP portal, and a funder's view of their programs
+  // was never a group-scoped screen.
+  const sections = NAV;
 
   return (
     <PortalSidebar

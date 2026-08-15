@@ -103,6 +103,16 @@ export const tenantPool = globalWithPool._kyTenantPool;
 // ------------------------------------------------------------------
 export interface TenantContext {
   userId:  string;
+  /**
+   * Required, and deliberately kept required: every group-scoped service
+   * relies on it being a real id. The ONE caller without a group is the
+   * organization axis (withOrganizationAccess), whose coordinator holds a
+   * backoffice token carrying an organization but no group — it passes the
+   * empty string, which `app_current_group_id()` is already written to read
+   * as "no group" (`NULLIF(current_setting(...), '')::uuid`). Organization
+   * scoping is `organizationId` + the app.current_organization_id GUC, and
+   * nothing under that tree reads `groupId`.
+   */
   groupId: string;
   role:    string;
   organizationId?:  string;

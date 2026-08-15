@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Network, Users2, Banknote, FileBarChart,
-  KeyRound, Palette, ScrollText, Menu,
+  KeyRound, Palette, ScrollText, Menu, Building2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -33,6 +33,11 @@ const NAV: PortalNavSection[] = [
     items: [
       { href: '/enterprise', label: 'Portfolio', icon: LayoutDashboard },
       { href: '/enterprise/branches', label: 'Branches', icon: Network },
+      // Moved here from the GROUP portal's sidebar, where it sat behind an
+      // "Ecosystem" section for organization_coordinator. A funder's view of
+      // their own wallet, programs and disbursements belongs with the rest of
+      // the organization surface, not inside a group's books.
+      { href: '/enterprise/funding', label: 'Funding Portal', icon: Building2 },
       { href: '/enterprise/reports', label: 'Reports', icon: FileBarChart },
     ],
   },
