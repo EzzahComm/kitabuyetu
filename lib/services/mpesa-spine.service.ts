@@ -170,6 +170,33 @@ export async function emitPaymentReceiptEvent(
     });
     if (!data) return;
 
+    // No allocation detail means this payment is not member money — a
+    // subscription, an SMS top-up, an invoice. The receipt template is built
+    // for member money and references membership_no / product / balance, and
+    // the header above claimed "the template engine strips the unresolved
+    // placeholders". IT DOES NOT strip the punctuation around them, so every
+    // such payment sent a message that read, literally:
+    //
+    //   "KitabuYetu: KES 150 received for (A/C ). Receipt: UHFQZ2SPYV.
+    //    Balance: KES ."
+    //
+    // Verified against production: 4 of the 6 payment.received messages ever
+    // sent were this shape — all 3 subscriptions and the 1 SMS top-up. Both
+    // real contributions rendered correctly. So the failure is total for
+    // non-member-money payments, not intermittent.
+    //
+    // Those payments get their own purpose-specific confirmation, which can
+    // actually describe what was bought (see billingService's subscription
+    // confirmation). Sending this generic one as well would be a second,
+    // meaningless message. A receipt that cannot say what the money did is
+    // worse than no receipt.
+    if (!data.alloc) {
+      logger.info('[mpesa] skipping generic receipt for a non-allocated payment', {
+        paymentId, groupId: data.payment.group_id,
+      });
+      return;
+    }
+
     await emitBusinessEvent({
       eventType: SMS_EVENTS.PAYMENT_RECEIVED,
       eventId:   paymentId,
