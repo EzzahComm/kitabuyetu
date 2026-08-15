@@ -234,10 +234,12 @@ Ordered by leverage and blast radius, matching this project's established phasin
 
 *As written. One value now feeds both columns, exactly as the single-send path already does it. Campaigns pass no `referenceType` and keep the `'campaign'` label, which is what they are — and they stay separately attributed by campaign id regardless. Verified by running the new test against the pre-fix code first: it reported `Received: "campaign"` where `'schedule'` belonged.*
 
-**Phase 5 — low-risk cleanup**:
+**Phase 5 — low-risk cleanup**: **✅ done.**
 - Delete `billing.service.ts`'s dead `createStarterSubscription()` (removes a live footgun for the free-tier bug's return).
 - Add `payment_id` to the `Subscription` TS interface; add the missing columns to `settlements.service.ts`/`vendor-payments.service.ts`'s local row types.
 - Either wire `settlement_requests.source_account` (per its own migration's stated intent) or remove it if it's no longer needed.
 - ~~Add a loading guard to the tier-activation buttons.~~ Done in Phase 3 (PR #72) — see §3.4.
+
+*`createStarterSubscription()` had zero callers anywhere, including tests — confirmed before deleting, not assumed. `Subscription.payment_id`, `SettlementRow.{idempotency_key,source_account,reconciled_at}`, and `VendorPaymentRow.{idempotency_key,reconciled_at}` now match what `RETURNING *`/`SELECT *` actually returns. `source_account` was wired, not removed: `settlements.service.ts`'s `initiate()` now tags each row from `MPESA_SETTLEMENT_SHORTCODE`, the exact reconciliation-only pattern `mpesa-b2c.service.ts` already uses for its own sub-account tagging — the migration's stated intent, just never connected.*
 
 **Deliberately not recommended**: rushing `sms_packages`/`vw_sms_credit_reconciliation`'s unused grants to be revoked — they're correctly locked down today and provisioning ahead of a feature is normal; only worth tightening if Phase 0 decides those features stay dormant long-term.

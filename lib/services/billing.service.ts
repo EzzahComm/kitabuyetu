@@ -93,40 +93,6 @@ export const billingService = {
     });
   },
 
-  async createStarterSubscription(
-    ctx: TenantContext,
-    client: PoolClient,
-    product: SubscriptionProduct = DEFAULT_PRODUCT,
-  ): Promise<Subscription> {
-    // Called after group registration — provisions Starter plan + billing account
-    await client.query<BillingAccount>(
-      `INSERT INTO billing_accounts (group_id) VALUES ($1)
-       ON CONFLICT (group_id) DO UPDATE SET group_id = EXCLUDED.group_id`,
-      [ctx.groupId],
-    );
-
-    // The bare ON CONFLICT DO NOTHING (no target) still works across migration
-    // 127: it fires on whichever unique constraint is violated, which is now
-    // the wider (group_id, product) one.
-    const { rows: sub } = await client.query<Subscription>(
-      `INSERT INTO subscriptions
-         (group_id, product, plan_type, status, started_at, monthly_fee, sms_rate, max_members)
-       VALUES ($1, $2, 'starter', 'active', NOW(), 0, $3, NULL)
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
-      [ctx.groupId, product, (await getUnitPrice(0, client)).toFixed(4)],
-    );
-    // ON CONFLICT DO NOTHING returns no rows when a subscription already exists.
-    // In that case, fetch the existing active subscription instead.
-    if (sub[0]) return sub[0];
-    const { rows: existing } = await client.query<Subscription>(
-      `SELECT * FROM subscriptions
-       WHERE group_id = $1 AND product = $2 AND status = 'active' LIMIT 1`,
-      [ctx.groupId, product],
-    );
-    return existing[0];
-  },
-
   /**
    * Activate a paid plan against a CONFIRMED payment. This is the only way a
    * paid subscription is ever created — see the note on upgradePlan below for

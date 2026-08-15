@@ -38,6 +38,11 @@ export interface SettlementRow {
   completed_at:              Date | null;
   failure_reason:            string | null;
   notes:                     string | null;
+  idempotency_key:           string | null;
+  /** Reconciliation tag only — see the write site for why. Migration 134. */
+  source_account:            string | null;
+  /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
+  reconciled_at:             Date | null;
 }
 
 export const settlementsService = {
@@ -78,12 +83,18 @@ export const settlementsService = {
 
       await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, input.amount.toFixed(2)]);
 
+      // Reconciliation tag only, same pattern as mpesa-b2c.service.ts's own
+      // sub-account tagging — PartyA on the actual Daraja B2B call (dispatchSettlement)
+      // stays the group's own shortcode; this just records which of our own
+      // M-Pesa sub-accounts the sweep is understood to have drawn from.
+      const sourceAccount = process.env.MPESA_SETTLEMENT_SHORTCODE ?? null;
+
       const { rows: inserted } = await db.query<SettlementRow>(
         `INSERT INTO settlement_requests
-           (group_id, bank_account_id, amount, status, requested_by, idempotency_key, notes)
-         VALUES ($1,$2,$3,'pending_approval',$4,$5,$6)
+           (group_id, bank_account_id, amount, status, requested_by, idempotency_key, notes, source_account)
+         VALUES ($1,$2,$3,'pending_approval',$4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, input.bankAccountId, input.amount.toFixed(2), ctx.userId, input.idempotencyKey, input.notes ?? null],
+        [ctx.groupId, input.bankAccountId, input.amount.toFixed(2), ctx.userId, input.idempotencyKey, input.notes ?? null, sourceAccount],
       );
       return inserted[0];
     });

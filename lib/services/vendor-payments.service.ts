@@ -48,6 +48,9 @@ export interface VendorPaymentRow {
   platform_fee:              string | null;
   completed_at:              Date | null;
   failure_reason:            string | null;
+  idempotency_key:           string | null;
+  /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
+  reconciled_at:             Date | null;
 }
 
 const DEFAULT_EXPENSE_CODE = '5001';
