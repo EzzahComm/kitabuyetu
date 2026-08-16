@@ -142,8 +142,13 @@ describe('retryFailures billing', () => {
   });
 
   it('refuses to send when the payer cannot afford it', async () => {
-    await provisionBilling(groupId, 0);
+    // Fund it first: the ORIGINAL send has to reserve successfully for a
+    // failure row to exist at all. Draining the balance afterwards is what
+    // reproduces the real case — credits ran out between the first attempt
+    // and the retry.
+    await provisionBilling(groupId, 10);
     await queueOneFailedSend(groupId, officerId);
+    await rawQuery(`UPDATE billing_accounts SET sms_credits = 0 WHERE group_id = $1`, [groupId]);
 
     mockSendSingleSms.mockClear();
     const result = await smsService.retryFailures();
