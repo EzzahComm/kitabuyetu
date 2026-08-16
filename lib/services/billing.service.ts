@@ -2,7 +2,7 @@ import { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import {
-  PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
+  PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
   type PlanType, type SubscriptionProduct, type PlanFeatures,
 } from '@/types/enums';
 import { logger } from '@/lib/logger';
@@ -340,12 +340,16 @@ export const billingService = {
     const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
     const { rows } = await client.query<Subscription>(
+      // sms_allowance_included is set EXPLICITLY. Omitting it silently took
+      // the column default of 50 for every plan, so premium bought the same
+      // allowance as starter while the pricing copy promised more.
       `INSERT INTO subscriptions
          (group_id, product, plan_type, status, started_at, next_billing_date,
-          monthly_fee, sms_rate, max_members, payment_id)
-       VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7)
+          monthly_fee, sms_rate, max_members, sms_allowance_included, payment_id)
+       VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7,$8)
        RETURNING *`,
-      [groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers, paymentId],
+      [groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers,
+       PLAN_SMS_ALLOWANCE[product][planType], paymentId],
     );
 
     await ensureChartOfAccounts(client, groupId, product);
@@ -391,11 +395,15 @@ export const billingService = {
       const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
       const { rows } = await client.query<Subscription>(
+        // Same explicit allowance as the paid-activation path above — the two
+        // INSERTs must not drift, which is what let the default win here.
         `INSERT INTO subscriptions
-           (group_id, product, plan_type, status, started_at, next_billing_date, monthly_fee, sms_rate, max_members)
-         VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6)
+           (group_id, product, plan_type, status, started_at, next_billing_date,
+            monthly_fee, sms_rate, max_members, sms_allowance_included)
+         VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers],
+        [ctx.groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers,
+         PLAN_SMS_ALLOWANCE[product][planType]],
       );
 
       await ensureChartOfAccounts(client, ctx.groupId, product);

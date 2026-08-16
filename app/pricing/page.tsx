@@ -3,7 +3,7 @@ import Navbar from '@/components/landing/navbar';
 import Footer from '@/components/landing/footer';
 import { Check } from 'lucide-react';
 import {
-  PLAN_MONTHLY_FEES, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL,
+  PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL,
   type SubscriptionProduct,
 } from '@/types/enums';
 
@@ -62,6 +62,19 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             </div>
             <div className="flex-1 p-6 pt-0">
               <ul className="space-y-3">
+                {/* The SMS allowance is read from PLAN_SMS_ALLOWANCE, the same
+                    constant the subscription is created with — never retyped
+                    here. A hand-maintained copy of a plan's numbers is exactly
+                    what made this page advertise prices the server did not
+                    charge (PRODUCT_CONCORDANCE_AUDIT_2026-08 §1.1). */}
+                <li className="flex items-start gap-2 text-sm">
+                  <Check size={16} className="text-brand-500 mt-0.5 shrink-0"/>
+                  <span>
+                    {isSelfServe
+                      ? <><span className="font-medium">{PLAN_SMS_ALLOWANCE[product][plan.type]} SMS</span> included every month</>
+                      : <>Negotiated SMS allowance</>}
+                  </span>
+                </li>
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
                     <Check size={16} className="text-brand-500 mt-0.5 shrink-0"/>
@@ -116,6 +129,15 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* Stated once, prominently, rather than buried per-plan: the
+            allowance is a monthly grant, not a cap, and running out means
+            buying more rather than being cut off. */}
+        <p className="mb-12 rounded-lg border bg-muted/40 px-5 py-4 text-center text-sm text-muted-foreground">
+          Every plan includes a monthly SMS allowance, renewed at the start of each billing cycle.
+          {' '}<span className="font-medium text-foreground">Once your included messages are used up,
+          you can buy additional SMS credits at any time</span> — sending never stops, you simply top up.
+        </p>
+
         <section aria-labelledby="kitabu-yetu-heading">
           <div className="mb-8">
             <h2 id="kitabu-yetu-heading" className="text-2xl font-bold">{PRODUCT_LABEL.kitabu_yetu}</h2>
@@ -151,6 +173,7 @@ export default function PricingPage() {
               ['Can I import existing member data?', 'Yes — every plan supports bulk CSV import for members and historical contributions.'],
               ['How is data secured?', 'Data is stored on encrypted servers with row-level multi-tenant isolation. Each group can only see its own data.'],
               ['Can I change plans later?', "Yes — pay for a different plan any time via M-Pesa and it activates immediately. There's no lock-in period."],
+              ['What happens when my SMS allowance runs out?', 'Nothing stops — you simply buy more. Each plan includes a set number of messages per billing cycle, and the allowance resets at the start of each new cycle. Once used up, top up with SMS credits from your billing page at any time; purchased credits are used after your included allowance.'],
               ['Which product should my group start with?', 'If you only need to reach members — contribution reminders, meeting notices, birthdays — Chama Reminder is enough. Choose Kitabu Yetu when you also need to record and reconcile the money.'],
               ['Can I move from Chama Reminder to Kitabu Yetu?', 'Yes. Buy a Kitabu Yetu plan from your subscription page and your chart of accounts is set up then — your group, members and message history carry over unchanged.'],
             ].map(([q, a]) => (
