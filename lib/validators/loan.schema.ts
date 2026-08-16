@@ -1,5 +1,30 @@
 import { z } from 'zod';
 
+/**
+ * Repayment cadences a member loan can carry (migration 149).
+ *
+ * Spellings are borrowed, not invented: 'weekly'/'monthly'/'quarterly' match
+ * REPAYMENT_FREQUENCIES on the organization side, and 'biweekly' matches the
+ * meeting_frequency enum. The org list's 'none' and 'bullet' are excluded —
+ * neither yields an amortisation schedule, and every loan must have one.
+ *
+ * Must stay in sync with loans_repayment_frequency_check.
+ */
+export const LOAN_REPAYMENT_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly'] as const;
+
+export type LoanRepaymentFrequency = (typeof LOAN_REPAYMENT_FREQUENCIES)[number];
+
+/** Instalments generated for a given term. Mirrors the migration-149 formula
+ *  (ROUND(months * periods_per_year / 12), floored at 1) so the UI can preview
+ *  a schedule without a round trip. */
+export const PERIODS_PER_YEAR: Record<LoanRepaymentFrequency, number> = {
+  weekly: 52, biweekly: 26, monthly: 12, quarterly: 4,
+};
+
+export function installmentCount(termMonths: number, freq: LoanRepaymentFrequency): number {
+  return Math.max(1, Math.round((termMonths * PERIODS_PER_YEAR[freq]) / 12));
+}
+
 export const ApplyLoanSchema = z.object({
   /**
    * Borrower. Omit for a self-application; supply it to apply on behalf of
@@ -14,6 +39,9 @@ export const ApplyLoanSchema = z.object({
   principalAmount:  z.number().positive(),
   interestRate:     z.number().min(0).max(100),
   loanTermMonths:   z.number().int().min(1).max(120),
+  /** Omit and the loan repays monthly — the only behaviour that existed before
+   *  migration 149, so every existing caller keeps working unchanged. */
+  repaymentFrequency: z.enum(LOAN_REPAYMENT_FREQUENCIES).optional(),
   purpose:          z.string().max(500).optional().nullable(),
   guarantorId:      z.string().uuid().optional().nullable(),
 });

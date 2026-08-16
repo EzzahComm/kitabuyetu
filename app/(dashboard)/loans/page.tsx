@@ -13,12 +13,22 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useLoans, useApplyLoan, useLoanPolicy } from '@/hooks/use-loans';
 import { useMembers } from '@/hooks/use-members';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import {
+  LOAN_REPAYMENT_FREQUENCIES, installmentCount, type LoanRepaymentFrequency,
+} from '@/lib/validators/loan.schema';
 import type { Loan } from '@/types/db.types';
+
+const FREQUENCY_LABELS: Record<LoanRepaymentFrequency, string> = {
+  weekly:    'Weekly',
+  biweekly:  'Every 2 weeks',
+  monthly:   'Monthly',
+  quarterly: 'Quarterly',
+};
 
 type LoanRow = Loan & { member_name: string };
 
@@ -27,6 +37,7 @@ const applySchema = z.object({
   principalAmount: z.coerce.number().positive().min(100),
   interestRate:   z.coerce.number().positive().max(100),
   loanTermMonths:     z.coerce.number().int().positive().max(120),
+  repaymentFrequency: z.enum(LOAN_REPAYMENT_FREQUENCIES),
   purpose:        z.string().min(3),
 });
 type ApplyValues = z.infer<typeof applySchema>;
@@ -47,15 +58,22 @@ export default function LoansPage() {
   // rate/term on any individual loan.
   const policyTerms = loanPolicy?.terms;
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
-    defaultValues: { interestRate: 10, loanTermMonths: 12 },
+    defaultValues: { interestRate: 10, loanTermMonths: 12, repaymentFrequency: 'monthly' },
   });
+
+  // Watched so the officer sees the instalment count change as they pick a
+  // cadence — a 12-month loan is 12 payments monthly but 52 weekly, and that
+  // is the single most surprising consequence of this field.
+  const watchedTerm = useWatch({ control, name: 'loanTermMonths' });
+  const watchedFreq = useWatch({ control, name: 'repaymentFrequency' });
 
   const openApply = () => {
     reset({
       interestRate: policyTerms?.interestRate ?? 10,
       loanTermMonths:   policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
+      repaymentFrequency: 'monthly',
     } as Partial<ApplyValues> as ApplyValues);
     setOpen(true);
   };
@@ -83,7 +101,13 @@ export default function LoansPage() {
     { key: 'memberName', header: 'Member', render: (row: LoanRow) => row.member_name ?? row.member_id },
     { key: 'principalAmount', header: 'Principal', render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span> },
     { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}%` },
-    { key: 'term', header: 'Term', render: (row: LoanRow) => `${row.loan_term_months}m` },
+    {
+      key: 'term', header: 'Term',
+      render: (row: LoanRow) =>
+        `${row.loan_term_months}m${row.repayment_frequency && row.repayment_frequency !== 'monthly'
+          ? ` · ${FREQUENCY_LABELS[row.repayment_frequency].toLowerCase()}`
+          : ''}`,
+    },
     { key: 'status', header: 'Status', render: (row: LoanRow) => <StatusPill status={row.status} /> },
     { key: 'disbursedAt', header: 'Disbursed', render: (row: LoanRow) => row.disbursed_at ? formatDate(row.disbursed_at) : '—' },
   ];
@@ -147,6 +171,25 @@ export default function LoansPage() {
                   <p className="text-xs text-muted-foreground">Policy max {policyTerms.maxTermMonths} months</p>
                 )}
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Repayment frequency</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                {...register('repaymentFrequency')}
+              >
+                {LOAN_REPAYMENT_FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                ))}
+              </select>
+              {/* The term stays in months whatever the cadence, so spell out
+                  what the officer is actually creating. Cadence changes the
+                  number and size of instalments, never the total cost. */}
+              <p className="text-xs text-muted-foreground">
+                {watchedTerm > 0 && watchedFreq
+                  ? `${installmentCount(Number(watchedTerm), watchedFreq)} instalments over ${watchedTerm} month${Number(watchedTerm) === 1 ? '' : 's'} — same total cost either way`
+                  : 'Term stays in months; this only changes how often instalments fall due'}
+              </p>
             </div>
             <div className="space-y-1">
               <Label>Purpose</Label>

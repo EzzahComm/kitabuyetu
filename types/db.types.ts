@@ -86,6 +86,9 @@ export interface Loan {
   principal_amount:     string;
   interest_rate:        string;
   loan_term_months:     number;
+  /** How often an instalment falls due (migration 149). NOT NULL, defaults to
+   *  'monthly' — the only cadence that existed before. */
+  repayment_frequency:  'weekly' | 'biweekly' | 'monthly' | 'quarterly';
   disbursement_date:    Date | null;
   status:               LoanStatus;
   purpose:              string | null;
