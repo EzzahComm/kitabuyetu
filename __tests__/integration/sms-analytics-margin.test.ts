@@ -68,7 +68,15 @@ describe('SMS usage analytics (§8)', () => {
     const a = await getUsageAnalytics(groupId);
     expect(a.creditsPurchased).toBe(1000);
     expect(a.creditsConsumed).toBe(40);
-    expect(a.balance).toBe(960);
+
+    // balance = purchased remaining + UNUSED PLAN ALLOWANCE. It used to be
+    // purchased only, which is why a group on a plan it had never topped up
+    // saw a balance of 0 and a "very low balance" alarm while holding a full
+    // allowance it could spend. The fixture group's subscription carries the
+    // default 50, none of it used.
+    expect(a.purchasedBalance).toBe(960);
+    expect(a.allowanceRemaining).toBe(50);
+    expect(a.balance).toBe(1010);
   });
 
   it('separates this month from last month', async () => {
@@ -107,7 +115,10 @@ describe('SMS usage analytics (§8)', () => {
 
     const a = await getUsageAnalytics(groupId);
     expect(a.projectedMonthly).toBeCloseTo(300, 0); // 10/day * 30
-    expect(a.daysRemaining).toBe(70);              // 700 left / 10 per day
+    // 700 purchased + 50 unused allowance = 750 spendable, at 10/day.
+    // The runway now counts the allowance because the group can genuinely
+    // send with it; excluding it under-reported how long they could keep going.
+    expect(a.daysRemaining).toBe(75);
   });
 
   it('reports no projection for a group that has never sent, rather than zero days', async () => {

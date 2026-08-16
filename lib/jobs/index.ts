@@ -228,17 +228,27 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── 1st of month 01:00 UTC — SMS bundled-allowance monthly reset ─────
-  // Runs well before the 08:00 contribution-reminder sweep below, so that
-  // day's first billed sends see a freshly-reset allowance rather than the
-  // previous period's. Hour 1 is otherwise unused across this file, so this
-  // never competes with an existing monthly/daily bucket within the same
-  // tick (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
-  if (date === 1 && hour === 1) {
-    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+  // ── DAILY 01:00 UTC — SMS bundled-allowance reset ────────────────────
+  // Was `date === 1` with a YYYY-MM dedup key: one sweep a month, resetting
+  // every group together. Migration 151 moved the allowance period onto each
+  // group's own subscription anniversary, and anniversaries fall on every day
+  // of the month, so this has to run daily and the dedup key has to be per
+  // DAY rather than per month — a monthly key would let the first run of a
+  // month suppress the other thirty.
+  //
+  // Resetting nothing is the normal case and costs one indexed UPDATE.
+  // resetDueSmsAllowances() is idempotent (it compares the derived anniversary
+  // against sms_allowance_period_start), so a double tick cannot hand out two
+  // allowances.
+  //
+  // Still runs well before the 08:00 contribution-reminder sweep below, so
+  // that day's first billed sends see a freshly-reset allowance rather than
+  // the previous period's. Hour 1 remains otherwise unused across this file
+  // (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
+  if (hour === 1) {
     queued.sms_allowance_monthly_reset = await safe('sms_allowance_monthly_reset', {}, {
       priority:  4,
-      dedup_key: `sms_allowance_monthly_reset:${monthStr}`,
+      dedup_key: `sms_allowance_monthly_reset:${dateStr}`,
     });
   }
 

@@ -127,6 +127,40 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
   },
 };
 
+/**
+ * SMS messages INCLUDED with a plan, granted per billing cycle on successful
+ * activation, and reset to zero each cycle by resetMonthlySmsAllowance().
+ *
+ * This is the ONLY source of truth for the allowance. Before it existed,
+ * neither of billing.service.ts's two `INSERT INTO subscriptions` statements
+ * set `sms_allowance_included` at all, so EVERY plan silently fell through to
+ * the column default of 50 from migration 124 — starter and premium alike,
+ * both products, all 8 live subscriptions. Meanwhile PLAN_COPY advertised
+ * "Higher SMS allowance" as a premium feature, which the system did not
+ * honour. Set this explicitly at creation; do not rely on the column default.
+ *
+ * Once exhausted, a group buys top-up credits at its own `sms_rate` — the
+ * allowance is a floor, not a cap on sending. The pricing page says so.
+ *
+ * `enterprise` is NEGOTIATED, mirroring PLAN_MONTHLY_FEES. The number below is
+ * a contractual FLOOR used when an enterprise subscription is created without
+ * a bespoke figure; a real enterprise allowance is set per account.
+ */
+export const PLAN_SMS_ALLOWANCE: Record<SubscriptionProduct, Record<PlanType, number>> = {
+  kitabu_yetu: {
+    starter:    100,
+    growth:     200,
+    premium:    300,
+    enterprise: 300, // floor — negotiated per contract
+  },
+  chama_reminder: {
+    starter:    100,
+    growth:     200,
+    premium:    300,
+    enterprise: 300, // floor — negotiated per contract
+  },
+};
+
 /** Plans a group can buy itself. `enterprise` is negotiated and excluded. */
 export const SELF_SERVE_PLANS: readonly PlanType[] = ['starter', 'growth', 'premium'];
 

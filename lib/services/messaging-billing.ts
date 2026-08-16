@@ -233,9 +233,24 @@ export async function clearLowBalanceFlag(groupId: string): Promise<void> {
 }
 
 /**
- * Zero the bundled monthly SMS allowance for every group with an active
- * subscription. Driven by the sms_allowance_monthly_reset job, 1st of month,
- * 01:00 UTC (Phase 2b, migration 124).
+ * Zero the bundled SMS allowance for every group whose own billing anniversary
+ * has come round. Driven by the sms_allowance_reset job, DAILY at 01:00 UTC.
+ *
+ * Was a single sweep on the 1st of the month (migration 124), which did not
+ * match what a group actually buys: a subscription's cycle runs from the day
+ * it was purchased, so a group joining on the 28th got a fresh allowance three
+ * days later while one joining on the 2nd waited 29 days. Migration 151 moved
+ * the period onto the subscription anniversary.
+ *
+ * Idempotent by construction. The anniversary is derived from started_at on
+ * every run and compared against sms_allowance_period_start, so running this
+ * hourly, daily, or twice in a minute resets each group exactly once per
+ * cycle. That matters because it now runs every day rather than once a month.
+ *
+ * Deriving the anniversary each time (rather than adding a month to the last
+ * one) is also what stops it drifting: Postgres clamps 31 Jan + 1 month to
+ * 28 Feb, but the next anniversary is computed from started_at again and
+ * lands on 31 Mar.
  *
  * Deliberately does NOT touch sms_allowance_reserved: an in-flight
  * reservation self-drains through the normal settle flow (consume or
@@ -243,16 +258,25 @@ export async function clearLowBalanceFlag(groupId: string): Promise<void> {
  * instead of surfacing it to sms_release_stale_reservations, which exists
  * precisely to catch that.
  */
-export async function resetMonthlySmsAllowance(): Promise<{ groupsReset: number }> {
+export async function resetDueSmsAllowances(): Promise<{ groupsReset: number }> {
   const { rowCount } = await withAdminDb((db) =>
     db.query(
       `UPDATE billing_accounts ba
-       SET sms_allowance_used = 0, updated_at = NOW()
-       WHERE sms_allowance_used <> 0
-         AND EXISTS (
-           SELECT 1 FROM subscriptions s
-           WHERE s.group_id = ba.group_id AND s.status = 'active'
-         )`,
+       SET    sms_allowance_used        = 0,
+              sms_allowance_period_start = anniv.period_start,
+              updated_at                 = NOW()
+       FROM (
+         SELECT s.group_id,
+                (s.started_at::date
+                  + ((date_part('year',  age(CURRENT_DATE, s.started_at::date)) * 12
+                    + date_part('month', age(CURRENT_DATE, s.started_at::date)))::int)
+                    * INTERVAL '1 month')::date AS period_start
+         FROM   subscriptions s
+         WHERE  s.status = 'active'
+       ) AS anniv
+       WHERE ba.group_id = anniv.group_id
+         AND (ba.sms_allowance_period_start IS NULL
+              OR ba.sms_allowance_period_start < anniv.period_start)`,
     ),
   );
   return { groupsReset: rowCount ?? 0 };
