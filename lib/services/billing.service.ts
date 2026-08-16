@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
+import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import {
   PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
@@ -35,30 +35,6 @@ async function ensureChartOfAccounts(
 }
 
 /**
- * Confirm an activated subscription to the person who bought it.
- *
- * Written after a real incident: a group paid KES 150 for Starter, the plan
- * activated correctly, and the only message sent was the GENERIC M-Pesa
- * receipt — which was wrong twice over.
- *
- *  1. It went to `payments.mpesa_phone`, the number that paid, NOT the
- *     member's registered number. The registered chairperson received
- *     nothing at all.
- *  2. Its template variables came from a UNION over contributions /
- *     loan_repayments / welfare_pool_contributions. A subscription payment is
- *     none of those, so group_name / membership_no / product / balance all
- *     resolved empty and the SMS read literally:
- *       "KES 150 received for (A/C ). Receipt: UHFQZ2SPYV. Balance: KES ."
- *
- * A subscription is its own event and deserves its own message, so this sends
- * one directly via notifyMember (the proven path — it honours opt-out, writes
- * the in-app copy, and never throws) rather than through the receipt template.
- *
- * Best-effort by design: a failure to CONFIRM a subscription must never roll
- * back the subscription itself. The caller's transaction is already committed
- * money.
- */
-/**
  * Confirm an SMS credit top-up to the person who bought it.
  *
  * Top-ups used to be covered by the generic M-Pesa receipt, which resolved
@@ -75,7 +51,6 @@ async function ensureChartOfAccounts(
  * failure to confirm can never roll back credits already bought.
  */
 async function sendTopupConfirmation(
-  client: PoolClient,
   args: {
     groupId:      string;
     paymentId:    string | null;
@@ -85,7 +60,10 @@ async function sendTopupConfirmation(
   },
 ): Promise<void> {
   try {
-    const { rows: [target] } = await client.query<{
+    // Its OWN connection, deliberately — see addSmsCredits' note. Running this
+    // on the caller's transactional client meant a failed lookup poisoned the
+    // transaction and rolled the credit back.
+    const { rows: [target] } = await withAdminDb((client) => client.query<{
       member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
     }>(
       `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
@@ -101,7 +79,7 @@ async function sendTopupConfirmation(
                  gm.created_at ASC
        LIMIT  1`,
       [args.groupId, args.paymentId],
-    );
+    ));
     if (!target) return;
 
     const credits = Math.round(args.creditsAdded);
@@ -133,8 +111,30 @@ async function sendTopupConfirmation(
   }
 }
 
+/**
+ * Confirm an activated subscription to the person who bought it.
+ *
+ * Written after a real incident: a group paid KES 150 for Starter, the plan
+ * activated correctly, and the only message sent was the GENERIC M-Pesa
+ * receipt — which was wrong twice over.
+ *
+ *  1. It went to `payments.mpesa_phone`, the number that paid, NOT the
+ *     member's registered number. The registered chairperson received
+ *     nothing at all.
+ *  2. Its template variables came from a UNION over contributions /
+ *     loan_repayments / welfare_pool_contributions. A subscription payment is
+ *     none of those, so group_name / membership_no / product / balance all
+ *     resolved empty and the SMS read literally:
+ *       "KES 150 received for (A/C ). Receipt: UHFQZ2SPYV. Balance: KES ."
+ *
+ * A subscription is its own event and deserves its own message, so this sends
+ * one directly via notifyMember (the proven path — it honours opt-out, writes
+ * the in-app copy, and never throws) rather than through the receipt template.
+ *
+ * Best-effort by design: a failure to CONFIRM a subscription must never roll
+ * back the subscription itself.
+ */
 async function sendSubscriptionConfirmation(
-  client: PoolClient,
   args: {
     groupId:  string;
     paymentId: string | null;
@@ -148,7 +148,16 @@ async function sendSubscriptionConfirmation(
     // The registered member, not the payer. Prefer whoever initiated the
     // payment; fall back to the group's chairperson so a group whose payment
     // came in headless (callback replay, ops correction) still gets told.
-    const { rows: [target] } = await client.query<{
+    //
+    // On its OWN connection, not the caller's transactional client. This
+    // shipped reading the caller's client and only survived because
+    // activateSubscriptionForPayment is driven from the M-Pesa callback on the
+    // admin (BYPASSRLS) pool — the identical construct in addSmsCredits, which
+    // uses the TENANT pool, had its lookup refused under real RLS, poisoned
+    // the transaction, and rolled back the credit. A swallowed query error
+    // does not un-abort a Postgres transaction, so a best-effort side effect
+    // sharing the money transaction's client can still destroy it, silently.
+    const { rows: [target] } = await withAdminDb((client) => client.query<{
       member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
     }>(
       `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
@@ -163,7 +172,7 @@ async function sendSubscriptionConfirmation(
                  gm.created_at ASC
        LIMIT  1`,
       [args.groupId, args.paymentId],
-    );
+    ));
     if (!target) return;
 
     const planLabel = PLAN_COPY[args.product].find((p) => p.type === args.planType)?.label
@@ -341,7 +350,7 @@ export const billingService = {
 
     await ensureChartOfAccounts(client, groupId, product);
 
-    await sendSubscriptionConfirmation(client, {
+    await sendSubscriptionConfirmation({
       groupId, paymentId, planType, product,
       amount: fee,
       receipt: null,
@@ -567,7 +576,22 @@ export const billingService = {
   },
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
-    return withTransaction(ctx, async (client) => {
+    // The confirmation is sent AFTER this transaction commits, never inside
+    // it. First attempt put it inside and CI's app_tenant (real RLS) job
+    // caught the consequence immediately: top-ups credited 0 instead of
+    // 111.11 and no ledger row was written.
+    //
+    // The reason is worth remembering. Catching a JS error from a query does
+    // NOT un-abort the Postgres transaction it ran in — once any statement
+    // fails, the transaction is poisoned and its COMMIT degrades to a
+    // ROLLBACK. So a "best-effort, never throws" side effect running on the
+    // transactional client can still destroy the money work around it, and it
+    // does so silently, because the swallowed error looks handled. Under
+    // BYPASSRLS locally the SELECT succeeded and everything passed; under real
+    // RLS it did not, and took the credit with it.
+    //
+    // Anything best-effort therefore belongs outside the money transaction.
+    const confirm = await withTransaction(ctx, async (client) => {
       // MIN across every active subscription, matching reserve_sms_credits'
       // own rule exactly (migration 127). These two must agree: this decides
       // how many credits a top-up buys, that one decides what a send costs, and
@@ -607,7 +631,7 @@ export const billingService = {
          RETURNING id`,
         [ctx.groupId, ba[0].id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), paymentId ?? null],
       );
-      if (!inserted[0]) return;
+      if (!inserted[0]) return null;
 
       const { rows: after } = await client.query<{ sms_credits: string }>(
         `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2
@@ -633,17 +657,20 @@ export const billingService = {
         ],
       );
 
-      // Inside the ON CONFLICT guard, so a replayed callback that credits
-      // nothing also confirms nothing — a second "your credits are topped up"
-      // for one purchase is exactly as wrong as a second credit.
-      await sendTopupConfirmation(client, {
+      // Returned from inside the ON CONFLICT guard, so a replayed callback
+      // that credits nothing also confirms nothing — a second "your credits
+      // are topped up" for one purchase is exactly as wrong as a second
+      // credit. Sent below, after this transaction has committed.
+      return {
         groupId:   ctx.groupId,
         paymentId: paymentId ?? null,
         amountKes,
         creditsAdded: credits,
         newBalance:   after[0]?.sms_credits ?? null,
-      });
+      };
     });
+
+    if (confirm) await sendTopupConfirmation(confirm);
   },
 };
 
