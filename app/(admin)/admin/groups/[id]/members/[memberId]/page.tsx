@@ -1,18 +1,23 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Wallet, TrendingUp, Landmark, Coins, Phone, Mail, Calendar, ShieldCheck, Activity,
+  Wallet, TrendingUp, Landmark, Coins, Phone, Mail, Calendar, ShieldCheck, Activity, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAdminMemberDetail } from '@/hooks/use-admin';
-import { formatKES, formatDate } from '@/lib/utils';
+import { useAdminMemberDetail, useUpdateMemberProfile } from '@/hooks/use-admin';
+import { useToast } from '@/hooks/use-toast';
+import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { Tone } from '@/lib/ui/tokens';
 
 // Same tier palette as app/(dashboard)/members/[id]/page.tsx and
@@ -39,6 +44,12 @@ export default function AdminMemberDetailPage({
   const { id: groupId, memberId } = use(params);
   const router = useRouter();
   const { data: detail, isLoading } = useAdminMemberDetail(groupId, memberId);
+  const { toast } = useToast();
+  const updateMember = useUpdateMemberProfile();
+  const [editOpen, setEditOpen] = useState(false);
+  const [edits, setEdits] = useState<{ firstName: string; lastName: string; email: string }>({
+    firstName: '', lastName: '', email: '',
+  });
 
   if (isLoading) {
     return (
@@ -73,6 +84,21 @@ export default function AdminMemberDetailPage({
           { label: profile.group_name ?? 'Group', href: `/admin/groups/${groupId}` },
           { label: `${profile.first_name} ${profile.last_name}` },
         ]}
+        actions={
+          <Button
+            variant="outline" size="sm" className="h-8 gap-1.5"
+            onClick={() => {
+              setEdits({
+                firstName: profile.first_name ?? '',
+                lastName:  profile.last_name ?? '',
+                email:     profile.email ?? '',
+              });
+              setEditOpen(true);
+            }}
+          >
+            <Pencil size={14} /> Edit
+          </Button>
+        }
       >
         <div className="flex items-center gap-2 flex-wrap">
           <StatusPill status={profile.is_active ? 'active' : 'inactive'} size="sm" />
@@ -198,6 +224,81 @@ export default function AdminMemberDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Edit member — names and email only.
+          PHONE IS ABSENT ON PURPOSE. It is the login identity and UNIQUE
+          platform-wide, so changing it changes who can sign in to the account
+          rather than correcting a typo. The API rejects it outright (strict
+          schema), and offering a disabled field here would only invite the
+          question; the note below answers it instead. */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Edit member</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>First name</Label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.firstName}
+                  onChange={(e) => setEdits({ ...edits, firstName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Last name</Label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.lastName}
+                  onChange={(e) => setEdits({ ...edits, lastName: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Email</Label>
+              <input
+                type="email"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={edits.email}
+                onChange={(e) => setEdits({ ...edits, email: e.target.value })}
+              />
+            </div>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                Renaming this member updates their name in <span className="font-medium text-foreground">every
+                group they belong to</span> — one person, one identity.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                The phone number ({profile.phone}) is the login identity and cannot be changed here.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button
+              loading={updateMember.isPending}
+              onClick={async () => {
+                // Only changed fields; '' on email means "clear it", which the
+                // API accepts as null.
+                const body: Record<string, string | null> = {};
+                if (edits.firstName !== (profile.first_name ?? '')) body.firstName = edits.firstName;
+                if (edits.lastName  !== (profile.last_name ?? ''))  body.lastName  = edits.lastName;
+                if (edits.email     !== (profile.email ?? ''))      body.email     = edits.email || null;
+                if (Object.keys(body).length === 0) { setEditOpen(false); return; }
+                try {
+                  await updateMember.mutateAsync({ groupId, memberId, ...body });
+                  toast({ title: 'Member updated' });
+                  setEditOpen(false);
+                } catch (e) {
+                  // A duplicate email comes back as a 409 with a readable message.
+                  toast({ variant: 'destructive', title: 'Could not save', description: getErrorMessage(e) });
+                }
+              }}
+            >
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

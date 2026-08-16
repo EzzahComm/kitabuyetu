@@ -201,6 +201,63 @@ export function useUpdateGroupStatus() {
   });
 }
 
+/**
+ * Correct a group's profile — the typo path, distinct from the status
+ * transitions above. The route branches on whether the body carries `action`,
+ * so these must never be merged into one mutation.
+ *
+ * A rename can collide with uq_group_name_per_county and comes back as a 409
+ * with a readable message; the caller surfaces it rather than retrying.
+ */
+export interface UpdateGroupProfileInput {
+  name?:             string;
+  type?:             string;
+  subCounty?:        string | null;
+  ward?:             string | null;
+  villageEstate?:    string | null;
+  meetingFrequency?: string | null;
+  meetingDay?:       string | null;
+  meetingTime?:      string | null;
+}
+
+export function useUpdateGroupProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: UpdateGroupProfileInput & { id: string }) =>
+      adminFetch<UpdateGroupResult>(`/api/admin/groups/${id}`, { method: 'PATCH', json: body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'group', vars.id] });
+      qc.invalidateQueries({ queryKey: ['admin', 'groups'] });
+    },
+  });
+}
+
+/**
+ * Correct a member's name or email.
+ *
+ * PHONE IS NOT EDITABLE and is not in this type. It is the login identity and
+ * UNIQUE platform-wide, so changing it changes who can sign in — a different
+ * operation from fixing a typo. The route's schema is strict(), so sending it
+ * would 400 rather than be silently dropped.
+ */
+export interface UpdateMemberProfileInput {
+  firstName?: string;
+  lastName?:  string;
+  email?:     string | null;
+}
+
+export function useUpdateMemberProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, memberId, ...body }: UpdateMemberProfileInput & { groupId: string; memberId: string }) =>
+      adminFetch<unknown>(`/api/admin/groups/${groupId}/members/${memberId}`, { method: 'PATCH', json: body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'member', vars.memberId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'group', vars.groupId] });
+    },
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Organizations (federating bodies — banks, SACCOs, foundations)
 // ─────────────────────────────────────────────────────────────────────────────

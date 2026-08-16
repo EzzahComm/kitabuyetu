@@ -6,7 +6,7 @@ import {
   Building2, ShieldCheck, AlertTriangle,
   Users, Coins, TrendingUp, Headphones,
   MoreHorizontal, CheckCircle2, Ban, RefreshCw, XCircle,
-  Phone, Mail, Activity,
+  Phone, Mail, Activity, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -23,7 +23,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAdminGroup, useUpdateGroupStatus, useAdminGroupMembers, useGroupGovernanceSnapshot } from '@/hooks/use-admin';
+import {
+  useAdminGroup, useUpdateGroupStatus, useUpdateGroupProfile,
+  useAdminGroupMembers, useGroupGovernanceSnapshot,
+} from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 
@@ -62,7 +65,10 @@ const TYPE_LABELS: Record<string, string> = {
   sacco:      'SACCO',
   welfare:    'Welfare',
   investment: 'Investment',
-  organization_group:  'Organization Group',
+  // 'ngo_group' is the real group_type enum member. This map said
+  // 'organization_group', which the enum has never contained, so an NGO group
+  // fell through to displaying its raw value.
+  ngo_group:  'NGO Group',
 };
 
 const ACTION_DOT: Record<string, string> = {
@@ -93,6 +99,13 @@ export default function GroupDetailPage({
   } | null>(null);
   const [reason, setReason] = useState('');
 
+  // Profile edits are held as a flat string map so an untouched field can be
+  // told apart from one deliberately cleared: '' means "cleared" for the
+  // nullable fields, and only CHANGED keys are sent (see handleSaveProfile).
+  const updateProfile = useUpdateGroupProfile();
+  const [editOpen, setEditOpen] = useState(false);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+
   const handleAction = async () => {
     if (!confirmAction) return;
     const needsReason = confirmAction.action === 'suspend';
@@ -109,6 +122,47 @@ export default function GroupDetailPage({
       setReason('');
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    // Send only what actually changed. A PATCH that echoes every field back
+    // would rewrite the group name on every save, and a no-op rename still
+    // trips uq_group_name_per_county against the group's own row in some
+    // orderings — a 409 for changing nothing.
+    const original: Record<string, string> = {
+      name:             grp.name ?? '',
+      type:             grp.group_type ?? '',
+      subCounty:        grp.sub_county ?? '',
+      ward:             grp.ward ?? '',
+      villageEstate:    grp.village_estate ?? '',
+      meetingFrequency: grp.meeting_frequency ?? '',
+      meetingDay:       grp.meeting_day ?? '',
+      meetingTime:      (grp.meeting_time ?? '').slice(0, 5),
+    };
+    const NULLABLE = new Set([
+      'subCounty', 'ward', 'villageEstate', 'meetingFrequency', 'meetingDay', 'meetingTime',
+    ]);
+
+    const body: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(edits)) {
+      if (v === original[k]) continue;
+      // name and type are NOT nullable — blanking them is a mistake, not an
+      // instruction, so they are simply skipped rather than sent as null.
+      if (v === '') { if (NULLABLE.has(k)) body[k] = null; continue; }
+      body[k] = v;
+    }
+
+    if (Object.keys(body).length === 0) { setEditOpen(false); return; }
+
+    try {
+      await updateProfile.mutateAsync({ id, ...body });
+      toast({ title: 'Group updated' });
+      setEditOpen(false);
+    } catch (e) {
+      // 409 from uq_group_name_per_county arrives here with a readable
+      // message — surfaced as-is rather than retried.
+      toast({ variant: 'destructive', title: 'Could not save', description: getErrorMessage(e) });
     }
   };
 
@@ -147,6 +201,25 @@ export default function GroupDetailPage({
           { label: grp.name },
         ]}
         actions={
+          <div className="flex items-center gap-2">
+          <Button
+            variant="outline" size="sm" className="h-8 gap-1.5"
+            onClick={() => {
+              setEdits({
+                name:             grp.name ?? '',
+                type:             grp.group_type ?? '',
+                subCounty:        grp.sub_county ?? '',
+                ward:             grp.ward ?? '',
+                villageEstate:    grp.village_estate ?? '',
+                meetingFrequency: grp.meeting_frequency ?? '',
+                meetingDay:       grp.meeting_day ?? '',
+                meetingTime:      (grp.meeting_time ?? '').slice(0, 5),
+              });
+              setEditOpen(true);
+            }}
+          >
+            <Pencil size={14} /> Edit
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -178,6 +251,7 @@ export default function GroupDetailPage({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         }
       >
         <div className="flex items-center gap-2 flex-wrap">
@@ -427,6 +501,109 @@ export default function GroupDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Edit group profile — the typo-correction path. Deliberately separate
+          from the status actions above: the API branches on whether the body
+          carries `action`, and mixing a rename into a suspension would be an
+          audit-trail mess. */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Edit group</DialogTitle></DialogHeader>
+          <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="space-y-1">
+              <Label>Group name</Label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={edits.name ?? ''}
+                onChange={(e) => setEdits({ ...edits, name: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Group names must be unique within a county — a clash is reported rather than saved.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Type</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={edits.type ?? ''}
+                onChange={(e) => setEdits({ ...edits, type: e.target.value })}
+              >
+                {/* Matches the group_type Postgres enum exactly. */}
+                {['chama', 'sacco', 'welfare', 'investment', 'ngo_group'].map((t) => (
+                  <option key={t} value={t}>{TYPE_LABELS[t] ?? t}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Sub-county</Label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.subCounty ?? ''}
+                  onChange={(e) => setEdits({ ...edits, subCounty: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Ward</Label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.ward ?? ''}
+                  onChange={(e) => setEdits({ ...edits, ward: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Village / estate</Label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={edits.villageEstate ?? ''}
+                onChange={(e) => setEdits({ ...edits, villageEstate: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Meets</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.meetingFrequency ?? ''}
+                  onChange={(e) => setEdits({ ...edits, meetingFrequency: e.target.value })}
+                >
+                  <option value="">Not set</option>
+                  {['weekly', 'biweekly', 'monthly'].map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Day</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.meetingDay ?? ''}
+                  onChange={(e) => setEdits({ ...edits, meetingDay: e.target.value })}
+                >
+                  <option value="">Not set</option>
+                  {['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+                    .map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Time</Label>
+                <input
+                  type="time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={edits.meetingTime ?? ''}
+                  onChange={(e) => setEdits({ ...edits, meetingTime: e.target.value })}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Every change is written to the audit log with the previous and new value.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveProfile} loading={updateProfile.isPending}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirm action dialog */}
       <Dialog open={!!confirmAction} onOpenChange={() => { setConfirmAction(null); setReason(''); }}>
