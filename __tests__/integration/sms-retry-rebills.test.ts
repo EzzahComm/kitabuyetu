@@ -47,7 +47,13 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
 }
 
 /** Queue one message, letting the provider reject it, so a retryable
- *  sms_failures row exists exactly as production produced it. */
+ *  sms_failures row exists exactly as production produced it.
+ *
+ *  The first failure schedules an exponential backoff, so next_retry_at lands
+ *  minutes in the future and retryFailures() would correctly skip the row.
+ *  Backdate it — the point of these tests is the BILLING behaviour once a
+ *  retry runs, not the backoff schedule (which sms-dispatch-exception covers).
+ */
 async function queueOneFailedSend(groupId: string, userId: string) {
   mockSendSingleSms.mockResolvedValueOnce({
     success: false, responseDescription: 'Request failed with status code 401',
@@ -55,6 +61,11 @@ async function queueOneFailedSend(groupId: string, userId: string) {
   await smsService.send(
     { groupId, userId, role: 'chairperson' } as never,
     '254700000001', 'first attempt', 'loan', null,
+  );
+  await rawQuery(
+    `UPDATE sms_failures SET next_retry_at = NOW() - INTERVAL '1 minute'
+     WHERE group_id = $1 AND NOT resolved`,
+    [groupId],
   );
 }
 
