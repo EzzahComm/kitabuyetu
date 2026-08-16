@@ -24,7 +24,8 @@ import type { SubscriptionProduct } from '@/types/enums';
 const schema = z.object({
   // Identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
+  // Must match the group_type Postgres enum EXACTLY — see the option value below.
+  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
 
   // Registrant
   firstName: z.string().min(2, 'Required'),
@@ -240,7 +241,9 @@ function RegisterForm() {
                 <option value="sacco">SACCO</option>
                 <option value="welfare">Welfare Group</option>
                 <option value="investment">Investment Club</option>
-                <option value="organization_group">Organization</option>
+                {/* Real group_type enum value is 'ngo_group', not 'organization_group' —
+                    the mismatch made every "Organization" signup fail with a 500. */}
+                <option value="ngo_group">Organization</option>
               </select>
             </div>
             <div className="space-y-1.5">

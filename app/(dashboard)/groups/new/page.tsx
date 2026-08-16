@@ -34,7 +34,8 @@ import type { CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema'
 const schema = z.object({
   product:     z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
   groupName:   z.string().min(3, 'Group name must be at least 3 characters'),
-  groupType:   z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
+  // Must match the group_type Postgres enum EXACTLY — see the option value below.
+  groupType:   z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
     errorMap: () => ({ message: 'Select your role in this group' }),
   }),
@@ -135,7 +136,9 @@ export default function CreateAdditionalGroupPage() {
                   <option value="sacco">SACCO</option>
                   <option value="welfare">Welfare</option>
                   <option value="investment">Investment</option>
-                  <option value="organization_group">Organization group</option>
+                  {/* Real group_type enum value is 'ngo_group', not 'organization_group' —
+                      the mismatch made this submission fail with a 500. */}
+                  <option value="ngo_group">Organization group</option>
                 </select>
               </div>
               <div>

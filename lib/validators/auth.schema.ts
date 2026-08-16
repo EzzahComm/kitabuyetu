@@ -44,7 +44,10 @@ const groupDetailsFields = {
 
   // Group identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']),
+  // Must match the group_type Postgres enum EXACTLY — 'organization_group' is
+  // not a member of it (the real value is 'ngo_group'); register_group()'s
+  // ::group_type cast rejected it outright and registration 500'd.
+  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
 
   // Governance — the registrant must take one of the three mandatory roles (spec §2).
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
