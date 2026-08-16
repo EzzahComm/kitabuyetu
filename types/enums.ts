@@ -27,7 +27,12 @@ export type JournalStatus      = 'draft' | 'posted' | 'void';
 export type NotificationType   = 'sms' | 'in_app' | 'email';
 export type SmsStatus          = 'queued' | 'sent' | 'delivered' | 'failed' | 'rejected';
 export type Gender             = 'male' | 'female' | 'other' | 'prefer_not_to_say';
-export type GroupType          = 'chama' | 'sacco' | 'welfare' | 'investment' | 'organization_group';
+// Must match the group_type Postgres enum EXACTLY (supabase/migrations/
+// 20260101000000_001_init_enums.sql). This used to say 'organization_group',
+// which the enum has never contained — the real value is 'ngo_group' — so
+// registering or retyping a group as "Organization" threw a raw Postgres
+// 22P02 (invalid enum input) that surfaced to the user as a 500.
+export type GroupType          = 'chama' | 'sacco' | 'welfare' | 'investment' | 'ngo_group';
 export type OrganizationAccessLevel     = 'read' | 'report';
 
 export const ROLE_HIERARCHY: Record<MemberRole | PlatformRole, number> = {
