@@ -115,6 +115,24 @@ export const SetLoanTermsSchema = z.object({
   interestMethod: z.enum(['flat', 'reducing_balance']),
   maxTermMonths:  z.coerce.number().int().min(1).max(120),
   loanMultiplier: z.coerce.number().positive(),
+  /** The fixed durations offered, e.g. [1, 3, 6, 12]. Omitted means any term
+   *  up to maxTermMonths — the behaviour before term options existed.
+   *  Sorted here so the form renders them in order whatever was submitted. */
+  termOptions:    z.array(z.coerce.number().int().min(1))
+                   .min(1, 'List at least one term, or leave term options off entirely')
+                   .max(12, 'That many term options is a product catalogue, not a policy')
+                   .transform((v) => [...new Set(v)].sort((a, b) => a - b))
+                   .optional(),
+}).superRefine((v, ctx) => {
+  // Mirrors validateLoanTerms() so the API returns a clean 400 rather than
+  // letting the service throw after the request has been accepted.
+  const over = (v.termOptions ?? []).filter((t) => t > v.maxTermMonths);
+  if (over.length > 0) {
+    ctx.addIssue({
+      code: 'custom', path: ['termOptions'],
+      message: `Term options ${over.join(', ')} exceed the maximum of ${v.maxTermMonths} months`,
+    });
+  }
 });
 
 // FinePolicy 'schedule' — advisory offence tariff (migration 088).

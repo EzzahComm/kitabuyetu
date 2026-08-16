@@ -97,12 +97,30 @@ export interface LoanTerms {
   interestMethod: InterestMethod;
   maxTermMonths:  number;
   loanMultiplier: number;
+  /**
+   * The specific lengths a loan may run for, e.g. [1, 3, 6, 12]. Groups do not
+   * lend for "any number of months up to the maximum" — they offer a handful of
+   * fixed durations, and `maxTermMonths` alone could not express that.
+   *
+   * Deliberately NOT a product/type entity. Confirmed 2026-08-16: these differ
+   * in length ONLY — same rate, same interest method, same limits — so a
+   * `loan_products` table would carry one meaningful column and buy nothing.
+   * If types ever diverge on rate or eligibility, revisit that decision; the
+   * capital layer's funding_programs -> organization_disbursements snapshot
+   * (migration 117) is the pattern to copy.
+   *
+   * Optional so a policy stored before this existed still resolves. Absent
+   * means "any term up to maxTermMonths", which is the old behaviour exactly.
+   */
+  termOptions?:   number[];
 }
 
 // Kept identical to migration 088's seed (which itself preserved the
-// retired group_constitutions column defaults).
+// retired group_constitutions column defaults), plus termOptions, which has
+// no migration-088 ancestor — [1,3,6,12] under the same 12-month ceiling.
 const DEFAULT_LOAN_TERMS: LoanTerms = {
   interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+  termOptions: [1, 3, 6, 12],
 };
 
 export interface EffectiveLoanTerms {
@@ -127,6 +145,26 @@ function validateLoanTerms(terms: LoanTerms): void {
   }
   if (!(Number.isInteger(terms.maxTermMonths) && terms.maxTermMonths >= 1 && terms.maxTermMonths <= 120)) {
     throw new ValidationError('maxTermMonths must be a whole number between 1 and 120');
+  }
+  if (terms.termOptions !== undefined) {
+    if (terms.termOptions.length === 0) {
+      throw new ValidationError('termOptions must list at least one term, or be omitted entirely');
+    }
+    if (terms.termOptions.some((t) => !Number.isInteger(t) || t < 1)) {
+      throw new ValidationError('Every term option must be a whole number of months of at least 1');
+    }
+    // The ceiling has to stay the ceiling. Without this a group could offer an
+    // 18-month option while maxTermMonths says 12, and the two halves of the
+    // same policy would contradict each other.
+    const over = terms.termOptions.filter((t) => t > terms.maxTermMonths);
+    if (over.length > 0) {
+      throw new ValidationError(
+        `Term options ${over.join(', ')} exceed the maximum of ${terms.maxTermMonths} months`,
+      );
+    }
+    if (new Set(terms.termOptions).size !== terms.termOptions.length) {
+      throw new ValidationError('termOptions must not repeat a term');
+    }
   }
   if (!(terms.loanMultiplier > 0)) {
     throw new ValidationError('loanMultiplier must be positive');

@@ -8,6 +8,7 @@ import { withTransaction } from '@/lib/db';
 import { loansService } from '@/lib/services/loans.service';
 import { postTemplatedJournal } from '@/lib/services/posting-templates.service';
 import { ValidationError, NotFoundError, ForbiddenError } from '@/lib/utils/errors';
+import { getEffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -69,6 +70,40 @@ describe('loansService.apply', () => {
 
     // Must stop at the active-loan check, not proceed to INSERT
     expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a term the group does not offer', async () => {
+    // termOptions is the one part of the loan policy that IS enforced. The
+    // form renders a dropdown, but the API is reachable without it, so the
+    // check has to live in the service.
+    (getEffectiveLoanTerms as jest.Mock).mockResolvedValueOnce({
+      interestRate: 10, interestMethod: 'flat', maxTermMonths: 12,
+      loanMultiplier: 3, termOptions: [1, 3, 6, 12],
+    });
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    // Must stop before the INSERT
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows any term when the group declares no fixed durations', async () => {
+    // Policies written before term options existed have no list, and must keep
+    // behaving exactly as they did.
+    (getEffectiveLoanTerms as jest.Mock).mockResolvedValueOnce({
+      interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+    });
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-9', status: 'pending' }] });
+
+    await expect(
+      loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 }),
+    ).resolves.toMatchObject({ status: 'pending' });
   });
 
   it('creates a pending loan application when no active loan exists', async () => {

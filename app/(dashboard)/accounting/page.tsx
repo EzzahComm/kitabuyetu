@@ -753,8 +753,13 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
 
 /**
  * Group loan terms (LoanPolicy 'terms', migrated from the retired
- * group_constitutions table). Advisory: these pre-fill the loan-application
- * form; officers can still set a different rate/term on any individual loan.
+ * group_constitutions table). Mostly advisory: the rate pre-fills the
+ * loan-application form and officers can still set a different one.
+ *
+ * `termOptions` is the exception and IS enforced server-side. A rate is a
+ * number an officer may have good reason to vary on the day; the lengths a
+ * group lends for are a declaration about the product itself, so an
+ * application outside them is rejected rather than quietly accepted.
  */
 function LoanTermsCard() {
   const { toast } = useToast();
@@ -770,6 +775,7 @@ function LoanTermsCard() {
     interestMethod: terms.interestMethod,
     maxTermMonths:  String(terms.maxTermMonths),
     loanMultiplier: String(terms.loanMultiplier),
+    termOptions:    (terms.termOptions ?? []).join(', '),
   } : null);
 
   return (
@@ -820,6 +826,20 @@ function LoanTermsCard() {
                 <Input type="number" step="0.1" min={0.1} value={form.loanMultiplier}
                   onChange={(e) => setEdits({ ...form, loanMultiplier: e.target.value })}/>
               </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Terms offered (months)</Label>
+                <Input
+                  placeholder="e.g. 1, 3, 6, 12"
+                  value={form.termOptions}
+                  onChange={(e) => setEdits({ ...form, termOptions: e.target.value })}
+                />
+                {/* Unlike the rate, this one is enforced — worth saying so
+                    plainly on the screen that sets it. */}
+                <p className="text-xs text-muted-foreground">
+                  The loan form offers exactly these lengths and applications are
+                  held to them. Leave blank to allow any term up to the maximum.
+                </p>
+              </div>
             </div>
             <div className="flex justify-end">
               <Button
@@ -833,6 +853,12 @@ function LoanTermsCard() {
                       interestMethod: form.interestMethod as 'flat' | 'reducing_balance',
                       maxTermMonths:  parseInt(form.maxTermMonths, 10),
                       loanMultiplier: parseFloat(form.loanMultiplier),
+                      // Free text so a treasurer can type "1, 3, 6, 12".
+                      // Blank sends undefined, which clears the restriction
+                      // rather than saving an empty list the schema rejects.
+                      termOptions:    form.termOptions.trim()
+                        ? form.termOptions.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n))
+                        : undefined,
                     });
                     setEdits(null);
                     toast({ title: 'Loan terms updated' });

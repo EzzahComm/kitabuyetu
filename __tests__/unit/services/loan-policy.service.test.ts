@@ -91,3 +91,64 @@ describe('loanPolicyService.setPlatformDefault', () => {
     expect(setPolicy).toHaveBeenCalledWith(mockClient, 'loan', 'tier_thresholds', {}, VALID_LADDER, 'admin-1');
   });
 });
+
+/**
+ * Term options (2026-08-16). Groups do not lend for "any length up to the
+ * maximum" — they offer a handful of fixed durations (1, 3, 6, 12 months),
+ * which maxTermMonths alone could not express.
+ *
+ * Unlike the rate, which stays advisory by long-standing product decision,
+ * these are ENFORCED on loan application. That makes their validation load
+ * bearing: a policy that lets an option exceed its own ceiling would have the
+ * two halves contradicting each other.
+ */
+describe('loanPolicyService.setGroupTermsOverride — term options', () => {
+  const VALID_TERMS = {
+    interestRate: 10, interestMethod: 'flat' as const,
+    maxTermMonths: 12, loanMultiplier: 3, termOptions: [1, 3, 6, 12],
+  };
+
+  it('accepts fixed durations within the ceiling', async () => {
+    await loanPolicyService.setGroupTermsOverride(ctx as never, VALID_TERMS);
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient, 'loan', 'terms', { groupId: 'g1' }, VALID_TERMS, 'user-1',
+    );
+  });
+
+  it('rejects an option longer than maxTermMonths', async () => {
+    // The contradiction that matters: offering 18 months under a 12-month cap.
+    await expect(loanPolicyService.setGroupTermsOverride(
+      ctx as never, { ...VALID_TERMS, termOptions: [1, 3, 18] },
+    )).rejects.toBeInstanceOf(ValidationError);
+    expect(setPolicy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a repeated term', async () => {
+    await expect(loanPolicyService.setGroupTermsOverride(
+      ctx as never, { ...VALID_TERMS, termOptions: [3, 3, 6] },
+    )).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a zero or fractional term', async () => {
+    await expect(loanPolicyService.setGroupTermsOverride(
+      ctx as never, { ...VALID_TERMS, termOptions: [0, 6] },
+    )).rejects.toBeInstanceOf(ValidationError);
+    await expect(loanPolicyService.setGroupTermsOverride(
+      ctx as never, { ...VALID_TERMS, termOptions: [1.5, 6] },
+    )).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects an empty list, which would offer nothing at all', async () => {
+    await expect(loanPolicyService.setGroupTermsOverride(
+      ctx as never, { ...VALID_TERMS, termOptions: [] },
+    )).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('accepts terms with no options at all — any term up to the maximum', async () => {
+    // Backwards compatibility: every policy stored before term options existed
+    // has no termOptions key, and must keep resolving.
+    const { termOptions: _omitted, ...withoutOptions } = VALID_TERMS;
+    await loanPolicyService.setGroupTermsOverride(ctx as never, withoutOptions);
+    expect(setPolicy).toHaveBeenCalled();
+  });
+});
