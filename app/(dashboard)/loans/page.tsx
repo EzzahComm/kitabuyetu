@@ -57,6 +57,9 @@ export default function LoansPage() {
   // organization -> platform cascade) — officers can still type a different
   // rate/term on any individual loan.
   const policyTerms = loanPolicy?.terms;
+  // Empty when the group has not declared fixed durations, which keeps the
+  // free-text term box for policies written before term options existed.
+  const termOptions = policyTerms?.termOptions ?? [];
 
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
@@ -72,7 +75,12 @@ export default function LoansPage() {
   const openApply = () => {
     reset({
       interestRate: policyTerms?.interestRate ?? 10,
-      loanTermMonths:   policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
+      // Prefer the longest offered term, which is what the old
+      // min(maxTermMonths, 12) effectively picked; fall back to the ceiling
+      // when no fixed durations are declared.
+      loanTermMonths:   termOptions.length > 0
+                          ? termOptions[termOptions.length - 1]
+                          : policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
       repaymentFrequency: 'monthly',
     } as Partial<ApplyValues> as ApplyValues);
     setOpen(true);
@@ -166,9 +174,28 @@ export default function LoansPage() {
               </div>
               <div className="space-y-1">
                 <Label>Term (months)</Label>
-                <Input type="number" {...register('loanTermMonths')} />
+                {/* A dropdown when the group has declared the lengths it
+                    offers, a free number box otherwise. The server enforces
+                    the same list, so this is convenience rather than the
+                    control itself. */}
+                {termOptions.length > 0 ? (
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    {...register('loanTermMonths')}
+                  >
+                    {termOptions.map((t) => (
+                      <option key={t} value={t}>{t === 1 ? '1 month' : `${t} months`}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input type="number" {...register('loanTermMonths')} />
+                )}
                 {policyTerms && (
-                  <p className="text-xs text-muted-foreground">Policy max {policyTerms.maxTermMonths} months</p>
+                  <p className="text-xs text-muted-foreground">
+                    {termOptions.length > 0
+                      ? `This group lends for ${termOptions.join(', ')} months`
+                      : `Policy max ${policyTerms.maxTermMonths} months`}
+                  </p>
                 )}
               </div>
             </div>

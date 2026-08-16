@@ -132,6 +132,23 @@ export const loansService = {
         groupId:        ctx.groupId,
       });
 
+      // Term options ARE enforced, unlike the rate, which stays advisory per
+      // the long-standing product decision recorded in loan-policy.service.ts.
+      // The difference is deliberate: a rate is a number an officer may have a
+      // good reason to vary, whereas the group has declared it offers loans of
+      // exactly these lengths. A dropdown alone would not hold — the API is
+      // reachable without the form.
+      //
+      // Applies ONLY to new applications. import.service.ts intentionally does
+      // NOT check this: a historical loan book legitimately contains terms the
+      // group no longer offers, and rejecting them would make it impossible to
+      // record what actually happened.
+      if (policyTerms.termOptions?.length && !policyTerms.termOptions.includes(data.loanTermMonths)) {
+        throw new ValidationError(
+          `This group lends for ${policyTerms.termOptions.join(', ')} months — ${data.loanTermMonths} is not offered`,
+        );
+      }
+
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
            (group_id, member_id, group_membership_id, principal_amount, interest_rate,
