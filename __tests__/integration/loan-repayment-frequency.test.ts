@@ -152,14 +152,22 @@ describe('loan repayment frequency', () => {
       expect(new Date(loan.installments[0].due_date).toISOString().slice(0, 10)).toBe('2026-02-07');
     });
 
-    it('does not skip February when stepping monthly from the 31st', async () => {
-      // Postgres clamps 31 Jan + 1 month to 28 Feb. Worth pinning: the old
-      // schedule had the same behaviour and members are used to it.
+    it('sticks to the 28th once a month-end date clamps through February', async () => {
+      // A real quirk, PRE-DATING migration 149 and deliberately left alone.
+      // Due dates are accumulated from the PREVIOUS due date, not from the
+      // disbursement anchor: v_due_date := v_due_date + v_interval. Postgres
+      // clamps 31 Jan + 1 month to 28 Feb, and every later step then adds a
+      // month to the 28th — so the schedule never recovers to month-end.
+      //
+      // A loan disbursed on the 31st therefore collects on the 28th for the
+      // rest of its life. For a chama that meets on the last day of the month
+      // that is a permanent 2-3 day drift. Changing it would move the due
+      // dates of every existing loan, so it is pinned here rather than fixed.
       const loan = await makeLoan({
         principal: 60_000, rate: 5, termMonths: 3, method: 'flat', freq: 'monthly',
       });
       const dates = loan.installments.map((r) => new Date(r.due_date).toISOString().slice(0, 10));
-      expect(dates).toEqual(['2026-02-28', '2026-03-31', '2026-04-30']);
+      expect(dates).toEqual(['2026-02-28', '2026-03-28', '2026-04-28']);
     });
   });
 
