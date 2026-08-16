@@ -965,17 +965,23 @@ export const smsService = {
    * exponentially up to max_retries before giving up.
    */
   async retryFailures(limit = 100): Promise<{ retried: number; resolved: number; failed: number }> {
+    // payer_type / payer_organization_id come from the ORIGINAL log row: a
+    // retry must bill whoever the first attempt was going to bill, never the
+    // group by default.
     const failures = await withAdminDb((db) =>
       db.query<{
         id: string; group_id: string; sms_log_id: string | null;
         phone: string; message: string; retry_count: number;
+        payer_type: string | null; payer_organization_id: string | null;
       }>(
-        `SELECT id, group_id, sms_log_id, phone, message, retry_count
-         FROM sms_failures
-         WHERE NOT resolved
-           AND retry_count < max_retries
-           AND (next_retry_at IS NULL OR next_retry_at <= NOW())
-         ORDER BY next_retry_at ASC NULLS FIRST
+        `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count,
+                l.payer_type, l.payer_organization_id
+         FROM sms_failures f
+         LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
+         WHERE NOT f.resolved
+           AND f.retry_count < f.max_retries
+           AND (f.next_retry_at IS NULL OR f.next_retry_at <= NOW())
+         ORDER BY f.next_retry_at ASC NULLS FIRST
          LIMIT $1`,
         [limit],
       ).then((r) => r.rows),
@@ -1005,6 +1011,48 @@ export const smsService = {
         continue;
       }
 
+      // ── Re-reserve BEFORE dispatch ──────────────────────────────────────
+      // The first attempt reserved credits and RELEASED them when it failed
+      // (billing_state='released'). Nothing re-reserved on retry, so a message
+      // that failed once and succeeded on retry was delivered with
+      // credits_deducted = 0 — free, for every tenant, silently. Confirmed on
+      // real production sends 2026-08-16.
+      //
+      // The reservation has to happen BEFORE sendSingleSms, not after: once
+      // the provider has accepted the message we can no longer decline to
+      // send it, so discovering an empty balance at that point would leave us
+      // having delivered something unbilled all over again. This mirrors the
+      // order in send() — reserve, dispatch, then consume or release.
+      const target = {
+        payerType:      (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
+        groupId:        f.group_id,
+        organizationId: f.payer_organization_id,
+      };
+      const reservation = await withAdminDb((db) =>
+        reserveCredits(db, target, CREDITS_PER_MESSAGE),
+      );
+      if (!reservation.ok) {
+        // Out of credits is not a transient provider fault — retrying on a
+        // timer will not conjure a balance. Record it and stop; a top-up puts
+        // the row back in play because retry_count is untouched.
+        await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} — ${reservation.detail}`);
+        failed++;
+        continue;
+      }
+
+      if (f.sms_log_id) {
+        const fromAllowance = reservation.fromAllowanceCount > 0 ? CREDITS_PER_MESSAGE : 0;
+        await withAdminDb((db) =>
+          db.query(
+            `UPDATE sms_usage_logs
+             SET credits_reserved=$2, credits_from_allowance=$3,
+                 billing_state='reserved', reserved_at=NOW()
+             WHERE id=$1`,
+            [f.sms_log_id, CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4)],
+          ),
+        );
+      }
+
       try {
         const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender });
         if (res.success) {
@@ -1026,12 +1074,18 @@ export const smsService = {
               [f.id],
             );
           });
+          // Provider accepted ⇒ the earmark becomes a real debit.
+          if (f.sms_log_id) await settleReservation([f.sms_log_id], 'consume');
           resolved++;
         } else {
+          if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
           await bumpRetry(f.id, f.retry_count, res.responseDescription);
           failed++;
         }
       } catch (err) {
+        // Release on the throw path too, or a provider timeout strands the
+        // earmark until the stale-reservation sweeper reclaims it.
+        if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
         await bumpRetry(f.id, f.retry_count, err instanceof Error ? err.message : String(err));
         failed++;
       }
