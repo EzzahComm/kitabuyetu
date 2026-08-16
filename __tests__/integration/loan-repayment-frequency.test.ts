@@ -24,7 +24,7 @@ import { rawQuery } from './helpers/db';
 type Freq = 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
 
 describe('loan repayment frequency', () => {
-  let groupId: string, officerId: string, membershipId: string;
+  let groupId: string, officerId: string, membershipId: string, internalSourceId: string;
 
   beforeAll(async () => {
     await resetDatabase();
@@ -35,6 +35,16 @@ describe('loan repayment frequency', () => {
       [groupId, officerId],
     );
     membershipId = memberships[0].id;
+
+    // Every group is auto-provisioned an 'internal_savings' funding source.
+    // A disbursed loan MUST be fully attributed to one (deferred constraint
+    // trigger, migration 118) — see makeLoan().
+    const sources = await rawQuery<{ id: string }>(
+      `SELECT id FROM group_funding_sources
+       WHERE group_id = $1 AND source_type = 'internal_savings'`,
+      [groupId],
+    );
+    internalSourceId = sources[0].id;
   });
 
   /** Creates a disbursed loan and generates its schedule. Returns the loan row
@@ -43,15 +53,29 @@ describe('loan repayment frequency', () => {
     principal: number; rate: number; termMonths: number;
     method: 'flat' | 'reducing_balance'; freq: Freq;
   }) {
+    // The loan and its funding split MUST be written in one statement. A
+    // disbursed loan has to be fully attributed to a funding source (deferred
+    // constraint trigger, migration 118), and that check runs at COMMIT —
+    // rawQuery gives each call its own connection, so inserting the loan
+    // first and the split second would fail at the end of the first call,
+    // before the split existed. A data-modifying CTE keeps both in one
+    // transaction. These tests write loans directly rather than going through
+    // loansService, which is what would normally create the split.
     const [loan] = await rawQuery<{ id: string }>(
-      `INSERT INTO loans
-         (group_id, member_id, group_membership_id, principal_amount, interest_rate,
-          loan_term_months, repayment_frequency, interest_method, status, disbursement_date)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'disbursed', DATE '2026-01-31')
-       RETURNING id`,
+      `WITH new_loan AS (
+         INSERT INTO loans
+           (group_id, member_id, group_membership_id, principal_amount, interest_rate,
+            loan_term_months, repayment_frequency, interest_method, status, disbursement_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'disbursed', DATE '2026-01-31')
+         RETURNING id, group_id
+       )
+       INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+       SELECT group_id, id, $9, $4 FROM new_loan
+       RETURNING loan_id AS id`,
       [groupId, officerId, membershipId, opts.principal.toFixed(2), opts.rate.toFixed(2),
-       opts.termMonths, opts.freq, opts.method],
+       opts.termMonths, opts.freq, opts.method, internalSourceId],
     );
+
     await rawQuery(`SELECT generate_loan_schedule($1)`, [loan.id]);
 
     const [totals] = await rawQuery<{ total_repayable: string }>(
