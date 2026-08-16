@@ -36,8 +36,7 @@ export default function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' }}
           >
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-4 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-brand-300">
-              <span className="text-sm">🇰🇪</span>
-              Powered by Safaricom Daraja
+              Simple Books. Stronger Groups.
             </div>
 
             <h1 className="font-display text-5xl font-light leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
