@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import Navbar from '@/components/landing/navbar';
+import Footer from '@/components/landing/footer';
 import { Check } from 'lucide-react';
 import {
   PLAN_MONTHLY_FEES, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL,
@@ -90,26 +92,17 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span className="font-bold">Kitabu Yetu</span>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/login" className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 hover:bg-accent hover:text-accent-foreground transition-colors">
-            Sign in
-          </Link>
-          <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-            Get started
-          </Link>
-        </div>
-      </nav>
+      {/* The shared Navbar, not a bespoke one.
+          This page carried its own inline nav — a logo plus Sign in / Get
+          started and nothing else — so it was the one destination in the menu
+          you could not navigate OUT of: no Bookkeeper, no Chama Reminder, no
+          Fundraise, no Ecosystem. It also had no footer. Every public page now
+          renders the same five-item menu from one definition. */}
+      <Navbar />
 
-      <main className="max-w-6xl mx-auto px-6 py-16">
+      {/* Navbar is fixed, so the content needs to clear it — same offset
+          MarketingPageShell uses. */}
+      <main className="max-w-6xl mx-auto px-6 pb-16 pt-32 md:pt-40">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Simple, transparent pricing</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -169,6 +162,7 @@ export default function PricingPage() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
