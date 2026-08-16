@@ -29,11 +29,12 @@ describe('loan repayment frequency', () => {
   beforeAll(async () => {
     await resetDatabase();
     ({ groupId, officerId } = await createTestGroup('chairperson'));
-    const { rows } = await rawQuery<{ id: string }>(
+    // rawQuery returns the rows array itself, not a pg QueryResult.
+    const memberships = await rawQuery<{ id: string }>(
       `SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2`,
       [groupId, officerId],
     );
-    membershipId = rows[0].id;
+    membershipId = memberships[0].id;
   });
 
   /** Creates a disbursed loan and generates its schedule. Returns the loan row
@@ -42,7 +43,7 @@ describe('loan repayment frequency', () => {
     principal: number; rate: number; termMonths: number;
     method: 'flat' | 'reducing_balance'; freq: Freq;
   }) {
-    const { rows: [loan] } = await rawQuery<{ id: string }>(
+    const [loan] = await rawQuery<{ id: string }>(
       `INSERT INTO loans
          (group_id, member_id, group_membership_id, principal_amount, interest_rate,
           loan_term_months, repayment_frequency, interest_method, status, disbursement_date)
@@ -53,10 +54,10 @@ describe('loan repayment frequency', () => {
     );
     await rawQuery(`SELECT generate_loan_schedule($1)`, [loan.id]);
 
-    const { rows: [totals] } = await rawQuery<{ total_repayable: string }>(
+    const [totals] = await rawQuery<{ total_repayable: string }>(
       `SELECT total_repayable FROM loans WHERE id = $1`, [loan.id],
     );
-    const { rows: installments } = await rawQuery<{
+    const installments = await rawQuery<{
       installment_number: number; due_date: Date; total_due: string; closing_balance: string;
     }>(
       `SELECT installment_number, due_date, total_due, closing_balance
@@ -79,7 +80,7 @@ describe('loan repayment frequency', () => {
     });
 
     it('defaults to monthly when the column is left alone', async () => {
-      const { rows: [loan] } = await rawQuery<{ repayment_frequency: string }>(
+      const [loan] = await rawQuery<{ repayment_frequency: string }>(
         `INSERT INTO loans
            (group_id, member_id, group_membership_id, principal_amount, interest_rate,
             loan_term_months, status)
