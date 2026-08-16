@@ -1,3 +1,6 @@
+
+
+
 # Optimization & correctness audit — plan
 
 **Goal:** verify that the platform's functionality is *accurate*, not merely present — and that it stays fast as real groups accumulate data.

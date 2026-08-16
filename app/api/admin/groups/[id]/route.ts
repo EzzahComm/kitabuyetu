@@ -28,7 +28,12 @@ const actionSchema = z.object({
  */
 const profileSchema = z.object({
   name:             z.string().min(3, 'Group name must be at least 3 characters').max(255).optional(),
-  type:             z.enum(['chama', 'sacco', 'welfare', 'investment', 'organization_group']).optional(),
+  // Must match the group_type Postgres enum EXACTLY. It previously listed
+  // 'organization_group', which is not a member of that enum — saving it
+  // would have thrown 22P02 and surfaced as a 500 — while omitting the real
+  // value 'ngo_group', so NGO groups could not be retyped at all. Nothing hit
+  // it because no UI ever called this endpoint.
+  type:             z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']).optional(),
   countyId:         z.string().uuid().nullable().optional(),
   subCounty:        z.string().max(80).nullable().optional(),
   ward:             z.string().max(100).nullable().optional(),
