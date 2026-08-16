@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
+import { getEffectiveLoanTerms } from './loan-policy.service';
 import {
   ContributionCsvRowSchema,
   LoanCsvRowSchema,
@@ -47,10 +48,12 @@ interface PreparedLoanRow {
   row_num:           number;
   member_id:         string;
   principal_amount:  number;
-  interest_rate:     number;        // percent annual
+  interest_rate:     number;        // percent per MONTH (migration 148)
   term_months:       number;
   disbursement_date: string;        // YYYY-MM-DD
   status:            'active' | 'completed' | 'defaulted' | 'written_off';
+  /** undefined = take the group's resolved loan policy at commit time. */
+  interest_method?:  'flat' | 'reducing_balance';
   purpose:           string | null;
   notes:             string | null;
   warnings:          string[];
@@ -947,6 +950,9 @@ export const importService = {
           term_months:       data.term_months,
           disbursement_date: data.disbursement_date,
           status:            data.status,
+          // Stays undefined when the column is absent or blank; commitLoans
+          // then falls back to the group's resolved loan policy.
+          interest_method:   data.interest_method,
           purpose:           data.purpose ?? null,
           notes:             data.notes ?? null,
           warnings:          [],
@@ -1007,6 +1013,17 @@ export const importService = {
       if (job.status !== 'previewed') throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
 
       const rowsToInsert = job.preview_rows as PreparedLoanRow[];
+
+      // Resolved once for the whole file. A row may override it via the
+      // optional interest_method column (a historical book can contain loans
+      // written under older terms), but a blank cell must land on the SAME
+      // method the app would have used, or importing a loan book silently
+      // prices it differently from the loans the group creates in the UI.
+      const policyTerms = await getEffectiveLoanTerms(client, {
+        organizationId: ctx.organizationId ?? null,
+        groupId:        ctx.groupId,
+      });
+
       const createdIds:   string[]          = [];
       const errors:       ImportRowError[]  = [...(job.errors ?? [])];
       let   imported = 0;
@@ -1037,7 +1054,7 @@ export const importService = {
             `WITH new_loan AS (
                INSERT INTO loans
                  (group_id, member_id, group_membership_id, principal_amount, interest_rate,
-                  loan_term_months, disbursement_date, status, purpose,
+                  loan_term_months, disbursement_date, status, interest_method, purpose,
                   approved_by, approved_at,
                   disbursed_by, disbursed_at,
                   outstanding_balance,
@@ -1046,11 +1063,11 @@ export const importService = {
                        (SELECT gm.id FROM group_members gm
                         WHERE gm.group_id = $1 AND gm.member_id = $2),
                        $3, $4,
-                       $5, $6, $7::loan_status, $8,
-                       $9, NOW(),
-                       $9, NOW(),
-                       $10,
-                       $11)
+                       $5, $6, $7::loan_status, $8, $9,
+                       $10, NOW(),
+                       $10, NOW(),
+                       $11,
+                       $12)
                RETURNING id, group_id, principal_amount
              )
              INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
@@ -1062,7 +1079,9 @@ export const importService = {
             [
               ctx.groupId, row.member_id,
               row.principal_amount.toFixed(2), row.interest_rate.toFixed(2),
-              row.term_months, row.disbursement_date, row.status, row.purpose,
+              row.term_months, row.disbursement_date, row.status,
+              row.interest_method ?? policyTerms.interestMethod,
+              row.purpose,
               ctx.userId,
               outstanding.toFixed(2),
               row.notes,

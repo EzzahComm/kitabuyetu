@@ -42,15 +42,26 @@ describe('loan CSV import', () => {
     memberPhone = members[0].phone;
   });
 
-  /** Runs a one-row loan CSV all the way through preview -> commit. */
-  async function importOne(status: string, rate = '10.00', term = 12) {
-    const csv = [
-      'member_phone,principal_amount,interest_rate,term_months,disbursement_date,status',
-      `${memberPhone},130000,${rate},${term},2026-01-16,${status}`,
-    ].join('\n');
+  /** Runs a one-row loan CSV all the way through preview -> commit.
+   *  `method` blank omits the column entirely, which is the case that must
+   *  fall back to the group's loan policy. */
+  async function importOne(status: string, method = '', rate = '10.00', term = 12) {
+    const header = 'member_phone,principal_amount,interest_rate,term_months,disbursement_date,status'
+      + (method ? ',interest_method' : '');
+    const row = `${memberPhone},130000,${rate},${term},2026-01-16,${status}`
+      + (method ? `,${method}` : '');
 
-    const job = await importService.previewLoans(ctx, Buffer.from(csv), 'loans.csv');
+    const job = await importService.previewLoans(ctx, Buffer.from([header, row].join('\n')), 'loans.csv');
     return importService.commitLoans(ctx, job.id);
+  }
+
+  /** interest_method of the most recently imported loan. */
+  async function latestMethod(): Promise<string> {
+    const rows = await rawQuery<{ interest_method: string }>(
+      `SELECT interest_method FROM loans WHERE group_id = $1
+        ORDER BY created_at DESC LIMIT 1`, [groupId],
+    );
+    return rows[0].interest_method;
   }
 
   it('commits an active loan instead of aborting at COMMIT', async () => {
@@ -93,6 +104,29 @@ describe('loan CSV import', () => {
     // dividing the monthly rate by 12. Anything near that means it is back.
     expect(total).not.toBeCloseTo(143_000, 0);
     expect(total).toBeGreaterThan(130_000);
+  });
+
+  describe('interest method follows the group loan policy', () => {
+    it('takes the policy method when the column is absent, not the column default', async () => {
+      // The whole point. loans.interest_method DEFAULTS to 'reducing_balance'
+      // in the schema, while the resolved loan policy defaults to 'flat'. An
+      // import that relied on the column default priced a loan book
+      // differently from the loans the same group creates in the app — and
+      // the app had the identical bug until getEffectiveLoanTerms was finally
+      // wired into loansService.apply().
+      await importOne('active');
+      expect(await latestMethod()).toBe('flat');
+    });
+
+    it('lets a row override the policy, for historical loans on older terms', async () => {
+      await importOne('active', 'reducing_balance');
+      expect(await latestMethod()).toBe('reducing_balance');
+    });
+
+    it('accepts the spellings a treasurer would actually type', async () => {
+      await importOne('active', 'Reducing');
+      expect(await latestMethod()).toBe('reducing_balance');
+    });
   });
 
   it('leaves a completed loan owing nothing', async () => {
