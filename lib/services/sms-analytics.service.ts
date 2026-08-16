@@ -21,7 +21,21 @@ export interface FeatureUsage {
 }
 
 export interface SmsUsageAnalytics {
+  /**
+   * Everything the group can actually send with: purchased credits PLUS the
+   * unused part of the subscription's bundled allowance.
+   *
+   * This used to read `billing_accounts.sms_credits` alone, which counts only
+   * PURCHASED credits. A group on a starter plan that had bought nothing saw a
+   * balance of 0 and an "urgent, very low balance" badge while holding 47
+   * unused bundled sends — the panel said the product was out of credit when
+   * it was not. `smsService.getBalance()` had the allowance all along; this
+   * one number simply never asked for it.
+   */
   balance:            number;
+  /** The two halves of `balance`, so the panel can show where it comes from. */
+  purchasedBalance:   number;
+  allowanceRemaining: number;
   creditsPurchased:   number;
   creditsConsumed:    number;
   usageThisMonth:     number;
@@ -49,8 +63,18 @@ const PROJECTION_WINDOW_DAYS = 30;
 export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalytics> {
   return withAdminDb(async (db) => {
     const [balance, purchased, consumption, byFeature, byCampaign, rate] = await Promise.all([
-      db.query<{ sms_credits: string }>(
-        `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+      // SUM the allowance across ACTIVE subscriptions only, mirroring
+      // smsService.getBalance() and reserve_sms_credits — a group holding both
+      // products has two, and taking a single row would under-report it.
+      db.query<{ sms_credits: string; allowance_included: string; allowance_used: string }>(
+        `SELECT ba.sms_credits,
+                COALESCE(SUM(s.sms_allowance_included), 0)::int AS allowance_included,
+                COALESCE(MAX(ba.sms_allowance_used), 0)::int    AS allowance_used
+         FROM billing_accounts ba
+         LEFT JOIN subscriptions s ON s.group_id = ba.group_id AND s.status = 'active'
+         WHERE ba.group_id = $1
+         GROUP BY ba.sms_credits`,
+        [groupId],
       ),
       db.query<{ purchased: string }>(
         `SELECT COALESCE(SUM(credits_added), 0) AS purchased
@@ -105,7 +129,14 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
       ),
     ]);
 
-    const bal            = Number(balance.rows[0]?.sms_credits ?? 0);
+    const purchasedBal   = Number(balance.rows[0]?.sms_credits ?? 0);
+    const allowanceLeft  = Math.max(
+      Number(balance.rows[0]?.allowance_included ?? 0) - Number(balance.rows[0]?.allowance_used ?? 0),
+      0,
+    );
+    // What the group can send TODAY. Allowance is spent before purchased
+    // credits, but for "can I send?" only the sum matters.
+    const bal            = purchasedBal + allowanceLeft;
     const windowCredits  = Number(consumption.rows[0].window_credits);
     const thisMonth      = Number(consumption.rows[0].this_month);
     const groupRate      = Number(rate.rows[0]?.sms_rate ?? 0.9);
@@ -124,7 +155,9 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
     }));
 
     return {
-      balance:          bal,
+      balance:            bal,
+      purchasedBalance:   purchasedBal,
+      allowanceRemaining: allowanceLeft,
       creditsPurchased: Number(purchased.rows[0].purchased),
       creditsConsumed:  Number(consumption.rows[0].consumed),
       usageThisMonth:   thisMonth,

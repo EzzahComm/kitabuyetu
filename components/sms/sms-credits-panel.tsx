@@ -73,8 +73,16 @@ export function SmsCreditsPanel() {
                 {balance?.toLocaleString() ?? '—'}
               </p>
             )}
+            {/* The breakdown matters: a group on a plan it has not topped up
+                sees its whole balance come from the bundled allowance, and
+                without this the big number looks unexplained. */}
             <p className="mt-1 text-sm text-muted-foreground">
               1 credit sends 1 SMS
+              {data && data.allowanceRemaining > 0 && (
+                <> · {data.allowanceRemaining.toLocaleString()} included in your plan
+                  {data.purchasedBalance > 0 && <> + {Math.floor(data.purchasedBalance).toLocaleString()} purchased</>}
+                </>
+              )}
             </p>
           </div>
           {urgent ? <Badge variant="destructive">Very low balance</Badge>
