@@ -922,13 +922,15 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
 }
 
 /**
- * Zero the bundled monthly SMS allowance for every group with an active
- * subscription. Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) —
- * driven by the sms_allowance_monthly_reset job, 1st of month, 01:00 UTC.
+ * Zero the bundled SMS allowance for groups whose billing anniversary has
+ * arrived. Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md), moved
+ * off the 1st-of-month sweep onto per-group anniversaries by migration 151 —
+ * hence DAILY, not monthly. The handler name is kept so the job_queue type
+ * and its dedup history stay continuous.
  */
 async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
-  const { resetMonthlySmsAllowance } = await import('@/lib/services/messaging-billing');
-  const result = await resetMonthlySmsAllowance();
+  const { resetDueSmsAllowances } = await import('@/lib/services/messaging-billing');
+  const result = await resetDueSmsAllowances();
   return { message: `SMS allowance reset for ${result.groupsReset} group(s)`, ...result };
 }
 
