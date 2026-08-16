@@ -119,14 +119,17 @@ export const loansService = {
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
            (group_id, member_id, group_membership_id, principal_amount, interest_rate,
-            loan_term_months, purpose, guarantor_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            loan_term_months, repayment_frequency, purpose, guarantor_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          RETURNING *`,
         [
           ctx.groupId, borrowerId, membershipId,
           data.principalAmount.toFixed(2),
           data.interestRate.toFixed(2),
           data.loanTermMonths,
+          // Defaulted here rather than relying on the column default so the
+          // value the caller gets back always states the cadence explicitly.
+          data.repaymentFrequency ?? 'monthly',
           data.purpose ?? null,
           data.guarantorId ?? null,
         ],
