@@ -20,6 +20,16 @@ jest.mock('@/lib/services/posting-templates.service', () => ({
   postLoanRepaymentJournal:    jest.fn(),
 }));
 
+// apply() resolves the group's loan policy to stamp interest_method. Mocked
+// rather than driven through mockQuery because the policy cascade
+// (group -> organization -> platform) is several queries deep and belongs to
+// loan-policy.service's own tests, not these lifecycle guards.
+jest.mock('@/lib/services/loan-policy.service', () => ({
+  getEffectiveLoanTerms: jest.fn().mockResolvedValue({
+    interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+  }),
+}));
+
 const mockQuery  = jest.fn();
 const mockClient = { query: mockQuery };
 

@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
+import { getEffectiveLoanTerms } from './loan-policy.service';
 import {
   ContributionCsvRowSchema,
   LoanCsvRowSchema,
@@ -47,10 +48,12 @@ interface PreparedLoanRow {
   row_num:           number;
   member_id:         string;
   principal_amount:  number;
-  interest_rate:     number;        // percent annual
+  interest_rate:     number;        // percent per MONTH (migration 148)
   term_months:       number;
   disbursement_date: string;        // YYYY-MM-DD
   status:            'active' | 'completed' | 'defaulted' | 'written_off';
+  /** undefined = take the group's resolved loan policy at commit time. */
+  interest_method?:  'flat' | 'reducing_balance';
   purpose:           string | null;
   notes:             string | null;
   warnings:          string[];
@@ -947,6 +950,9 @@ export const importService = {
           term_months:       data.term_months,
           disbursement_date: data.disbursement_date,
           status:            data.status,
+          // Stays undefined when the column is absent or blank; commitLoans
+          // then falls back to the group's resolved loan policy.
+          interest_method:   data.interest_method,
           purpose:           data.purpose ?? null,
           notes:             data.notes ?? null,
           warnings:          [],
@@ -1007,6 +1013,17 @@ export const importService = {
       if (job.status !== 'previewed') throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
 
       const rowsToInsert = job.preview_rows as PreparedLoanRow[];
+
+      // Resolved once for the whole file. A row may override it via the
+      // optional interest_method column (a historical book can contain loans
+      // written under older terms), but a blank cell must land on the SAME
+      // method the app would have used, or importing a loan book silently
+      // prices it differently from the loans the group creates in the UI.
+      const policyTerms = await getEffectiveLoanTerms(client, {
+        organizationId: ctx.organizationId ?? null,
+        groupId:        ctx.groupId,
+      });
+
       const createdIds:   string[]          = [];
       const errors:       ImportRowError[]  = [...(job.errors ?? [])];
       let   imported = 0;
@@ -1022,35 +1039,85 @@ export const importService = {
             row.status === 'completed' ? 0
           : row.principal_amount;
 
-          const totalRepayable = computeTotalRepayable(row.principal_amount, row.interest_rate, row.term_months);
-
+          // The loan and its funding split MUST be one statement.
+          // trg_assert_loan_attribution_on_status is DEFERRABLE INITIALLY
+          // DEFERRED and covers every status this importer can write
+          // ('active' — its default — plus completed/defaulted/written_off),
+          // so it fires at COMMIT, long after the per-row catch below has gone
+          // out of scope. Before this, EVERY loan import aborted the whole
+          // transaction with an opaque check_violation and none of the
+          // row-level diagnostics this importer exists to produce.
+          //
+          // Historical imported loans were funded from the group's own money,
+          // so they attribute to the auto-provisioned internal_savings source.
           const { rows: ins } = await client.query<{ id: string }>(
-            `INSERT INTO loans
-               (group_id, member_id, group_membership_id, principal_amount, interest_rate,
-                loan_term_months, disbursement_date, status, purpose,
-                approved_by, approved_at,
-                disbursed_by, disbursed_at,
-                total_repayable, outstanding_balance,
-                notes)
-             VALUES ($1, $2,
-                     (SELECT gm.id FROM group_members gm
-                      WHERE gm.group_id = $1 AND gm.member_id = $2),
-                     $3, $4,
-                     $5, $6, $7::loan_status, $8,
-                     $9, NOW(),
-                     $9, NOW(),
-                     $10, $11,
-                     $12)
-             RETURNING id`,
+            `WITH new_loan AS (
+               INSERT INTO loans
+                 (group_id, member_id, group_membership_id, principal_amount, interest_rate,
+                  loan_term_months, disbursement_date, status, interest_method, purpose,
+                  approved_by, approved_at,
+                  disbursed_by, disbursed_at,
+                  outstanding_balance,
+                  notes)
+               VALUES ($1, $2,
+                       (SELECT gm.id FROM group_members gm
+                        WHERE gm.group_id = $1 AND gm.member_id = $2),
+                       $3, $4,
+                       $5, $6, $7::loan_status, $8, $9,
+                       $10, NOW(),
+                       $10, NOW(),
+                       $11,
+                       $12)
+               RETURNING id, group_id, principal_amount
+             )
+             INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+             SELECT nl.group_id, nl.id, s.id, nl.principal_amount
+             FROM   new_loan nl
+             JOIN   group_funding_sources s
+               ON   s.group_id = nl.group_id AND s.source_type = 'internal_savings'
+             RETURNING loan_id AS id`,
             [
               ctx.groupId, row.member_id,
               row.principal_amount.toFixed(2), row.interest_rate.toFixed(2),
-              row.term_months, row.disbursement_date, row.status, row.purpose,
+              row.term_months, row.disbursement_date, row.status,
+              row.interest_method ?? policyTerms.interestMethod,
+              row.purpose,
               ctx.userId,
-              totalRepayable.toFixed(2), outstanding.toFixed(2),
+              outstanding.toFixed(2),
               row.notes,
             ],
           );
+
+          if (!ins[0]) {
+            // The JOIN above found no internal_savings source, so no row was
+            // written. Fail this row loudly rather than let the deferred
+            // constraint blow up the entire import at COMMIT.
+            throw new Error(
+              'No internal savings funding source exists for this group — cannot attribute the loan',
+            );
+          }
+
+          // total_repayable, outstanding_balance and next_payment_date are set
+          // BY generate_loan_schedule. The importer used to compute
+          // total_repayable itself with a TypeScript copy of the interest
+          // formula that still divided the rate by 12 — after migration 148
+          // established interest_rate as MONTHLY, that copy understated
+          // interest 12x (13,000 vs 156,000 on a 130,000 @ 10% x 12 loan).
+          // One formula, in SQL, is the only way that stays true.
+          //
+          // This also replaces the schedule that never got generated:
+          // trg_loans_generate_schedule is AFTER UPDATE and needs a transition
+          // INTO 'disbursed', so a plain INSERT at 'active' never fired it and
+          // imported borrowers had no instalments and no reminders at all.
+          await client.query(`SELECT generate_loan_schedule($1)`, [ins[0].id]);
+
+          // Completed loans owe nothing; the generator always writes principal.
+          if (row.status === 'completed') {
+            await client.query(
+              `UPDATE loans SET outstanding_balance = 0, next_payment_date = NULL WHERE id = $1`,
+              [ins[0].id],
+            );
+          }
           createdIds.push(ins[0].id);
           imported++;
         } catch (err) {
@@ -1192,11 +1259,11 @@ function buildHeaderMapFor(
  * flow; for historical imports a close-enough figure is good enough since
  * the operator already has the actual numbers in their ledger.
  */
-function computeTotalRepayable(principal: number, annualRatePct: number, termMonths: number): number {
-  const monthlyRate = annualRatePct / 100 / 12;
-  const totalInterest = principal * monthlyRate * termMonths;
-  return Math.round((principal + totalInterest) * 100) / 100;
-}
+// computeTotalRepayable() was deleted here. It was a TypeScript re-implementation
+// of the interest formula that divided interest_rate by 12, treating it as an
+// annual rate. Migration 148 established that the field is MONTHLY, and the
+// duplicate silently understated interest 12x on every imported loan.
+// generate_loan_schedule now writes total_repayable, so there is one formula.
 
 async function loadCounties(client: PoolClient): Promise<Map<string, string>> {
   const { rows } = await client.query<{ id: string; name: string }>(

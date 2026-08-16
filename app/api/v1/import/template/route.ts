@@ -81,10 +81,16 @@ function buildLoansCsv(today: string): { csv: string; filename: string } {
   const sample: Record<typeof LOAN_CSV_COLUMNS[number], string> = {
     member_phone:      '+254712345678',
     principal_amount:  '50000.00',
-    interest_rate:     '12',
+    // PER MONTH, not annual (migration 148). The sample used to read '12',
+    // which invited a treasurer to enter an annual rate and get a loan
+    // twelve times more expensive than they meant.
+    interest_rate:     '10',
     term_months:       '6',
     disbursement_date: today,
     status:            'active',
+    // Blank is the useful default — the loan then takes the group's own loan
+    // policy. Shown filled in only so the accepted values are discoverable.
+    interest_method:   'flat',
     purpose:           'School fees',
     notes:             'Imported from 2025 ledger',
   };

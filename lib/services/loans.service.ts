@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@
 import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
 import { resolveFundingPlan } from './funding-sources.service';
+import { getEffectiveLoanTerms } from './loan-policy.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -116,11 +117,26 @@ export const loansService = {
         );
       }
 
+      // The group's resolved loan policy decides flat vs reducing balance.
+      // Until now NOTHING read it on the write path: getEffectiveLoanTerms had
+      // zero callers, so `loans.interest_method` always took the column default
+      // of 'reducing_balance' while the policy (platform default: 'flat') was
+      // shown to the officer on the form as "Group default 10% (flat)". The
+      // form told the truth about the policy and the database then ignored it.
+      //
+      // That is why the four live THE FIONA'S loans were written as
+      // reducing_balance and had to be corrected to flat by hand on
+      // 2026-08-16. Reading the policy here is what stops that recurring.
+      const policyTerms = await getEffectiveLoanTerms(client, {
+        organizationId: ctx.organizationId ?? null,
+        groupId:        ctx.groupId,
+      });
+
       const { rows } = await client.query<Loan>(
         `INSERT INTO loans
            (group_id, member_id, group_membership_id, principal_amount, interest_rate,
-            loan_term_months, repayment_frequency, purpose, guarantor_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            loan_term_months, repayment_frequency, interest_method, purpose, guarantor_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
           ctx.groupId, borrowerId, membershipId,
@@ -130,6 +146,7 @@ export const loansService = {
           // Defaulted here rather than relying on the column default so the
           // value the caller gets back always states the cadence explicitly.
           data.repaymentFrequency ?? 'monthly',
+          policyTerms.interestMethod,
           data.purpose ?? null,
           data.guarantorId ?? null,
         ],

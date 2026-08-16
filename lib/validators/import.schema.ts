@@ -160,10 +160,11 @@ export const ContributionCsvRowSchema = z.object({
 export const LOAN_CSV_COLUMNS = [
   'member_phone',         // required
   'principal_amount',     // required, positive
-  'interest_rate',        // required, annual %
+  'interest_rate',        // required, MONTHLY % (migration 148 — not annual)
   'term_months',          // required, int
   'disbursement_date',    // required, YYYY-MM-DD
   'status',               // optional: active|completed|defaulted|written_off (default active)
+  'interest_method',      // optional: flat|reducing_balance (default: the group's loan policy)
   'purpose',              // optional
   'notes',                // optional
 ] as const;
@@ -201,6 +202,11 @@ const LOAN_HEADER_ALIASES: Record<string, LoanCsvColumn> = {
   status:             'status',
   loanstatus:         'status',
   state:              'status',
+  // interest method
+  interestmethod:     'interest_method',
+  method:             'interest_method',
+  interesttype:       'interest_method',
+  loantype:           'interest_method',
   // purpose
   purpose:            'purpose',
   reason:             'purpose',
@@ -224,6 +230,26 @@ export const LoanCsvRowSchema = z.object({
   status:            z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
     z.enum(LOAN_HISTORICAL_STATUSES).default('active'),
+  ),
+  /**
+   * Flat vs reducing balance. Optional: left blank, the loan takes the group's
+   * resolved loan policy, so an import matches what the same loan would have
+   * been had it been created in the app. It is settable because a historical
+   * book can legitimately contain loans written under older terms.
+   *
+   * Blank must stay UNDEFINED rather than defaulting here — the default lives
+   * in the policy, and hardcoding one in the schema would reintroduce exactly
+   * the divergence this column exists to close.
+   */
+  interest_method:   z.preprocess(
+    (v) => {
+      if (typeof v !== 'string' || v.trim() === '') return undefined;
+      // Accept the spellings a treasurer would actually type.
+      const s = v.trim().toLowerCase().replace(/[\s-]+/g, '_');
+      if (s === 'reducing' || s === 'declining' || s === 'declining_balance') return 'reducing_balance';
+      return s;
+    },
+    z.enum(['flat', 'reducing_balance']).optional(),
   ),
   purpose:           blankableString(500),
   notes:             blankableString(1000),
