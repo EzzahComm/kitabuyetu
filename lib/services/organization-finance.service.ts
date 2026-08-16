@@ -141,6 +141,12 @@ export interface OrgDisbursement {
   processing_fee_amount: string;
   /** amount - processing_fee_amount — the real cash the group received. */
   net_disbursed_amount:  string;
+  /** How the money physically moved (migration 150). NULL = not recorded,
+   *  which is the honest state for every disbursement made before that. */
+  payment_method:        string | null;
+  /** Cheque number / bank slip — the only artefact a cash or cheque
+   *  hand-over leaves behind. */
+  payment_reference:     string | null;
 }
 
 const orgId = (ctx: TenantContext): string => {
@@ -1030,8 +1036,9 @@ export const organizationFinanceService = {
             disbursement_type, amount, status, reference, notes, created_by,
             purpose, is_repayable, interest_rate_annual, repayment_frequency,
             tenor_months, first_repayment_date, maturity_date,
-            processing_fee_pct, processing_fee_amount, net_disbursed_amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+            processing_fee_pct, processing_fee_amount, net_disbursed_amount,
+            payment_method, payment_reference)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
          RETURNING *`,
         [
           organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
@@ -1042,6 +1049,9 @@ export const organizationFinanceService = {
           terms.isRepayable, terms.interestRateAnnual, terms.repaymentFrequency,
           terms.tenorMonths, terms.firstRepaymentDate, terms.maturityDate,
           terms.processingFeePct, feeAmount.toFixed(2), netDisbursed.toFixed(2),
+          // NULL when not supplied — "not recorded", never an assumed default.
+          // Guessing a channel would fabricate an audit trail for real money.
+          input.paymentMethod ?? null, input.paymentReference ?? null,
         ],
       );
 

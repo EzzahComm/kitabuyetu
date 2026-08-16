@@ -171,6 +171,10 @@ export const DepositSchema = z.object({
   notes:     z.string().max(500).optional(),
 });
 
+/** How money physically moves. Mirrors the `payment_method` enum, which
+ *  `loans.payment_method` already uses — deliberately not a second vocabulary. */
+export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
+
 export const DisburseSchema = z.object({
   groupId:          z.string().uuid(),
   amount:           z.number().positive().max(1_000_000_000),
@@ -179,6 +183,19 @@ export const DisburseSchema = z.object({
   notes:            z.string().max(500).optional(),
   /** What the allocation is for, e.g. "On-lending to members" (migration 117). */
   purpose:          z.string().max(500).optional(),
+  /** How it was paid (migration 150). Optional so existing callers keep working;
+   *  omitted means "not recorded" rather than any assumed default. */
+  paymentMethod:    z.enum(PAYMENT_METHODS).optional(),
+  /** Cheque number / bank slip. Requires paymentMethod — a reference with no
+   *  method is a data-entry error, and the DB enforces the same rule. */
+  paymentReference: z.string().max(120).optional(),
+}).superRefine((v, ctx) => {
+  if (v.paymentReference && !v.paymentMethod) {
+    ctx.addIssue({
+      code: 'custom', path: ['paymentMethod'],
+      message: 'Select how it was paid before adding a payment reference',
+    });
+  }
 });
 
 export const DisbursementActionSchema = z.discriminatedUnion('action', [

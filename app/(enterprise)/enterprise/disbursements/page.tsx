@@ -27,13 +27,26 @@ import { organizationApi } from '@/lib/api/endpoints';
 import { ApiError } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
-import { DISBURSEMENT_TYPES } from '@/lib/validators/organization.schema';
+import { DISBURSEMENT_TYPES, PAYMENT_METHODS } from '@/lib/validators/organization.schema';
+
+const PAYMENT_METHOD_LABELS: Record<typeof PAYMENT_METHODS[number], string> = {
+  mpesa:          'M-Pesa',
+  cash:           'Cash',
+  cheque:         'Cheque',
+  bank_transfer:  'Bank transfer',
+  standing_order: 'Standing order',
+};
+
+/** Only these leave a number worth capturing. Cash has nothing to reference. */
+const METHODS_WITH_REFERENCE = ['cheque', 'bank_transfer', 'standing_order'] as const;
 
 interface DisbursementRow {
   id: string; group_id: string; group_name?: string;
   funding_program_id: string | null; program_name?: string | null;
   disbursement_type: string; amount: string; status: string;
   reference: string; notes: string | null; created_at: string;
+  /** NULL for anything disbursed before migration 150 — "not recorded". */
+  payment_method: string | null; payment_reference: string | null;
 }
 
 export default function DisbursementsPage() {
@@ -48,6 +61,10 @@ export default function DisbursementsPage() {
   const [disbursementType, setDisbursementType] = useState<typeof DISBURSEMENT_TYPES[number]>('grant');
   const [fundingProgramId, setFundingProgramId] = useState('');
   const [notes, setNotes] = useState('');
+  // '' means "not recorded" and is sent as undefined — never defaulted to a
+  // channel, because guessing invents an audit trail for real money.
+  const [paymentMethod, setPaymentMethod] = useState<'' | typeof PAYMENT_METHODS[number]>('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [approving, setApproving] = useState<DisbursementRow | null>(null);
@@ -91,6 +108,7 @@ export default function DisbursementsPage() {
 
   const resetForm = () => {
     setGroupId(''); setAmount(''); setDisbursementType('grant'); setFundingProgramId(''); setNotes('');
+    setPaymentMethod(''); setPaymentReference('');
   };
 
   const submitDisbursement = async () => {
@@ -105,6 +123,8 @@ export default function DisbursementsPage() {
         groupId, amount: parsedAmount, disbursementType,
         fundingProgramId: fundingProgramId || undefined,
         notes: notes.trim() || undefined,
+        paymentMethod: paymentMethod || undefined,
+        paymentReference: paymentReference.trim() || undefined,
       });
       toast({
         title: res.needsApproval
@@ -216,6 +236,20 @@ export default function DisbursementsPage() {
             render: (r) => <MoneyDisplay amount={parseFloat(r.amount)} size="sm" />,
           },
           {
+            // "Not recorded" is shown plainly rather than blank — a dash reads
+            // as "no data available", when the real meaning is that nobody
+            // captured how the money moved.
+            key: 'paid_by', header: 'Paid by',
+            render: (r) => (r.payment_method ? (
+              <span className="text-muted-foreground">
+                {PAYMENT_METHOD_LABELS[r.payment_method as typeof PAYMENT_METHODS[number]] ?? r.payment_method}
+                {r.payment_reference ? ` · ${r.payment_reference}` : ''}
+              </span>
+            ) : (
+              <span className="text-xs italic text-muted-foreground/70">Not recorded</span>
+            )),
+          },
+          {
             key: 'status', header: 'Status',
             render: (r) => (
               <StatusPill
@@ -306,6 +340,42 @@ export default function DisbursementsPage() {
                 the branch still owes the full KES {parsedAmountPreview.toLocaleString()} as principal.
                 Enter a larger amount here if you need a specific net figure to reach the branch.
               </p>
+            )}
+            <div className="space-y-1">
+              <Label>How was it paid? (optional)</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={paymentMethod}
+                onChange={(e) => {
+                  const next = e.target.value as typeof paymentMethod;
+                  setPaymentMethod(next);
+                  // Clearing the method must clear the reference too, or the
+                  // DB check constraint rejects a reference with no method.
+                  if (!next || !METHODS_WITH_REFERENCE.includes(next as never)) setPaymentReference('');
+                }}
+              >
+                <option value="">Not recorded</option>
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Cash and cheque leave no receipt of their own — recording it here is the only trace.
+              </p>
+            </div>
+            {/* Cash has no number to capture, so the field only appears for the
+                channels that actually produce one. */}
+            {METHODS_WITH_REFERENCE.includes(paymentMethod as never) && (
+              <div className="space-y-1">
+                <Label>
+                  {paymentMethod === 'cheque' ? 'Cheque number' : 'Transfer reference'} (optional)
+                </Label>
+                <Input
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder={paymentMethod === 'cheque' ? 'e.g. 004512' : 'e.g. bank slip no.'}
+                />
+              </div>
             )}
             <div className="space-y-1">
               <Label>Notes (optional)</Label>
