@@ -7,6 +7,7 @@ import { paymentRequestsService } from '@/lib/services/payment-requests.service'
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { updatePlatformUserRole } from '@/lib/services/admin.service';
 import { createOrganization, assignGroupToOrganization } from '@/lib/services/admin-organizations.service';
+import { assignOrganizationPlan } from '@/lib/services/organization-plan.service';
 import { rawQuery } from './db';
 
 // register_group() requires E.164 Kenyan format (2547######## / 2541########)
@@ -184,13 +185,29 @@ export async function createOrgCoordinator(): Promise<string> {
   return id;
 }
 
-/** Creates an organization + its first coordinator, reusing the real admin services (createOrganization, updatePlatformUserRole) rather than hand-inserting into a table whose columns have grown across several migrations. */
+/**
+ * Creates an organization + its first coordinator, reusing the real admin services (createOrganization, updatePlatformUserRole) rather than hand-inserting into a table whose columns have grown across several migrations.
+ *
+ * Also assigns an unlimited (premium_plus, all caps omitted) plan by default.
+ * Every test in this suite predates organization_subscriptions existing at
+ * all, and many create several groups/staff/funding-programs against one
+ * fixture org — an unconfigured org now defaults to Starter's real caps
+ * (organization-plan.service.ts), so leaving this ungated would fail a wide
+ * swath of unrelated suites the moment caps started being enforced (confirmed
+ * — that's exactly what happened before this fixture was updated). A test
+ * that specifically wants to exercise a real cap calls assignOrganizationPlan
+ * again itself afterward — that cancels this default and installs its own,
+ * same as any real plan change would.
+ */
 export async function createTestOrganization(): Promise<TestOrganization> {
   const org = await createOrganization({
     name: `Integration Test Org ${crypto.randomUUID().slice(0, 8)}`,
     type: 'ngo',
   });
   const coordinatorId = await createOrgCoordinator();
+  await assignOrganizationPlan((org as { id: string }).id, 'premium_plus', coordinatorId, {
+    custom: { monthlyFee: 0 },
+  });
   return { organizationId: (org as { id: string }).id, coordinatorId };
 }
 

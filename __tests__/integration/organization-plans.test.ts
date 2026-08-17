@@ -148,7 +148,12 @@ describe('Organization subscription plans', () => {
     });
 
     it('no plan assigned at all defaults to Starter caps (5), never unlimited', async () => {
-      // No assignOrganizationPlan call in this test at all.
+      // createTestOrganization() assigns an unlimited fixture plan by default
+      // (see fixtures.ts) so the rest of the integration suite, which
+      // predates plans existing at all, doesn't regress. Cancel it directly
+      // to simulate the true "no plan ever assigned" state this test targets.
+      await rawQuery(`UPDATE organization_subscriptions SET status = 'cancelled' WHERE organization_id = $1`, [organizationId]);
+
       const groups = await Promise.all(Array.from({ length: 5 }, () => createTestGroup()));
       for (const g of groups) {
         await assignGroupToOrganization(organizationId, g.groupId, coordinatorId);
