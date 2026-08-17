@@ -1,6 +1,8 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
-import { FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
+import {
+  FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError, ValidationError,
+} from '@/lib/utils/errors';
 import {
   PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
   type PlanType, type SubscriptionProduct, type PlanFeatures,
@@ -10,6 +12,7 @@ import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
 import { getUnitPrice } from './sms-pricing.service';
+import { clearOrganizationLowBalanceFlag } from './messaging-billing';
 
 /**
  * Give a group the general ledger its new product needs.
@@ -681,6 +684,181 @@ export const billingService = {
     if (confirm) await sendTopupConfirmation(confirm);
   },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Organization SMS credits — the org-side mirror of billingService.addSmsCredits.
+//
+// organization_billing_accounts / organization_sms_credits (migration 051)
+// mirror billing_accounts / sms_credits for organizations exactly, but until
+// now had NO writer anywhere in the app or in any migration's own seed data —
+// found while shipping the super_admin SMS revenue-by-organization report.
+//
+// Unlike groups, an organization has NO real-time M-Pesa collection path at
+// all today — organization-finance.service.ts's deposit() (the platform's
+// only established organization money-in flow) is a manual, self-attested
+// ledger entry: "Bank/M-Pesa settlement is reconciled separately." These
+// functions mirror THAT pattern deliberately, not the group STK flow — the
+// group payments/mpesa_stk_requests/mpesa_transactions spine has group_id
+// NOT NULL throughout with no organization axis, and generalizing it is a
+// much bigger, separate decision.
+//
+// Shaped like admin.service.ts's updateGroupProfile/updateMemberProfile
+// (explicit target id + actor id, withAdminDb), not organization-finance
+// .service.ts's TenantContext-based deposit() — these serve two callers with
+// different privilege shapes: an organization_coordinator topping up their
+// OWN org (the route derives organizationId from auth.organizationId, never
+// client-supplied) and a super_admin correcting/granting ANY org's balance
+// (previously impossible — no admin tool existed to adjust this at all).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** This org's SMS balance/rate + its most recent top-ups — the GET side. */
+export async function getOrganizationSmsBilling(ctx: TenantContext): Promise<{
+  balance: number;
+  rate:    number | null;
+  recent:  { id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string }[];
+}> {
+  if (!ctx.organizationId) throw new ValidationError('Organization context is required');
+  const organizationId = ctx.organizationId;
+
+  return withDb(ctx, async (db) => {
+    const { rows: account } = await db.query<{ sms_credits: string; sms_rate: string }>(
+      `SELECT sms_credits, sms_rate FROM organization_billing_accounts WHERE organization_id = $1`,
+      [organizationId],
+    );
+    const { rows: recent } = await db.query<{
+      id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string;
+    }>(
+      `SELECT id, amount_paid, credits_added, rate_applied, notes, created_at
+       FROM organization_sms_credits WHERE organization_id = $1
+       ORDER BY created_at DESC LIMIT 25`,
+      [organizationId],
+    );
+
+    return {
+      balance: account[0]?.sms_credits ? Number(account[0].sms_credits) : 0,
+      rate:    account[0]?.sms_rate    ? Number(account[0].sms_rate)    : null,
+      recent,
+    };
+  });
+}
+
+async function getOrCreateOrganizationSmsBillingAccount(
+  db: PoolClient, organizationId: string,
+): Promise<{ id: string; sms_rate: string }> {
+  const { rows } = await db.query<{ id: string; sms_rate: string }>(
+    `SELECT id, sms_rate FROM organization_billing_accounts WHERE organization_id = $1 FOR UPDATE`,
+    [organizationId],
+  );
+  if (rows[0]) return rows[0];
+
+  // Lazily bootstrapped, same reasoning as organization-finance.service.ts's
+  // getWalletForUpdate(): nothing creates this row today (confirmed — not
+  // even createOrganization()), so a billing account is an implementation
+  // detail of holding a balance, not something an org opts into first.
+  const { rows: created } = await db.query<{ id: string; sms_rate: string }>(
+    `INSERT INTO organization_billing_accounts (organization_id) VALUES ($1)
+     ON CONFLICT (organization_id) DO UPDATE SET updated_at = NOW()
+     RETURNING id, sms_rate`,
+    [organizationId],
+  );
+  return created[0];
+}
+
+/**
+ * Super_admin only (enforced by the route) — sets the organization's
+ * negotiated per-SMS rate. Column has existed since migration 051 with a
+ * comment saying organizations "negotiate their own per-SMS rate"; nothing
+ * has ever written to it before this, so it sat at its 0.90 default forever.
+ */
+export async function setOrganizationSmsRate(
+  organizationId: string,
+  rate:           number,
+  adminId:        string,
+): Promise<{ organizationId: string; rate: number }> {
+  if (!(rate > 0)) throw new ValidationError('Rate must be positive');
+
+  return withAdminDb(async (db) => {
+    const before = await getOrCreateOrganizationSmsBillingAccount(db, organizationId);
+
+    const { rows } = await db.query<{ sms_rate: string }>(
+      `UPDATE organization_billing_accounts SET sms_rate = $1, updated_at = NOW()
+       WHERE organization_id = $2 RETURNING sms_rate`,
+      [rate.toFixed(4), organizationId],
+    );
+
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, 'organization.sms_rate_update', 'organization', $2, $3::jsonb, $4::jsonb)`,
+      [
+        adminId, organizationId,
+        JSON.stringify({ sms_rate: before.sms_rate }),
+        JSON.stringify({ sms_rate: rows[0].sms_rate }),
+      ],
+    );
+
+    return { organizationId, rate: parseFloat(rows[0].sms_rate) };
+  });
+}
+
+/**
+ * Records a manual SMS credit top-up for an organization. No payment_id ever
+ * backs this (nullable on organization_sms_credits) — like deposit(), this
+ * trusts that money arrived out-of-band and records it; it does not collect
+ * payment itself, so unlike addSmsCredits there is no ON CONFLICT(payment_id)
+ * exactly-once guard to worry about — every call is a distinct, real top-up.
+ */
+export async function addOrganizationSmsCredits(
+  organizationId: string,
+  amountKes:      number,
+  actorUserId:    string | null,
+  opts:           { reference?: string; notes?: string } = {},
+): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number }> {
+  if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
+
+  const result = await withAdminDb(async (db) => {
+    const account = await getOrCreateOrganizationSmsBillingAccount(db, organizationId);
+    const rate    = parseFloat(account.sms_rate);
+    const credits = amountKes / rate;
+    const notes   = opts.notes ?? (opts.reference ? `Top-up — ${opts.reference}` : 'Top-up');
+
+    const { rows: inserted } = await db.query<{ id: string }>(
+      `INSERT INTO organization_sms_credits
+         (organization_id, billing_account_id, amount_paid, credits_added, rate_applied, added_by, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id`,
+      [organizationId, account.id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), actorUserId, notes],
+    );
+
+    const { rows: after } = await db.query<{ sms_credits: string }>(
+      `UPDATE organization_billing_accounts SET sms_credits = sms_credits + $1, updated_at = NOW()
+       WHERE organization_id = $2 RETURNING sms_credits`,
+      [credits.toFixed(4), organizationId],
+    );
+
+    // sms_ledger_append(payer_type, group_id, organization_id, entry_type,
+    // amount, allowance_amount, balance_after, reference_type, reference_id,
+    // payment_id, created_by, notes) — the same generic function
+    // addSmsCredits already calls with 'group'; this is the first call site
+    // ever to pass 'organization'.
+    await db.query(
+      `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
+      [
+        'organization', null, organizationId, 'purchase',
+        credits.toFixed(4), 0, after[0]?.sms_credits ?? null,
+        'manual_topup', inserted[0].id, null, actorId(actorUserId ?? undefined), notes,
+      ],
+    );
+
+    return {
+      creditsAdded: credits,
+      newBalance:   parseFloat(after[0]?.sms_credits ?? '0'),
+      rateApplied:  rate,
+    };
+  });
+
+  await clearOrganizationLowBalanceFlag(organizationId);
+  return result;
+}
 
 async function getNextInvoiceNumber(client: PoolClient): Promise<string> {
   const { rows } = await client.query<{ next_invoice_number: string }>(

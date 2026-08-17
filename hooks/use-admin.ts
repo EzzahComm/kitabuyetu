@@ -30,6 +30,7 @@ import type {
 import type {
   getMarginSummary, getRevenueByPackage, getTopCustomers, getTierViability, getOrganizationUsage,
 } from '@/lib/services/sms-margin.service';
+import type { TopUpSmsCreditsInput } from '@/lib/validators/organization.schema';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -744,9 +745,9 @@ export function useSetSmsProviderCost() {
 /**
  * SMS revenue, margin, and per-group/per-organization usage (spec §15,
  * INTERNAL — super_admin only). Backs the "Revenue & Usage" tab on the SMS
- * Pricing page. `byOrganization`'s revenue side is real but currently always
- * zero for every org — no purchase flow exists yet for organization-paid SMS,
- * only groups can self-serve top up (see sms-margin.service.ts).
+ * Pricing page. `byOrganization`'s revenue is real once an organization has
+ * a top-up recorded (useAdminTopUpOrganizationSmsCredits below) — before
+ * that it's a genuine zero, not a placeholder (see sms-margin.service.ts).
  */
 export function useSmsMargin(from?: string, to?: string) {
   const qs = new URLSearchParams();
@@ -757,6 +758,35 @@ export function useSmsMargin(from?: string, to?: string) {
     queryKey: ['admin', 'sms-margin', from ?? null, to ?? null],
     queryFn:  () => adminFetch<SmsMarginResponse>(`/api/admin/sms-margin${suffix}`),
     staleTime: 60_000,
+  });
+}
+
+/**
+ * super_admin corrects/grants an organization's SMS balance — previously
+ * impossible; there was no admin tool to touch this at all. Same underlying
+ * function as an organization_coordinator's own self-serve top-up, just
+ * addressed by org id instead of the caller's own auth context.
+ */
+export function useAdminTopUpOrganizationSmsCredits() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ organizationId, ...body }: TopUpSmsCreditsInput & { organizationId: string }) =>
+      adminFetch<{ creditsAdded: number; newBalance: number; rateApplied: number }>(
+        `/api/admin/organizations/${organizationId}/sms-credits`, { method: 'POST', json: body },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'sms-margin'] }),
+  });
+}
+
+/** super_admin sets an organization's negotiated per-SMS rate — never writable before this. */
+export function useSetOrganizationSmsRate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ organizationId, rate }: { organizationId: string; rate: number }) =>
+      adminFetch<{ organizationId: string; rate: number }>(
+        `/api/admin/organizations/${organizationId}/sms-rate`, { method: 'POST', json: { rate } },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'sms-margin'] }),
   });
 }
 

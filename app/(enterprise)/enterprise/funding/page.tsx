@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Wallet, Landmark, Users, TrendingUp, PiggyBank, ArrowDownToLine,
-  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban,
+  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban, MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -130,6 +130,7 @@ export default function FundingPortalPage() {
   const [depositOpen, setDepositOpen]   = useState(false);
   const [programOpen, setProgramOpen]   = useState(false);
   const [disburseOpen, setDisburseOpen] = useState(false);
+  const [smsTopUpOpen, setSmsTopUpOpen] = useState(false);
 
   const { data: dash, isLoading } = useQuery<DashboardPayload>({
     queryKey: ['organization', 'dashboard'],
@@ -166,6 +167,14 @@ export default function FundingPortalPage() {
   const { data: donorReport } = useQuery<{ items: DonorSpendLine[] }>({
     queryKey: ['organization', 'donor-report'],
     queryFn:  () => adminApi.get('/organization/programs?report=donor'),
+    staleTime: 30_000,
+  });
+
+  // Separate wallet from the capital one above — organization_billing_accounts
+  // .sms_credits is purely for SMS. Same "reconciled separately" trust model.
+  const { data: smsCredits } = useQuery({
+    queryKey: ['organization', 'sms-credits'],
+    queryFn:  () => organizationApi.smsCredits(),
     staleTime: 30_000,
   });
 
@@ -239,6 +248,29 @@ export default function FundingPortalPage() {
         <StatCard title="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
                   description={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
       </div>
+
+      {/* SMS credits — a separate wallet from the capital one above. Purely
+          for SMS this organization pays for centrally on a linked group's
+          behalf; consumption shows up in that group's own usage, not here. */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-4 py-4">
+          <div className="flex items-center gap-2.5">
+            <MessageSquare className="text-muted-foreground" size={18} />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SMS credits</p>
+              <p className="text-lg font-semibold text-foreground">
+                {(smsCredits?.balance ?? 0).toLocaleString()} credits
+              </p>
+            </div>
+          </div>
+          {smsCredits?.rate != null && (
+            <p className="text-xs text-muted-foreground">at KES {smsCredits.rate.toFixed(4)} / SMS</p>
+          )}
+          <Button size="sm" variant="outline" className="ml-auto h-8 gap-1.5" onClick={() => setSmsTopUpOpen(true)}>
+            <ArrowDownToLine size={14} /> Top up
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Funding programs */}
@@ -546,6 +578,7 @@ export default function FundingPortalPage() {
       </Card>
 
       <DepositDialog open={depositOpen} onClose={() => setDepositOpen(false)} />
+      <SmsCreditsTopUpDialog open={smsTopUpOpen} onClose={() => setSmsTopUpOpen(false)} />
       <ProgramDialog open={programOpen} onClose={() => setProgramOpen(false)} />
       <DisburseDialog
         open={disburseOpen}
@@ -600,6 +633,59 @@ function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={() => deposit.mutate()} disabled={!ok || deposit.isPending}>Record deposit</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── SMS credits top-up dialog ─────────────────────────────────────────────────
+
+function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [amount, setAmount]       = useState('');
+  const [reference, setReference] = useState('');
+
+  const topUp = useMutation({
+    mutationFn: () => organizationApi.topUpSmsCredits({
+      amountKes: parseFloat(amount),
+      reference: reference || undefined,
+    }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['organization', 'sms-credits'] });
+      toast({
+        title: 'SMS credits added',
+        description: `${result.creditsAdded.toLocaleString()} credits — new balance ${result.newBalance.toLocaleString()}.`,
+      });
+      setAmount(''); setReference('');
+      onClose();
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Top-up failed', description: e.message }),
+  });
+
+  const valid = parseFloat(amount) > 0;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Top up SMS credits</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Amount (KES)</Label>
+            <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
+          </div>
+          <div className="space-y-1">
+            <Label>Reference <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. bank transfer ref" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Credits this organization&apos;s own SMS wallet — separate from the capital wallet above. Bank/M-Pesa
+            settlement is reconciled separately.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => topUp.mutate()} disabled={!valid || topUp.isPending}>Top up</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

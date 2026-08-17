@@ -224,11 +224,25 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
 
 /**
  * Clear the low-balance flag so the alert re-arms. Called by the top-up path.
+ *
+ * NOTE: as of this writing nothing actually calls this — billing.service.ts's
+ * addSmsCredits() (the group top-up path this comment describes) never
+ * invokes it, so a group's low-balance alert never re-arms after a real
+ * top-up today. Spotted while adding the organization sibling below; left
+ * unfixed, out of scope for that change.
  */
 export async function clearLowBalanceFlag(groupId: string): Promise<void> {
   await pool.query(
     `UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`,
     [groupId],
+  ).catch(() => { /* best-effort */ });
+}
+
+/** Organization-side mirror of clearLowBalanceFlag, for addOrganizationSmsCredits. */
+export async function clearOrganizationLowBalanceFlag(organizationId: string): Promise<void> {
+  await pool.query(
+    `UPDATE organization_billing_accounts SET low_balance_notified_at = NULL WHERE organization_id = $1`,
+    [organizationId],
   ).catch(() => { /* best-effort */ });
 }
 

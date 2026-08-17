@@ -208,6 +208,25 @@ export const BrandingSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color like #16a34a').optional().nullable(),
 });
 
+/**
+ * Mirrors DepositSchema exactly — same trust model, same "reconciled
+ * separately" pattern, just crediting organization_billing_accounts.sms_credits
+ * instead of the wallet. amountKes not amount: this org already has a
+ * differently-scoped `amount` field pattern elsewhere (DisburseSchema), and
+ * the KES suffix matches billing.schema.ts's own StkPushSchema convention for
+ * an amount that specifically means shillings, not credits.
+ */
+export const TopUpSmsCreditsSchema = z.object({
+  amountKes: z.number().positive('Amount must be positive').max(1_000_000_000),
+  reference: z.string().max(64).optional(),
+  notes:     z.string().max(500).optional(),
+});
+
+/** Super_admin only (enforced at the route) — the organization's negotiated per-SMS rate. */
+export const SetSmsRateSchema = z.object({
+  rate: z.number().positive('Rate must be positive').max(100),
+});
+
 export type DepositInput            = z.infer<typeof DepositSchema>;
 export type CreateProgramInput      = z.infer<typeof CreateProgramSchema>;
 export type CapitalAdjustmentInput  = z.infer<typeof CapitalAdjustmentSchema>;
@@ -217,6 +236,8 @@ export type RepaymentWaterfall      = z.infer<typeof RepaymentWaterfallSchema>;
 export type DisburseInput           = z.infer<typeof DisburseSchema>;
 export type DisbursementActionInput = z.infer<typeof DisbursementActionSchema>;
 export type BrandingInput           = z.infer<typeof BrandingSchema>;
+export type TopUpSmsCreditsInput    = z.infer<typeof TopUpSmsCreditsSchema>;
+export type SetSmsRateInput         = z.infer<typeof SetSmsRateSchema>;
 
 // Client request-body types — z.input, not z.infer, matching this
 // codebase's convention elsewhere (see accounting.schema.ts): none of the
@@ -229,3 +250,5 @@ export type CapitalAdjustmentPayload = z.input<typeof CapitalAdjustmentSchema>;
 export type ProgramActionPayload     = z.input<typeof ProgramActionSchema>;
 export type DisbursePayload      = z.input<typeof DisburseSchema>;
 export type BrandingPayload      = z.input<typeof BrandingSchema>;
+export type TopUpSmsCreditsPayload = z.input<typeof TopUpSmsCreditsSchema>;
+export type SetSmsRatePayload      = z.input<typeof SetSmsRateSchema>;

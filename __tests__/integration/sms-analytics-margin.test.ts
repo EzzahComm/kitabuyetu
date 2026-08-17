@@ -13,9 +13,14 @@
  */
 import { getUsageAnalytics } from '@/lib/services/sms-analytics.service';
 import { smsMarginService } from '@/lib/services/sms-margin.service';
+import { addOrganizationSmsCredits, setOrganizationSmsRate } from '@/lib/services/billing.service';
+import { POST as orgTopUpPost } from '@/app/api/admin/organization/sms-credits/route';
+import { POST as adminTopUpPost } from '@/app/api/admin/organizations/[id]/sms-credits/route';
+import { POST as adminSetRatePost } from '@/app/api/admin/organizations/[id]/sms-rate/route';
 import { createTestGroup, createTestOrganization } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
+import { backofficeHeaders, buildRequest } from './helpers/request';
 
 /** A purchase at a given rate, `daysAgo` in the past. */
 async function purchase(groupId: string, credits: number, rate: number, daysAgo = 0) {
@@ -283,8 +288,9 @@ describe('SMS margin reporting (§15)', () => {
     expect(mine).toBeDefined();
     expect(mine!.creditsConsumed).toBe(15);
     expect(mine!.currentBalance).toBe(40);
-    // No organization_sms_credits writer exists anywhere in the app today —
-    // this must read as a real zero, not silently omit the field.
+    // This org has never had a top-up recorded (see the describe block below
+    // for the real-purchase case) — revenue/creditsPurchased must read as a
+    // genuine zero, not silently omit the field.
     expect(mine!.revenue).toBe(0);
     expect(mine!.creditsPurchased).toBe(0);
   });
@@ -327,5 +333,155 @@ describe('SMS margin reporting (§15)', () => {
     // 0.35 is the provider cost; 90 (100 * the group's own 0.90) is theirs to see.
     expect(serialised).not.toContain('0.35');
     expect(a.costThisMonth).toBeCloseTo(90, 2);
+  });
+});
+
+describe('Organization SMS credit top-ups', () => {
+  let organizationId: string, coordinatorId: string;
+
+  beforeEach(async () => {
+    await resetDatabase();
+    ({ organizationId, coordinatorId } = await createTestOrganization());
+  });
+  afterAll(async () => { await resetDatabase(); });
+
+  it('credits the right amount at the default rate, and writes a real purchase ledger row', async () => {
+    // No prior organization_billing_accounts row — proves the lazy bootstrap.
+    const result = await addOrganizationSmsCredits(organizationId, 900, coordinatorId);
+
+    expect(result.rateApplied).toBeCloseTo(0.90, 4); // schema default
+    expect(result.creditsAdded).toBeCloseTo(1000, 4); // 900 / 0.90
+    expect(result.newBalance).toBeCloseTo(1000, 4);
+
+    const [account] = await rawQuery<{ sms_credits: string }>(
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+    );
+    expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
+
+    const [lot] = await rawQuery<{ amount_paid: string; credits_added: string; rate_applied: string }>(
+      `SELECT amount_paid, credits_added, rate_applied FROM organization_sms_credits WHERE organization_id = $1`,
+      [organizationId],
+    );
+    expect(Number(lot.amount_paid)).toBeCloseTo(900, 2);
+    expect(Number(lot.credits_added)).toBeCloseTo(1000, 4);
+
+    const [ledger] = await rawQuery<{ payer_type: string; entry_type: string; amount: string }>(
+      `SELECT payer_type, entry_type, amount FROM sms_credit_ledger
+       WHERE organization_id = $1 AND entry_type = 'purchase'`,
+      [organizationId],
+    );
+    expect(ledger.payer_type).toBe('organization');
+    expect(Number(ledger.amount)).toBeCloseTo(1000, 4);
+  });
+
+  it('a changed rate applies to the NEXT top-up, not the last one', async () => {
+    const first = await addOrganizationSmsCredits(organizationId, 900, coordinatorId); // at 0.90
+    expect(first.rateApplied).toBeCloseTo(0.90, 4);
+
+    await setOrganizationSmsRate(organizationId, 0.50, coordinatorId);
+    const second = await addOrganizationSmsCredits(organizationId, 500, coordinatorId); // at 0.50
+
+    expect(second.rateApplied).toBeCloseTo(0.50, 4);
+    expect(second.creditsAdded).toBeCloseTo(1000, 4); // 500 / 0.50
+
+    // The first lot's OWN rate_applied must still read 0.90 — a rate change
+    // must never restate a completed purchase, same rule §4 already enforces
+    // for groups (migration 146).
+    const lots = await rawQuery<{ rate_applied: string }>(
+      `SELECT rate_applied FROM organization_sms_credits WHERE organization_id = $1 ORDER BY created_at ASC`,
+      [organizationId],
+    );
+    expect(Number(lots[0].rate_applied)).toBeCloseTo(0.90, 4);
+    expect(Number(lots[1].rate_applied)).toBeCloseTo(0.50, 4);
+  });
+
+  it('setOrganizationSmsRate writes an audit_logs row with old and new values', async () => {
+    await setOrganizationSmsRate(organizationId, 1.20, coordinatorId);
+
+    const [audit] = await rawQuery<{ old_values: { sms_rate: string }; new_values: { sms_rate: string } }>(
+      `SELECT old_values, new_values FROM audit_logs
+       WHERE action = 'organization.sms_rate_update' AND resource_id = $1`,
+      [organizationId],
+    );
+    expect(Number(audit.old_values.sms_rate)).toBeCloseTo(0.90, 4); // the bootstrapped default
+    expect(Number(audit.new_values.sms_rate)).toBeCloseTo(1.20, 4);
+  });
+
+  it('rejects a non-positive top-up amount', async () => {
+    await expect(addOrganizationSmsCredits(organizationId, 0, coordinatorId)).rejects.toThrow();
+    await expect(addOrganizationSmsCredits(organizationId, -50, coordinatorId)).rejects.toThrow();
+  });
+
+  it('getOrganizationUsage() shows real, nonzero revenue once a top-up exists', async () => {
+    await addOrganizationSmsCredits(organizationId, 900, coordinatorId, { reference: 'bank-ref-1' });
+
+    const rows = await smsMarginService.getOrganizationUsage();
+    const mine = rows.find((r) => r.organizationId === organizationId);
+    expect(mine).toBeDefined();
+    expect(mine!.revenue).toBeCloseTo(900, 2);
+    expect(mine!.creditsPurchased).toBeCloseTo(1000, 4);
+    expect(mine!.currentBalance).toBeCloseTo(1000, 4);
+  });
+
+  it('an organization_coordinator can self-serve top up their OWN org via the route', async () => {
+    const res = await orgTopUpPost(buildRequest('/api/admin/organization/sms-credits', {
+      method: 'POST',
+      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
+      body: { amountKes: 450 },
+    }));
+    expect(res.status).toBe(201);
+
+    const [account] = await rawQuery<{ sms_credits: string }>(
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+    );
+    expect(Number(account.sms_credits)).toBeCloseTo(500, 4); // 450 / 0.90
+  });
+
+  it('a coordinator WITHOUT an organizationId claim is denied on the self-serve route', async () => {
+    const res = await orgTopUpPost(buildRequest('/api/admin/organization/sms-credits', {
+      method: 'POST',
+      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator' }),
+      body: { amountKes: 450 },
+    }));
+    expect(res.status).toBe(403);
+  });
+
+  it('super_admin can grant/correct ANY organization\'s balance via the by-id route', async () => {
+    const res = await adminTopUpPost(
+      buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'super_admin' }),
+        body: { amountKes: 900, notes: 'goodwill grant' },
+      }),
+      { params: Promise.resolve({ id: organizationId }) },
+    );
+    expect(res.status).toBe(201);
+
+    const [account] = await rawQuery<{ sms_credits: string }>(
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+    );
+    expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
+  });
+
+  it('a support-role caller is denied on both super_admin SMS-billing routes — support is read-only', async () => {
+    const topUp = await adminTopUpPost(
+      buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'support' }),
+        body: { amountKes: 900 },
+      }),
+      { params: Promise.resolve({ id: organizationId }) },
+    );
+    expect(topUp.status).toBe(403);
+
+    const setRate = await adminSetRatePost(
+      buildRequest(`/api/admin/organizations/${organizationId}/sms-rate`, {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'support' }),
+        body: { rate: 1.5 },
+      }),
+      { params: Promise.resolve({ id: organizationId }) },
+    );
+    expect(setRate.status).toBe(403);
   });
 });
