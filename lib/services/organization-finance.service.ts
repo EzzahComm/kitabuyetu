@@ -21,6 +21,7 @@ import { cached, keys } from '@/lib/redis';
 import { organizationService } from './organization.service';
 import { postOrgSystemJournal } from './organization-accounting.service';
 import { getEffectiveThreshold } from './approval-policy.service';
+import { assertFundingProgramCap, assertReportsAccess } from './organization-plan.service';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 // Typed against the validator rather than a hand-written inline shape. A
@@ -623,6 +624,9 @@ export const organizationFinanceService = {
    */
   async programBudgetReport(ctx: TenantContext): Promise<ProgramBudgetLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
+    // Outside the cache wrapper deliberately — evaluated on every call so a
+    // plan change takes effect immediately rather than up to 60s late.
+    await withDb(ctx, (db) => assertReportsAccess(db, orgId(ctx)));
     return cached(keys.cache('program-budget', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
       const { rows } = await db.query<{
         id: string; name: string; program_type: string; status: string;
@@ -686,6 +690,7 @@ export const organizationFinanceService = {
    */
   async donorSpendReport(ctx: TenantContext): Promise<DonorSpendLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
+    await withDb(ctx, (db) => assertReportsAccess(db, orgId(ctx)));
     return cached(keys.cache('donor-spend', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
       const { rows: programs } = await db.query<{
         id: string; name: string; funding_source: string | null;
@@ -762,6 +767,7 @@ export const organizationFinanceService = {
     if (!(input.budget > 0)) throw new ValidationError('Budget must be positive');
 
     return withTransaction(ctx, async (db) => {
+      await assertFundingProgramCap(db, orgId(ctx));
       const { rows } = await db.query<FundingProgram>(
         `INSERT INTO funding_programs
            (organization_id, name, program_type, budget, funding_source, description,

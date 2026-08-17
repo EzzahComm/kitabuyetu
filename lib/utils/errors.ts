@@ -100,6 +100,35 @@ export class MemberCapError extends AppError {
   }
 }
 
+/**
+ * Organization plan cap — deliberately NOT MemberCapError's wording reused.
+ * "Upgrade to add more" is wrong here: an organization can never self-serve
+ * upgrade (only super_admin assigns/changes an organization's plan), so the
+ * remedy has to say so.
+ */
+export class OrganizationCapError extends AppError {
+  constructor(resource: string, cap: number) {
+    super(
+      `Your organization's plan allows a maximum of ${cap} ${resource}. Contact Kitabu Yetu to change your plan.`,
+      'ORGANIZATION_CAP_REACHED',
+      403,
+    );
+    this.name = 'OrganizationCapError';
+  }
+}
+
+/** Same reasoning as OrganizationCapError — mirrors FeatureGatedError with organization-correct remedy wording. */
+export class OrganizationFeatureGatedError extends AppError {
+  constructor(feature: string, requiredPlan: string) {
+    super(
+      `'${feature}' requires the ${requiredPlan} plan. Contact Kitabu Yetu to change your plan.`,
+      'ORGANIZATION_FEATURE_GATED',
+      403,
+    );
+    this.name = 'OrganizationFeatureGatedError';
+  }
+}
+
 export class InsufficientSmsCreditsError extends AppError {
   constructor() {
     super('Insufficient SMS credits. Please top up your balance.', 'INSUFFICIENT_SMS_CREDITS', 402);

@@ -10,6 +10,7 @@
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
 import { organizationAccountingService } from './organization-accounting.service';
+import { assertLinkedGroupCap } from './organization-plan.service';
 
 export const ORGANIZATION_TYPES = [
   'bank', 'sacco', 'foundation', 'ngo',
@@ -239,6 +240,7 @@ export async function assignGroupToOrganization(
   orgId: string, groupId: string, grantedBy: string, accessLevel: 'read' | 'report' = 'read',
 ) {
   return withAdminDb(async (db: PoolClient) => {
+    await assertLinkedGroupCap(db, orgId, groupId);
     await db.query(`
       INSERT INTO public.organization_group_access
         (organization_id, group_id, access_level, granted_by, is_active)

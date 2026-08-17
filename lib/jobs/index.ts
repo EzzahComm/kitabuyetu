@@ -250,6 +250,14 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       priority:  4,
       dedup_key: `sms_allowance_monthly_reset:${dateStr}`,
     });
+    // Organization-side sibling, same hour and same daily-not-monthly
+    // reasoning (migration 152) — a separate job rather than folded into the
+    // one above, since it grants against a different table pair
+    // (organization_subscriptions/organization_billing_accounts) entirely.
+    queued.organization_sms_allowance_grant = await safe('organization_sms_allowance_grant', {}, {
+      priority:  4,
+      dedup_key: `organization_sms_allowance_grant:${dateStr}`,
+    });
   }
 
   // ── 1st of month 08:00 UTC — prune old jobs ───────────────────

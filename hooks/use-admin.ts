@@ -18,7 +18,7 @@ import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
-import type { SubscriptionProduct } from '@/types/enums';
+import type { SubscriptionProduct, OrganizationPlanType } from '@/types/enums';
 import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
@@ -31,6 +31,9 @@ import type {
   getMarginSummary, getRevenueByPackage, getTopCustomers, getTierViability, getOrganizationUsage,
 } from '@/lib/services/sms-margin.service';
 import type { TopUpSmsCreditsInput } from '@/lib/validators/organization.schema';
+import type {
+  getOrganizationPlan, assignOrganizationPlan, CustomPlanTerms,
+} from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -46,8 +49,21 @@ type AdminGroupMemberList     = Awaited<ReturnType<typeof listGroupMembers>>;
 type AdminMemberDetail        = Awaited<ReturnType<typeof getAdminMemberDetail>>;
 type AdminOrgList             = Awaited<ReturnType<typeof listOrganizations>>;
 type AdminOrgDetail           = Awaited<ReturnType<typeof getOrganizationDetail>>;
-type CreateOrgInput           = Parameters<typeof createOrganization>[0];
+// The route's request body is WIDER than createOrganization()'s own service
+// signature — it also requires a plan (organization-plan.service.ts's own
+// assignOrganizationPlan is a deliberately separate call the route makes
+// second). Deriving only from createOrganization here would silently drop
+// the plan fields from the type and let the client build a body the route
+// rejects — exactly the drift CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md exists
+// to catch, so this is composed from both real signatures instead of one.
+type CreateOrgInput = Parameters<typeof createOrganization>[0] & {
+  planType:  OrganizationPlanType;
+  custom?:   CustomPlanTerms;
+  planNotes?: string;
+};
 type AdminOrgCreated          = Awaited<ReturnType<typeof createOrganization>>;
+type AdminOrgPlan             = Awaited<ReturnType<typeof getOrganizationPlan>>;
+type AssignOrgPlanResult      = Awaited<ReturnType<typeof assignOrganizationPlan>>;
 type SetOrgActiveResult       = Awaited<ReturnType<typeof setOrganizationActive>>;
 type AssignGroupToOrgResult   = Awaited<ReturnType<typeof assignGroupToOrganization>>;
 type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganization>>;
@@ -335,6 +351,31 @@ export function useCreateOrganization() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    },
+  });
+}
+
+/** Current plan + usage-vs-caps for one organization (super_admin/support). */
+export function useOrganizationPlan(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'organization', organizationId, 'plan'],
+    queryFn:  () => adminFetch<AdminOrgPlan>(`/api/admin/organizations/${organizationId}/plan`),
+    enabled:  !!organizationId,
+    staleTime: 30_000,
+  });
+}
+
+/** super_admin assigns or changes an organization's plan — never self-serve. */
+export function useAssignOrganizationPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ organizationId, ...body }: {
+      organizationId: string; planType: OrganizationPlanType; custom?: CustomPlanTerms; notes?: string;
+    }) =>
+      adminFetch<AssignOrgPlanResult>(`/api/admin/organizations/${organizationId}/plan`, { method: 'POST', json: body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organization', vars.organizationId, 'plan'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations'] });
     },
   });
 }

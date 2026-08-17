@@ -67,6 +67,18 @@ const EMPTY_FORM = {
   name: '', type: 'bank', registrationNumber: '', phone: '', email: '', county: '', address: '',
 };
 
+const PLAN_TYPES: { value: 'starter' | 'growth' | 'premium' | 'premium_plus'; label: string; fee: string }[] = [
+  { value: 'starter',      label: 'Starter',   fee: 'KES 2,999/mo' },
+  { value: 'growth',       label: 'Growth',    fee: 'KES 4,999/mo' },
+  { value: 'premium',      label: 'Premium',   fee: 'KES 8,999/mo' },
+  { value: 'premium_plus', label: 'Premium+',  fee: 'Custom' },
+];
+
+const EMPTY_CUSTOM = {
+  monthlyFee: '', maxLinkedGroups: '', maxStaff: '', maxFundingPrograms: '', smsAllowanceIncluded: '',
+  supportTier: 'priority_plus' as 'standard' | 'priority' | 'priority_plus',
+};
+
 export default function OrganizationsPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -78,6 +90,8 @@ export default function OrganizationsPage() {
 
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [planType, setPlanType] = useState<'starter' | 'growth' | 'premium' | 'premium_plus'>('starter');
+  const [custom, setCustom] = useState({ ...EMPTY_CUSTOM });
   const [confirm, setConfirm] = useState<{ id: string; name: string; action: 'activate' | 'deactivate' } | null>(null);
 
   const { data, isLoading, isError, error } = useAdminOrganizations({ page, limit: 25, search, type, status });
@@ -93,6 +107,10 @@ export default function OrganizationsPage() {
       toast({ variant: 'destructive', title: 'Organization name is required' });
       return;
     }
+    if (planType === 'premium_plus' && !(parseFloat(custom.monthlyFee) >= 0)) {
+      toast({ variant: 'destructive', title: 'Premium+ requires a monthly fee', description: 'Every term is negotiated per contract.' });
+      return;
+    }
     try {
       await createOrg.mutateAsync({
         name: form.name.trim(),
@@ -102,10 +120,21 @@ export default function OrganizationsPage() {
         email:  form.email.trim()  || undefined,
         county: form.county.trim() || undefined,
         address: form.address.trim() || undefined,
+        planType,
+        custom: planType === 'premium_plus' ? {
+          monthlyFee:           parseFloat(custom.monthlyFee),
+          maxLinkedGroups:      custom.maxLinkedGroups      ? parseInt(custom.maxLinkedGroups, 10)      : null,
+          maxStaff:             custom.maxStaff             ? parseInt(custom.maxStaff, 10)             : null,
+          maxFundingPrograms:   custom.maxFundingPrograms   ? parseInt(custom.maxFundingPrograms, 10)   : null,
+          smsAllowanceIncluded: custom.smsAllowanceIncluded ? parseFloat(custom.smsAllowanceIncluded)   : undefined,
+          supportTier:          custom.supportTier,
+        } : undefined,
       });
-      toast({ title: `${form.name.trim()} onboarded` });
+      toast({ title: `${form.name.trim()} onboarded on the ${PLAN_TYPES.find((p) => p.value === planType)?.label} plan` });
       setOnboardOpen(false);
       setForm({ ...EMPTY_FORM });
+      setPlanType('starter');
+      setCustom({ ...EMPTY_CUSTOM });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Could not onboard', description: getErrorMessage(e) });
     }
@@ -264,8 +293,10 @@ export default function OrganizationsPage() {
       />
 
       {/* Onboard dialog */}
-      <Dialog open={onboardOpen} onOpenChange={(o) => { if (!o) { setOnboardOpen(false); setForm({ ...EMPTY_FORM }); } }}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={onboardOpen} onOpenChange={(o) => {
+        if (!o) { setOnboardOpen(false); setForm({ ...EMPTY_FORM }); setPlanType('starter'); setCustom({ ...EMPTY_CUSTOM }); }
+      }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Onboard organization</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2">
@@ -310,8 +341,76 @@ export default function OrganizationsPage() {
                 placeholder="Optional" />
             </div>
           </div>
+
+          {/* Plan — required. Organizations never self-serve a plan; this is
+              the only place one is ever chosen for the first time. */}
+          <div className="space-y-2 border-t pt-3">
+            <Label>Plan <span className="text-red-500">*</span></Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {PLAN_TYPES.map((p) => (
+                <button
+                  key={p.value} type="button"
+                  onClick={() => setPlanType(p.value)}
+                  className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                    planType === p.value ? 'border-primary bg-primary/5' : 'border-input hover:bg-muted/40'
+                  }`}
+                >
+                  <p className="font-medium">{p.label}</p>
+                  <p className="text-xs text-muted-foreground">{p.fee}</p>
+                </button>
+              ))}
+            </div>
+
+            {planType === 'premium_plus' && (
+              <div className="grid gap-3 sm:grid-cols-2 rounded-md border bg-muted/20 p-3">
+                <p className="sm:col-span-2 text-xs text-muted-foreground">
+                  Premium+ is negotiated per contract — every term below is entered by hand. Blank limits mean unlimited.
+                </p>
+                <div className="space-y-1">
+                  <Label>Monthly fee (KES) <span className="text-red-500">*</span></Label>
+                  <Input type="number" min={0} value={custom.monthlyFee}
+                    onChange={(e) => setCustom({ ...custom, monthlyFee: e.target.value })} placeholder="e.g. 15000" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Support tier</Label>
+                  <select
+                    value={custom.supportTier}
+                    onChange={(e) => setCustom({ ...custom, supportTier: e.target.value as typeof custom.supportTier })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="priority_plus">Priority+</option>
+                    <option value="priority">Priority</option>
+                    <option value="standard">Standard</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Max linked groups</Label>
+                  <Input type="number" min={1} value={custom.maxLinkedGroups}
+                    onChange={(e) => setCustom({ ...custom, maxLinkedGroups: e.target.value })} placeholder="Unlimited" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max staff seats</Label>
+                  <Input type="number" min={1} value={custom.maxStaff}
+                    onChange={(e) => setCustom({ ...custom, maxStaff: e.target.value })} placeholder="Unlimited" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max funding programs</Label>
+                  <Input type="number" min={1} value={custom.maxFundingPrograms}
+                    onChange={(e) => setCustom({ ...custom, maxFundingPrograms: e.target.value })} placeholder="Unlimited" />
+                </div>
+                <div className="space-y-1">
+                  <Label>SMS allowance/month</Label>
+                  <Input type="number" min={0} value={custom.smsAllowanceIncluded}
+                    onChange={(e) => setCustom({ ...custom, smsAllowanceIncluded: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOnboardOpen(false); setForm({ ...EMPTY_FORM }); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => {
+              setOnboardOpen(false); setForm({ ...EMPTY_FORM }); setPlanType('starter'); setCustom({ ...EMPTY_CUSTOM });
+            }}>Cancel</Button>
             <Button onClick={submitOnboard} loading={createOrg.isPending}>Onboard</Button>
           </DialogFooter>
         </DialogContent>
