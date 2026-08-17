@@ -151,8 +151,21 @@ export async function getRevenueByPackage(): Promise<PackageRevenue[]> {
   });
 }
 
-/** Highest-revenue customers first — §15's "high-volume customers". */
-export async function getTopCustomers(limit = 20): Promise<CustomerUsage[]> {
+/**
+ * Every group's SMS revenue and consumption, highest revenue first — §15's
+ * "high-volume customers", widened into the full per-group tracking view.
+ *
+ * LEFT JOIN sms_credits, not INNER: a group that has only ever sent on its
+ * plan's bundled allowance (never bought a top-up) has zero rows in
+ * sms_credits and would silently vanish from an INNER JOIN version of this
+ * query — visible consumption, invisible from the revenue report. The
+ * original version of this function did exactly that.
+ *
+ * `limit` defaults high enough to be "all groups" at the platform's current
+ * real scale (5 production groups); raised well above the old default of 20
+ * so this doesn't quietly start truncating again as the platform grows.
+ */
+export async function getTopCustomers(limit = 500): Promise<CustomerUsage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
       group_id: string; group_code: string; group_name: string;
@@ -165,10 +178,10 @@ export async function getTopCustomers(limit = 20): Promise<CustomerUsage[]> {
               COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
                          WHERE l.group_id = g.id AND l.billing_state = 'consumed'), 0) AS consumed
        FROM groups g
-       JOIN sms_credits sc ON sc.group_id = g.id
+       LEFT JOIN sms_credits sc ON sc.group_id = g.id
        ${COST_AT_SALE}
        GROUP BY g.id, g.group_code, g.name
-       ORDER BY SUM(sc.amount_paid) DESC
+       ORDER BY SUM(sc.amount_paid) DESC NULLS LAST, g.name ASC
        LIMIT $1`,
       [limit],
     );
@@ -180,6 +193,66 @@ export async function getTopCustomers(limit = 20): Promise<CustomerUsage[]> {
       revenue:         Number(r.revenue),
       grossMargin:     Number(r.revenue) - Number(r.provider_cost),
       creditsConsumed: Number(r.consumed),
+    }));
+  });
+}
+
+export interface OrganizationUsage {
+  organizationId:    string;
+  organizationName:  string;
+  /** Message credits actually charged against this org's own wallet (payer_type='organization'). */
+  creditsConsumed:   number;
+  /** organization_billing_accounts.sms_credits — the pooled balance sends are gated on. */
+  currentBalance:    number;
+  /**
+   * Real KES revenue from `organization_sms_credits` — the org-side mirror of
+   * `sms_credits` (same shape: amount_paid, credits_added, rate_applied,
+   * payment_id — migration 051). Included for when a purchase flow exists —
+   * as of this writing there is NO code path anywhere in the app, or in any
+   * migration's own seed data, that ever inserts into that table. Only
+   * groups can self-serve top up via M-Pesa today; an org's current balance,
+   * if nonzero, was set by hand. This is 0 for every organization now; a
+   * nonzero value here later is a true positive, not a bug.
+   */
+  revenue:           number;
+  creditsPurchased:  number;
+}
+
+/**
+ * Per-organization SMS usage — the payer_organization_id axis
+ * (`sms_usage_logs`, migration 051) that exists structurally alongside the
+ * per-group one, for an organization that pays for a group's messages
+ * centrally rather than the group paying for itself.
+ *
+ * Every organization is listed, not just ones with activity — an org that
+ * has never touched SMS is itself information (no accidental "it's not
+ * showing so I assume it's fine" reading).
+ */
+export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
+  return withAdminDb(async (db) => {
+    const { rows } = await db.query<{
+      organization_id: string; organization_name: string;
+      balance: string; consumed: string; revenue: string; purchased: string;
+    }>(
+      `SELECT o.id AS organization_id, o.name AS organization_name,
+              COALESCE(oba.sms_credits, 0) AS balance,
+              COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
+                         WHERE l.payer_organization_id = o.id AND l.billing_state = 'consumed'), 0) AS consumed,
+              COALESCE((SELECT SUM(osc.amount_paid)   FROM organization_sms_credits osc
+                         WHERE osc.organization_id = o.id), 0) AS revenue,
+              COALESCE((SELECT SUM(osc.credits_added) FROM organization_sms_credits osc
+                         WHERE osc.organization_id = o.id), 0) AS purchased
+       FROM organizations o
+       LEFT JOIN organization_billing_accounts oba ON oba.organization_id = o.id
+       ORDER BY consumed DESC, o.name ASC`,
+    );
+    return rows.map((r) => ({
+      organizationId:   r.organization_id,
+      organizationName: r.organization_name,
+      creditsConsumed:  Number(r.consumed),
+      currentBalance:   Number(r.balance),
+      revenue:          Number(r.revenue),
+      creditsPurchased: Number(r.purchased),
     }));
   });
 }
@@ -228,4 +301,5 @@ export const smsMarginService = {
   getRevenueByPackage,
   getTopCustomers,
   getTierViability,
+  getOrganizationUsage,
 };

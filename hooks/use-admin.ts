@@ -27,6 +27,9 @@ import type { searchPlatform } from '@/lib/services/admin-search.service';
 import type {
   getPricingConfig, setActiveTiers, setProviderCost,
 } from '@/lib/services/sms-pricing-admin.service';
+import type {
+  getMarginSummary, getRevenueByPackage, getTopCustomers, getTierViability, getOrganizationUsage,
+} from '@/lib/services/sms-margin.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -91,6 +94,18 @@ type PlatformSearchResults    = Awaited<ReturnType<typeof searchPlatform>>;
 type SmsPricingConfig         = Awaited<ReturnType<typeof getPricingConfig>>;
 type SmsTiersActivated        = Awaited<ReturnType<typeof setActiveTiers>>;
 type SmsProviderCostSaved     = Awaited<ReturnType<typeof setProviderCost>>;
+type SmsMarginSummary         = Awaited<ReturnType<typeof getMarginSummary>>;
+type SmsRevenueByPackage      = Awaited<ReturnType<typeof getRevenueByPackage>>;
+type SmsGroupUsageList        = Awaited<ReturnType<typeof getTopCustomers>>;
+type SmsTierViabilityList     = Awaited<ReturnType<typeof getTierViability>>;
+type SmsOrganizationUsageList = Awaited<ReturnType<typeof getOrganizationUsage>>;
+export interface SmsMarginResponse {
+  summary:        SmsMarginSummary;
+  byPackage:      SmsRevenueByPackage;
+  topCustomers:   SmsGroupUsageList;
+  tiers:          SmsTierViabilityList;
+  byOrganization: SmsOrganizationUsageList;
+}
 type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>;
 type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
 
@@ -723,6 +738,25 @@ export function useSetSmsProviderCost() {
         json: { kind: 'provider_cost', unitCost },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'sms-pricing'] }),
+  });
+}
+
+/**
+ * SMS revenue, margin, and per-group/per-organization usage (spec §15,
+ * INTERNAL — super_admin only). Backs the "Revenue & Usage" tab on the SMS
+ * Pricing page. `byOrganization`'s revenue side is real but currently always
+ * zero for every org — no purchase flow exists yet for organization-paid SMS,
+ * only groups can self-serve top up (see sms-margin.service.ts).
+ */
+export function useSmsMargin(from?: string, to?: string) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from);
+  if (to)   qs.set('to', to);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return useQuery({
+    queryKey: ['admin', 'sms-margin', from ?? null, to ?? null],
+    queryFn:  () => adminFetch<SmsMarginResponse>(`/api/admin/sms-margin${suffix}`),
+    staleTime: 60_000,
   });
 }
 

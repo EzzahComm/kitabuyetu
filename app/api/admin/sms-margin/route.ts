@@ -17,12 +17,13 @@ export const dynamic = 'force-dynamic';
 export function GET(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async () => {
     const p = new URL(req.url).searchParams;
-    const [summary, byPackage, topCustomers, tiers] = await Promise.all([
+    const [summary, byPackage, topCustomers, tiers, byOrganization] = await Promise.all([
       smsMarginService.getMarginSummary(p.get('from') ?? undefined, p.get('to') ?? undefined),
       smsMarginService.getRevenueByPackage(),
       smsMarginService.getTopCustomers(),
       smsMarginService.getTierViability(),
+      smsMarginService.getOrganizationUsage(),
     ]);
-    return ok({ summary, byPackage, topCustomers, tiers });
+    return ok({ summary, byPackage, topCustomers, tiers, byOrganization });
   });
 }
