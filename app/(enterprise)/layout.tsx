@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Network, Users2, Banknote, FileBarChart,
-  KeyRound, Palette, ScrollText, Menu, Building2,
+  KeyRound, Palette, ScrollText, Menu, Building2, Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -46,6 +46,13 @@ const NAV: PortalNavSection[] = [
     items: [
       { href: '/enterprise/members', label: 'Members', icon: Users2 },
       { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
+      // Deliberately separate from Funding Portal: that page is the org's
+      // CAPITAL wallet (donor contributions, grants, disbursements) — SMS
+      // credits are their own wallet with no GL posting and nothing to do
+      // with disbursement capacity. Mirrors the group side, which manages
+      // its own SMS credits on a dedicated Billing page too, not folded
+      // into any "funding" concept (components/layout/sidebar.tsx).
+      { href: '/enterprise/billing', label: 'Billing', icon: Receipt },
     ],
   },
   {
