@@ -32,6 +32,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.programs.manage',
   'organization.disbursements.manage',
   'organization.wallet.view',
+  'organization.sms.manage',
   'organization.accounting.view',
   'organization.policies.manage',
   // Capital & Investment Layer (docs/capital-layer/). These live here, on the

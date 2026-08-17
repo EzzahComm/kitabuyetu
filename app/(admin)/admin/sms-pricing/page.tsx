@@ -10,9 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SectionHeader } from '@/components/dashboard/sms/shared';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   useSmsPricingConfig, useActivateSmsTiers, useSetSmsProviderCost, useSmsMargin,
+  useAdminTopUpOrganizationSmsCredits, useSetOrganizationSmsRate,
 } from '@/hooks/use-admin';
 import { getErrorMessage, formatKES } from '@/lib/utils';
 
@@ -42,6 +46,13 @@ export default function SmsPricingPage() {
   const activate = useActivateSmsTiers();
   const saveCost = useSetSmsProviderCost();
   const { data: margin, isLoading: marginLoading } = useSmsMargin();
+
+  const topUpOrg = useAdminTopUpOrganizationSmsCredits();
+  const setOrgRate = useSetOrganizationSmsRate();
+  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
+  const [rateTarget, setRateTarget]   = useState<{ id: string; name: string } | null>(null);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [newRate, setNewRate]         = useState('');
 
   const cost = data?.providerCost ? Number(data.providerCost.unit_cost) : null;
   /** What a band earns per message. Null when no provider cost is on record. */
@@ -76,6 +87,34 @@ export default function SmsPricingPage() {
       onSuccess: () => toast({ title: 'Price list updated' }),
       onError:   (e) => toast({ variant: 'destructive', title: 'Could not switch price list', description: getErrorMessage(e) }),
     });
+  };
+
+  const handleTopUp = () => {
+    if (!topUpTarget) return;
+    topUpOrg.mutate(
+      { organizationId: topUpTarget.id, amountKes: Number(topUpAmount) },
+      {
+        onSuccess: (r) => {
+          toast({ title: 'SMS credits added', description: `${r.creditsAdded.toLocaleString()} credits — new balance ${r.newBalance.toLocaleString()}.` });
+          setTopUpTarget(null); setTopUpAmount('');
+        },
+        onError: (e) => toast({ variant: 'destructive', title: 'Top-up failed', description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  const handleSetRate = () => {
+    if (!rateTarget) return;
+    setOrgRate.mutate(
+      { organizationId: rateTarget.id, rate: Number(newRate) },
+      {
+        onSuccess: () => {
+          toast({ title: 'Rate updated' });
+          setRateTarget(null); setNewRate('');
+        },
+        onError: (e) => toast({ variant: 'destructive', title: 'Could not save rate', description: getErrorMessage(e) }),
+      },
+    );
   };
 
   return (
@@ -358,13 +397,14 @@ export default function SmsPricingPage() {
                       <th className="px-4 py-3 text-left">Current balance</th>
                       <th className="px-4 py-3 text-left">Credits purchased</th>
                       <th className="px-4 py-3 text-left">Revenue</th>
+                      <th className="px-4 py-3 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {marginLoading ? (
-                      <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
                     ) : !margin?.byOrganization.length ? (
-                      <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No organizations yet.</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No organizations yet.</td></tr>
                     ) : margin.byOrganization.map((o) => (
                       <tr key={o.organizationId} className="border-b last:border-0">
                         <td className="px-4 py-3 font-medium text-foreground">{o.organizationName}</td>
@@ -372,6 +412,22 @@ export default function SmsPricingPage() {
                         <td className="px-4 py-3">{o.currentBalance.toLocaleString()}</td>
                         <td className="px-4 py-3">{o.creditsPurchased.toLocaleString()}</td>
                         <td className="px-4 py-3">{formatKES(o.revenue)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm" variant="outline" className="h-7 px-2 text-xs"
+                              onClick={() => setTopUpTarget({ id: o.organizationId, name: o.organizationName })}
+                            >
+                              Top up
+                            </Button>
+                            <Button
+                              size="sm" variant="outline" className="h-7 px-2 text-xs"
+                              onClick={() => setRateTarget({ id: o.organizationId, name: o.organizationName })}
+                            >
+                              Set rate
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -379,13 +435,73 @@ export default function SmsPricingPage() {
               </CardContent>
             </Card>
             <p className="text-xs text-muted-foreground">
-              Organizations have no self-serve SMS purchase flow yet — only groups can top up via M-Pesa. Any
-              current balance shown was set manually, and &quot;Credits purchased&quot;/&quot;Revenue&quot; will
-              stay zero for every organization until a real purchase path exists.
+              Organizations have no real-time M-Pesa collection today — a top-up here (or one the
+              organization&apos;s own coordinator records in the Funding Portal) is a manual entry, trusted the
+              same way a group&apos;s general capital deposit already is. &quot;Set rate&quot; controls the
+              negotiated per-SMS price a top-up&apos;s credits are computed at.
             </p>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Top up an organization's SMS credits — super_admin correcting/granting a
+          balance, previously impossible: there was no admin tool for this at all. */}
+      <Dialog open={!!topUpTarget} onOpenChange={(o) => { if (!o) setTopUpTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Top up {topUpTarget?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Amount (KES)</Label>
+              <Input
+                type="number" min={1} value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value)} placeholder="5000"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Credits are computed at this organization&apos;s current negotiated rate. Recorded as a manual
+              top-up — no M-Pesa payment is collected here.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTopUpTarget(null)}>Cancel</Button>
+            <Button
+              onClick={handleTopUp} loading={topUpOrg.isPending}
+              disabled={!topUpAmount || Number.isNaN(Number(topUpAmount)) || Number(topUpAmount) <= 0}
+            >
+              Add credits
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set an organization's negotiated per-SMS rate — the column has existed
+          since migration 051 but nothing has ever written to it before this. */}
+      <Dialog open={!!rateTarget} onOpenChange={(o) => { if (!o) setRateTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Set SMS rate for {rateTarget?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Rate (KES per SMS)</Label>
+              <Input
+                inputMode="decimal" value={newRate}
+                onChange={(e) => setNewRate(e.target.value)} placeholder="0.90"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Applies to future top-ups only — past purchases keep the rate they were bought at.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRateTarget(null)}>Cancel</Button>
+            <Button
+              onClick={handleSetRate} loading={setOrgRate.isPending}
+              disabled={!newRate || Number.isNaN(Number(newRate)) || Number(newRate) <= 0}
+            >
+              Save rate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

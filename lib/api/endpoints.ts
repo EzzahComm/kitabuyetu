@@ -20,7 +20,7 @@ import type { CreateContributionPayload, UpdateContributionPayload, SetSavingsLi
 import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
 import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, TemplateUpdatePayload, ScheduleCreatePayload, SmsGroupSettingsUpdateInput } from '@/lib/validators/sms.schema';
 import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validators/billing.schema';
-import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput } from '@/lib/validators/organization.schema';
+import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput, TopUpSmsCreditsPayload } from '@/lib/validators/organization.schema';
 import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
 import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
@@ -508,6 +508,16 @@ export const organizationApi = {
   // first frontend client wiring for it.
   wallet: () => adminApi.get<{ wallet: OrgWallet }>('/organization/wallet'),
   deposit: (body: DepositPayload) => adminApi.post<unknown>('/organization/wallet', body),
+  // Separate from the capital wallet above — organization_billing_accounts
+  // .sms_credits is its own wallet, purely for SMS. Same manual/self-attested
+  // trust model as deposit(): this records that money already arrived, it
+  // does not collect payment itself.
+  smsCredits: () => adminApi.get<{
+    balance: number; rate: number | null;
+    recent: { id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string }[];
+  }>('/organization/sms-credits'),
+  topUpSmsCredits: (body: TopUpSmsCreditsPayload) =>
+    adminApi.post<{ creditsAdded: number; newBalance: number; rateApplied: number }>('/organization/sms-credits', body),
   programs: () => adminApi.get<{ items: FundingProgram[] }>('/organization/programs'),
   createProgram: (body: CreateProgramPayload) => adminApi.post<FundingProgram>('/organization/programs', body),
   // Pause/resume a program. Typed here rather than left as a raw adminApi.patch
