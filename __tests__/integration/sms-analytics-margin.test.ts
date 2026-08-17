@@ -13,7 +13,7 @@
  */
 import { getUsageAnalytics } from '@/lib/services/sms-analytics.service';
 import { smsMarginService } from '@/lib/services/sms-margin.service';
-import { createTestGroup } from './helpers/fixtures';
+import { createTestGroup, createTestOrganization } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
@@ -246,6 +246,47 @@ describe('SMS margin reporting (§15)', () => {
     expect(top[0].groupId).toBe(groupId);
     expect(top[0].revenue).toBeCloseTo(900, 2);
     expect(top[0].grossMargin).toBeCloseTo(550, 2);
+  });
+
+  it('still lists a group that has only ever sent on its bundled allowance, never bought a top-up', async () => {
+    // Regression guard for the INNER JOIN bug: a group with zero sms_credits
+    // rows used to vanish from this report entirely, even with real
+    // consumption — visible usage, invisible revenue line.
+    await consumed(groupId, 5); // no purchase() call at all
+
+    const rows = await smsMarginService.getTopCustomers();
+    const mine = rows.find((r) => r.groupId === groupId);
+    expect(mine).toBeDefined();
+    expect(mine!.revenue).toBe(0);
+    expect(mine!.creditsSold).toBe(0);
+    expect(mine!.creditsConsumed).toBe(5);
+  });
+
+  it('reports per-organization SMS consumption, separate from the group axis', async () => {
+    const { organizationId } = await createTestOrganization();
+    await rawQuery(
+      `INSERT INTO sms_usage_logs
+         (group_id, recipient_phone, message_text, status, credits_deducted,
+          payer_type, payer_organization_id, billing_state, credits_reserved, credits_from_allowance)
+       VALUES ($1,'254700000009','t','sent',15,'organization',$2,'consumed',0,0)`,
+      [groupId, organizationId],
+    );
+    await rawQuery(
+      `INSERT INTO organization_billing_accounts (organization_id, sms_credits)
+       VALUES ($1, 40)
+       ON CONFLICT (organization_id) DO UPDATE SET sms_credits = EXCLUDED.sms_credits`,
+      [organizationId],
+    );
+
+    const rows = await smsMarginService.getOrganizationUsage();
+    const mine = rows.find((r) => r.organizationId === organizationId);
+    expect(mine).toBeDefined();
+    expect(mine!.creditsConsumed).toBe(15);
+    expect(mine!.currentBalance).toBe(40);
+    // No organization_sms_credits writer exists anywhere in the app today —
+    // this must read as a real zero, not silently omit the field.
+    expect(mine!.revenue).toBe(0);
+    expect(mine!.creditsPurchased).toBe(0);
   });
 
   it('identifies which price bands clear the provider cost', async () => {
