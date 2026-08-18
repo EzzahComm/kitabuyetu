@@ -25,6 +25,7 @@ import {
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
 interface AdminOrgRow {
   id:                  string;
@@ -67,10 +68,14 @@ const EMPTY_FORM = {
   name: '', type: 'bank', registrationNumber: '', phone: '', email: '', county: '', address: '',
 };
 
+// Fees come from ORGANIZATION_PLAN_MONTHLY_FEES, not a hardcoded copy — the
+// group side's billing page used to carry its own hardcoded fee table that
+// drifted from the server's, charging customers the client's stale number
+// (see PLAN_MONTHLY_FEES's own history in types/enums.ts). Not repeating that.
 const PLAN_TYPES: { value: 'starter' | 'growth' | 'premium' | 'premium_plus'; label: string; fee: string }[] = [
-  { value: 'starter',      label: 'Starter',   fee: 'KES 2,999/mo' },
-  { value: 'growth',       label: 'Growth',    fee: 'KES 4,999/mo' },
-  { value: 'premium',      label: 'Premium',   fee: 'KES 8,999/mo' },
+  { value: 'starter',      label: 'Starter',   fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.starter)}/mo` },
+  { value: 'growth',       label: 'Growth',    fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.growth)}/mo` },
+  { value: 'premium',      label: 'Premium',   fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.premium)}/mo` },
   { value: 'premium_plus', label: 'Premium+',  fee: 'Custom' },
 ];
 

@@ -30,6 +30,7 @@ import {
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
 interface AssignedGroupRow {
   group_id:            string;
@@ -699,9 +700,9 @@ export default function OrganizationDetailPage({
           <DialogHeader><DialogTitle>{planData?.subscription ? 'Change plan' : 'Assign plan'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {([
-              { value: 'starter' as const,      label: 'Starter',  fee: 'KES 2,999/mo' },
-              { value: 'growth' as const,       label: 'Growth',   fee: 'KES 4,999/mo' },
-              { value: 'premium' as const,      label: 'Premium',  fee: 'KES 8,999/mo' },
+              { value: 'starter' as const,      label: 'Starter',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.starter)}/mo` },
+              { value: 'growth' as const,       label: 'Growth',   fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.growth)}/mo` },
+              { value: 'premium' as const,      label: 'Premium',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.premium)}/mo` },
               { value: 'premium_plus' as const, label: 'Premium+', fee: 'Custom' },
             ]).map((p) => (
               <button
