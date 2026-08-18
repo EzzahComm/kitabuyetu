@@ -218,10 +218,12 @@ export async function getPlatformStats() {
       `),
       db.query(`
         SELECT
-          COUNT(*) AS total,
-          COUNT(*) FILTER (WHERE status = 'active') AS active,
+          COUNT(*) FILTER (WHERE status = 'active')     AS active_subscriptions,
+          COUNT(*) FILTER (WHERE status = 'expired')    AS expired_subscriptions,
+          COUNT(*) FILTER (WHERE status = 'suspended')  AS suspended_subscriptions,
           COUNT(*) FILTER (WHERE status = 'expired' OR status = 'suspended') AS at_risk,
-          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr
+          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
+          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
         FROM public.subscriptions
       `),
       db.query(`
@@ -558,8 +560,13 @@ export async function listGroups(params: GroupListParams) {
           g.id, g.name, g.type AS group_type, g.onboarding_status,
           hs.score AS health_score, hs.category AS health_rag, g.created_at,
           g.suspended_at, g.suspended_reason,
-          COALESCE(s.plan_type, 'starter') AS plan,
-          COALESCE(s.status, 'active') AS subscription_status,
+          -- No COALESCE fallback: since the 2026-08-13 paid-only cutover
+          -- (migration 139) a group with no active-subscription row is not
+          -- on a free "starter" plan, it's LOCKED (no plan at all). Faking
+          -- starter/active here made every locked, non-paying group visually
+          -- indistinguishable from a real paying customer in this list.
+          s.plan_type AS plan,
+          s.status    AS subscription_status,
           COUNT(DISTINCT gm.id)   AS member_count,
           COALESCE(SUM(DISTINCT c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions,
           COALESCE(SUM(DISTINCT l.principal_amount) FILTER (WHERE l.status = 'active'), 0) AS active_loans
@@ -608,10 +615,14 @@ export async function getGroupById(groupId: string) {
     const [group, stats, recentActivity] = await Promise.all([
       db.query(`
         SELECT g.*, g.type AS group_type, s.plan_type AS plan, s.status AS subscription_status,
-               s.expires_at AS current_period_end, s.next_billing_date AS trial_ends_at,
+               s.expires_at AS current_period_end, s.next_billing_date,
                m.first_name || ' ' || m.last_name AS admin_name,
                m.phone AS admin_phone, m.email AS admin_email
         FROM public.groups g
+        -- 'trial' is included for forward-compatibility with the subscription_status
+        -- enum, but no code path has created a trial subscription since the
+        -- 2026-08-13 paid-only cutover (migration 139 stopped register_group()
+        -- seeding one) — in practice this only ever matches 'active' today.
         LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status IN ('active','trial')
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
         LEFT JOIN public.members m ON m.id = gm.member_id
@@ -1049,9 +1060,9 @@ export async function getBillingOverview() {
     const [summary, byPlan, recentPayments, outstanding] = await Promise.all([
       db.query(`
         SELECT
-          COUNT(*) FILTER (WHERE status = 'active')  AS active_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired') AS expired_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'trial')   AS trial_subscriptions,
+          COUNT(*) FILTER (WHERE status = 'active')    AS active_subscriptions,
+          COUNT(*) FILTER (WHERE status = 'expired')   AS expired_subscriptions,
+          COUNT(*) FILTER (WHERE status = 'suspended') AS suspended_subscriptions,
           COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
           COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
         FROM public.subscriptions

@@ -57,6 +57,7 @@ const GROUP_STATUS_TONE: Record<string, Tone> = {
 const PLAN_BADGE: Record<string, string> = {
   starter:    'bg-gray-100 text-gray-700 border-gray-200',
   growth:     'bg-blue-100 text-blue-700 border-blue-200',
+  premium:    'bg-amber-100 text-amber-700 border-amber-200',
   enterprise: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
@@ -255,8 +256,8 @@ export default function GroupDetailPage({
         }
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${PLAN_BADGE[grp.plan] ?? PLAN_BADGE.starter}`}>
-            {grp.plan ?? 'starter'}
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${grp.plan ? (PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-700 border-gray-200') : 'bg-red-50 text-red-600 border-red-200'}`}>
+            {grp.plan ?? 'No plan'}
           </span>
           <StatusPill status={grp.onboarding_status} tone={GROUP_STATUS_TONE[grp.onboarding_status]} size="sm" />
         </div>

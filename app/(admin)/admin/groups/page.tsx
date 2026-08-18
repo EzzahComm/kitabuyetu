@@ -35,7 +35,9 @@ interface AdminGroupRow {
   health_score:        number | null;
   health_rag:          'green' | 'amber' | 'red' | null;
   created_at:          string;
-  plan:                string;
+  // null since the 2026-08-13 paid-only cutover means the group has no
+  // active subscription — locked, not "on the starter plan for free".
+  plan:                string | null;
   member_count:        string;
   total_contributions: string;
   active_loans:        string;
@@ -52,6 +54,7 @@ const GROUP_STATUS_TONE: Record<string, Tone> = {
 const PLAN_BADGE: Record<string, string> = {
   starter:    'bg-gray-100 text-gray-600',
   growth:     'bg-blue-100 text-blue-700',
+  premium:    'bg-amber-100 text-amber-700',
   enterprise: 'bg-purple-100 text-purple-700',
 };
 
@@ -160,6 +163,7 @@ export default function GroupsPage() {
               <option value="">All plans</option>
               <option value="starter">Starter</option>
               <option value="growth">Growth</option>
+              <option value="premium">Premium</option>
               <option value="enterprise">Enterprise</option>
             </select>
 
@@ -206,9 +210,15 @@ export default function GroupsPage() {
           {
             key: 'plan', header: 'Plan',
             render: (grp) => (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-600'}`}>
-                {grp.plan}
-              </span>
+              grp.plan ? (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {grp.plan}
+                </span>
+              ) : (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600">
+                  No plan
+                </span>
+              )
             ),
           },
           {
