@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
           onClick={() => router.push('/admin/users')}
         />
         <StatCard
-          title="Monthly Revenue"
+          title="Monthly Recurring Revenue"
           value={isLoading ? '—' : formatKES(mrr)}
           description={`${s.active_subscriptions ?? 0} active subscriptions`}
           icon={CreditCard}
@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Active Subs"
           value={s.active_subscriptions ?? 0}
-          description={`${s.trial_subscriptions ?? 0} on trial`}
+          description={`${s.suspended_subscriptions ?? 0} suspended`}
           icon={CreditCard}
           iconClass="bg-blue-50"
         />
@@ -191,9 +191,8 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-1">
             <StatusRow label="Active"    value={s.active_subscriptions ?? 0} color="bg-green-500" />
-            <StatusRow label="Trial"     value={s.trial_subscriptions  ?? 0} color="bg-blue-400" />
+            <StatusRow label="Suspended" value={s.suspended_subscriptions ?? 0} color="bg-amber-400" />
             <StatusRow label="Expired"   value={s.expired_subscriptions ?? 0} color="bg-gray-400" />
-            <StatusRow label="At Risk"   value={s.at_risk ?? 0}               color="bg-amber-400" />
             <div className="pt-3 border-t border-gray-100 mt-2">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Monthly Recurring Revenue</span>

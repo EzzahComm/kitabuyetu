@@ -24,15 +24,16 @@ const RevenueByPlanChart = dynamic(
 const PLAN_COLORS: Record<string, string> = {
   starter:    '#94a3b8',
   growth:     '#3b82f6',
+  premium:    '#f59e0b',
   enterprise: '#7c3aed',
 };
 
 interface BillingSummary {
-  active_subscriptions:  number;
-  expired_subscriptions: number;
-  trial_subscriptions:   number;
-  mrr:                   string;
-  overdue_count:         number;
+  active_subscriptions:     number;
+  expired_subscriptions:    number;
+  suspended_subscriptions:  number;
+  mrr:                      string;
+  overdue_count:            number;
 }
 
 interface PlanRevenueRow { plan: string; count: string; revenue: string }
@@ -77,13 +78,13 @@ export default function BillingAdminPage() {
         <StatCard
           title="Active Subscriptions"
           value={isLoading ? '—' : (summary.active_subscriptions ?? 0)}
-          description={`${summary.trial_subscriptions ?? 0} on trial`}
+          description={`${summary.suspended_subscriptions ?? 0} suspended`}
           icon={CheckCircle2}
           className="border-blue-200"
           iconClass="bg-blue-50"
         />
         <StatCard
-          title="Expired / At Risk"
+          title="Expired"
           value={isLoading ? '—' : (summary.expired_subscriptions ?? 0)}
           description="Need renewal or follow-up"
           icon={Clock}
