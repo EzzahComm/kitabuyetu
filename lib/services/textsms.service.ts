@@ -295,11 +295,34 @@ export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
   // case-sensitive, so the previous lowercase `messageid` was never matched
   // server-side and every DLR lookup came back empty — leaving messages stuck
   // 'sent'/'pending' and delivered_at unset.
+  // ── Why 404 is an ACCEPTED status ─────────────────────────────────────────
+  //
+  // TextSMS answers "I have no delivery report for that id" with **HTTP 404**
+  // and a JSON body:
+  //
+  //   {"response-code":1009,"response-description":"No dlr"}
+  //
+  // That is a normal, expected answer, not a transport failure. It is what the
+  // provider returns for a message polled before it has generated a report,
+  // and for any message that belongs to a different partner account.
+  //
+  // axios rejects non-2xx by default, so this threw — and pollPendingDlrs
+  // catches per-message and logs, meaning every such poll was silently
+  // discarded. Confirmed in production 2026-08-20: 37 eligible messages, 15
+  // provider calls burned per run, zero rows written to sms_delivery_reports.
+  // Combined with the delivery-description bug fixed alongside it, the DLR
+  // pipeline could not record an outcome under any circumstances.
+  //
+  // Accepting 404 lets the body be parsed normally: 'No dlr' classifies as
+  // pending (see DLR_PENDING in sms.service.ts), the message stays 'sent', and
+  // the next poll tries again — which is exactly right for a report that
+  // genuinely may not exist yet. Any OTHER non-2xx still throws.
   const { data } = await axios.get<Record<string, unknown>>(
     `${BASE_URL}/api/services/getdlr/`,
     {
       params:  { apikey: API_KEY, partnerID: PARTNER_ID, messageID: messageId },
       timeout: 15_000,
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
     },
   );
 
@@ -324,7 +347,19 @@ export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
   //
   // `delivery-description` first, then the legacy fallbacks, so a provider
   // that omits it degrades to the old behaviour rather than to `undefined`.
-  const description = data['delivery-description'] ?? data.status ?? 'unknown';
+  //
+  // `response-description` is deliberately NOT in that chain. On a successful
+  // lookup it reads "Success", meaning *the API call* succeeded — it says
+  // nothing about the message. Feeding it to classifyDlrStatus would match
+  // /success/ and mark every polled message DELIVERED, which is a far worse
+  // bug than the one being fixed here. It is read below only for the specific
+  // no-report case, where it is the only description on offer.
+  const NO_DLR = 1009;
+  const description =
+    data['delivery-description']
+    ?? data.status
+    ?? (Number(data['response-code']) === NO_DLR ? data['response-description'] : undefined)
+    ?? 'unknown';
 
   return {
     messageId,

@@ -58,7 +58,7 @@ export type DlrClass = 'delivered' | 'failed' | 'pending';
  * message may still be delivered, and marking it failed would refund a message
  * we were charged for.
  */
-const DLR_PENDING = /pending|scheduled|queued|accepted|submit|enroute|in.?transit|unknown/;
+const DLR_PENDING = /pending|scheduled|queued|accepted|submit|enroute|in.?transit|unknown|no dlr/;
 
 /**
  * Map a raw provider delivery status to our domain class. Conservative by
