@@ -225,11 +225,13 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
 /**
  * Clear the low-balance flag so the alert re-arms. Called by the top-up path.
  *
- * NOTE: as of this writing nothing actually calls this — billing.service.ts's
- * addSmsCredits() (the group top-up path this comment describes) never
- * invokes it, so a group's low-balance alert never re-arms after a real
- * top-up today. Spotted while adding the organization sibling below; left
- * unfixed, out of scope for that change.
+ * For a long time nothing called this: billing.service.ts's addSmsCredits()
+ * — the group top-up path — never invoked it, so a group that ran dry, got
+ * warned, and topped up the same day would run dry a second time in total
+ * silence, because raiseLowBalanceAlert() claims by moving
+ * low_balance_notified_at and then declines to fire for 24h. Wired up
+ * 2026-08-20 (SMS_SYSTEM_AUDIT_2026-08-20.md M1); the organization sibling
+ * below was correct from the start.
  */
 export async function clearLowBalanceFlag(groupId: string): Promise<void> {
   await pool.query(

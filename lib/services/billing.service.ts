@@ -12,7 +12,7 @@ import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
 import { getUnitPrice } from './sms-pricing.service';
-import { clearOrganizationLowBalanceFlag } from './messaging-billing';
+import { clearLowBalanceFlag, clearOrganizationLowBalanceFlag } from './messaging-billing';
 
 /**
  * Give a group the general ledger its new product needs.
@@ -681,7 +681,19 @@ export const billingService = {
       };
     });
 
-    if (confirm) await sendTopupConfirmation(confirm);
+    if (confirm) {
+      // Re-arm the low-balance alert. raiseLowBalanceAlert() claims by moving
+      // low_balance_notified_at and then refuses to fire again for 24h, so
+      // without this a group that ran dry, got warned, and topped up the same
+      // day would run dry a second time in silence. clearLowBalanceFlag()
+      // existed for exactly this and had no callers.
+      //
+      // Outside the money transaction and best-effort, for the reason spelled
+      // out at the top of this function: a swallowed error on the
+      // transactional client still poisons the COMMIT.
+      await clearLowBalanceFlag(ctx.groupId);
+      await sendTopupConfirmation(confirm);
+    }
   },
 };
 

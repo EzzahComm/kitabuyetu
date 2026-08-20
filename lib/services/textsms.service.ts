@@ -180,8 +180,22 @@ export interface BulkSmsResult {
 
 export interface DlrResult {
   messageId:    string;
-  phone:        string;
+  /**
+   * The provider's HUMAN-READABLE verdict ('DeliveredToTerminal',
+   * 'Scheduled', 'Rejected', …) — NOT the numeric `delivery-status`. See
+   * getDeliveryReport() for why that distinction is the whole ballgame.
+   */
   status:       string;
+  /**
+   * The numeric `delivery-status` field, kept for diagnostics only.
+   *
+   * Deliberately NOT used for classification: live payloads from this
+   * account return **32 for both a delivered and an undelivered message**,
+   * so it carries no outcome information at all. NaN when the provider
+   * omitted it or sent something unparseable.
+   */
+  statusCode:   number;
+  phone:        string;
   networkId:    string;
   deliveredAt?: string;
   raw:          Record<string, unknown>;
@@ -289,11 +303,40 @@ export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
     },
   );
 
+  // ── Which field carries the verdict ───────────────────────────────────────
+  //
+  // This used to read `delivery-status` — a NUMBER — and hand it to
+  // classifyDlrStatus(), which matches on words. Live payloads captured from
+  // this very account on 2026-08-20:
+  //
+  //   {"message-id":"810668705","delivery-status":32,
+  //    "delivery-description":"DeliveredToTerminal","delivery-time":"2026-08-14 12:57:42"}
+  //   {"message-id":"821169663","delivery-status":32,
+  //    "delivery-description":"Scheduled","delivery-time":null}
+  //
+  // `delivery-status` is **32 in both**. It is not a status at all in any
+  // sense we can classify on; the real verdict is `delivery-description`.
+  // Passing "32" to a regex that looks for /deliv|success/ matched nothing,
+  // so EVERY delivery report in the platform's history classified as
+  // 'pending' — 323 messages sent, zero ever marked delivered, while 22
+  // stored reports carried a real delivered_at from the provider alongside
+  // status='pending'. See docs/audits/SMS_SYSTEM_AUDIT_2026-08-20.md C1.
+  //
+  // `delivery-description` first, then the legacy fallbacks, so a provider
+  // that omits it degrades to the old behaviour rather than to `undefined`.
+  const description = data['delivery-description'] ?? data.status ?? 'unknown';
+
   return {
     messageId,
     phone:       String(data.mobile ?? ''),
-    status:      String(data['delivery-status'] ?? data.status ?? 'unknown'),
-    networkId:   String(data.networkid ?? ''),
+    status:      String(description),
+    // Plain Number(), not toResponseCode(): that helper fails CLOSED to
+    // SYSTEM_ERROR (1005) because a send response we cannot read must not
+    // count as success. Here the field is diagnostic only and never drives a
+    // decision, so an absent/unparseable value should read as NaN ("we don't
+    // know") rather than as the specific claim "the provider said 1005".
+    statusCode:  Number(data['delivery-status'] ?? NaN),
+    networkId:   String(data.networkid ?? data['delivery-networkid'] ?? ''),
     deliveredAt: data['delivery-time'] ? String(data['delivery-time']) : undefined,
     raw:         data,
   };

@@ -57,26 +57,56 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     dedup_key: `email_campaign_drain:${dateStr}T${hour}:${fiveMinBucket}`,
   });
 
+  // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
+  //
+  // These four claim whatever is due at the moment they run. Two queued copies
+  // do not do twice the work — the second finds the first's rows already
+  // claimed. So the time-bucketed dedup key these used to carry
+  // (`type:date:hour:bucket`) bought nothing and cost a great deal: it minted a
+  // NEW row every 5 minutes whether or not the previous one had ever run.
+  //
+  // When these types were starved of tick budget by higher-priority work, that
+  // turned a scheduling gap into unbounded growth — measured in production
+  // 2026-08-20: sms_release_stale_reservations at 2,258 pending having not
+  // completed a single job in 8 days, sms_poll_dlr at 1,100 pending / 4 days.
+  // The backlog then became its own cause, since every tick scanned thousands
+  // of rows that could only ever do one job's work.
+  //
+  // A CONSTANT dedup key makes the partial unique index on job_queue
+  // (dedup_key WHERE status NOT IN ('completed','failed')) enforce the real
+  // invariant: at most one non-terminal row per type. The key frees itself the
+  // moment the job completes, so the next tick enqueues normally. "Enqueue
+  // every 5 minutes" becomes "ensure one is queued", which is what a sweep
+  // actually wants.
+  //
+  // Safe against a job wedged in 'processing': resetStuckJobs() returns it to
+  // 'pending' after 6 minutes (or 'failed' at max_attempts, which also frees
+  // the key), so this cannot deadlock a type permanently.
+  //
+  // Deliberately NOT applied to the mpesa_*/outbox_* sweeps in the same file:
+  // they have the same shape and probably want the same treatment, but they
+  // were not part of the SMS audit and are not changed blind. See
+  // docs/audits/SMS_SYSTEM_AUDIT_2026-08-20.md H2.
   queued.sms_retry_failed = await safe('sms_retry_failed', {}, {
     priority:  6, // SMS retries are time-sensitive (transactional receipts/OTPs)
-    dedup_key: `sms_retry_failed:${dateStr}T${hour}:${fiveMinBucket}`,
+    dedup_key: 'sms_retry_failed',
   });
 
   queued.sms_process_schedules = await safe('sms_process_schedules', {}, {
     priority:  5,
-    dedup_key: `sms_process_schedules:${dateStr}T${hour}:${fiveMinBucket}`,
+    dedup_key: 'sms_process_schedules',
   });
 
   queued.sms_poll_dlr = await safe('sms_poll_dlr', {}, {
     priority:  4,
-    dedup_key: `sms_poll_dlr:${dateStr}T${hour}:${fiveMinBucket}`,
+    dedup_key: 'sms_poll_dlr',
   });
 
   // Recovers SMS credit earmarks orphaned by a crash between the provider call
   // and the settle write. Low priority: correctness backstop, not time-critical.
   queued.sms_release_stale_reservations = await safe('sms_release_stale_reservations', {}, {
     priority:  3,
-    dedup_key: `sms_release_stale_reservations:${dateStr}T${hour}:${fiveMinBucket}`,
+    dedup_key: 'sms_release_stale_reservations',
   });
 
   queued.mpesa_reconcile = await safe('mpesa_reconcile', {}, {
