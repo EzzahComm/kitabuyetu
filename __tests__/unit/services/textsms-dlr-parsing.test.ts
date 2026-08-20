@@ -114,6 +114,61 @@ describe('TextSMS DLR parsing (C1)', () => {
     const res = await getDeliveryReport('810668705');
     expect(res.networkId).toBe('1');
   });
+
+  describe('HTTP 404 / "No dlr"', () => {
+    /**
+     * TextSMS answers "no report for that id" with HTTP 404 and a JSON body.
+     * axios rejects non-2xx by default, so this threw and pollPendingDlrs
+     * swallowed it per-message: in production 2026-08-20, 37 eligible
+     * messages produced zero sms_delivery_reports rows while burning 15
+     * provider calls a run.
+     */
+    it('accepts 404 rather than throwing, and classifies it as pending', async () => {
+      mockedAxios.get.mockResolvedValue({
+        status: 404,
+        data: { 'response-code': 1009, 'response-description': 'No dlr' },
+      });
+
+      const res = await getDeliveryReport('810668705');
+
+      expect(res.status).toBe('No dlr');
+      expect(classifyDlrStatus(res.status)).toBe('pending');
+      expect(res.deliveredAt).toBeUndefined();
+    });
+
+    it('never lets response-description "Success" masquerade as delivery', async () => {
+      // A successful DLR lookup carries response-description:"Success",
+      // meaning the API CALL succeeded. If that ever reaches
+      // classifyDlrStatus it matches /success/ and marks the message
+      // delivered — worse than the bug this file exists for. Here the
+      // message is plainly still queued.
+      mockedAxios.get.mockResolvedValue({
+        data: {
+          'response-code': 200, 'response-description': 'Success',
+          'message-id': 'z', 'delivery-description': 'Scheduled', 'delivery-time': null,
+        },
+      });
+
+      const res = await getDeliveryReport('z');
+
+      expect(res.status).toBe('Scheduled');
+      expect(classifyDlrStatus(res.status)).toBe('pending');
+    });
+
+    it('tells axios to accept 404 but nothing else', async () => {
+      mockedAxios.get.mockResolvedValue({ data: DELIVERED_PAYLOAD });
+      await getDeliveryReport('810668705');
+
+      const validateStatus = mockedAxios.get.mock.calls[0][1]?.validateStatus;
+      expect(validateStatus).toBeDefined();
+      expect(validateStatus!(200)).toBe(true);
+      expect(validateStatus!(404)).toBe(true);
+      // Everything else must still reject — a 500 or 401 is a real fault.
+      expect(validateStatus!(500)).toBe(false);
+      expect(validateStatus!(401)).toBe(false);
+      expect(validateStatus!(403)).toBe(false);
+    });
+  });
 });
 
 describe('classifyDlrStatus ordering and vocabulary', () => {
@@ -141,5 +196,11 @@ describe('classifyDlrStatus ordering and vocabulary', () => {
   it('treats empty/undefined input as pending', () => {
     expect(classifyDlrStatus('')).toBe('pending');
     expect(classifyDlrStatus(undefined as unknown as string)).toBe('pending');
+  });
+
+  it('treats "No dlr" as pending — a report that does not exist YET', () => {
+    // Must not be 'failed': the message may still be delivered, and marking it
+    // failed would refund a message the provider already charged us for.
+    expect(classifyDlrStatus('No dlr')).toBe('pending');
   });
 });
