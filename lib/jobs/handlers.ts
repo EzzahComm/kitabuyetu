@@ -381,6 +381,10 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   // many days this daily cron runs while it sits in 'pending'. Overdue
   // buckets are ranges (not exact days) so a missed cron tick still catches
   // the stage on the next run instead of skipping it silently.
+  // The platform paybill — same source mpesa-stk.service.ts's STK-failure
+  // nudge already uses for "here's how to actually pay" SMS copy.
+  const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
+
   const { rows } = await pool.query<{
     repayment_id:    string;
     group_id:        string;
@@ -393,13 +397,15 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
     penalty_amount:  string;
     days_until_due:  number;
     reminder_stage:  string;
+    membership_no:   string;
   }>(
     `WITH candidates AS (
        SELECT lr.id AS repayment_id, lr.group_id, lr.member_id, m.phone, m.first_name,
               lr.total_due, lr.closing_balance,
               to_char(lr.due_date, 'DD Mon YYYY') AS due_date,
               lr.penalty_amount,
-              (lr.due_date - CURRENT_DATE)::int AS days_until_due
+              (lr.due_date - CURRENT_DATE)::int AS days_until_due,
+              gm.membership_no
          FROM loan_repayments lr
          JOIN loans   l  ON l.id   = lr.loan_id
          JOIN members m  ON m.id   = lr.member_id
@@ -436,17 +442,26 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   let sent = 0, skipped = 0, failed = 0;
   for (const r of rows) {
     const overdue = r.days_until_due < 0;
+    // 'L' — loan repayment — the same product-suffix convention
+    // parseAccountRef()/composeMembershipNo() already document
+    // (lib/utils/membership-no.ts) and the one-off Fionas disbursement SMS
+    // already used by hand (scripts/send-fionas-disbursement-sms.ts).
+    const accountNumber = `${r.membership_no}L`;
     const body = overdue
       ? renderBuiltin(TEMPLATE_KEYS.LOAN_OVERDUE, {
           first_name:     r.first_name,
           amount:         r.total_due,
           penalty_amount: r.penalty_amount,
+          paybill,
+          account_number: accountNumber,
         })
       : renderBuiltin(TEMPLATE_KEYS.LOAN_REPAYMENT_DUE, {
           first_name: r.first_name,
           amount:     r.total_due,
           due_date:   r.due_date,
           balance:    r.closing_balance,
+          paybill,
+          account_number: accountNumber,
         });
 
     const result = await sendOnce({

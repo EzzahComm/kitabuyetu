@@ -85,10 +85,12 @@ export const contributionsService = {
       client.query<{
         membership_id: string; member_id: string; phone: string;
         first_name: string; group_name: string; period_key: string; month_label: string;
+        membership_no: string;
       }>(
         `SELECT gm.id AS membership_id, gm.member_id, m.phone, m.first_name, g.name AS group_name,
                 to_char(CURRENT_DATE, 'YYYY-MM') AS period_key,
-                to_char(CURRENT_DATE, 'Mon YYYY') AS month_label
+                to_char(CURRENT_DATE, 'Mon YYYY') AS month_label,
+                gm.membership_no
          FROM group_members gm
          JOIN members m ON m.id = gm.member_id
          JOIN groups  g ON g.id = gm.group_id
@@ -113,8 +115,13 @@ export const contributionsService = {
 
     const { renderTemplate } = await import('@/lib/sms/templates');
     const { sendOnce } = await import('./reminder.service');
+    // Same platform paybill mpesa-stk.service.ts's STK-failure nudge and the
+    // loan-due reminders (lib/jobs/handlers.ts) already use — a reminder that
+    // doesn't say how to pay isn't actionable.
+    const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
     const template =
-      'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. Thank you.';
+      'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. ' +
+      'Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}. Thank you.';
 
     let sent = 0, skipped = 0, failed = 0;
     for (const r of rows) {
@@ -123,9 +130,16 @@ export const contributionsService = {
         memberId:      r.member_id,
         phone:         r.phone,
         body:          renderTemplate(template, {
-          first_name: r.first_name,
-          group_name: r.group_name,
-          month:      r.month_label,
+          first_name:     r.first_name,
+          group_name:     r.group_name,
+          month:          r.month_label,
+          paybill,
+          // No product suffix — a bare membership_no is the contribution/
+          // savings account reference (lib/utils/membership-no.ts's
+          // ParsedAccountRef: -L/-W/-S are loan/welfare/shares; the base
+          // number alone is what mpesa-c2b.service.ts's matcher treats as
+          // the default, i.e. contributions).
+          account_number: r.membership_no,
         }),
         referenceType:  'contribution_nudge',
         referenceId:    r.membership_id,

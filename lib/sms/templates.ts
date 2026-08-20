@@ -54,9 +54,9 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   loan_disbursed:
     'Dear {{first_name}}, KES {{amount}} has been disbursed to your M-Pesa. Receipt: {{receipt}}.',
   loan_repayment_due:
-    'Dear {{first_name}}, your loan repayment of KES {{amount}} is due on {{due_date}}. Outstanding: KES {{balance}}.',
+    'Dear {{first_name}}, your loan repayment of KES {{amount}} is due on {{due_date}}. Outstanding: KES {{balance}}. Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}.',
   loan_overdue:
-    'Dear {{first_name}}, your loan repayment of KES {{amount}} is OVERDUE. Penalty: KES {{penalty_amount}}. Pay immediately.',
+    'Dear {{first_name}}, your loan repayment of KES {{amount}} is OVERDUE. Penalty: KES {{penalty_amount}}. Pay immediately via M-Pesa Paybill {{paybill}}, Account {{account_number}}.',
   meeting_reminder:
     'Dear {{first_name}}, {{group_name}} meeting is on {{meeting_date}} at {{meeting_location}}. Kindly attend.',
   birthday:

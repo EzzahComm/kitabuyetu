@@ -24,14 +24,37 @@ import {
 } from './db';
 import { handleJob } from './handlers';
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 25;
 
 /**
- * Claim and process the next batch of pending jobs.
- * Safe to call concurrently — `FOR UPDATE SKIP LOCKED` prevents double processing.
+ * Hard ceiling on this function's own wall-clock budget, independent of
+ * whatever the actual Vercel function timeout is. Deliberately conservative
+ * (the code above this used to assume a 10s Hobby limit but never enforced
+ * it) — leaves headroom for the claim query, logging, and one in-flight job
+ * to finish cleanly rather than being killed mid-write by the platform.
+ *
+ * Before this existed, claimPendingJobs(10) claimed a whole batch up front
+ * (marking all 10 'processing') and then awaited them one at a time with no
+ * time check at all. Whenever the batch's total real time — dominated by
+ * jobs making outbound HTTP calls, e.g. sms_poll_dlr's provider lookups —
+ * exceeded the function's actual ceiling, the platform killed the invocation
+ * mid-batch. Whatever hadn't finished sat in 'processing' limbo for a full
+ * 6 minutes until resetStuckJobs reclaimed it, then collided with the exact
+ * same timeout on the next tick — some job types made no forward progress
+ * for days (confirmed in prod: sms_poll_dlr backlog to 1,009 pending,
+ * sms_release_stale_reservations to 2,172, both untouched for a week+).
+ */
+const TIME_BUDGET_MS = 7_000;
+
+/**
+ * Claim and process pending jobs one at a time, stopping once BATCH_SIZE is
+ * reached or TIME_BUDGET_MS has elapsed — never claims a job it may not get
+ * to run. Safe to call concurrently — `FOR UPDATE SKIP LOCKED` on the
+ * single-row claim prevents double processing.
  */
 export async function processJobBatch(): Promise<ProcessResult> {
   const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
+  const startedAt = Date.now();
 
   // Reset any jobs stuck from a prior timeout before claiming new ones. A
   // timeout now counts as an attempt, so a job that never fits the function
@@ -46,9 +69,15 @@ export async function processJobBatch(): Promise<ProcessResult> {
     logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
   }
 
-  const jobs = await claimPendingJobs(BATCH_SIZE);
+  for (let i = 0; i < BATCH_SIZE; i++) {
+    if (Date.now() - startedAt >= TIME_BUDGET_MS) {
+      logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
+      break;
+    }
 
-  for (const job of jobs) {
+    const [job] = await claimPendingJobs(1);
+    if (!job) break; // nothing left due right now
+
     result.processed++;
     await processSingleJob(job, result);
   }

@@ -904,8 +904,16 @@ export const smsService = {
    * yet confirmed delivered/failed. Driven by the sms_poll_dlr cron job. Bounded
    * per tick (each check is one provider HTTP call). Refreshes campaign
    * delivered_count for any campaign whose messages reached a terminal state.
+   *
+   * `limit` was 50 — one job doing up to 50 sequential outbound HTTP calls
+   * could alone exceed processJobBatch's per-tick time budget (see
+   * lib/jobs/processor.ts), which is exactly how sms_poll_dlr ended up stuck
+   * "sent" and never "delivered" for real production messages for days:
+   * the job kept getting claimed, timing out mid-poll, and getting reset by
+   * the stuck-job sweep without ever finishing. Lower, and the 5-minute
+   * cadence just works through the backlog incrementally instead.
    */
-  async pollPendingDlrs(limit = 50): Promise<{ checked: number; delivered: number; failed: number; pending: number }> {
+  async pollPendingDlrs(limit = 15): Promise<{ checked: number; delivered: number; failed: number; pending: number }> {
     // Every TextSMS send path (send/bulk/retry and cron reminders) records the
     // provider message id in provider_msg_id, so that single column is the basis
     // for delivery tracking.
@@ -917,7 +925,14 @@ export const smsService = {
            AND status = 'sent'
            AND sent_at IS NOT NULL
            AND sent_at <= NOW() - INTERVAL '2 minutes'
-           AND sent_at >= NOW() - INTERVAL '24 hours'
+           -- Widened from 24 hours: that window silently orphaned any message
+           -- the poller hadn't reached in time, which is exactly what the
+           -- 2026-08-12/17 job-queue stall did to real production sends —
+           -- once older than 24h they'd NEVER be checked again, stuck 'sent'
+           -- forever. 7 days sweeps up that incident backlog too; the
+           -- provider's own DLR data is unlikely to be meaningful much past
+           -- that regardless.
+           AND sent_at >= NOW() - INTERVAL '7 days'
          ORDER BY sent_at ASC
          LIMIT $1`,
         [limit],
