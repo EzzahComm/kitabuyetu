@@ -197,3 +197,81 @@ export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: str
     { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Custom sender ID', 'Dedicated support'] },
   ],
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Organization plans — a DIFFERENT axis from PlanType/PLAN_FEATURES above,
+// which is entirely group-scoped. Organizations (federating bodies overseeing
+// many groups) had no plan/tier concept at all until this — confirmed by an
+// exhaustive search, the only prior trace was three completely dead,
+// unreferenced columns on `organizations` from a 2026-06 migration.
+//
+// UNLIKE groups, this is real, enforced from day one (chosen deliberately —
+// the group side's PLAN_FEATURES currently unlocks everything on every tier
+// after an audit found the gating inverted; the team chose to disable it
+// rather than fix it). And UNLIKE groups, there is no self-serve path here at
+// all: only super_admin/Kitabu Yetu staff create organizations, so a plan is
+// always assigned by staff — never purchased, never upgraded by a coordinator.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type OrganizationPlanType    = 'starter' | 'growth' | 'premium' | 'premium_plus';
+export type OrganizationSupportTier = 'standard' | 'priority' | 'priority_plus';
+
+export interface OrganizationPlanFeatures {
+  maxLinkedGroups:      number | null; // null = unlimited
+  maxStaff:             number | null;
+  maxFundingPrograms:   number | null;
+  smsAllowanceIncluded: number;        // bundled credits granted per monthly anniversary
+  whiteLabelBranding:   boolean;
+  advancedReports:      boolean;       // budget variance + donor spend reports
+  supportTier:          OrganizationSupportTier;
+}
+
+/**
+ * premium_plus is deliberately absent — "custom, including pricing" was
+ * explicit: every field is negotiated per deal and entered by hand at
+ * assignment time (organization-plan.service.ts#assignOrganizationPlan),
+ * never read from this static map. Mirrors PLAN_MONTHLY_FEES.enterprise's
+ * existing "0 = negotiated" convention, just structurally stricter — there is
+ * no fallback numeric here at all for premium_plus to accidentally read.
+ */
+export const ORGANIZATION_PLAN_FEATURES: Record<'starter' | 'growth' | 'premium', OrganizationPlanFeatures> = {
+  starter: {
+    maxLinkedGroups: 5, maxStaff: 2, maxFundingPrograms: 1,
+    smsAllowanceIncluded: 0, whiteLabelBranding: false, advancedReports: false,
+    supportTier: 'standard',
+  },
+  growth: {
+    maxLinkedGroups: 15, maxStaff: 5, maxFundingPrograms: 5,
+    smsAllowanceIncluded: 500, whiteLabelBranding: false, advancedReports: true,
+    supportTier: 'priority',
+  },
+  premium: {
+    maxLinkedGroups: null, maxStaff: 15, maxFundingPrograms: 10,
+    smsAllowanceIncluded: 1500, whiteLabelBranding: false, advancedReports: true,
+    supportTier: 'priority',
+  },
+};
+
+export const ORGANIZATION_PLAN_MONTHLY_FEES: Record<'starter' | 'growth' | 'premium', number> = {
+  starter: 2999, growth: 4999, premium: 8999,
+};
+
+export const ORGANIZATION_PLAN_COPY: { type: OrganizationPlanType; label: string; features: string[] }[] = [
+  { type: 'starter', label: 'Starter', features: [
+    'Up to 5 linked groups', 'Up to 2 staff seats', '1 active funding program',
+    'Basic reports', 'Pay-as-you-go SMS', 'Standard support',
+  ] },
+  { type: 'growth', label: 'Growth', features: [
+    'All Starter features', 'Up to 15 linked groups', 'Up to 5 staff seats',
+    '5 active funding programs', 'Budget variance & donor spend reports',
+    '500 SMS credits/month included', 'Priority support',
+  ] },
+  { type: 'premium', label: 'Premium', features: [
+    'All Growth features', 'Unlimited linked groups', 'Up to 15 staff seats',
+    '10 active funding programs', '1,500 SMS credits/month included', 'Priority support',
+  ] },
+  { type: 'premium_plus', label: 'Premium+', features: [
+    'All Premium features', 'Unlimited everything, negotiated per contract',
+    'White-label branding', 'Negotiated SMS rate & custom allowance', 'Priority+ support',
+  ] },
+];

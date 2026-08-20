@@ -34,6 +34,7 @@ import { updatePlatformUserRole } from './admin.service';
 import { hashSecret, generateEmailToken, generateOtp } from './group-verification.service';
 import { sendTemplatedEmail } from './email.service';
 import { sendServiceSms } from './notifications.service';
+import { assertStaffCap } from './organization-plan.service';
 
 /**
  * Finds an existing member by phone, or creates one with a temp/given
@@ -149,6 +150,8 @@ export async function addOrgStaff(
       [organizationId, memberId],
     );
     if (alreadyMember.rows[0]) throw new ConflictError('This person is already active staff for this organization');
+
+    await assertStaffCap(db, organizationId);
 
     const { rows: omRows } = await db.query<{ id: string; joined_at: Date }>(
       `INSERT INTO public.organization_members (organization_id, member_id, org_role, invited_by)
@@ -515,6 +518,11 @@ export async function completeOrgInvitation(token: string, password: string): Pr
     const memberId = await findOrCreateMemberForOrgStaff(db, {
       phone: inv.phone, firstName: inv.first_name, lastName: inv.last_name, email: inv.email, passwordHash,
     });
+
+    // The seat is consumed HERE, at acceptance — not when the invitation was
+    // sent (createOrgInvitation), since a pending, never-accepted invite must
+    // not permanently hold a slot the plan caps.
+    await assertStaffCap(db, inv.organization_id);
 
     await db.query(
       `INSERT INTO public.organization_members (organization_id, member_id, org_role, invited_by)

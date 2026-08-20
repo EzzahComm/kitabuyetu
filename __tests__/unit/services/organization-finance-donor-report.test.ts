@@ -31,8 +31,17 @@ beforeEach(() => {
 
 const ctx = { groupId: null, userId: 'coord-1', role: 'organization_coordinator', organizationId: 'org-1' };
 
+// Organization plans (migration 152) gate this report on advancedReports —
+// a query donorSpendReport now issues (via assertReportsAccess) BEFORE its
+// own two, so it must be the first mockResolvedValueOnce in every test here,
+// or the report's real queries consume this one's response instead.
+const advancedReportsPlanRow = {
+  rows: [{ advanced_reports: true, white_label_branding: false, max_linked_groups: null, max_staff: null, max_funding_programs: null }],
+};
+
 describe('organizationFinanceService.donorSpendReport', () => {
   it('rolls up programs by funding source and attaches per-group settled spend', async () => {
+    mockQuery.mockResolvedValueOnce(advancedReportsPlanRow);
     mockQuery.mockResolvedValueOnce({
       rows: [
         { id: 'prog-1', name: 'Water Access', funding_source: 'World Bank', budget: '100000.00', disbursed_total: '40000.00', reserved: '10000.00' },
@@ -74,6 +83,7 @@ describe('organizationFinanceService.donorSpendReport', () => {
   });
 
   it('returns an empty array when the organization has no funding programs', async () => {
+    mockQuery.mockResolvedValueOnce(advancedReportsPlanRow);
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
 

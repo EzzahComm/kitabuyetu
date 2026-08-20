@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Organization Billing — SMS credits.
+ * Organization Billing — plan + SMS credits.
  *
  * Deliberately its OWN page, not a card on the Funding Portal. That page is
  * the org's CAPITAL wallet (donor contributions, grants, disbursements to
@@ -9,12 +9,13 @@
  * .sms_credits) with no GL posting and nothing to do with disbursement
  * capacity. Mirrors the group side, which manages its own SMS credits on a
  * dedicated Billing page too (components/layout/sidebar.tsx), not folded
- * into any "funding" concept.
+ * into any "funding" concept. The plan section is read-only — an
+ * organization never self-serve changes its plan, only Kitabu Yetu staff do.
  */
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, ArrowDownToLine } from 'lucide-react';
+import { MessageSquare, ArrowDownToLine, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,9 @@ import { StatCard } from '@/components/shared/stat-card';
 import { SectionHeader } from '@/components/dashboard/sms/shared';
 import { useToast } from '@/hooks/use-toast';
 import { organizationApi } from '@/lib/api/endpoints';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatKES } from '@/lib/utils';
+
+const CAP_LABEL = (n: number | null) => (n === null ? 'Unlimited' : n.toLocaleString());
 
 export default function OrganizationBillingPage() {
   const [topUpOpen, setTopUpOpen] = useState(false);
@@ -38,17 +41,51 @@ export default function OrganizationBillingPage() {
     staleTime: 30_000,
   });
 
+  const { data: plan, isLoading: planLoading } = useQuery({
+    queryKey: ['organization', 'plan'],
+    queryFn:  () => organizationApi.plan(),
+    staleTime: 30_000,
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Billing"
-        description="This organization's SMS credits — separate from the capital wallet on the Funding Portal."
+        description="This organization's plan and SMS credits — separate from the capital wallet on the Funding Portal."
         actions={
           <Button size="sm" className="gap-1.5 h-9" onClick={() => setTopUpOpen(true)}>
-            <ArrowDownToLine size={15} /> Top up
+            <ArrowDownToLine size={15} /> Top up SMS
           </Button>
         }
       />
+
+      <div className="space-y-3">
+        <SectionHeader title="Plan" subtitle="Assigned by Kitabu Yetu staff — contact them to change your plan." />
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-4 py-4">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="text-muted-foreground" size={18} />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">
+                  {planLoading ? '—' : plan ? plan.plan_type.replace('_', '+') : 'No plan assigned'}
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  {planLoading || !plan ? '—' : `${formatKES(plan.monthly_fee)}/mo`}
+                </p>
+              </div>
+            </div>
+            {plan && !planLoading && (
+              <p className="text-xs text-muted-foreground">
+                {CAP_LABEL(plan.max_linked_groups)} groups · {CAP_LABEL(plan.max_staff)} staff ·{' '}
+                {CAP_LABEL(plan.max_funding_programs)} funding programs ·{' '}
+                {Number(plan.sms_allowance_included).toLocaleString()} SMS/mo included ·{' '}
+                <span className="capitalize">{plan.support_tier.replace('_', '+')}</span> support
+                {plan.white_label_branding && ' · White-label'}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard

@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Landmark, Users, Layers, Wallet, TrendingUp,
-  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog, RotateCw, Ban,
+  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog, RotateCw, Ban, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -26,9 +26,11 @@ import {
   useAssignGroupToOrg, useRevokeGroupFromOrg,
   useOrgStaff, useAddOrgStaff, useInviteOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
   useOrgInvitations, useResendOrgInvitation, useCancelOrgInvitation,
+  useOrganizationPlan, useAssignOrganizationPlan,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
 interface AssignedGroupRow {
   group_id:            string;
@@ -86,6 +88,17 @@ export default function OrganizationDetailPage({
   const { data: invitations, isLoading: invitationsLoading } = useOrgInvitations(id);
   const resendInvitation = useResendOrgInvitation();
   const cancelInvitation = useCancelOrgInvitation();
+
+  const { data: planData, isLoading: planLoading } = useOrganizationPlan(id);
+  const assignPlan = useAssignOrganizationPlan();
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const [planType, setPlanType] = useState<'starter' | 'growth' | 'premium' | 'premium_plus'>('starter');
+  const [customFee, setCustomFee]           = useState('');
+  const [customGroups, setCustomGroups]     = useState('');
+  const [customStaff, setCustomStaff]       = useState('');
+  const [customPrograms, setCustomPrograms] = useState('');
+  const [customSms, setCustomSms]           = useState('');
+  const [customSupport, setCustomSupport]   = useState<'standard' | 'priority' | 'priority_plus'>('priority_plus');
 
   const [assignOpen, setAssignOpen]   = useState(false);
   const [pickGroup, setPickGroup]     = useState('');
@@ -233,6 +246,43 @@ export default function OrganizationDetailPage({
     }
   };
 
+  const openPlanDialog = () => {
+    const current = planData?.subscription;
+    setPlanType((current?.plan_type as typeof planType) ?? 'starter');
+    setCustomFee(current?.is_custom ? current.monthly_fee : '');
+    setCustomGroups(current?.is_custom && current.max_linked_groups != null ? String(current.max_linked_groups) : '');
+    setCustomStaff(current?.is_custom && current.max_staff != null ? String(current.max_staff) : '');
+    setCustomPrograms(current?.is_custom && current.max_funding_programs != null ? String(current.max_funding_programs) : '');
+    setCustomSms(current?.is_custom ? current.sms_allowance_included : '');
+    setCustomSupport((current?.support_tier as typeof customSupport) ?? 'priority_plus');
+    setPlanDialogOpen(true);
+  };
+
+  const submitPlan = async () => {
+    if (planType === 'premium_plus' && !(parseFloat(customFee) >= 0)) {
+      toast({ variant: 'destructive', title: 'Premium+ requires a monthly fee' });
+      return;
+    }
+    try {
+      await assignPlan.mutateAsync({
+        organizationId: id,
+        planType,
+        custom: planType === 'premium_plus' ? {
+          monthlyFee:           parseFloat(customFee),
+          maxLinkedGroups:      customGroups   ? parseInt(customGroups, 10)   : null,
+          maxStaff:             customStaff    ? parseInt(customStaff, 10)    : null,
+          maxFundingPrograms:   customPrograms ? parseInt(customPrograms, 10) : null,
+          smsAllowanceIncluded: customSms      ? parseFloat(customSms)        : undefined,
+          supportTier:          customSupport,
+        } : undefined,
+      });
+      toast({ title: 'Plan updated' });
+      setPlanDialogOpen(false);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Could not update plan', description: getErrorMessage(e) });
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -277,6 +327,33 @@ export default function OrganizationDetailPage({
         <StatCard title="Wallet (KES)" value={formatKES(walletKES?.available_balance ?? 0)} icon={Wallet} iconClass="bg-green-50" />
         <StatCard title="Total Disbursed" value={formatKES(walletKES?.total_disbursed ?? 0)} icon={TrendingUp} iconClass="bg-amber-50" />
       </div>
+
+      {/* Plan — never self-serve; only assigned/changed here. */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-4 py-4">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="text-muted-foreground" size={18} />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan</p>
+              <p className="text-lg font-semibold text-foreground capitalize">
+                {planLoading ? '—' : planData?.subscription
+                  ? `${planData.subscription.plan_type.replace('_', '+')} · ${formatKES(planData.subscription.monthly_fee)}/mo`
+                  : 'No plan assigned'}
+              </p>
+            </div>
+          </div>
+          {planData?.subscription && !planLoading && (
+            <p className="text-xs text-muted-foreground">
+              {planData.usage.linkedGroups} of {planData.subscription.max_linked_groups ?? '∞'} groups ·{' '}
+              {planData.usage.staff} of {planData.subscription.max_staff ?? '∞'} staff ·{' '}
+              {planData.usage.activeFundingPrograms} of {planData.subscription.max_funding_programs ?? '∞'} programs
+            </p>
+          )}
+          <Button size="sm" variant="outline" className="ml-auto h-8" onClick={openPlanDialog}>
+            {planData?.subscription ? 'Change plan' : 'Assign plan'}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Assigned groups */}
@@ -613,6 +690,81 @@ export default function OrganizationDetailPage({
           <DialogFooter>
             <Button variant="outline" onClick={() => setRevoking(null)}>Cancel</Button>
             <Button className="bg-red-600 hover:bg-red-700" onClick={doRevoke} loading={revokeGroup.isPending}>Unassign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign / change plan */}
+      <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{planData?.subscription ? 'Change plan' : 'Assign plan'}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([
+              { value: 'starter' as const,      label: 'Starter',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.starter)}/mo` },
+              { value: 'growth' as const,       label: 'Growth',   fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.growth)}/mo` },
+              { value: 'premium' as const,      label: 'Premium',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.premium)}/mo` },
+              { value: 'premium_plus' as const, label: 'Premium+', fee: 'Custom' },
+            ]).map((p) => (
+              <button
+                key={p.value} type="button"
+                onClick={() => setPlanType(p.value)}
+                className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                  planType === p.value ? 'border-primary bg-primary/5' : 'border-input hover:bg-muted/40'
+                }`}
+              >
+                <p className="font-medium">{p.label}</p>
+                <p className="text-xs text-muted-foreground">{p.fee}</p>
+              </button>
+            ))}
+          </div>
+
+          {planType === 'premium_plus' && (
+            <div className="grid gap-3 sm:grid-cols-2 rounded-md border bg-muted/20 p-3">
+              <p className="sm:col-span-2 text-xs text-muted-foreground">
+                Negotiated per contract — every term below is entered by hand. Blank limits mean unlimited.
+              </p>
+              <div className="space-y-1">
+                <Label>Monthly fee (KES) <span className="text-red-500">*</span></Label>
+                <Input type="number" min={0} value={customFee} onChange={(e) => setCustomFee(e.target.value)} placeholder="e.g. 15000" />
+              </div>
+              <div className="space-y-1">
+                <Label>Support tier</Label>
+                <select
+                  value={customSupport}
+                  onChange={(e) => setCustomSupport(e.target.value as typeof customSupport)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="priority_plus">Priority+</option>
+                  <option value="priority">Priority</option>
+                  <option value="standard">Standard</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Max linked groups</Label>
+                <Input type="number" min={1} value={customGroups} onChange={(e) => setCustomGroups(e.target.value)} placeholder="Unlimited" />
+              </div>
+              <div className="space-y-1">
+                <Label>Max staff seats</Label>
+                <Input type="number" min={1} value={customStaff} onChange={(e) => setCustomStaff(e.target.value)} placeholder="Unlimited" />
+              </div>
+              <div className="space-y-1">
+                <Label>Max funding programs</Label>
+                <Input type="number" min={1} value={customPrograms} onChange={(e) => setCustomPrograms(e.target.value)} placeholder="Unlimited" />
+              </div>
+              <div className="space-y-1">
+                <Label>SMS allowance/month</Label>
+                <Input type="number" min={0} value={customSms} onChange={(e) => setCustomSms(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Changing the plan cancels the current one and starts a new one immediately — past usage keeps whatever
+            terms were in force when it happened.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>Cancel</Button>
+            <Button onClick={submitPlan} loading={assignPlan.isPending}>Save plan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,6 +2,7 @@ import { withDb, type TenantContext } from '@/lib/db';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
+import { assertWhiteLabelAccess } from './organization-plan.service';
 
 // PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
 // H3): the 3 call sites below used to fall back to `ctx.groupId` when
@@ -94,6 +95,7 @@ export const organizationService = {
   ): Promise<OrganizationBranding> {
     await this.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
+      await assertWhiteLabelAccess(client, orgId(ctx));
       const { rows } = await client.query<OrganizationBranding>(
         `UPDATE organizations
          SET logo_url = $2, primary_color = $3

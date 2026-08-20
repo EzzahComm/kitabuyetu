@@ -125,6 +125,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_allowance_monthly_reset':
       return handleSmsAllowanceMonthlyReset();
 
+    case 'organization_sms_allowance_grant':
+      return handleOrganizationSmsAllowanceGrant();
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -947,6 +950,17 @@ async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
   const { resetDueSmsAllowances } = await import('@/lib/services/messaging-billing');
   const result = await resetDueSmsAllowances();
   return { message: `SMS allowance reset for ${result.groupsReset} group(s)`, ...result };
+}
+
+/**
+ * Organization-side sibling — grants rather than zeroes, since organizations
+ * don't have the group side's separate used/included counter (see migration
+ * 152's rationale). Same anniversary-anchored idempotency shape.
+ */
+async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
+  const { grantDueOrganizationSmsAllowances } = await import('@/lib/services/organization-plan.service');
+  const result = await grantDueOrganizationSmsAllowances();
+  return { message: `SMS allowance granted for ${result.organizationsGranted} organization(s)`, ...result };
 }
 
 /**

@@ -518,6 +518,14 @@ export const organizationApi = {
   }>('/organization/sms-credits'),
   topUpSmsCredits: (body: TopUpSmsCreditsPayload) =>
     adminApi.post<{ creditsAdded: number; newBalance: number; rateApplied: number }>('/organization/sms-credits', body),
+  // Read-only — an organization never self-serve changes its plan, only
+  // super_admin does (app/api/admin/organizations/[id]/plan).
+  plan: () => adminApi.get<{
+    id: string; plan_type: string; monthly_fee: string;
+    max_linked_groups: number | null; max_staff: number | null; max_funding_programs: number | null;
+    sms_allowance_included: string; white_label_branding: boolean; advanced_reports: boolean;
+    support_tier: string; is_custom: boolean;
+  } | null>('/organization/plan'),
   programs: () => adminApi.get<{ items: FundingProgram[] }>('/organization/programs'),
   createProgram: (body: CreateProgramPayload) => adminApi.post<FundingProgram>('/organization/programs', body),
   // Pause/resume a program. Typed here rather than left as a raw adminApi.patch
