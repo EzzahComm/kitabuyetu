@@ -12,7 +12,7 @@
  *   Jobs left in 'processing' for > 6 min are reset to 'pending'.
  *   This handles Vercel Hobby function timeouts (10 s limit).
  */
-import type { Job, ProcessResult } from './types';
+import type { Job, JobType, ProcessResult } from './types';
 import { logger } from '@/lib/logger';
 import {
   claimPendingJobs,
@@ -60,11 +60,24 @@ const TIME_BUDGET_MS = 7_000;
  * (sms_process_schedules + 3 email_campaign_* types + payment_requests_expire
  * are all priority 5), so that tier alone, each type capped or not, still
  * filled the whole time budget before sms_poll_dlr (priority 4) or
- * sms_release_stale_reservations (priority 3) was ever reached — zero
- * progress for hours even with that cap live. Round-robining across every
- * distinct type — one claim attempt per type per round, cycling — instead
- * guarantees every type gets touched in round 1 of every tick, regardless of
- * how many siblings share its priority tier.
+ * sms_release_stale_reservations (priority 3) was ever reached.
+ *
+ * Plain round-robin (touch every type once per round, in priority order)
+ * was ALSO confirmed not enough: prod currently has 18 distinct pending
+ * types at once. sms_poll_dlr and sms_release_stale_reservations still
+ * showed zero progress even after that shipped, because reaching them in a
+ * priority-ordered round means getting through every higher-priority type's
+ * real job first (several make outbound HTTP calls — email/SMS provider
+ * APIs), and that alone can exceed the whole time budget before their turn
+ * ever comes, tick after tick, forever — priority order never changes which
+ * types sit at the back.
+ *
+ * ROTATE_STARTING_TYPE fixes that: which type goes first is derived from
+ * the current 5-minute tick number, so a different type leads each tick.
+ * Every distinct type gets to go first roughly once every
+ * (types.length × 5 minutes), and — critically — "roughly" here bounds a
+ * PERIOD, not "never": no type can be permanently stuck at the back the way
+ * static priority ordering left it.
  */
 export async function processJobBatch(): Promise<ProcessResult> {
   const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
@@ -83,7 +96,8 @@ export async function processJobBatch(): Promise<ProcessResult> {
     logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
   }
 
-  const types = await getDistinctPendingTypes();
+  const priorityOrderedTypes = await getDistinctPendingTypes();
+  const types = rotateStartingType(priorityOrderedTypes, startedAt);
 
   outer: while (types.length > 0 && result.processed < BATCH_SIZE) {
     let claimedAnyThisRound = false;
@@ -107,6 +121,21 @@ export async function processJobBatch(): Promise<ProcessResult> {
   }
 
   return result;
+}
+
+const TICK_INTERVAL_MS = 5 * 60 * 1000; // matches enqueueTimeBasedJobs' pg_cron cadence
+
+/**
+ * Rotates `types` so a different type leads each 5-minute tick, instead of
+ * always starting from priority order. See processJobBatch's header for why
+ * this — not just round-robining within a tick — is what guarantees no type
+ * is starved forever.
+ */
+function rotateStartingType(types: JobType[], now: number): JobType[] {
+  if (types.length === 0) return types;
+  const tick = Math.floor(now / TICK_INTERVAL_MS);
+  const offset = tick % types.length;
+  return [...types.slice(offset), ...types.slice(0, offset)];
 }
 
 async function processSingleJob(job: Job, result: ProcessResult): Promise<void> {
