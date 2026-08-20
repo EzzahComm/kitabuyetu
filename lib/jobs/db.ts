@@ -13,8 +13,17 @@ type Queryable = Pick<PoolClient, 'query'>;
 /**
  * Atomically claim the next batch of pending jobs using
  * `FOR UPDATE SKIP LOCKED` — safe for concurrent Vercel invocations.
+ *
+ * `excludeTypes` lets processJobBatch round-robin across job types instead
+ * of always draining the highest-priority type first: with plain
+ * `priority DESC` ordering, a type with a large enough backlog (confirmed in
+ * prod: sms_process_schedules alone routinely fills a whole tick) starves
+ * every lower-priority type out of the batch indefinitely, even once each
+ * tick's own time budget is respected. Once a type hits its per-tick cap
+ * (see MAX_PER_TYPE_PER_TICK in processor.ts), the caller adds it here so
+ * the next claim surfaces the next-highest-priority type instead.
  */
-export async function claimPendingJobs(limit = 10): Promise<Job[]> {
+export async function claimPendingJobs(limit = 10, excludeTypes: string[] = []): Promise<Job[]> {
   const { rows } = await pool.query<Job>(
     `UPDATE job_queue
      SET    status     = 'processing',
@@ -24,12 +33,13 @@ export async function claimPendingJobs(limit = 10): Promise<Job[]> {
        FROM   job_queue
        WHERE  status = 'pending'
          AND  run_at <= NOW()
+         AND  ($2::text[] IS NULL OR NOT (type = ANY($2::text[])))
        ORDER  BY priority DESC, run_at ASC
        LIMIT  $1
        FOR UPDATE SKIP LOCKED
      )
      RETURNING *`,
-    [limit],
+    [limit, excludeTypes.length ? excludeTypes : null],
   );
   return rows;
 }
