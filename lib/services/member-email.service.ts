@@ -101,17 +101,31 @@ export async function sendBirthdayEmails(): Promise<void> {
 export async function sendMonthlyStatements(groupId: string, month: string): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
-      `SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
-              COALESCE(SUM(c.amount) FILTER (WHERE DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', NOW())), 0) AS total_contributions,
-              COALESCE(SUM(l.outstanding_balance), 0) AS loan_balance,
+      `-- LATERAL per child table, not a flat multi-table LEFT JOIN: a member
+       -- with e.g. 3 contributions this month and 2 loans would otherwise
+       -- have their contributions SUM doubled (fanned out across the 2 loan
+       -- rows) and their loan balance SUM tripled (fanned out across the 3
+       -- contribution rows) — same bug class proven live elsewhere in the
+       -- admin/organization portals.
+       SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
+              COALESCE(con.total_contributions, 0) AS total_contributions,
+              COALESCE(ln.loan_balance, 0) AS loan_balance,
               g.name AS group_name
        FROM members m
        JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
        JOIN groups g ON g.id = gm.group_id
-       LEFT JOIN contributions c ON c.member_id = m.id AND c.group_id = $1 AND c.status = 'completed'
-       LEFT JOIN loans l ON l.member_id = m.id AND l.group_id = $1 AND l.status IN ('active','disbursed')
-       WHERE m.email IS NOT NULL
-       GROUP BY m.id, m.first_name, m.last_name, m.email, g.name`,
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(c.amount) FILTER (
+                  WHERE c.status = 'completed'
+                    AND DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', NOW())
+                ), 0) AS total_contributions
+         FROM contributions c WHERE c.member_id = m.id AND c.group_id = $1
+       ) con ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(l.outstanding_balance), 0) AS loan_balance
+         FROM loans l WHERE l.member_id = m.id AND l.group_id = $1 AND l.status IN ('active','disbursed')
+       ) ln ON true
+       WHERE m.email IS NOT NULL`,
       [groupId],
     ),
   );

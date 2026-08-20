@@ -148,19 +148,29 @@ export async function getOrganizationDetail(orgId: string) {
         LIMIT 1
       `, [orgId]),
       db.query(`
+        -- LATERAL per child table, not a flat multi-table LEFT JOIN: a plain
+        -- join of group_members alongside contributions fans every
+        -- contribution row out across every member row before SUM runs,
+        -- inflating total_contributions by (active member count) — same bug
+        -- class as admin.service.ts's getGroupById/listGroups, proven live
+        -- there (99x on a real group).
         SELECT
           oga.group_id, oga.access_level, oga.granted_at,
           g.name AS group_name, g.group_code, g.type AS group_type,
           g.onboarding_status,
-          COUNT(DISTINCT gm.id) FILTER (WHERE gm.status = 'active') AS member_count,
-          COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+          COALESCE(mem.member_count, 0)        AS member_count,
+          COALESCE(con.total_contributions, 0) AS total_contributions
         FROM public.organization_group_access oga
         JOIN public.groups g ON g.id = oga.group_id
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id
-        LEFT JOIN public.contributions c ON c.group_id = g.id
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS member_count FROM public.group_members gm
+          WHERE gm.group_id = g.id AND gm.status = 'active'
+        ) mem ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+          FROM public.contributions c WHERE c.group_id = g.id
+        ) con ON true
         WHERE oga.organization_id = $1 AND oga.is_active
-        GROUP BY oga.group_id, oga.access_level, oga.granted_at,
-                 g.name, g.group_code, g.type, g.onboarding_status
         ORDER BY g.name
       `, [orgId]),
       db.query(`

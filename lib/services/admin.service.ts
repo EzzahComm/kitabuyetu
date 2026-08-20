@@ -567,9 +567,9 @@ export async function listGroups(params: GroupListParams) {
           -- indistinguishable from a real paying customer in this list.
           s.plan_type AS plan,
           s.status    AS subscription_status,
-          COUNT(DISTINCT gm.id)   AS member_count,
-          COALESCE(SUM(DISTINCT c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions,
-          COALESCE(SUM(DISTINCT l.principal_amount) FILTER (WHERE l.status = 'active'), 0) AS active_loans
+          COALESCE(mem.member_count, 0)         AS member_count,
+          COALESCE(con.total_contributions, 0)  AS total_contributions,
+          COALESCE(ln.active_loans, 0)          AS active_loans
         FROM public.groups g
         -- LATERAL, not a plain LEFT JOIN: since migration 127 a group can hold
         -- one active subscription per product, and s.plan_type is in the GROUP
@@ -582,15 +582,34 @@ export async function listGroups(params: GroupListParams) {
           WHERE sub.group_id = g.id AND sub.status = 'active' AND sub.product = $1
           LIMIT 1
         ) s ON true
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.status = 'active'
-        LEFT JOIN public.contributions c ON c.group_id = g.id
-        LEFT JOIN public.loans l ON l.group_id = g.id
+        -- LATERAL per child table, not a flat multi-table LEFT JOIN: joining
+        -- group_members/contributions/loans together fans every contribution
+        -- row out across every loan row (and vice versa) before the SUM runs.
+        -- SUM(DISTINCT c.amount) — the prior attempt to guard against this —
+        -- doesn't fix it either: it collapses the sum to one copy of each
+        -- DISTINCT amount VALUE, silently under-counting any group where two
+        -- real contributions share an amount (e.g. two members both paying
+        -- the standard KES 100 — proven live on a real group, 650 shown vs.
+        -- 1,050 actual). See getGroupById's near-identical comment for the
+        -- over-counting half of this same bug class.
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS member_count FROM public.group_members gm
+          WHERE gm.group_id = g.id AND gm.status = 'active'
+        ) mem ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+          FROM public.contributions c WHERE c.group_id = g.id
+        ) con ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(l.principal_amount) FILTER (WHERE l.status = 'active'), 0) AS active_loans
+          FROM public.loans l WHERE l.group_id = g.id
+        ) ln ON true
         LEFT JOIN LATERAL (
           SELECT score, category FROM public.governance_health_scores h
           WHERE h.group_id = g.id ORDER BY h.as_of DESC LIMIT 1
         ) hs ON true
         ${where}
-        GROUP BY g.id, s.plan_type, s.status, hs.score, hs.category
+        GROUP BY g.id, s.plan_type, s.status, mem.member_count, con.total_contributions, ln.active_loans, hs.score, hs.category
         ORDER BY g.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...values, limit, offset]),
@@ -630,21 +649,46 @@ export async function getGroupById(groupId: string) {
         LIMIT 1
       `, [groupId]),
       db.query(`
+        -- LATERAL per child table, not a flat multi-table LEFT JOIN: joining
+        -- group_members/contributions/loans/payments/support_tickets in one
+        -- flat join cross-products every combination of their rows for this
+        -- group, so a plain SUM(c.amount) counts each contribution once per
+        -- row of every OTHER joined table (loans x payments x tickets x
+        -- members) instead of once. Proven live: a group with 9 members, 7
+        -- contributions (KES 1,050 total) and 11 payments (KES 1,220 total)
+        -- reported total_contributions=103,950 (99x) and total_payments=
+        -- 76,860 (63x) before this fix. COUNT(DISTINCT ...) masked the same
+        -- fan-out for the *count* columns but never protected the SUMs.
         SELECT
-          COUNT(DISTINCT gm.id) FILTER (WHERE gm.status = 'active') AS active_members,
-          COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions,
-          COALESCE(SUM(l.principal_amount) FILTER (WHERE l.status = 'active'), 0)   AS active_loans_amount,
-          COUNT(DISTINCT l.id)  FILTER (WHERE l.status = 'active')  AS active_loans_count,
-          COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'completed'), 0) AS total_payments,
-          COUNT(DISTINCT st.id) FILTER (WHERE st.status NOT IN ('resolved','closed')) AS open_tickets
+          COALESCE(mem.active_members, 0)      AS active_members,
+          COALESCE(con.total_contributions, 0) AS total_contributions,
+          COALESCE(ln.active_loans_amount, 0)  AS active_loans_amount,
+          COALESCE(ln.active_loans_count, 0)   AS active_loans_count,
+          COALESCE(pay.total_payments, 0)      AS total_payments,
+          COALESCE(tk.open_tickets, 0)         AS open_tickets
         FROM public.groups g
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id
-        LEFT JOIN public.contributions c ON c.group_id = g.id
-        LEFT JOIN public.loans l ON l.group_id = g.id
-        LEFT JOIN public.payments p ON p.group_id = g.id
-        LEFT JOIN public.support_tickets st ON st.group_id = g.id
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS active_members FROM public.group_members gm
+          WHERE gm.group_id = g.id AND gm.status = 'active'
+        ) mem ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+          FROM public.contributions c WHERE c.group_id = g.id
+        ) con ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(l.principal_amount) FILTER (WHERE l.status = 'active'), 0) AS active_loans_amount,
+                 COUNT(*) FILTER (WHERE l.status = 'active') AS active_loans_count
+          FROM public.loans l WHERE l.group_id = g.id
+        ) ln ON true
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'completed'), 0) AS total_payments
+          FROM public.payments p WHERE p.group_id = g.id
+        ) pay ON true
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS open_tickets FROM public.support_tickets st
+          WHERE st.group_id = g.id AND st.status NOT IN ('resolved','closed')
+        ) tk ON true
         WHERE g.id = $1
-        GROUP BY g.id
       `, [groupId]),
       db.query(`
         SELECT action, resource_type AS table_name, created_at
