@@ -38,13 +38,26 @@ Separately, **two SMS background job types have been starved for 4–8 days** de
 
 **Headline priorities**
 
-| # | Action | Severity | Effort |
-|---|---|---|---|
-| 1 | Fix DLR field misread (`delivery-status` → `delivery-description`) | Critical | ~1 hour |
-| 2 | Alert on delivery-rate collapse and provider queue stalls | Critical | ~1 day |
-| 3 | Resolve the TextSMS dispatch stall (provider escalation) | Critical | External |
-| 4 | Fix job-queue starvation properly (dedicated lanes, not rotation) | High | ~2 days |
-| 5 | Implement STOP/opt-out inbound handling (compliance) | High | ~2 days |
+| # | Action | Severity | Effort | Status |
+|---|---|---|---|---|
+| 1 | Fix DLR field misread (`delivery-status` → `delivery-description`) | Critical | ~1 hour | **SHIPPED** (PR #110) |
+| 2 | Alert on delivery-rate collapse and provider queue stalls | Critical | ~1 day | Open — next |
+| 3 | Resolve the TextSMS dispatch stall (provider escalation) | Critical | External | Open — with provider |
+| 4 | Fix job-queue starvation properly | High | ~2 days | **Partly shipped** (PR #110) |
+| 5 | Implement STOP/opt-out inbound handling (compliance) | High | ~2 days | Open |
+
+### Implementation status (updated 2026-08-20, post-audit)
+
+| Finding | Outcome |
+|---|---|
+| **C1** DLR field misread | **Fixed**, PR #110, with 11 regression tests pinning real provider payloads |
+| **H2** job-sweep backlog | **Partly fixed**, PR #110 — constant dedup keys stop unbounded growth; 4,254 redundant rows purged; all four SMS types now at exactly 1 pending. Dedicated lanes / age escalation still open, and may prove unnecessary now that rotation has one row per type to reach rather than thousands |
+| **H4** 53% failure rate | **Closed** — entirely historical, see below |
+| **M1** low-balance never re-arms | **Fixed**, PR #110 |
+| **C2** provider stall | Open, external |
+| **C3** alerting | Open — now unblocked, since delivery status is finally readable |
+
+**Newly surfaced during implementation:** the `email_*` sweeps carry the identical H2 defect — `email_retry_failed` (885), `email_campaign_drain` (852), `email_campaign_process` (845) = **2,582 pending rows** competing for the same tick budget the SMS jobs need. Deliberately not changed blind; they were outside this audit's scope. **This should be the next H2 action.**
 
 ---
 
@@ -329,25 +342,38 @@ Two secondary gaps in the same area:
 
 ---
 
-#### H4 — 53% lifetime failure rate, never investigated
+#### H4 — 53% lifetime failure rate — **INVESTIGATED, CLOSED (no live issue)**
 
-**Current problem.** Of 323 messages: 151 `sent`, **172 `failed`**, 0 `delivered`. A 53% failure rate. [VERIFIED]
+**Original concern.** Of 323 messages: 151 `sent`, **172 `failed`**, 0 `delivered`. A 53% failure rate. [VERIFIED]
 
-**Root cause.** [NEEDS INVESTIGATION] Not determinable from status alone. `failed_reason` is populated, but the historical distribution was not analysed in this pass. Note that some of this is *reporting* rather than genuine failure: an earlier confirmed bug recorded accepted messages as `failed` with `failed_reason: "Success"` (112 such rows) because of a response-code parsing defect, since fixed.
+**Investigated same day. The rate is entirely historical.** [VERIFIED]
 
-**Risk / impact.** The true failure rate is unknown, which means the real cost of waste is unknown. If a meaningful share are genuine, the platform is paying for messages that never arrive — on top of C2.
+| `failed_reason` | Count | First | Last |
+|---|---|---|---|
+| `Request failed with status code 422` | 99 | 2026-07-01 | 2026-08-07 |
+| `Request failed with status code 401` | 54 | 2026-05-29 | 2026-06-01 |
+| `Success` | 11 | 2026-08-08 | 2026-08-10 |
+| `Request failed with status code 500` | 8 | 2026-06-01 | 2026-06-01 |
 
-**Recommended solution.** Run a `failed_reason` distribution before optimising anything:
+Every bucket maps to an already-fixed defect: the 401s to the pre-credential era, the 422s to the broken billed send path, and the 11 `"Success"` rows to the response-code parsing bug (a *reporting* failure, not a delivery one).
 
-```sql
-SELECT failed_reason, count(*), min(created_at), max(created_at)
-FROM sms_usage_logs WHERE status='failed'
-GROUP BY 1 ORDER BY 2 DESC;
-```
+The weekly trend confirms it:
 
-Then classify per §8 and decide retry policy by class. This is cheap and should precede any cost work.
+| Week | Failed | OK |
+|---|---|---|
+| 2026-07-27 | 15 | 0 |
+| 2026-08-03 | 11 | 0 |
+| 2026-08-10 | 3 | 22 |
+| **2026-08-17** | **0** | **17** |
 
-**Priority: P1** (investigation), ~2 hours.
+**No SMS has failed at the provider since 2026-08-10.**
+
+**Conclusion — no action required, but two lessons stand:**
+
+1. **Never report lifetime failure rate as a health metric.** It is a legacy artefact; any dashboard showing it will look alarming and mean nothing. Report over a trailing window.
+2. **C2's stall does not appear as `failed` at all.** Those messages are recorded `sent` and sit at the provider. This is exactly why C3's alerting must key on *delivery rate and message age*, not on failure count — a failure-rate alert would have stayed green throughout the outage.
+
+**Priority: closed.**
 
 ---
 
