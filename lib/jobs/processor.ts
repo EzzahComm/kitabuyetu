@@ -47,6 +47,22 @@ const BATCH_SIZE = 25;
 const TIME_BUDGET_MS = 7_000;
 
 /**
+ * No single job type may claim more than this many slots in one tick.
+ * `claimPendingJobs` orders strictly by `priority DESC`, so without a cap a
+ * type with a large enough backlog drains the entire time budget every
+ * single tick and starves every lower-priority type out of the batch
+ * indefinitely — a separate failure mode from the timeout-killing
+ * TIME_BUDGET_MS fixes. Confirmed in prod: even after the time budget
+ * landed, sms_process_schedules (priority 5, ~800 pending) alone kept
+ * consuming whole ticks, and sms_poll_dlr (priority 4) / sms_release_stale_
+ * reservations (priority 3) made zero forward progress for hours. Once a
+ * type hits this cap it's excluded from further claims THIS tick only, so
+ * the next claim surfaces the next-highest-priority type instead — everyone
+ * gets a turn every tick, higher priority just gets more of them.
+ */
+const MAX_PER_TYPE_PER_TICK = 3;
+
+/**
  * Claim and process pending jobs one at a time, stopping once BATCH_SIZE is
  * reached or TIME_BUDGET_MS has elapsed — never claims a job it may not get
  * to run. Safe to call concurrently — `FOR UPDATE SKIP LOCKED` on the
@@ -69,14 +85,21 @@ export async function processJobBatch(): Promise<ProcessResult> {
     logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
   }
 
+  const claimedPerType = new Map<string, number>();
+  const exhaustedTypes: string[] = [];
+
   for (let i = 0; i < BATCH_SIZE; i++) {
     if (Date.now() - startedAt >= TIME_BUDGET_MS) {
       logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
       break;
     }
 
-    const [job] = await claimPendingJobs(1);
-    if (!job) break; // nothing left due right now
+    const [job] = await claimPendingJobs(1, exhaustedTypes);
+    if (!job) break; // nothing left due right now, outside the exhausted types
+
+    const claimedSoFar = (claimedPerType.get(job.type) ?? 0) + 1;
+    claimedPerType.set(job.type, claimedSoFar);
+    if (claimedSoFar >= MAX_PER_TYPE_PER_TICK) exhaustedTypes.push(job.type);
 
     result.processed++;
     await processSingleJob(job, result);
