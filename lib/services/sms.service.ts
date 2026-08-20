@@ -47,16 +47,49 @@ export interface SendSmsResult {
 export type DlrClass = 'delivered' | 'failed' | 'pending';
 
 /**
+ * Recognised in-transit states. Explicit rather than implied by the fallthrough
+ * so that a description we have genuinely never seen can be told apart from one
+ * we deliberately treat as pending — see the warn below.
+ *
+ * 'scheduled' is TextSMS's own word for "accepted, queued, not yet handed to
+ * the operator". It is the normal state for the first seconds of a message's
+ * life, and also the state every message sat in during the 2026-08-19 provider
+ * stall, which is why it must classify as pending and never as failed: the
+ * message may still be delivered, and marking it failed would refund a message
+ * we were charged for.
+ */
+const DLR_PENDING = /pending|scheduled|queued|accepted|submit|enroute|in.?transit|unknown/;
+
+/**
  * Map a raw provider delivery status to our domain class. Conservative by
  * design: anything not clearly terminal (in-transit, accepted, unknown,
  * numeric/blank) classifies as 'pending' so a not-yet-delivered message is
  * never marked 'failed'. Failure patterns are checked first so 'UNDELIV'
  * isn't caught by the 'deliv' substring.
+ *
+ * MUST be given the provider's `delivery-description` ('DeliveredToTerminal',
+ * 'Scheduled', …), never its numeric `delivery-status`. That number is 32 for
+ * both delivered and undelivered messages, so feeding it here matched neither
+ * branch and silently classified the platform's ENTIRE message history as
+ * pending (docs/audits/SMS_SYSTEM_AUDIT_2026-08-20.md C1). DlrResult.status is
+ * the description; DlrResult.statusCode is the number and is diagnostic only.
  */
 export function classifyDlrStatus(raw: string): DlrClass {
   const s = (raw ?? '').toLowerCase();
   if (/undeliv|fail|reject|expir|delet|invalid|error|blocked/.test(s)) return 'failed';
   if (/deliv|success|delivrd/.test(s)) return 'delivered';
+
+  // Falling through to 'pending' is the safe answer, but a description we do
+  // not recognise at all is exactly how C1 stayed invisible for months: a
+  // value that means "delivered" in some dialect would be quietly parked here
+  // forever. Pending is still returned — this only makes the unknown loud.
+  //
+  // An absent/blank status is NOT "unrecognised vocabulary" — it's a report we
+  // simply haven't received yet, which is the normal state of every message
+  // between send and first DLR. Warning on it would bury the real signal.
+  if (s !== '' && !DLR_PENDING.test(s)) {
+    logger.warn('[sms] unrecognised DLR description — treating as pending', { raw });
+  }
   return 'pending';
 }
 
