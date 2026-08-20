@@ -82,12 +82,25 @@ export async function startGroupVerification(
       groupId: info.groupId,
     });
   } else {
-    await sendServiceSms({
+    // sendServiceSms NEVER throws and NEVER returns void — it reports the
+    // provider's verdict in `sent` (see its own doc comment). Ignoring that
+    // return is what let /verify/start answer "code sent" on a total provider
+    // failure: the registrant then sat waiting for an SMS that was never
+    // accepted, with nothing in the response or the UI to say otherwise.
+    // Surface it as a real error so the caller can tell the truth.
+    const res = await sendServiceSms({
       phone:   destination,
       groupId: info.groupId,
       notificationType: 'auth_group_verification',
       body: `Your Kitabu Yetu verification code is ${secret}. It expires in 10 minutes. If you did not request this, ignore this SMS.`,
     });
+    if (!res.sent) {
+      throw new AppError(
+        'We could not send the code to your phone. Please try again, or use email verification.',
+        'OTP_SEND_FAILED',
+        502,
+      );
+    }
   }
 
   return { expiresAt };

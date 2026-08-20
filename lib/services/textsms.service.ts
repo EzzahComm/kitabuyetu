@@ -310,11 +310,28 @@ export async function getProviderBalance(): Promise<BalanceResult> {
     },
   );
 
-  return {
-    balance:  parseFloat(String(data.balance ?? '0')),
-    currency: 'KES',
-    raw:      data,
-  };
+  // An error body ({"response-code":1006,"response-description":"Invalid
+  // credentials"}) carries no `balance` field, and `?? '0'` turned that into a
+  // confident, wrong "KES 0.00". Every sms_provider_balances snapshot since
+  // 2026-08-09 reads 0.00 — including days SMS demonstrably delivered — so the
+  // column has been recording "the balance query failed" as "we have no
+  // credit", which is exactly backwards when you are trying to work out why
+  // messages stopped arriving. Fail loudly instead: a balance we could not read
+  // must never be persisted as a number.
+  const code = extractResponseCode(data as Partial<ProviderResponseRow>);
+  if (data.balance == null || code !== SUCCESS_CODE) {
+    throw new TextSmsError(
+      String(data['response-description'] ?? codeDescription(code)),
+      code,
+    );
+  }
+
+  const balance = parseFloat(String(data.balance));
+  if (!Number.isFinite(balance)) {
+    throw new TextSmsError(`Unparseable balance: ${String(data.balance)}`, SYSTEM_ERROR);
+  }
+
+  return { balance, currency: 'KES', raw: data };
 }
 
 // ─── Batch helper — chunks items to avoid payload limits ─────────────────────

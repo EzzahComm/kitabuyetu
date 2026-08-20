@@ -29,6 +29,7 @@ import {
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 
 interface GroupActivityRow {
   action:     string;
@@ -61,16 +62,12 @@ const PLAN_BADGE: Record<string, string> = {
   enterprise: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  chama:      'Chama',
-  sacco:      'SACCO',
-  welfare:    'Welfare',
-  investment: 'Investment',
-  // 'ngo_group' is the real group_type enum member. This map said
-  // 'organization_group', which the enum has never contained, so an NGO group
-  // fell through to displaying its raw value.
-  ngo_group:  'NGO Group',
-};
+// Third copy of this map, now retired in favour of the shared one in
+// types/enums.ts. It said 'organization_group' — never an enum member — so an
+// NGO group fell through to displaying its raw value, and it silently omitted
+// every type added since. `Record<string, string>` is kept at the call sites
+// via the `?? t` fallback so an unknown value from the DB still renders.
+const TYPE_LABELS: Record<string, string> = GROUP_TYPE_LABELS;
 
 const ACTION_DOT: Record<string, string> = {
   INSERT: 'bg-green-500',
@@ -530,7 +527,7 @@ export default function GroupDetailPage({
                 onChange={(e) => setEdits({ ...edits, type: e.target.value })}
               >
                 {/* Matches the group_type Postgres enum exactly. */}
-                {['chama', 'sacco', 'welfare', 'investment', 'ngo_group'].map((t) => (
+                {GROUP_TYPES.map((t) => (
                   <option key={t} value={t}>{TYPE_LABELS[t] ?? t}</option>
                 ))}
               </select>

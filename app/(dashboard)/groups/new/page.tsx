@@ -26,6 +26,7 @@ import { api } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { postLoginPath } from '@/lib/auth/post-login-path';
+import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 import type { CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema';
 
 // Mirrors lib/validators/auth.schema.ts's shared groupDetailsFields — kept in
@@ -34,8 +35,9 @@ import type { CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema'
 const schema = z.object({
   product:     z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
   groupName:   z.string().min(3, 'Group name must be at least 3 characters'),
-  // Must match the group_type Postgres enum EXACTLY — see the option value below.
-  groupType:   z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
+  // Must match the group_type Postgres enum EXACTLY — derived from the shared
+  // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
+  groupType:   z.enum(GROUP_TYPES),
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
     errorMap: () => ({ message: 'Select your role in this group' }),
   }),
@@ -131,14 +133,13 @@ export default function CreateAdditionalGroupPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Group type</Label>
+                {/* Second copy of the signup dropdown — see the note in
+                    app/(auth)/register/page.tsx. Both now render from the same
+                    GROUP_TYPE_LABELS map. */}
                 <select aria-label="Group type" className={selectCls} {...register('groupType')}>
-                  <option value="chama">Chama</option>
-                  <option value="sacco">SACCO</option>
-                  <option value="welfare">Welfare</option>
-                  <option value="investment">Investment</option>
-                  {/* Real group_type enum value is 'ngo_group', not 'organization_group' —
-                      the mismatch made this submission fail with a 500. */}
-                  <option value="ngo_group">Organization group</option>
+                  {GROUP_TYPES.map((t) => (
+                    <option key={t} value={t}>{GROUP_TYPE_LABELS[t]}</option>
+                  ))}
                 </select>
               </div>
               <div>
