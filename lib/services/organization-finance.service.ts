@@ -1210,20 +1210,41 @@ export const organizationFinanceService = {
             total_savings: string; loan_portfolio: string;
             loans_disbursed: string; loans_repaid: string;
           }>(
-            `SELECT
-               COUNT(DISTINCT nga.group_id)                                            AS linked_groups,
-               COUNT(DISTINCT gm.member_id) FILTER (WHERE gm.is_active)                AS active_members,
-               COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0)::text  AS total_savings,
-               COALESCE(SUM(l.outstanding_balance)
-                        FILTER (WHERE l.status IN ('disbursed','active')), 0)::text    AS loan_portfolio,
-               COUNT(DISTINCT l.id) FILTER (WHERE l.status IN ('disbursed','active'))  AS loans_disbursed,
-               COALESCE(SUM(lr.amount_paid) FILTER (WHERE lr.status = 'completed'), 0)::text AS loans_repaid
-             FROM organization_group_access nga
-             LEFT JOIN group_members    gm ON gm.group_id = nga.group_id
-             LEFT JOIN contributions    c  ON c.group_id  = nga.group_id
-             LEFT JOIN loans            l  ON l.group_id  = nga.group_id
-             LEFT JOIN loan_repayments  lr ON lr.loan_id  = l.id
-             WHERE nga.organization_id = $1 AND nga.is_active`,
+            `-- group_stats pre-aggregates each child table PER GROUP first:
+             -- joining group_members/contributions/loans/loan_repayments
+             -- directly onto organization_group_access fans every
+             -- contribution/repayment row out across every member and loan
+             -- row of the same group (and across every OTHER linked group)
+             -- before the SUM runs — same bug class proven live elsewhere
+             -- (admin.service.ts's getGroupById, 99x on a single group;
+             -- admin-geography's county rollup, 30x on a whole county).
+             WITH linked AS (
+               SELECT DISTINCT nga.group_id FROM organization_group_access nga
+               WHERE nga.organization_id = $1 AND nga.is_active
+             ),
+             group_stats AS (
+               SELECT lk.group_id,
+                 (SELECT COUNT(*) FROM group_members gm
+                   WHERE gm.group_id = lk.group_id AND gm.is_active) AS active_members,
+                 (SELECT COALESCE(SUM(amount) FILTER (WHERE status = 'completed'), 0)
+                    FROM contributions c WHERE c.group_id = lk.group_id) AS total_savings,
+                 (SELECT COALESCE(SUM(outstanding_balance) FILTER (WHERE status IN ('disbursed','active')), 0)
+                    FROM loans l WHERE l.group_id = lk.group_id) AS loan_portfolio,
+                 (SELECT COUNT(*) FILTER (WHERE status IN ('disbursed','active'))
+                    FROM loans l WHERE l.group_id = lk.group_id) AS loans_disbursed,
+                 (SELECT COALESCE(SUM(lr.amount_paid) FILTER (WHERE lr.status = 'completed'), 0)
+                    FROM loan_repayments lr JOIN loans l2 ON l2.id = lr.loan_id
+                    WHERE l2.group_id = lk.group_id) AS loans_repaid
+               FROM linked lk
+             )
+             SELECT
+               COUNT(*)                              AS linked_groups,
+               COALESCE(SUM(active_members), 0)      AS active_members,
+               COALESCE(SUM(total_savings), 0)::text AS total_savings,
+               COALESCE(SUM(loan_portfolio), 0)::text AS loan_portfolio,
+               COALESCE(SUM(loans_disbursed), 0)     AS loans_disbursed,
+               COALESCE(SUM(loans_repaid), 0)::text  AS loans_repaid
+             FROM group_stats`,
             [orgId(ctx)],
           ),
           db.query<FundingProgram>(

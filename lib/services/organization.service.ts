@@ -144,30 +144,48 @@ export const organizationService = {
              g.name                                                    AS "groupName",
              g.type                                                    AS "groupType",
              g.county,
-             COUNT(DISTINCT gm.member_id) FILTER (WHERE gm.is_active) AS "activeMemberCount",
-             COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0)::text AS "totalContributions",
-             COALESCE(SUM(l.outstanding_balance) FILTER (WHERE l.status IN ('disbursed','active')), 0)::text AS "activeLoanPortfolio",
-             COUNT(l.id) FILTER (WHERE l.status = 'defaulted')::int   AS "defaultedLoanCount",
+             COALESCE(mem.active_member_count, 0)                      AS "activeMemberCount",
+             COALESCE(con.total_contributions, 0)::text                AS "totalContributions",
+             COALESCE(ln.active_loan_portfolio, 0)::text               AS "activeLoanPortfolio",
+             COALESCE(ln.defaulted_loan_count, 0)::int                 AS "defaultedLoanCount",
              sub.plan_type                                             AS "subscriptionPlan",
-             sub.status                                               AS "subscriptionStatus",
+             sub.status                                                AS "subscriptionStatus",
              g.created_at::text                                       AS "groupCreatedAt"
            FROM groups g
            JOIN organization_group_access nga
              ON nga.group_id = g.id
              AND nga.organization_id  = $1
              AND nga.is_active = true
-           LEFT JOIN group_members gm ON gm.group_id = g.id
-           LEFT JOIN contributions c  ON c.group_id  = g.id
-           LEFT JOIN loans l          ON l.group_id  = g.id
+           -- LATERAL per child table, not a flat multi-table LEFT JOIN: a
+           -- plain join of group_members/contributions/loans together
+           -- fans every contributions row out across every member and loan
+           -- row (and vice versa) before SUM/COUNT run, inflating
+           -- totalContributions/activeLoanPortfolio/defaultedLoanCount by
+           -- the OTHER tables' row counts — the comment below about
+           -- migration 127 already diagnosed this exact mechanism for the
+           -- subscriptions join, but the same fan-out was still live via
+           -- these three joins (proven on real data — see
+           -- admin.service.ts's getGroupById for the reproduction).
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*) AS active_member_count FROM group_members gm
+             WHERE gm.group_id = g.id AND gm.is_active
+           ) mem ON true
+           LEFT JOIN LATERAL (
+             SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+             FROM contributions c WHERE c.group_id = g.id
+           ) con ON true
+           LEFT JOIN LATERAL (
+             SELECT COALESCE(SUM(l.outstanding_balance) FILTER (WHERE l.status IN ('disbursed','active')), 0) AS active_loan_portfolio,
+                    COUNT(*) FILTER (WHERE l.status = 'defaulted') AS defaulted_loan_count
+             FROM loans l WHERE l.group_id = g.id
+           ) ln ON true
            -- LATERAL, not a plain join: since migration 127 a group can hold
-           -- one active subscription per product. A plain join would multiply
-           -- every contributions/loans row by the number of products and
-           -- inflate the un-DISTINCTed SUM(c.amount) / COUNT(l.id) above, as
-           -- well as listing the group once per product. Scoped to
-           -- kitabu_yetu because this is an organization's window onto the
-           -- savings/loan financials of groups it oversees — a group's Chama
-           -- Reminder subscription is not an organization's concern, and NULL
-           -- correctly reads as "no Kitabu Yetu plan".
+           -- one active subscription per product. A plain join would list
+           -- the group once per product. Scoped to kitabu_yetu because this
+           -- is an organization's window onto the savings/loan financials
+           -- of groups it oversees — a group's Chama Reminder subscription
+           -- is not an organization's concern, and NULL correctly reads as
+           -- "no Kitabu Yetu plan".
            LEFT JOIN LATERAL (
              SELECT s.plan_type, s.status FROM subscriptions s
              WHERE s.group_id = g.id AND s.status = 'active'
@@ -175,7 +193,6 @@ export const organizationService = {
              LIMIT 1
            ) sub ON true
            WHERE g.is_active = true
-           GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at
            ORDER BY g.name
            LIMIT $2 OFFSET $3`,
           [organizationId, limit, (page - 1) * limit],
@@ -333,28 +350,37 @@ export const organizationService = {
            g.name        AS "groupName",
            g.type        AS "groupType",
            g.county,
-           COUNT(DISTINCT gm.member_id) FILTER (WHERE gm.is_active)::int AS "activeMemberCount",
-           COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0)::text AS "totalContributions",
-           COALESCE(SUM(l.outstanding_balance) FILTER (WHERE l.status IN ('disbursed','active')), 0)::text AS "activeLoanPortfolio",
-           COUNT(l.id) FILTER (WHERE l.status = 'defaulted')::int AS "defaultedLoanCount",
+           COALESCE(mem.active_member_count, 0)         AS "activeMemberCount",
+           COALESCE(con.total_contributions, 0)::text   AS "totalContributions",
+           COALESCE(ln.active_loan_portfolio, 0)::text  AS "activeLoanPortfolio",
+           COALESCE(ln.defaulted_loan_count, 0)::int    AS "defaultedLoanCount",
            sub.plan_type  AS "subscriptionPlan",
            sub.status     AS "subscriptionStatus",
            g.created_at::text AS "groupCreatedAt"
          FROM groups g
-         LEFT JOIN group_members gm ON gm.group_id = g.id
-         LEFT JOIN contributions c  ON c.group_id  = g.id
-         LEFT JOIN loans l          ON l.group_id  = g.id
-         -- Same LATERAL fix and same kitabu_yetu scoping as the list query
-         -- above — see its comment for why a plain join corrupts the
-         -- aggregates here (migration 127).
+         -- Same LATERAL-per-child-table fix and same kitabu_yetu scoping as
+         -- the list query above — see its comment for why a flat join of
+         -- group_members/contributions/loans fans the aggregates out here.
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*) AS active_member_count FROM group_members gm
+           WHERE gm.group_id = g.id AND gm.is_active
+         ) mem ON true
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
+           FROM contributions c WHERE c.group_id = g.id
+         ) con ON true
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(SUM(l.outstanding_balance) FILTER (WHERE l.status IN ('disbursed','active')), 0) AS active_loan_portfolio,
+                  COUNT(*) FILTER (WHERE l.status = 'defaulted') AS defaulted_loan_count
+           FROM loans l WHERE l.group_id = g.id
+         ) ln ON true
          LEFT JOIN LATERAL (
            SELECT s.plan_type, s.status FROM subscriptions s
            WHERE s.group_id = g.id AND s.status = 'active'
              AND s.product = 'kitabu_yetu'
            LIMIT 1
          ) sub ON true
-         WHERE g.id = $1
-         GROUP BY g.id, g.name, g.type, g.county, sub.plan_type, sub.status, g.created_at`,
+         WHERE g.id = $1`,
         [groupId],
       );
       if (!summary[0]) throw new NotFoundError('Group', groupId);
