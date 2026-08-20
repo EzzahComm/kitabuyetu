@@ -16,6 +16,7 @@ import type { Job, ProcessResult } from './types';
 import { logger } from '@/lib/logger';
 import {
   claimPendingJobs,
+  getDistinctPendingTypes,
   resetStuckJobs,
   markJobCompleted,
   markJobFailed,
@@ -47,26 +48,23 @@ const BATCH_SIZE = 25;
 const TIME_BUDGET_MS = 7_000;
 
 /**
- * No single job type may claim more than this many slots in one tick.
- * `claimPendingJobs` orders strictly by `priority DESC`, so without a cap a
- * type with a large enough backlog drains the entire time budget every
- * single tick and starves every lower-priority type out of the batch
- * indefinitely — a separate failure mode from the timeout-killing
- * TIME_BUDGET_MS fixes. Confirmed in prod: even after the time budget
- * landed, sms_process_schedules (priority 5, ~800 pending) alone kept
- * consuming whole ticks, and sms_poll_dlr (priority 4) / sms_release_stale_
- * reservations (priority 3) made zero forward progress for hours. Once a
- * type hits this cap it's excluded from further claims THIS tick only, so
- * the next claim surfaces the next-highest-priority type instead — everyone
- * gets a turn every tick, higher priority just gets more of them.
- */
-const MAX_PER_TYPE_PER_TICK = 3;
-
-/**
- * Claim and process pending jobs one at a time, stopping once BATCH_SIZE is
- * reached or TIME_BUDGET_MS has elapsed — never claims a job it may not get
- * to run. Safe to call concurrently — `FOR UPDATE SKIP LOCKED` on the
- * single-row claim prevents double processing.
+ * Claim and process pending jobs in round-robin rounds across every distinct
+ * pending type, stopping once BATCH_SIZE is reached or TIME_BUDGET_MS has
+ * elapsed — never claims a job it may not get to run. Safe to call
+ * concurrently — `FOR UPDATE SKIP LOCKED` on each single-row claim prevents
+ * double processing.
+ *
+ * A first attempt at fairness capped how many jobs of the SAME type could be
+ * claimed per tick, still claiming by strict `priority DESC` otherwise —
+ * confirmed NOT enough in prod: several types share the same priority tier
+ * (sms_process_schedules + 3 email_campaign_* types + payment_requests_expire
+ * are all priority 5), so that tier alone, each type capped or not, still
+ * filled the whole time budget before sms_poll_dlr (priority 4) or
+ * sms_release_stale_reservations (priority 3) was ever reached — zero
+ * progress for hours even with that cap live. Round-robining across every
+ * distinct type — one claim attempt per type per round, cycling — instead
+ * guarantees every type gets touched in round 1 of every tick, regardless of
+ * how many siblings share its priority tier.
  */
 export async function processJobBatch(): Promise<ProcessResult> {
   const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
@@ -85,24 +83,27 @@ export async function processJobBatch(): Promise<ProcessResult> {
     logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
   }
 
-  const claimedPerType = new Map<string, number>();
-  const exhaustedTypes: string[] = [];
+  const types = await getDistinctPendingTypes();
 
-  for (let i = 0; i < BATCH_SIZE; i++) {
-    if (Date.now() - startedAt >= TIME_BUDGET_MS) {
-      logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
-      break;
+  outer: while (types.length > 0 && result.processed < BATCH_SIZE) {
+    let claimedAnyThisRound = false;
+
+    for (const type of types) {
+      if (result.processed >= BATCH_SIZE) break outer;
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) {
+        logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
+        break outer;
+      }
+
+      const [job] = await claimPendingJobs(1, type);
+      if (!job) continue; // this type ran dry mid-tick — skip it for the rest of this round
+
+      claimedAnyThisRound = true;
+      result.processed++;
+      await processSingleJob(job, result);
     }
 
-    const [job] = await claimPendingJobs(1, exhaustedTypes);
-    if (!job) break; // nothing left due right now, outside the exhausted types
-
-    const claimedSoFar = (claimedPerType.get(job.type) ?? 0) + 1;
-    claimedPerType.set(job.type, claimedSoFar);
-    if (claimedSoFar >= MAX_PER_TYPE_PER_TICK) exhaustedTypes.push(job.type);
-
-    result.processed++;
-    await processSingleJob(job, result);
+    if (!claimedAnyThisRound) break; // nothing left across any type
   }
 
   return result;

@@ -14,16 +14,20 @@ type Queryable = Pick<PoolClient, 'query'>;
  * Atomically claim the next batch of pending jobs using
  * `FOR UPDATE SKIP LOCKED` — safe for concurrent Vercel invocations.
  *
- * `excludeTypes` lets processJobBatch round-robin across job types instead
- * of always draining the highest-priority type first: with plain
- * `priority DESC` ordering, a type with a large enough backlog (confirmed in
- * prod: sms_process_schedules alone routinely fills a whole tick) starves
- * every lower-priority type out of the batch indefinitely, even once each
- * tick's own time budget is respected. Once a type hits its per-tick cap
- * (see MAX_PER_TYPE_PER_TICK in processor.ts), the caller adds it here so
- * the next claim surfaces the next-highest-priority type instead.
+ * `onlyType` lets processJobBatch round-robin across every distinct pending
+ * type instead of always draining by strict `priority DESC`. A per-type cap
+ * within priority-ordered claiming turned out not to be enough on its own
+ * (confirmed in prod): several job types share the same priority tier
+ * (sms_process_schedules, 3 email_campaign_* types, payment_requests_expire
+ * are all priority 5), so even capped at a few each, that tier alone can
+ * fill an entire tick's time budget before a lower-priority type like
+ * sms_poll_dlr (priority 4) or sms_release_stale_reservations (priority 3)
+ * is ever reached — they made zero progress for hours even after that cap
+ * shipped. Restricting a claim to one specific type is what lets the
+ * processor guarantee every distinct pending type gets touched once per
+ * round before any type gets a second job.
  */
-export async function claimPendingJobs(limit = 10, excludeTypes: string[] = []): Promise<Job[]> {
+export async function claimPendingJobs(limit = 10, onlyType?: JobType): Promise<Job[]> {
   const { rows } = await pool.query<Job>(
     `UPDATE job_queue
      SET    status     = 'processing',
@@ -33,15 +37,32 @@ export async function claimPendingJobs(limit = 10, excludeTypes: string[] = []):
        FROM   job_queue
        WHERE  status = 'pending'
          AND  run_at <= NOW()
-         AND  ($2::text[] IS NULL OR NOT (type = ANY($2::text[])))
+         AND  ($2::text IS NULL OR type = $2)
        ORDER  BY priority DESC, run_at ASC
        LIMIT  $1
        FOR UPDATE SKIP LOCKED
      )
      RETURNING *`,
-    [limit, excludeTypes.length ? excludeTypes : null],
+    [limit, onlyType ?? null],
   );
   return rows;
+}
+
+/**
+ * Every distinct job type with pending, due work right now — ordered by its
+ * own highest priority, purely as a claiming preference within a round (see
+ * processJobBatch). Used to build one round-robin cycle: each type here gets
+ * exactly one claim attempt before any type gets a second.
+ */
+export async function getDistinctPendingTypes(): Promise<JobType[]> {
+  const { rows } = await pool.query<{ type: JobType }>(
+    `SELECT type, MAX(priority) AS priority
+     FROM   job_queue
+     WHERE  status = 'pending' AND run_at <= NOW()
+     GROUP  BY type
+     ORDER  BY priority DESC`,
+  );
+  return rows.map((r) => r.type);
 }
 
 /**
