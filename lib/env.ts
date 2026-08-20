@@ -87,9 +87,19 @@ const envObjectSchema = z.object({
 
   // ── SMS (TextSMS Kenya — primary provider) ────────────────────────────────
   // All three required for production. Service falls back to dry_run when unset.
-  TEXTSMS_API_KEY:    z.string().min(1, 'TEXTSMS_API_KEY is required'),
-  TEXTSMS_SENDER_ID: z.string().default('KITABU YETU'),
-  TEXTSMS_PARTNER_ID: z.string().min(1, 'TEXTSMS_PARTNER_ID is required'),
+  //
+  // `.trim()` is load-bearing, not tidiness. Pasting a credential into
+  // `vercel env add` keeps whatever whitespace came with it, and on
+  // 2026-08-20 TEXTSMS_API_KEY went in with a single trailing space — 33
+  // chars instead of 32. The provider answered `1006 Invalid credentials` to
+  // every request, which reads exactly like a wrong or revoked key, so the
+  // real cause (one invisible character) survived several rounds of checking
+  // the key against the portal. A credential is never meant to carry leading
+  // or trailing whitespace, so strip it before it can silently take SMS down.
+  // Note this normalises the value only — a genuinely wrong key still fails.
+  TEXTSMS_API_KEY:    z.string().trim().min(1, 'TEXTSMS_API_KEY is required'),
+  TEXTSMS_SENDER_ID:  z.string().trim().default('KITABU YETU'),
+  TEXTSMS_PARTNER_ID: z.string().trim().min(1, 'TEXTSMS_PARTNER_ID is required'),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────
   // All five optional so the service falls back to dry_run mode when unset.
