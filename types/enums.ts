@@ -28,11 +28,37 @@ export type NotificationType   = 'sms' | 'in_app' | 'email';
 export type SmsStatus          = 'queued' | 'sent' | 'delivered' | 'failed' | 'rejected';
 export type Gender             = 'male' | 'female' | 'other' | 'prefer_not_to_say';
 // Must match the group_type Postgres enum EXACTLY (supabase/migrations/
-// 20260101000000_001_init_enums.sql). This used to say 'organization_group',
-// which the enum has never contained — the real value is 'ngo_group' — so
-// registering or retyping a group as "Organization" threw a raw Postgres
-// 22P02 (invalid enum input) that surfaced to the user as a 500.
-export type GroupType          = 'chama' | 'sacco' | 'welfare' | 'investment' | 'ngo_group';
+// 20260101000000_001_init_enums.sql, extended by migration 154). This used to
+// say 'organization_group', which the enum has never contained — the real value
+// is 'ngo_group' — so registering or retyping a group as "Organization" threw a
+// raw Postgres 22P02 (invalid enum input) that surfaced to the user as a 500.
+//
+// GROUP_TYPE_LABELS below is the single source of the user-facing wording; the
+// signup and create-group dropdowns both render from it rather than hardcoding
+// their own <option> text, which is how "Organization" survived in two places
+// after the value itself was corrected.
+export type GroupType =
+  | 'chama' | 'sacco' | 'welfare' | 'investment' | 'ngo_group'
+  | 'self_help_group' | 'cbo' | 'society' | 'cooperative' | 'faith_based' | 'other';
+
+export const GROUP_TYPE_LABELS: Record<GroupType, string> = {
+  chama:           'Chama',
+  self_help_group: 'Self Help Group (SHG)',
+  cbo:             'Community Based Organisation (CBO)',
+  society:         'Registered Society',
+  sacco:           'SACCO',
+  cooperative:     'Cooperative',
+  welfare:         'Welfare Group',
+  investment:      'Investment Club',
+  faith_based:     'Faith-Based Group',
+  ngo_group:       'NGO',
+  other:           'Other',
+};
+
+// Insertion order above is the dropdown order — commonest Kenyan forms first,
+// 'other' last. Object key order is guaranteed for string keys, so this needs
+// no separate ordering array to stay in sync with.
+export const GROUP_TYPES = Object.keys(GROUP_TYPE_LABELS) as [GroupType, ...GroupType[]];
 export type OrganizationAccessLevel     = 'read' | 'report';
 
 export const ROLE_HIERARCHY: Record<MemberRole | PlatformRole, number> = {

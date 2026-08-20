@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest, notFound } from '@/lib/utils/response';
 import { getGroupById, updateGroupStatus, updateGroupProfile } from '@/lib/services/admin.service';
+import { GROUP_TYPES } from '@/types/enums';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -32,8 +33,9 @@ const profileSchema = z.object({
   // 'organization_group', which is not a member of that enum — saving it
   // would have thrown 22P02 and surfaced as a 500 — while omitting the real
   // value 'ngo_group', so NGO groups could not be retyped at all. Nothing hit
-  // it because no UI ever called this endpoint.
-  type:             z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']).optional(),
+  // it because no UI ever called this endpoint. Derived from GROUP_TYPES now,
+  // so a value added to the enum is accepted here without a second edit.
+  type:             z.enum(GROUP_TYPES).optional(),
   countyId:         z.string().uuid().nullable().optional(),
   subCounty:        z.string().max(80).nullable().optional(),
   ward:             z.string().max(100).nullable().optional(),

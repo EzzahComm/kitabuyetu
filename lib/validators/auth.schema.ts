@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
+import { GROUP_TYPES } from '@/types/enums';
 
 // Identifier may be either a Kenyan phone number or an email address.
 // The login route detects which by the presence of '@'.
@@ -46,8 +47,10 @@ const groupDetailsFields = {
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
   // Must match the group_type Postgres enum EXACTLY — 'organization_group' is
   // not a member of it (the real value is 'ngo_group'); register_group()'s
-  // ::group_type cast rejected it outright and registration 500'd.
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
+  // ::group_type cast rejected it outright and registration 500'd. Derived from
+  // GROUP_TYPES rather than restated, so the enum, the validator and the two
+  // dropdowns can no longer drift apart the way they did then.
+  groupType: z.enum(GROUP_TYPES),
 
   // Governance — the registrant must take one of the three mandatory roles (spec §2).
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {

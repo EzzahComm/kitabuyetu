@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 import { getErrorMessage } from '@/lib/utils';
 import { postLoginPath } from '@/lib/auth/post-login-path';
+import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 import type { SubscriptionProduct } from '@/types/enums';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
@@ -24,8 +25,9 @@ import type { SubscriptionProduct } from '@/types/enums';
 const schema = z.object({
   // Identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-  // Must match the group_type Postgres enum EXACTLY — see the option value below.
-  groupType: z.enum(['chama', 'sacco', 'welfare', 'investment', 'ngo_group']),
+  // Must match the group_type Postgres enum EXACTLY — derived from the shared
+  // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
+  groupType: z.enum(GROUP_TYPES),
 
   // Registrant
   firstName: z.string().min(2, 'Required'),
@@ -191,13 +193,25 @@ function RegisterForm() {
       // logged in) is the real path to founding this second group.
       if (err instanceof ApiError && err.code === 'DUPLICATE_PHONE') {
         const productLabel = product === 'chama_reminder' ? 'Chama Reminder' : 'Kitabu Yetu';
+        // This copy used to jump straight to "Create another group", which is
+        // the wrong advice for the commonest way people reach this error: the
+        // FIRST attempt actually succeeded server-side and only the response
+        // was lost (a dropped connection on a slow mobile network shows up as
+        // "Failed to fetch"). register_group() had already committed the group,
+        // so the retry hits the members.phone UNIQUE constraint. Telling that
+        // person to create another group would give them a second, duplicate
+        // group. Lead with logging in — which recovers the group they already
+        // made, verification screen and all — and mention the second-group path
+        // only as the follow-on.
         toast({
           variant: 'destructive',
           title:   'This phone number already has an account',
           description: (
             <>
-              <Link href="/login" className="underline">Log in</Link>, then use &ldquo;Create
-              another group&rdquo; from your dashboard to add {productLabel}.
+              If your last attempt showed an error, your group may already have been
+              created — <Link href="/login" className="underline">log in</Link> to check
+              and finish verifying it. Already have a different group? Log in and use
+              &ldquo;Create another group&rdquo; to add {productLabel}.
             </>
           ),
         });
@@ -236,14 +250,16 @@ function RegisterForm() {
             </div>
             <div className="space-y-1.5">
               <Label>Group type</Label>
+              {/* Rendered from GROUP_TYPE_LABELS, not hand-written <option>s.
+                  The values were corrected to real enum members once already
+                  (PR #95, after "organization_group" 500'd every signup) but
+                  the labels were left behind in two separate copies of this
+                  list — so "Organization" stayed on screen long after the bug
+                  behind it was fixed. One map now feeds both dropdowns. */}
               <select {...register('groupType')} className={selectCls}>
-                <option value="chama">Chama</option>
-                <option value="sacco">SACCO</option>
-                <option value="welfare">Welfare Group</option>
-                <option value="investment">Investment Club</option>
-                {/* Real group_type enum value is 'ngo_group', not 'organization_group' —
-                    the mismatch made every "Organization" signup fail with a 500. */}
-                <option value="ngo_group">Organization</option>
+                {GROUP_TYPES.map((t) => (
+                  <option key={t} value={t}>{GROUP_TYPE_LABELS[t]}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5">
