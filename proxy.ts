@@ -3,25 +3,48 @@ import { jwtVerify, type JWTPayload } from 'jose';
 
 // ─── Rate limiting (Upstash REST — Edge-compatible) ───────────────────────────
 // Fails open on any Redis error so downtime never blocks legitimate traffic.
-const RL_LIMIT  = 120; // requests per window
-const RL_WINDOW = 60;  // window in seconds
+//
+// Two separate budgets, not one shared bucket:
+//
+//   RL_LIMIT_IP   — for anonymous surfaces (login/register/forgot-password,
+//                   webhooks, jurisdictions, and anything else with no verified
+//                   session yet). These are exactly the endpoints a single bad
+//                   actor at one address would hammer, so IP is the right key.
+//   RL_LIMIT_USER — for every authenticated tenant/backoffice route, keyed by
+//                   the JWT's verified `sub` instead of IP.
+//
+// Originally this whole file rate-limited every /api/ request by IP alone,
+// which meant every authenticated user behind the same public address shared
+// ONE 120-req/60s budget. Two things made that budget easy to exhaust on
+// entirely legitimate traffic: the dashboard alone fires ~10 parallel API
+// calls on a single page load, and Kenyan mobile carriers commonly put many
+// distinct subscribers behind one CGNAT address — so one dashboard load, or
+// a handful of concurrent users on the same carrier/office network, could
+// trip "Too many requests" for everyone sharing that address. Keying
+// authenticated traffic by user instead removes the shared-bucket effect
+// entirely (each session only ever competes with its own requests), so the
+// budget was also raised — it's no longer being split across an unknown
+// number of strangers.
+const RL_LIMIT_IP   = 120; // requests per window, per IP (anonymous surfaces)
+const RL_LIMIT_USER = 240; // requests per window, per authenticated user
+const RL_WINDOW     = 60;  // window in seconds, both buckets
 
-async function checkRateLimit(ip: string): Promise<boolean> {
+async function checkRateLimit(key: string, limit: number): Promise<boolean> {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return true;
 
   try {
-    const url   = new URL(redisUrl);
-    const token = url.password;
-    const base  = `https://${url.hostname}`;
-    const key   = `rl:api:${ip}`;
+    const url        = new URL(redisUrl);
+    const token      = url.password;
+    const base       = `https://${url.hostname}`;
+    const redisKey   = `rl:api:${key}`;
 
     // INCR + EXPIRE NX in a single atomic pipeline call. EXPIRE NX only
     // sets the TTL when the key has no TTL yet — so subsequent hits within
     // the same window don't reset the clock (fixed-window behaviour) and
     // the previous "stuck counter" failure mode (where a fire-and-forget
     // EXPIRE silently failed and the key lived forever without TTL,
-    // permanently blocking the IP) is eliminated.
+    // permanently blocking the caller) is eliminated.
     const res = await fetch(`${base}/pipeline`, {
       method:  'POST',
       headers: {
@@ -29,8 +52,8 @@ async function checkRateLimit(ip: string): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify([
-        ['INCR',   key],
-        ['EXPIRE', key, String(RL_WINDOW), 'NX'],
+        ['INCR',   redisKey],
+        ['EXPIRE', redisKey, String(RL_WINDOW), 'NX'],
       ]),
     });
     if (!res.ok) return true;
@@ -38,7 +61,7 @@ async function checkRateLimit(ip: string): Promise<boolean> {
     const body = await res.json() as Array<{ result?: number; error?: string }>;
     const count = body[0]?.result ?? 0;
 
-    return count <= RL_LIMIT;
+    return count <= limit;
   } catch {
     return true; // fail open
   }
@@ -90,6 +113,13 @@ function forbidden(message: string): NextResponse {
   );
 }
 
+function rateLimited(): NextResponse {
+  return NextResponse.json(
+    { success: false, error: 'Too many requests', code: 'RATE_LIMITED' },
+    { status: 429, headers: { 'Retry-After': String(RL_WINDOW) } },
+  );
+}
+
 // Claim headers stamped by this proxy after JWT verification. Inbound copies
 // are stripped from EVERY request (including unauthenticated fall-throughs)
 // so a client can never smuggle its own claims to a handler — belt-and-
@@ -118,48 +148,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/mpesa/b2b') ||
     pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths
 
-  // Rate-limit all API routes except M-Pesa callbacks (Safaricom retries on non-200)
-  if (pathname.startsWith('/api/') && !isMpesaCallback) {
-    const ip = (
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      req.headers.get('x-real-ip') ??
-      '0.0.0.0'
-    );
-    const allowed = await checkRateLimit(ip);
-    if (!allowed) {
-      return NextResponse.json(
-        { success: false, error: 'Too many requests', code: 'RATE_LIMITED' },
-        { status: 429, headers: { 'Retry-After': String(RL_WINDOW) } },
-      );
-    }
-  }
+  const ip = (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    '0.0.0.0'
+  );
 
   // ── Audience matters only for /api/v1/* and /api/admin/* ───────────────
   // Everything else falls through (static, health, etc.).
   const isTenantApi     = pathname.startsWith('/api/v1/');
   const isBackofficeApi = pathname.startsWith('/api/admin/');
-  if (!isTenantApi && !isBackofficeApi) {
-    return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
-  }
-
-  // The organization API tree used to live at /api/v1/organization/* and
-  // needed a carve-out here so a BACKOFFICE token (the only kind
-  // organization_coordinator/super_admin can hold since the org-login split)
-  // could reach a tenant-audience path at all. That carve-out reshaped the
-  // claims to look tenant-ish, including `x-group-id: ''` because the tree is
-  // organization-scoped and no handler reads a group.
-  //
-  // It never worked: getAuthContext guards with `!groupId`, and '' is falsy in
-  // JavaScript, so every organization request threw "Missing authentication
-  // context" and the enterprise Portfolio dashboard could never load. Rather
-  // than loosen that guard — and keep stamping `x-aud: 'tenant'` onto a token
-  // that is genuinely backoffice — the tree moved to /api/admin/organization/*,
-  // the bucket whose token it actually receives, behind withOrganizationAccess.
-  // Same resolution the switch-org route needed for the same reason.
 
   // These tenant paths are intentionally unauthenticated.
   // Webhooks authenticate via signed payloads (HMAC-SHA256, svix, ECDSA),
   // NOT by JWT, because external providers don't have access tokens.
+  //
+  // Computed up here (rather than just below the old JWT-bypass check, where
+  // it used to live) because the rate-limit decision right below also needs
+  // to know whether a request is ever going to carry a verified identity.
   const isWebhook =
     pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
     pathname.startsWith('/api/v1/email/webhooks/') ||   // email provider callbacks (Resend, SendGrid)
@@ -181,16 +187,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // callbacks needs to clear this gate too, not just the initial trigger.
     pathname === '/api/v1/workers/disbursement-watchdog';
 
-  // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — this used to be a blanket
-  // `pathname.startsWith('/api/v1/auth/')`, which also swept up
-  // /auth/memberships and /auth/switch-group. Both call withAuth() and
-  // require a verified access token's claims (stamped below), but the
-  // blanket bypass skipped JWT verification for them entirely — every
-  // request arrived with no x-user-id/x-group-id header, so withAuth
-  // always threw "Missing authentication context" and the group-switcher
-  // feature (components/layout/group-switcher.tsx) 401'd unconditionally
-  // in production. Only list the routes that genuinely have no access
-  // token yet (or use a different token type, like refresh's own).
+  // Endpoints reachable with no access token at all — a visitor who forgot
+  // their password, or is completing an emailed/SMS'd proof-of-possession
+  // flow, has no session by definition. Moved up here for the same reason
+  // isWebhook was: the rate-limit decision below needs this list too.
   const PUBLIC_AUTH_PATHS = new Set([
     '/api/v1/auth/login',
     '/api/v1/auth/register',
@@ -221,6 +221,47 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     '/api/v1/auth/admin/forgot-password/reset',
   ]);
 
+  const isAnonymousApiPath =
+    isWebhook ||
+    !(isTenantApi || isBackofficeApi) || // e.g. /api/health — no session concept at all
+    (isTenantApi && (
+      PUBLIC_AUTH_PATHS.has(pathname) ||
+      pathname.startsWith('/api/v1/jurisdictions/') // public reference data (counties etc.)
+    ));
+
+  // Rate-limit every API route except M-Pesa callbacks (Safaricom retries on
+  // non-200). Anonymous surfaces are keyed by IP — same protection this file
+  // always had here, since these are exactly the endpoints (login, etc.) a
+  // single bad actor at one address would hammer. Everything else requires a
+  // verified session and is rate-limited by that session further down,
+  // *after* the JWT is verified — see RL_LIMIT_USER's comment above for why.
+  if (pathname.startsWith('/api/') && !isMpesaCallback && isAnonymousApiPath) {
+    const allowed = await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP);
+    if (!allowed) return rateLimited();
+  }
+
+  if (!isTenantApi && !isBackofficeApi) {
+    return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
+  }
+
+  // The organization API tree used to live at /api/v1/organization/* and
+  // needed a carve-out here so a BACKOFFICE token (the only kind
+  // organization_coordinator/super_admin can hold since the org-login split)
+  // could reach a tenant-audience path at all. That carve-out reshaped the
+  // claims to look tenant-ish, including `x-group-id: ''` because the tree is
+  // organization-scoped and no handler reads a group.
+  //
+  // It never worked: getAuthContext guards with `!groupId`, and '' is falsy in
+  // JavaScript, so every organization request threw "Missing authentication
+  // context" and the enterprise Portfolio dashboard could never load. Rather
+  // than loosen that guard — and keep stamping `x-aud: 'tenant'` onto a token
+  // that is genuinely backoffice — the tree moved to /api/admin/organization/*,
+  // the bucket whose token it actually receives, behind withOrganizationAccess.
+  // Same resolution the switch-org route needed for the same reason.
+
+  // These tenant paths are intentionally unauthenticated — isWebhook and
+  // PUBLIC_AUTH_PATHS are computed above now (the rate-limit check needs
+  // them too); this just applies the same bypass to JWT verification.
   if (
     isTenantApi && (
       PUBLIC_AUTH_PATHS.has(pathname) ||
@@ -233,8 +274,19 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // ── JWT required from here on ─────────────────────────────────────────
+  //
+  // A request that never produces a verified `sub` can't be charged against
+  // a per-user budget — there's no user to charge. Rather than leave these
+  // two failure branches completely ungated (a flood of missing/garbage/
+  // expired tokens against a protected route would otherwise face no rate
+  // limit at all from this proxy), fall back to the same IP bucket the
+  // anonymous surfaces use. This is strictly narrower than before: it only
+  // ever fires on requests that fail authentication, so it can't reintroduce
+  // the shared-IP bottleneck for legitimate authenticated traffic — those
+  // requests are gated solely by RL_LIMIT_USER, below.
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
+    if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
     return unauthorized('Missing or malformed Authorization header');
   }
   const token = authHeader.slice(7);
@@ -246,12 +298,22 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }) as { payload: KyJwtPayload };
     payload = verified.payload;
   } catch {
+    if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
     return unauthorized('Invalid or expired token');
   }
 
   if (!payload.sub) {
     return unauthorized('Incomplete token payload');
   }
+
+  // Rate-limit authenticated traffic by verified user, not shared IP — see
+  // RL_LIMIT_USER's comment near the top of this file for why. Deliberately
+  // after JWT verification (not before): a request with no valid session
+  // can't be charged against a real user's budget, and verifying first means
+  // a flood of garbage tokens costs a cheap in-memory HMAC check per request
+  // rather than a Redis round trip.
+  const allowedUser = await checkRateLimit(`user:${payload.sub}`, RL_LIMIT_USER);
+  if (!allowedUser) return rateLimited();
 
   // Default to 'tenant' for legacy tokens that pre-date Phase 1.
   const aud: 'tenant' | 'backoffice' =
