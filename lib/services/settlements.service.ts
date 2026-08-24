@@ -84,9 +84,16 @@ export const settlementsService = {
       await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, input.amount.toFixed(2)]);
 
       // Reconciliation tag only, same pattern as mpesa-b2c.service.ts's own
-      // sub-account tagging — PartyA on the actual Daraja B2B call (dispatchSettlement)
-      // stays the group's own shortcode; this just records which of our own
-      // M-Pesa sub-accounts the sweep is understood to have drawn from.
+      // sub-account tagging — it records which of our own M-Pesa sub-accounts
+      // the sweep is understood to have drawn from. It is NOT a Daraja PartyA
+      // override.
+      //
+      // This comment used to say PartyA "stays the group's own shortcode".
+      // That was false and read as evidence the platform is non-custodial:
+      // initiateB2B hardcodes the platform MPESA_SHORTCODE, B2BInput carries
+      // no sender field, and no per-group shortcode column exists anywhere to
+      // supply one. A group collecting on its own shortcode is planned
+      // (white-label collection mode), not current behaviour.
       const sourceAccount = process.env.MPESA_SETTLEMENT_SHORTCODE ?? null;
 
       const { rows: inserted } = await db.query<SettlementRow>(
