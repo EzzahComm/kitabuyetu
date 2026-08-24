@@ -63,8 +63,30 @@
   body { @apply bg-background text-foreground; }
 }
 
-/* Smooth scrolling */
-html { scroll-behavior: smooth; }
+/* Smooth scrolling — but never against the user's stated preference. The
+   marketing header is fixed, so `scroll-padding-top` keeps an anchored
+   section's heading from landing underneath it. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  /* Belt and braces for the public surface: components/marketing/reveal.tsx
+     already skips its animation when this preference is set, but any CSS
+     animation or transition that slips through is neutralised here rather
+     than relying on every future author remembering `motion-safe:`. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* Money values — always use tabular nums for alignment */
 .money { font-variant-numeric: tabular-nums; }

@@ -53,6 +53,20 @@ export const brandOrange = {
   700: '#C2410C',
 } as const;
 
+/**
+ * Warm paper ground for the public marketing surface.
+ *
+ * `#FBFAF5` was hardcoded as a bare hex in six separate landing components
+ * before this existed — the one colour on the site with no token behind it,
+ * which is precisely the drift risk the rest of this file exists to prevent.
+ * `deep` is the one step down, used to separate stacked light sections
+ * without reaching for a border.
+ */
+export const brandPaper = {
+  DEFAULT: '#FBFAF5',
+  deep:    '#F4F1E7',
+} as const;
+
 /** Convenience aliases for the spec's named neutral/accent tokens. */
 export const brandAccent = brandGreen[50];
 export const brandNeutral = '#F8FAFC';
