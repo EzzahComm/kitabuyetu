@@ -28,10 +28,47 @@ export interface InvestmentRow {
   created_at:           string;
 }
 
+/** A row of `investment_returns`, as getById returns it. */
+export interface InvestmentReturnRow {
+  id:               string;
+  investment_id:    string;
+  return_type:      string;
+  amount:           string;
+  return_date:      string;
+  receipt_number:   string | null;
+  notes:            string | null;
+  recorded_by_name: string;
+  created_at:       string;
+}
+
+/**
+ * A member's contribution to one investment. `member_investment_shares` has no
+ * writer anywhere in the product, so this is always empty today — the detail
+ * page renders the section only when rows actually exist rather than showing
+ * an empty table that implies a feature.
+ */
+export interface InvestmentShareRow {
+  id:                 string;
+  investment_id:      string;
+  member_id:          string;
+  member_name:        string;
+  shares:             string | null;
+  amount_contributed: string;
+}
+
+/** What GET /investments/:id returns — the row plus its children. */
+export type InvestmentDetail = InvestmentRow & {
+  approved_by_name: string | null;
+  returns:          InvestmentReturnRow[];
+  shares:           InvestmentShareRow[];
+};
+
 export type InvestmentSummary = Awaited<ReturnType<typeof investmentsService.getSummary>>;
 
 export const investmentKeys = {
   all:     ['investments'] as const,
+  /** Prefix for every list query, whatever its params — use this to invalidate. */
+  lists:   () => [...investmentKeys.all, 'list'] as const,
   list:    (p?: Record<string, unknown>) => [...investmentKeys.all, 'list', p] as const,
   detail:  (id: string) => [...investmentKeys.all, id] as const,
   summary: ['investments', 'summary'] as const,
@@ -54,7 +91,7 @@ export function useInvestmentSummary() {
 export function useInvestment(id: string) {
   return useQuery({
     queryKey: investmentKeys.detail(id),
-    queryFn:  () => api.get<InvestmentRow>(`${BASE}/${id}`),
+    queryFn:  () => api.get<InvestmentDetail>(`${BASE}/${id}`),
     enabled:  !!id,
   });
 }
@@ -75,7 +112,7 @@ export function useUpdateInvestment(id: string) {
   return useMutation({
     mutationFn: (body: UpdateInvestmentPayload) => api.patch<InvestmentRow>(`${BASE}/${id}`, body),
     onSuccess:  () => {
-      qc.invalidateQueries({ queryKey: investmentKeys.list() });
+      qc.invalidateQueries({ queryKey: investmentKeys.lists() });
       qc.invalidateQueries({ queryKey: investmentKeys.detail(id) });
       qc.invalidateQueries({ queryKey: investmentKeys.summary });
     },
@@ -88,6 +125,9 @@ export function useRecordInvestmentReturn(investmentId: string) {
     mutationFn: (body: RecordReturnPayload) => api.post<unknown>(`${BASE}/${investmentId}/returns`, body),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: investmentKeys.detail(investmentId) });
+      // The list's "Returns Earned" column is a SUM over investment_returns,
+      // so it goes stale on a new return just like the summary does.
+      qc.invalidateQueries({ queryKey: investmentKeys.lists() });
       qc.invalidateQueries({ queryKey: investmentKeys.summary });
     },
   });

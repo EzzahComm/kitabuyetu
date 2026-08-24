@@ -34,6 +34,7 @@ const summaryRow = (o: Record<string, string>) => ({
     total_investments:  '1',
     active_count:       '0',
     held_count:         '1',
+    revalued_count:     '0',
     total_principal:    '0',
     total_current_value:'0',
     total_returns:      '0',
@@ -99,6 +100,65 @@ describe('investmentsService.getSummary', () => {
 
     expect(s.roi).toBe(0);
     expect(Number.isNaN(s.roi)).toBe(false);
+  });
+
+  // A 0% ROI is arithmetically correct when everything is carried at cost, but
+  // it reads as a measurement rather than as "nothing has been measured yet".
+  // roiMeasurable is what lets the UI show a dash instead.
+  it('reports ROI as not measurable when nothing is revalued and no returns exist', async () => {
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_principal:     '100000',
+      total_current_value: '100000',
+      revalued_count:      '0',
+      total_returns:       '0',
+    }));
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.roi).toBe(0);
+    expect(s.roiMeasurable).toBe(false);
+  });
+
+  it('becomes measurable once a holding is revalued', async () => {
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_principal:     '100000',
+      total_current_value: '100000',
+      revalued_count:      '1',
+      total_returns:       '0',
+    }));
+
+    // Still 0%, but now that is a real answer: someone revalued it at cost.
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.roi).toBe(0);
+    expect(s.roiMeasurable).toBe(true);
+  });
+
+  it('becomes measurable on a return alone, with nothing revalued', async () => {
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_principal:     '100000',
+      total_current_value: '100000',
+      revalued_count:      '0',
+      total_returns:       '5000',
+    }));
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.roi).toBe(5);
+    expect(s.roiMeasurable).toBe(true);
+  });
+
+  it('is not measurable when there are no investments at all', async () => {
+    // COUNT/COALESCE always return a row, so an empty group looks like zeroes
+    // rather than no row — guard against a 0/0 ROI being called measurable.
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_investments: '0', held_count: '0', total_principal: '0',
+    }));
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.roi).toBe(0);
+    expect(s.roiMeasurable).toBe(false);
   });
 
   it('exposes heldCount alongside activeCount', async () => {

@@ -218,6 +218,7 @@ export const investmentsService = {
            COUNT(*)                                                                AS total_investments,
            COUNT(*) FILTER (WHERE status='active')                                 AS active_count,
            COUNT(*) FILTER (WHERE status<>'cancelled')                             AS held_count,
+           COUNT(*) FILTER (WHERE current_value IS NOT NULL AND status<>'cancelled') AS revalued_count,
            COALESCE(SUM(principal_amount) FILTER (WHERE status<>'cancelled'), 0)   AS total_principal,
            COALESCE(SUM(
              CASE WHEN status='liquidated'
@@ -240,16 +241,26 @@ export const investmentsService = {
       const totalCurrentValue = Number(s.total_current_value);
       const totalReturns      = Number(s.total_returns);
 
+      const revaluedCount = Number(s.revalued_count);
+
       return {
         totalInvestments: Number(s.total_investments),
         activeCount:      Number(s.active_count),
         heldCount:        Number(s.held_count),
+        revaluedCount,
         totalPrincipal,
         totalCurrentValue,
         totalReturns,
         roi: totalPrincipal > 0
           ? ((totalCurrentValue + totalReturns - totalPrincipal) / totalPrincipal) * 100
           : 0,
+        /**
+         * Whether `roi` means anything yet. With nothing revalued and no
+         * returns recorded, every holding is carried at cost and the formula
+         * yields exactly 0% — a number that looks like a real answer but is
+         * really "no data". The UI shows a dash instead in that case.
+         */
+        roiMeasurable: totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0),
       };
     });
   },

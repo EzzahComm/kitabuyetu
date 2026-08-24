@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,6 +46,7 @@ export default function InvestmentsPage() {
   const [status, setStatus] = useState('all');
   const [open, setOpen]     = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
   const canManage = useHasPermission('investments.manage');
 
   const { data, isLoading, isError, error } = useInvestments({ page, limit: 20, ...(status !== 'all' ? { status } : {}) });
@@ -65,6 +67,11 @@ export default function InvestmentsPage() {
   };
 
   const roi = summary?.roi ?? 0;
+  // With nothing revalued and no returns recorded, every holding is carried at
+  // cost and the ROI formula yields exactly 0% — which reads as a real
+  // measurement rather than "no data yet". Show a dash until there is
+  // something to measure.
+  const roiMeasurable = summary?.roiMeasurable ?? false;
 
   const columns = [
     {
@@ -141,15 +148,24 @@ export default function InvestmentsPage() {
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall ROI</p>
-            <div className="flex items-center gap-2 mt-1">
-              {roi >= 0
-                ? <TrendingUp className="text-green-500" size={20} />
-                : <TrendingDown className="text-red-500" size={20} />
-              }
-              <p className={`text-2xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {roi.toFixed(1)}%
-              </p>
-            </div>
+            {roiMeasurable ? (
+              <div className="flex items-center gap-2 mt-1">
+                {roi >= 0
+                  ? <TrendingUp className="text-green-500" size={20} />
+                  : <TrendingDown className="text-red-500" size={20} />
+                }
+                <p className={`text-2xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {roi.toFixed(1)}%
+                </p>
+              </div>
+            ) : (
+              <div className="mt-1">
+                <p className="text-2xl font-bold text-muted-foreground">—</p>
+                <p className="text-xs text-muted-foreground">
+                  Update a value or record a return to measure
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -168,6 +184,7 @@ export default function InvestmentsPage() {
             error={error}
             columns={columns}
             onPageChange={setPage}
+            onRowClick={(row) => router.push(`/investments/${row.id}`)}
             emptyMessage="No investments recorded yet"
           />
         </TabsContent>
