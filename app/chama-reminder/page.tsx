@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 import { PLAN_MONTHLY_FEES, PRODUCT_LABEL } from '@/types/enums';
 
 export const metadata: Metadata = {
-  title: 'Chama Reminder — Automated SMS reminders for groups',
+  title: 'Chama Reminder',
   description:
     'Remind. Inform. Celebrate. Mobilize. Automated SMS reminders and announcements for chamas, welfare groups and SACCOs across East Africa.',
 };
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
  */
 export default function ChamaReminderPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title={PRODUCT_LABEL.chama_reminder}
       description="Remind. Inform. Celebrate. Mobilize."
     >
@@ -64,6 +64,6 @@ export default function ChamaReminderPage() {
           See pricing
         </Link>
       </div>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

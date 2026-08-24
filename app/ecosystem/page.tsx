@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'The Kitabu Yetu Ecosystem',
+  title: 'The ecosystem',
   description:
     'Three digital tools, and the groups, organizations and partners that use them to build vibrant communities across East Africa.',
 };
@@ -39,7 +39,7 @@ const TOOLS = [
 
 export default function EcosystemPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="The Kitabu Yetu Ecosystem"
       description="Digital tools for communities, groups and the organizations that support them."
     >
@@ -92,6 +92,6 @@ export default function EcosystemPage() {
         Programs, partners and opportunities will join this picture as they become real.
         We would rather list what exists than what is planned.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

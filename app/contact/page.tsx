@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import { Mail, Phone, MapPin } from 'lucide-react';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'Contact — Kitabu Yetu',
+  title: 'Contact',
   description: 'Get in touch with the Kitabu Yetu team.',
 };
 
 export default function ContactPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Contact us"
       description="Questions about your group, a demo, or a partnership — reach us directly."
     >
@@ -38,6 +38,6 @@ export default function ContactPage() {
         Already using Kitabu Yetu and need help with your account? Your group&apos;s
         chairperson, secretary, or treasurer can also reach us on your behalf.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

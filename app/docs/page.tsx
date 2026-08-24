@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'Documentation — Kitabu Yetu',
+  title: 'Documentation',
   description: 'Kitabu Yetu documentation.',
 };
 
 export default function DocsPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Documentation"
       description="Full guides and API reference are on the way."
     >
@@ -18,6 +18,6 @@ export default function DocsPage() {
         collections, understand a report, or integrate with the API as an enterprise
         partner — <a href="/support">contact support</a> and we&apos;ll help directly.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

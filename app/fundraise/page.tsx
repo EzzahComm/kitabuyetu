@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'Fundraise / Changi$ha — Coming soon',
+  title: 'Fundraise / Changi$ha',
   description:
     'Digital fundraising and collections for communities, groups and causes across East Africa. Coming soon to Kitabu Yetu.',
 };
@@ -19,11 +19,11 @@ export const metadata: Metadata = {
  */
 export default function FundraisePage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Fundraise / Changi$ha"
       description="Digital fundraising and collections — coming soon."
     >
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+      <div className="rounded-lg border border-brand-orange-100 bg-brand-orange-50 px-4 py-3 text-sm font-medium text-brand-orange-700">
         Coming soon. This tool is not available yet.
       </div>
 
@@ -51,11 +51,11 @@ export default function FundraisePage() {
       <div className="flex flex-wrap gap-3 pt-4">
         <Link
           href="/contact"
-          className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper"
         >
           Talk to us about Changi$ha
         </Link>
       </div>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

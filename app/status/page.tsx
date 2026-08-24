@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { CheckCircle2 } from 'lucide-react';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'System Status — Kitabu Yetu',
+  title: 'System status',
   description: 'Current operational status of Kitabu Yetu services.',
 };
 
@@ -16,7 +16,7 @@ const SERVICES = [
 
 export default function StatusPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="System status"
       description="Current status of Kitabu Yetu's core services."
     >
@@ -43,6 +43,6 @@ export default function StatusPage() {
         wrong on your end, please <a href="/support">contact support</a> rather than
         relying solely on this page.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }
