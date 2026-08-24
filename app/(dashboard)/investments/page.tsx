@@ -82,9 +82,12 @@ export default function InvestmentsPage() {
     },
     {
       key: 'current_value', header: 'Current Value',
+      // A holding with no revaluation is carried at cost, which is what the
+      // portfolio total sums it as. Show that here rather than an em-dash,
+      // otherwise the summary card and this column visibly disagree.
       render: (row: InvestmentRow) => row.current_value
         ? <span className="font-semibold text-sm text-green-600">{formatKES(row.current_value)}</span>
-        : <span className="text-muted-foreground text-sm">—</span>,
+        : <span className="text-sm text-muted-foreground" title="Not revalued yet — shown at cost">{formatKES(row.principal_amount)}</span>,
     },
     {
       key: 'total_returns', header: 'Returns Earned',
@@ -128,7 +131,7 @@ export default function InvestmentsPage() {
         <StatCard
           title="Current Portfolio Value"
           value={formatKES(summary?.totalCurrentValue ?? 0)}
-          description={`${summary?.activeCount ?? 0} active`}
+          description={`${summary?.heldCount ?? 0} held`}
         />
         <StatCard title="Total Returns Earned" value={formatKES(summary?.totalReturns ?? 0)} />
         {/* Not converted to StatCard: ROI's sign is a real positive/negative
