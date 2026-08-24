@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
+import { CONTACT } from '@/components/marketing/routes';
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -15,12 +16,12 @@ export default function ContactPage() {
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <a
-          href="mailto:kitabuyetu@gmail.com"
+          href={`mailto:${CONTACT.email}`}
           className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-5 transition-colors hover:border-brand-300 hover:bg-brand-50/50"
         >
           <Mail className="h-5 w-5 text-brand-600" />
           <span className="text-sm font-semibold text-slate-900">Email</span>
-          <span className="text-sm text-slate-500">kitabuyetu@gmail.com</span>
+          <span className="text-sm text-slate-500">{CONTACT.email}</span>
         </a>
         <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-5">
           <Phone className="h-5 w-5 text-brand-600" />

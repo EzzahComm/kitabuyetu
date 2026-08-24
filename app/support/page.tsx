@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
+import { CONTACT } from '@/components/marketing/routes';
 
 export const metadata: Metadata = {
   title: 'Support',
@@ -14,7 +15,7 @@ export default function SupportPage() {
     >
       <p>
         The fastest way to get help is to email{' '}
-        <a href="mailto:kitabuyetu@gmail.com">kitabuyetu@gmail.com</a> or call{' '}
+        <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a> or call{' '}
         <a href="tel:+254717548646">+254 717 548 646</a>. If you&apos;re a member of a
         group, your chairperson, secretary, or treasurer can also raise an issue on
         your behalf.
