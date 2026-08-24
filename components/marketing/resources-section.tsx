@@ -33,7 +33,7 @@ export function ResourcesSection() {
                 href={item.href}
                 className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
-                <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-600">
+                <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-700">
                   {item.kind}
                 </span>
                 <span className="mt-5 flex items-start justify-between gap-4">

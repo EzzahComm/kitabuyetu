@@ -49,7 +49,7 @@ export function ProductShowcase() {
                   <div className="flex items-center gap-4">
                     <EntryNumber n={index + 1} />
                     <span aria-hidden="true" className="h-px w-10 bg-brand-blue-900/15" />
-                    <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-blue-900/45">
+                    <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-blue-900/60">
                       {item.eyebrow}
                     </span>
                   </div>

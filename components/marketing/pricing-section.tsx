@@ -59,7 +59,7 @@ export function PricingSection() {
                 <h3
                   className={cn(
                     'font-mono text-[11px] font-medium uppercase tracking-[0.2em]',
-                    featured ? 'text-brand-400' : 'text-brand-600',
+                    featured ? 'text-brand-400' : 'text-brand-700',
                   )}
                 >
                   {plan.label}
@@ -77,7 +77,7 @@ export function PricingSection() {
                   <span
                     className={cn(
                       'text-sm',
-                      featured ? 'text-brand-blue-100/55' : 'text-brand-blue-900/45',
+                      featured ? 'text-brand-blue-100/70' : 'text-brand-blue-900/60',
                     )}
                   >
                     /month
@@ -90,7 +90,7 @@ export function PricingSection() {
                       aria-hidden="true"
                       className={cn(
                         'mt-0.5 h-4 w-4 shrink-0',
-                        featured ? 'text-brand-400' : 'text-brand-600',
+                        featured ? 'text-brand-400' : 'text-brand-700',
                       )}
                     />
                     <span
@@ -111,7 +111,7 @@ export function PricingSection() {
                         aria-hidden="true"
                         className={cn(
                           'mt-0.5 h-4 w-4 shrink-0',
-                          featured ? 'text-brand-400' : 'text-brand-600',
+                          featured ? 'text-brand-400' : 'text-brand-700',
                         )}
                       />
                       <span

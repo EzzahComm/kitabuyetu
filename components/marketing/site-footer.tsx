@@ -27,10 +27,10 @@ export function SiteFooter() {
             <p className="mt-5 max-w-xs font-display text-xl font-light leading-snug text-brand-blue-900/80">
               Simple books.
               <br />
-              <em className="italic text-brand-600">Stronger groups.</em>
+              <em className="italic text-brand-700">Stronger groups.</em>
             </p>
 
-            <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/55">
+            <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/65">
               Digital bookkeeping for chamas, SACCOs, welfare groups, investment clubs
               and community organizations across East Africa.
             </p>
@@ -70,7 +70,7 @@ export function SiteFooter() {
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4">
             {FOOTER_COLUMNS.map((column) => (
               <div key={column.heading}>
-                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-blue-900/40">
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-blue-900/70">
                   {column.heading}
                 </h2>
                 <ul className="mt-5 space-y-3">
@@ -91,10 +91,10 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-16 flex flex-col gap-4 border-t border-brand-blue-900/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-brand-blue-900/45">
+          <p className="text-sm text-brand-blue-900/65">
             © {year} Kitabu Yetu. All rights reserved.
           </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-blue-900/40">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-blue-900/65">
             Built in Nairobi, for East Africa
           </p>
         </div>

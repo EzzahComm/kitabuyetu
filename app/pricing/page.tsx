@@ -73,7 +73,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             <h3
               className={cn(
                 'font-mono text-[11px] font-medium uppercase tracking-[0.2em]',
-                featured ? 'text-brand-400' : 'text-brand-600',
+                featured ? 'text-brand-400' : 'text-brand-700',
               )}
             >
               {plan.label}
@@ -93,7 +93,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                   <span
                     className={cn(
                       'ml-2 text-sm',
-                      featured ? 'text-brand-blue-100/55' : 'text-brand-blue-900/45',
+                      featured ? 'text-brand-blue-100/70' : 'text-brand-blue-900/60',
                     )}
                   >
                     /month
@@ -115,7 +115,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
               <li className="flex items-start gap-2.5">
                 <Check
                   aria-hidden="true"
-                  className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-600')}
+                  className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                 />
                 <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
                   {isSelfServe ? (
@@ -134,7 +134,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                 <li key={feature} className="flex items-start gap-2.5">
                   <Check
                     aria-hidden="true"
-                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-600')}
+                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                   />
                   <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
                     {feature}
@@ -181,7 +181,7 @@ export default function PricingPage() {
         <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-600">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
                 Pricing
               </p>
               <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">

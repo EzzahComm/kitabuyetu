@@ -191,7 +191,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                   className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                   {link.label}
-                  <ArrowRight className="h-4 w-4 text-brand-blue-900/30" />
+                  <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-blue-900/40" />
                 </Link>
               </li>
             ))}

@@ -74,7 +74,7 @@ export function Hero() {
               </Link>
             </div>
 
-            <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">
+            <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.16em] text-white/60">
               Pay by M-Pesa · plans from KES {FROM_PRICE.toLocaleString()}/month
             </p>
 

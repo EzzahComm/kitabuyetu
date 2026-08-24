@@ -50,7 +50,7 @@ export function MpesaSection() {
                 {String(i + 1).padStart(2, '0')}
               </span>
               <h3 className="mt-4 text-lg font-semibold text-white">{step.label}</h3>
-              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-100/60">
+              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-100/75">
                 {step.body}
               </p>
             </Reveal>

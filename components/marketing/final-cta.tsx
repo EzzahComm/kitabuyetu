@@ -46,7 +46,7 @@ export function FinalCta() {
             </Link>
           </div>
 
-          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-white/35">
+          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-white/60">
             Already have an account?{' '}
             <Link
               href={ROUTES.signIn}
