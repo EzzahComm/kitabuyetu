@@ -29,6 +29,9 @@ export interface StkRequestRow {
   /** Set only when purpose = 'subscription' (migration 138). */
   plan_type:          string | null;
   product:            string | null;
+  /** Migration 155. NULL on any pre-155 row or a client that omitted it —
+   *  the reader treats that as 'monthly', never as an error. */
+  billing_cycle:      string | null;
 }
 
 export interface FulfilmentInput {

@@ -19,7 +19,7 @@ import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
-import type { SubscriptionProduct, OrganizationPlanType } from '@/types/enums';
+import type { SubscriptionProduct, OrganizationPlanType, PlanType, BillingCycle } from '@/types/enums';
 import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
@@ -667,7 +667,9 @@ export function useResolveUnroutedPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }: {
-      id: string; action: 'allocate' | 'dismiss'; groupId?: string; memberId?: string; notes?: string;
+      id: string; action: 'allocate' | 'dismiss' | 'activate_subscription';
+      groupId?: string; memberId?: string; notes?: string;
+      planType?: PlanType; product?: SubscriptionProduct; billingCycle?: BillingCycle;
     }) =>
       adminFetch<ResolveUnroutedResult>(`/api/admin/mpesa/unrouted/${id}`, { method: 'PATCH', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mpesa-unrouted'] }),

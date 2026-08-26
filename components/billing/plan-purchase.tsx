@@ -11,7 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { MpesaPayDialog } from './mpesa-pay-dialog';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
-import { PLAN_COPY, type PlanType, type SubscriptionProduct } from '@/types/enums';
+import {
+  PLAN_COPY, BILLING_CYCLES, BILLING_CYCLE_MONTHS, BILLING_CYCLE_LABELS,
+  type PlanType, type SubscriptionProduct, type BillingCycle,
+} from '@/types/enums';
 
 type PurchasablePlan = UpgradePlanInput['planType'];
 
@@ -61,6 +64,11 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
   // request schema keeps this in step with what the server will accept.
   const [pendingPlan, setPendingPlan] = useState<PurchasablePlan | null>(null);
 
+  // One cycle applies to whichever plan gets bought — there is no per-card
+  // cycle, matching how PLAN_MONTHLY_FEES prices a plan once, not per cadence.
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const cycleMonths = BILLING_CYCLE_MONTHS[cycle];
+
   const checkout = useStkCheckout(() => {
     if (!pendingPlan) return;
     upgradePlan.mutate(pendingPlan, {
@@ -82,18 +90,48 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     // (<=20), and `purpose` is an enum — not free text. The server re-checks
     // this amount against its own table before activating, so a tampered value
     // fails verification rather than buying a plan cheaply.
+    //
+    // `amount` is the FULL cycle charge (price * cycleMonths), not the bare
+    // monthly price — activateSubscriptionForPayment() verifies amountPaid
+    // against exactly that, and a monthly-only amount would fail the check
+    // for anything but a monthly purchase.
     checkout.start({
-      amount:           price,
+      amount:           price * cycleMonths,
       accountReference: PRODUCT_REFERENCE[product],
       description:      `${planCopy.find((p) => p.type === planType)!.label} plan`.slice(0, 20),
       purpose:          'subscription' as const,
       planType:         purchasable,
       product,
+      billingCycle:     cycle,
     });
   };
 
   return (
     <>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-muted-foreground">Bill me</span>
+        <div className="inline-flex rounded-md border border-input p-0.5">
+          {BILLING_CYCLES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCycle(c)}
+              className={cn(
+                'rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors',
+                cycle === c ? 'bg-brand-500 text-white' : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              {BILLING_CYCLE_LABELS[c]}
+            </button>
+          ))}
+        </div>
+        {cycle !== 'monthly' && (
+          <span className="text-xs text-muted-foreground">
+            Charged once for all {BILLING_CYCLE_MONTHS[cycle]} months — same per-month rate as monthly, no discount.
+          </span>
+        )}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {planCopy.map((plan) => {
           const isCurrent  = plan.type === currentPlanType;
@@ -113,7 +151,9 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
                     ? 'Custom pricing'
                     : price == null
                       ? '—'
-                      : `KES ${price.toLocaleString()} / month`}
+                      : cycle === 'monthly'
+                        ? `KES ${price.toLocaleString()} / month`
+                        : `KES ${(price * cycleMonths).toLocaleString()} / ${BILLING_CYCLE_LABELS[cycle].toLowerCase()} (KES ${price.toLocaleString()}/mo)`}
                 </CardDescription>
               </CardHeader>
               <CardContent>

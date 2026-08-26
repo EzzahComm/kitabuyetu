@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 // inbound callback, where the phone is only recorded.
 import { normalizePhone, safeNormalizePhone, UNKNOWN_PAYER_PHONE } from '@/lib/utils/phone';
 import { toMpesaAmount } from '@/lib/utils/currency';
-import type { PlanType, SubscriptionProduct } from '@/types/enums';
+import type { PlanType, SubscriptionProduct, BillingCycle } from '@/types/enums';
 import { notifyMember } from './notifications.service';
 import { billingService } from './billing.service';
 import { postContributionJournal } from './accounting.service';
@@ -44,6 +44,9 @@ export interface StkPushParams {
   /** Required when purpose = 'subscription' — the callback activates these. */
   planType?:        PlanType;
   product?:         SubscriptionProduct;
+  /** Defaults to 'monthly' at the callback if omitted (migration 155) — an
+   *  older client that never sends this keeps today's behaviour exactly. */
+  billingCycle?:    BillingCycle;
 }
 
 export interface StkPushResult {
@@ -104,8 +107,8 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       `INSERT INTO mpesa_stk_requests
          (group_id, mpesa_transaction_id, checkout_request_id, merchant_request_id,
           phone, amount, account_reference, description, purpose,
-          status, invoice_id, initiated_by, plan_type, product)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13)
+          status, invoice_id, initiated_by, plan_type, product, billing_cycle)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14)
        ON CONFLICT (checkout_request_id) DO NOTHING`,
       [
         params.groupId, txId,
@@ -118,6 +121,7 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
         params.initiatedBy ?? null,
         params.planType ?? null,
         params.product ?? null,
+        params.billingCycle ?? null,
       ],
     );
 
@@ -316,7 +320,7 @@ export async function handleSTKCallback(
     // 2. Lock the STK request row (FOR UPDATE) so duplicate callbacks serialise.
     const { rows: stkRows } = await db.query<StkRequestRow>(
       `SELECT id, group_id, purpose, invoice_id, loan_repayment_id,
-              account_reference, amount, plan_type, product
+              account_reference, amount, plan_type, product, billing_cycle
        FROM   mpesa_stk_requests
        WHERE  checkout_request_id=$1
        FOR UPDATE`,
@@ -486,6 +490,9 @@ async function activateSubscriptionFromSTK(
       product:    stkReq.product as SubscriptionProduct,
       paymentId:  pay[0].id,
       amountPaid: in_.amount,
+      // Undefined (not null) when the column is NULL, so the function's own
+      // `?? 'monthly'` default applies — same behaviour a pre-155 row always had.
+      billingCycle: (stkReq.billing_cycle as BillingCycle | null) ?? undefined,
     });
     if (sub) {
       logger.info('[mpesa] subscription activated', {

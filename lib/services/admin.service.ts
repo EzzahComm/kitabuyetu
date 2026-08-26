@@ -1,12 +1,13 @@
 import { withAdminDb } from '@/lib/db';
 import { DatabaseError, type PoolClient } from 'pg';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
-import { DEFAULT_PRODUCT, type SubscriptionProduct } from '@/types/enums';
+import { DEFAULT_PRODUCT, type SubscriptionProduct, type PlanType, type BillingCycle } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
 import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
-import { IS_SANDBOX, markSpineAllocated } from './mpesa-spine.service';
+import { IS_SANDBOX, markSpineAllocated, logPaymentEvent, spinePaymentId } from './mpesa-spine.service';
+import { billingService } from './billing.service';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -1425,6 +1426,18 @@ export async function listUnroutedPayments(params: {
  * unrouted row regardless of candidate_group_id, with the target group
  * supplied explicitly by the staff member rather than inferred from routing.
  *
+ * A third action, 'activate_subscription', exists because 'SUBSCRIPT' (the
+ * client-side accountReference plan-purchase.tsx sends for every kitabu_yetu
+ * STK subscription attempt — see PRODUCT_REFERENCE there; it is not a
+ * per-group value, so amount/ref alone cannot identify which group paid) is
+ * a real recurring bill_ref in this queue and 'allocate' only knows how to
+ * create a member contribution, never a plan activation. These C2B payments
+ * never went through recordC2BInbound (the router bails to mpesa_unrouted
+ * before that runs when it can't resolve a group), so there is no `payments`
+ * row yet to hand billingService.activateSubscriptionForPayment() — this
+ * creates the mpesa_transactions/payments pair recordC2BInbound would have,
+ * then activates through the same real function the STK callback path uses.
+ *
  * `createdBy` on the journal is deliberately null, and `adminId` (a
  * platform_users id, not a members id) is recorded only in
  * resolution_notes — mirroring how updateTicketStatus above attributes a
@@ -1432,19 +1445,25 @@ export async function listUnroutedPayments(params: {
  */
 export async function resolveUnroutedPayment(
   id: string,
-  action: 'allocate' | 'dismiss',
-  opts: { groupId?: string; memberId?: string; notes?: string; adminId: string },
+  action: 'allocate' | 'dismiss' | 'activate_subscription',
+  opts: {
+    groupId?: string; memberId?: string; notes?: string; adminId: string;
+    planType?: PlanType; product?: SubscriptionProduct; billingCycle?: BillingCycle;
+  },
 ): Promise<{ success: true }> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{
-      id: string; receipt: string; amount: string; bill_ref: string | null; resolved: boolean;
+      id: string; receipt: string; phone: string; amount: string; bill_ref: string | null;
+      raw_payload: unknown; resolved: boolean;
     }>(
-      `SELECT id, receipt, amount, bill_ref, resolved FROM public.mpesa_unrouted WHERE id = $1 FOR UPDATE`,
+      `SELECT id, receipt, phone, amount, bill_ref, raw_payload, resolved FROM public.mpesa_unrouted WHERE id = $1 FOR UPDATE`,
       [id],
     );
     const row = rows[0];
     if (!row) throw new NotFoundError('Unrouted receipt', id);
     if (row.resolved) return { success: true }; // already handled — idempotent
+
+    const amount = parseFloat(row.amount);
 
     // mpesa_unrouted.resolved_by is a real FK to members(id); opts.adminId is
     // a platform_users id, not a member, so it goes in resolution_notes only
@@ -1453,6 +1472,69 @@ export async function resolveUnroutedPayment(
     const notes = opts.notes
       ? `${opts.notes} (staff action, admin ${opts.adminId})`
       : `Resolved by staff (admin ${opts.adminId})`;
+
+    if (action === 'activate_subscription') {
+      if (!opts.groupId) throw new ValidationError('groupId is required to activate a subscription');
+      if (!opts.planType || !opts.product) throw new ValidationError('planType and product are required to activate a subscription');
+
+      // This receipt never went through recordC2BInbound — the router bailed
+      // to mpesa_unrouted before that runs. Create the same two rows it would
+      // have, ON CONFLICT-safe like the original so a retry can't duplicate
+      // them if this action is ever run twice for the same receipt.
+      const rawPayload = JSON.stringify(row.raw_payload ?? {});
+      await db.query(
+        `INSERT INTO public.mpesa_transactions
+           (group_id, transaction_type, direction, mpesa_receipt_number,
+            phone_number, amount, status, reference, raw_response, completed_at, is_test)
+         VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
+         ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
+        [opts.groupId, row.receipt, row.phone, amount.toFixed(2), row.bill_ref, rawPayload, IS_SANDBOX],
+      );
+      const { rows: payRows } = await db.query<{ id: string }>(
+        `INSERT INTO public.payments
+           (group_id, amount, payment_method, status, mpesa_receipt_number,
+            mpesa_phone, mpesa_raw_callback, payment_date, channel)
+         VALUES ($1,$2,'mpesa','completed',$3,$4,$5::jsonb,NOW(),'paybill')
+         ON CONFLICT (mpesa_receipt_number) DO NOTHING
+         RETURNING id`,
+        [opts.groupId, amount.toFixed(2), row.receipt, row.phone, rawPayload],
+      );
+      const paymentId = payRows[0]?.id ?? await spinePaymentId(db, row.receipt);
+      if (!paymentId) throw new ConflictError('Could not create or find a payment row for this receipt');
+
+      await logPaymentEvent(db, paymentId, 'received', {
+        billRef: row.bill_ref, via: 'admin_unrouted_subscription_activation',
+      });
+
+      // Returns null only when this exact payment already activated a
+      // subscription (idempotent replay) — not an error, just nothing new to do.
+      // billingCycle defaults to 'monthly' inside the function if omitted; if
+      // staff picks a cycle the amount doesn't actually cover (e.g. 'annual'
+      // on a 150-shilling receipt), activateSubscriptionForPayment's own
+      // amountPaid < fee check throws PaymentRequiredError rather than
+      // under-activating — no separate guard needed here.
+      await billingService.activateSubscriptionForPayment(db, {
+        groupId: opts.groupId, planType: opts.planType, product: opts.product,
+        paymentId, amountPaid: amount, billingCycle: opts.billingCycle,
+      });
+
+      await markSpineAllocated(db, row.receipt, {
+        actor:  null, // see the allocate branch below for why this is never opts.adminId
+        detail: {
+          product: opts.product, planType: opts.planType, groupId: opts.groupId,
+          via: 'admin_unrouted_subscription_activation', staffAdminId: opts.adminId,
+        },
+      });
+
+      await db.query(
+        `UPDATE public.mpesa_unrouted
+         SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
+             resolved_to_group_id=$2, resolution_notes=$3
+         WHERE id=$1`,
+        [id, opts.groupId, notes],
+      );
+      return { success: true };
+    }
 
     if (action === 'dismiss') {
       await db.query(
@@ -1470,7 +1552,6 @@ export async function resolveUnroutedPayment(
 
     const { membershipId } = await assertActiveMembership(db, opts.groupId, opts.memberId);
 
-    const amount = parseFloat(row.amount);
     const { rows: contribRows } = await db.query<{ id: string }>(
       `INSERT INTO public.contributions
          (group_id, member_id, group_membership_id, amount, contribution_date,

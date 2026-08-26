@@ -448,6 +448,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       // exists only to reuse applyLoanRepayment's wiring.
       plan_type:         null,
       product:           null,
+      billing_cycle:     null,
     };
     await applyLoanRepayment(
       db,
