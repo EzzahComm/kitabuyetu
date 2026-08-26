@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Landmark, Users, CreditCard,
   Headphones, ScrollText,
   BarChart3, Flag, ShieldAlert, Activity, MapPin,
-  Settings, Coins,
+  Settings, Coins, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -37,6 +37,7 @@ const NAV: PortalNavSection[] = [
     title: 'Operations',
     items: [
       { href: '/admin/support',     label: 'Support Center', icon: Headphones },
+      { href: '/admin/mpesa-unrouted', label: 'Unrouted Payments', icon: Wallet },
       { href: '/admin/audit-logs',  label: 'Audit Logs',     icon: ScrollText },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: Flag },
     ],

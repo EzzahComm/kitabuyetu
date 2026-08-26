@@ -4,6 +4,9 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { DEFAULT_PRODUCT, type SubscriptionProduct } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
+import { assertActiveMembership } from './membership-guard';
+import { postContributionJournal } from './accounting.service';
+import { IS_SANDBOX, markSpineAllocated } from './mpesa-spine.service';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -1350,4 +1353,170 @@ export async function getPlatformAnalytics() {
       welfareStats: welfareStats.rows[0],
     };
   }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unrouted M-Pesa payments (staff/super_admin reconciliation)
+//
+// `mpesa-unrouted.service.ts`'s listUnrouted/resolveUnrouted are treasurer-
+// facing and tenant-scoped: resolveUnrouted requires the caller's group to
+// match the row's candidate_group_id, and the C2B router leaves
+// candidate_group_id NULL whenever it can't even guess a group
+// (reason='unknown_prefix') — which is most of these. No group's treasurer
+// session can ever reach those rows through the normal RLS-scoped path, no
+// matter how obvious the right member is from the receipt/name/ref. These
+// two give staff the same "allocate or dismiss" action, but scoped to the
+// whole platform via withAdminDb, with the group picked explicitly rather
+// than inferred.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface UnroutedPaymentRow {
+  id:                  string;
+  receipt:             string;
+  phone:               string;
+  amount:              string;
+  bill_ref:            string | null;
+  reason:              string;
+  candidate_group_id:  string | null;
+  candidate_group_name: string | null;
+  resolved:            boolean;
+  created_at:          string;
+}
+
+export async function listUnroutedPayments(params: {
+  page: number; limit: number; search?: string;
+}) {
+  return withAdminDb(async (db: PoolClient) => {
+    const { page, limit, search } = params;
+    const offset = (page - 1) * limit;
+    const conds: string[] = ['u.resolved = false'];
+    const vals: unknown[] = [];
+    let idx = 1;
+
+    if (search) {
+      conds.push(`(u.receipt ILIKE $${idx} OR u.bill_ref ILIKE $${idx})`);
+      vals.push(`%${search}%`);
+      idx++;
+    }
+    const where = `WHERE ${conds.join(' AND ')}`;
+
+    const [data, count] = await Promise.all([
+      db.query<UnroutedPaymentRow>(`
+        SELECT u.id, u.receipt, u.phone, u.amount, u.bill_ref, u.reason,
+               u.candidate_group_id, g.name AS candidate_group_name,
+               u.resolved, u.created_at
+        FROM   public.mpesa_unrouted u
+        LEFT   JOIN public.groups g ON g.id = u.candidate_group_id
+        ${where}
+        ORDER  BY u.created_at ASC
+        LIMIT  $${idx} OFFSET $${idx + 1}
+      `, [...vals, limit, offset]),
+      db.query(`SELECT COUNT(*) AS total FROM public.mpesa_unrouted u ${where}`, vals),
+    ]);
+
+    return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+  });
+}
+
+/**
+ * Staff-scoped equivalent of mpesa-unrouted.service.ts's resolveUnrouted —
+ * same two actions (allocate / dismiss), same accounting path
+ * (postContributionJournal + markSpineAllocated), but callable for ANY
+ * unrouted row regardless of candidate_group_id, with the target group
+ * supplied explicitly by the staff member rather than inferred from routing.
+ *
+ * `createdBy` on the journal is deliberately null, and `adminId` (a
+ * platform_users id, not a members id) is recorded only in
+ * resolution_notes — mirroring how updateTicketStatus above attributes a
+ * staff action without assuming a members-table identity for the actor.
+ */
+export async function resolveUnroutedPayment(
+  id: string,
+  action: 'allocate' | 'dismiss',
+  opts: { groupId?: string; memberId?: string; notes?: string; adminId: string },
+): Promise<{ success: true }> {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query<{
+      id: string; receipt: string; amount: string; bill_ref: string | null; resolved: boolean;
+    }>(
+      `SELECT id, receipt, amount, bill_ref, resolved FROM public.mpesa_unrouted WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundError('Unrouted receipt', id);
+    if (row.resolved) return { success: true }; // already handled — idempotent
+
+    // mpesa_unrouted.resolved_by is a real FK to members(id); opts.adminId is
+    // a platform_users id, not a member, so it goes in resolution_notes only
+    // (same reasoning as payment_events.actor above) — resolved_by stays NULL
+    // for a staff-initiated resolution, same as recorded_by/createdBy below.
+    const notes = opts.notes
+      ? `${opts.notes} (staff action, admin ${opts.adminId})`
+      : `Resolved by staff (admin ${opts.adminId})`;
+
+    if (action === 'dismiss') {
+      await db.query(
+        `UPDATE public.mpesa_unrouted
+         SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
+             resolved_to_group_id=$2, resolution_notes=$3
+         WHERE id=$1`,
+        [id, opts.groupId ?? null, notes],
+      );
+      return { success: true };
+    }
+
+    if (!opts.groupId) throw new ValidationError('groupId is required to allocate');
+    if (!opts.memberId) throw new ValidationError('memberId is required to allocate');
+
+    const { membershipId } = await assertActiveMembership(db, opts.groupId, opts.memberId);
+
+    const amount = parseFloat(row.amount);
+    const { rows: contribRows } = await db.query<{ id: string }>(
+      `INSERT INTO public.contributions
+         (group_id, member_id, group_membership_id, amount, contribution_date,
+          status, payment_method, mpesa_receipt_number, notes, recorded_by)
+       VALUES ($1,$2,$3,$4,CURRENT_DATE,'completed','mpesa',$5,$6,NULL)
+       ON CONFLICT (mpesa_receipt_number) DO NOTHING
+       RETURNING id`,
+      [
+        opts.groupId, opts.memberId, membershipId, amount.toFixed(2), row.receipt,
+        `Manually routed from unrouted receipt by platform staff (${row.bill_ref ?? 'no ref'})`,
+      ],
+    );
+    const contributionId = contribRows[0]?.id ?? null;
+
+    if (contributionId) {
+      await postContributionJournal(db, {
+        groupId: opts.groupId, contributionId, amount,
+        entryDate: new Date().toISOString().slice(0, 10), reference: row.receipt,
+        createdBy: null, isTest: IS_SANDBOX,
+      });
+
+      await db.query(
+        `UPDATE public.contributions
+         SET    payment_id = (SELECT id FROM public.payments WHERE mpesa_receipt_number = $1)
+         WHERE  id = $2 AND payment_id IS NULL`,
+        [row.receipt, contributionId],
+      );
+      await markSpineAllocated(db, row.receipt, {
+        // NOT opts.adminId: payment_events.actor is a real FK to members(id),
+        // and a backoffice staff/platform_users id is not a member — passing
+        // it here would either FK-violate or silently misattribute the event
+        // to an unrelated member. NULL means "system", same as every other
+        // non-member-initiated action in this table. The real staff id is
+        // still recorded, just in detail (no FK) rather than actor.
+        actor:  null,
+        detail: { product: 'savings', contributionId, groupId: opts.groupId, via: 'admin_unrouted_resolution', staffAdminId: opts.adminId },
+      });
+    }
+
+    await db.query(
+      `UPDATE public.mpesa_unrouted
+       SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
+           resolved_to_group_id=$2, resolved_to_contribution=$3, resolution_notes=$4
+       WHERE id=$1`,
+      [id, opts.groupId, contributionId, notes],
+    );
+    return { success: true };
+  });
 }
