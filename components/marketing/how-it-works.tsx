@@ -6,12 +6,13 @@ import { STEPS } from './content';
 import { ROUTES, SECTION_IDS } from './routes';
 
 /**
- * Section 7 — the four steps.
+ * Section 7 — the six-step journey: Create, Organize, Automate, Collect,
+ * Communicate, Grow (STEPS in content.ts).
  *
- * The connecting line is one absolutely-positioned rule that reorients with
- * the layout: a left rail on mobile, a horizontal rule through the step
- * numbers on large screens. Drawing it once rather than per-step is what keeps
- * the last step from trailing a line into nothing.
+ * Six items don't fit one row cleanly the way the previous four did, so this
+ * is a plain card grid (left rail on mobile, 2 rows of 3 from lg up) rather
+ * than the earlier single connecting rule — a horizontal line drawn across
+ * two rows would visually connect steps that aren't actually adjacent.
  */
 export function HowItWorks() {
   return (
@@ -20,32 +21,27 @@ export function HowItWorks() {
         <RevealedHeading
           id="how-heading"
           eyebrow="Getting started"
-          title="Four steps, and the book"
+          title="Six steps, and the book"
           emphasis="is open"
           trailing="."
           lede="No migration project, no consultant, no training week. Most groups are recording their first contribution the same day."
         />
 
-        <ol className="relative mt-16 grid gap-10 lg:mt-20 lg:grid-cols-4 lg:gap-8">
-          <div
-            aria-hidden="true"
-            className="absolute left-[1.375rem] top-3 h-[calc(100%-1.5rem)] w-px bg-brand-blue-900/12 lg:inset-x-0 lg:left-0 lg:top-[1.375rem] lg:h-px lg:w-full"
-          />
-
+        <ol className="relative mt-16 grid gap-10 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3 lg:gap-x-10 lg:gap-y-14">
           {STEPS.map((step, i) => (
             <Reveal
               as="li"
               key={step.title}
-              delay={i * 90}
-              className="relative pl-16 lg:pl-0"
+              delay={i * 70}
+              className="relative pl-16 sm:pl-0"
             >
               <span
                 aria-hidden="true"
-                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper-deep font-mono text-[13px] font-medium tabular-nums text-brand-700 lg:static lg:mb-6 lg:flex"
+                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper-deep font-mono text-[13px] font-medium tabular-nums text-brand-700 sm:static sm:mb-6 sm:flex"
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <h3 className="font-display text-xl font-normal leading-snug text-brand-blue-900 lg:mt-0">
+              <h3 className="font-display text-xl font-normal leading-snug text-brand-blue-900 sm:mt-0">
                 <span className="sr-only">Step {i + 1}: </span>
                 {step.title}
               </h3>

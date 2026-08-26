@@ -1,8 +1,9 @@
 import {
-  ArrowLeftRight, BarChart3, BookOpen, BookMarked, Building2, ClipboardList,
-  Coins, EyeOff, GitBranch, KeyRound, Landmark, Lock, PiggyBank,
-  ScrollText, ShieldCheck, Smartphone, Table2, UserRound, Users, Wallet,
-  type LucideIcon,
+  ArrowLeftRight, BarChart3, BookOpen, BookMarked, Briefcase, Building2,
+  ClipboardList, Coins, EyeOff, Gift, GitBranch, Heart, KeyRound,
+  Landmark, Layers, Lock, Megaphone, MessageSquareText, Network,
+  PiggyBank, ScrollText, Send, ShieldCheck, Smartphone,
+  Store, Table2, UserRound, Users, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from './routes';
 
@@ -231,22 +232,39 @@ export const SHOWCASE: ShowcaseItem[] = [
 
 export interface Step { title: string; body: string }
 
+/**
+ * The six-step journey — Create, Organize, Automate, Collect, Communicate,
+ * Grow. Collect and Communicate are the two steps with a real, shipped
+ * feature behind every sentence (Daraja + contribution-splits; the SMS
+ * pipeline). Grow reaches toward the ecosystem (organizations, donors,
+ * programs) — several of those destinations are the vision this platform is
+ * building toward rather than a shipped feature today; see each
+ * /ecosystem/* page for what is live versus what is coming.
+ */
 export const STEPS: Step[] = [
   {
-    title: 'Create your group',
-    body:  'Register in a few minutes. Your group gets its own chart of accounts and its own M-Pesa account reference, set up for you.',
+    title: 'Create',
+    body:  'Register your group in a few minutes. It gets its own chart of accounts and its own M-Pesa account reference, set up for you.',
   },
   {
-    title: 'Invite your members',
-    body:  'Add members one at a time or import the register you already keep. Each member gets a membership number that doubles as their payment reference.',
+    title: 'Organize',
+    body:  'Add members one at a time or import the register you already keep. Set roles — chairperson, treasurer, secretary — and the rules your group runs by.',
   },
   {
-    title: 'Record savings and loans',
-    body:  'Take contributions by M-Pesa or record cash at the meeting. Issue loans, set the schedule, collect the repayments.',
+    title: 'Automate',
+    body:  'Contribution splits, loan schedules, dividend allocations and reminders run themselves once you set the rule, instead of being redone by hand every cycle.',
   },
   {
-    title: 'Run the group from one book',
-    body:  'Reports, statements, reminders and the audit trail all read from the same ledger. Nothing is kept twice.',
+    title: 'Collect',
+    body:  'Take contributions and loan repayments by M-Pesa — STK push or your own PayBill — reconciled to the ledger the moment Safaricom confirms it.',
+  },
+  {
+    title: 'Communicate',
+    body:  'Reminders, confirmations, meeting notices and announcements reach members automatically, from the same system that holds the money.',
+  },
+  {
+    title: 'Grow',
+    body:  'Connect to the wider Kitabu Yetu ecosystem — organizations overseeing many groups, donors backing real projects, and programs built for qualifying groups.',
   },
 ];
 
@@ -406,10 +424,159 @@ export const RESOURCES: ResourceCard[] = [
     href:  ROUTES.support,
   },
   {
+    kind:  'Reference',
+    title: 'Documentation',
+    body:  'API and integration reference for developers building against Kitabu Yetu.',
+    href:  ROUTES.docs,
+  },
+  {
     kind:  'Talk to us',
     title: 'Contact',
     body:  'A demo, a question about your group, or a partnership — reach a person in Nairobi.',
     href:  ROUTES.contact,
   },
+];
+
+/* ── Section 12 — product pillars (Products overview + homepage) ─────────── */
+
+export interface ProductPillar {
+  icon:    LucideIcon;
+  title:   string;
+  body:    string;
+  points:  string[];
+  href:    string;
+  linkText: string;
+  /** `live` has a real, shipped feature behind every point below. `vision`
+   *  describes where the product is going — labelled as such on every page
+   *  that renders it, never presented as available today. */
+  status:  'live' | 'vision';
+}
+
+export const PRODUCT_PILLARS: ProductPillar[] = [
+  {
+    icon: BookOpen,
+    title: 'Bookkeeper',
+    body: 'The core platform: digital group administration and financial management, built on a real double-entry ledger.',
+    points: ['Contributions, loans, welfare and shares', 'M-Pesa collection and payout on Daraja', 'Statements, reports and an audit trail'],
+    href: ROUTES.bookkeeper,
+    linkText: 'Explore Bookkeeper',
+    status: 'live',
+  },
+  {
+    icon: MessageSquareText,
+    title: 'Chama Reminder',
+    body: 'Communication and engagement for groups that want the messaging without setting up the full ledger.',
+    points: ['Contribution and meeting reminders', 'Group announcements by SMS', 'Runs standalone, or alongside Bookkeeper'],
+    href: ROUTES.chamaReminder,
+    linkText: 'Explore Chama Reminder',
+    status: 'live',
+  },
+  {
+    icon: Gift,
+    title: 'Fundraise / Changi$ha',
+    body: 'A fundraising platform for organizations, groups, projects and individuals to raise money from members and the public.',
+    points: ['Shareable campaign pages with a running total', 'M-Pesa collection, reconciled automatically', 'A transparent record every contributor can see'],
+    href: ROUTES.fundraise,
+    linkText: 'See what’s coming',
+    status: 'vision',
+  },
+  {
+    icon: Briefcase,
+    title: 'Enterprise',
+    body: 'For institutions managing multiple groups or programs — centralized oversight without losing any group’s own book.',
+    points: ['Multi-group and multi-organization dashboards', 'Portfolio-level reporting across every group', 'APIs and integrations for larger institutions'],
+    href: ROUTES.enterprise,
+    linkText: 'Explore Enterprise',
+    status: 'vision',
+  },
+];
+
+/* ── Section 13 — why Kitabu Yetu ─────────────────────────────────────────── */
+
+export interface ValueProp { icon: LucideIcon; title: string; body: string }
+
+/**
+ * The eight-point case for the platform. Digital Administration, Financial
+ * Transparency, Cashless Collections and Better Reporting each name a
+ * shipped mechanism (the ledger, the passbook, Daraja, the reports module).
+ * Automated Communication, Seamless Disbursements, Greater Accountability
+ * and Connected Communities lean forward toward the ecosystem this platform
+ * is building into.
+ */
+export const WHY_KITABU_YETU: ValueProp[] = [
+  { icon: Layers,   title: 'Digital Administration', body: 'One shared, audit-ready book replaces the paper ledger and the treasurer’s personal M-Pesa statement.' },
+  { icon: ShieldCheck, title: 'Financial Transparency', body: 'Every member sees their own contributions and loan balance, from a ledger everyone reads the same way.' },
+  { icon: Zap,      title: 'Automated Communication', body: 'Reminders, confirmations and announcements go out on their own, from the system that holds the money.' },
+  { icon: Smartphone, title: 'Cashless Collections', body: 'Contributions and repayments move by M-Pesa — STK push or your own PayBill — on Safaricom’s own API.' },
+  { icon: Send,     title: 'Seamless Disbursements', body: 'Loans, welfare and dividend payouts move the same way collections do, with the same controls.' },
+  { icon: BarChart3, title: 'Better Reporting', body: 'Statements and reports are generated from the ledger itself, never retyped into a second document.' },
+  { icon: GitBranch, title: 'Greater Accountability', body: 'Role-based access and a second approver above your threshold, on every payout and write-off.' },
+  { icon: Network,  title: 'Connected Communities', body: 'A group’s book connects outward — to the organizations, donors and programs in the wider ecosystem.' },
+];
+
+/* ── Section 14 — the ecosystem (homepage section + /ecosystem hub) ──────── */
+
+export interface EcosystemPillar {
+  icon:   LucideIcon;
+  title:  string;
+  body:   string;
+  href:   string;
+  status: 'live' | 'vision';
+}
+
+/**
+ * Multigroup Organizations is real — multi-group registration and the
+ * (enterprise) portal both shipped. Donors, Marketplace and Programs are the
+ * vision for where those same rails lead; each is labelled `vision` and its
+ * own page says so plainly rather than describing a feature that does not
+ * exist yet as if it does.
+ */
+export const ECOSYSTEM_PILLARS: EcosystemPillar[] = [
+  {
+    icon: Building2,
+    title: 'Multigroup Organizations',
+    body: 'NGOs, federations and umbrella bodies get one login and a portfolio view across every group and branch they run.',
+    href: ROUTES.ecosystemOrganizations,
+    status: 'live',
+  },
+  {
+    icon: Heart,
+    title: 'Donors',
+    body: 'Development partners and funders discover, support and monitor the groups and projects they back.',
+    href: ROUTES.ecosystemDonors,
+    status: 'vision',
+  },
+  {
+    icon: Store,
+    title: 'Marketplace',
+    body: 'Groups and organizations connect with relevant products, services, suppliers and financial partners.',
+    href: ROUTES.ecosystemMarketplace,
+    status: 'vision',
+  },
+  {
+    icon: Megaphone,
+    title: 'Programs',
+    body: 'Enterprises, NGOs and donors announce and manage grants, opportunities and interventions for qualifying groups.',
+    href: ROUTES.ecosystemPrograms,
+    status: 'vision',
+  },
+];
+
+/* ── Section 15 — impact ──────────────────────────────────────────────────── */
+
+export interface ImpactStat { label: string; value: string }
+
+/**
+ * Placeholders, deliberately. Real figures belong here the moment they exist
+ * — pulled from the same tables the admin portal already reads, the same
+ * discipline PLAN_MONTHLY_FEES enforces on pricing. Until then this renders
+ * an honest em-dash rather than an invented number.
+ */
+export const IMPACT_STATS: ImpactStat[] = [
+  { label: 'Groups digitized',      value: '—' },
+  { label: 'Members served',        value: '—' },
+  { label: 'Transactions processed', value: '—' },
+  { label: 'Funds managed',         value: '—' },
+  { label: 'Communities reached',   value: '—' },
 ];
 

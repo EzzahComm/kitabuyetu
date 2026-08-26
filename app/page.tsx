@@ -2,13 +2,17 @@ import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Hero } from '@/components/marketing/hero';
+import { ProductPillarsSection } from '@/components/marketing/product-pillars-section';
 import { ProblemSection } from '@/components/marketing/problem-section';
 import { SolutionGrid } from '@/components/marketing/solution-grid';
+import { WhyKitabuYetuSection } from '@/components/marketing/why-kitabu-yetu-section';
 import { ProductShowcase } from '@/components/marketing/product-showcase';
 import { HowItWorks } from '@/components/marketing/how-it-works';
+import { EcosystemSection } from '@/components/marketing/ecosystem-section';
 import { RoleCards } from '@/components/marketing/role-cards';
 import { MpesaSection } from '@/components/marketing/mpesa-section';
 import { TrustSection } from '@/components/marketing/trust-section';
+import { ImpactSection } from '@/components/marketing/impact-section';
 import { ResourcesSection } from '@/components/marketing/resources-section';
 import { PricingSection } from '@/components/marketing/pricing-section';
 import { FinalCta } from '@/components/marketing/final-cta';
@@ -96,13 +100,17 @@ export default function HomePage() {
 
       <main id="main" className="flex-1">
         <Hero />
+        <ProductPillarsSection />
         <ProblemSection />
         <SolutionGrid />
+        <WhyKitabuYetuSection />
         <ProductShowcase />
         <HowItWorks />
+        <EcosystemSection />
         <RoleCards />
         <MpesaSection />
         <TrustSection />
+        <ImpactSection />
         <ResourcesSection />
         <PricingSection />
         <FinalCta />
