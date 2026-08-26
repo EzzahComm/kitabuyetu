@@ -12,9 +12,23 @@
 useDefault = true
 
 [allowlist]
-description = "Public Safaricom Daraja sandbox passkey (not a real secret)"
+description = "Known non-secrets that trip gitleaks' entropy rules"
 regexes = [
+  # Public Safaricom Daraja SANDBOX passkey — published by Safaricom for every
+  # developer; 64 hex chars, so it trips the high-entropy rule.
   '''bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919''',
+
+  # CAPITAL POINT CHAMA's groups.id, in scripts/resolve-last-2-unrouted.ts.
+  # A primary-key UUID, not a credential — generic-api-key fires on its hex
+  # entropy alone, with no keyword involved.
+  #
+  # Allowlisted BY VALUE, not by commit, and that distinction matters: this
+  # was first pinned as commit 00fb9136, which worked until PR #121 was
+  # SQUASH-merged and git re-created the same file under a new SHA
+  # (0fc09137). The commit entry silently stopped matching and Secret Scan
+  # began failing on every branch again. A commit-pinned allowlist cannot
+  # survive a squash merge; pin the value instead.
+  '''bcf03d15-9d45-4c69-ad45-5458a726817c''',
 ]
 # generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the
 # loan disbursement dialog (app/(dashboard)/loans/[id]/page.tsx:238). The
@@ -26,13 +40,9 @@ regexes = [
 # (d719b41) without rewriting already-pushed history — allowlisted by commit
 # instead.
 #
-# generic-api-key false positive: CAPITAL_POINT_GROUP_ID in the one-off
-# scripts/resolve-last-2-unrouted.ts (2026-08-26). The matched "secret" is
-# bcf03d15-9d45-4c69-ad45-5458a726817c — a groups.id primary-key UUID, not a
-# credential; its hex entropy alone trips the rule with no keyword involved.
-# Same reasoning as above: allowlisted by commit, since 00fb9136 was already
-# pushed before this was caught.
+# NOTE: prefer `regexes` above over new entries here. A commit hash stops
+# matching the moment that work is squash-merged — see the CAPITAL POINT
+# UUID's note above for the time that broke Secret Scan repo-wide.
 commits = [
   "d719b41cbdf40e02b693239cee14c11d7e2a08f5",
-  "00fb9136ea19f80183139f9d864383c7bc5078e1",
 ]
