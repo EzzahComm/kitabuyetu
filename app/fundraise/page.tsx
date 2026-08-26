@@ -31,15 +31,20 @@ export default function FundraisePage() {
         Changi$ha will bring digital fundraising to the same place a group already keeps
         its books and talks to its members — for weddings, funerals, medical appeals,
         school fees, church and community projects, and the many other causes East
-        African communities raise money for together.
+        African communities raise money for together. It is planned as a standalone
+        fundraising product that can also connect into Kitabu Yetu for groups and
+        organizations that want both.
       </p>
 
       <h2>What we are building towards</h2>
       <ul className="ml-5 list-disc space-y-2">
-        <li>A shareable page for a cause, with a clear target and a running total.</li>
-        <li>Contributions by M-Pesa, credited and reconciled automatically.</li>
-        <li>A transparent record every contributor can see.</li>
+        <li>Public campaign pages for a cause, organization, group or individual, with a clear target and a running total.</li>
+        <li>Contributions by M-Pesa and other digital payment options, credited and reconciled automatically.</li>
+        <li>A transparent record every contributor can see — not a screenshot of a bank statement.</li>
+        <li>Donor tracking and fundraising reports for the organizer running the campaign.</li>
         <li>Payouts to the organiser with the same controls the rest of the platform uses.</li>
+        <li>An API for organizations that want to run Changi$ha campaigns from their own systems.</li>
+        <li>White-label campaign pages for organizations that want their own brand on the page a donor sees.</li>
       </ul>
 
       <p>

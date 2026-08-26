@@ -1,96 +1,72 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { ECOSYSTEM_PILLARS } from '@/components/marketing/content';
 import { PageShell } from '@/components/marketing/page-shell';
+import { ROUTES } from '@/components/marketing/routes';
 
 export const metadata: Metadata = {
-  title: 'The ecosystem',
-  description:
-    'Three digital tools, and the groups, organizations and partners that use them to build vibrant communities across East Africa.',
+  title: 'The Ecosystem',
+  description: 'Groups, organizations, donors and programs — how Kitabu Yetu connects a community’s book to the wider ecosystem around it.',
 };
 
 /**
- * The ecosystem view — deliberately simple for now.
- *
- * Kept to what genuinely exists today (the three tools, groups, and funding
- * organizations) with room to grow into programs, partners and opportunities.
- * Nothing here describes a capability the platform does not have; the
- * Fundraise entry is explicitly labelled as not yet available.
+ * Four pillars, not three tools — the ecosystem view now matches
+ * ECOSYSTEM_ITEMS/ECOSYSTEM_PILLARS in components/marketing/{routes,content}.ts,
+ * which is also what the header's Ecosystem dropdown links to. Multigroup
+ * Organizations is real; Donors, Marketplace and Programs are the direction
+ * this is heading, each labelled and each honest about it on its own page.
  */
-const TOOLS = [
-  {
-    name: 'Kitabu Yetu Bookkeeper',
-    href: '/bookkeeper',
-    blurb: 'Digital bookkeeping and group administration — contributions, loans, welfare, shares and an audit-ready ledger.',
-    status: 'Available',
-  },
-  {
-    name: 'Chama Reminder',
-    href: '/chama-reminder',
-    blurb: 'Automated SMS reminders, announcements and birthday messages that keep members informed.',
-    status: 'Available',
-  },
-  {
-    name: 'Fundraise / Changi$ha',
-    href: '/fundraise',
-    blurb: 'Digital fundraising and collections for community causes.',
-    status: 'Coming soon',
-  },
-];
-
 export default function EcosystemPage() {
   return (
     <PageShell
       title="The Kitabu Yetu Ecosystem"
-      description="Digital tools for communities, groups and the organizations that support them."
+      description="A group's book doesn't stop at its own members — it connects outward, to the organizations, donors and programs around it."
     >
       <p>
-        Kitabu Yetu digitises how communities administer themselves. The ecosystem is the
-        set of tools a group can use, and the organizations and partners that work
-        alongside them.
+        Kitabu Yetu starts with one group&apos;s ledger, but the platform is built to grow
+        into the wider network around that group — the federation that oversees it, the
+        donor that funds a project inside it, and the programs it might qualify for
+        because its record can actually prove it.
       </p>
 
-      <h2>Digital tools</h2>
       <div className="not-prose grid gap-4 sm:grid-cols-2">
-        {TOOLS.map((t) => (
+        {ECOSYSTEM_PILLARS.map((pillar) => (
           <Link
-            key={t.href}
-            href={t.href}
-            className="block rounded-xl border border-slate-200 p-5 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
+            key={pillar.href}
+            href={pillar.href}
+            className="group flex flex-col rounded-xl border border-brand-blue-900/10 p-5 transition-colors hover:border-brand-500/40 hover:bg-white"
           >
             <div className="flex items-start justify-between gap-3">
-              <span className="text-base font-semibold text-slate-900">{t.name}</span>
+              <span className="flex items-center gap-2.5 text-base font-semibold text-brand-blue-900">
+                <pillar.icon aria-hidden="true" className="h-4.5 w-4.5 text-brand-600" />
+                {pillar.title}
+              </span>
               <span
                 className={
-                  t.status === 'Available'
+                  pillar.status === 'live'
                     ? 'shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700'
-                    : 'shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500'
+                    : 'shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700'
                 }
               >
-                {t.status}
+                {pillar.status === 'live' ? 'Live' : 'Coming soon'}
               </span>
             </div>
-            <p className="mt-2 text-sm text-slate-600">{t.blurb}</p>
+            <p className="mt-2 text-sm text-brand-blue-900/65">{pillar.body}</p>
+            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+              Learn more
+              <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </span>
           </Link>
         ))}
       </div>
 
-      <h2>Groups</h2>
+      <h2>The tools underneath</h2>
       <p>
-        Chamas, SACCOs, welfare groups and investment clubs — the members and officers who
-        run them day to day, each with their own books, rules and cycles.
-      </p>
-
-      <h2>Organizations</h2>
-      <p>
-        Funders, NGOs and umbrella bodies that support groups. An organization gets its own
-        portal for programs, disbursements and a portfolio view across the groups it works
-        with. If you are one, <Link href="/contact">get in touch</Link>.
-      </p>
-
-      <h2>Growing</h2>
-      <p>
-        Programs, partners and opportunities will join this picture as they become real.
-        We would rather list what exists than what is planned.
+        Every pillar above sits on top of the same products: <Link href={ROUTES.bookkeeper}>Bookkeeper</Link>{' '}
+        for the ledger, <Link href={ROUTES.chamaReminder}>Chama Reminder</Link> for the messaging, and{' '}
+        <Link href={ROUTES.fundraise}>Fundraise / Changi$ha</Link> for causes and campaigns. See the full{' '}
+        <Link href={ROUTES.products}>product overview</Link> for what each one does.
       </p>
     </PageShell>
   );

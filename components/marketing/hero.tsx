@@ -4,7 +4,7 @@ import { PLAN_MONTHLY_FEES } from '@/types/enums';
 import { Container, LedgerRules } from './primitives';
 import { PaymentMockup, SharesMockup } from './product-mockups';
 import { AUDIENCES, type AudiencePanel } from './content';
-import { ROUTES, SECTION_IDS } from './routes';
+import { ROUTES } from './routes';
 
 /**
  * The cheapest real entry price for the product this hero is selling, read
@@ -103,7 +103,7 @@ export function Hero() {
         <div className="max-w-2xl">
           <p className="inline-flex items-center gap-2.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-4 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-300">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-            For chamas, SACCOs, VSLAs and welfare groups
+            Digitizing group administration to create vibrant communities
           </p>
 
           <h1 className="mt-7 font-display text-[2.875rem] font-light leading-[1.02] tracking-tight sm:text-6xl lg:text-[4.5rem]">
@@ -113,9 +113,10 @@ export function Hero() {
           </h1>
 
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/75 sm:text-xl">
-            Kitabu Yetu gives your group one simple, secure way to manage savings,
-            loans, members and money — so the book keeps itself and everybody can
-            see where things stand.
+            Simple digital tools for community groups — from organizations taking their
+            first step into digitization to modern chamas already using technology to
+            work smarter. One simple, secure way to manage savings, loans, members and
+            money, so the book keeps itself and everybody can see where things stand.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -123,14 +124,14 @@ export function Hero() {
               href={ROUTES.startGroup}
               className="group inline-flex items-center justify-center gap-2 rounded-md bg-brand-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-900/30 transition-colors hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
             >
-              Start your group
+              Get started
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href={`#${SECTION_IDS.howItWorks}`}
+              href={ROUTES.products}
               className="inline-flex items-center justify-center rounded-md border border-white/20 px-7 py-3.5 text-base font-medium text-white/90 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
             >
-              See how it works
+              Explore Products
             </Link>
           </div>
 

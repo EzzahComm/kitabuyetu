@@ -21,7 +21,11 @@ export default function robots(): MetadataRoute.Robots {
         '/admin-login',
         '/dashboard',
         '/me',
-        '/enterprise',
+        // Exact path + subtree, not a bare '/enterprise' prefix — that would
+        // also match /enterprise-solutions, the public marketing page for
+        // this same product, which crawlers should see.
+        '/enterprise$',
+        '/enterprise/',
         '/reminder',
         '/members',
         '/contributions',
