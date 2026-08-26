@@ -8,6 +8,7 @@ import type {
   listSupportTickets, createSupportTicket, updateTicketStatus,
   listAuditLogs, listFeatureFlags, toggleFeatureFlag, getPlatformAnalytics,
   listGroupMembers, getAdminMemberDetail,
+  listUnroutedPayments, resolveUnroutedPayment,
 } from '@/lib/services/admin.service';
 import type {
   listOrganizations, getOrganizationDetail, createOrganization,
@@ -18,7 +19,7 @@ import type {
   listOrgStaff, addOrgStaff, createOrgInvitation, listOrgInvitations, resendOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import type { AssignableRole, AssignRoleResult } from '@/lib/services/member-roles.service';
-import type { SubscriptionProduct, OrganizationPlanType } from '@/types/enums';
+import type { SubscriptionProduct, OrganizationPlanType, PlanType, BillingCycle } from '@/types/enums';
 import type { AdminLoginResponse } from '@/types/api.types';
 import type {
   listGovernanceAlerts, acknowledgeAlert, resolveAlert, getGroupGovernanceSnapshot,
@@ -96,6 +97,8 @@ type AdminUserList            = Awaited<ReturnType<typeof listPlatformUsers>>;
 type UpdateUserRoleResult     = Awaited<ReturnType<typeof updatePlatformUserRole>>;
 type BillingOverview          = Awaited<ReturnType<typeof getBillingOverview>>;
 type SupportTicketList        = Awaited<ReturnType<typeof listSupportTickets>>;
+type UnroutedPaymentList      = Awaited<ReturnType<typeof listUnroutedPayments>>;
+type ResolveUnroutedResult    = Awaited<ReturnType<typeof resolveUnroutedPayment>>;
 type CreateTicketInput        = Parameters<typeof createSupportTicket>[0];
 type CreatedTicket            = Awaited<ReturnType<typeof createSupportTicket>>;
 type UpdatedTicket            = Awaited<ReturnType<typeof updateTicketStatus>>;
@@ -638,6 +641,38 @@ export function useUpdateTicket() {
       qc.invalidateQueries({ queryKey: ['admin', 'tickets'] });
       qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unrouted M-Pesa payments — see the note on listUnroutedPayments/
+// resolveUnroutedPayment in admin.service.ts for why this exists alongside
+// the treasurer-facing use-mpesa hooks: those can't reach a row with no
+// candidate_group_id, which is most of this queue.
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAdminUnroutedPayments(params: { page?: number; limit?: number; search?: string } = {}) {
+  const p = new URLSearchParams();
+  if (params.page)   p.set('page',   String(params.page));
+  if (params.limit)  p.set('limit',  String(params.limit));
+  if (params.search) p.set('search', params.search);
+
+  return useQuery({
+    queryKey: ['admin', 'mpesa-unrouted', params],
+    queryFn:  () => adminFetch<UnroutedPaymentList>(`/api/admin/mpesa/unrouted?${p}`),
+    staleTime: 20_000,
+  });
+}
+
+export function useResolveUnroutedPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: {
+      id: string; action: 'allocate' | 'dismiss' | 'activate_subscription';
+      groupId?: string; memberId?: string; notes?: string;
+      planType?: PlanType; product?: SubscriptionProduct; billingCycle?: BillingCycle;
+    }) =>
+      adminFetch<ResolveUnroutedResult>(`/api/admin/mpesa/unrouted/${id}`, { method: 'PATCH', json: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mpesa-unrouted'] }),
   });
 }
 

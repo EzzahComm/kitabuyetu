@@ -5,7 +5,7 @@ import {
 } from '@/lib/utils/errors';
 import {
   PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
-  type PlanType, type SubscriptionProduct, type PlanFeatures,
+  BILLING_CYCLE_MONTHS, type PlanType, type SubscriptionProduct, type PlanFeatures, type BillingCycle,
 } from '@/types/enums';
 import { logger } from '@/lib/logger';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
@@ -296,9 +296,15 @@ export const billingService = {
       product:   SubscriptionProduct;
       paymentId: string;
       amountPaid: number;
+      /** Defaults to 'monthly' — every caller from before this param existed
+       *  (the STK callback on an old client, the admin unrouted-payment path
+       *  for a receipt with no recorded cycle) keeps today's behaviour. */
+      billingCycle?: BillingCycle;
     },
   ): Promise<Subscription | null> {
     const { groupId, planType, product, paymentId, amountPaid } = params;
+    const billingCycle = params.billingCycle ?? 'monthly';
+    const cycleMonths  = BILLING_CYCLE_MONTHS[billingCycle];
 
     // Serialise every activation attempt for this payment behind one lock, so
     // the check-then-act below cannot interleave with a concurrent replay.
@@ -309,20 +315,25 @@ export const billingService = {
     );
     if (consumed[0]) return null;
 
-    const fee = PLAN_MONTHLY_FEES[product][planType];
+    // The TRUE monthly rate — this is what gets stored on subscriptions.
+    // monthly_fee (admin.service.ts sums that column directly for MRR), never
+    // multiplied by cycleMonths. `fee` below is what this cycle actually
+    // costs, used only to verify the payment and to compute next_billing_date.
+    const monthlyRate = PLAN_MONTHLY_FEES[product][planType];
+    const fee = monthlyRate * cycleMonths;
 
     // Never activate a plan the payment does not cover. Underpayment is not an
     // error the payer can be told about here (this runs inside a Safaricom
     // callback), so it is refused and left for ops: the payment row stays
     // completed and the group simply keeps its current plan.
-    if (fee <= 0) {
+    if (monthlyRate <= 0) {
       throw new PaymentRequiredError(
         `Plan "${planType}" on ${product} is not self-serve — it is negotiated and must be activated manually.`,
       );
     }
     if (amountPaid < fee) {
       throw new PaymentRequiredError(
-        `Paid KES ${amountPaid} does not cover the ${planType} plan on ${product} (KES ${fee}).`,
+        `Paid KES ${amountPaid} does not cover the ${planType} plan on ${product} for one ${billingCycle} cycle (KES ${fee}).`,
       );
     }
 
@@ -346,13 +357,18 @@ export const billingService = {
       // sms_allowance_included is set EXPLICITLY. Omitting it silently took
       // the column default of 50 for every plan, so premium bought the same
       // allowance as starter while the pricing copy promised more.
+      //
+      // monthly_fee is monthlyRate (the normalized rate), NOT fee (what this
+      // cycle actually cost) — see the comment on migration 155 and on
+      // `fee` above. next_billing_date steps forward by the full cycle, not
+      // always one month, so a quarterly/annual payer isn't re-billed early.
       `INSERT INTO subscriptions
          (group_id, product, plan_type, status, started_at, next_billing_date,
-          monthly_fee, sms_rate, max_members, sms_allowance_included, payment_id)
-       VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7,$8)
+          monthly_fee, billing_cycle, sms_rate, max_members, sms_allowance_included, payment_id)
+       VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + (INTERVAL '1 month' * $4))::date, $5,$6,$7,$8,$9,$10)
        RETURNING *`,
-      [groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers,
-       PLAN_SMS_ALLOWANCE[product][planType], paymentId],
+      [groupId, product, planType, cycleMonths, monthlyRate.toFixed(2), billingCycle,
+       smsRate.toFixed(4), maxMembers, PLAN_SMS_ALLOWANCE[product][planType], paymentId],
     );
 
     await ensureChartOfAccounts(client, groupId, product);

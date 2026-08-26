@@ -15,7 +15,7 @@ import { resolveProduct, type PaymentProduct, type ResolvedProduct } from '@/lib
 import { findOpenRequests, fulfilRequest } from './payment-requests.service';
 import { postContributionJournal } from './accounting.service';
 import { postLoanRepaymentJournal } from './posting-templates.service';
-import { IS_SANDBOX, markSpineAllocated, markSpineUnrouted, spinePaymentId } from './mpesa-spine.service';
+import { IS_SANDBOX, markSpineAllocated, markSpineUnrouted, spinePaymentId, logPaymentEvent } from './mpesa-spine.service';
 import type { PaymentAccountHit } from './mpesa-payment-accounts.service';
 
 export interface StkRequestRow {
@@ -29,6 +29,9 @@ export interface StkRequestRow {
   /** Set only when purpose = 'subscription' (migration 138). */
   plan_type:          string | null;
   product:            string | null;
+  /** Migration 155. NULL on any pre-155 row or a client that omitted it —
+   *  the reader treats that as 'monthly', never as an error. */
+  billing_cycle:      string | null;
 }
 
 export interface FulfilmentInput {
@@ -556,6 +559,32 @@ export async function c2bToUnrouted(
           'no_account_ref' | 'amount_mismatch' | 'membership_inactive' | 'bad_account' | 'other',
 ): Promise<void> {
   if (isSandboxTestRef(in_.billRef)) return;
+
+  // Second, definitive idempotency guard, right at the point of no return.
+  // handleC2BConfirmation's own early check (SELECT ... WHERE
+  // mpesa_receipt_number=$1, before any routing) already catches the common
+  // case — but that check and this one can straddle a real race: Safaricom
+  // (or this app's own webhook setup) can deliver an STK success callback and
+  // a separate C2B-style notification for the SAME transaction within
+  // milliseconds of each other. If the STK callback's payments row commits
+  // between the early check and here, this receipt has ALREADY been fully
+  // and correctly handled — there is nothing left to route, and filing a
+  // duplicate to mpesa_unrouted just creates toil (found 2026-08-26: 7 rows
+  // sitting unresolved, all of them exact-receipt duplicates of payments that
+  // had already activated a subscription or posted a contribution via STK,
+  // none of them missing money).
+  const { rows: dup } = await db.query<{ id: string; status: string }>(
+    `SELECT id, status FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
+    [in_.receipt],
+  );
+  if (dup[0]?.status === 'completed') {
+    logger.info('[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted', {
+      receipt: in_.receipt, paymentId: dup[0].id, wouldHaveReason: reason,
+    });
+    await logPaymentEvent(db, dup[0].id, 'replayed', { path: 'c2b', wouldHaveReason: reason });
+    return;
+  }
+
   await db.query(
     `INSERT INTO mpesa_unrouted
        (mpesa_transaction_id, receipt, phone, amount, bill_ref,

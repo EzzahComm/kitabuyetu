@@ -215,4 +215,74 @@ describe('payment-gated subscription activation', () => {
       starter: 100, growth: 250, premium: 400, enterprise: 0,
     });
   });
+
+  describe('billing cycles (migration 155)', () => {
+    // The property this whole block exists to pin: admin.service.ts and
+    // getBillingOverview both SUM(monthly_fee) FILTER (WHERE status='active')
+    // for MRR. If an annual subscription's full year's charge ever landed in
+    // that column, MRR would read up to 12x too high the moment it activated —
+    // the exact "engine reads a stored value differently than every other
+    // reader of it" failure mode migration 148 fixed for loan interest.
+    it('stores the normalized monthly rate in monthly_fee, never the full cycle charge', async () => {
+      const monthlyRate = PLAN_MONTHLY_FEES.kitabu_yetu.growth;
+      const annualCharge = monthlyRate * 12;
+      const paymentId = await payFor(groupId, 'growth', 'kitabu_yetu', annualCharge);
+
+      const sub = await withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId, planType: 'growth', product: 'kitabu_yetu', paymentId,
+          amountPaid: annualCharge, billingCycle: 'annual',
+        }));
+
+      expect(Number(sub?.monthly_fee)).toBe(monthlyRate);
+      expect(sub?.billing_cycle).toBe('annual');
+    });
+
+    it('sets next_billing_date a full cycle out, not always one month', async () => {
+      const monthlyRate = PLAN_MONTHLY_FEES.kitabu_yetu.starter;
+      const quarterlyCharge = monthlyRate * 3;
+      const paymentId = await payFor(groupId, 'starter', 'kitabu_yetu', quarterlyCharge);
+
+      const sub = await withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId, planType: 'starter', product: 'kitabu_yetu', paymentId,
+          amountPaid: quarterlyCharge, billingCycle: 'quarterly',
+        }));
+
+      const nextBilling = new Date(sub!.next_billing_date!);
+      const expected = new Date();
+      expected.setMonth(expected.getMonth() + 3);
+      // Same calendar month/year — exact day can drift by the query's own
+      // execution moment vs this assertion's, which is not what's under test.
+      expect(nextBilling.getUTCFullYear()).toBe(expected.getUTCFullYear());
+      expect(nextBilling.getUTCMonth()).toBe(expected.getUTCMonth());
+    });
+
+    it('refuses a cycle the payment does not actually cover', async () => {
+      const monthlyRate = PLAN_MONTHLY_FEES.kitabu_yetu.premium;
+      // Paid for one month, but requesting the annual cycle (12x the price).
+      const paymentId = await payFor(groupId, 'premium', 'kitabu_yetu', monthlyRate);
+
+      await expect(withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId, planType: 'premium', product: 'kitabu_yetu', paymentId,
+          amountPaid: monthlyRate, billingCycle: 'annual',
+        }))).rejects.toThrow(/does not cover/i);
+
+      expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
+    });
+
+    it('defaults to monthly when billingCycle is omitted — pre-155 callers unchanged', async () => {
+      const fee = PLAN_MONTHLY_FEES.kitabu_yetu.growth;
+      const paymentId = await payFor(groupId, 'growth', 'kitabu_yetu', fee);
+
+      const sub = await withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
+        }));
+
+      expect(sub?.billing_cycle).toBe('monthly');
+      expect(Number(sub?.monthly_fee)).toBe(fee);
+    });
+  });
 });

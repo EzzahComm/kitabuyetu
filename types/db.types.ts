@@ -2,6 +2,7 @@ import type {
   PlanType, SubscriptionProduct, SubscriptionStatus, ContributionStatus, LoanStatus,
   PaymentMethod, PaymentStatus, MemberRole, PlatformRole,
   AccountType, JournalStatus, SmsStatus, Gender, GroupType, OrganizationAccessLevel,
+  BillingCycle,
 } from './enums';
 
 export interface Group {
@@ -206,7 +207,12 @@ export interface Subscription {
   started_at:         Date;
   expires_at:         Date | null;
   next_billing_date:  Date | null;
+  /** Normalized per-month rate — NEVER the total charged for a multi-month
+   *  cycle. See billing_cycle and migration 155. */
   monthly_fee:        string;
+  /** Migration 155. What cadence this subscription is actually billed on;
+   *  the amount charged per cycle is monthly_fee * BILLING_CYCLE_MONTHS[this]. */
+  billing_cycle:      BillingCycle;
   sms_rate:           string;
   /**
    * Messages included in this subscription's monthly bundle (migration 124).

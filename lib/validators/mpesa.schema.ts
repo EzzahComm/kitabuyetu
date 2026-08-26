@@ -24,6 +24,9 @@ export const StkPushSchema = z.object({
   // is the first of the two gates, not the only one.
   planType:         z.enum(['starter', 'growth', 'premium']).optional(),
   product:          z.enum(['kitabu_yetu', 'chama_reminder']).optional(),
+  // Optional and defaulted server-side to 'monthly' (migration 155) — an
+  // older client that doesn't know about cycles yet still works unchanged.
+  billingCycle:     z.enum(['monthly', 'quarterly', 'biannual', 'annual']).optional(),
 }).refine(
   (v) => v.purpose !== 'subscription' || (!!v.planType && !!v.product),
   {

@@ -159,6 +159,35 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
 };
 
 /**
+ * Billing cadence a group can pay on (migration 155). `monthly` is the
+ * original, unchanged behaviour every existing subscription is on.
+ *
+ * Deliberately NO discount for the longer cycles — BILLING_CYCLE_MONTHS is a
+ * straight multiplier on PLAN_MONTHLY_FEES, not a separate price list. A
+ * discounted annual price is a real business decision nobody has made yet;
+ * inventing one here would be exactly the kind of unauthorised number this
+ * codebase's pricing discipline (PLAN_MONTHLY_FEES itself, "the only source
+ * of truth") exists to prevent. Add a discount multiplier here, explicitly,
+ * the day someone actually decides on one.
+ */
+export const BILLING_CYCLES = ['monthly', 'quarterly', 'biannual', 'annual'] as const;
+export type BillingCycle = typeof BILLING_CYCLES[number];
+
+export const BILLING_CYCLE_MONTHS: Record<BillingCycle, number> = {
+  monthly:  1,
+  quarterly: 3,
+  biannual: 6,
+  annual:   12,
+};
+
+export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
+  monthly:  'Monthly',
+  quarterly: 'Quarterly',
+  biannual: 'Bi-annual',
+  annual:   'Annual',
+};
+
+/**
  * SMS messages INCLUDED with a plan, granted per billing cycle on successful
  * activation, and reset to zero each cycle by resetMonthlySmsAllowance().
  *
