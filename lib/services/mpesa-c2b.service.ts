@@ -207,6 +207,27 @@ export async function handleC2BConfirmation(
     //    mpesa_transactions row against.
     if (!groupId) {
       if (!isSandboxTestRef(body.BillRefNumber)) {
+        // Same race this whole function's step-1 check exists for, just a
+        // second, later checkpoint: an STK success callback for this exact
+        // receipt (e.g. account_reference 'SUBSCRIPT'/'CONTRIB'/'REMINDER' —
+        // real values, just STK-only ones no group code can ever match) may
+        // have committed its payments row in the window between step 1 and
+        // here. Found 2026-08-26: this exact branch is what filed 7 rows —
+        // every one of them an exact-receipt duplicate of a payment that had
+        // already completed and activated a subscription or contribution via
+        // STK, seconds earlier. Nothing to route; don't file it.
+        const { rows: dup } = await db.query<{ id: string; status: string }>(
+          `SELECT id, status FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
+          [body.TransID],
+        );
+        if (dup[0]?.status === 'completed') {
+          logger.info('[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted', {
+            receipt: body.TransID, paymentId: dup[0].id,
+          });
+          await logPaymentEvent(db, dup[0].id, 'replayed', { path: 'c2b', billRef: body.BillRefNumber });
+          return;
+        }
+
         await db.query(
           `INSERT INTO mpesa_unrouted
              (receipt, phone, amount, bill_ref, reason, raw_payload, candidate_group_id)

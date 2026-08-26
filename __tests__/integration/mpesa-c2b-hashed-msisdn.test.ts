@@ -110,6 +110,45 @@ describe('C2B confirmation with a hashed MSISDN', () => {
     expect(Number(tx[0].amount)).toBe(500);
   });
 
+  it(
+    'never files to unrouted when this exact receipt already has a completed payment ' +
+    '(found 2026-08-26: a race between the STK success callback and a separate C2B ' +
+    'notification for the same transaction filed 7 real payments to mpesa_unrouted as ' +
+    '"unroutable" even though every one of them had already activated correctly via STK — ' +
+    'this asserts the end-to-end outcome; the exact in-transaction race window that produced ' +
+    'the duplicates is not reproducible by sequential calls, so this covers the invariant, ' +
+    'not the specific line that closes it)',
+    async () => {
+      const { groupId } = await createTestGroup('chairperson');
+      const receipt = 'TESTHASH04';
+
+      // Simulates the STK callback having already committed its payments row
+      // — 'SUBSCRIPT' is a real STK-only account reference (plan-purchase.tsx's
+      // PRODUCT_REFERENCE), never a group-resolvable one, so this exact
+      // situation is what actually happened in production.
+      await rawQuery(
+        `INSERT INTO payments
+           (group_id, amount, payment_method, status, mpesa_receipt_number, mpesa_phone, channel)
+         VALUES ($1, 150.00, 'mpesa', 'completed', $2, '254700000000', 'stk')`,
+        [groupId, receipt],
+      );
+
+      await expect(
+        handleC2BConfirmation(c2bBody(receipt, 'SUBSCRIPT', 150, HASHED_MSISDN), '196.201.214.200', { skipIpCheck: true }),
+      ).resolves.not.toThrow();
+
+      const unrouted = await rawQuery(`SELECT id FROM mpesa_unrouted WHERE receipt = $1`, [receipt]);
+      expect(unrouted).toHaveLength(0);
+
+      // The original STK-recorded payment must be untouched — this path only
+      // ever recognises the duplicate and logs it, never mutates the payment.
+      const payment = await rawQuery<{ status: string }>(
+        `SELECT status FROM payments WHERE mpesa_receipt_number = $1`, [receipt],
+      );
+      expect(payment[0].status).toBe('completed');
+    },
+  );
+
   it('still records the real payer phone when Safaricom sends an unhashed MSISDN', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
     const [membership] = await rawQuery<{ membership_no: string }>(
