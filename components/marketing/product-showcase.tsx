@@ -32,9 +32,10 @@ export function ProductShowcase() {
         <RevealedHeading
           id="showcase-heading"
           eyebrow="A closer look"
-          title="Everything your group needs."
-          emphasis="Nothing it doesn’t"
+          title="Your group’s digital book — simple enough for"
+          emphasis="everyday use"
           trailing="."
+          lede="Members, savings, contributions, loans, welfare, shares, income-generating activities, investments and reports, all in one place."
         />
 
         <div className="mt-16 space-y-20 lg:mt-24 lg:space-y-28">
@@ -95,6 +96,23 @@ export function ProductShowcase() {
             );
           })}
         </div>
+
+        {/* The one place the page says "double-entry" out loud. It belongs
+            here, AFTER the four capability rows, rather than in the hero:
+            it is reassurance for a treasurer who already understands what it
+            means, not a reason a group leader chooses the product. Nothing
+            here asks the user to know any accounting. */}
+        <Reveal className="mt-20 border-t border-brand-blue-900/12 pt-10 lg:mt-28">
+          <p className="max-w-3xl font-display text-xl font-light leading-snug text-brand-blue-900 sm:text-2xl">
+            Proper double-entry accounting behind the scenes.{' '}
+            <em className="italic text-brand-orange-700">Simple on the surface.</em>
+          </p>
+          <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
+            Your treasurer records a contribution. Kitabu Yetu posts both sides of the
+            entry, keeps the trial balance balancing and leaves an audit trail — without
+            anyone in the group needing to know what a journal is.
+          </p>
+        </Reveal>
       </Container>
     </Section>
   );

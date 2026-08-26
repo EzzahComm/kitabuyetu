@@ -20,14 +20,16 @@ export function FinalCta() {
             id="cta-heading"
             className="font-display text-[2.375rem] font-light leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.5rem]"
           >
-            Retire the spreadsheet.
-            <br />
-            <em className="italic font-normal text-brand-orange-400">Keep a better book.</em>
+            Give your group a better way to work.
           </h2>
 
           <p className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/70">
-            Bring your group&apos;s savings, loans, members and records into one place —
-            and let everybody see where things stand.
+            Bring your members, savings, loans and records into one simple platform.
+          </p>
+
+          <p className="mx-auto mt-5 font-display text-xl font-light leading-snug text-white/90 sm:text-2xl">
+            Start small. Stay organized.{' '}
+            <em className="italic text-brand-orange-400">Build trust.</em>
           </p>
 
           <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">

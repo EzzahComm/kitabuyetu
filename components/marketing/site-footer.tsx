@@ -31,8 +31,8 @@ export function SiteFooter() {
             </p>
 
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/65">
-              Digital bookkeeping for chamas, SACCOs, welfare groups, investment clubs
-              and community organizations across East Africa.
+              Digital tools for groups and organizations managing people, money and
+              community programs across East Africa.
             </p>
 
             <ul className="mt-7 space-y-3 text-sm text-brand-blue-900/65">

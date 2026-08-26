@@ -142,6 +142,12 @@ export function PricingSection() {
           })}
         </div>
 
+        {/* Two separate callouts, not one paragraph with the organization
+            case tacked on the end. They are different buyers: the first is a
+            group that wants less than the full ledger, the second an
+            institution that wants more than any single group's plan, and
+            Enterprise is deliberately kept out of the three-card comparison
+            above so it never reads as a fourth tier of the same product. */}
         <Reveal className="mt-8 flex flex-col gap-5 rounded-2xl border border-brand-blue-900/10 bg-white/60 p-7 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-2xl text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
             Only need to reach your members? {PRODUCT_LABEL.chama_reminder} does reminders,
@@ -149,13 +155,29 @@ export function PricingSection() {
             <strong className="font-semibold text-brand-blue-900">
               KES {PLAN_MONTHLY_FEES.chama_reminder.starter.toLocaleString()}/month
             </strong>
-            . Larger networks and organizations are priced per agreement.
+            .
           </p>
           <Link
-            href={ROUTES.pricing}
+            href={ROUTES.chamaReminder}
             className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
           >
-            See all plans
+            Explore {PRODUCT_LABEL.chama_reminder}
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </Link>
+        </Reveal>
+
+        <Reveal className="mt-4 flex flex-col gap-5 rounded-2xl border border-brand-blue-900/10 bg-white/60 p-7 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-2xl text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
+            Managing more than one group?{' '}
+            <strong className="font-semibold text-brand-blue-900">Enterprise</strong> is priced
+            for organizations by the number of groups they support and what they need — talk
+            to us rather than picking a plan above.
+          </p>
+          <Link
+            href={ROUTES.enterprise}
+            className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+          >
+            Talk to us about Enterprise
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           </Link>
         </Reveal>

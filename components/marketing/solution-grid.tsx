@@ -19,10 +19,10 @@ export function SolutionGrid() {
         <RevealedHeading
           id="solution-heading"
           eyebrow="What Kitabu Yetu is"
-          title="One digital book for"
-          emphasis="your entire group"
+          title="Your group’s records."
+          emphasis="Finally in one place"
           trailing="."
-          lede="Everything a group needs to run its money, in one place your members can reach — and nothing it does not."
+          lede="Running a group should be about building together — not spending meeting after meeting checking notebooks, spreadsheets and M-Pesa statements against each other."
         />
 
         <div className="mt-14 grid gap-5 lg:mt-20 lg:grid-cols-2">

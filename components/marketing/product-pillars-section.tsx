@@ -6,11 +6,15 @@ import { PRODUCT_PILLARS } from './content';
 import { ROUTES } from './routes';
 
 /**
- * Section — product overview. Four cards naming the product family; the
- * `vision` badge on Fundraise/Changi$ha and Enterprise mirrors the same
- * status distinction PRODUCT_PILLARS carries everywhere else it renders
- * (the /products page, the header dropdown descriptions) rather than
- * inventing a different tone here.
+ * Section — product overview. Four cards naming the product family, each
+ * carrying the status PRODUCT_PILLARS declares, which is the same status the
+ * /products page and the header dropdown read.
+ *
+ * BOTH states are labelled, not just `vision`. Leaving `live` unmarked meant
+ * availability was communicated by the ABSENCE of a badge, which is not
+ * something a visitor can read — three shipped products looked like they had
+ * no status at all next to one marked "Coming soon". Bookkeeper, Chama
+ * Reminder and Enterprise are available today; only Fundraise/Changi$ha is not.
  */
 export function ProductPillarsSection() {
   return (
@@ -40,9 +44,13 @@ export function ProductPillarsSection() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <product.icon aria-hidden="true" className="h-6 w-6 text-brand-orange-600" />
-                  {product.status === 'vision' && (
-                    <span className="shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700">
+                  {product.status === 'vision' ? (
+                    <span className="shrink-0 rounded-full bg-brand-blue-900/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue-900/55">
                       Coming soon
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700">
+                      Available now
                     </span>
                   )}
                 </div>
