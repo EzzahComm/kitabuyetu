@@ -1,5 +1,5 @@
 import type { Config } from 'tailwindcss';
-import { brandGreen, brandNavy, brandAccent, brandNeutral } from './lib/ui/brand-palette';
+import { brandGreen, brandNavy, brandOrange, brandAccent, brandNeutral, brandPaper } from './lib/ui/brand-palette';
 
 const config: Config = {
   darkMode: ['class'],
@@ -53,6 +53,14 @@ const config: Config = {
         // Convenience aliases for the spec's named tokens
         'brand-accent':  brandAccent,
         'brand-neutral': brandNeutral,
+        // Warm accent, reserved for a single emphasis moment per surface
+        // (money-out / disbursement states). Declared in brand-palette.ts
+        // since the palette was written; wired into Tailwind here so the
+        // marketing surface stops hand-rolling `text-amber-600`.
+        'brand-orange': brandOrange,
+        // The marketing surface's warm paper ground. `#FBFAF5` was already
+        // hardcoded in six landing components; it is a token now.
+        paper: brandPaper,
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -77,11 +85,20 @@ const config: Config = {
           from: { transform: 'translateX(-100%)' },
           to:   { transform: 'translateX(0)' },
         },
+        // Marketing surface. Used by the CSS-only reveal in
+        // components/marketing/primitives.tsx so that a section that has no
+        // other reason to be a client component does not become one purely
+        // to fade in. Neutralised under prefers-reduced-motion in globals.css.
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(14px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up':   'accordion-up 0.2s ease-out',
         'slide-in':       'slide-in 0.2s ease-out',
+        'fade-up':        'fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
       },
     },
   },

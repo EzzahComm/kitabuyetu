@@ -1,26 +1,27 @@
 import type { Metadata } from 'next';
 import { Mail, Phone, MapPin } from 'lucide-react';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
+import { CONTACT } from '@/components/marketing/routes';
 
 export const metadata: Metadata = {
-  title: 'Contact — Kitabu Yetu',
+  title: 'Contact',
   description: 'Get in touch with the Kitabu Yetu team.',
 };
 
 export default function ContactPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Contact us"
       description="Questions about your group, a demo, or a partnership — reach us directly."
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <a
-          href="mailto:kitabuyetu@gmail.com"
+          href={`mailto:${CONTACT.email}`}
           className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-5 transition-colors hover:border-brand-300 hover:bg-brand-50/50"
         >
           <Mail className="h-5 w-5 text-brand-600" />
           <span className="text-sm font-semibold text-slate-900">Email</span>
-          <span className="text-sm text-slate-500">kitabuyetu@gmail.com</span>
+          <span className="text-sm text-slate-500">{CONTACT.email}</span>
         </a>
         <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-5">
           <Phone className="h-5 w-5 text-brand-600" />
@@ -38,6 +39,6 @@ export default function ContactPage() {
         Already using Kitabu Yetu and need help with your account? Your group&apos;s
         chairperson, secretary, or treasurer can also reach us on your behalf.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

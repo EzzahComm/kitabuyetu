@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 
 export const metadata: Metadata = {
-  title: 'About — Kitabu Yetu',
+  title: 'About',
   description: 'Kitabu Yetu is a digital ledger for Kenya\'s chamas, SACCOs, welfare groups, and investment clubs.',
 };
 
 export default function AboutPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="About Kitabu Yetu"
       description="Build Vibrant Communities"
     >
@@ -30,6 +30,6 @@ export default function AboutPage() {
         running day-to-day operations for a chama or SACCO, and organizations — NGOs and
         federations — that fund or oversee multiple groups at once.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

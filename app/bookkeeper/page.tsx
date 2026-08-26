@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
 export const metadata: Metadata = {
-  title: 'Kitabu Yetu Bookkeeper — Digital bookkeeping for groups',
+  title: 'Bookkeeper',
   description:
     'Digital bookkeeping for chamas, SACCOs, welfare groups and investment clubs. Collect by M-Pesa, reconcile every shilling, and keep an audit-ready double-entry book.',
 };
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  */
 export default function BookkeeperPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Kitabu Yetu Bookkeeper"
       description="Digital bookkeeping and group administration — the record your members can trust."
     >
@@ -65,6 +65,6 @@ export default function BookkeeperPage() {
           See pricing
         </Link>
       </div>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

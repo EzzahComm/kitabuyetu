@@ -1,20 +1,21 @@
 import type { Metadata } from 'next';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
+import { CONTACT } from '@/components/marketing/routes';
 
 export const metadata: Metadata = {
-  title: 'Support — Kitabu Yetu',
+  title: 'Support',
   description: 'Get help with your Kitabu Yetu account.',
 };
 
 export default function SupportPage() {
   return (
-    <MarketingPageShell
+    <PageShell
       title="Support"
       description="Need help with your group, a payment, or your account?"
     >
       <p>
         The fastest way to get help is to email{' '}
-        <a href="mailto:kitabuyetu@gmail.com">kitabuyetu@gmail.com</a> or call{' '}
+        <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a> or call{' '}
         <a href="tel:+254717548646">+254 717 548 646</a>. If you&apos;re a member of a
         group, your chairperson, secretary, or treasurer can also raise an issue on
         your behalf.
@@ -34,6 +35,6 @@ export default function SupportPage() {
         <strong>I want to register a new group.</strong> You can start directly from
         the <a href="/register">registration page</a> — no need to contact us first.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }

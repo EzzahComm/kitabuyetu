@@ -1,72 +1,114 @@
 import type { Metadata } from 'next';
-import Navbar from '@/components/landing/navbar';
-import Hero from '@/components/landing/hero';
-import ProblemSolution from '@/components/landing/problem-solution';
-import DigitalTools from '@/components/landing/digital-tools';
-import Personas from '@/components/landing/personas';
-import Features from '@/components/landing/features';
-import Showcase from '@/components/landing/showcase';
-import Comparison from '@/components/landing/comparison';
-import Security from '@/components/landing/security';
-import Ecosystem from '@/components/landing/ecosystem';
-import HowItWorks from '@/components/landing/how-it-works';
-import PricingPreview from '@/components/landing/pricing-preview';
-import CtaSection from '@/components/landing/cta';
-import Footer from '@/components/landing/footer';
+import { SiteHeader } from '@/components/marketing/site-header';
+import { SiteFooter } from '@/components/marketing/site-footer';
+import { Hero } from '@/components/marketing/hero';
+import { ProblemSection } from '@/components/marketing/problem-section';
+import { SolutionGrid } from '@/components/marketing/solution-grid';
+import { ProductShowcase } from '@/components/marketing/product-showcase';
+import { HowItWorks } from '@/components/marketing/how-it-works';
+import { RoleCards } from '@/components/marketing/role-cards';
+import { MpesaSection } from '@/components/marketing/mpesa-section';
+import { TrustSection } from '@/components/marketing/trust-section';
+import { ResourcesSection } from '@/components/marketing/resources-section';
+import { PricingSection } from '@/components/marketing/pricing-section';
+import { FinalCta } from '@/components/marketing/final-cta';
+import { PLAN_MONTHLY_FEES } from '@/types/enums';
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke';
+
+const DESCRIPTION =
+  'Kitabu Yetu helps chamas, SACCOs, welfare groups, investment clubs and community ' +
+  'organizations manage savings, loans, members and finances digitally — with M-Pesa ' +
+  'collection, a real double-entry ledger and a passbook for every member.';
 
 export const metadata: Metadata = {
-  title: 'Kitabu Yetu — Build Vibrant Communities',
-  description:
-    'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs to create vibrant communities across East Africa.',
+  // `absolute` matters: the root layout sets a `%s | Kitabu Yetu` template, so
+  // a plain string here rendered as "Kitabu Yetu — … | Kitabu Yetu".
+  title: { absolute: 'Kitabu Yetu | Simple Books. Stronger Groups.' },
+  description: DESCRIPTION,
   keywords: [
-    'chama management',
-    'SACCO software',
-    'Kenya',
-    'M-Pesa Daraja integration',
-    'STK push',
-    'PayBill reconciliation',
-    'B2C disbursement',
+    'chama management software',
+    'SACCO software Kenya',
+    'welfare group accounting',
+    'investment club bookkeeping',
+    'M-Pesa reconciliation',
+    'Daraja STK push',
+    'PayBill collections',
+    'table banking',
     'community group finance',
-    'double-entry accounting',
-    'loan management',
+    'double-entry accounting Kenya',
   ],
+  alternates: { canonical: SITE_URL },
   openGraph: {
     type: 'website',
-    title: 'Kitabu Yetu — Build Vibrant Communities',
-    description:
-      'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs to create vibrant communities across East Africa.',
+    url: SITE_URL,
     siteName: 'Kitabu Yetu',
+    title: 'Kitabu Yetu | Simple Books. Stronger Groups.',
+    description: DESCRIPTION,
     locale: 'en_KE',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kitabu Yetu — Build Vibrant Communities',
-    description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
-  },
-  alternates: {
-    canonical: process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke',
+    title: 'Kitabu Yetu | Simple Books. Stronger Groups.',
+    description: DESCRIPTION,
   },
 };
 
+/**
+ * Structured data. Prices come from the same fee table the billing API quotes
+ * and the M-Pesa callback verifies against — a search result advertising a
+ * price the product does not charge would be the same bug the pricing pages
+ * already had once, just harder to notice.
+ */
+function StructuredData() {
+  const json = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Kitabu Yetu',
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web',
+    url: SITE_URL,
+    description: DESCRIPTION,
+    areaServed: 'KE',
+    offers: {
+      '@type': 'Offer',
+      price: PLAN_MONTHLY_FEES.kitabu_yetu.starter,
+      priceCurrency: 'KES',
+      category: 'Monthly subscription',
+      url: `${SITE_URL}/pricing`,
+    },
+  };
+  return (
+    <script
+      type="application/ld+json"
+      // Static, locally-built object — no user input reaches this string.
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }}
+    />
+  );
+}
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-      <main>
+    <div className="flex min-h-screen flex-col bg-paper">
+      <StructuredData />
+      {/* The skip link lives in SiteHeader, so every public page has one. */}
+      <SiteHeader variant="overlay" />
+
+      <main id="main" className="flex-1">
         <Hero />
-        <ProblemSolution />
-        <DigitalTools />
-        <Personas />
-        <Features />
-        <Showcase />
-        <Comparison />
-        <Security />
-        <Ecosystem />
+        <ProblemSection />
+        <SolutionGrid />
+        <ProductShowcase />
         <HowItWorks />
-        <PricingPreview />
-        <CtaSection />
+        <RoleCards />
+        <MpesaSection />
+        <TrustSection />
+        <ResourcesSection />
+        <PricingSection />
+        <FinalCta />
       </main>
-      <Footer />
+
+      <SiteFooter />
     </div>
   );
 }

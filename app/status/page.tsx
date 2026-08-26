@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { MarketingPageShell } from '@/components/landing/marketing-page-shell';
+import { PageShell } from '@/components/marketing/page-shell';
 import { pool } from '@/lib/db';
 import { redis } from '@/lib/redis';
 import { getAccessToken } from '@/lib/services/daraja.service';
 
 export const metadata: Metadata = {
-  title: 'System Status — Kitabu Yetu',
+  title: 'System status',
   description: 'Current operational status of Kitabu Yetu services.',
 };
 
@@ -109,7 +109,7 @@ export default async function StatusPage() {
   const allOperational = services.every((s) => s.state === 'operational');
 
   return (
-    <MarketingPageShell
+    <PageShell
       title="System status"
       description="Current status of Kitabu Yetu's core services."
     >
@@ -150,6 +150,6 @@ export default async function StatusPage() {
         {new Date(checkedAt).toUTCString()}. If something looks wrong on your end that
         isn&apos;t reflected here, please <a href="/support">contact support</a>.
       </p>
-    </MarketingPageShell>
+    </PageShell>
   );
 }
