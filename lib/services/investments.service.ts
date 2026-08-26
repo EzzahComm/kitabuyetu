@@ -27,7 +27,10 @@ export const UpdateInvestmentSchema = z.object({
 });
 
 export const RecordReturnSchema = z.object({
-  returnType:    z.enum(['dividend','interest','capital_gain','rental_income','coupon','other']),
+  // Must stay in lockstep with public.return_type (migration 022). 'coupon'
+  // used to be listed here and is not a member of that enum — it passed
+  // validation and then failed at INSERT with an invalid-input-value error.
+  returnType:    z.enum(['dividend','interest','capital_gain','rental_income','other']),
   amount:        z.coerce.number().positive(),
   returnDate:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   receiptNumber: z.string().optional(),
@@ -192,29 +195,72 @@ export const investmentsService = {
 
   async getSummary(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
+      // Portfolio value is summed over everything the group still counts as an
+      // investment — every status except 'cancelled', which never happened.
+      //
+      // Two things this deliberately does NOT do, both of which used to make
+      // the summary read as a loss on a perfectly healthy portfolio:
+      //
+      //   1. It doesn't restrict the sum to status='active'. create() writes
+      //      'pending_approval' and only PATCH moves a row to 'active', so a
+      //      group that records an investment holds nothing "active" and the
+      //      old filter summed zero rows.
+      //   2. It doesn't treat a NULL current_value as zero. current_value is
+      //      only set by a revaluation; until one happens the investment is
+      //      carried at cost, so COALESCE falls back to principal_amount.
+      //      Summing raw NULLs meant an un-revalued portfolio was worth 0.
+      //
+      // Together those produced total_current_value = 0 against a non-zero
+      // principal, i.e. a flat -100% ROI the moment a group added its first
+      // investment. A liquidated holding is carried at its realised proceeds.
       const { rows: [s] } = await client.query(
         `SELECT
-           COUNT(*)                                          AS total_investments,
-           COUNT(*) FILTER (WHERE status='active')          AS active_count,
-           COALESCE(SUM(principal_amount), 0)               AS total_principal,
-           COALESCE(SUM(current_value) FILTER (WHERE status='active'), 0) AS total_current_value,
+           COUNT(*)                                                                AS total_investments,
+           COUNT(*) FILTER (WHERE status='active')                                 AS active_count,
+           COUNT(*) FILTER (WHERE status<>'cancelled')                             AS held_count,
+           COUNT(*) FILTER (WHERE current_value IS NOT NULL AND status<>'cancelled') AS revalued_count,
+           COALESCE(SUM(principal_amount) FILTER (WHERE status<>'cancelled'), 0)   AS total_principal,
+           COALESCE(SUM(
+             CASE WHEN status='liquidated'
+                  THEN COALESCE(liquidation_value, current_value, principal_amount)
+                  ELSE COALESCE(current_value, principal_amount)
+             END
+           ) FILTER (WHERE status<>'cancelled'), 0)                                AS total_current_value,
            COALESCE((
-             SELECT SUM(amount) FROM investment_returns ir
+             SELECT SUM(ir.amount) FROM investment_returns ir
              JOIN investments inv ON inv.id = ir.investment_id
-             WHERE inv.group_id = $1
+             WHERE inv.group_id = $1 AND inv.status<>'cancelled'
            ), 0) AS total_returns
          FROM investments WHERE group_id = $1`,
         [ctx.groupId],
       );
+
+      // numeric comes back from pg as a string — Number() before arithmetic or
+      // comparison, or `'0' > 0` style coercion decides the branch.
+      const totalPrincipal    = Number(s.total_principal);
+      const totalCurrentValue = Number(s.total_current_value);
+      const totalReturns      = Number(s.total_returns);
+
+      const revaluedCount = Number(s.revalued_count);
+
       return {
         totalInvestments: Number(s.total_investments),
         activeCount:      Number(s.active_count),
-        totalPrincipal:   Number(s.total_principal),
-        totalCurrentValue: Number(s.total_current_value),
-        totalReturns:     Number(s.total_returns),
-        roi: s.total_principal > 0
-          ? ((Number(s.total_current_value) + Number(s.total_returns) - Number(s.total_principal)) / Number(s.total_principal)) * 100
+        heldCount:        Number(s.held_count),
+        revaluedCount,
+        totalPrincipal,
+        totalCurrentValue,
+        totalReturns,
+        roi: totalPrincipal > 0
+          ? ((totalCurrentValue + totalReturns - totalPrincipal) / totalPrincipal) * 100
           : 0,
+        /**
+         * Whether `roi` means anything yet. With nothing revalued and no
+         * returns recorded, every holding is carried at cost and the formula
+         * yields exactly 0% — a number that looks like a real answer but is
+         * really "no data". The UI shows a dash instead in that case.
+         */
+        roiMeasurable: totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0),
       };
     });
   },

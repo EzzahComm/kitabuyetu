@@ -56,6 +56,19 @@ export const AddResolutionSchema = z.object({
   notes:                   z.string().optional(),
 });
 
+/**
+ * Editing a resolution after the meeting — chiefly marking it done.
+ * `implemented_at` is deliberately absent: it is derived from `implemented`
+ * server-side rather than trusted from the client.
+ */
+export const UpdateResolutionSchema = z.object({
+  implemented:            z.boolean().optional(),
+  status:                 z.enum(['carried','defeated','tabled','deferred']).optional(),
+  implementationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  responsibleParty:       z.string().uuid().nullable().optional(),
+  notes:                  z.string().optional(),
+});
+
 export const MeetingQuerySchema = z.object({
   page:   z.coerce.number().int().positive().default(1),
   limit:  z.coerce.number().int().positive().max(100).default(20),
@@ -67,6 +80,7 @@ export type CreateMeetingInput    = z.infer<typeof CreateMeetingSchema>;
 export type UpdateMeetingInput    = z.infer<typeof UpdateMeetingSchema>;
 export type RecordAttendanceInput = z.infer<typeof RecordAttendanceSchema>;
 export type AddResolutionInput    = z.infer<typeof AddResolutionSchema>;
+export type UpdateResolutionInput = z.infer<typeof UpdateResolutionSchema>;
 export type MeetingQueryInput     = z.infer<typeof MeetingQuerySchema>;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -261,6 +275,65 @@ export const meetingsService = {
     });
   },
 
+  /**
+   * Follow-through on a resolution the group carried.
+   *
+   * `meeting_resolutions.implemented` / `implemented_at` have existed since
+   * migration 023, but nothing in the codebase ever issued an UPDATE against
+   * this table — so the column could never become true and the stats card has
+   * always read "0 implemented". This is the missing write path.
+   *
+   * `implemented_at` is derived, never client-supplied: set to now() on the
+   * transition to true, cleared when a resolution is marked back as
+   * outstanding.
+   */
+  async updateResolution(
+    ctx: TenantContext,
+    meetingId: string,
+    resolutionId: string,
+    data: UpdateResolutionInput,
+  ) {
+    return withTransaction(ctx, async (client) => {
+      // Scoped by meeting AND group: a resolution id from another tenant, or
+      // from a different meeting, must not be reachable through this route.
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM meeting_resolutions WHERE id=$1 AND meeting_id=$2 AND group_id=$3',
+        [resolutionId, meetingId, ctx.groupId],
+      );
+      if (!existing) throw new NotFoundError('Resolution', resolutionId);
+
+      const updates: string[] = [];
+      const args: unknown[] = [];
+      let p = 1;
+
+      if (data.implemented !== undefined) {
+        updates.push(`implemented=$${p++}`);
+        args.push(data.implemented);
+        updates.push(data.implemented ? 'implemented_at=now()' : 'implemented_at=NULL');
+      }
+      if (data.status !== undefined) { updates.push(`status=$${p++}`); args.push(data.status); }
+      if (data.implementationDeadline !== undefined) {
+        updates.push(`implementation_deadline=$${p++}`);
+        args.push(data.implementationDeadline);
+      }
+      if (data.responsibleParty !== undefined) {
+        updates.push(`responsible_party=$${p++}`);
+        args.push(data.responsibleParty);
+      }
+      if (data.notes !== undefined) { updates.push(`notes=$${p++}`); args.push(data.notes); }
+
+      if (updates.length === 0) return existing;
+
+      args.push(resolutionId, ctx.groupId);
+      const { rows } = await client.query(
+        `UPDATE meeting_resolutions SET ${updates.join(',')}
+         WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
+        args,
+      );
+      return rows[0];
+    });
+  },
+
   async getStats(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
       const { rows: [s] } = await client.query(
@@ -300,3 +373,4 @@ export type CreateMeetingPayload = z.input<typeof CreateMeetingSchema>;
 export type UpdateMeetingPayload = z.input<typeof UpdateMeetingSchema>;
 export type RecordAttendancePayload = z.input<typeof RecordAttendanceSchema>;
 export type AddResolutionPayload = z.input<typeof AddResolutionSchema>;
+export type UpdateResolutionPayload = z.input<typeof UpdateResolutionSchema>;

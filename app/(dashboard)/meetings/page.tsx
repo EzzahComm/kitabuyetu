@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Users, MapPin, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,7 @@ const typeLabels: Record<string, string> = {
 
 export default function MeetingsPage() {
   const [page, setPage]     = useState(1);
+  const router = useRouter();
   const [status, setStatus] = useState('all');
   const [open, setOpen]     = useState(false);
   const { toast } = useToast();
@@ -161,6 +163,7 @@ export default function MeetingsPage() {
             error={error}
             columns={columns}
             onPageChange={setPage}
+            onRowClick={(row) => router.push(`/meetings/${row.id}`)}
             emptyMessage="No meetings found"
           />
         </TabsContent>

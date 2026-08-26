@@ -14,10 +14,16 @@
 --    two Daraja calls). Additive, nullable, non-breaking.
 -- 2. source_account on settlement_requests: MPESA_SETTLEMENT_SHORTCODE
 --    (already declared in lib/env.ts, unused anywhere) is a reconciliation
---    tag identifying which of the group's M-Pesa sub-accounts a sweep drew
---    from — not a Daraja PartyA override (that's always the group's own
---    shortcode) and not the destination (group_bank_accounts.shortcode is
---    the real destination).
+--    tag identifying which of our own M-Pesa sub-accounts a sweep drew
+--    from — not a Daraja PartyA override and not the destination
+--    (group_bank_accounts.shortcode is the real destination).
+--
+--    Comment amended 2026-08-25 (text only, no DDL change): this previously
+--    said PartyA is "always the group's own shortcode". That was false —
+--    initiateB2B hardcodes the platform MPESA_SHORTCODE, B2BInput has no
+--    sender field, and no per-group shortcode column exists to supply one.
+--    Groups collecting on their own shortcode is planned (white-label
+--    collection mode), not current behaviour.
 -- 3. INSERT/UPDATE RLS policies on all 4 tables, mirroring
 --    disbursement_requests' exact shape (migration 066).
 -- 4. Two new posting-template seeds (settlement_sweep, vendor_payment),
