@@ -25,6 +25,14 @@ regexes = [
 # own diff, so it doesn't retroactively suppress the introducing commit
 # (d719b41) without rewriting already-pushed history — allowlisted by commit
 # instead.
+#
+# generic-api-key false positive: CAPITAL_POINT_GROUP_ID in the one-off
+# scripts/resolve-last-2-unrouted.ts (2026-08-26). The matched "secret" is
+# bcf03d15-9d45-4c69-ad45-5458a726817c — a groups.id primary-key UUID, not a
+# credential; its hex entropy alone trips the rule with no keyword involved.
+# Same reasoning as above: allowlisted by commit, since 00fb9136 was already
+# pushed before this was caught.
 commits = [
   "d719b41cbdf40e02b693239cee14c11d7e2a08f5",
+  "00fb9136ea19f80183139f9d864383c7bc5078e1",
 ]
