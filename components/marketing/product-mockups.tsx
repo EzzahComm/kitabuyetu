@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import {
   BarChart2, BookOpen, CreditCard, LayoutDashboard, Landmark, Users, Wallet,
-  Check, ArrowUpRight, type LucideIcon,
+  Check, ArrowUpRight, FileCheck, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -358,6 +358,79 @@ export function MemberPhoneMockup({ className }: { className?: string }) {
         </span>
       </div>
     </div>
+  );
+}
+
+/** The share ledger's summary tiles and top-holders list — the real /shares
+ *  page, at mockup scale. Labels match GroupSummary/Holding from
+ *  app/(dashboard)/shares/page.tsx exactly: "Share capital", "Shares issued",
+ *  "Shareholders", "Top holders", "Invested", "Appreciation". Deliberately
+ *  never shows a percentage stake — the real page only ever renders KES
+ *  amounts, so the mockup doesn't either. */
+const SHARE_TILES = [
+  { label: 'Share capital', value: '1,240,000', unit: 'KSh ', tone: 'brand' as const },
+  { label: 'Shares issued', value: '9,860',      unit: '',     tone: 'plain' as const },
+];
+
+const TOP_HOLDERS = [
+  { name: 'Achieng M.', detail: '620 shares · KSh 62,000 invested', appreciation: '+4,800' },
+  { name: 'Otieno D.',  detail: '540 shares · KSh 54,000 invested', appreciation: '+3,100' },
+  { name: 'Wanjiku N.', detail: '410 shares · KSh 41,000 invested', appreciation: '+2,050' },
+];
+
+export function SharesMockup({ className }: { className?: string }) {
+  return (
+    <AppWindow title="Share capital" className={className}>
+      <div className="p-4 sm:p-5">
+        <div className="grid grid-cols-2 gap-2.5">
+          {SHARE_TILES.map((tile) => (
+            <div
+              key={tile.label}
+              className={cn(
+                'rounded-lg p-3',
+                tile.tone === 'brand'
+                  ? 'bg-brand-50 ring-1 ring-brand-500/15'
+                  : 'bg-brand-blue-900/[0.035]',
+              )}
+            >
+              <p className="font-mono text-[8.5px] uppercase leading-tight tracking-[0.1em] text-brand-blue-900/45">
+                {tile.label}
+              </p>
+              <p className="mt-1.5 font-mono text-[13px] font-medium tabular-nums text-brand-blue-900">
+                <span className="text-[9px] text-brand-blue-900/45">{tile.unit}</span>
+                {tile.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-5 font-mono text-[9px] uppercase tracking-[0.16em] text-brand-blue-900/40">
+          Top holders
+        </p>
+        <ul className="mt-2 divide-y divide-brand-blue-900/[0.05]">
+          {TOP_HOLDERS.map((holder) => (
+            <li key={holder.name} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="block truncate text-[11px] font-medium text-brand-blue-900/85">
+                  {holder.name}
+                </span>
+                <span className="block truncate font-mono text-[9px] text-brand-blue-900/40">
+                  {holder.detail}
+                </span>
+              </span>
+              <span className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-brand-700">
+                {holder.appreciation}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-4 flex items-center gap-2 border-t border-brand-blue-900/[0.07] pt-4 font-mono text-[9.5px] uppercase tracking-[0.18em] text-brand-blue-900/35">
+          <FileCheck className="h-3 w-3" />
+          PDF certificate issued on every transaction
+        </p>
+      </div>
+    </AppWindow>
   );
 }
 

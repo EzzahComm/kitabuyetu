@@ -23,6 +23,67 @@ import { ROUTES } from './routes';
  * import the nav without dragging twenty lucide glyphs into the bundle.
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/* ── Section 2 — hero audiences ───────────────────────────────────────────── */
+
+export interface AudiencePanel {
+  eyebrow:  string;
+  title:    string;
+  emphasis: string;
+  body:     string;
+  points:   string[];
+  visual:   'payment' | 'shares';
+  href:     string;
+  linkText: string;
+}
+
+/**
+ * The hero speaks to two audiences, each anchored to something that ships
+ * today rather than the "project tracking" / "investment tracking" pair a
+ * follow-up brief proposed — both were found unpublishable, see
+ * docs/audits/HERO_BRIEF_CLAIM_AUDIT_2026-08.md. These replacements are the
+ * audit's own recommendation:
+ *
+ * Audience 1 traces mpesa-stk/c2b → the Daraja callback → contribution-splits
+ * → accounting.postContributionJournal → sms + receipt (see PAYMENT_FLOW).
+ *
+ * Audience 2 traces share-classes / share-transactions / share-holdings — a
+ * real trigger-maintained ledger, not the separate (and still record-only)
+ * investments module. `computeAllocations` does genuine proportional
+ * dividend distribution. Deliberately never claims a percentage stake or a
+ * live valuation: the real /shares page only ever renders KES amounts, so
+ * this copy does too.
+ */
+export const AUDIENCES: AudiencePanel[] = [
+  {
+    eyebrow:  'For groups moving off paper',
+    title:    'M-Pesa collections,',
+    emphasis: 'reconciled into the book.',
+    body:     'A member pays by STK push or your group’s own PayBill. The payment is matched to their membership number, split into savings, welfare and loan repayment by rules your group sets once, and posted to the ledger the same moment — no reconciliation night, no guessing who has paid.',
+    points: [
+      'STK push and PayBill collection, on Safaricom’s own Daraja API',
+      'Every payment split and posted to the ledger automatically',
+      'A receipt to the member as soon as it’s confirmed',
+    ],
+    visual:   'payment',
+    href:     ROUTES.bookkeeper,
+    linkText: 'More on Bookkeeper',
+  },
+  {
+    eyebrow:  'For chamas already running digitally',
+    title:    'Share capital and dividends,',
+    emphasis: 'tracked to the shilling.',
+    body:     'Issue shares, record purchases, transfers and redemptions, and know exactly what each member has invested and what it is worth today. When it’s time to pay out, dividends are calculated across real holdings — not a spreadsheet somebody re-types before every AGM.',
+    points: [
+      'A share ledger with holdings, transactions and top holders',
+      'PDF share certificates issued on every transaction',
+      'Dividends allocated across real holdings, not estimated',
+    ],
+    visual:   'shares',
+    href:     ROUTES.bookkeeper,
+    linkText: 'More on Bookkeeper',
+  },
+];
+
 /* ── Section 3 — the problem ──────────────────────────────────────────────── */
 
 export interface PainPoint { icon: LucideIcon; title: string; body: string }
