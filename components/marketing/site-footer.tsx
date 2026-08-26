@@ -15,7 +15,7 @@ export function SiteFooter() {
           <div>
             <Link
               href={ROUTES.home}
-              className="inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper-deep"
+              className="inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper-deep"
               aria-label="Kitabu Yetu — home"
             >
               <BrandLogo size={38} alt="" />
@@ -27,7 +27,7 @@ export function SiteFooter() {
             <p className="mt-5 max-w-xs font-display text-xl font-light leading-snug text-brand-blue-900/80">
               Simple books.
               <br />
-              <em className="italic text-brand-700">Stronger groups.</em>
+              <em className="italic text-brand-orange-700">Stronger groups.</em>
             </p>
 
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/65">
@@ -37,22 +37,22 @@ export function SiteFooter() {
 
             <ul className="mt-7 space-y-3 text-sm text-brand-blue-900/65">
               <li className="flex items-center gap-3">
-                <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-600" />
+                <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-orange-600" />
                 <a
                   href={`mailto:${CONTACT.email}`}
-                  className="rounded-sm transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="rounded-sm transition-colors hover:text-brand-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
                 >
                   {CONTACT.email}
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <Phone aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                <Phone aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange-600" />
                 <span className="flex flex-col gap-1">
                   {CONTACT.phones.map((phone) => (
                     <a
                       key={phone}
                       href={`tel:${phone.replace(/\s/g, '')}`}
-                      className="rounded-sm transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                      className="rounded-sm transition-colors hover:text-brand-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
                     >
                       {phone}
                     </a>
@@ -60,7 +60,7 @@ export function SiteFooter() {
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-600" />
+                <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-orange-600" />
                 <span>{CONTACT.city}</span>
               </li>
             </ul>
@@ -78,7 +78,7 @@ export function SiteFooter() {
                     <li key={link.label}>
                       <Link
                         href={link.href}
-                        className="rounded-sm text-[0.9375rem] text-brand-blue-900/70 transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                        className="rounded-sm text-[0.9375rem] text-brand-blue-900/70 transition-colors hover:text-brand-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
                       >
                         {link.label}
                       </Link>

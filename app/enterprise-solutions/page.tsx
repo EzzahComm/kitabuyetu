@@ -51,7 +51,7 @@ export default function EnterpriseSolutionsPage() {
       <div className="flex flex-wrap gap-3 pt-4">
         <Link
           href={ROUTES.contact}
-          className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          className="rounded-md bg-brand-orange-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-orange-700"
         >
           Talk to us about Enterprise
         </Link>

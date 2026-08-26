@@ -39,8 +39,8 @@ export function TrustSection() {
                 delay={i * 55}
                 className="border-t border-brand-blue-900/12 py-7 first:border-t-0 first:pt-0 sm:[&:nth-child(2)]:border-t-0 sm:[&:nth-child(2)]:pt-0"
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/10">
-                  <control.icon aria-hidden="true" className="h-4 w-4 text-brand-700" />
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-orange-500/10">
+                  <control.icon aria-hidden="true" className="h-4 w-4 text-brand-orange-700" />
                 </span>
                 <h3 className="mt-4 text-base font-semibold text-brand-blue-900">
                   {control.title}

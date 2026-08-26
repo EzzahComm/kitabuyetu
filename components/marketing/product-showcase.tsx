@@ -56,7 +56,7 @@ export function ProductShowcase() {
 
                   <h3 className="mt-6 font-display text-[1.875rem] font-light leading-[1.1] tracking-tight text-brand-blue-900 sm:text-[2.25rem]">
                     {item.title}{' '}
-                    <em className="italic font-normal text-brand-600">{item.emphasis}</em>
+                    <em className="italic font-normal text-brand-orange-600">{item.emphasis}</em>
                   </h3>
 
                   <p className="mt-5 max-w-lg text-lg leading-relaxed text-brand-blue-900/65">
@@ -68,7 +68,7 @@ export function ProductShowcase() {
                       <li key={point} className="flex items-start gap-3">
                         <Check
                           aria-hidden="true"
-                          className="mt-1 h-4 w-4 shrink-0 text-brand-600"
+                          className="mt-1 h-4 w-4 shrink-0 text-brand-orange-600"
                         />
                         <span className="text-[0.9375rem] leading-relaxed text-brand-blue-900/75">
                           {point}
@@ -80,7 +80,7 @@ export function ProductShowcase() {
                   {item.href && item.linkText && (
                     <Link
                       href={item.href}
-                      className="group mt-8 inline-flex items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+                      className="group mt-8 inline-flex items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
                     >
                       {item.linkText}
                       <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />

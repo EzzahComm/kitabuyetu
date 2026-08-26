@@ -14,7 +14,7 @@ export function SolutionGrid() {
   const [lead, second, ...rest] = CAPABILITIES;
 
   return (
-    <Section id={SECTION_IDS.solution} tone="white" labelledBy="solution-heading">
+    <Section id={SECTION_IDS.solution} tone="paper" labelledBy="solution-heading">
       <Container>
         <RevealedHeading
           id="solution-heading"
@@ -32,8 +32,8 @@ export function SolutionGrid() {
               delay={i * 80}
               className="flex flex-col rounded-2xl bg-paper p-8 ring-1 ring-brand-blue-900/[0.08] transition-shadow duration-300 hover:shadow-[0_20px_50px_-32px_rgba(4,22,47,0.4)] lg:p-10"
             >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 ring-1 ring-brand-500/20">
-                <item.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-orange-500/10 ring-1 ring-brand-orange-500/20">
+                <item.icon aria-hidden="true" className="h-5 w-5 text-brand-orange-600" />
               </span>
               <h3 className="mt-6 font-display text-2xl font-normal text-brand-blue-900">
                 {item.title}
@@ -54,7 +54,7 @@ export function SolutionGrid() {
             >
               <item.icon
                 aria-hidden="true"
-                className="h-5 w-5 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5"
+                className="h-5 w-5 text-brand-orange-600 transition-transform duration-300 group-hover:-translate-y-0.5"
               />
               <h3 className="mt-5 text-base font-semibold text-brand-blue-900">{item.title}</h3>
               <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">

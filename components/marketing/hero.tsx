@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpenCheck, Check, Smartphone, UserRound } from 'lucide-react';
+import { ArrowRight, Check, KeyRound, Smartphone, UserRound } from 'lucide-react';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 import { Container, LedgerRules } from './primitives';
 import { PaymentMockup, SharesMockup } from './product-mockups';
@@ -19,8 +19,8 @@ import { ROUTES } from './routes';
 const FROM_PRICE = PLAN_MONTHLY_FEES.kitabu_yetu.starter;
 
 const PROOF = [
-  { icon: Smartphone,    label: 'M-Pesa STK & PayBill' },
-  { icon: BookOpenCheck, label: 'Double-entry ledger' },
+  { icon: Smartphone,    label: 'M-Pesa connected' },
+  { icon: KeyRound,      label: 'Role-based access' },
   { icon: UserRound,     label: 'A passbook per member' },
 ];
 
@@ -42,13 +42,13 @@ function Visual({ kind }: { kind: AudiencePanel['visual'] }) {
 function Panel({ audience, delay }: { audience: AudiencePanel; delay: number }) {
   return (
     <div>
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-400">
+      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-orange-400">
         {audience.eyebrow}
       </p>
 
       <h2 className="mt-4 font-display text-2xl font-light leading-[1.1] tracking-tight text-white sm:text-[1.75rem]">
         {audience.title}{' '}
-        <em className="italic font-normal text-brand-400">{audience.emphasis}</em>
+        <em className="italic font-normal text-brand-orange-400">{audience.emphasis}</em>
       </h2>
 
       <p className="mt-4 text-[0.9375rem] leading-relaxed text-brand-blue-100/70">
@@ -58,7 +58,7 @@ function Panel({ audience, delay }: { audience: AudiencePanel; delay: number }) 
       <ul className="mt-6 space-y-2.5">
         {audience.points.map((point) => (
           <li key={point} className="flex items-start gap-2.5">
-            <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-400" />
+            <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-orange-400" />
             <span className="text-[0.8125rem] leading-relaxed text-brand-blue-100/65">
               {point}
             </span>
@@ -68,7 +68,7 @@ function Panel({ audience, delay }: { audience: AudiencePanel; delay: number }) 
 
       <Link
         href={audience.href}
-        className="group mt-6 inline-flex items-center gap-2 rounded-sm text-[0.875rem] font-semibold text-brand-400 transition-colors hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
+        className="group mt-6 inline-flex items-center gap-2 rounded-sm text-[0.875rem] font-semibold text-brand-orange-400 transition-colors hover:text-brand-orange-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
       >
         {audience.linkText}
         <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -91,47 +91,49 @@ export function Hero() {
       {/* One warm light source, low and left — not a four-way gradient mesh. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-40 top-0 -z-10 h-[620px] w-[620px] rounded-full bg-brand-500/12 blur-[130px]"
+        className="pointer-events-none absolute -left-40 top-0 -z-10 h-[620px] w-[620px] rounded-full bg-brand-orange-500/12 blur-[130px]"
       />
       {/* The ledger's margin rule. */}
       <div
         aria-hidden="true"
-        className="absolute inset-y-0 left-[6.5%] -z-10 hidden w-px bg-brand-500/20 lg:block"
+        className="absolute inset-y-0 left-[6.5%] -z-10 hidden w-px bg-brand-orange-500/20 lg:block"
       />
 
       <Container>
         <div className="max-w-2xl">
-          <p className="inline-flex items-center gap-2.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-4 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-            Digitizing group administration to create vibrant communities
+          <p className="inline-flex items-center gap-2.5 rounded-full border border-brand-orange-500/25 bg-brand-orange-500/10 px-4 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-orange-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-orange-400" />
+            Digital tools for groups and organizations
           </p>
 
           <h1 className="mt-7 font-display text-[2.875rem] font-light leading-[1.02] tracking-tight sm:text-6xl lg:text-[4.5rem]">
-            Simple books.
+            Manage your group.
             <br />
-            <em className="italic font-normal text-brand-400">Stronger groups.</em>
+            Know your money.
+            <br />
+            <em className="italic font-normal text-brand-orange-400">Build trust.</em>
           </h1>
 
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/75 sm:text-xl">
-            Simple digital tools for community groups — from organizations taking their
-            first step into digitization to modern chamas already using technology to
-            work smarter. One simple, secure way to manage savings, loans, members and
-            money, so the book keeps itself and everybody can see where things stand.
+            Kitabu Yetu gives chamas, welfare groups, SACCOs, investment clubs and
+            community organizations one simple place to manage members, savings, loans,
+            payments and records. And for organizations managing many groups, Enterprise
+            adds one connected view across every group you support.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               href={ROUTES.startGroup}
-              className="group inline-flex items-center justify-center gap-2 rounded-md bg-brand-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-900/30 transition-colors hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
+              className="group inline-flex items-center justify-center gap-2 rounded-md bg-brand-orange-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-orange-900/30 transition-colors hover:bg-brand-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
             >
-              Get started
+              Start your group
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href={ROUTES.products}
-              className="inline-flex items-center justify-center rounded-md border border-white/20 px-7 py-3.5 text-base font-medium text-white/90 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
+              href={ROUTES.enterprise}
+              className="inline-flex items-center justify-center rounded-md border border-white/20 px-7 py-3.5 text-base font-medium text-white/90 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
             >
-              Explore Products
+              Explore Enterprise
             </Link>
           </div>
 
@@ -142,7 +144,7 @@ export function Hero() {
           <ul className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-white/10 pt-7">
             {PROOF.map((item) => (
               <li key={item.label} className="flex items-center gap-2 text-brand-blue-100/65">
-                <item.icon aria-hidden="true" className="h-4 w-4 text-brand-400" />
+                <item.icon aria-hidden="true" className="h-4 w-4 text-brand-orange-400" />
                 <span className="font-mono text-[11px] uppercase tracking-[0.12em]">
                   {item.label}
                 </span>

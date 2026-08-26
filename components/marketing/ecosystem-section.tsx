@@ -32,7 +32,7 @@ export function EcosystemSection() {
         <Reveal className="mx-auto mt-14 flex max-w-4xl flex-wrap items-center justify-center gap-x-2 gap-y-3">
           {FLOW.map((node, i) => (
             <div key={node} className="flex items-center gap-2">
-              <span className="rounded-full border border-brand-500/30 bg-brand-500/10 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-brand-300">
+              <span className="rounded-full border border-brand-orange-500/30 bg-brand-orange-500/10 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-brand-orange-300">
                 {node}
               </span>
               {i < FLOW.length - 1 && (
@@ -47,10 +47,10 @@ export function EcosystemSection() {
             <Reveal key={pillar.href} delay={i * 80}>
               <Link
                 href={pillar.href}
-                className="group flex h-full flex-col rounded-xl border border-white/10 p-5 transition-colors hover:border-brand-400/40 hover:bg-white/[0.03]"
+                className="group flex h-full flex-col rounded-xl border border-white/10 p-5 transition-colors hover:border-brand-orange-400/40 hover:bg-white/[0.03]"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <pillar.icon aria-hidden="true" className="h-5 w-5 text-brand-400" />
+                  <pillar.icon aria-hidden="true" className="h-5 w-5 text-brand-orange-400" />
                   {pillar.status === 'vision' && (
                     <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60">
                       Coming soon
@@ -67,7 +67,7 @@ export function EcosystemSection() {
         <Reveal className="mt-12 text-center">
           <Link
             href={ROUTES.ecosystem}
-            className="text-sm font-semibold text-brand-400 transition-colors hover:text-brand-300"
+            className="text-sm font-semibold text-brand-orange-400 transition-colors hover:text-brand-orange-300"
           >
             Explore the full ecosystem →
           </Link>

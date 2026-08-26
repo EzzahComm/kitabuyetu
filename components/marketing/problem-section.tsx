@@ -11,7 +11,7 @@ import { PAIN_POINTS } from './content';
  */
 export function ProblemSection() {
   return (
-    <Section tone="paper" labelledBy="problem-heading">
+    <Section tone="paper-deep" labelledBy="problem-heading">
       <Container>
         <RevealedHeading
           id="problem-heading"
@@ -32,7 +32,7 @@ export function ProblemSection() {
             >
               <point.icon
                 aria-hidden="true"
-                className="h-6 w-6 text-brand-blue-900/35 transition-colors duration-300 group-hover:text-brand-600"
+                className="h-6 w-6 text-brand-blue-900/35 transition-colors duration-300 group-hover:text-brand-orange-600"
               />
               <h3 className="mt-6 font-display text-xl font-normal text-brand-blue-900">
                 {point.title}

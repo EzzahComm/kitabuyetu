@@ -44,7 +44,7 @@ export function PageShell({ title, description, children }: PageShellProps) {
         </div>
 
         <Container className="py-14 md:py-20">
-          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-brand-blue-900/75 [&_a]:font-medium [&_a]:text-brand-700 [&_a:hover]:underline [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-brand-blue-900 [&_strong]:font-semibold [&_strong]:text-brand-blue-900">
+          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-brand-blue-900/75 [&_a]:font-medium [&_a]:text-brand-orange-700 [&_a:hover]:underline [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-brand-blue-900 [&_strong]:font-semibold [&_strong]:text-brand-blue-900">
             {children}
           </div>
         </Container>

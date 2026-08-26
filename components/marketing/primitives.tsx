@@ -23,9 +23,15 @@ export function Container({ children, className }: { children: ReactNode; classN
 }
 
 /**
- * Section grounds. The site alternates warm paper and deep navy rather than
- * white-on-white — pure white is reserved for the surfaces that hold a product
- * mockup, so the mockups read as objects sitting ON the page.
+ * Section grounds. The page alternates `paper` (white) with `paper-deep` (a
+ * cool #F8FAFC) and drops to `ink` for the two navy moments — M-Pesa and
+ * Enterprise — plus the final call to action.
+ *
+ * `paper` and `white` resolve to the SAME colour since the ground moved from
+ * cream to white (2026-08-26). `white` is kept only so existing callers keep
+ * compiling; prefer `paper` for the marketing ground and `paper-deep` for the
+ * step down. Two adjacent sections must never share a tone — that is the only
+ * thing separating them, as this site uses no section borders.
  */
 export type SectionTone = 'paper' | 'paper-deep' | 'white' | 'ink';
 
@@ -126,7 +132,7 @@ export function SectionHeading({
         <p
           className={cn(
             'mb-5 font-mono text-[11px] font-medium uppercase tracking-[0.24em]',
-            dark ? 'text-brand-400' : 'text-brand-700',
+            dark ? 'text-brand-orange-400' : 'text-brand-orange-700',
           )}
         >
           {eyebrow}
@@ -149,7 +155,7 @@ export function SectionHeading({
             <em
               className={cn(
                 'italic font-normal',
-                dark ? 'text-brand-400' : 'text-brand-700',
+                dark ? 'text-brand-orange-400' : 'text-brand-orange-700',
               )}
             >
               {emphasis}
@@ -192,7 +198,7 @@ export function EntryNumber({ n, tone = 'light' }: { n: number; tone?: 'dark' | 
       aria-hidden="true"
       className={cn(
         'font-mono text-sm font-medium tabular-nums tracking-[0.2em]',
-        tone === 'dark' ? 'text-brand-400/80' : 'text-brand-700',
+        tone === 'dark' ? 'text-brand-orange-400/80' : 'text-brand-orange-700',
       )}
     >
       {String(n).padStart(2, '0')}

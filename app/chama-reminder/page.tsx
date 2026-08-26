@@ -53,7 +53,7 @@ export default function ChamaReminderPage() {
       <div className="flex flex-wrap gap-3 pt-4">
         <Link
           href="/register?product=chama_reminder"
-          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+          className="rounded-lg bg-brand-orange-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange-700"
         >
           Start with Chama Reminder
         </Link>

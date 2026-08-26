@@ -43,28 +43,46 @@ export const brandNavy = {
   900: '#04162F',
 } as const;
 
-/** Orange accent reserved for alerts/actions per the brand direction. */
+/**
+ * Orange — the logo's third mark, and since 2026-08-26 the primary accent on
+ * the PUBLIC MARKETING SURFACE only. The authenticated app, emails and PDFs
+ * still lead with `brandGreen`; `brand` in tailwind.config.ts is deliberately
+ * still mapped to green so this change cannot leak into them.
+ *
+ * 200/400/800/900 were added when marketing adopted this scale — the ramp was
+ * previously partial because it was only ever used for a handful of
+ * money-out/disbursement states, and marketing needs the full set. 500 is
+ * unchanged at the canonical #F97316; the added steps follow the same family
+ * the existing 600/700 already sit on.
+ */
 export const brandOrange = {
   50:  '#FFF4ED',
   100: '#FFE6D5',
+  200: '#FED7AA',
   300: '#FDA572',
-  500: '#F97316',
+  400: '#FB923C',
+  500: '#F97316', // ← canonical brand orange
   600: '#EA580C',
   700: '#C2410C',
+  800: '#9A3412',
+  900: '#7C2D12',
 } as const;
 
 /**
- * Warm paper ground for the public marketing surface.
+ * Ground for the public marketing surface.
  *
- * `#FBFAF5` was hardcoded as a bare hex in six separate landing components
- * before this existed — the one colour on the site with no token behind it,
- * which is precisely the drift risk the rest of this file exists to prevent.
- * `deep` is the one step down, used to separate stacked light sections
- * without reaching for a border.
+ * Was a warm cream (`#FBFAF5` / `#F4F1E7`) until 2026-08-26, when the brand
+ * direction moved to a clean white page with orange carrying the warmth
+ * instead of the paper. `deep` is the one step down, used to separate stacked
+ * light sections without reaching for a border — it is a cool neutral now, so
+ * it sits under white without the cream cast the old pairing had.
+ *
+ * The name is kept: it is referenced as `bg-paper` in ~30 places, and the
+ * token's JOB (the marketing ground) has not changed, only its value.
  */
 export const brandPaper = {
-  DEFAULT: '#FBFAF5',
-  deep:    '#F4F1E7',
+  DEFAULT: '#FFFFFF',
+  deep:    '#F8FAFC',
 } as const;
 
 /** Convenience aliases for the spec's named neutral/accent tokens. */

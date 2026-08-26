@@ -66,7 +66,7 @@ function NavDropdown({
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          'flex items-center gap-1.5 rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+          'flex items-center gap-1.5 rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
           transparent
             ? 'text-white/75 hover:text-white'
             : 'text-brand-blue-900/70 hover:text-brand-blue-900',
@@ -92,7 +92,7 @@ function NavDropdown({
               href={item.href}
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="block rounded-md px-3.5 py-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
+              className="block rounded-md px-3.5 py-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-inset"
             >
               <span className="block text-[0.9375rem] font-medium text-brand-blue-900">{item.label}</span>
               {item.description && (
@@ -118,7 +118,7 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="flex w-full items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
       >
         {group.label}
         <ChevronDown
@@ -133,7 +133,7 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
               <Link
                 href={item.href}
                 onClick={onNavigate}
-                className="block rounded-md px-3 py-2.5 text-base text-brand-blue-900/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="block rounded-md px-3 py-2.5 text-base text-brand-blue-900/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
               >
                 {item.label}
               </Link>
@@ -194,7 +194,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
           other pages reachable only by tabbing through the whole menu. */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-brand-blue-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-brand-blue-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-orange-500"
       >
         Skip to content
       </a>
@@ -211,7 +211,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
           <Link
             href="/"
             onClick={() => setOpen(false)}
-            className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+            className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
             aria-label="Kitabu Yetu — home"
           >
             <BrandLogo size={34} priority alt="" />
@@ -242,7 +242,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                       href={entry.href}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'relative rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+                        'relative rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
                         transparent
                           ? 'text-white/75 hover:text-white'
                           : 'text-brand-blue-900/70 hover:text-brand-blue-900',
@@ -253,7 +253,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                       {active && (
                         <span
                           aria-hidden="true"
-                          className="absolute -bottom-1.5 left-0 h-px w-full bg-brand-500"
+                          className="absolute -bottom-1.5 left-0 h-px w-full bg-brand-orange-500"
                         />
                       )}
                     </Link>
@@ -267,7 +267,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             <Link
               href={ROUTES.signIn}
               className={cn(
-                'rounded-md px-4 py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+                'rounded-md px-4 py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
                 transparent
                   ? 'text-white/85 hover:bg-white/10 hover:text-white'
                   : 'text-brand-blue-900/80 hover:bg-brand-blue-900/[0.05] hover:text-brand-blue-900',
@@ -277,7 +277,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             </Link>
             <Link
               href={ROUTES.startGroup}
-              className="group inline-flex items-center gap-2 rounded-md bg-brand-600 px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              className="group inline-flex items-center gap-2 rounded-md bg-brand-orange-600 px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2"
             >
               Get started
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -291,7 +291,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             aria-expanded={open}
             aria-controls="site-menu"
             className={cn(
-              '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden',
+              '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 lg:hidden',
               transparent
                 ? 'text-white hover:bg-white/10'
                 : 'text-brand-blue-900 hover:bg-brand-blue-900/[0.06]',
@@ -324,7 +324,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                   <Link
                     href={entry.href}
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500"
                   >
                     {entry.label}
                     <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-blue-900/40" />
@@ -337,14 +337,14 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             <Link
               href={ROUTES.startGroup}
               onClick={() => setOpen(false)}
-              className="inline-flex items-center justify-center rounded-md bg-brand-600 px-5 py-3.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-md bg-brand-orange-600 px-5 py-3.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2"
             >
               Get started
             </Link>
             <Link
               href={ROUTES.signIn}
               onClick={() => setOpen(false)}
-              className="inline-flex items-center justify-center rounded-md border border-brand-blue-900/15 px-5 py-3.5 text-base font-medium text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-md border border-brand-blue-900/15 px-5 py-3.5 text-base font-medium text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2"
             >
               Sign in
             </Link>
