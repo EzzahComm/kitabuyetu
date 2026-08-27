@@ -63,9 +63,17 @@ env:
   MPESA_PASSKEY:           ci_fake
   MPESA_CALLBACK_BASE_URL: https://kitabuyetu.vercel.app
 
-  # ── SMS (TextSMS Kenya) ─────────────────────────────────────────────────────
+  # ── SMS ─────────────────────────────────────────────────────────────────────
+  # TextSMS Kenya is the PROVIDER (the gateway these credentials authenticate
+  # against). The SENDER ID — what a recipient actually sees the message come
+  # from — is "KITABU YETU", the registered alphanumeric ID. The two are
+  # unrelated and easy to conflate: sms_usage_logs.provider says 'textsms',
+  # and that column is about the gateway, never about the sender name.
+  #
+  # Matches lib/env.ts's TEXTSMS_SENDER_ID default and production. Was
+  # "KitabuYetu" here, which is not the registered ID.
   TEXTSMS_API_KEY:    ci_fake
-  TEXTSMS_SENDER_ID:  KitabuYetu
+  TEXTSMS_SENDER_ID:  KITABU YETU
   TEXTSMS_PARTNER_ID: ci_fake
 
   # ── Email ───────────────────────────────────────────────────────────────────

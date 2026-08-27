@@ -663,8 +663,12 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
 
   const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
   const amount  = Math.round(parseFloat(stk.amount));
+  // No brand prefix: the message already arrives from the registered sender
+  // ID "KITABU YETU" (lib/env.ts TEXTSMS_SENDER_ID), so repeating it here just
+  // spends characters on a fallback message that is already close to a second
+  // segment once a long account reference is substituted.
   const body =
-    `KitabuYetu: Your M-Pesa payment of KES ${amount} ${stkFailureReason(resultCode)}. ` +
+    `Your M-Pesa payment of KES ${amount} ${stkFailureReason(resultCode)}. ` +
     `To complete it, pay via PayBill ${paybill}, Account ${stk.account_reference}. ` +
     `Reply HELP for support.`;
 

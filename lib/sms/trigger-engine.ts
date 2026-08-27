@@ -244,6 +244,28 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // was billed and nothing dispatched, which is a suppression, not a send.
     if (!logs.length) return settle(executionId, 'suppressed', 'all recipients opted out');
 
+    // A returned log row is NOT proof the message left. send() catches
+    // provider errors, writes the usage row with status='failed' (credits
+    // released) and still returns it, so a non-empty array says only "rows
+    // were written" — not "anything was delivered".
+    //
+    // Treating that as success is not merely inaccurate, it is IRREVERSIBLE:
+    // sms_trigger_executions is append-only and its immutability trigger
+    // refuses to update any row that is already terminal, so an execution
+    // marked 'sent' can never be retried or corrected. A provider outage or
+    // an expired API key therefore burned the (rule, event) idempotency key
+    // permanently and the message could never be sent again.
+    //
+    // Confirmed in production 2026-08-27: eight Ndengelwa members had their
+    // welcome SMS marked 'sent' while every send had returned HTTP 401. All
+    // eight rows are terminal and unrecoverable.
+    if (!logs.some((l) => l.status !== 'failed')) {
+      return retryOrFail(
+        exec,
+        `provider rejected every recipient: ${logs[0]?.failed_reason ?? 'unknown error'}`,
+      );
+    }
+
     await withAdminDb((db) =>
       db.query(
         `UPDATE sms_trigger_executions

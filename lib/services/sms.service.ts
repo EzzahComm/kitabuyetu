@@ -342,8 +342,12 @@ export async function resolveRecipientVars(
   const { groupName, members } = await withAdminDb(async (db) => {
     const [{ rows: groupRows }, { rows: memberRows }] = await Promise.all([
       db.query<{ name: string }>(`SELECT name FROM groups WHERE id=$1`, [groupId]),
-      db.query<{ phone: string; first_name: string; last_name: string }>(
-        `SELECT m.phone, m.first_name, m.last_name
+      db.query<{ phone: string; first_name: string; last_name: string; membership_no: string | null }>(
+        // membership_no is the SHORT per-group number (NC000078), not the long
+        // platform member_code — it is what a member is asked to quote, and it
+        // makes {{membership_no}} usable in an ordinary campaign body, not
+        // only in the trigger engine's templates.
+        `SELECT m.phone, m.first_name, m.last_name, gm.membership_no
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id
          WHERE gm.group_id=$1 AND m.phone IS NOT NULL AND m.phone <> ''
@@ -370,9 +374,10 @@ export async function resolveRecipientVars(
     if (existing?.first_name !== undefined) continue;
     byPhone.set(key, {
       ...existing,
-      first_name: m.first_name,
-      last_name:  m.last_name,
-      full_name:  `${m.first_name} ${m.last_name}`.trim(),
+      first_name:    m.first_name,
+      last_name:     m.last_name,
+      full_name:     `${m.first_name} ${m.last_name}`.trim(),
+      membership_no: m.membership_no ?? undefined,
     });
   }
   return byPhone;

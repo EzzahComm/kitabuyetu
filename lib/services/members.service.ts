@@ -17,6 +17,75 @@ import { linkMemberToGroup } from './group-membership';
 
 export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 
+/**
+ * Fire the `member.registered` business event so the SMS trigger engine can
+ * send a welcome message, if a rule is configured for it.
+ *
+ * MUST be called AFTER the creating transaction commits. emitBusinessEvent
+ * does its own DB work and may send inline, so calling it inside the
+ * transaction would let a messaging failure roll back the member — the exact
+ * inversion of what matters here. Best-effort by design, and never throws:
+ * a group gaining a member is the real outcome; the SMS is a courtesy on top.
+ *
+ * Deliberately called from `create()` only, NOT from `linkMemberToGroup`.
+ * Both the single-member API and the CSV importer go through that helper, and
+ * putting the emit there would blast one SMS per row of a bulk import — a
+ * 500-row file would spend 500 credits nobody asked for. Bulk import stays
+ * silent; if welcome-on-import is ever wanted it should be an explicit,
+ * opt-in choice made at import time.
+ */
+async function emitMemberRegisteredEvent(
+  memberId: string,
+  groupId: string,
+  member: { firstName: string; lastName: string; membershipNo: string },
+): Promise<void> {
+  try {
+    const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+    const { SMS_EVENTS }        = await import('@/lib/sms/events');
+    const { withAdminDb }       = await import('@/lib/db');
+
+    // The engine's toTemplateVars copies the PAYLOAD and nothing else — it
+    // does not inject the group. A {{group_name}} left unsupplied renders as
+    // an empty string, i.e. "You have joined  on Kitabu Yetu", so it has to be
+    // fetched and passed explicitly. withAdminDb because this runs after the
+    // tenant transaction has already closed.
+    const groupName = await withAdminDb((db) =>
+      db.query<{ name: string }>('SELECT name FROM groups WHERE id = $1', [groupId])
+        .then((r) => r.rows[0]?.name ?? null),
+    );
+    if (!groupName) {
+      const { logger } = await import('@/lib/logger');
+      logger.warn('[members] skipping welcome — group not found', { groupId, memberId });
+      return;
+    }
+
+    await emitBusinessEvent({
+      eventType: SMS_EVENTS.MEMBER_REGISTERED,
+      // The membership is the business row this event is about, and it is
+      // what makes the emit idempotent: re-adding the same member to the same
+      // group can never send twice for the same rule.
+      eventId:   memberId,
+      groupId,
+      payload: {
+        memberId,
+        first_name: member.firstName,
+        last_name:  member.lastName,
+        group_name: groupName,
+        // The SHORT per-group number (e.g. NC000078), not the long platform
+        // member_code (KY000000300004) — this is the one a member is asked to
+        // quote at a meeting, and the long form would push the SMS past one
+        // 160-character segment on its own.
+        membership_no: member.membershipNo,
+      },
+    });
+  } catch (err) {
+    const { logger } = await import('@/lib/logger');
+    logger.error('[members] welcome event failed — member was still created', {
+      memberId, groupId, err: String(err),
+    });
+  }
+}
+
 /** A members row with credential material removed — the only shape routes may return. */
 export type SafeMember = Omit<Member, 'password_hash'>;
 
@@ -113,7 +182,7 @@ export const membersService = {
   },
 
   async create(ctx: TenantContext, data: CreateMemberInput): Promise<SafeMember> {
-    return withTransaction(ctx, async (client) => {
+    const member = await withTransaction(ctx, async (client) => {
       // Enforce member cap before adding
       await billingService.assertMemberCap(ctx, client);
 
@@ -184,7 +253,7 @@ export const membersService = {
       // Use the shared helper so person_id + member_code (both NOT NULL
       // on group_members since mig 030) get populated atomically, matching
       // what the register_group RPC does for the first member of a group.
-      await linkMemberToGroup(client, {
+      const link = await linkMemberToGroup(client, {
         memberId,
         groupId:     ctx.groupId,
         role:        data.role ?? 'member',
@@ -201,8 +270,17 @@ export const membersService = {
         'SELECT * FROM members WHERE id = $1',
         [memberId],
       );
-      return stripSecrets(rows[0]);
+      return { member: stripSecrets(rows[0]), membershipNo: link.membershipNo };
     });
+
+    // After the commit, never inside it — see emitMemberRegisteredEvent.
+    await emitMemberRegisteredEvent(member.member.id, ctx.groupId, {
+      firstName:    data.firstName,
+      lastName:     data.lastName,
+      membershipNo: member.membershipNo,
+    });
+
+    return member.member;
   },
 
   async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<SafeMember> {

@@ -59,6 +59,16 @@ const PASSKEY         = process.env.MPESA_PASSKEY!;
 const SHORTCODE       = process.env.MPESA_SHORTCODE!;
 const B2C_SHORTCODE   = process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHORTCODE!;
 const CALLBACK_BASE   = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/, '');
+/**
+ * DO NOT "correct" this spelling to "Kitabu Yetu".
+ *
+ * This is not brand copy — it is the B2C initiator username REGISTERED WITH
+ * SAFARICOM, and Daraja matches it exactly against the credential the
+ * SecurityCredential was issued for. Changing it fails every disbursement
+ * with an initiator/credential mismatch.
+ *
+ * Unrelated to the SMS sender ID, which IS "KITABU YETU" (lib/env.ts).
+ */
 const INITIATOR_NAME  = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
 
 // Safaricom's published production egress IPs for Daraja callbacks.
