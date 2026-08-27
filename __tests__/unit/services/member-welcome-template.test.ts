@@ -45,6 +45,15 @@ describe('welcome SMS template', () => {
     expect(rendered).toContain('NC000078');
   });
 
+  it('opens with "Dear <name>" and closes on "Karibu."', () => {
+    const rendered = renderTemplate(template, vars);
+
+    expect(rendered.startsWith('Dear Benedict,')).toBe(true);
+    expect(rendered.endsWith('Karibu.')).toBe(true);
+    // The member number is a sentence of its own, not run into the sign-off.
+    expect(rendered).toContain('NC000078. Karibu.');
+  });
+
   it('fits one 160-character SMS segment with a real long group name', () => {
     // 'Ndengelwa Community Water Project' is 33 characters and is a real
     // production group — if the fixed copy grows, this is what breaks first.

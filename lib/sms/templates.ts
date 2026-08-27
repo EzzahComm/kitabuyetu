@@ -68,12 +68,12 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   // fixed text has to leave room for it. A second segment would double the
   // credit cost of every member a group ever adds. The worked example lands
   // at 114 characters:
-  //   "Karibu Benedict! You have joined Ndengelwa Community Water Project
-  //    on Kitabu Yetu. Your member number is NC000078."
+  //   "Dear Benedict, you have joined Ndengelwa Community Water Project on
+  //    Kitabu Yetu. Your member number is NC000078. Karibu."
   // {{membership_no}} is the SHORT per-group number, never the long
   // member_code — see the payload comment in members.service.ts.
   welcome:
-    'Karibu {{first_name}}! You have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}.',
+    'Dear {{first_name}}, you have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}. Karibu.',
   otp:
     'Your KitabuYetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
   group_announcement:
