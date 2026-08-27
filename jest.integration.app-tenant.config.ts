@@ -15,6 +15,11 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  // Real Postgres, same reasoning as jest.integration.config.ts — Jest's 5s
+  // default is a unit-test budget and these are not unit tests. Kept in step
+  // with that config deliberately: these two suites differ only in which role
+  // they connect as, so a timeout that is right for one is right for the other.
+  testTimeout: 30_000,
 };
 
 export default createJestConfig(config);
