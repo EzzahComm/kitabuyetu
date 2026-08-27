@@ -19,7 +19,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ArrowLeft, CheckCircle, Ban, TrendingUp, Coins, Landmark, CalendarClock,
+  ArrowLeft, CheckCircle, Ban, TrendingUp, Coins, Landmark, CalendarClock, Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +33,8 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useInvestment, useUpdateInvestment, useRecordInvestmentReturn,
-  type InvestmentReturnRow, type InvestmentShareRow,
+  useRecordInvestmentExpense,
+  type InvestmentReturnRow, type InvestmentExpenseRow, type InvestmentShareRow,
 } from '@/hooks/use-investments';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
@@ -64,6 +65,24 @@ const returnTypeLabels: Record<ReturnForm['returnType'], string> = {
   rental_income: 'Rental income', other: 'Other',
 };
 
+// Mirrors RecordExpenseSchema, which mirrors public.expense_type (migration
+// 156). Same lockstep rule as returns above: a value here that the enum does
+// not hold passes validation and then fails at INSERT.
+const expenseSchema = z.object({
+  expenseType:   z.enum(['inputs', 'labour', 'maintenance', 'transport', 'utilities', 'fees', 'tax', 'insurance', 'other']),
+  amount:        z.coerce.number().positive(),
+  expenseDate:   z.string().min(1, 'Date required'),
+  receiptNumber: z.string().optional(),
+  notes:         z.string().optional(),
+});
+type ExpenseForm = z.infer<typeof expenseSchema>;
+
+const expenseTypeLabels: Record<ExpenseForm['expenseType'], string> = {
+  inputs: 'Inputs (feed, seed, stock)', labour: 'Labour', maintenance: 'Maintenance',
+  transport: 'Transport', utilities: 'Utilities', fees: 'Fees', tax: 'Tax',
+  insurance: 'Insurance', other: 'Other',
+};
+
 export default function InvestmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
@@ -71,6 +90,7 @@ export default function InvestmentDetailPage() {
   const { data: inv, isLoading, isError, error } = useInvestment(id);
   const updateInvestment = useUpdateInvestment(id);
   const recordReturn     = useRecordInvestmentReturn(id);
+  const recordExpense    = useRecordInvestmentExpense(id);
   const canManage        = useHasPermission('investments.manage');
 
   const [approveOpen, setApproveOpen]     = useState(false);
@@ -81,12 +101,21 @@ export default function InvestmentDetailPage() {
   const [liquidateOpen, setLiquidateOpen] = useState(false);
   const [liquidateAmount, setLiquidateAmount] = useState('');
   const [returnOpen, setReturnOpen]       = useState(false);
+  const [expenseOpen, setExpenseOpen]     = useState(false);
 
   const returnForm = useForm<ReturnForm>({
     resolver: zodResolver(returnSchema),
     defaultValues: {
       returnType: 'dividend',
       returnDate: new Date().toISOString().slice(0, 10),
+    },
+  });
+
+  const expenseForm = useForm<ExpenseForm>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      expenseType: 'inputs',
+      expenseDate: new Date().toISOString().slice(0, 10),
     },
   });
 
@@ -124,6 +153,26 @@ export default function InvestmentDetailPage() {
     }
   };
 
+  const onRecordExpense = async (values: ExpenseForm) => {
+    try {
+      await recordExpense.mutateAsync({
+        expenseType:   values.expenseType,
+        amount:        values.amount,
+        expenseDate:   values.expenseDate,
+        receiptNumber: values.receiptNumber?.trim() || undefined,
+        notes:         values.notes?.trim() || undefined,
+      });
+      toast({ title: 'Expense recorded' });
+      setExpenseOpen(false);
+      expenseForm.reset({
+        expenseType: 'inputs',
+        expenseDate: new Date().toISOString().slice(0, 10),
+      });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(e) });
+    }
+  };
+
   if (isLoading) {
     return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
   }
@@ -131,9 +180,12 @@ export default function InvestmentDetailPage() {
   if (!inv)    return <p className="text-muted-foreground">Investment not found</p>;
 
   const returns   = inv.returns ?? [];
+  const expenses  = inv.expenses ?? [];
   const shares    = inv.shares ?? [];
   const revalued  = inv.current_value !== null;
-  const totalReturns = returns.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalReturns  = returns.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const netReturn     = totalReturns - totalExpenses;
   // Carried at cost until someone records a revaluation, which is exactly how
   // the portfolio summary values it.
   const carryingValue = revalued ? Number(inv.current_value) : Number(inv.principal_amount);
@@ -163,6 +215,33 @@ export default function InvestmentDetailPage() {
     {
       key: 'recorded_by_name', header: 'Recorded by',
       render: (r: InvestmentReturnRow) => <span className="text-xs">{r.recorded_by_name}</span>,
+    },
+  ];
+
+  const expenseColumns = [
+    {
+      key: 'expense_date', header: 'Date',
+      render: (e: InvestmentExpenseRow) => <span className="text-sm">{formatDate(e.expense_date)}</span>,
+    },
+    {
+      key: 'expense_type', header: 'Type',
+      render: (e: InvestmentExpenseRow) => (
+        <span className="text-sm">{expenseTypeLabels[e.expense_type as ExpenseForm['expenseType']] ?? e.expense_type}</span>
+      ),
+    },
+    {
+      key: 'amount', header: 'Amount',
+      render: (e: InvestmentExpenseRow) => <span className="font-semibold text-sm text-amber-700">{formatKES(e.amount)}</span>,
+    },
+    {
+      key: 'receipt_number', header: 'Receipt',
+      render: (e: InvestmentExpenseRow) => e.receipt_number
+        ? <span className="text-sm">{e.receipt_number}</span>
+        : <span className="text-muted-foreground text-sm">—</span>,
+    },
+    {
+      key: 'recorded_by_name', header: 'Recorded by',
+      render: (e: InvestmentExpenseRow) => <span className="text-xs">{e.recorded_by_name}</span>,
     },
   ];
 
@@ -218,13 +297,38 @@ export default function InvestmentDetailPage() {
         </CardContent></Card>
 
         <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Expected rate</p>
-          <p className="font-semibold">
-            {inv.expected_return_rate ? `${inv.expected_return_rate}%` : <span className="text-muted-foreground">Not set</span>}
+          <p className="text-sm text-muted-foreground">Running costs</p>
+          <p className="font-bold text-xl text-amber-700">{formatKES(totalExpenses)}</p>
+          <p className="text-xs text-muted-foreground">
+            {expenses.length === 0 ? 'None recorded' : `${expenses.length} recorded`}
           </p>
-          {inv.custodian && <p className="text-xs text-muted-foreground">Held with {inv.custodian}</p>}
         </CardContent></Card>
       </div>
+
+      {/* Net is only meaningful once at least one side has been recorded.
+          With nothing on either, this would read "KES 0 net" on an activity
+          nobody has entered anything for, which looks like a real answer to
+          a question that has not been asked yet. */}
+      {(returns.length > 0 || expenses.length > 0) && (
+        <Card><CardContent className="p-4 space-y-1">
+          <p className="text-sm text-muted-foreground">Net of running costs</p>
+          <p className={`font-bold text-xl ${netReturn < 0 ? 'text-destructive' : 'text-green-700'}`}>
+            {formatKES(netReturn)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatKES(totalReturns)} earned less {formatKES(totalExpenses)} spent
+            {netReturn < 0 && ' — this activity is running at a loss'}
+          </p>
+        </CardContent></Card>
+      )}
+
+      <Card><CardContent className="p-4 space-y-1">
+        <p className="text-sm text-muted-foreground">Expected rate</p>
+        <p className="font-semibold">
+          {inv.expected_return_rate ? `${inv.expected_return_rate}%` : <span className="text-muted-foreground">Not set</span>}
+        </p>
+        {inv.custodian && <p className="text-xs text-muted-foreground">Held with {inv.custodian}</p>}
+      </CardContent></Card>
 
       <Card>
         <CardContent className="p-4 grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -285,6 +389,9 @@ export default function InvestmentDetailPage() {
               <Button variant="outline" onClick={() => setReturnOpen(true)}>
                 <Coins size={16} className="mr-2" /> Record return
               </Button>
+              <Button variant="outline" onClick={() => setExpenseOpen(true)}>
+                <Receipt size={16} className="mr-2" /> Record expense
+              </Button>
               {inv.status === 'active' && (
                 <Button variant="outline" onClick={() => setMaturedOpen(true)} loading={updateInvestment.isPending}>
                   Mark matured
@@ -313,6 +420,24 @@ export default function InvestmentDetailPage() {
             emptyDescription={
               canManage && (inv.status === 'active' || inv.status === 'matured')
                 ? 'Record a dividend, interest payment or capital gain as it is received.'
+                : undefined
+            }
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Running costs</CardTitle></CardHeader>
+        <CardContent>
+          <PaginatedTable
+            data={singlePage(expenses)}
+            isLoading={false}
+            onPageChange={() => {}}
+            columns={expenseColumns}
+            emptyMessage="No expenses recorded yet"
+            emptyDescription={
+              canManage && (inv.status === 'active' || inv.status === 'matured')
+                ? 'Record feed, labour, transport, licence fees and other costs as they are paid.'
                 : undefined
             }
           />
@@ -485,6 +610,54 @@ export default function InvestmentDetailPage() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
               <Button type="submit" loading={returnForm.formState.isSubmitting}>Record return</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Record an expense</DialogTitle></DialogHeader>
+          <form onSubmit={expenseForm.handleSubmit(onRecordExpense)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="expense-type">Type</Label>
+                <select
+                  id="expense-type"
+                  {...expenseForm.register('expenseType')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {(Object.keys(expenseTypeLabels) as ExpenseForm['expenseType'][]).map((v) => (
+                    <option key={v} value={v}>{expenseTypeLabels[v]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="expense-amount">Amount (KES)</Label>
+                <Input id="expense-amount" type="number" step="0.01" {...expenseForm.register('amount')} />
+                {expenseForm.formState.errors.amount && (
+                  <p className="text-xs text-destructive">{expenseForm.formState.errors.amount.message}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="expense-date">Date paid</Label>
+                <Input id="expense-date" type="date" {...expenseForm.register('expenseDate')} />
+                {expenseForm.formState.errors.expenseDate && (
+                  <p className="text-xs text-destructive">{expenseForm.formState.errors.expenseDate.message}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="expense-receipt">Receipt number</Label>
+                <Input id="expense-receipt" placeholder="Optional" {...expenseForm.register('receiptNumber')} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="expense-notes">Notes</Label>
+              <Input id="expense-notes" placeholder="Optional" {...expenseForm.register('notes')} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setExpenseOpen(false)}>Cancel</Button>
+              <Button type="submit" loading={expenseForm.formState.isSubmitting}>Record expense</Button>
             </DialogFooter>
           </form>
         </DialogContent>

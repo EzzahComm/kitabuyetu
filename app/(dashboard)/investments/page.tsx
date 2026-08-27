@@ -101,9 +101,9 @@ export default function InvestmentsPage() {
       render: (row: InvestmentRow) => <span className="text-sm text-blue-600">{formatKES(row.total_returns ?? 0)}</span>,
     },
     {
-      key: 'expected_return_rate', header: 'Expected Rate',
-      render: (row: InvestmentRow) => row.expected_return_rate
-        ? <span className="text-sm">{row.expected_return_rate}%</span>
+      key: 'total_expenses', header: 'Running Costs',
+      render: (row: InvestmentRow) => Number(row.total_expenses ?? 0) > 0
+        ? <span className="text-sm text-amber-700">{formatKES(row.total_expenses)}</span>
         : <span className="text-muted-foreground text-sm">—</span>,
     },
     {
@@ -140,14 +140,24 @@ export default function InvestmentsPage() {
           value={formatKES(summary?.totalCurrentValue ?? 0)}
           description={`${summary?.heldCount ?? 0} held`}
         />
-        <StatCard title="Total Returns Earned" value={formatKES(summary?.totalReturns ?? 0)} />
+        <StatCard
+          title="Total Returns Earned"
+          value={formatKES(summary?.totalReturns ?? 0)}
+          description={
+            Number(summary?.totalExpenses ?? 0) > 0
+              ? `less ${formatKES(summary?.totalExpenses ?? 0)} running costs`
+              : undefined
+          }
+        />
         {/* Not converted to StatCard: ROI's sign is a real positive/negative
             signal (colored value text + swapped Trending icon), which
             StatCard's plain string|number value can't represent — see
             component-reference guidance to skip rather than force this. */}
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall ROI</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Overall ROI
+            </p>
             {roiMeasurable ? (
               <div className="flex items-center gap-2 mt-1">
                 {roi >= 0
@@ -162,9 +172,12 @@ export default function InvestmentsPage() {
               <div className="mt-1">
                 <p className="text-2xl font-bold text-muted-foreground">—</p>
                 <p className="text-xs text-muted-foreground">
-                  Update a value or record a return to measure
+                  Update a value, or record a return or expense, to measure
                 </p>
               </div>
+            )}
+            {roiMeasurable && Number(summary?.totalExpenses ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">Net of running costs</p>
             )}
           </CardContent>
         </Card>

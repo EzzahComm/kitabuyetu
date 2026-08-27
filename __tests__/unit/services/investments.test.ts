@@ -38,6 +38,7 @@ const summaryRow = (o: Record<string, string>) => ({
     total_principal:    '0',
     total_current_value:'0',
     total_returns:      '0',
+    total_expenses:     '0',
     ...o,
   }],
 });
@@ -89,6 +90,56 @@ describe('investmentsService.getSummary', () => {
     }));
 
     expect((await investmentsService.getSummary(ctx)).roi).toBe(-20);
+  });
+
+  it('subtracts running costs from ROI (migration 156)', async () => {
+    // The case the module could not express before expenses existed: an
+    // activity returning well that is still behind once its costs are counted.
+    // Without the subtraction this reads +25%, which is the overstatement.
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_principal:     '100000',
+      total_current_value: '100000',
+      total_returns:       '25000',
+      total_expenses:      '40000',
+    }));
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.totalExpenses).toBe(40000);
+    expect(s.roi).toBe(-15);          // (100000 + 25000 - 40000 - 100000) / 100000
+  });
+
+  it('becomes measurable on an expense alone, with nothing revalued or returned', async () => {
+    // A group that has spent on an activity but not yet seen income has real
+    // data — a real, negative answer — so ROI must not render as "no data".
+    mockQuery.mockResolvedValueOnce(summaryRow({
+      total_principal:     '100000',
+      total_current_value: '100000',
+      total_returns:       '0',
+      total_expenses:      '10000',
+      revalued_count:      '0',
+    }));
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(s.roiMeasurable).toBe(true);
+    expect(s.roi).toBe(-10);
+  });
+
+  it('never yields NaN when the expenses column is absent', async () => {
+    // Number(undefined) is NaN and propagates silently through the ROI
+    // arithmetic to a literal "NaN%" on the dashboard.
+    const { total_expenses: _omitted, ...withoutExpenses } = summaryRow({
+      total_principal:     '100000',
+      total_current_value: '120000',
+    }).rows[0];
+    mockQuery.mockResolvedValueOnce({ rows: [withoutExpenses] });
+
+    const s = await investmentsService.getSummary(ctx);
+
+    expect(Number.isNaN(s.roi)).toBe(false);
+    expect(s.totalExpenses).toBe(0);
+    expect(s.roi).toBe(20);
   });
 
   it('guards divide-by-zero on the string principal pg returns', async () => {

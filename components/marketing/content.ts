@@ -144,7 +144,7 @@ export const CAPABILITIES: Capability[] = [
   {
     icon: Sprout,
     title: 'Income-generating activities and investments',
-    body: 'Record what the group puts into a business, a piece of land, rental property or a fixed deposit — then track what it is worth now and the rent, dividends and interest it brings back.',
+    body: 'Record what the group puts into a business, a piece of land, rental property or a fixed deposit — then track the income it brings in, the costs of running it, and whether it is actually ahead once both are counted.',
   },
   {
     icon: BarChart3,
@@ -182,7 +182,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     body:     'Kitabu Yetu is double-entry accounting underneath — the same discipline an auditor expects — with none of the accounting vocabulary on the surface.',
     points: [
       'Members, savings, contributions, loans, welfare, shares and dividends',
-      'Income-generating activities and investments, with the returns they bring in',
+      'Income-generating activities and investments — income, running costs and net performance',
       'Journals posted automatically as money moves',
       'Fiscal periods you can close so the past stops changing',
     ],
@@ -329,16 +329,32 @@ export const ROLES: RoleCard[] = [
 
 export interface FlowStep { label: string; body: string }
 
-/** Traces the real path: mpesa-stk / mpesa-c2b → daraja callback →
- *  mpesa-allocation → contribution-splits → accounting.postContributionJournal
- *  → sms + receipt. */
+/**
+ * Traces the real path: mpesa-stk / mpesa-c2b → daraja callback →
+ * mpesa-allocation → contribution-splits → accounting.postContributionJournal
+ * → sms + receipt.
+ *
+ * Three steps, not the six this used to list. The six were each accurate, but
+ * they described the SYSTEM's work rather than the group's experience — a
+ * treasurer does not do six things, they do one, and the other five happen to
+ * them. Every fact from the longer version survives inside these bodies
+ * (Daraja verification, matching by membership number, the split rules, both
+ * sides of the journal, the fee, the receipt); none of it was dropped to make
+ * the section shorter.
+ */
 export const PAYMENT_FLOW: FlowStep[] = [
-  { label: 'Member pays',      body: 'An STK prompt on their phone, or your PayBill quoting their membership number.' },
-  { label: 'Safaricom confirms', body: 'The Daraja callback arrives and is verified before anything is written down.' },
-  { label: 'Matched to a member', body: 'By membership number, or by the STK request that started it.' },
-  { label: 'Split by your rules', body: 'Savings, welfare and loan repayment, in the proportions your group set.' },
-  { label: 'Journal posted',   body: 'Both sides of the entry, including Safaricom’s transaction fee.' },
-  { label: 'Everyone told',    body: 'Receipt to the member, balances updated, reports current.' },
+  {
+    label: 'Member pays',
+    body:  'An STK prompt straight to their phone, or your PayBill quoting their membership number. Anyone can pay for a member — a spouse, a child, a well-wisher — and it still lands in the right place.',
+  },
+  {
+    label: 'Payment is matched',
+    body:  'Safaricom’s Daraja callback is verified before anything is written down, then matched to the member by their membership number or the STK request that started it.',
+  },
+  {
+    label: 'The records update',
+    body:  'Split into savings, welfare and loan repayment by the rules your group set once, posted to the ledger with Safaricom’s fee, and confirmed to the member — balances and reports current the same moment.',
+  },
 ];
 
 /* ── Section 10 — trust ───────────────────────────────────────────────────── */

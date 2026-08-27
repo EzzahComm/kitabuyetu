@@ -37,6 +37,17 @@ export const RecordReturnSchema = z.object({
   notes:         z.string().optional(),
 });
 
+export const RecordExpenseSchema = z.object({
+  // Must stay in lockstep with public.expense_type (migration 156), for the
+  // same reason RecordReturnSchema must match return_type: zod accepting a
+  // value the enum does not hold fails at INSERT, not at validation.
+  expenseType:   z.enum(['inputs','labour','maintenance','transport','utilities','fees','tax','insurance','other']),
+  amount:        z.coerce.number().positive(),
+  expenseDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  receiptNumber: z.string().optional(),
+  notes:         z.string().optional(),
+});
+
 export const InvestmentQuerySchema = z.object({
   page:   z.coerce.number().int().positive().default(1),
   limit:  z.coerce.number().int().positive().max(100).default(20),
@@ -47,6 +58,7 @@ export const InvestmentQuerySchema = z.object({
 export type CreateInvestmentInput  = z.infer<typeof CreateInvestmentSchema>;
 export type UpdateInvestmentInput  = z.infer<typeof UpdateInvestmentSchema>;
 export type RecordReturnInput      = z.infer<typeof RecordReturnSchema>;
+export type RecordExpenseInput     = z.infer<typeof RecordExpenseSchema>;
 export type InvestmentQueryInput   = z.infer<typeof InvestmentQuerySchema>;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -71,7 +83,11 @@ export const investmentsService = {
                 COALESCE((
                   SELECT SUM(amount) FROM investment_returns
                   WHERE investment_id = i.id
-                ), 0) AS total_returns
+                ), 0) AS total_returns,
+                COALESCE((
+                  SELECT SUM(amount) FROM investment_expenses
+                  WHERE investment_id = i.id
+                ), 0) AS total_expenses
          FROM   investments i
          JOIN   members cb ON cb.id = i.created_by
          WHERE  ${where}
@@ -108,6 +124,13 @@ export const investmentsService = {
          WHERE ir.investment_id = $1 ORDER BY ir.return_date DESC`,
         [id],
       );
+      const { rows: expenses } = await client.query(
+        `SELECT ie.*, m.first_name || ' ' || m.last_name AS recorded_by_name
+         FROM investment_expenses ie
+         JOIN members m ON m.id = ie.recorded_by
+         WHERE ie.investment_id = $1 ORDER BY ie.expense_date DESC`,
+        [id],
+      );
       const { rows: shares } = await client.query(
         `SELECT mis.*, m.first_name || ' ' || m.last_name AS member_name
          FROM member_investment_shares mis
@@ -115,7 +138,7 @@ export const investmentsService = {
          WHERE mis.investment_id = $1 ORDER BY mis.amount_contributed DESC`,
         [id],
       );
-      return { ...inv, returns, shares };
+      return { ...inv, returns, expenses, shares };
     });
   },
 
@@ -193,6 +216,25 @@ export const investmentsService = {
     });
   },
 
+  async recordExpense(ctx: TenantContext, investmentId: string, data: RecordExpenseInput) {
+    return withTransaction(ctx, async (client) => {
+      const { rows: [inv] } = await client.query(
+        'SELECT * FROM investments WHERE id=$1 AND group_id=$2',
+        [investmentId, ctx.groupId],
+      );
+      if (!inv) throw new NotFoundError('Investment', investmentId);
+
+      const { rows } = await client.query(
+        `INSERT INTO investment_expenses
+           (investment_id, group_id, expense_type, amount, expense_date, receipt_number, notes, recorded_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [investmentId, ctx.groupId, data.expenseType, data.amount,
+         data.expenseDate, data.receiptNumber ?? null, data.notes ?? null, ctx.userId],
+      );
+      return rows[0];
+    });
+  },
+
   async getSummary(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
       // Portfolio value is summed over everything the group still counts as an
@@ -230,7 +272,12 @@ export const investmentsService = {
              SELECT SUM(ir.amount) FROM investment_returns ir
              JOIN investments inv ON inv.id = ir.investment_id
              WHERE inv.group_id = $1 AND inv.status<>'cancelled'
-           ), 0) AS total_returns
+           ), 0) AS total_returns,
+           COALESCE((
+             SELECT SUM(ie.amount) FROM investment_expenses ie
+             JOIN investments inv ON inv.id = ie.investment_id
+             WHERE inv.group_id = $1 AND inv.status<>'cancelled'
+           ), 0) AS total_expenses
          FROM investments WHERE group_id = $1`,
         [ctx.groupId],
       );
@@ -240,6 +287,12 @@ export const investmentsService = {
       const totalPrincipal    = Number(s.total_principal);
       const totalCurrentValue = Number(s.total_current_value);
       const totalReturns      = Number(s.total_returns);
+      // `?? 0` is not redundant with the query's COALESCE: it guards the
+      // JS side. A missing field here yields Number(undefined) === NaN, and
+      // NaN propagates silently through the ROI arithmetic all the way to a
+      // literal "NaN%" on the dashboard — which is exactly how six tests
+      // failed the moment this column was added to the SELECT.
+      const totalExpenses     = Number(s.total_expenses ?? 0);
 
       const revaluedCount = Number(s.revalued_count);
 
@@ -251,16 +304,25 @@ export const investmentsService = {
         totalPrincipal,
         totalCurrentValue,
         totalReturns,
+        totalExpenses,
+        /**
+         * Net of what the activity cost to run (migration 156). Before
+         * expenses existed this was value + returns - principal, which
+         * overstated any activity with real running costs — a poultry or
+         * farming project can return well and still lose money once feed and
+         * labour are counted, and the old formula could not express that.
+         */
         roi: totalPrincipal > 0
-          ? ((totalCurrentValue + totalReturns - totalPrincipal) / totalPrincipal) * 100
+          ? ((totalCurrentValue + totalReturns - totalExpenses - totalPrincipal) / totalPrincipal) * 100
           : 0,
         /**
          * Whether `roi` means anything yet. With nothing revalued and no
-         * returns recorded, every holding is carried at cost and the formula
-         * yields exactly 0% — a number that looks like a real answer but is
-         * really "no data". The UI shows a dash instead in that case.
+         * returns or expenses recorded, every holding is carried at cost and
+         * the formula yields exactly 0% — a number that looks like a real
+         * answer but is really "no data". The UI shows a dash instead.
          */
-        roiMeasurable: totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0),
+        roiMeasurable:
+          totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0 || totalExpenses > 0),
       };
     });
   },
@@ -272,3 +334,4 @@ export const investmentsService = {
 export type CreateInvestmentPayload = z.input<typeof CreateInvestmentSchema>;
 export type UpdateInvestmentPayload = z.input<typeof UpdateInvestmentSchema>;
 export type RecordReturnPayload = z.input<typeof RecordReturnSchema>;
+export type RecordExpensePayload = z.input<typeof RecordExpenseSchema>;
