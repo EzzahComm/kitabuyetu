@@ -132,7 +132,7 @@ export function SectionHeading({
         <p
           className={cn(
             'mb-5 font-mono text-[11px] font-medium uppercase tracking-[0.24em]',
-            dark ? 'text-brand-orange-400' : 'text-brand-orange-700',
+            dark ? 'text-brand-400' : 'text-brand-700',
           )}
         >
           {eyebrow}
@@ -155,7 +155,7 @@ export function SectionHeading({
             <em
               className={cn(
                 'italic font-normal',
-                dark ? 'text-brand-orange-400' : 'text-brand-orange-700',
+                dark ? 'text-brand-400' : 'text-brand-700',
               )}
             >
               {emphasis}
@@ -198,7 +198,7 @@ export function EntryNumber({ n, tone = 'light' }: { n: number; tone?: 'dark' | 
       aria-hidden="true"
       className={cn(
         'font-mono text-sm font-medium tabular-nums tracking-[0.2em]',
-        tone === 'dark' ? 'text-brand-orange-400/80' : 'text-brand-orange-700',
+        tone === 'dark' ? 'text-brand-400/80' : 'text-brand-700',
       )}
     >
       {String(n).padStart(2, '0')}

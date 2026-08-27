@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function DataProtectionPage() {
   return (
     <PageShell title="Data Protection">
-      <div className="rounded-lg border border-brand-orange-100 bg-brand-orange-50 px-4 py-3 text-sm font-medium text-brand-orange-700">
+      <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
         This page is a placeholder. Kitabu Yetu is not yet registered with the Office of
         the Data Protection Commissioner (ODPC), and nothing below should be read as a
         claim of compliance with Kenya&apos;s Data Protection Act, 2019.

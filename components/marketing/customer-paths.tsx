@@ -33,11 +33,11 @@ export function CustomerPaths() {
           {CUSTOMER_PATHS.map((path, i) => (
             <Reveal key={path.eyebrow} delay={i * 80}>
               <div className="flex h-full flex-col rounded-2xl border border-brand-blue-900/12 bg-white p-8 sm:p-10">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-orange-500/10">
-                  <path.icon aria-hidden="true" className="h-5 w-5 text-brand-orange-700" />
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500/10">
+                  <path.icon aria-hidden="true" className="h-5 w-5 text-brand-700" />
                 </span>
 
-                <p className="mt-6 font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-orange-700">
+                <p className="mt-6 font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-700">
                   {path.eyebrow}
                 </p>
 
@@ -64,7 +64,7 @@ export function CustomerPaths() {
                     line up even when the copy above them differs in length. */}
                 <Link
                   href={path.href}
-                  className="group mt-auto inline-flex w-fit items-center gap-2 rounded-md bg-brand-orange-500 px-6 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2"
+                  className="group mt-auto inline-flex w-fit items-center gap-2 rounded-md bg-brand-500 px-6 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                 >
                   {path.linkText}
                   <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />

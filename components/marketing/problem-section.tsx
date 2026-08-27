@@ -28,11 +28,11 @@ export function ProblemSection() {
               as="li"
               key={point.title}
               delay={i * 70}
-              className="group bg-paper p-7 transition-colors duration-300 hover:bg-white lg:p-8"
+              className="group bg-paper p-7 transition-colors duration-300 hover:bg-brand-50 lg:p-8"
             >
               <point.icon
                 aria-hidden="true"
-                className="h-6 w-6 text-brand-blue-900/35 transition-colors duration-300 group-hover:text-brand-orange-600"
+                className="h-6 w-6 text-brand-blue-900/35 transition-colors duration-300 group-hover:text-brand-600"
               />
               <h3 className="mt-6 font-display text-xl font-normal text-brand-blue-900">
                 {point.title}

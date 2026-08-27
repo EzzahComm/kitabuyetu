@@ -37,7 +37,7 @@ export function HowItWorks() {
             >
               <span
                 aria-hidden="true"
-                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper-deep font-mono text-[13px] font-medium tabular-nums text-brand-orange-700 sm:static sm:mb-6 sm:flex"
+                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper font-mono text-[13px] font-medium tabular-nums text-brand-700 sm:static sm:mb-6 sm:flex"
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -59,7 +59,7 @@ export function HowItWorks() {
           </p>
           <Link
             href={ROUTES.startGroup}
-            className="group inline-flex shrink-0 items-center gap-2 rounded-md bg-brand-orange-600 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-paper-deep"
+            className="group inline-flex shrink-0 items-center gap-2 rounded-md bg-brand-600 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-paper-deep"
           >
             Start your group
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />

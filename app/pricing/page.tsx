@@ -65,7 +65,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             )}
           >
             {featured && (
-              <span className="absolute -top-3 left-7 rounded-full bg-brand-orange-500 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+              <span className="absolute -top-3 left-7 rounded-full bg-brand-500 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
                 Most popular
               </span>
             )}
@@ -73,7 +73,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             <h3
               className={cn(
                 'font-mono text-[11px] font-medium uppercase tracking-[0.2em]',
-                featured ? 'text-brand-orange-400' : 'text-brand-orange-700',
+                featured ? 'text-brand-400' : 'text-brand-700',
               )}
             >
               {plan.label}
@@ -115,7 +115,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
               <li className="flex items-start gap-2.5">
                 <Check
                   aria-hidden="true"
-                  className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-orange-400' : 'text-brand-orange-700')}
+                  className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                 />
                 <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
                   {isSelfServe ? (
@@ -134,7 +134,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                 <li key={feature} className="flex items-start gap-2.5">
                   <Check
                     aria-hidden="true"
-                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-orange-400' : 'text-brand-orange-700')}
+                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                   />
                   <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
                     {feature}
@@ -146,9 +146,9 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             <Link
               href={isSelfServe ? registerHref(product) : ROUTES.contact}
               className={cn(
-                'mt-8 inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2',
+                'mt-8 inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                 featured
-                  ? 'bg-brand-orange-500 text-white hover:bg-brand-orange-400 focus-visible:ring-offset-brand-blue-900'
+                  ? 'bg-brand-500 text-white hover:bg-brand-400 focus-visible:ring-offset-brand-blue-900'
                   : 'bg-brand-blue-900/[0.05] text-brand-blue-900 hover:bg-brand-blue-900/[0.09] focus-visible:ring-offset-paper',
               )}
             >
@@ -181,18 +181,18 @@ export default function PricingPage() {
         <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-orange-700">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
                 Pricing
               </p>
               <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
                 One price a month, for{' '}
-                <em className="italic font-normal text-brand-orange-600">the whole group</em>.
+                <em className="italic font-normal text-brand-600">the whole group</em>.
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
                 Two products, one bill. Take the full book with{' '}
                 <span className="font-medium text-brand-blue-900">{PRODUCT_LABEL.kitabu_yetu}</span>,
                 or SMS reminders on their own with{' '}
-                <Link href="#chama-reminder" className="font-medium text-brand-orange-700 hover:underline">
+                <Link href="#chama-reminder" className="font-medium text-brand-700 hover:underline">
                   {PRODUCT_LABEL.chama_reminder}
                 </Link>
                 . Every price below is the price the system actually charges.

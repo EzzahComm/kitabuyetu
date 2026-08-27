@@ -24,7 +24,7 @@ export function MpesaSection() {
       <LedgerRules className="text-white" />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-32 top-1/4 -z-10 h-[480px] w-[480px] rounded-full bg-brand-orange-500/10 blur-[120px]"
+        className="pointer-events-none absolute -right-32 top-1/4 -z-10 h-[480px] w-[480px] rounded-full bg-brand-500/10 blur-[120px]"
       />
 
       <Container>
@@ -46,7 +46,7 @@ export function MpesaSection() {
               delay={i * 60}
               className="bg-brand-blue-900 p-7 lg:p-8"
             >
-              <span className="font-mono text-[11px] font-medium tabular-nums tracking-[0.2em] text-brand-orange-400/70">
+              <span className="font-mono text-[11px] font-medium tabular-nums tracking-[0.2em] text-brand-400/70">
                 {String(i + 1).padStart(2, '0')}
               </span>
               <h3 className="mt-4 text-lg font-semibold text-white">{step.label}</h3>
@@ -58,8 +58,8 @@ export function MpesaSection() {
         </ol>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-3">
-          <Reveal className="rounded-2xl border border-brand-orange-500/25 bg-brand-orange-500/[0.07] p-7 lg:col-span-2">
-            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-orange-300">
+          <Reveal className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-7 lg:col-span-2">
+            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-300">
               <AlertCircle aria-hidden="true" className="h-4 w-4" />
               What it will not do
             </span>
@@ -73,7 +73,7 @@ export function MpesaSection() {
           </Reveal>
 
           <Reveal delay={70} className="rounded-2xl border border-white/10 bg-white/[0.04] p-7">
-            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-orange-400">
+            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-400">
               <Banknote aria-hidden="true" className="h-4 w-4" />
               Cash still counts
             </span>
@@ -88,8 +88,8 @@ export function MpesaSection() {
           delay={60}
           className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-7 sm:flex-row sm:items-center"
         >
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange-500/15 ring-1 ring-brand-orange-500/25">
-            <Send aria-hidden="true" className="h-5 w-5 text-brand-orange-400" />
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 ring-1 ring-brand-500/25">
+            <Send aria-hidden="true" className="h-5 w-5 text-brand-400" />
           </span>
           <p className="text-[0.9375rem] leading-relaxed text-brand-blue-100/75">
             <strong className="font-semibold text-white">Money goes out the same way.</strong>{' '}

@@ -28,12 +28,12 @@ export function ResourcesSection() {
 
         <ul className="mt-14 grid gap-px overflow-hidden rounded-2xl bg-brand-blue-900/[0.09] ring-1 ring-brand-blue-900/[0.09] sm:grid-cols-2 lg:mt-20 lg:grid-cols-3">
           {RESOURCES.map((item, i) => (
-            <Reveal as="li" key={item.href} delay={i * 55} className="bg-white">
+            <Reveal as="li" key={item.href} delay={i * 55} className="bg-paper-deep">
               <Link
                 href={item.href}
-                className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange-500"
+                className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
-                <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-orange-700">
+                <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-700">
                   {item.kind}
                 </span>
                 <span className="mt-5 flex items-start justify-between gap-4">
@@ -42,7 +42,7 @@ export function ResourcesSection() {
                   </span>
                   <ArrowUpRight
                     aria-hidden="true"
-                    className="mt-1 h-4 w-4 shrink-0 text-brand-blue-900/25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-orange-600"
+                    className="mt-1 h-4 w-4 shrink-0 text-brand-blue-900/25 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-600"
                   />
                 </span>
                 <span className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">

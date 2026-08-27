@@ -35,25 +35,25 @@ export default function EcosystemPage() {
           <Link
             key={pillar.href}
             href={pillar.href}
-            className="group flex flex-col rounded-xl border border-brand-blue-900/10 p-5 transition-colors hover:border-brand-orange-500/40 hover:bg-white"
+            className="group flex flex-col rounded-xl border border-brand-blue-900/10 p-5 transition-colors hover:border-brand-500/40 hover:bg-white"
           >
             <div className="flex items-start justify-between gap-3">
               <span className="flex items-center gap-2.5 text-base font-semibold text-brand-blue-900">
-                <pillar.icon aria-hidden="true" className="h-4.5 w-4.5 text-brand-orange-600" />
+                <pillar.icon aria-hidden="true" className="h-4.5 w-4.5 text-brand-600" />
                 {pillar.title}
               </span>
               <span
                 className={
                   pillar.status === 'live'
-                    ? 'shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700'
-                    : 'shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700'
+                    ? 'shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700'
+                    : 'shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700'
                 }
               >
                 {pillar.status === 'live' ? 'Live' : 'Coming soon'}
               </span>
             </div>
             <p className="mt-2 text-sm text-brand-blue-900/65">{pillar.body}</p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-orange-700">
+            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
               Learn more
               <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
             </span>

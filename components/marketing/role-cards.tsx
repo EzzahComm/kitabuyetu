@@ -37,8 +37,8 @@ export function RoleCards() {
               delay={i * 70}
               className="flex h-full flex-col rounded-2xl bg-paper p-7 ring-1 ring-brand-blue-900/[0.08]"
             >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white ring-1 ring-brand-blue-900/[0.08]">
-                <role.icon aria-hidden="true" className="h-5 w-5 text-brand-orange-600" />
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-paper-deep ring-1 ring-brand-blue-900/[0.08]">
+                <role.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
               </span>
               <h3 className="mt-6 text-lg font-semibold text-brand-blue-900">{role.title}</h3>
               <p className="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
@@ -47,7 +47,7 @@ export function RoleCards() {
               {role.href && role.linkText && (
                 <Link
                   href={role.href}
-                  className="group mt-5 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+                  className="group mt-5 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
                 >
                   {role.linkText}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -66,7 +66,7 @@ export function RoleCards() {
         >
           <div className="max-w-2xl">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-              <organization.icon aria-hidden="true" className="h-5 w-5 text-brand-orange-400" />
+              <organization.icon aria-hidden="true" className="h-5 w-5 text-brand-400" />
             </span>
             <h3 className="mt-6 font-display text-2xl font-normal text-white">
               {organization.title}
@@ -78,7 +78,7 @@ export function RoleCards() {
           {organization.href && organization.linkText && (
             <Link
               href={organization.href}
-              className="group mt-7 inline-flex shrink-0 items-center gap-2 rounded-md border border-white/20 px-5 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900 lg:mt-0"
+              className="group mt-7 inline-flex shrink-0 items-center gap-2 rounded-md border border-white/20 px-5 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900 lg:mt-0"
             >
               {organization.linkText}
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />

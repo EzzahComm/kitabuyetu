@@ -32,7 +32,7 @@ export function MemberExperience() {
             <Reveal>
               <Link
                 href={ROUTES.memberApp}
-                className="group mt-8 inline-flex items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2"
+                className="group mt-8 inline-flex items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 See the member portal
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -48,8 +48,8 @@ export function MemberExperience() {
                 delay={i * 55}
                 className="border-t border-brand-blue-900/12 py-7 first:border-t-0 first:pt-0 sm:[&:nth-child(2)]:border-t-0 sm:[&:nth-child(2)]:pt-0"
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-orange-500/10">
-                  <benefit.icon aria-hidden="true" className="h-4 w-4 text-brand-orange-700" />
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/10">
+                  <benefit.icon aria-hidden="true" className="h-4 w-4 text-brand-700" />
                 </span>
                 <h3 className="mt-4 text-base font-semibold text-brand-blue-900">
                   {benefit.title}

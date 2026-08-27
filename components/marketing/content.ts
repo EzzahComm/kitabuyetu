@@ -321,7 +321,7 @@ export const ROLES: RoleCard[] = [
     title: 'Organizations and networks',
     body:  'NGOs, funders and umbrella bodies get their own portal, with a portfolio view across every group they support and the programs they fund.',
     href:  ROUTES.orgPortal,
-    linkText: 'Organization portal',
+    linkText: 'Enterprise portal',
   },
 ];
 

@@ -23,7 +23,7 @@ export function ImpactSection() {
             <>
               Real figures, pulled from the same ledger the platform runs on — published{' '}
               here the moment there is a track record worth reporting. See{' '}
-              <Link href={ROUTES.aboutImpact} className="font-medium text-brand-orange-700 hover:underline">
+              <Link href={ROUTES.aboutImpact} className="font-medium text-brand-700 hover:underline">
                 the full impact page
               </Link>.
             </>

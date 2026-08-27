@@ -90,7 +90,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                   className={cn(
                     'flex items-center gap-2 rounded-md px-2.5 py-2 text-[11px] font-medium',
                     item.active
-                      ? 'bg-brand-orange-500/10 text-brand-orange-700'
+                      ? 'bg-brand-500/10 text-brand-700'
                       : 'text-brand-blue-900/50',
                   )}
                 >
@@ -122,7 +122,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                   'rounded-lg p-3',
                   i === TILES.length - 1 && 'col-span-2 sm:col-span-1',
                   tile.tone === 'brand'
-                    ? 'bg-brand-orange-50 ring-1 ring-brand-orange-500/15'
+                    ? 'bg-brand-50 ring-1 ring-brand-500/15'
                     : 'bg-brand-blue-900/[0.035]',
                 )}
               >
@@ -147,7 +147,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                   <span
                     className={cn(
                       'h-1.5 w-1.5 shrink-0 rounded-full',
-                      row.out ? 'bg-brand-orange-500' : 'bg-brand-orange-500',
+                      row.out ? 'bg-brand-500' : 'bg-brand-500',
                     )}
                   />
                   <span className="min-w-0">
@@ -162,7 +162,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                 <span
                   className={cn(
                     'shrink-0 font-mono text-[11px] font-medium tabular-nums',
-                    row.out ? 'text-brand-orange-600' : 'text-brand-orange-700',
+                    row.out ? 'text-brand-600' : 'text-brand-700',
                   )}
                 >
                   {row.amount}
@@ -201,8 +201,8 @@ export function PaymentMockup({ className }: { className?: string }) {
             KSh 3,000
           </p>
         </div>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-orange-50 ring-1 ring-brand-orange-500/20">
-          <Check className="h-5 w-5 text-brand-orange-600" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 ring-1 ring-brand-500/20">
+          <Check className="h-5 w-5 text-brand-600" />
         </span>
       </div>
 
@@ -214,7 +214,7 @@ export function PaymentMockup({ className }: { className?: string }) {
         ].map(([key, value], i) => (
           <div key={key} className="flex items-center justify-between gap-3">
             <dt className="text-brand-blue-900/45">{key}</dt>
-            <dd className={i === 1 ? 'font-medium text-brand-orange-700' : 'text-brand-blue-900/80'}>
+            <dd className={i === 1 ? 'font-medium text-brand-700' : 'text-brand-blue-900/80'}>
               {value}
             </dd>
           </div>
@@ -232,7 +232,7 @@ export function PaymentMockup({ className }: { className?: string }) {
               <span className="font-medium tabular-nums text-brand-blue-900">KSh {row.amount}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-brand-blue-900/10">
-              <div className={cn('h-full rounded-full bg-brand-orange-500', row.width)} />
+              <div className={cn('h-full rounded-full bg-brand-500', row.width)} />
             </div>
           </div>
         ))}
@@ -258,7 +258,7 @@ export function ReportsMockup({ className }: { className?: string }) {
             </p>
             <p className="mt-1 flex items-baseline gap-2 font-display text-2xl font-normal tabular-nums text-brand-blue-900">
               KSh 1.24M
-              <span className="flex items-center gap-0.5 font-sans text-[11px] font-semibold text-brand-orange-600">
+              <span className="flex items-center gap-0.5 font-sans text-[11px] font-semibold text-brand-600">
                 <ArrowUpRight className="h-3 w-3" />18%
               </span>
             </p>
@@ -269,10 +269,10 @@ export function ReportsMockup({ className }: { className?: string }) {
           {bars.map((height, i) => (
             <div
               key={`${height}-${i}`}
-              className="flex-1 rounded-t-[3px] bg-brand-orange-500/20"
+              className="flex-1 rounded-t-[3px] bg-brand-500/20"
               style={{ height: `${height}%` }}
             >
-              <span className="block h-1.5 rounded-t-[3px] bg-brand-orange-500" />
+              <span className="block h-1.5 rounded-t-[3px] bg-brand-500" />
             </div>
           ))}
         </div>
@@ -290,7 +290,7 @@ export function ReportsMockup({ className }: { className?: string }) {
               <p
                 className={cn(
                   'mt-1 text-[11px] font-medium',
-                  item.tone === 'good' ? 'text-brand-orange-700' : 'text-brand-blue-900/80',
+                  item.tone === 'good' ? 'text-brand-700' : 'text-brand-blue-900/80',
                 )}
               >
                 {item.value}
@@ -327,7 +327,7 @@ export function MemberPhoneMockup({ className }: { className?: string }) {
         <p className="mt-1 font-display text-2xl font-normal tabular-nums text-white">
           KSh 24,600
         </p>
-        <p className="mt-1 flex items-center gap-1 font-mono text-[10px] text-brand-orange-400">
+        <p className="mt-1 flex items-center gap-1 font-mono text-[10px] text-brand-400">
           <ArrowUpRight className="h-3 w-3" />
           KSh 3,000 this month
         </p>
@@ -343,7 +343,7 @@ export function MemberPhoneMockup({ className }: { className?: string }) {
             <span
               className={cn(
                 'font-mono text-[11px] font-medium tabular-nums',
-                row.out ? 'text-brand-orange-600' : 'text-brand-orange-700',
+                row.out ? 'text-brand-600' : 'text-brand-700',
               )}
             >
               {row.amount}
@@ -352,7 +352,7 @@ export function MemberPhoneMockup({ className }: { className?: string }) {
         ))}
       </ul>
 
-      <div className="m-4 rounded-lg bg-brand-orange-600 py-2.5 text-center">
+      <div className="m-4 rounded-lg bg-brand-600 py-2.5 text-center">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
           Pay with M-Pesa
         </span>
@@ -389,7 +389,7 @@ export function SharesMockup({ className }: { className?: string }) {
               className={cn(
                 'rounded-lg p-3',
                 tile.tone === 'brand'
-                  ? 'bg-brand-orange-50 ring-1 ring-brand-orange-500/15'
+                  ? 'bg-brand-50 ring-1 ring-brand-500/15'
                   : 'bg-brand-blue-900/[0.035]',
               )}
             >
@@ -418,7 +418,7 @@ export function SharesMockup({ className }: { className?: string }) {
                   {holder.detail}
                 </span>
               </span>
-              <span className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-brand-orange-700">
+              <span className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-brand-700">
                 {holder.appreciation}
               </span>
             </li>
@@ -454,7 +454,7 @@ export function MessagesMockup({ className }: { className?: string }) {
           },
         ].map((msg) => (
           <div key={msg.tag} className="rounded-lg bg-brand-blue-900/[0.03] p-3.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-brand-orange-600">
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-brand-600">
               {msg.tag}
             </p>
             <p className="mt-1.5 text-[11.5px] leading-relaxed text-brand-blue-900/75">

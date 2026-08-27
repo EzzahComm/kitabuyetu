@@ -51,7 +51,7 @@ export function PricingSection() {
                 )}
               >
                 {featured && (
-                  <span className="absolute -top-3 left-8 rounded-full bg-brand-orange-500 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+                  <span className="absolute -top-3 left-8 rounded-full bg-brand-500 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
                     Most popular
                   </span>
                 )}
@@ -59,7 +59,7 @@ export function PricingSection() {
                 <h3
                   className={cn(
                     'font-mono text-[11px] font-medium uppercase tracking-[0.2em]',
-                    featured ? 'text-brand-orange-400' : 'text-brand-orange-700',
+                    featured ? 'text-brand-400' : 'text-brand-700',
                   )}
                 >
                   {plan.label}
@@ -90,7 +90,7 @@ export function PricingSection() {
                       aria-hidden="true"
                       className={cn(
                         'mt-0.5 h-4 w-4 shrink-0',
-                        featured ? 'text-brand-orange-400' : 'text-brand-orange-700',
+                        featured ? 'text-brand-400' : 'text-brand-700',
                       )}
                     />
                     <span
@@ -111,7 +111,7 @@ export function PricingSection() {
                         aria-hidden="true"
                         className={cn(
                           'mt-0.5 h-4 w-4 shrink-0',
-                          featured ? 'text-brand-orange-400' : 'text-brand-orange-700',
+                          featured ? 'text-brand-400' : 'text-brand-700',
                         )}
                       />
                       <span
@@ -129,9 +129,9 @@ export function PricingSection() {
                 <Link
                   href={ROUTES.startGroup}
                   className={cn(
-                    'mt-8 inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-2',
+                    'mt-8 inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                     featured
-                      ? 'bg-brand-orange-500 text-white hover:bg-brand-orange-400 focus-visible:ring-offset-brand-blue-900'
+                      ? 'bg-brand-500 text-white hover:bg-brand-400 focus-visible:ring-offset-brand-blue-900'
                       : 'bg-brand-blue-900/[0.05] text-brand-blue-900 hover:bg-brand-blue-900/[0.09] focus-visible:ring-offset-paper',
                   )}
                 >
@@ -159,7 +159,7 @@ export function PricingSection() {
           </p>
           <Link
             href={ROUTES.chamaReminder}
-            className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+            className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
           >
             Explore {PRODUCT_LABEL.chama_reminder}
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -175,7 +175,7 @@ export function PricingSection() {
           </p>
           <Link
             href={ROUTES.enterprise}
-            className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-orange-700 transition-colors hover:text-brand-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
+            className="group inline-flex shrink-0 items-center gap-2 rounded-sm text-[0.9375rem] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-paper"
           >
             Talk to us about Enterprise
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
