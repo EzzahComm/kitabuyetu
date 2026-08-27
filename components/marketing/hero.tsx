@@ -86,8 +86,10 @@ function Panel({ audience, delay }: { audience: AudiencePanel; delay: number }) 
 
 export function Hero() {
   return (
-    <section className="relative isolate overflow-hidden bg-brand-blue-900 pb-20 pt-28 text-white md:pb-24 md:pt-36">
-      <LedgerRules className="text-white" />
+    <section className="relative isolate overflow-hidden bg-brand-blue-900 pb-16 pt-24 text-white md:pb-24 md:pt-32">
+      <LedgerRules className="text-white/80" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-px bg-brand-400/80" />
+      <div aria-hidden="true" className="pointer-events-none absolute right-[8%] top-28 -z-10 hidden select-none font-display text-[15rem] leading-none text-white/[0.035] lg:block">K</div>
       {/* One warm light source, low and left — not a four-way gradient mesh. */}
       <div
         aria-hidden="true"
@@ -99,17 +101,25 @@ export function Hero() {
         className="absolute inset-y-0 left-[6.5%] -z-10 hidden w-px bg-brand-500/20 lg:block"
       />
 
-      <Container>
-        <div className="max-w-2xl">
-          <p className="inline-flex items-center gap-2.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-4 py-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-            Digitizing group administration to create vibrant communities
-          </p>
+      <div aria-label="Kitabu Yetu capabilities" className="mb-12 flex overflow-hidden border-y border-white/10 py-3 font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+        <div className="flex min-w-max animate-[ticker_24s_linear_infinite] gap-8">
+          <span>Savings</span><span aria-hidden="true" className="text-brand-400">/</span><span>Loans</span><span aria-hidden="true" className="text-brand-400">/</span><span>Welfare</span><span aria-hidden="true" className="text-brand-400">/</span><span>M-Pesa ready</span><span aria-hidden="true" className="text-brand-400">/</span><span>Member passbooks</span><span aria-hidden="true" className="text-brand-400">/</span><span>Double-entry books</span><span aria-hidden="true" className="text-brand-400">/</span>
+        </div>
+      </div>
 
-          <h1 className="mt-7 font-display text-[2.875rem] font-light leading-[1.02] tracking-tight sm:text-6xl lg:text-[4.5rem]">
-            Simple books.
+      <Container>
+        <div className="max-w-5xl">
+          <div className="flex items-center gap-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-300">
+            <span className="h-2 w-2 rounded-full bg-brand-400 shadow-[0_0_14px_hsl(var(--brand-green))]" />
+            Digital tools for vibrant communities
+            <span aria-hidden="true" className="hidden h-px w-20 bg-brand-400/40 sm:block" />
+            Kenya · East Africa
+          </div>
+
+          <h1 className="mt-8 max-w-4xl font-display text-[3.5rem] font-light leading-[0.92] tracking-[-0.04em] sm:text-7xl lg:text-[7.2rem]">
+            Your group&apos;s money.
             <br />
-            <em className="italic font-normal text-brand-400">Stronger groups.</em>
+            <em className="italic font-normal text-brand-400">Finally clear.</em>
           </h1>
 
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-brand-blue-100/75 sm:text-xl">

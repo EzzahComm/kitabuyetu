@@ -89,7 +89,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="bg-brand-blue-900" suppressHydrationWarning>
       <body className={`${inter.variable} ${fraunces.variable} ${dmMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
         <SpeedInsights />

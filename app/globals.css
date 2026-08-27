@@ -12,12 +12,12 @@
        lib/brand.ts) — CSS can't import TS, so this file stays hand-authored,
        but every HSL value below should keep the hex anchor in its comment so
        drift is visible on read, not just on build. */
-    --background:   0 0% 100%;            /* pure white page */
-    --foreground:   217 85% 11%;          /* navy text — derived from brand-blue */
-    --card:         0 0% 100%;
-    --card-foreground: 217 85% 11%;
-    --popover:      0 0% 100%;
-    --popover-foreground: 217 85% 11%;
+    --background:   217 85% 6%;          /* dark navy canvas */
+    --foreground:   210 40% 98%;
+    --card:         217 85% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover:      217 85% 8%;
+    --popover-foreground: 210 40% 98%;
     --primary:      124 42% 46%;          /* #3CB043 — brand green */
     --primary-foreground: 0 0% 100%;      /* white text on green */
     --secondary:    210 40% 98%;          /* #F8FAFC — neutral surface */
@@ -95,6 +95,11 @@ html {
 @keyframes shimmer {
   from { background-position: -200% 0; }
   to   { background-position:  200% 0; }
+}
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-35%); }
 }
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
