@@ -192,17 +192,22 @@ export function PaymentMockup({ className }: { className?: string }) {
         className,
       )}
     >
+      {/* Outcome language, not implementation. This deliberately does not say
+          "ledger split" or "Daraja callback verified" — a payer cares that the
+          money landed and was written down, and the mechanism is explained in
+          the payments section further down the page. */}
       <div className="flex items-start justify-between gap-4 border-b border-dashed border-brand-blue-900/15 pb-4">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-brand-blue-900/45">
-            Contribution received
+            Payment recorded automatically
           </p>
           <p className="mt-1.5 font-display text-3xl font-normal tabular-nums text-brand-blue-900 sm:text-[2.25rem]">
             KSh 3,000
           </p>
         </div>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 ring-1 ring-brand-500/20">
-          <Check className="h-5 w-5 text-brand-600" />
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 ring-1 ring-brand-500/20">
+          <Check className="h-3.5 w-3.5 text-brand-600" />
+          <span className="text-[10.5px] font-semibold text-brand-700">M-Pesa verified</span>
         </span>
       </div>
 
@@ -223,7 +228,7 @@ export function PaymentMockup({ className }: { className?: string }) {
 
       <div className="rounded-lg bg-brand-blue-900/[0.035] p-4">
         <p className="mb-3 font-mono text-[9.5px] uppercase tracking-[0.18em] text-brand-blue-900/45">
-          Split to the ledger
+          Where it went
         </p>
         {split.map((row) => (
           <div key={row.label} className="mb-2.5 last:mb-0">

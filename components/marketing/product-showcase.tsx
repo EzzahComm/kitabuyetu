@@ -6,7 +6,7 @@ import { Reveal } from './reveal';
 import { SHOWCASE, type ShowcaseVisual } from './content';
 import { SECTION_IDS } from './routes';
 import {
-  DashboardMockup, MessagesMockup, PaymentMockup, ReportsMockup,
+  DashboardMockup, MessagesMockup, PaymentMockup, ReportsMockup, SharesMockup,
 } from './product-mockups';
 
 function Visual({ kind }: { kind: ShowcaseVisual }) {
@@ -15,6 +15,7 @@ function Visual({ kind }: { kind: ShowcaseVisual }) {
     case 'payment':  return <PaymentMockup />;
     case 'reports':  return <ReportsMockup />;
     case 'messages': return <MessagesMockup />;
+    case 'shares':   return <SharesMockup />;
   }
 }
 
@@ -27,7 +28,7 @@ function Visual({ kind }: { kind: ShowcaseVisual }) {
  */
 export function ProductShowcase() {
   return (
-    <Section id={SECTION_IDS.showcase} tone="paper" labelledBy="showcase-heading">
+    <Section id={SECTION_IDS.showcase} tone="paper-deep" labelledBy="showcase-heading">
       <Container>
         <RevealedHeading
           id="showcase-heading"
