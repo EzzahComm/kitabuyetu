@@ -63,8 +63,17 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
     'Happy Birthday {{first_name}}! Your {{group_name}} family wishes you a wonderful year ahead. Stay blessed!',
   payment_confirmed:
     'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}. KitabuYetu.',
+  // Kept to one 160-character SMS segment even with a long group name —
+  // "Ndengelwa Community Water Project" is 33 characters and real, so the
+  // fixed text has to leave room for it. A second segment would double the
+  // credit cost of every member a group ever adds. The worked example lands
+  // at 114 characters:
+  //   "Karibu Benedict! You have joined Ndengelwa Community Water Project
+  //    on Kitabu Yetu. Your member number is NC000078."
+  // {{membership_no}} is the SHORT per-group number, never the long
+  // member_code — see the payload comment in members.service.ts.
   welcome:
-    'Welcome to {{group_name}} on KitabuYetu! Your digital savings hub is ready. Contact your group admin for details.',
+    'Karibu {{first_name}}! You have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}.',
   otp:
     'Your KitabuYetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
   group_announcement:
