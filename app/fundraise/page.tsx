@@ -56,7 +56,7 @@ export default function FundraisePage() {
       <div className="flex flex-wrap gap-3 pt-4">
         <Link
           href="/contact"
-          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper"
+          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper-deep"
         >
           Talk to us about Changi$ha
         </Link>
