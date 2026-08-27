@@ -25,6 +25,17 @@ import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 // Disable Next.js static optimisation — every call must be fresh
 export const dynamic = 'force-dynamic';
+/**
+ * Pinned, not inherited. processJobBatch enforces its own TIME_BUDGET_MS
+ * (50s) and that budget is only safe if it is provably below the function's
+ * real ceiling — a platform default can move underneath it, and if it ever
+ * moved DOWN the batch would resume being killed mid-write, which is the
+ * exact failure that once left jobs in 'processing' limbo for days.
+ *
+ * 60s leaves 10s of headroom over the batch budget, and cron fires every
+ * 5 minutes, so even a full-length tick finishes with 250s to spare.
+ */
+export const maxDuration = 60;
 
 /**
  * Constant-time secret comparison.

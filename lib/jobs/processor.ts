@@ -25,14 +25,19 @@ import {
 } from './db';
 import { handleJob } from './handlers';
 
-const BATCH_SIZE = 25;
+/**
+ * Ceiling on jobs claimed per tick. Raised from 25 alongside TIME_BUDGET_MS
+ * below — 25 was never the binding constraint (the 7-second budget stopped a
+ * tick long before it), so lifting the budget without lifting this would just
+ * move the bottleneck one step along.
+ */
+const BATCH_SIZE = 100;
 
 /**
  * Hard ceiling on this function's own wall-clock budget, independent of
- * whatever the actual Vercel function timeout is. Deliberately conservative
- * (the code above this used to assume a 10s Hobby limit but never enforced
- * it) — leaves headroom for the claim query, logging, and one in-flight job
- * to finish cleanly rather than being killed mid-write by the platform.
+ * whatever the actual Vercel function timeout is. Leaves headroom for the
+ * claim query, logging, and one in-flight job to finish cleanly rather than
+ * being killed mid-write by the platform.
  *
  * Before this existed, claimPendingJobs(10) claimed a whole batch up front
  * (marking all 10 'processing') and then awaited them one at a time with no
@@ -41,11 +46,28 @@ const BATCH_SIZE = 25;
  * exceeded the function's actual ceiling, the platform killed the invocation
  * mid-batch. Whatever hadn't finished sat in 'processing' limbo for a full
  * 6 minutes until resetStuckJobs reclaimed it, then collided with the exact
- * same timeout on the next tick — some job types made no forward progress
- * for days (confirmed in prod: sms_poll_dlr backlog to 1,009 pending,
- * sms_release_stale_reservations to 2,172, both untouched for a week+).
+ * same timeout on the next tick.
+ *
+ * RAISED FROM 7s TO 50s ON 2026-08-27. The 7-second figure was chosen when
+ * this code assumed a 10-second Hobby ceiling, and that assumption is simply
+ * out of date: Vercel's default function timeout is now 300s, and
+ * /api/cron now pins `maxDuration = 60` explicitly rather than inheriting a
+ * default that can move under it.
+ *
+ * 7 seconds was starving the queue outright. Measured in production the same
+ * day: a tick completed TWO jobs before its budget expired, against ~12
+ * distinct pending types — so with round-robin, most types waited several
+ * ticks for a turn and arrival outpaced throughput continuously. The queue
+ * had reached 11,505 pending with the oldest row nine days old, and a
+ * single-job type (one scheduled campaign) sat unclaimed behind three email
+ * backlogs of ~2,500 each.
+ *
+ * 50s inside a 60s ceiling keeps the original safety property — a tick still
+ * stops itself well before the platform can kill it mid-write — while giving
+ * roughly seven times the work per tick. Cron fires every 5 minutes, so even
+ * a full-length tick finishes with 250s to spare.
  */
-const TIME_BUDGET_MS = 7_000;
+const TIME_BUDGET_MS = 50_000;
 
 /**
  * Claim and process pending jobs in round-robin rounds across every distinct
