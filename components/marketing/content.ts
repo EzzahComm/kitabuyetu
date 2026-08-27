@@ -601,9 +601,15 @@ export interface EnterpriseFeature { icon: LucideIcon; title: string; body: stri
  * been sitting on `status: 'vision'` while the portal was already shipping —
  * the copy was behind the code, not ahead of it.
  *
- * Deliberately absent: any claim that an organization sees inside a group's
- * member-level records. It does not, and the tenant isolation in migration 097
- * is what stops it.
+ * DELIBERATELY ABSENT — do not add these back without checking the code:
+ *  • API keys / webhooks. The `api-keys` screen is a MOCK: it imports seed
+ *    rows from `_data` and its own comment says "no API key issuance /
+ *    webhook delivery backend exists yet". This card claimed them on
+ *    2026-08-27 and was live and false for about an hour. Screen size is not
+ *    evidence a feature exists — that page is 214 lines of working UI over
+ *    nothing.
+ *  • Any claim that an organization sees inside a group's member-level
+ *    records. It does not, and the tenant isolation in migration 097 stops it.
  */
 export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
   {
@@ -632,9 +638,9 @@ export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
     body: 'Organization staff sign in with a one-time code, hold defined roles, and every action they take is recorded.',
   },
   {
-    icon: KeyRound,
-    title: 'Reports and API keys',
-    body: 'Organization-level reporting across supported groups, plus API keys for institutions connecting Kitabu Yetu to their own systems.',
+    icon: Layers,
+    title: 'Reports and your own branding',
+    body: 'Budget variance across your programs, spend broken down by donor, and your organization’s own logo and colours on what it sends out.',
   },
 ];
 

@@ -35,7 +35,7 @@ export default function EcosystemPage() {
           <Link
             key={pillar.href}
             href={pillar.href}
-            className="group flex flex-col rounded-xl border border-brand-blue-900/10 p-5 transition-colors hover:border-brand-500/40 hover:bg-white"
+            className="group flex flex-col rounded-xl border border-brand-blue-900/10 p-5 transition-colors hover:border-brand-500/40 hover:bg-paper-deep"
           >
             <div className="flex items-start justify-between gap-3">
               <span className="flex items-center gap-2.5 text-base font-semibold text-brand-blue-900">
