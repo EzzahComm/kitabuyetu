@@ -24,67 +24,6 @@ import { ROUTES } from './routes';
  * import the nav without dragging twenty lucide glyphs into the bundle.
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/* ── Section 2 — hero audiences ───────────────────────────────────────────── */
-
-export interface AudiencePanel {
-  eyebrow:  string;
-  title:    string;
-  emphasis: string;
-  body:     string;
-  points:   string[];
-  visual:   'payment' | 'shares';
-  href:     string;
-  linkText: string;
-}
-
-/**
- * The hero speaks to two audiences, each anchored to something that ships
- * today rather than the "project tracking" / "investment tracking" pair a
- * follow-up brief proposed — both were found unpublishable, see
- * docs/audits/HERO_BRIEF_CLAIM_AUDIT_2026-08.md. These replacements are the
- * audit's own recommendation:
- *
- * Audience 1 traces mpesa-stk/c2b → the Daraja callback → contribution-splits
- * → accounting.postContributionJournal → sms + receipt (see PAYMENT_FLOW).
- *
- * Audience 2 traces share-classes / share-transactions / share-holdings — a
- * real trigger-maintained ledger, not the separate (and still record-only)
- * investments module. `computeAllocations` does genuine proportional
- * dividend distribution. Deliberately never claims a percentage stake or a
- * live valuation: the real /shares page only ever renders KES amounts, so
- * this copy does too.
- */
-export const AUDIENCES: AudiencePanel[] = [
-  {
-    eyebrow:  'For groups moving off paper',
-    title:    'M-Pesa collections,',
-    emphasis: 'reconciled into the book.',
-    body:     'A member pays by STK push or your group’s own PayBill. The payment is matched to their membership number, split into savings, welfare and loan repayment by rules your group sets once, and posted to the ledger the same moment — no reconciliation night, no guessing who has paid.',
-    points: [
-      'STK push and PayBill collection, on Safaricom’s own Daraja API',
-      'Every payment split and posted to the ledger automatically',
-      'A receipt to the member as soon as it’s confirmed',
-    ],
-    visual:   'payment',
-    href:     ROUTES.bookkeeper,
-    linkText: 'More on Bookkeeper',
-  },
-  {
-    eyebrow:  'For chamas already running digitally',
-    title:    'Share capital and dividends,',
-    emphasis: 'tracked to the shilling.',
-    body:     'Issue shares, record purchases, transfers and redemptions, and know exactly what each member has invested and what it is worth today. When it’s time to pay out, dividends are calculated across real holdings — not a spreadsheet somebody re-types before every AGM.',
-    points: [
-      'A share ledger with holdings, transactions and top holders',
-      'PDF share certificates issued on every transaction',
-      'Dividends allocated across real holdings, not estimated',
-    ],
-    visual:   'shares',
-    href:     ROUTES.bookkeeper,
-    linkText: 'More on Bookkeeper',
-  },
-];
-
 /* ── Section 3 — the problem ──────────────────────────────────────────────── */
 
 export interface PainPoint { icon: LucideIcon; title: string; body: string }
@@ -158,9 +97,42 @@ export const CAPABILITIES: Capability[] = [
   },
 ];
 
+/**
+ * The four-up value proposition directly under the hero — the whole product
+ * compressed into the four things a group actually recognises.
+ *
+ * Deliberately NOT the same list as CAPABILITIES above: that one enumerates
+ * every module and belongs further down, where a reader has already decided
+ * they are interested. This is the answer to "what is it", and four is the
+ * most a visitor absorbs before scrolling. "Money" folds savings, loans,
+ * welfare, shares and investments into one idea on purpose.
+ */
+export const VALUE_PILLARS: Capability[] = [
+  {
+    icon: Users,
+    title: 'Members',
+    body: 'Keep one up-to-date register of your members, their roles and their financial activity.',
+  },
+  {
+    icon: PiggyBank,
+    title: 'Money',
+    body: 'Track savings, contributions, loans, welfare, shares, dividends, income-generating activities and investments in one place.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Payments',
+    body: 'Connect M-Pesa collections and repayments directly to your group’s records.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Reports',
+    body: 'Get statements and reports without rebuilding the numbers every month.',
+  },
+];
+
 /* ── Section 6 — product showcase ─────────────────────────────────────────── */
 
-export type ShowcaseVisual = 'ledger' | 'payment' | 'reports' | 'messages';
+export type ShowcaseVisual = 'ledger' | 'payment' | 'reports' | 'messages' | 'shares';
 
 export interface ShowcaseItem {
   eyebrow:  string;
@@ -231,6 +203,21 @@ export const SHOWCASE: ShowcaseItem[] = [
     href:     ROUTES.chamaReminder,
     linkText: 'More on Chama Reminder',
   },
+  {
+    eyebrow:  'Grow the group’s money',
+    title:    'Shares, dividends and the activities',
+    emphasis: 'that earn for the group',
+    body:     'A group is more than its savings pot. Track share capital and dividends, and record the businesses, land, rentals and projects the group puts money into — what they earn, what they cost to run, and whether they are actually ahead.',
+    points: [
+      'A share ledger with holdings, transactions and PDF certificates',
+      'Dividends allocated across real holdings, not estimated',
+      'Income-generating activities and investments: farming, poultry, rentals, water projects, shops',
+      'Returns and running costs recorded against each one',
+    ],
+    visual:   'shares',
+    href:     ROUTES.bookkeeper,
+    linkText: 'More on Bookkeeper',
+  },
 ];
 
 /* ── Section 7 — how it works ─────────────────────────────────────────────── */
@@ -238,13 +225,13 @@ export const SHOWCASE: ShowcaseItem[] = [
 export interface Step { title: string; body: string }
 
 /**
- * The six-step journey — Create, Organize, Automate, Collect, Communicate,
- * Grow. Collect and Communicate are the two steps with a real, shipped
- * feature behind every sentence (Daraja + contribution-splits; the SMS
- * pipeline). Grow reaches toward the ecosystem (organizations, donors,
- * programs) — several of those destinations are the vision this platform is
- * building toward rather than a shipped feature today; see each
- * /ecosystem/* page for what is live versus what is coming.
+ * The six-step journey — Create, Organize, Set your rules, Start recording,
+ * Digital ledger, Grow. Steps 4 and 5 each have a real, shipped feature behind
+ * every sentence (contribution-splits; Daraja + the posting templates). Grow
+ * reaches toward the ecosystem (organizations, donors, programs) — several of
+ * those destinations are the vision this platform is building toward rather
+ * than a shipped feature today; see each /ecosystem/* page for what is live
+ * versus what is coming.
  */
 export const STEPS: Step[] = [
   {
@@ -256,16 +243,16 @@ export const STEPS: Step[] = [
     body:  'Add members one at a time or import the register you already keep. Set roles — chairperson, treasurer, secretary — and the rules your group runs by.',
   },
   {
-    title: 'Automate',
-    body:  'Contribution splits, loan schedules, dividend allocations and reminders run themselves once you set the rule, instead of being redone by hand every cycle.',
+    title: 'Set your rules',
+    body:  'Configure contributions, loans, welfare and the rest — contribution splits, loan schedules, dividend allocations and reminders then run themselves instead of being redone by hand every cycle.',
   },
   {
-    title: 'Collect',
-    body:  'Take contributions and loan repayments by M-Pesa — STK push or your own PayBill — reconciled to the ledger the moment Safaricom confirms it.',
+    title: 'Start recording',
+    body:  'Record contributions, payments, loans, welfare and everything else the group does — by hand where you need to, automatically where M-Pesa can do it for you.',
   },
   {
-    title: 'Communicate',
-    body:  'Reminders, confirmations, meeting notices and announcements reach members automatically, from the same system that holds the money.',
+    title: 'Digital ledger',
+    body:  'Collect contributions and repayments digitally, and watch them post themselves to a ledger that always balances.',
   },
   {
     title: 'Grow',

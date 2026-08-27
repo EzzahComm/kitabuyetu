@@ -104,11 +104,26 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
  * is which in the header, so it stays a single typed array rather than two
  * parallel lists that can drift apart.
  */
+/**
+ * Primary navigation. About and Products are dropdowns (`NavGroup`);
+ * everything else is a direct link. `isNavGroup` narrows which is which in the
+ * header, so it stays a single typed array rather than two parallel lists that
+ * can drift apart.
+ *
+ * ENTERPRISE IS TOP-LEVEL, not buried in the Products dropdown: it is a
+ * shipped product with its own buyer, and an institution evaluating it should
+ * not have to open a menu to find out it exists.
+ *
+ * ECOSYSTEM IS DELIBERATELY ABSENT HERE. It is the vision layer, not a product
+ * anyone can buy today, and putting it beside Pricing implied otherwise. Its
+ * four pages stay reachable — from the footer's Ecosystem column and from the
+ * homepage section — so nothing is orphaned by the demotion.
+ */
 export const NAV_ITEMS: NavEntry[] = [
   { label: 'Home',          href: ROUTES.home },
   { label: 'About',         items: ABOUT_ITEMS },
   { label: 'Products',      items: PRODUCT_ITEMS },
-  { label: 'Ecosystem',     items: ECOSYSTEM_ITEMS },
+  { label: 'Enterprise',    href: ROUTES.enterprise },
   { label: 'How it works',  href: `/#${SECTION_IDS.howItWorks}` },
   { label: 'Pricing',       href: ROUTES.pricing },
   { label: 'Contact',       href: ROUTES.contact },

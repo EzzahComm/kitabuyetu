@@ -22,7 +22,7 @@ import { ROUTES } from './routes';
  */
 export function ProductPillarsSection() {
   return (
-    <Section tone="paper" labelledBy="products-heading">
+    <Section tone="paper-deep" labelledBy="products-heading">
       <Container>
         <RevealedHeading
           id="products-heading"
@@ -44,7 +44,7 @@ export function ProductPillarsSection() {
             <Reveal key={product.title} delay={i * 80}>
               <Link
                 href={product.href}
-                className="group flex h-full flex-col rounded-xl border border-brand-blue-900/10 bg-paper-deep p-6 transition-colors hover:border-brand-500/40"
+                className="group flex h-full flex-col rounded-xl border border-brand-blue-900/10 bg-paper p-6 transition-colors hover:border-brand-500/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <product.icon aria-hidden="true" className="h-6 w-6 text-brand-600" />
