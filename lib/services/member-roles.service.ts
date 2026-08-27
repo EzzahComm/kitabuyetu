@@ -206,7 +206,8 @@ export async function assignGroupMemberRole(input: {
       const out = await notifyMember({
         groupId, memberId,
         phone: membership.phone,
-        body:  `KitabuYetu: Your role in ${membership.group_name} is now ${role.name}.`,
+        // No brand prefix — the sender ID is already "KITABU YETU".
+        body:  `Your role in ${membership.group_name} is now ${role.name}.`,
         referenceType: 'role_assignment',
         referenceId:   memberId,
         // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):

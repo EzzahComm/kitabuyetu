@@ -62,7 +62,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   birthday:
     'Happy Birthday {{first_name}}! Your {{group_name}} family wishes you a wonderful year ahead. Stay blessed!',
   payment_confirmed:
-    'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}. KitabuYetu.',
+    'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}.',
   // Kept to one 160-character SMS segment even with a long group name —
   // "Ndengelwa Community Water Project" is 33 characters and real, so the
   // fixed text has to leave room for it. A second segment would double the
@@ -75,11 +75,11 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   welcome:
     'Dear {{first_name}}, you have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}. Karibu.',
   otp:
-    'Your KitabuYetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
+    'Your Kitabu Yetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
   group_announcement:
     '{{group_name}}: {{message}}',
   group_verification_otp:
-    'KitabuYetu: Verify your group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
+    'Verify your Kitabu Yetu group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
 };
 
 /** Render a named built-in template with the given variables. */
