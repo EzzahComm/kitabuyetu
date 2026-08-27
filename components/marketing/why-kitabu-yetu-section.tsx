@@ -10,7 +10,7 @@ import { WHY_KITABU_YETU } from './content';
  */
 export function WhyKitabuYetuSection() {
   return (
-    <Section tone="paper-deep" labelledBy="why-heading">
+    <Section tone="paper" labelledBy="why-heading">
       <Container>
         <RevealedHeading
           id="why-heading"

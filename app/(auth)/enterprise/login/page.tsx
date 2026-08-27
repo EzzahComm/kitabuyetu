@@ -48,7 +48,7 @@ export default function EnterpriseLoginPage() {
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-brand-600" />
               <CardTitle className="text-brand-blue-900">
-                {phase.kind === 'password'   && 'Organization sign-in'}
+                {phase.kind === 'password'   && 'Enterprise sign-in'}
                 {phase.kind === 'enroll'     && 'Set up two-factor authentication'}
                 {phase.kind === 'verify'     && 'Enter your authenticator code'}
                 {phase.kind === 'chooseOrg'  && 'Choose an organization'}

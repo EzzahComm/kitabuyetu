@@ -6,15 +6,23 @@ import { PRODUCT_PILLARS } from './content';
 import { ROUTES } from './routes';
 
 /**
- * Section — product overview. Four cards naming the product family; the
- * `vision` badge on Fundraise/Changi$ha and Enterprise mirrors the same
- * status distinction PRODUCT_PILLARS carries everywhere else it renders
- * (the /products page, the header dropdown descriptions) rather than
- * inventing a different tone here.
+ * Section — product overview. Four cards naming the product family, each
+ * carrying the status PRODUCT_PILLARS declares, which is the same status the
+ * /products page and the header dropdown read.
+ *
+ * BOTH states are labelled, not just `vision`. Leaving `live` unmarked meant
+ * availability was communicated by the ABSENCE of a badge, which is not
+ * something a visitor can read — three shipped products looked like they had
+ * no status at all next to one marked "Coming soon". Bookkeeper, Chama
+ * Reminder and Enterprise are available today; only Fundraise/Changi$ha is not.
+ *
+ * "Coming soon" keeps the orange it has always had — orange is this palette's
+ * not-yet/attention accent, not its brand colour — while "Available now" is
+ * green, so the eye lands on what a visitor can actually buy.
  */
 export function ProductPillarsSection() {
   return (
-    <Section tone="white" labelledBy="products-heading">
+    <Section tone="paper" labelledBy="products-heading">
       <Container>
         <RevealedHeading
           id="products-heading"
@@ -36,13 +44,17 @@ export function ProductPillarsSection() {
             <Reveal key={product.title} delay={i * 80}>
               <Link
                 href={product.href}
-                className="group flex h-full flex-col rounded-xl border border-brand-blue-900/10 bg-paper p-6 transition-colors hover:border-brand-500/40"
+                className="group flex h-full flex-col rounded-xl border border-brand-blue-900/10 bg-paper-deep p-6 transition-colors hover:border-brand-500/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <product.icon aria-hidden="true" className="h-6 w-6 text-brand-600" />
-                  {product.status === 'vision' && (
+                  {product.status === 'vision' ? (
                     <span className="shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700">
                       Coming soon
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                      Available now
                     </span>
                   )}
                 </div>

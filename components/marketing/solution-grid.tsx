@@ -14,15 +14,15 @@ export function SolutionGrid() {
   const [lead, second, ...rest] = CAPABILITIES;
 
   return (
-    <Section id={SECTION_IDS.solution} tone="white" labelledBy="solution-heading">
+    <Section id={SECTION_IDS.solution} tone="paper" labelledBy="solution-heading">
       <Container>
         <RevealedHeading
           id="solution-heading"
           eyebrow="What Kitabu Yetu is"
-          title="One digital book for"
-          emphasis="your entire group"
+          title="Your group’s records."
+          emphasis="Finally in one place"
           trailing="."
-          lede="Everything a group needs to run its money, in one place your members can reach — and nothing it does not."
+          lede="Running a group should be about building together — not spending meeting after meeting checking notebooks, spreadsheets and M-Pesa statements against each other."
         />
 
         <div className="mt-14 grid gap-5 lg:mt-20 lg:grid-cols-2">
@@ -30,7 +30,7 @@ export function SolutionGrid() {
             <Reveal
               key={item.title}
               delay={i * 80}
-              className="flex flex-col rounded-2xl bg-paper p-8 ring-1 ring-brand-blue-900/[0.08] transition-shadow duration-300 hover:shadow-[0_20px_50px_-32px_rgba(4,22,47,0.4)] lg:p-10"
+              className="flex flex-col rounded-2xl bg-paper-deep p-8 ring-1 ring-brand-blue-900/[0.08] transition-shadow duration-300 hover:shadow-[0_20px_50px_-32px_rgba(4,22,47,0.4)] lg:p-10"
             >
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 ring-1 ring-brand-500/20">
                 <item.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
@@ -50,7 +50,7 @@ export function SolutionGrid() {
             <Reveal
               key={item.title}
               delay={i * 60}
-              className="group bg-white p-7 transition-colors duration-300 hover:bg-paper"
+              className="group bg-paper-deep p-7 transition-colors duration-300 hover:bg-white"
             >
               <item.icon
                 aria-hidden="true"

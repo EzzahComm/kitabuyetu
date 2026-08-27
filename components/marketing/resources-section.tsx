@@ -15,7 +15,7 @@ import { RESOURCES } from './content';
  */
 export function ResourcesSection() {
   return (
-    <Section tone="white" labelledBy="resources-heading">
+    <Section tone="paper" labelledBy="resources-heading">
       <Container>
         <RevealedHeading
           id="resources-heading"
@@ -28,10 +28,10 @@ export function ResourcesSection() {
 
         <ul className="mt-14 grid gap-px overflow-hidden rounded-2xl bg-brand-blue-900/[0.09] ring-1 ring-brand-blue-900/[0.09] sm:grid-cols-2 lg:mt-20 lg:grid-cols-3">
           {RESOURCES.map((item, i) => (
-            <Reveal as="li" key={item.href} delay={i * 55} className="bg-white">
+            <Reveal as="li" key={item.href} delay={i * 55} className="bg-paper-deep">
               <Link
                 href={item.href}
-                className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+                className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
               >
                 <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.2em] text-brand-700">
                   {item.kind}

@@ -43,7 +43,18 @@ export const brandNavy = {
   900: '#04162F',
 } as const;
 
-/** Orange accent reserved for alerts/actions per the brand direction. */
+/**
+ * Orange accent reserved for alerts/actions per the brand direction.
+ *
+ * This is an ACCENT, not a brand colour: money-out/disbursement states, and
+ * on the marketing surface the "Coming soon" / not-yet-live markers. Green
+ * stays the brand. The ramp is deliberately partial — only the steps actually
+ * in use are declared, per this file's "do not invent new shades" rule.
+ *
+ * (Briefly promoted to the marketing primary on 2026-08-26 and reverted the
+ * next day; the 200/400/800/900 steps that promotion needed went with it,
+ * since nothing references them.)
+ */
 export const brandOrange = {
   50:  '#FFF4ED',
   100: '#FFE6D5',
@@ -54,17 +65,20 @@ export const brandOrange = {
 } as const;
 
 /**
- * Warm paper ground for the public marketing surface.
+ * Ground for the public marketing surface.
  *
- * `#FBFAF5` was hardcoded as a bare hex in six separate landing components
- * before this existed — the one colour on the site with no token behind it,
- * which is precisely the drift risk the rest of this file exists to prevent.
- * `deep` is the one step down, used to separate stacked light sections
- * without reaching for a border.
+ * Was a warm cream (`#FBFAF5` / `#F4F1E7`) until 2026-08-26, when the brand
+ * direction moved to a clean white page with orange carrying the warmth
+ * instead of the paper. `deep` is the one step down, used to separate stacked
+ * light sections without reaching for a border — it is a cool neutral now, so
+ * it sits under white without the cream cast the old pairing had.
+ *
+ * The name is kept: it is referenced as `bg-paper` in ~30 places, and the
+ * token's JOB (the marketing ground) has not changed, only its value.
  */
 export const brandPaper = {
-  DEFAULT: '#FBFAF5',
-  deep:    '#F4F1E7',
+  DEFAULT: '#FFFFFF',
+  deep:    '#F8FAFC',
 } as const;
 
 /** Convenience aliases for the spec's named neutral/accent tokens. */

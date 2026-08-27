@@ -23,7 +23,7 @@ export default function FundraisePage() {
       title="Fundraise / Changi$ha"
       description="Digital fundraising and collections — coming soon."
     >
-      <div className="rounded-lg border border-brand-orange-100 bg-brand-orange-50 px-4 py-3 text-sm font-medium text-brand-orange-700">
+      <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
         Coming soon. This tool is not available yet.
       </div>
 

@@ -147,7 +147,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                   <span
                     className={cn(
                       'h-1.5 w-1.5 shrink-0 rounded-full',
-                      row.out ? 'bg-brand-orange-500' : 'bg-brand-500',
+                      row.out ? 'bg-brand-500' : 'bg-brand-500',
                     )}
                   />
                   <span className="min-w-0">
@@ -162,7 +162,7 @@ export function DashboardMockup({ className }: { className?: string }) {
                 <span
                   className={cn(
                     'shrink-0 font-mono text-[11px] font-medium tabular-nums',
-                    row.out ? 'text-brand-orange-600' : 'text-brand-700',
+                    row.out ? 'text-brand-600' : 'text-brand-700',
                   )}
                 >
                   {row.amount}
@@ -343,7 +343,7 @@ export function MemberPhoneMockup({ className }: { className?: string }) {
             <span
               className={cn(
                 'font-mono text-[11px] font-medium tabular-nums',
-                row.out ? 'text-brand-orange-600' : 'text-brand-700',
+                row.out ? 'text-brand-600' : 'text-brand-700',
               )}
             >
               {row.amount}

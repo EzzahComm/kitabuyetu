@@ -19,7 +19,7 @@ export function RoleCards() {
   const organization = ROLES[ROLES.length - 1];
 
   return (
-    <Section tone="white" labelledBy="roles-heading">
+    <Section tone="paper-deep" labelledBy="roles-heading">
       <Container>
         <RevealedHeading
           id="roles-heading"
@@ -37,7 +37,7 @@ export function RoleCards() {
               delay={i * 70}
               className="flex h-full flex-col rounded-2xl bg-paper p-7 ring-1 ring-brand-blue-900/[0.08]"
             >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white ring-1 ring-brand-blue-900/[0.08]">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-paper-deep ring-1 ring-brand-blue-900/[0.08]">
                 <role.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
               </span>
               <h3 className="mt-6 text-lg font-semibold text-brand-blue-900">{role.title}</h3>

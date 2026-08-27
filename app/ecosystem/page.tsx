@@ -46,7 +46,7 @@ export default function EcosystemPage() {
                 className={
                   pillar.status === 'live'
                     ? 'shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700'
-                    : 'shrink-0 rounded-full bg-brand-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-700'
+                    : 'shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700'
                 }
               >
                 {pillar.status === 'live' ? 'Live' : 'Coming soon'}

@@ -37,7 +37,7 @@ export function HowItWorks() {
             >
               <span
                 aria-hidden="true"
-                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper-deep font-mono text-[13px] font-medium tabular-nums text-brand-700 sm:static sm:mb-6 sm:flex"
+                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full border border-brand-blue-900/12 bg-paper font-mono text-[13px] font-medium tabular-nums text-brand-700 sm:static sm:mb-6 sm:flex"
               >
                 {String(i + 1).padStart(2, '0')}
               </span>

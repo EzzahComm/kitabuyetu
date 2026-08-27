@@ -11,7 +11,7 @@ import { ROUTES } from './routes';
  */
 export function ImpactSection() {
   return (
-    <Section tone="paper" labelledBy="impact-heading">
+    <Section tone="paper-deep" labelledBy="impact-heading">
       <Container>
         <RevealedHeading
           id="impact-heading"

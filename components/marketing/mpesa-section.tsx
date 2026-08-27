@@ -58,8 +58,8 @@ export function MpesaSection() {
         </ol>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-3">
-          <Reveal className="rounded-2xl border border-brand-orange-500/25 bg-brand-orange-500/[0.07] p-7 lg:col-span-2">
-            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-orange-300">
+          <Reveal className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-7 lg:col-span-2">
+            <span className="inline-flex items-center gap-2.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-brand-300">
               <AlertCircle aria-hidden="true" className="h-4 w-4" />
               What it will not do
             </span>

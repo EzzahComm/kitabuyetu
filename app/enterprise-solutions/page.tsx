@@ -29,7 +29,7 @@ export default function EnterpriseSolutionsPage() {
       <p>
         NGOs, federations and umbrella bodies rarely oversee a single chama or SACCO —
         they run dozens, each with its own officers, its own meeting calendar, and its
-        own ledger that needs to stay exactly that: its own. The organization portal
+        own ledger that needs to stay exactly that: its own. The Enterprise portal
         gives an institution one login and a portfolio view across every group it
         supports, without merging any group&apos;s books into another&apos;s.
       </p>
@@ -37,7 +37,7 @@ export default function EnterpriseSolutionsPage() {
       <h2>What&apos;s live today</h2>
       <ul className="ml-5 list-disc space-y-2">
         <li>Multi-group registration under a single organization account.</li>
-        <li>A dedicated organization portal, separate from any individual group&apos;s dashboard.</li>
+        <li>A dedicated Enterprise portal, separate from any individual group&apos;s dashboard.</li>
         <li>Per-group visibility for the organization, per-group privacy for the group&apos;s own members.</li>
       </ul>
 
@@ -59,7 +59,7 @@ export default function EnterpriseSolutionsPage() {
           href={ROUTES.orgPortal}
           className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper"
         >
-          Sign in to the organization portal
+          Sign in to the Enterprise portal
         </Link>
       </div>
     </PageShell>

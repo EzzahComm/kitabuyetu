@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { buildQuery } from '@/lib/utils';
-import type { investmentsService , CreateInvestmentPayload, UpdateInvestmentPayload, RecordReturnPayload } from '@/lib/services/investments.service';
+import type { investmentsService , CreateInvestmentPayload, UpdateInvestmentPayload, RecordReturnPayload, RecordExpensePayload } from '@/lib/services/investments.service';
 import type { PaginatedResult } from '@/types/db.types';
 
 const BASE = '/investments';
@@ -25,6 +25,8 @@ export interface InvestmentRow {
   created_by_name:      string;
   /** Sum of investment_returns for this investment — computed, not a real column. */
   total_returns:        string;
+  /** Sum of investment_expenses — computed, not a real column (migration 156). */
+  total_expenses:       string;
   created_at:           string;
 }
 
@@ -35,6 +37,19 @@ export interface InvestmentReturnRow {
   return_type:      string;
   amount:           string;
   return_date:      string;
+  receipt_number:   string | null;
+  notes:            string | null;
+  recorded_by_name: string;
+  created_at:       string;
+}
+
+/** A row of `investment_expenses`, as getById returns it (migration 156). */
+export interface InvestmentExpenseRow {
+  id:               string;
+  investment_id:    string;
+  expense_type:     string;
+  amount:           string;
+  expense_date:     string;
   receipt_number:   string | null;
   notes:            string | null;
   recorded_by_name: string;
@@ -60,6 +75,7 @@ export interface InvestmentShareRow {
 export type InvestmentDetail = InvestmentRow & {
   approved_by_name: string | null;
   returns:          InvestmentReturnRow[];
+  expenses:         InvestmentExpenseRow[];
   shares:           InvestmentShareRow[];
 };
 
@@ -127,6 +143,20 @@ export function useRecordInvestmentReturn(investmentId: string) {
       qc.invalidateQueries({ queryKey: investmentKeys.detail(investmentId) });
       // The list's "Returns Earned" column is a SUM over investment_returns,
       // so it goes stale on a new return just like the summary does.
+      qc.invalidateQueries({ queryKey: investmentKeys.lists() });
+      qc.invalidateQueries({ queryKey: investmentKeys.summary });
+    },
+  });
+}
+
+export function useRecordInvestmentExpense(investmentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RecordExpensePayload) => api.post<unknown>(`${BASE}/${investmentId}/expenses`, body),
+    // Same invalidation set as a return: an expense moves the list's totals
+    // and the portfolio ROI, which is now net of expenses (migration 156).
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: investmentKeys.detail(investmentId) });
       qc.invalidateQueries({ queryKey: investmentKeys.lists() });
       qc.invalidateQueries({ queryKey: investmentKeys.summary });
     },

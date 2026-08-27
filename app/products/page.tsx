@@ -25,7 +25,7 @@ export default function ProductsPage() {
             <div className="flex items-center justify-between">
               <product.icon aria-hidden="true" className="h-6 w-6 text-brand-600" />
               {product.status === 'vision' && (
-                <span className="rounded-full bg-brand-orange-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-brand-orange-700">
+                <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-brand-700">
                   Coming soon
                 </span>
               )}

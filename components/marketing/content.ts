@@ -2,7 +2,7 @@ import {
   ArrowLeftRight, BarChart3, BookOpen, BookMarked, Briefcase, Building2,
   ClipboardList, Coins, EyeOff, Gift, GitBranch, Heart, KeyRound,
   Landmark, Layers, Lock, Megaphone, MessageSquareText, Network,
-  PiggyBank, ScrollText, Send, ShieldCheck, Smartphone,
+  PiggyBank, ScrollText, Send, ShieldCheck, Smartphone, Sprout,
   Store, Table2, UserRound, Users, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from './routes';
@@ -142,6 +142,11 @@ export const CAPABILITIES: Capability[] = [
     body: 'Collect by STK push or PayBill and pay out by B2C, on Safaricom’s official Daraja API — not a workaround.',
   },
   {
+    icon: Sprout,
+    title: 'Income-generating activities and investments',
+    body: 'Record what the group puts into a business, a piece of land, rental property or a fixed deposit — then track the income it brings in, the costs of running it, and whether it is actually ahead once both are counted.',
+  },
+  {
     icon: BarChart3,
     title: 'Reports',
     body: 'Trial balance, member statements, contribution and loan reports — generated from the ledger rather than retyped into one.',
@@ -176,9 +181,9 @@ export const SHOWCASE: ShowcaseItem[] = [
     emphasis: 'can actually use',
     body:     'Kitabu Yetu is double-entry accounting underneath — the same discipline an auditor expects — with none of the accounting vocabulary on the surface.',
     points: [
-      'A chart of accounts created for your group at registration',
+      'Members, savings, contributions, loans, welfare, shares and dividends',
+      'Income-generating activities and investments — income, running costs and net performance',
       'Journals posted automatically as money moves',
-      'A trial balance that balances, on demand',
       'Fiscal periods you can close so the past stops changing',
     ],
     visual:   'ledger',
@@ -316,7 +321,7 @@ export const ROLES: RoleCard[] = [
     title: 'Organizations and networks',
     body:  'NGOs, funders and umbrella bodies get their own portal, with a portfolio view across every group they support and the programs they fund.',
     href:  ROUTES.orgPortal,
-    linkText: 'Organization portal',
+    linkText: 'Enterprise portal',
   },
 ];
 
@@ -324,16 +329,32 @@ export const ROLES: RoleCard[] = [
 
 export interface FlowStep { label: string; body: string }
 
-/** Traces the real path: mpesa-stk / mpesa-c2b → daraja callback →
- *  mpesa-allocation → contribution-splits → accounting.postContributionJournal
- *  → sms + receipt. */
+/**
+ * Traces the real path: mpesa-stk / mpesa-c2b → daraja callback →
+ * mpesa-allocation → contribution-splits → accounting.postContributionJournal
+ * → sms + receipt.
+ *
+ * Three steps, not the six this used to list. The six were each accurate, but
+ * they described the SYSTEM's work rather than the group's experience — a
+ * treasurer does not do six things, they do one, and the other five happen to
+ * them. Every fact from the longer version survives inside these bodies
+ * (Daraja verification, matching by membership number, the split rules, both
+ * sides of the journal, the fee, the receipt); none of it was dropped to make
+ * the section shorter.
+ */
 export const PAYMENT_FLOW: FlowStep[] = [
-  { label: 'Member pays',      body: 'An STK prompt on their phone, or your PayBill quoting their membership number.' },
-  { label: 'Safaricom confirms', body: 'The Daraja callback arrives and is verified before anything is written down.' },
-  { label: 'Matched to a member', body: 'By membership number, or by the STK request that started it.' },
-  { label: 'Split by your rules', body: 'Savings, welfare and loan repayment, in the proportions your group set.' },
-  { label: 'Journal posted',   body: 'Both sides of the entry, including Safaricom’s transaction fee.' },
-  { label: 'Everyone told',    body: 'Receipt to the member, balances updated, reports current.' },
+  {
+    label: 'Member pays',
+    body:  'An STK prompt straight to their phone, or your PayBill quoting their membership number. Anyone can pay for a member — a spouse, a child, a well-wisher — and it still lands in the right place.',
+  },
+  {
+    label: 'Payment is matched',
+    body:  'Safaricom’s Daraja callback is verified before anything is written down, then matched to the member by their membership number or the STK request that started it.',
+  },
+  {
+    label: 'The records update',
+    body:  'Split into savings, welfare and loan repayment by the rules your group set once, posted to the ledger with Safaricom’s fee, and confirmed to the member — balances and reports current the same moment.',
+  },
 ];
 
 /* ── Section 10 — trust ───────────────────────────────────────────────────── */
@@ -484,10 +505,17 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
     icon: Briefcase,
     title: 'Enterprise',
     body: 'For institutions managing multiple groups or programs — centralized oversight without losing any group’s own book.',
-    points: ['Multi-group and multi-organization dashboards', 'Portfolio-level reporting across every group', 'APIs and integrations for larger institutions'],
+    points: ['Multi-group and multi-organization dashboards', 'Programs, funding and disbursements to the groups you back', 'Organization-level reports, audit log and API keys'],
     href: ROUTES.enterprise,
     linkText: 'Explore Enterprise',
-    status: 'vision',
+    // Corrected from 'vision' 2026-08-26. This was stale, and it was
+    // understating the product: the (enterprise) portal ships ten real
+    // screens — dashboard, members, branches, funding, disbursements,
+    // reports, billing, branding, audit and api-keys — behind 35 live
+    // /api/admin/organization* routes, with organization plans in
+    // migration 152. Every point above names one of those screens.
+    // Per-group member-level stake is still NOT built; nothing here claims it.
+    status: 'live',
   },
 ];
 
@@ -560,6 +588,107 @@ export const ECOSYSTEM_PILLARS: EcosystemPillar[] = [
     href: ROUTES.ecosystemPrograms,
     status: 'vision',
   },
+];
+
+/* ── Section 16 — Enterprise (homepage section + /enterprise-solutions) ───── */
+
+export interface EnterpriseFeature { icon: LucideIcon; title: string; body: string }
+
+/**
+ * Every card names a screen that exists in `app/(enterprise)/enterprise/`,
+ * backed by one of the 35 live `/api/admin/organization*` routes. Verified
+ * 2026-08-26 before this section was written, because the product pillar had
+ * been sitting on `status: 'vision'` while the portal was already shipping —
+ * the copy was behind the code, not ahead of it.
+ *
+ * Deliberately absent: any claim that an organization sees inside a group's
+ * member-level records. It does not, and the tenant isolation in migration 097
+ * is what stops it.
+ */
+export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
+  {
+    icon: Building2,
+    title: 'Every group in one account',
+    body: 'Bring the groups you support under a single organization login, each keeping its own officers, its own ledger and its own members.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Organization dashboard',
+    body: 'Group activity and contribution volume across the portfolio, read from the same ledgers the groups themselves use.',
+  },
+  {
+    icon: Megaphone,
+    title: 'Programs',
+    body: 'Set up programs with their own budget and criteria, and track which of your groups are enrolled in each.',
+  },
+  {
+    icon: Send,
+    title: 'Funding and disbursements',
+    body: 'Move money out to the groups you back — with a budget, a tranche it draws from, and a second approver before it leaves.',
+  },
+  {
+    icon: ScrollText,
+    title: 'Audit log and access control',
+    body: 'Organization staff sign in with a one-time code, hold defined roles, and every action they take is recorded.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Reports and API keys',
+    body: 'Organization-level reporting across supported groups, plus API keys for institutions connecting Kitabu Yetu to their own systems.',
+  },
+];
+
+/* ── Section 17 — the two customer paths ──────────────────────────────────── */
+
+export interface CustomerPath {
+  icon:     LucideIcon;
+  eyebrow:  string;
+  title:    string;
+  body:     string;
+  audience: string[];
+  href:     string;
+  linkText: string;
+}
+
+/** The self-selection fork. Both destinations are real pages; the group path
+ *  goes to registration because a group can genuinely self-serve, and the
+ *  organization path goes to the public Enterprise pitch rather than
+ *  ROUTES.orgPortal, which is the authenticated portal behind a sign-in. */
+export const CUSTOMER_PATHS: CustomerPath[] = [
+  {
+    icon:     Users,
+    eyebrow:  'I run a group',
+    title:    'One place for your members, your money and your records.',
+    body:     'Manage members, savings, contributions, loans, welfare, shares and investments — and collect by M-Pesa without reconciling it by hand.',
+    audience: ['Chamas', 'Welfare groups', 'Investment clubs', 'SACCOs', 'VSLAs', 'Community groups'],
+    href:     ROUTES.startGroup,
+    linkText: 'Start your group',
+  },
+  {
+    icon:     Network,
+    eyebrow:  'I manage many groups',
+    title:    'One connected view across every group you support.',
+    body:     'Bring your groups under one organization account, run programs and funding, and report across the portfolio — without flattening any group’s own book.',
+    audience: ['NGOs', 'CBOs', 'Federations', 'SACCO networks', 'Development programs', 'Institutions'],
+    href:     ROUTES.enterprise,
+    linkText: 'Explore Enterprise',
+  },
+];
+
+/* ── Section 18 — what a member actually gets ─────────────────────────────── */
+
+export interface MemberBenefit { icon: LucideIcon; title: string; body: string }
+
+/** All six are screens in the `app/(member)/me` portal — passbook,
+ *  contributions, loan balances, transaction history, statements and goals.
+ *  Nothing here describes a member-facing feature that isn't in that portal. */
+export const MEMBER_BENEFITS: MemberBenefit[] = [
+  { icon: PiggyBank, title: 'What they have saved',   body: 'Running contribution and savings totals, updated the moment a payment is confirmed.' },
+  { icon: Landmark,  title: 'What they still owe',    body: 'Loan balance, the repayment schedule, and what falls due next.' },
+  { icon: BookOpen,  title: 'Their own passbook',     body: 'The full history of their transactions, in one place they can scroll back through.' },
+  { icon: ScrollText, title: 'Statements they can keep', body: 'A member statement they can pull themselves, rather than requesting it at a meeting.' },
+  { icon: Coins,     title: 'Savings goals',          body: 'A target they set, and how close their own contributions have brought them to it.' },
+  { icon: Smartphone, title: 'Paying from their phone', body: 'An STK prompt to contribute or repay, without leaving the app or asking for the PayBill.' },
 ];
 
 /* ── Section 15 — impact ──────────────────────────────────────────────────── */

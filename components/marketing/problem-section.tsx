@@ -11,7 +11,7 @@ import { PAIN_POINTS } from './content';
  */
 export function ProblemSection() {
   return (
-    <Section tone="paper" labelledBy="problem-heading">
+    <Section tone="paper-deep" labelledBy="problem-heading">
       <Container>
         <RevealedHeading
           id="problem-heading"
@@ -28,7 +28,7 @@ export function ProblemSection() {
               as="li"
               key={point.title}
               delay={i * 70}
-              className="group bg-paper p-7 transition-colors duration-300 hover:bg-white lg:p-8"
+              className="group bg-paper p-7 transition-colors duration-300 hover:bg-brand-50 lg:p-8"
             >
               <point.icon
                 aria-hidden="true"

@@ -23,9 +23,15 @@ export function Container({ children, className }: { children: ReactNode; classN
 }
 
 /**
- * Section grounds. The site alternates warm paper and deep navy rather than
- * white-on-white — pure white is reserved for the surfaces that hold a product
- * mockup, so the mockups read as objects sitting ON the page.
+ * Section grounds. The page alternates `paper` (white) with `paper-deep` (a
+ * cool #F8FAFC) and drops to `ink` for the two navy moments — M-Pesa and
+ * Enterprise — plus the final call to action.
+ *
+ * `paper` and `white` resolve to the SAME colour since the ground moved from
+ * cream to white (2026-08-26). `white` is kept only so existing callers keep
+ * compiling; prefer `paper` for the marketing ground and `paper-deep` for the
+ * step down. Two adjacent sections must never share a tone — that is the only
+ * thing separating them, as this site uses no section borders.
  */
 export type SectionTone = 'paper' | 'paper-deep' | 'white' | 'ink';
 

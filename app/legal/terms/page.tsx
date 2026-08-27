@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <PageShell title="Terms & Conditions">
-      <div className="rounded-lg border border-brand-orange-100 bg-brand-orange-50 px-4 py-3 text-sm font-medium text-brand-orange-700">
+      <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
         This page is a placeholder. Kitabu Yetu&apos;s Terms &amp; Conditions have not
         been drafted or published yet — nothing below should be read as a legal
         agreement.
