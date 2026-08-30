@@ -21,6 +21,7 @@ import { useContributions, useRemindNonContributors } from '@/hooks/use-contribu
 import { useLoans } from '@/hooks/use-loans';
 import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
+import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api/client';
 import { loansApi } from '@/lib/api/endpoints';
@@ -91,28 +92,44 @@ export default function DashboardPage() {
   const [stkOpen, setStkOpen] = useState(false);
   const remindNonContributors = useRemindNonContributors();
 
+  // This page is the officer dashboard — reachable by secretary, treasurer
+  // and chairperson (see lib/auth/post-login-path.ts), NOT just treasurer+.
+  // Secretary holds none of the financial-view permissions below, so those
+  // queries must be gated client-side rather than fired unconditionally:
+  // an unauthorized fetch 403s, and undifferentiated from a real outage that
+  // used to surface as a scary "data couldn't load" banner leaking a raw
+  // permission string (e.g. "Missing permission 'mpesa.view'") for a
+  // perfectly normal, permanent state that a retry will never fix.
+  const canViewMpesa         = useHasPermission('mpesa.view');
+  const canViewReports       = useHasPermission('reports.view');
+  const canViewContributions = useHasPermission('contributions.view');
+  const canViewWelfare       = useHasPermission('welfare.view');
+
   const { data: membersData, isLoading: loadingMembers, isError: errMembers, error: membersErr }             = useMembers({ page: 1, limit: 1 });
   const { data: contributionsData, isLoading: loadingContribs, isError: errContribs, error: contribsErr }     = useContributions({ page: 1, limit: 5 });
   const { data: pendingLoans, isLoading: loadingPendingLoans, isError: errPendingLoans, error: pendingLoansErr } = useLoans({ page: 1, limit: 5, status: 'pending' });
-  const { data: poolData, isLoading: loadingPool, isError: errPool, error: poolErr }                           = useWelfarePool();
-  const { data: pendingWelfare, isLoading: loadingWelfare, isError: errWelfare, error: welfareErr }            = useWelfareRequests({ status: 'pending', limit: 5 });
+  const { data: poolData, isLoading: loadingPool, isError: errPool, error: poolErr }                           = useWelfarePool({ enabled: canViewWelfare });
+  const { data: pendingWelfare, isLoading: loadingWelfare, isError: errWelfare, error: welfareErr }            = useWelfareRequests({ status: 'pending', limit: 5 }, { enabled: canViewWelfare });
 
   const { data: unrouted, isLoading: loadingUnrouted, isError: errUnrouted, error: unroutedErr } = useQuery<{ items: { id: string; amount?: string; phone?: string; receipt?: string }[] }>({
     queryKey: ['dashboard', 'mpesa-unrouted'],
     queryFn:  () => api.get('/mpesa/unrouted'),
     staleTime: 30_000,
+    enabled:  canViewMpesa,
   });
 
   const { data: nonContrib, isLoading: loadingNonContrib, isError: errNonContrib, error: nonContribErr } = useQuery<{ count: number; sample: { id: string; name: string }[] }>({
     queryKey: ['dashboard', 'non-contributors'],
     queryFn:  () => api.get('/contributions/non-contributors'),
     staleTime: 60_000,
+    enabled:  canViewContributions,
   });
 
   const { data: trialBalance, isLoading: loadingTrialBalance, isError: errTrialBalance, error: trialBalanceErr } = useQuery<{ accountCode: string; netBalance: string }[]>({
     queryKey: ['dashboard', 'trial-balance'],
     queryFn:  () => api.get('/accounting/reports?type=trial_balance'),
     staleTime: 60_000,
+    enabled:  canViewReports,
   });
 
   // Total Savings / Outstanding Loans / This Month's Contributions — all
@@ -155,6 +172,18 @@ export default function DashboardPage() {
   ];
   const isDashboardLoading = dashboardQueries.some((q) => q.isLoading);
   const erroredDashboardQueries = dashboardQueries.filter((q) => q.isError);
+
+  // Sections this role's permissions don't cover (secretary, most commonly —
+  // see the useHasPermission block above). This is a permanent, expected
+  // state, not a fetch failure — those queries are `enabled: false` and never
+  // reach erroredDashboardQueries, so it gets its own calm, non-destructive
+  // note instead of being lumped into the red "couldn't load" banner above.
+  const hiddenSections = [
+    !canViewMpesa         && 'M-Pesa receipts',
+    !canViewWelfare       && 'welfare',
+    !canViewContributions && 'contribution follow-ups',
+    !canViewReports       && 'financial reports',
+  ].filter((s): s is string => Boolean(s));
 
   const totalMembers       = membersData?.total ?? 0;
   const recentContribs     = contributionsData?.items ?? [];
@@ -230,6 +259,12 @@ export default function DashboardPage() {
       {erroredDashboardQueries.length > 0 && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           Some dashboard data couldn&apos;t load — figures below may be incomplete. {getErrorMessage(erroredDashboardQueries[0].error)}
+        </div>
+      )}
+
+      {hiddenSections.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          Your role doesn&apos;t have access to {hiddenSections.join(', ')} — related figures aren&apos;t shown below.
         </div>
       )}
 
@@ -323,34 +358,43 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Zone 2 — Money at a glance */}
+      {/* Zone 2 — Money at a glance. Cash/M-Pesa and External funding need
+          reports.view (trial balance); Welfare fund needs welfare.view —
+          both omitted rather than shown as a misleading KES 0 for roles
+          (e.g. secretary) that don't hold them. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/accounting" className="block group">
-          <StatCard
-            title="Cash / M-Pesa"
-            value={formatKES(cashBalance)}
-            icon={Wallet}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
-        <Link href="/welfare" className="block group">
-          <StatCard
-            title="Welfare fund"
-            value={formatKES(welfareBalance)}
-            description={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
-            icon={Heart}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
-        <Link href="/treasury" className="block group">
-          <StatCard
-            title="External funding"
-            value={formatKES(externalFunding)}
-            description="From partner organizations"
-            icon={Landmark}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
+        {canViewReports && (
+          <Link href="/accounting" className="block group">
+            <StatCard
+              title="Cash / M-Pesa"
+              value={formatKES(cashBalance)}
+              icon={Wallet}
+              className="transition-colors group-hover:border-primary/40"
+            />
+          </Link>
+        )}
+        {canViewWelfare && (
+          <Link href="/welfare" className="block group">
+            <StatCard
+              title="Welfare fund"
+              value={formatKES(welfareBalance)}
+              description={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
+              icon={Heart}
+              className="transition-colors group-hover:border-primary/40"
+            />
+          </Link>
+        )}
+        {canViewReports && (
+          <Link href="/treasury" className="block group">
+            <StatCard
+              title="External funding"
+              value={formatKES(externalFunding)}
+              description="From partner organizations"
+              icon={Landmark}
+              className="transition-colors group-hover:border-primary/40"
+            />
+          </Link>
+        )}
         <Link href="/members" className="block group">
           <StatCard
             title="Members"
