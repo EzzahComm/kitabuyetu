@@ -15,6 +15,7 @@
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { isUuid } from '@/lib/utils/uuid';
+import { segmentsOf } from '@/lib/sms/segments';
 import { tickBudgetExhausted } from '@/lib/jobs/deadline';
 import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError, RateLimitedError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
@@ -167,15 +168,12 @@ export interface BulkCampaignInput {
 // lib/services/messaging-billing.ts along with debitPayer's logic — mapping
 // them in one place is the point of that module.
 
-/**
- * One SMS costs one credit (migration 144, spec §6).
- *
- * Named rather than a bare `1` because the value it replaced was `rate`, and
- * the whole defect was that a rate looks equally plausible in these positions.
- * A constant makes the unit an assertion instead of an assumption: credits
- * count MESSAGES, and money only ever appears as `rate * count` for display.
- */
-const CREDITS_PER_MESSAGE = 1;
+// The old billing unit, CREDITS_PER_MESSAGE = 1, is gone (SMS-AUDIT-v3 G5).
+// One credit is now one provider SEGMENT — see lib/sms/segments.ts. A flat
+// credit per recipient under-billed every message longer than one segment,
+// and by a factor of five for anything containing an emoji or a curly quote.
+// Migration 144's separate fix (credits are a message COUNT, never money)
+// still stands; this only changes what one unit counts.
 
 /**
  * Worst-case cost of one provider round trip, used to decide whether there is
@@ -484,7 +482,13 @@ export const smsService = {
       // Reserve, don't debit. Credits are earmarked here and only become a real
       // charge once the provider accepts the message; a rejected send releases
       // them (SMS_MESSAGING_AUDIT_2026-08.md H5, migration 123).
-      const reservation = await reserveCredits(client, toReservationTarget(ctx.groupId, payer), toSend.length);
+      // Reserve SEGMENTS, not recipients. The provider bills per segment, so a
+      // 300-character message to 3 people is 6 billable units, not 3
+      // (SMS-AUDIT-v3 G5). One body for everyone on this path, so one count.
+      const segsEach = segmentsOf(message);
+      const reservation = await reserveCredits(
+        client, toReservationTarget(ctx.groupId, payer), segsEach * toSend.length,
+      );
       if (!reservation.ok) {
         // Reserve BEFORE inserting any row, so an unaffordable send leaves no
         // trace — an existing integration test pins exactly this ordering.
@@ -507,16 +511,21 @@ export const smsService = {
 
       const rows: SmsUsageLog[] = [];
       for (const phone of toSend) {
-        const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, CREDITS_PER_MESSAGE) : 0;
+        // Allowance can part-fund a multi-segment message, so this is a
+        // min() rather than the all-or-nothing it was when a row was always
+        // worth exactly one credit. The CHECK requires
+        // credits_from_allowance <= credits_reserved.
+        const fromAllowance = Math.min(allowanceLeft, segsEach);
+        allowanceLeft -= fromAllowance;
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
              (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
               credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
-              reference_type, reference_id, provider, payer_type, payer_organization_id)
-           VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,'textsms',$10,$11) RETURNING *`,
-          [ctx.groupId, phone, message, CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4),
+              reference_type, reference_id, provider, payer_type, payer_organization_id, segments)
+           VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,'textsms',$10,$11,$12) RETURNING *`,
+          [ctx.groupId, phone, message, segsEach.toFixed(4), fromAllowance.toFixed(4),
            referenceType ?? null, referenceId ?? null,
-           referenceType ?? null, referenceId ?? null, payerType, payerOrgId],
+           referenceType ?? null, referenceId ?? null, payerType, payerOrgId, segsEach],
         );
         rows.push(inserted[0]);
       }
@@ -680,7 +689,13 @@ export const smsService = {
 
       // Reserve against the stated payer: the group, or the organization
       // running the campaign. Mirrors send()'s guards for each path.
-      const reservation = await reserveCredits(db, toReservationTarget(input.groupId, payer), eligible.length);
+      // Personalisation means each recipient's rendered body can differ in
+      // length, so segments are summed per recipient rather than multiplied —
+      // one member's name pushing their copy over 160 characters must cost
+      // what it actually costs (SMS-AUDIT-v3 G5).
+      const segsByPhone = new Map(eligible.map((p) => [p, segmentsOf(messageFor(p))]));
+      const totalSegments = [...segsByPhone.values()].reduce((a, b) => a + b, 0);
+      const reservation = await reserveCredits(db, toReservationTarget(input.groupId, payer), totalSegments);
       if (!reservation.ok) {
         void raiseLowBalanceAlert(toReservationTarget(input.groupId, payer));
         throw reserveFailureToError(reservation.reason, reservation.detail);
@@ -714,23 +729,26 @@ export const smsService = {
       for (let i = 0; i < eligible.length; i += batchSize) {
         const batch = eligible.slice(i, i + batchSize);
         for (const phone of batch) {
-          // One credit per message (migration 144) — see the single-send path.
-          const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, CREDITS_PER_MESSAGE) : 0;
+          // One credit per SEGMENT (SMS-AUDIT-v3 G5), and the allowance can
+          // part-fund a multi-segment message — see the single-send path.
+          const segs = segsByPhone.get(phone) ?? 1;
+          const fromAllowance = Math.min(allowanceLeft, segs);
+          allowanceLeft -= fromAllowance;
           const { rows } = await db.query<{ id: string }>(
             `INSERT INTO sms_usage_logs
                (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
                 credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
-                payer_type, payer_organization_id)
-             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,'textsms',$11,$12) RETURNING id`,
+                payer_type, payer_organization_id, segments)
+             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,'textsms',$11,$12,$13) RETURNING id`,
             [
-              input.groupId, phone, messageFor(phone), CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4),
+              input.groupId, phone, messageFor(phone), segs.toFixed(4), fromAllowance.toFixed(4),
               feature,
               dispatchKey,
               feature,
               input.referenceId ?? dispatchKey,
               input.campaignId ?? null,
-              payerType, payerOrgId,
+              payerType, payerOrgId, segs,
             ],
           );
           logIds.push(rows[0].id);
@@ -1216,8 +1234,11 @@ export const smsService = {
         groupId:        f.group_id,
         organizationId: f.payer_organization_id,
       };
+      // Re-price from the body actually being resent. A retry must reserve
+      // what the provider will bill for THIS send, not a flat 1 (G5).
+      const retrySegments = segmentsOf(f.message);
       const reservation = await withAdminDb((db) =>
-        reserveCredits(db, target, CREDITS_PER_MESSAGE),
+        reserveCredits(db, target, retrySegments),
       );
       if (!reservation.ok) {
         // Out of credits is not a transient provider fault — retrying on a
@@ -1229,14 +1250,14 @@ export const smsService = {
       }
 
       if (f.sms_log_id) {
-        const fromAllowance = reservation.fromAllowanceCount > 0 ? CREDITS_PER_MESSAGE : 0;
+        const fromAllowance = Math.min(reservation.fromAllowanceCount, retrySegments);
         await withAdminDb((db) =>
           db.query(
             `UPDATE sms_usage_logs
-             SET credits_reserved=$2, credits_from_allowance=$3,
+             SET credits_reserved=$2, credits_from_allowance=$3, segments=$4,
                  billing_state='reserved', reserved_at=NOW()
              WHERE id=$1`,
-            [f.sms_log_id, CREDITS_PER_MESSAGE.toFixed(4), fromAllowance.toFixed(4)],
+            [f.sms_log_id, retrySegments.toFixed(4), fromAllowance.toFixed(4), retrySegments],
           ),
         );
       }

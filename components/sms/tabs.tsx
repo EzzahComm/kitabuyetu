@@ -25,6 +25,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
+import { countSegments } from '@/lib/sms/segments';
 import { StatusPill } from '@/components/shared/status-pill';
 import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
@@ -119,8 +120,13 @@ export function ComposeTab() {
     if (tpl) setMessage(tpl.body);
   };
 
-  const charCount = message.length;
-  const smsPages  = Math.max(1, Math.ceil(charCount / 160));
+  // The SAME counter billing uses (lib/sms/segments.ts). This used to be
+  // ceil(len / 160), which was wrong twice over: 160 is the SINGLE-segment
+  // size (a concatenated part holds 153), and it ignored encoding entirely, so
+  // one emoji silently cut capacity to 67 without changing the estimate. That
+  // left three different numbers for one message — what the officer was shown,
+  // what the provider billed, and what the group was charged.
+  const seg = countSegments(message);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -153,8 +159,11 @@ export function ComposeTab() {
               onChange={(e) => setMessage(e.target.value)}
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>{charCount} chars</span>
-              <span>{smsPages} SMS part{smsPages > 1 ? 's' : ''}</span>
+              <span>{seg.characters} chars</span>
+              <span>
+                {seg.segments} SMS part{seg.segments > 1 ? 's' : ''}
+                {seg.encoding === 'ucs2' ? ' · unicode' : ''}
+              </span>
             </div>
           </div>
 
@@ -370,7 +379,7 @@ export function TemplatesTab() {
   });
 
   const templates: SmsTemplate[] = data ?? [];
-  const charCount = body.length;
+  const bodySeg = countSegments(body);
 
   return (
     <div className="space-y-4">
@@ -415,7 +424,10 @@ export function TemplatesTab() {
               onChange={(e) => setBody(e.target.value)}
               placeholder="Dear {{first_name}}, your balance is KES {{amount}}."
             />
-            <p className="text-xs text-muted-foreground mt-1">{charCount} chars</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {bodySeg.characters} chars · {bodySeg.segments} SMS part{bodySeg.segments > 1 ? 's' : ''}
+              {bodySeg.encoding === 'ucs2' ? ' · unicode' : ''}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button

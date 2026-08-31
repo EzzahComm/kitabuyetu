@@ -40,6 +40,7 @@ import { logger } from '@/lib/logger';
 import { sendText, isWhatsAppConfigured } from '@/lib/integrations/whatsapp-client';
 import { sendSingleSms } from './textsms.service';
 import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
+import { segmentsOf } from '@/lib/sms/segments';
 import {
   reserveCredits,
   settleReservation,
@@ -230,7 +231,10 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   let reservedFromPaid   = 0;
   let reservedFromBundle = 0;
   if (mode === 'billed') {
-    const reservation = await reserveCredits(pool, target, 1);
+    // Reserve SEGMENTS, not a flat 1 — a long reminder is billed by the
+    // provider as several (SMS-AUDIT-v3 G5).
+    const segs = segmentsOf(rcpt.body);
+    const reservation = await reserveCredits(pool, target, segs);
     if (!reservation.ok) {
       if (reservation.reason === 'insufficient_credits') {
         void raiseLowBalanceAlert(target);
@@ -265,7 +269,7 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     fromAllowance   = reservation.fromAllowance;
   }
 
-  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance);
+  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance, segmentsOf(rcpt.body));
 
   // No ticket row means the finally-block below can never settle, and the
   // stale-reservation sweeper cannot find it either — it scans sms_usage_logs.
@@ -395,6 +399,7 @@ async function insertSmsLog(
   mode:    NotifyBillingMode,
   reserved: number,
   fromAllowance: number = 0,
+  segments: number = 1,
 ): Promise<string | null> {
   const isPlatform = mode === 'platform';
   const payerType  = isPlatform ? 'platform'
@@ -406,13 +411,13 @@ async function insertSmsLog(
          credits_deducted, credits_reserved, credits_from_allowance, billing_state, reserved_at,
          notification_type, correlation_id,
          reference_type, reference_id, provider,
-         payer_type, payer_organization_id
+         payer_type, payer_organization_id, segments
        ) VALUES (
          $1, $2, $3, $4, 'queued',
          0, $5, $6, $7::varchar, CASE WHEN $7 = 'reserved' THEN NOW() ELSE NULL END,
          $8, $9,
          $10, $11, 'textsms',
-         $12, $13
+         $12, $13, $14
        ) RETURNING id`,
       [
         isPlatform ? null : rcpt.groupId,
@@ -430,6 +435,7 @@ async function insertSmsLog(
         rcpt.referenceId ?? null,
         payerType,
         isPlatform ? null : (rcpt.payerOrganizationId ?? null),
+        segments,
       ],
     );
     return rows[0]?.id ?? null;
