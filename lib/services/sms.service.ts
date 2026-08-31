@@ -442,17 +442,49 @@ export const smsService = {
     // the previous setImmediate left messages stuck 'queued' while credits
     // were already debited. This path is single/few recipients (transactional
     // receipts, manual sends); large fan-out goes through sendBulkCampaign.
-    const logs = await withTransaction(ctx, async (client) => {
+    const result = await withTransaction(ctx, async (client) => {
       // Opt-outs are resolved before billing so a fully-suppressed send costs
       // nothing — for either payer.
       const optOuts  = await fetchOptOuts(client, ctx.groupId);
       const eligible = normalized.filter((p) => !optOuts.has(p));
-      if (!eligible.length) return [] as SmsUsageLog[];
+      if (!eligible.length) return { fresh: [] as SmsUsageLog[], alreadyLogged: [] as SmsUsageLog[] };
+
+      // Already-logged recipients under this correlation key are skipped, the
+      // same guard sendBulkCampaign has had since H3 — this path never got it.
+      //
+      // Without it there were TWO uncoordinated retry owners for one message.
+      // The trigger engine re-invokes send() with the same phones on its own
+      // backoff (retryOrFail), while the first attempt's failures also wrote
+      // sms_failures rows that the sms_retry_failed cron re-sends five minutes
+      // later. A transient provider outage therefore produced duplicate
+      // DELIVERED messages and duplicate charges, not just duplicate attempts.
+      //
+      // Scoped to correlation_id IS NOT NULL, i.e. event-driven sends that
+      // carry a referenceId. A manual send has none, and repeating one is a
+      // legitimate act that must stay possible.
+      //
+      // Rows for skipped recipients are returned alongside the new ones rather
+      // than dropped: callers read status off the result (trigger-engine
+      // decides retry-vs-settle from it), so hiding them would report a
+      // deduped retry as "all recipients opted out" and settle it terminally
+      // on an append-only table.
+      let alreadyLogged: SmsUsageLog[] = [];
+      if (referenceId) {
+        const { rows } = await client.query<SmsUsageLog>(
+          `SELECT * FROM sms_usage_logs
+            WHERE group_id=$1 AND correlation_id=$2 AND recipient_phone = ANY($3::text[])`,
+          [ctx.groupId, referenceId, eligible],
+        );
+        alreadyLogged = rows;
+      }
+      const skip    = new Set(alreadyLogged.map((r) => r.recipient_phone));
+      const toSend  = eligible.filter((p) => !skip.has(p));
+      if (!toSend.length) return { fresh: [] as SmsUsageLog[], alreadyLogged };
 
       // Reserve, don't debit. Credits are earmarked here and only become a real
       // charge once the provider accepts the message; a rejected send releases
       // them (SMS_MESSAGING_AUDIT_2026-08.md H5, migration 123).
-      const reservation = await reserveCredits(client, toReservationTarget(ctx.groupId, payer), eligible.length);
+      const reservation = await reserveCredits(client, toReservationTarget(ctx.groupId, payer), toSend.length);
       if (!reservation.ok) {
         // Reserve BEFORE inserting any row, so an unaffordable send leaves no
         // trace — an existing integration test pins exactly this ordering.
@@ -474,7 +506,7 @@ export const smsService = {
       let allowanceLeft = reservation.fromAllowanceCount;
 
       const rows: SmsUsageLog[] = [];
-      for (const phone of eligible) {
+      for (const phone of toSend) {
         const fromAllowance = allowanceLeft > 0 ? (allowanceLeft--, CREDITS_PER_MESSAGE) : 0;
         const { rows: inserted } = await client.query<SmsUsageLog>(
           `INSERT INTO sms_usage_logs
@@ -488,17 +520,22 @@ export const smsService = {
         );
         rows.push(inserted[0]);
       }
-      return rows;
+      // `fresh` is what may be dispatched; `alreadyLogged` must NOT be, or the
+      // dedup above would have prevented the duplicate ROW while still causing
+      // the duplicate MESSAGE.
+      return { fresh: rows, alreadyLogged };
     });
 
-    if (logs.length) {
+    const logs = [...result.alreadyLogged, ...result.fresh];
+
+    if (result.fresh.length) {
       // recipient_phone preserves the eligible order the rows were inserted in,
       // so phones[i] ↔ logIds[i] pairing in dispatchBatch stays correct.
       const { sentIds, failedIds } = await dispatchBatch(
         ctx.groupId,
-        logs.map((l) => l.recipient_phone),
+        result.fresh.map((l) => l.recipient_phone),
         message,
-        logs.map((l) => l.id),
+        result.fresh.map((l) => l.id),
       );
       // Provider accepted ⇒ charge. Provider rejected or the batch threw ⇒
       // return the earmark. A later DLR-driven failure must NOT refund: the

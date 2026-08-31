@@ -240,8 +240,14 @@ export async function dispatchExecution(executionId: string): Promise<void> {
       payer,
     );
 
-    // send() returns [] when every recipient is on the opt-out list — nothing
-    // was billed and nothing dispatched, which is a suppression, not a send.
+    // send() returns [] ONLY when every recipient is on the opt-out list —
+    // nothing billed, nothing dispatched, a suppression rather than a send.
+    //
+    // It does NOT return [] for recipients already logged under this event's
+    // correlation key: those rows come back so the status checks below see
+    // them. That distinction matters because settling 'suppressed' is terminal
+    // on an append-only table, and reporting a deduped retry as "everyone
+    // opted out" would burn the key for a message that had in fact been sent.
     if (!logs.length) return settle(executionId, 'suppressed', 'all recipients opted out');
 
     // A returned log row is NOT proof the message left. send() catches
