@@ -28,6 +28,7 @@ import type { PoolClient } from 'pg';
 import { pool, withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { enqueueJob } from '@/lib/jobs';
+import { isFeatureEnabled } from './feature-flags.service';
 
 /** Postgres error codes raised by reserve_sms_credits (migration 123). */
 const PG_INSUFFICIENT   = '22003';
@@ -46,7 +47,22 @@ export type ReserveFailure =
   | 'insufficient_credits'
   | 'no_billing_account'
   | 'not_authorized'
-  | 'subscription_inactive';
+  | 'subscription_inactive'
+  | 'dispatch_halted';
+
+/**
+ * Operator kill switch (SMS-AUDIT-v3 V3-05).
+ *
+ * There was previously no way to stop SMS during an incident short of a
+ * redeploy or revoking the provider credentials. This is a `feature_flags`
+ * row rather than an env var precisely so it can be flipped without a
+ * deploy — an incident switch that needs a deploy is not an incident switch.
+ *
+ * Semantics come free from isFeatureEnabled's fail-open-on-unknown-key rule:
+ * with no row present the flag reads enabled, so shipping this changes
+ * nothing. Halting is an explicit act — insert the row with enabled=false.
+ */
+export const SMS_DISPATCH_FLAG = 'sms_dispatch';
 
 export type ReserveResult =
   | {
@@ -79,8 +95,50 @@ export async function reserveCredits(
   target: ReservationTarget,
   count:  number,
 ): Promise<ReserveResult> {
+  // Platform-funded sends (OTP, password reset, verification) bail out here,
+  // BEFORE the kill switch below — deliberately. Those are the messages that
+  // let people back into their accounts, and halting them would lock every
+  // user out during precisely the incident the switch exists to contain. It
+  // is the same reasoning migration 123 encodes as a CHECK so a billing
+  // regression can never brick password reset. To stop absolutely everything,
+  // including auth, rotate the provider credential — that is faster and more
+  // complete than a flag.
   if (target.payerType === 'platform') return PLATFORM_RATE_ZERO;
   if (count <= 0) return PLATFORM_RATE_ZERO;
+
+  // Checked here rather than at the routes because this is the one chokepoint
+  // every billed send passes through — single, bulk, campaign, scheduled,
+  // trigger-driven and retry alike. Gating the three HTTP routes instead
+  // would leave the automation paths (which spend the same credits) running,
+  // the same structural mistake the SMS rate limiter already makes.
+  //
+  // Wrapped and FAIL-OPEN on purpose. Two reasons:
+  //   1. This module's contract is that it never throws — notifyMember sits
+  //      between a reminder claim and its settle in separate transactions, so
+  //      an escaping error strands the claim. Letting a flag lookup propagate
+  //      would break that promise for every caller.
+  //   2. A kill switch must stop sends DELIBERATELY, never by accident. If its
+  //      own lookup fails, the safe reading is "no operator has halted
+  //      anything", not "halt the platform".
+  let dispatchAllowed = true;
+  try {
+    dispatchAllowed = await isFeatureEnabled(
+      client as PoolClient,
+      SMS_DISPATCH_FLAG,
+      { groupId: target.groupId },
+    );
+  } catch (err) {
+    logger.warn('[messaging-billing] kill-switch lookup failed — allowing dispatch', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+  if (!dispatchAllowed) {
+    return {
+      ok: false,
+      reason: 'dispatch_halted',
+      detail: 'SMS dispatch is currently halted by an operator',
+    };
+  }
 
   try {
     const { rows } = await client.query<{

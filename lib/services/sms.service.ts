@@ -15,7 +15,7 @@
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { isUuid } from '@/lib/utils/uuid';
-import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
+import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import {
@@ -202,6 +202,10 @@ function reserveFailureToError(reason: ReserveFailure, detail: string): Error {
     case 'subscription_inactive': return new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
     case 'not_authorized':        return new PaymentRequiredError('This organization cannot fund SMS for this group.');
     case 'no_billing_account':    return new PaymentRequiredError('No billing account found.');
+    // 503, NOT the 402 the default arm would give: an operator halt is
+    // transient, and trigger-engine.ts settles any 402 as terminally failed
+    // on an append-only table. See ServiceUnavailableError's own comment.
+    case 'dispatch_halted':       return new ServiceUnavailableError(detail);
     default:                      return new PaymentRequiredError(detail);
   }
 }

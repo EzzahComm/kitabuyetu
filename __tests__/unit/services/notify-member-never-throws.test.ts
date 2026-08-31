@@ -91,6 +91,13 @@ describe('notifyMember never throws', () => {
         const err = Object.assign(new Error('insufficient SMS credits'), { code: '22003' });
         return Promise.reject(err);
       }
+      // The kill-switch lookup must resolve to "no row" — i.e. no operator
+      // halt. The catch-all below returns a row shaped like a log insert, and
+      // a feature_flags row whose `enabled` is undefined reads as DISABLED,
+      // which would halt dispatch and make this assert on the wrong reason.
+      if (String(sql).includes('feature_flags')) {
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
       return Promise.resolve({ rows: [{ id: 'log-1' }], rowCount: 1 });
     });
 
