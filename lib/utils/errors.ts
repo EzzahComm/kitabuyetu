@@ -144,6 +144,19 @@ export class NotImplementedError extends AppError {
 }
 
 /**
+ * The caller is over a quota or velocity ceiling. Matches the code/status the
+ * route-level SMS limiter already returns (lib/sms/rate-limit.ts), so a cap
+ * hit looks the same to a client whether it was caught at the route or deeper
+ * in the service layer.
+ */
+export class RateLimitedError extends AppError {
+  constructor(message = 'Rate limit exceeded. Please try again later.') {
+    super(message, 'RATE_LIMITED', 429);
+    this.name = 'RateLimitedError';
+  }
+}
+
+/**
  * A capability is deliberately, temporarily unavailable — an operator halt,
  * not a fault and not the caller's problem.
  *

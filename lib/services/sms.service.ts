@@ -15,7 +15,7 @@
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { isUuid } from '@/lib/utils/uuid';
-import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError } from '@/lib/utils/errors';
+import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError, RateLimitedError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import {
@@ -206,6 +206,9 @@ function reserveFailureToError(reason: ReserveFailure, detail: string): Error {
     // transient, and trigger-engine.ts settles any 402 as terminally failed
     // on an append-only table. See ServiceUnavailableError's own comment.
     case 'dispatch_halted':       return new ServiceUnavailableError(detail);
+    // 429, not 402, for the same reason as above: a daily cap lifts at
+    // midnight, so it must not be recorded as a terminal billing failure.
+    case 'daily_limit_reached':   return new RateLimitedError(detail);
     default:                      return new PaymentRequiredError(detail);
   }
 }

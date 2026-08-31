@@ -202,6 +202,10 @@ export const SmsGroupSettingsUpdateSchema = z.object({
   autoSendLoan:         z.boolean().optional(),
   autoSendMeeting:      z.boolean().optional(),
   autoSendBirthday:     z.boolean().optional(),
+  // null clears the cap (= unlimited), which is every group's state today.
+  // Bounded well above any plausible legitimate daily volume so a typo cannot
+  // silently disable the control it is meant to provide.
+  dailySendLimit:       z.number().int().min(1).max(100_000).nullable().optional(),
 });
 
 export type SendSmsInput        = z.infer<typeof SendSmsSchema>;

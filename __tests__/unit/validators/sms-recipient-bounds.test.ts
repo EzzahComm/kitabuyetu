@@ -16,6 +16,7 @@ import {
   CampaignCreateSchema,
   ScheduleCreateSchema,
   ScheduleUpdateSchema,
+  SmsGroupSettingsUpdateSchema,
 } from '@/lib/validators/sms.schema';
 
 const VALID = '0722123456';
@@ -151,5 +152,41 @@ describe('rawRecipients audience validation (G10)', () => {
     expect(
       ScheduleUpdateSchema.safeParse({ rawRecipients: { phones: ['nonsense'] } }).success,
     ).toBe(false);
+  });
+});
+
+describe('daily send limit is settable (G25)', () => {
+  it('accepts a positive cap', () => {
+    const r = SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: 500 });
+    expect(r.success).toBe(true);
+  });
+
+  it('preserves an explicit null so a cap can be CLEARED, not just set', () => {
+    // The route distinguishes "leave it alone" (key absent) from "clear it"
+    // (key present, null) via hasOwnProperty on the PARSED object, so Zod must
+    // keep the key. If it stripped null, a cap could never be removed.
+    const r = SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: null });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(Object.prototype.hasOwnProperty.call(r.data, 'dailySendLimit')).toBe(true);
+      expect(r.data.dailySendLimit).toBeNull();
+    }
+  });
+
+  it('omits the key entirely when not supplied, so an unrelated toggle leaves the cap alone', () => {
+    const r = SmsGroupSettingsUpdateSchema.safeParse({ autoSendBirthday: true });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(Object.prototype.hasOwnProperty.call(r.data, 'dailySendLimit')).toBe(false);
+    }
+  });
+
+  it('rejects zero and negatives — use null for unlimited, not 0', () => {
+    expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: 0 }).success).toBe(false);
+    expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: -5 }).success).toBe(false);
+  });
+
+  it('rejects a non-integer cap', () => {
+    expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: 2.5 }).success).toBe(false);
   });
 });

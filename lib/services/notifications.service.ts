@@ -230,13 +230,14 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
       if (reservation.reason === 'insufficient_credits') {
         void raiseLowBalanceAlert(target);
       }
-      // An operator halt is the one reservation failure that is TEMPORARY, so
-      // it must stay resumable. reminder_dispatch_log treats 'suppressed' as
+      // An operator halt and a daily cap are the reservation failures that are
+      // TEMPORARY (the cap lifts at Kenyan midnight), so they must stay
+      // resumable. reminder_dispatch_log treats 'suppressed' as
       // terminal and never re-claims it (see reminder.service.ts's claim()),
       // which would mean every reminder that came due during a halt is lost
       // for good once the halt lifts. 'failed' is resumable, so the next tick
       // after the switch flips back picks it up.
-      if (reservation.reason === 'dispatch_halted') {
+      if (reservation.reason === 'dispatch_halted' || reservation.reason === 'daily_limit_reached') {
         return { channel: 'sms', status: 'failed', detail: reservation.reason };
       }
       // Terminal suppression, not a failure: reminder_dispatch_log treats

@@ -48,7 +48,8 @@ export type ReserveFailure =
   | 'no_billing_account'
   | 'not_authorized'
   | 'subscription_inactive'
-  | 'dispatch_halted';
+  | 'dispatch_halted'
+  | 'daily_limit_reached';
 
 /**
  * Operator kill switch (SMS-AUDIT-v3 V3-05).
@@ -140,6 +141,28 @@ export async function reserveCredits(
     };
   }
 
+  // Per-group daily cap. sms_group_settings.daily_send_limit has existed since
+  // migration 013 and was returned to clients by /sms/settings, but no send
+  // path had ever read it — an operator could see the field and reasonably
+  // believe a cap was in force when none was.
+  //
+  // NULL (and no settings row at all) means unlimited, which is every group
+  // today, so enforcing this changes no existing group's behaviour.
+  //
+  // The day boundary is Africa/Nairobi, not UTC. A "daily" limit that reset at
+  // 03:00 local would be surprising to the operator who set it, and Kenya has
+  // no DST so the offset is constant.
+  if (target.groupId) {
+    const capped = await isOverDailyLimit(client, target.groupId, count);
+    if (capped) {
+      return {
+        ok: false,
+        reason: 'daily_limit_reached',
+        detail: `This group's daily SMS limit (${capped.limit}) would be exceeded: ${capped.used} already sent today, ${count} more requested`,
+      };
+    }
+  }
+
   try {
     const { rows } = await client.query<{
       result: {
@@ -164,6 +187,48 @@ export async function reserveCredits(
     };
   } catch (err) {
     return classifyReserveError(err, target);
+  }
+}
+
+/**
+ * Returns the cap and today's usage when this send would breach the group's
+ * daily limit, or null when it may proceed.
+ *
+ * Released rows are excluded: a send that failed and had its reservation
+ * returned did not consume the group's allowance, so it must not count
+ * against the cap.
+ *
+ * Fails OPEN on error, for the same two reasons the kill-switch lookup does —
+ * this module must not throw, and a cost control going dark should not take
+ * all messaging down with it.
+ */
+async function isOverDailyLimit(
+  client:  Pick<PoolClient, 'query'>,
+  groupId: string,
+  count:   number,
+): Promise<{ limit: number; used: number } | null> {
+  try {
+    const { rows } = await client.query<{ limit: number | null; used: string }>(
+      `SELECT s.daily_send_limit AS limit,
+              (SELECT count(*) FROM sms_usage_logs u
+                WHERE u.group_id = s.group_id
+                  AND u.billing_state <> 'released'
+                  AND u.created_at >= date_trunc('day', NOW() AT TIME ZONE 'Africa/Nairobi')
+                                        AT TIME ZONE 'Africa/Nairobi') AS used
+         FROM sms_group_settings s
+        WHERE s.group_id = $1`,
+      [groupId],
+    );
+    const limit = rows[0]?.limit ?? null;
+    if (limit === null) return null; // no row, or NULL = unlimited
+
+    const used = Number(rows[0].used);
+    return used + count > limit ? { limit, used } : null;
+  } catch (err) {
+    logger.warn('[messaging-billing] daily-limit lookup failed — allowing dispatch', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return null;
   }
 }
 
