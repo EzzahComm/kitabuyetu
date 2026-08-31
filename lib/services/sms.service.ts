@@ -1047,7 +1047,10 @@ export const smsService = {
                network_id   = EXCLUDED.network_id,
                delivered_at = EXCLUDED.delivered_at,
                raw_response = EXCLUDED.raw_response,
-               queried_at   = NOW()`,
+               queried_at   = NOW(),
+               -- Drives the back-off above. Without this every row stays at 0
+               -- and the ordering degenerates back to "oldest first forever".
+               poll_count   = sms_delivery_reports.poll_count + 1`,
         [messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw)],
       );
     });
@@ -1069,18 +1072,36 @@ export const smsService = {
    * the stuck-job sweep without ever finishing. Lower, and the 5-minute
    * cadence just works through the backlog incrementally instead.
    */
-  async pollPendingDlrs(limit = 15): Promise<{ checked: number; delivered: number; failed: number; pending: number }> {
+  /**
+   * `limit` raised 15 -> 100. The old value was chosen when processJobBatch's
+   * budget was 7 seconds and one job doing 15 sequential provider calls could
+   * blow it; that budget is now 50s and the loop bounds ITSELF against the
+   * tick deadline (lib/jobs/deadline.ts), so the cap no longer has to stand in
+   * for a time limit. At 15 per tick the platform could only ever check ~4,320
+   * messages a day, which is below its own send rate.
+   */
+  async pollPendingDlrs(limit = 100): Promise<{ checked: number; delivered: number; failed: number; pending: number }> {
     // Every TextSMS send path (send/bulk/retry and cron reminders) records the
     // provider message id in provider_msg_id, so that single column is the basis
     // for delivery tracking.
     const logs = await withAdminDb((db) =>
       db.query<{ id: string; msg_id: string; campaign_id: string | null }>(
-        `SELECT id, provider_msg_id AS msg_id, campaign_id
-         FROM sms_usage_logs
-         WHERE provider_msg_id IS NOT NULL
-           AND status = 'sent'
-           AND sent_at IS NOT NULL
-           AND sent_at <= NOW() - INTERVAL '2 minutes'
+        // LEFT JOIN + queried_at ordering is what stops a handful of
+        // never-reported messages holding every slot. sent_at ASC alone put
+        // them permanently at the head of the queue, so newer messages were
+        // never polled and aged out of the window still 'sent' — 175 of 353
+        // lifetime rows are in exactly that state (SMS-AUDIT-v3 G3).
+        //
+        // The join is 1:1: sms_delivery_reports has a unique index on
+        // provider_message_id.
+        `SELECT l.id, l.provider_msg_id AS msg_id, l.campaign_id
+         FROM sms_usage_logs l
+         LEFT JOIN sms_delivery_reports dr
+           ON dr.provider_message_id = l.provider_msg_id
+         WHERE l.provider_msg_id IS NOT NULL
+           AND l.status = 'sent'
+           AND l.sent_at IS NOT NULL
+           AND l.sent_at <= NOW() - INTERVAL '2 minutes'
            -- Widened from 24 hours: that window silently orphaned any message
            -- the poller hadn't reached in time, which is exactly what the
            -- 2026-08-12/17 job-queue stall did to real production sends —
@@ -1088,8 +1109,18 @@ export const smsService = {
            -- forever. 7 days sweeps up that incident backlog too; the
            -- provider's own DLR data is unlikely to be meaningful much past
            -- that regardless.
-           AND sent_at >= NOW() - INTERVAL '7 days'
-         ORDER BY sent_at ASC
+           AND l.sent_at >= NOW() - INTERVAL '7 days'
+           -- Geometric back-off on how often a message that keeps answering
+           -- "no report yet" is re-asked: 5 min, 10, 20 … capped at 12 hours.
+           -- Capping the exponent as well as the interval keeps POWER() from
+           -- overflowing on a long-lived row.
+           AND (dr.queried_at IS NULL
+                OR dr.queried_at < NOW() - LEAST(
+                     POWER(2, LEAST(dr.poll_count, 8)) * INTERVAL '5 minutes',
+                     INTERVAL '12 hours'))
+         -- Never-polled first, then least-recently-polled. Within a tie, oldest
+         -- send first, preserving the previous ordering's intent.
+         ORDER BY dr.queried_at ASC NULLS FIRST, l.sent_at ASC
          LIMIT $1`,
         [limit],
       ).then((r) => r.rows),
