@@ -86,6 +86,30 @@ describe('send() retry dedup (G7)', () => {
     expect(Number(afterRetry.charged)).toBe(Number(afterFirst.charged));
   });
 
+  it('reports the provider verdict, not the insert-time placeholder', async () => {
+    // send() used to return the rows exactly as INSERTed, whose status is the
+    // column default 'queued'. dispatchBatch writes the provider's verdict to
+    // the DATABASE and never touches those in-memory objects, so every send
+    // reported 'queued' regardless of outcome.
+    //
+    // trigger-engine decides retry-vs-terminal with
+    // `!logs.some(l => l.status !== 'failed')`. Against stale rows that can
+    // never be true, so an execution was marked 'sent' even when the provider
+    // rejected everyone — the exact defect PR #124 meant to fix, on an
+    // append-only table where it cannot be undone.
+    await resetDatabase();
+    const { groupId, officerId } = await createTestGroup('treasurer');
+    await provisionBilling(groupId, 100);
+    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+
+    mockSendSingleSms.mockRejectedValue(new Error('provider down'));
+    const logs = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+
+    expect(logs[0].status).toBe('failed');
+    // The condition trigger-engine actually evaluates.
+    expect(logs.some((l) => l.status !== 'failed')).toBe(false);
+  });
+
   it('returns the existing row so a caller can still see it FAILED', async () => {
     // The trigger engine decides retry-vs-settle from the returned rows'
     // status. If dedup hid them it would read [] as "everyone opted out" and

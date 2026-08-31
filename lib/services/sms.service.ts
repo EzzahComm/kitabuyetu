@@ -526,7 +526,7 @@ export const smsService = {
       return { fresh: rows, alreadyLogged };
     });
 
-    const logs = [...result.alreadyLogged, ...result.fresh];
+    let logs = [...result.alreadyLogged, ...result.fresh];
 
     if (result.fresh.length) {
       // recipient_phone preserves the eligible order the rows were inserted in,
@@ -542,6 +542,34 @@ export const smsService = {
       // provider accepted and billed us for that one.
       await settleReservation(sentIds, 'consume');
       await settleReservation(failedIds, 'release');
+
+      // Re-read what dispatch actually recorded. The rows returned by the
+      // INSERT above carry status 'queued' — the column default — because
+      // dispatchBatch writes the provider's verdict to the DATABASE and never
+      // touches these in-memory objects. Returning them unrefreshed reported
+      // every send as 'queued' no matter what happened.
+      //
+      // That is not cosmetic. lib/sms/trigger-engine.ts decides whether an
+      // execution is 'sent' or must be retried with
+      // `!logs.some((l) => l.status !== 'failed')`, and against stale rows
+      // that test can never be true: 'queued' !== 'failed' for every row, so
+      // the retry branch was unreachable and an execution was marked 'sent'
+      // even when the provider rejected every recipient. That is precisely
+      // the defect PR #124 set out to fix — the guard it added was correct
+      // but was reading data that could never show a failure.
+      // sms_trigger_executions is append-only, so a wrongly-terminal row can
+      // never be corrected.
+      const { rows: refreshed } = await withAdminDb((db) =>
+        db.query<SmsUsageLog>(
+          `SELECT * FROM sms_usage_logs WHERE id = ANY($1::uuid[])`,
+          [result.fresh.map((l) => l.id)],
+        ),
+      );
+      const byId = new Map(refreshed.map((r) => [r.id, r]));
+      logs = [
+        ...result.alreadyLogged,
+        ...result.fresh.map((l) => byId.get(l.id) ?? l),
+      ];
     }
     return logs;
   },

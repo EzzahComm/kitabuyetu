@@ -43,6 +43,7 @@ import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
 import {
   reserveCredits,
   settleReservation,
+  releaseUnticketedReservation,
   raiseLowBalanceAlert,
   type ReservationTarget,
 } from './messaging-billing';
@@ -224,6 +225,10 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
 
   let reservedCredits = 0;
   let fromAllowance   = 0;
+  // Kept separately from reservedCredits (their sum) so an earmark can be
+  // handed back on the exact two axes reserve_sms_credits moved.
+  let reservedFromPaid   = 0;
+  let reservedFromBundle = 0;
   if (mode === 'billed') {
     const reservation = await reserveCredits(pool, target, 1);
     if (!reservation.ok) {
@@ -251,7 +256,9 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     // settle computes paid = credits_reserved - credits_from_allowance, so a
     // 0.90 reserved against a 1 allowance gave -0.10 and GREW the balance on
     // consume. The unit mismatch this migration closes had a second head.
-    reservedCredits = reservation.fromPaid + reservation.fromAllowance;
+    reservedCredits    = reservation.fromPaid + reservation.fromAllowance;
+    reservedFromPaid   = reservation.fromPaid;
+    reservedFromBundle = reservation.fromAllowanceCount;
     // Phase 2b (migration 124): this is always a single-message reservation
     // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
     // full reservedCredits.
@@ -259,6 +266,20 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   }
 
   const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance);
+
+  // No ticket row means the finally-block below can never settle, and the
+  // stale-reservation sweeper cannot find it either — it scans sms_usage_logs.
+  // The earmark would sit on the account forever, invisibly reducing what the
+  // group can spend. Hand it back now, before the send, since an unrecordable
+  // message is also one we cannot prove in order to charge for it.
+  //
+  // The send still proceeds: delivering a reminder matters more than auditing
+  // it, which is the original and deliberate choice here. Only the money is
+  // corrected.
+  if (mode === 'billed' && !logId) {
+    await releaseUnticketedReservation(target, reservedFromPaid, reservedFromBundle);
+  }
+
   let settleAs: 'consume' | 'release' = 'release';
 
   try {
@@ -359,9 +380,14 @@ async function writeWhatsAppLog(
  * Write the ledger row BEFORE the provider is called, in 'queued' state.
  *
  * Returns the row id so the send can be finalised and its reservation settled.
- * Returns null if the write fails — the send still proceeds (delivering the
- * message matters more than auditing it), it simply can't be settled, and an
- * unsettled reservation is what the sweeper exists to recover.
+ * Returns null if the write fails — the send still proceeds, because
+ * delivering the message matters more than auditing it.
+ *
+ * It used to say here that "an unsettled reservation is what the sweeper
+ * exists to recover". That was false: the sweeper
+ * (sms_release_stale_reservations) works from sms_usage_logs rows, so with no
+ * row written there is nothing for it to find and the earmark was permanent.
+ * The caller now compensates explicitly via releaseUnticketedReservation.
  */
 async function insertSmsLog(
   rcpt:    NotifyRecipient,

@@ -302,6 +302,66 @@ export async function settleReservation(
 }
 
 /**
+ * Return an earmark that has NO ticket row to settle against.
+ *
+ * settleReservation works from sms_usage_logs rows, so it cannot help when
+ * the reservation committed but the log insert did not. That combination is
+ * real: notifications.service.ts deliberately lets a failed audit-row write
+ * proceed with the send, on the stated belief that "an unsettled reservation
+ * is what the sweeper exists to recover". The sweeper scans sms_usage_logs —
+ * with no row there is nothing for it to find, so the earmark was permanent.
+ *
+ * Its effect is invisible and cumulative: available credit is
+ * `sms_credits - reserved_sms_credits`, so the group's spendable balance
+ * quietly shrinks with no report explaining why, and
+ * vw_sms_credit_reconciliation does not look at reserved_sms_credits at all.
+ *
+ * GREATEST(...,0) on both decrements for the reason migration 144 records:
+ * an unclamped decrement can drive the column negative and then fail the
+ * >= 0 CHECK, turning a bookkeeping slip into a hard error on a later,
+ * unrelated send.
+ */
+export async function releaseUnticketedReservation(
+  target:             ReservationTarget,
+  fromPaid:           number,
+  fromAllowanceCount: number,
+): Promise<void> {
+  if (target.payerType === 'platform') return;
+  if (fromPaid <= 0 && fromAllowanceCount <= 0) return;
+
+  try {
+    if (target.payerType === 'organization') {
+      await withAdminDb((db) => db.query(
+        `UPDATE organization_billing_accounts
+            SET reserved_sms_credits = GREATEST(reserved_sms_credits - $2, 0),
+                updated_at           = NOW()
+          WHERE organization_id = $1`,
+        [target.organizationId, fromPaid],
+      ));
+    } else {
+      await withAdminDb((db) => db.query(
+        `UPDATE billing_accounts
+            SET reserved_sms_credits   = GREATEST(reserved_sms_credits - $2, 0),
+                sms_allowance_reserved = GREATEST(sms_allowance_reserved - $3, 0),
+                updated_at             = NOW()
+          WHERE group_id = $1`,
+        [target.groupId, fromPaid, fromAllowanceCount],
+      ));
+    }
+    logger.warn('[messaging-billing] released an unticketed reservation', {
+      payerType: target.payerType, fromPaid, fromAllowanceCount,
+    });
+  } catch (err) {
+    // Swallowed like settleReservation: this runs on a path whose whole point
+    // is that the caller must not throw.
+    logger.error('[messaging-billing] failed to release an unticketed reservation', {
+      err: err instanceof Error ? err.message : String(err),
+      payerType: target.payerType,
+    });
+  }
+}
+
+/**
  * Raise a low-balance alert for a payer, at most once per 24h.
  *
  * Enqueued rather than sent inline so a slow SMTP call never sits in the SMS
