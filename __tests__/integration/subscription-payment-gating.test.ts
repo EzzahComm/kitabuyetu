@@ -250,8 +250,17 @@ describe('payment-gated subscription activation', () => {
         }));
 
       const nextBilling = new Date(sub!.next_billing_date!);
-      const expected = new Date();
+      const now = new Date();
+      const expected = new Date(now);
       expected.setMonth(expected.getMonth() + 3);
+      // Clamp the way Postgres does. `+ INTERVAL '3 months'` from a day that
+      // does not exist in the target month lands on that month's LAST day
+      // (2026-08-31 -> 2026-11-30), whereas JS setMonth OVERFLOWS into the
+      // next one (-> 2026-12-01). Without this the assertion fails on the
+      // 31st of any month whose +3 target is shorter — it passed on
+      // 2026-08-27 and failed on 2026-08-31 for exactly that reason, with the
+      // production code correct both times.
+      if (expected.getDate() !== now.getDate()) expected.setDate(0);
       // Same calendar month/year — exact day can drift by the query's own
       // execution moment vs this assertion's, which is not what's under test.
       expect(nextBilling.getUTCFullYear()).toBe(expected.getUTCFullYear());
