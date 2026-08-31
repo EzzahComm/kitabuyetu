@@ -145,6 +145,11 @@ describe('route entitlement map', () => {
       '/api/v1/sms/campaign',
       '/api/v1/sms/credits',
       '/api/v1/sms/dlr',
+      // Deliberate: a communication-only Chama Reminder group has no chart of
+      // accounts, but it still sends SMS and so must be able to honour a
+      // member's objection under the Data Protection Act. Consent management
+      // belongs wherever sending is possible.
+      '/api/v1/sms/opt-outs',
       '/api/v1/sms/preferences',
       '/api/v1/sms/schedules',
       '/api/v1/sms/send',

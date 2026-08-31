@@ -232,10 +232,10 @@ function payerCols(payer: SmsPayer): [string, string | null] {
 }
 
 async function fetchOptOuts(client: import('pg').PoolClient, groupId: string): Promise<Set<string>> {
-  const { rows } = await client.query<{ opt_out_phones: string[] }>(
-    `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
+  const { rows } = await client.query<{ phone: string }>(
+    `SELECT phone FROM sms_opt_outs WHERE group_id=$1`, [groupId],
   );
-  return new Set(rows[0]?.opt_out_phones ?? []);
+  return new Set(rows.map((r) => r.phone));
 }
 
 /**
@@ -657,10 +657,10 @@ export const smsService = {
     const batchSize = 200;
     const { eligible, logIds, dedupedAway } = await withAdminDb(async (db) => {
       // Opt-out suppression
-      const { rows: settingsRows } = await db.query<{ opt_out_phones: string[] }>(
-        `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [input.groupId],
+      const { rows: optOutRows } = await db.query<{ phone: string }>(
+        `SELECT phone FROM sms_opt_outs WHERE group_id=$1`, [input.groupId],
       );
-      const optOuts  = new Set(settingsRows[0]?.opt_out_phones ?? []);
+      const optOuts  = new Set(optOutRows.map((r) => r.phone));
       let eligible = phones.filter((p) => !optOuts.has(p));
 
       // H3 (SMS_MESSAGING_AUDIT_2026-08.md) — a job-level retry (e.g. after
@@ -1370,28 +1370,50 @@ export const smsService = {
   async isOptedOut(groupId: string, phone: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
     const { rows } = await withAdminDb((db) =>
-      db.query<{ opt_out_phones: string[] }>(
-        `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
+      db.query<{ n: string }>(
+        `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
+        [groupId, normalized],
       ),
     );
-    return rows[0]?.opt_out_phones?.includes(normalized) ?? false;
+    return rows.length > 0;
   },
 
-  async optOut(groupId: string, phone: string): Promise<void> {
+  /** Everyone currently opted out for a group, newest first. */
+  async listOptOuts(groupId: string): Promise<
+    { phone: string; optedOutAt: string; source: string; note: string | null }[]
+  > {
+    const { rows } = await withAdminDb((db) =>
+      db.query<{ phone: string; opted_out_at: string; source: string; note: string | null }>(
+        `SELECT phone, opted_out_at, source, note
+           FROM sms_opt_outs WHERE group_id=$1 ORDER BY opted_out_at DESC`,
+        [groupId],
+      ),
+    );
+    return rows.map((r) => ({
+      phone: r.phone, optedOutAt: r.opted_out_at, source: r.source, note: r.note,
+    }));
+  },
+
+  /**
+   * Record an opt-out. `source` says how the request reached us and `actorId`
+   * who recorded it — the two things the old text[] could not hold, and the
+   * two a data subject or a regulator actually asks about (DPA 2019).
+   *
+   * Idempotent: opting out twice keeps the FIRST timestamp, because that is
+   * when consent was actually withdrawn.
+   */
+  async optOut(
+    groupId: string,
+    phone: string,
+    opts: { source?: 'member' | 'officer' | 'inbound_stop'; actorId?: string | null; note?: string } = {},
+  ): Promise<void> {
     const normalized = normalizePhone(phone);
     await withAdminDb((db) =>
       db.query(
-        `INSERT INTO sms_group_settings (group_id, opt_out_phones)
-         VALUES ($1, ARRAY[$2::text])
-         ON CONFLICT (group_id) DO UPDATE
-           SET opt_out_phones = array_append(
-             CASE WHEN $2 = ANY(sms_group_settings.opt_out_phones)
-                  THEN sms_group_settings.opt_out_phones
-                  ELSE sms_group_settings.opt_out_phones
-             END, $2::text
-           )
-           WHERE NOT ($2 = ANY(sms_group_settings.opt_out_phones))`,
-        [groupId, normalized],
+        `INSERT INTO sms_opt_outs (group_id, phone, source, actor_id, note)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (group_id, phone) DO NOTHING`,
+        [groupId, normalized, opts.source ?? 'member', opts.actorId ?? null, opts.note ?? null],
       ),
     );
   },
@@ -1405,13 +1427,11 @@ export const smsService = {
    */
   async optIn(groupId: string, phone: string): Promise<void> {
     const normalized = normalizePhone(phone);
+    // Deleting the row IS the opt-in: absence of a row is the consent state,
+    // so a later opt-out records a fresh, truthful timestamp rather than
+    // resurrecting a stale one.
     await withAdminDb((db) =>
-      db.query(
-        `UPDATE sms_group_settings
-         SET opt_out_phones = array_remove(opt_out_phones, $2::text)
-         WHERE group_id = $1`,
-        [groupId, normalized],
-      ),
+      db.query(`DELETE FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, normalized]),
     );
   },
 };

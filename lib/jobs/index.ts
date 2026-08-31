@@ -230,6 +230,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       priority:  2,
       dedup_key: `sms_credit_reconciliation:${dateStr}`,
     });
+    // Retention runs in the same quiet hour. Low priority and idempotent —
+    // a row already redacted is excluded by the query itself.
+    queued.sms_message_retention = await safe('sms_message_retention', {}, {
+      priority:  1,
+      dedup_key: `sms_message_retention:${dateStr}`,
+    });
   }
 
   // ── Daily 03:00 EAT — M-Pesa charge backfill ──────

@@ -125,6 +125,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_credit_reconciliation':
       return handleSmsCreditReconciliation();
 
+    case 'sms_message_retention':
+      return handleSmsMessageRetention();
+
     case 'sms_allowance_monthly_reset':
       return handleSmsAllowanceMonthlyReset();
 
@@ -995,6 +998,16 @@ async function reportReservationDrift(): Promise<number> {
     });
   }
   return rows.length;
+}
+
+/**
+ * Redact SMS bodies past the retention window. Keeps the row — it is the
+ * billing and audit record — and clears only the content.
+ */
+async function handleSmsMessageRetention(): Promise<HandlerResult> {
+  const { redactExpiredMessageBodies } = await import('@/lib/services/messaging-billing');
+  const r = await redactExpiredMessageBodies();
+  return { message: `SMS retention: ${r.redacted} message body/bodies redacted`, ...r };
 }
 
 /**

@@ -42,7 +42,16 @@ const RCPT = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockPoolQuery.mockResolvedValue({ rows: [{ id: 'log-1' }], rowCount: 1 });
+  // Default: every query answers with a log-insert-shaped row, EXCEPT the two
+  // lookups whose semantics are "did any row come back". A blanket resolve
+  // makes sms_opt_outs read as "this member opted out" and feature_flags read
+  // as "dispatch is halted", so the send under test is suppressed and the
+  // assertion fails for a reason unrelated to what it is testing.
+  mockPoolQuery.mockImplementation((sql: string) =>
+    /sms_opt_outs|feature_flags/.test(String(sql))
+      ? Promise.resolve({ rows: [], rowCount: 0 })
+      : Promise.resolve({ rows: [{ id: 'log-1' }], rowCount: 1 }),
+  );
   mockWaEnabled.mockReturnValue(false);
   mockSendSms.mockResolvedValue({
     success: true, messageId: 'm1', networkId: '1',
@@ -96,6 +105,12 @@ describe('notifyMember never throws', () => {
       // a feature_flags row whose `enabled` is undefined reads as DISABLED,
       // which would halt dispatch and make this assert on the wrong reason.
       if (String(sql).includes('feature_flags')) {
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
+      // Same shape of problem for consent: sms_opt_outs is now a real table
+      // and the check is "did any row come back", so the catch-all would read
+      // as "this member opted out" and suppress the send being tested.
+      if (String(sql).includes('sms_opt_outs')) {
         return Promise.resolve({ rows: [], rowCount: 0 });
       }
       return Promise.resolve({ rows: [{ id: 'log-1' }], rowCount: 1 });

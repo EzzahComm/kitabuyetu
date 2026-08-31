@@ -361,6 +361,42 @@ export async function releaseUnticketedReservation(
   }
 }
 
+/**
+ * Months a message BODY is kept before being redacted (SMS-AUDIT-v3 V3-04 /
+ * INV-26).
+ *
+ * sms_usage_logs stores message_text and recipient_phone and had no retention
+ * of any kind — personal data kept forever, which Kenya's Data Protection Act
+ * 2019 does not allow. Twelve months keeps a full billing year answerable
+ * ("what did we send this member, and were we right to charge for it") while
+ * putting an actual limit on how long the content itself lives.
+ */
+const MESSAGE_RETENTION_MONTHS = 12;
+
+/**
+ * Redact message bodies past the retention window, keeping the row.
+ *
+ * The ROW is the billing and audit record — who was messaged, when, what it
+ * cost, whether it was delivered — and deleting it would destroy
+ * reconciliation and make a data-subject request unanswerable. It is the
+ * CONTENT that has no reason to outlive the window, so only message_text is
+ * cleared. The distinction matters: "we deleted your data" and "we can no
+ * longer tell you what we sent you" are different failures.
+ */
+export async function redactExpiredMessageBodies(): Promise<{ redacted: number }> {
+  const { rowCount } = await withAdminDb((db) =>
+    db.query(
+      `UPDATE sms_usage_logs
+          SET message_text = '[redacted: retention]'
+        WHERE created_at < NOW() - ($1 || ' months')::interval
+          AND message_text IS NOT NULL
+          AND message_text <> '[redacted: retention]'`,
+      [MESSAGE_RETENTION_MONTHS],
+    ),
+  );
+  return { redacted: rowCount ?? 0 };
+}
+
 export interface SmsReconciliationResult {
   payersChecked:    number;
   driftedPayers:    number;

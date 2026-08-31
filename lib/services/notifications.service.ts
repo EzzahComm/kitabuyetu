@@ -120,10 +120,10 @@ export interface NotifyOutcome {
  */
 async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
   try {
-    const { rows } = await pool.query<{ opt_out_phones: string[] }>(
-      `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
+    const { rows } = await pool.query<{ n: number }>(
+      `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, phone],
     );
-    return rows[0]?.opt_out_phones?.includes(phone) ?? false;
+    return rows.length > 0;
   } catch (err) {
     // Fail closed: if we can't confirm consent, don't send.
     logger.error('[notifications] opt-out lookup failed; suppressing', { groupId, err });
