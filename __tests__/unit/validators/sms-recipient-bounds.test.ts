@@ -161,16 +161,12 @@ describe('daily send limit is settable (G25)', () => {
     expect(r.success).toBe(true);
   });
 
-  it('preserves an explicit null so a cap can be CLEARED, not just set', () => {
-    // The route distinguishes "leave it alone" (key absent) from "clear it"
-    // (key present, null) via hasOwnProperty on the PARSED object, so Zod must
-    // keep the key. If it stripped null, a cap could never be removed.
-    const r = SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: null });
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(Object.prototype.hasOwnProperty.call(r.data, 'dailySendLimit')).toBe(true);
-      expect(r.data.dailySendLimit).toBeNull();
-    }
+  it('rejects null — the column is NOT NULL, so "no cap" is not storable', () => {
+    // sms_group_settings.daily_send_limit is `INTEGER NOT NULL DEFAULT 500`
+    // (migration 013). Accepting null here would produce a 500 at the
+    // database rather than a 400 at the boundary. A group with no settings
+    // row is uncapped; once a row exists the cap can be raised, not removed.
+    expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: null }).success).toBe(false);
   });
 
   it('omits the key entirely when not supplied, so an unrelated toggle leaves the cap alone', () => {

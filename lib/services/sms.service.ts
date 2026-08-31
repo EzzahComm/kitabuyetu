@@ -15,6 +15,7 @@
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { isUuid } from '@/lib/utils/uuid';
+import { tickBudgetExhausted } from '@/lib/jobs/deadline';
 import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError, RateLimitedError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
@@ -175,6 +176,18 @@ export interface BulkCampaignInput {
  * count MESSAGES, and money only ever appears as `rate * count` for display.
  */
 const CREDITS_PER_MESSAGE = 1;
+
+/**
+ * Worst-case cost of one provider round trip, used to decide whether there is
+ * time for another iteration inside a job tick. Matches the 15s timeout
+ * getDeliveryReport passes to axios, plus a little for the DB writes around it.
+ */
+const DLR_CALL_BUDGET_MS = 16_000;
+
+/**
+ * Same idea for a single retry send, whose provider timeout is 20s.
+ */
+const SEND_CALL_BUDGET_MS = 21_000;
 
 /**
  * Map this module's payer shape onto the shared reservation target.
@@ -1002,7 +1015,19 @@ export const smsService = {
     let delivered = 0, failed = 0, pending = 0;
     const touchedCampaigns = new Set<string>();
 
+    let stoppedEarly = false;
+    let checked = 0;
     for (const log of logs) {
+      // One provider lookup can take up to its 15s timeout, so starting
+      // another with less than that left risks the platform killing the whole
+      // invocation mid-write (Vercel Hobby caps the function at 60s and
+      // cannot be raised — see lib/jobs/deadline.ts). Partial progress is
+      // safe: this is an idempotent sweep and the rest is picked up next tick.
+      if (tickBudgetExhausted(DLR_CALL_BUDGET_MS)) {
+        stoppedEarly = true;
+        break;
+      }
+      checked++;
       try {
         const { status } = await this.getDlr(log.msg_id, { system: true });
         if (status === 'delivered') delivered++;
@@ -1027,8 +1052,14 @@ export const smsService = {
       );
     }
 
-    logger.info(`[sms] DLR poll: ${logs.length} checked, ${delivered} delivered, ${failed} failed, ${pending} pending`);
-    return { checked: logs.length, delivered, failed, pending };
+    // `checked` is what was actually polled, which is NOT logs.length when the
+    // loop stopped early — reporting the selected count as the checked count
+    // would hide exactly the budget pressure this bound exists to reveal.
+    logger.info(
+      `[sms] DLR poll: ${checked}/${logs.length} checked, ${delivered} delivered, ` +
+      `${failed} failed, ${pending} pending${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
+    );
+    return { checked, delivered, failed, pending };
   },
 
   /**
@@ -1039,7 +1070,13 @@ export const smsService = {
    * attempt is resolved as suppressed rather than re-sent), and backs off
    * exponentially up to max_retries before giving up.
    */
-  async retryFailures(limit = 100): Promise<{ retried: number; resolved: number; failed: number }> {
+  /**
+   * `limit` lowered from 100 to 25: at a 20s provider timeout, 100 sequential
+   * sends cannot fit any plausible function budget, and this runs every 5
+   * minutes so the drain rate is unaffected in practice. The per-iteration
+   * budget check below is the real bound; the limit just keeps the query small.
+   */
+  async retryFailures(limit = 25): Promise<{ retried: number; resolved: number; failed: number }> {
     // payer_type / payer_organization_id come from the ORIGINAL log row: a
     // retry must bill whoever the first attempt was going to bill, never the
     // group by default.
@@ -1067,8 +1104,19 @@ export const smsService = {
     // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
     let retried = 0, resolved = 0, failed = 0;
+    let stoppedEarly = false;
 
     for (const f of failures) {
+      // Stop before starting a send there is no time to finish. This loop is
+      // the most dangerous one to have killed mid-flight: the provider may
+      // accept the message AFTER the invocation dies, so the sms_failures row
+      // stays unresolved and the SAME message is sent again on the next tick —
+      // a real duplicate to a real member, and a second charge. Leaving the
+      // remainder for the next tick costs 5 minutes and nothing else.
+      if (tickBudgetExhausted(SEND_CALL_BUDGET_MS)) {
+        stoppedEarly = true;
+        break;
+      }
       retried++;
 
       // Consent gate — never re-send to a number that has since opted out.
@@ -1166,7 +1214,10 @@ export const smsService = {
       }
     }
 
-    logger.info(`[sms] retryFailures: ${retried} due, ${resolved} resolved, ${failed} still failing`);
+    logger.info(
+      `[sms] retryFailures: ${retried}/${failures.length} due, ${resolved} resolved, ` +
+      `${failed} still failing${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
+    );
     return { retried, resolved, failed };
   },
 

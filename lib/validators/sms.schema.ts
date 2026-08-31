@@ -202,10 +202,13 @@ export const SmsGroupSettingsUpdateSchema = z.object({
   autoSendLoan:         z.boolean().optional(),
   autoSendMeeting:      z.boolean().optional(),
   autoSendBirthday:     z.boolean().optional(),
-  // null clears the cap (= unlimited), which is every group's state today.
-  // Bounded well above any plausible legitimate daily volume so a typo cannot
-  // silently disable the control it is meant to provide.
-  dailySendLimit:       z.number().int().min(1).max(100_000).nullable().optional(),
+  // NOT nullable: sms_group_settings.daily_send_limit is `INTEGER NOT NULL
+  // DEFAULT 500` (migration 013), so "no cap" has no storable representation.
+  // A group with no settings row at all is uncapped — which is what
+  // GET /sms/settings already reports for them — and once a row exists the
+  // cap can be raised but not removed. Bounded well above any plausible
+  // legitimate daily volume so a typo cannot silently defeat the control.
+  dailySendLimit:       z.number().int().min(1).max(100_000).optional(),
 });
 
 export type SendSmsInput        = z.infer<typeof SendSmsSchema>;

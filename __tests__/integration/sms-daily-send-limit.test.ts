@@ -30,13 +30,18 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
   );
 }
 
-async function setLimit(groupId: string, limit: number | null): Promise<void> {
+async function setLimit(groupId: string, limit: number): Promise<void> {
   await rawQuery(
     `INSERT INTO sms_group_settings (group_id, daily_send_limit)
      VALUES ($1, $2)
      ON CONFLICT (group_id) DO UPDATE SET daily_send_limit = EXCLUDED.daily_send_limit`,
     [groupId, limit],
   );
+}
+
+/** A settings row created without naming a limit — takes the column default. */
+async function createSettingsRowWithDefaultLimit(groupId: string): Promise<void> {
+  await rawQuery(`INSERT INTO sms_group_settings (group_id) VALUES ($1)`, [groupId]);
 }
 
 /** Insert `n` usage rows for today, as if the group had already sent them. */
@@ -62,15 +67,21 @@ describe('daily send limit (G25)', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('is unlimited when the column is NULL', async () => {
+  it('applies the schema default (500) once a settings row exists', async () => {
+    // daily_send_limit is `INTEGER NOT NULL DEFAULT 500` (migration 013), so
+    // there is no "unlimited" value — a row always carries a cap. This is the
+    // behaviour change to be aware of: a group that saves ANY messaging
+    // setting acquires a 500/day ceiling it did not have before.
     await resetDatabase();
     const { groupId } = await createTestGroup('treasurer');
-    await provisionBilling(groupId, 500);
-    await setLimit(groupId, null);
-    await seedSentToday(groupId, 50);
+    await provisionBilling(groupId, 600);
+    await createSettingsRowWithDefaultLimit(groupId);
+    await seedSentToday(groupId, 499);
 
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 10);
-    expect(r.ok).toBe(true);
+    expect((await reserveCredits(pool, { payerType: 'group', groupId }, 1)).ok).toBe(true);
+    const over = await reserveCredits(pool, { payerType: 'group', groupId }, 5);
+    expect(over.ok).toBe(false);
+    if (!over.ok) expect(over.reason).toBe('daily_limit_reached');
   });
 
   it('allows a send that lands exactly on the cap', async () => {

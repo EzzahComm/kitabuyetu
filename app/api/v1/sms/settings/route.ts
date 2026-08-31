@@ -68,21 +68,21 @@ export async function PUT(req: NextRequest): Promise<Response> {
       // Upsert: the row may genuinely not exist yet. COALESCE on every column
       // makes this a partial update — a page that only toggles birthdays must
       // not silently clear the other three automations.
-      // daily_send_limit needs a different partial-update idiom from the four
-      // booleans. COALESCE cannot express it: null is a MEANINGFUL value here
-      // ("no cap"), so COALESCE($6, existing) could only ever set a limit,
-      // never clear one. $7 states whether the caller mentioned the field at
-      // all, which separates "leave it alone" from "set it to null".
+      // daily_send_limit uses the same COALESCE partial-update idiom as the
+      // booleans. That works here precisely BECAUSE the column is NOT NULL
+      // (migration 013): null can only mean "the caller did not send this
+      // field", never "clear the cap", so there is no ambiguity to resolve.
+      // On insert it is omitted entirely so the column default (500) applies.
       `INSERT INTO sms_group_settings
          (group_id, auto_send_contribution, auto_send_loan, auto_send_meeting, auto_send_birthday, daily_send_limit)
-       VALUES ($1, COALESCE($2, false), COALESCE($3, false), COALESCE($4, false), COALESCE($5, false), $6)
+       VALUES ($1, COALESCE($2, false), COALESCE($3, false), COALESCE($4, false), COALESCE($5, false),
+               COALESCE($6, 500))
        ON CONFLICT (group_id) DO UPDATE SET
          auto_send_contribution = COALESCE($2, sms_group_settings.auto_send_contribution),
          auto_send_loan         = COALESCE($3, sms_group_settings.auto_send_loan),
          auto_send_meeting      = COALESCE($4, sms_group_settings.auto_send_meeting),
          auto_send_birthday     = COALESCE($5, sms_group_settings.auto_send_birthday),
-         daily_send_limit       = CASE WHEN $7::boolean THEN $6::integer
-                                       ELSE sms_group_settings.daily_send_limit END,
+         daily_send_limit       = COALESCE($6, sms_group_settings.daily_send_limit),
          updated_at             = NOW()
        RETURNING sender_id, auto_send_contribution, auto_send_loan,
                  auto_send_meeting, auto_send_birthday, daily_send_limit`,
@@ -93,7 +93,6 @@ export async function PUT(req: NextRequest): Promise<Response> {
         input.autoSendMeeting      ?? null,
         input.autoSendBirthday     ?? null,
         input.dailySendLimit ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'dailySendLimit'),
       ],
     ));
 

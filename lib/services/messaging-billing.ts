@@ -146,8 +146,12 @@ export async function reserveCredits(
   // path had ever read it — an operator could see the field and reasonably
   // believe a cap was in force when none was.
   //
-  // NULL (and no settings row at all) means unlimited, which is every group
-  // today, so enforcing this changes no existing group's behaviour.
+  // The column is `INTEGER NOT NULL DEFAULT 500` (migration 013), so a row
+  // always carries a cap and "unlimited" is only expressible as the ABSENCE
+  // of a settings row. That is every group in production today (0 rows), and
+  // it matches what GET /sms/settings already reports for them, so enforcing
+  // this changes no existing group's behaviour. Note the corollary: a group
+  // that saves any messaging setting acquires the 500/day default.
   //
   // The day boundary is Africa/Nairobi, not UTC. A "daily" limit that reset at
   // 03:00 local would be surprising to the operator who set it, and Kenya has
@@ -219,8 +223,9 @@ async function isOverDailyLimit(
         WHERE s.group_id = $1`,
       [groupId],
     );
+    // No settings row at all = uncapped. The column itself cannot be null.
     const limit = rows[0]?.limit ?? null;
-    if (limit === null) return null; // no row, or NULL = unlimited
+    if (limit === null) return null;
 
     const used = Number(rows[0].used);
     return used + count > limit ? { limit, used } : null;
