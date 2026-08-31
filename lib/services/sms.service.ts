@@ -14,6 +14,7 @@
 
 import { withTransaction, withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
+import { isUuid } from '@/lib/utils/uuid';
 import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
@@ -521,6 +522,20 @@ export const smsService = {
     // A real campaign already has a stable id of its own; dispatchBatchId is
     // only consulted for ad-hoc job-triggered sends that have none.
     const dispatchKey = input.campaignId ?? input.dispatchBatchId ?? null;
+
+    // dispatchKey is bound to sms_usage_logs.correlation_id and .reference_id,
+    // both `uuid`. A non-uuid used to reach Postgres and fail there with 22P02
+    // — on the dedup SELECT below, i.e. AFTER the caller had already been told
+    // the send was queued, so every chunked bulk send failed silently and
+    // wrote nothing. Fail loudly at the boundary instead: this is a caller
+    // bug, never a runtime condition, and it must not look like a send that
+    // merely reached no one.
+    if (dispatchKey !== null && !isUuid(dispatchKey)) {
+      throw new Error(
+        `sendBulkCampaign: dispatchKey must be a UUID (got "${dispatchKey}") — ` +
+        'it is persisted to sms_usage_logs.correlation_id/.reference_id, both uuid columns',
+      );
+    }
 
     // One rendered copy per recipient, computed once and reused by BOTH the
     // sms_usage_logs insert and the provider items below — message_text must
