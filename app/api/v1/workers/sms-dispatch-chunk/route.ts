@@ -24,6 +24,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { deriveUuid, isUuid } from '@/lib/utils/uuid';
 import type { SmsDispatchChunkPayload } from '@/lib/queue/qstash';
 
 export const runtime = 'nodejs';
@@ -33,7 +34,11 @@ function isValidPayload(v: unknown): v is SmsDispatchChunkPayload {
   if (!v || typeof v !== 'object') return false;
   const p = v as Record<string, unknown>;
   return (
-    typeof p.jobId === 'string' &&
+    // jobId must be a real uuid, not merely a string: it is the namespace the
+    // per-chunk dispatch key is derived from below, and deriveUuid throws on
+    // anything else. Rejecting here returns 400 (QStash gives up) rather than
+    // letting it surface as a 500 that QStash would retry to exhaustion.
+    typeof p.jobId === 'string' && isUuid(p.jobId) &&
     typeof p.chunkIndex === 'number' &&
     typeof p.groupId === 'string' &&
     typeof p.sentBy === 'string' &&
@@ -108,7 +113,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // Stable per-CHUNK key, distinct from the parent job's own id, so a
       // QStash retry of this chunk dedupes against itself only — not
       // against sibling chunks, which each carry their own key.
-      dispatchBatchId: `${payload.jobId}:chunk:${payload.chunkIndex}`,
+      //
+      // MUST be a real uuid, not `${jobId}:chunk:${i}`: sendBulkCampaign
+      // persists this into sms_usage_logs.correlation_id and .reference_id,
+      // both `uuid` columns, so a plain string made Postgres reject the very
+      // first statement (22P02) and every chunked send failed silently.
+      // Derived (not random) so a QStash retry of this chunk reproduces the
+      // same key and dedupes against its own earlier attempt.
+      dispatchBatchId: deriveUuid(payload.jobId, `chunk:${payload.chunkIndex}`),
     });
 
     return NextResponse.json({

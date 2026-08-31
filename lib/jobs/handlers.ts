@@ -122,6 +122,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_release_stale_reservations':
       return handleSmsReleaseStaleReservations();
 
+    case 'sms_credit_reconciliation':
+      return handleSmsCreditReconciliation();
+
+    case 'sms_message_retention':
+      return handleSmsMessageRetention();
+
     case 'sms_allowance_monthly_reset':
       return handleSmsAllowanceMonthlyReset();
 
@@ -927,16 +933,98 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
   const consumeIds = rows
     .filter((r) => r.provider_msg_id !== null || r.status === 'sent' || r.status === 'delivered')
     .map((r) => r.id);
-  const releaseIds = rows.filter((r) => !consumeIds.includes(r.id)).map((r) => r.id);
+  // Set, not Array.includes: at the 500-row limit above that comparison was
+  // 250k scans, and this is the path that runs precisely when something has
+  // already gone wrong.
+  const consumeSet = new Set(consumeIds);
+  const releaseIds = rows.filter((r) => !consumeSet.has(r.id)).map((r) => r.id);
 
   await settleReservation(consumeIds, 'consume');
   await settleReservation(releaseIds, 'release');
+
+  const drifted = await reportReservationDrift();
 
   return {
     message:  `Stale reservations settled (${consumeIds.length} consumed, ${releaseIds.length} released)`,
     consumed: consumeIds.length,
     released: releaseIds.length,
+    drifted,
   };
+}
+
+/**
+ * REPORT ONLY — detect earmarks with no ticket row behind them.
+ *
+ * The sweep above can only settle reservations that HAVE an sms_usage_logs
+ * row. An earmark taken without one is invisible to it (SMS-AUDIT-v3 G19),
+ * and invisible to vw_sms_credit_reconciliation too, which does not look at
+ * reserved_sms_credits at all. The known path that produced them is now
+ * compensated at source, but this is the check that would have found them —
+ * and would find any future path that does the same.
+ *
+ * Deliberately does NOT mutate balances. Clamping an aggregate down is a
+ * money-moving action, and it must not be taken on the strength of a
+ * point-in-time comparison until the real numbers have been observed.
+ *
+ * Accounts touched in the last 2 minutes are skipped: reserve_sms_credits
+ * stamps updated_at, and there is a genuine sub-second window between the
+ * aggregate update and the ticket insert on the notify path (they are not in
+ * one transaction there), which would otherwise read as drift.
+ */
+async function reportReservationDrift(): Promise<number> {
+  const { withAdminDb } = await import('@/lib/db');
+  const { logger }      = await import('@/lib/logger');
+
+  const { rows } = await withAdminDb((db) =>
+    db.query<{ group_id: string; aggregate: string; ticketed: string }>(
+      `SELECT ba.group_id,
+              ba.reserved_sms_credits AS aggregate,
+              COALESCE(t.ticketed, 0)  AS ticketed
+         FROM billing_accounts ba
+         LEFT JOIN (
+           SELECT group_id, SUM(credits_reserved) AS ticketed
+             FROM sms_usage_logs
+            WHERE billing_state = 'reserved'
+            GROUP BY group_id
+         ) t ON t.group_id = ba.group_id
+        WHERE ba.reserved_sms_credits <> COALESCE(t.ticketed, 0)
+          AND ba.updated_at < NOW() - INTERVAL '2 minutes'`,
+    ),
+  );
+
+  for (const r of rows) {
+    logger.warn('[sms] reservation drift: earmark does not match its ticket rows', {
+      groupId: r.group_id, aggregate: r.aggregate, ticketed: r.ticketed,
+    });
+  }
+  return rows.length;
+}
+
+/**
+ * Redact SMS bodies past the retention window. Keeps the row — it is the
+ * billing and audit record — and clears only the content.
+ */
+async function handleSmsMessageRetention(): Promise<HandlerResult> {
+  const { redactExpiredMessageBodies } = await import('@/lib/services/messaging-billing');
+  const r = await redactExpiredMessageBodies();
+  return { message: `SMS retention: ${r.redacted} message body/bodies redacted`, ...r };
+}
+
+/**
+ * Daily SMS money-trail check. Reports only — see reconcileSmsCredits for why
+ * repairing automatically would be the wrong call.
+ */
+async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
+  const { reconcileSmsCredits } = await import('@/lib/services/messaging-billing');
+  const r = await reconcileSmsCredits();
+
+  const clean = r.driftedPayers === 0 && r.driftedCampaigns === 0;
+  const message = clean
+    ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)`
+    : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
+      `${r.driftedCampaigns}/${r.campaignsChecked} campaigns disagree with their own records — investigate`;
+
+  return { message, ...r };
 }
 
 /**

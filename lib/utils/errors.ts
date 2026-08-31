@@ -142,3 +142,35 @@ export class NotImplementedError extends AppError {
     this.name = 'NotImplementedError';
   }
 }
+
+/**
+ * The caller is over a quota or velocity ceiling. Matches the code/status the
+ * route-level SMS limiter already returns (lib/sms/rate-limit.ts), so a cap
+ * hit looks the same to a client whether it was caught at the route or deeper
+ * in the service layer.
+ */
+export class RateLimitedError extends AppError {
+  constructor(message = 'Rate limit exceeded. Please try again later.') {
+    super(message, 'RATE_LIMITED', 429);
+    this.name = 'RateLimitedError';
+  }
+}
+
+/**
+ * A capability is deliberately, temporarily unavailable — an operator halt,
+ * not a fault and not the caller's problem.
+ *
+ * 503 rather than 402 matters beyond correctness of the status line:
+ * lib/sms/trigger-engine.ts fail-fasts on statusCode 402 (billing failures
+ * are deterministic, so retrying wastes the attempt budget) and
+ * sms_trigger_executions is append-only, so an execution settled terminal can
+ * never be retried or corrected. Mapping an operator halt to 402 would
+ * therefore burn every automation that fired during the halt, permanently.
+ * 503 keeps it transient, which is exactly what a halt is.
+ */
+export class ServiceUnavailableError extends AppError {
+  constructor(message = 'This service is temporarily unavailable. Please try again later.') {
+    super(message, 'SERVICE_UNAVAILABLE', 503);
+    this.name = 'ServiceUnavailableError';
+  }
+}
