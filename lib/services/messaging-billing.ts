@@ -361,6 +361,82 @@ export async function releaseUnticketedReservation(
   }
 }
 
+export interface SmsReconciliationResult {
+  payersChecked:    number;
+  driftedPayers:    number;
+  campaignsChecked: number;
+  driftedCampaigns: number;
+}
+
+/**
+ * Daily integrity check over the SMS money trail (SMS-AUDIT-v3 G16/G6).
+ *
+ * vw_sms_credit_reconciliation has existed since migration 141 and computes
+ * both `drift` (balance vs ledger) and `lot_drift` (balance vs purchase lots)
+ * correctly — it simply had no consumer anywhere in the application. An
+ * instrument nobody reads is not a control, which is why every billing defect
+ * this audit series has found was discovered by hand rather than reported.
+ *
+ * Also checks sms_campaigns' stored counters against the message log. The
+ * syncCampaignCompletion fix is correct going forward but has no retroactive
+ * counterpart, so a campaign that drifted before it shipped stays wrong
+ * forever with nothing to notice — production still carries one reading
+ * 0 sent / 8 failed against 8 genuinely sent.
+ *
+ * REPORTS, never repairs. Both classes of drift mean the books disagree with
+ * themselves, and the right response is a human deciding which side is true —
+ * not an automated write that could just as easily entrench the wrong number.
+ */
+export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
+  const { rows: payers } = await withAdminDb((db) =>
+    db.query<{ payer_type: string; payer_id: string; balance: string; ledger_total: string; drift: string; lot_drift: string }>(
+      `SELECT payer_type, payer_id, balance, ledger_total, drift, lot_drift
+         FROM vw_sms_credit_reconciliation`,
+    ),
+  );
+
+  const drifted = payers.filter((p) => Number(p.drift) !== 0 || Number(p.lot_drift) !== 0);
+  for (const p of drifted) {
+    logger.error('[sms-reconciliation] credit drift', {
+      payerType: p.payer_type, payerId: p.payer_id,
+      balance: p.balance, ledgerTotal: p.ledger_total,
+      drift: p.drift, lotDrift: p.lot_drift,
+    });
+  }
+
+  // Campaign counters vs the rows they claim to summarise. Only completed
+  // campaigns: one still sending legitimately disagrees mid-flight.
+  const { rows: campaigns } = await withAdminDb((db) =>
+    db.query<{ id: string; sent_count: number; failed_count: number; real_sent: string; real_failed: string }>(
+      `SELECT c.id, c.sent_count, c.failed_count,
+              (SELECT count(*) FROM sms_usage_logs u
+                WHERE u.correlation_id = c.id AND u.status IN ('sent','delivered')) AS real_sent,
+              (SELECT count(*) FROM sms_usage_logs u
+                WHERE u.correlation_id = c.id AND u.status = 'failed') AS real_failed
+         FROM sms_campaigns c
+        WHERE c.status = 'completed'`,
+    ),
+  );
+
+  const badCampaigns = campaigns.filter(
+    (c) => c.sent_count !== Number(c.real_sent) || c.failed_count !== Number(c.real_failed),
+  );
+  for (const c of badCampaigns) {
+    logger.error('[sms-reconciliation] campaign counters disagree with the message log', {
+      campaignId: c.id,
+      storedSent: c.sent_count, actualSent: c.real_sent,
+      storedFailed: c.failed_count, actualFailed: c.real_failed,
+    });
+  }
+
+  return {
+    payersChecked:    payers.length,
+    driftedPayers:    drifted.length,
+    campaignsChecked: campaigns.length,
+    driftedCampaigns: badCampaigns.length,
+  };
+}
+
 /**
  * Raise a low-balance alert for a payer, at most once per 24h.
  *

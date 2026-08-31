@@ -16,7 +16,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
-  RefreshCw, Plus, Trash2, PauseCircle, PlayCircle,
+  Plus, Trash2, PauseCircle, PlayCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
@@ -197,57 +197,6 @@ export function ComposeTab() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <BalanceCard />
-      </div>
-    </div>
-  );
-}
-
-// ─── Balance Card ─────────────────────────────────────────────────────────────
-
-export function BalanceCard() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['sms-provider-balance'],
-    queryFn:  () => smsApi.providerBalance(),
-    staleTime: 5 * 60_000,
-  });
-
-  const refresh = useMutation({
-    mutationFn: () => smsApi.checkBalance(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-provider-balance'] }); },
-    onError: (e) => toast({ variant: 'destructive', title: 'Balance check failed', description: getErrorMessage(e) }),
-  });
-
-  const bal = data;
-
-  return (
-    <div className="bg-card rounded-xl border p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Provider Balance</span>
-        <button
-          type="button"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-          title="Refresh balance"
-        >
-          <RefreshCw size={14} className={refresh.isPending ? 'animate-spin' : ''} />
-        </button>
-      </div>
-      {isLoading ? (
-        <div className="h-8 bg-muted rounded animate-pulse" />
-      ) : (
-        <p className="text-2xl font-bold text-foreground">
-          KES {bal?.balance != null ? Number(bal.balance).toFixed(2) : '—'}
-        </p>
-      )}
-      {bal?.lastChecked && (
-        <p className="text-xs text-muted-foreground mt-1">Checked {formatDate(bal.lastChecked)}</p>
-      )}
     </div>
   );
 }

@@ -195,11 +195,19 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 02:00 UTC — cleanup expired tokens ──────────────────
+  // ── Daily 02:00 UTC — cleanup + SMS money-trail reconciliation ─
   if (hour === 2) {
     queued.cleanup_expired_tokens = await safe('cleanup_expired_tokens', {}, {
       priority:  1,
       dedup_key: `cleanup_expired_tokens:${dateStr}`,
+    });
+    // Deliberately an hour AFTER the 01:00 allowance reset/grant: those move
+    // billing_accounts, and checking the books mid-adjustment would report
+    // drift that is really just ordering. Read-only and report-only, so a low
+    // priority is right — it must never displace a send or a reminder.
+    queued.sms_credit_reconciliation = await safe('sms_credit_reconciliation', {}, {
+      priority:  2,
+      dedup_key: `sms_credit_reconciliation:${dateStr}`,
     });
   }
 

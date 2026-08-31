@@ -122,6 +122,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_release_stale_reservations':
       return handleSmsReleaseStaleReservations();
 
+    case 'sms_credit_reconciliation':
+      return handleSmsCreditReconciliation();
+
     case 'sms_allowance_monthly_reset':
       return handleSmsAllowanceMonthlyReset();
 
@@ -992,6 +995,23 @@ async function reportReservationDrift(): Promise<number> {
     });
   }
   return rows.length;
+}
+
+/**
+ * Daily SMS money-trail check. Reports only — see reconcileSmsCredits for why
+ * repairing automatically would be the wrong call.
+ */
+async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
+  const { reconcileSmsCredits } = await import('@/lib/services/messaging-billing');
+  const r = await reconcileSmsCredits();
+
+  const clean = r.driftedPayers === 0 && r.driftedCampaigns === 0;
+  const message = clean
+    ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)`
+    : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
+      `${r.driftedCampaigns}/${r.campaignsChecked} campaigns disagree with their own records — investigate`;
+
+  return { message, ...r };
 }
 
 /**
