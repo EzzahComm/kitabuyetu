@@ -11,6 +11,18 @@ import { logger } from '@/lib/logger';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
 import { postTemplatedJournal } from './posting-templates.service';
+
+/**
+ * Round to the 2 decimal places every SMS-credit balance column stores.
+ *
+ * Money and credit amounts in this schema are numeric(_,2); the ledger's
+ * amount column is numeric(14,4). Rounding at source keeps the two in
+ * agreement — see addSmsCredits for why the ledger must record the movement
+ * the balance actually made rather than a more precise one it did not.
+ */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 import { getUnitPrice } from './sms-pricing.service';
 import { clearLowBalanceFlag, clearOrganizationLowBalanceFlag } from './messaging-billing';
 
@@ -630,7 +642,25 @@ export const billingService = {
         [ctx.groupId],
       );
       const rate     = parseFloat(sub[0]?.sms_rate ?? '0.90');
-      const credits  = amountKes / rate;
+      // Rounded ONCE, here, to the scale the balance column actually stores.
+      //
+      // sms_credit_ledger.amount is numeric(14,4) while billing_accounts
+      // .sms_credits and sms_credits.credits_added are numeric(15,2). Passing
+      // an unrounded 111.1111... meant the balance moved by 111.11 (rounded by
+      // its column) while the ledger recorded 111.1111 — so every top-up
+      // injected ~0.0011 of same-sign drift, and the ledger entry disagreed
+      // with its own balance_after.
+      //
+      // Rounding at source rather than widening the columns: the balance is
+      // the authority on what the customer actually has, so the ledger must
+      // record the movement that was really made, not a more precise number
+      // that never happened.
+      //
+      // Drift is 0 across every payer today only because no top-up has run
+      // since the ledger shipped — production's single non-consume entry is
+      // migration 141's backfill. This is preventive, and it has to land
+      // BEFORE any reconciliation alerting or the first real purchase trips it.
+      const credits  = round2(amountKes / rate);
 
       const { rows: ba } = await client.query<{ id: string }>(
         `SELECT id FROM billing_accounts WHERE group_id = $1`, [ctx.groupId],
@@ -846,7 +876,10 @@ export async function addOrganizationSmsCredits(
   const result = await withAdminDb(async (db) => {
     const account = await getOrCreateOrganizationSmsBillingAccount(db, organizationId);
     const rate    = parseFloat(account.sms_rate);
-    const credits = amountKes / rate;
+    // Same rounding as the group path above, for the same reason —
+    // organization_sms_credits.credits_added and
+    // organization_billing_accounts.sms_credits are both 2dp.
+    const credits = round2(amountKes / rate);
     const notes   = opts.notes ?? (opts.reference ? `Top-up — ${opts.reference}` : 'Top-up');
 
     const { rows: inserted } = await db.query<{ id: string }>(
