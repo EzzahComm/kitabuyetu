@@ -71,17 +71,15 @@ describe('rawRecipients audience validation (G10)', () => {
   });
 
   it('rejects a landline-shaped number the same way', () => {
-    // 020… is a Nairobi landline. normalizePhone currently accepts it (V3-03),
-    // so this cap is the only thing stopping it at the boundary today.
+    // 020… is a Nairobi landline. This documented CURRENT behaviour when
+    // written — isValidKenyanPhone admitted it — and flipped when T2-4
+    // narrowed normalizePhone to real mobile prefixes (V3-03).
     const r = CampaignCreateSchema.safeParse({
       ...campaign,
       recipientType: 'custom_phones',
       rawRecipients: { phones: ['0201234567'] },
     });
-    // Documents CURRENT behaviour: isValidKenyanPhone still admits it.
-    // When V3-03 (T2-4) lands this flips to false and this test should be
-    // updated to expect rejection.
-    expect(r.success).toBe(true);
+    expect(r.success).toBe(false);
   });
 
   it('caps a custom_phones audience', () => {

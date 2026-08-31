@@ -1,14 +1,44 @@
 /**
+ * Kenyan MOBILE subscriber numbers begin 7 or 1 after the 254 country code —
+ * 07xx/01xx locally. Landlines and special ranges (020 Nairobi, 041 Mombasa,
+ * 051 Nakuru …) do not.
+ *
+ * The rule used to be "0 followed by ten digits", which admitted every one of
+ * those. A landline entered as a member's phone normalised happily to
+ * 254201234567, then reserved credit, dispatched, failed at the provider, and
+ * burned its whole sms_failures retry budget — paid for, undeliverable, and
+ * indistinguishable in the logs from a real network failure (SMS-AUDIT-v3
+ * V3-03).
+ *
+ * Verified before tightening: 0 of the 35 stored member phones and 0 SMS
+ * recipients in production fall outside this rule, so nothing existing breaks.
+ */
+const KE_MOBILE_PREFIX = /^[71]/;
+
+/**
  * Normalise a Kenyan phone number to E.164 format (254XXXXXXXXX).
- * Accepts: 07XXXXXXXX, +2547XXXXXXXX, 2547XXXXXXXX
+ * Accepts: 07XXXXXXXX, 01XXXXXXXX, +2547XXXXXXXX, 2547XXXXXXXX, 7XXXXXXXX.
+ * Rejects landlines and anything not a Kenyan mobile.
  */
 export function normalizePhone(raw: string): string {
+  // Throw the documented error for a null/undefined/non-string caller rather
+  // than a TypeError from .replace — callers catch on message, and a
+  // TypeError escapes the guards written against this contract.
+  if (typeof raw !== 'string') {
+    throw new Error(`Invalid Kenyan phone number: ${String(raw)}`);
+  }
+
   const digits = raw.replace(/\D/g, '');
 
-  if (digits.startsWith('254') && digits.length === 12) return digits;
-  if (digits.startsWith('0')   && digits.length === 10)  return '254' + digits.slice(1);
-  if (digits.startsWith('7')   && digits.length === 9)   return '254' + digits;
-  if (digits.startsWith('1')   && digits.length === 9)   return '254' + digits;
+  const subscriber =
+    digits.startsWith('254') && digits.length === 12 ? digits.slice(3)
+    : digits.startsWith('0')  && digits.length === 10 ? digits.slice(1)
+    : digits.length === 9                             ? digits
+    : null;
+
+  if (subscriber !== null && KE_MOBILE_PREFIX.test(subscriber)) {
+    return '254' + subscriber;
+  }
 
   throw new Error(`Invalid Kenyan phone number: ${raw}`);
 }
