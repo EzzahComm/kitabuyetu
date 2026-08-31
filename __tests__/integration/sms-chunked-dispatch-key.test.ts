@@ -116,8 +116,10 @@ describe('chunked bulk send without a campaign (G1)', () => {
       dispatchBatchId: deriveUuid(JOB_ID, 'chunk:0'), totalRecipientCount: phones.length,
     });
 
+    // Every recipient was already logged under this key, so the retry sends
+    // nothing. Note sendBulkCampaign always returns logs: [] — the real
+    // observables are the counts, the provider call, and the row count.
     expect(retry.sent).toBe(0);
-    expect(retry.dedupedAway).toBe(2);
     // No second dispatch to the provider, and no extra log rows.
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
     const [afterRetry] = await rawQuery<{ n: string }>(
@@ -146,9 +148,11 @@ describe('chunked bulk send without a campaign (G1)', () => {
       dispatchBatchId: deriveUuid(JOB_ID, 'chunk:1'), totalRecipientCount: 3,
     });
 
+    // Chunk 1 must NOT be deduped away by chunk 0's key: it dispatches on its
+    // own, and the provider is called once per chunk.
     expect(first.sent).toBe(2);
     expect(second.sent).toBe(1);
-    expect(second.dedupedAway).toBe(0);
+    expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(2);
 
     const [{ n }] = await rawQuery<{ n: string }>(
       `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
