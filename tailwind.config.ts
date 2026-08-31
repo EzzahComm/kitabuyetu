@@ -11,6 +11,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Nextly marketing template palette — its dark-mode utilities are all
+        // dark:*-trueGray-*, which resolve to neutral. Marketing surface only.
+        trueGray:   require('tailwindcss/colors').neutral,
         border:     'hsl(var(--border))',
         input:      'hsl(var(--input))',
         ring:       'hsl(var(--ring))',

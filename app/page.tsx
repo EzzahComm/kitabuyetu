@@ -1,24 +1,16 @@
 import type { Metadata } from 'next';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { Hero } from '@/components/marketing/hero';
-import { ProductPillarsSection } from '@/components/marketing/product-pillars-section';
-import { ProblemSection } from '@/components/marketing/problem-section';
-import { SolutionGrid } from '@/components/marketing/solution-grid';
-import { WhyKitabuYetuSection } from '@/components/marketing/why-kitabu-yetu-section';
-import { ProductShowcase } from '@/components/marketing/product-showcase';
-import { HowItWorks } from '@/components/marketing/how-it-works';
-import { EcosystemSection } from '@/components/marketing/ecosystem-section';
-import { EnterpriseSection } from '@/components/marketing/enterprise-section';
-import { CustomerPaths } from '@/components/marketing/customer-paths';
-import { MemberExperience } from '@/components/marketing/member-experience';
-import { RoleCards } from '@/components/marketing/role-cards';
-import { MpesaSection } from '@/components/marketing/mpesa-section';
-import { TrustSection } from '@/components/marketing/trust-section';
-import { ImpactSection } from '@/components/marketing/impact-section';
-import { ResourcesSection } from '@/components/marketing/resources-section';
-import { PricingSection } from '@/components/marketing/pricing-section';
-import { FinalCta } from '@/components/marketing/final-cta';
+import { Container } from '@/components/marketing/nextly/Container';
+import { Navbar } from '@/components/marketing/nextly/Navbar';
+import { Footer } from '@/components/marketing/nextly/Footer';
+import { Hero } from '@/components/marketing/nextly/Hero';
+import { SectionTitle } from '@/components/marketing/nextly/SectionTitle';
+import { Benefits } from '@/components/marketing/nextly/Benefits';
+import { Video } from '@/components/marketing/nextly/Video';
+import { Testimonials } from '@/components/marketing/nextly/Testimonials';
+import { Pricing } from '@/components/marketing/nextly/Pricing';
+import { Faq } from '@/components/marketing/nextly/Faq';
+import { Cta } from '@/components/marketing/nextly/Cta';
+import { benefitOne, benefitTwo } from '@/components/marketing/nextly/data';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke';
@@ -97,45 +89,72 @@ function StructuredData() {
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-paper">
+    <div className="flex min-h-screen flex-col">
       <StructuredData />
-      {/* The skip link lives in SiteHeader, so every public page has one. */}
-      <SiteHeader variant="overlay" />
+      <Navbar />
 
-      {/*
-        Section order follows the story the page is meant to tell, in this
-        order: what is this → why do I need it → what can it do → does it work
-        with M-Pesa → what does it mean for members → what if I manage many
-        groups → can I trust it → what else is there → how do I start → what
-        does it cost → what do I do now.
-
-        The two audiences split at CustomerPaths, which is why Enterprise sits
-        immediately before it: a visitor who manages many groups has just been
-        shown the organization product, so the fork that follows is a real
-        choice rather than an abstract one.
-      */}
       <main id="main" className="flex-1">
-        <Hero />
-        <SolutionGrid />
-        <ProblemSection />
-        <ProductShowcase />
-        <MpesaSection />
-        <MemberExperience />
-        <EnterpriseSection />
-        <CustomerPaths />
-        <TrustSection />
-        <RoleCards />
-        <ProductPillarsSection />
-        <EcosystemSection />
-        <HowItWorks />
-        <WhyKitabuYetuSection />
-        <ImpactSection />
-        <ResourcesSection />
-        <PricingSection />
-        <FinalCta />
+        <Container>
+          <Hero />
+
+          <SectionTitle
+            preTitle="What Kitabu Yetu is"
+            title="Your group&apos;s records. Finally in one place."
+          >
+            Members, money, payments and reports live together, instead of a
+            notebook, a spreadsheet and an M-Pesa statement that somebody has to
+            check against each other the night before every meeting.
+          </SectionTitle>
+
+          <Benefits data={benefitOne} />
+          <Benefits imgPos="right" data={benefitTwo} />
+
+          <SectionTitle
+            preTitle="Payments"
+            title="From M-Pesa to your books, in one motion"
+          >
+            A member pays by STK prompt or PayBill, Safaricom&apos;s callback is
+            verified and matched to them, and the split into savings, welfare and
+            loan repayment posts to the ledger — and a payment that arrives
+            without a usable reference waits in a queue rather than being guessed
+            at.
+          </SectionTitle>
+
+          <Video videoId="fZ0D0cnR88E" />
+
+          <SectionTitle
+            preTitle="Testimonials"
+            title="What groups say about Kitabu Yetu"
+          >
+            Treasurers, chairpersons and NGO coordinators on what changed once
+            the group&apos;s book moved online.
+          </SectionTitle>
+
+          <Testimonials />
+
+          <div id="pricing">
+            <SectionTitle
+              preTitle="Pricing"
+              title="One price a month, for the whole group"
+            >
+              Two products, one bill. Take the full book with Kitabu Yetu, or SMS
+              reminders on their own with Chama Reminder. Every price below is
+              the price the system actually charges.
+            </SectionTitle>
+
+            <Pricing />
+          </div>
+
+          <SectionTitle preTitle="FAQ" title="Frequently Asked Questions">
+            What treasurers, chairpersons and NGO coordinators ask us most often.
+          </SectionTitle>
+
+          <Faq />
+          <Cta />
+        </Container>
       </main>
 
-      <SiteFooter />
+      <Footer />
     </div>
   );
 }
