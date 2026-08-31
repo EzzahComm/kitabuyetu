@@ -34,9 +34,24 @@ async function provision(groupId: string, credits: number, allowance = 0): Promi
        sms_allowance_used = 0, sms_allowance_reserved = 0`,
     [groupId, credits],
   );
+  // register_group already creates an active starter subscription whose
+  // sms_allowance_included defaults to 50 (migration 124), and subscriptions
+  // has no (group_id, product) unique constraint to upsert against. So UPDATE
+  // the existing row, then insert only if there genuinely is none.
+  //
+  // This matters: leaving the default meant every send here was funded from
+  // the bundled allowance and the paid balance never moved, so the assertions
+  // were passing against the wrong mechanism.
+  await rawQuery(
+    `UPDATE subscriptions
+        SET sms_allowance_included = $2, status = 'active', sms_rate = 0.90
+      WHERE group_id = $1`,
+    [groupId, allowance],
+  );
   await rawQuery(
     `INSERT INTO subscriptions (group_id, plan_type, status, sms_rate, monthly_fee, sms_allowance_included)
-     VALUES ($1,'starter','active',0.90,0,$2) ON CONFLICT DO NOTHING`,
+     SELECT $1,'starter','active',0.90,0,$2
+      WHERE NOT EXISTS (SELECT 1 FROM subscriptions WHERE group_id = $1)`,
     [groupId, allowance],
   );
 }
