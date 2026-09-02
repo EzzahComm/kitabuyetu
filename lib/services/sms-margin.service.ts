@@ -1,4 +1,5 @@
 import { withAdminDb } from '@/lib/db';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
  * SMS margin and revenue reporting (spec §15). INTERNAL ONLY.
@@ -70,11 +71,14 @@ export interface TierViability {
  * still contribute its revenue. Dropping it would overstate margin percentage
  * by shrinking the denominator, which is the more dangerous direction.
  */
+// DEFAULT_SMS_PROVIDER is a trusted compile-time constant, not caller input —
+// string interpolation here is fine (no bound param needed for a value the
+// query text itself hardcodes).
 const COST_AT_SALE = `
   LEFT JOIN LATERAL (
     SELECT pc.unit_cost
     FROM sms_provider_costs pc
-    WHERE pc.provider = 'textsms'
+    WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}'
       AND pc.effective_from <= sc.created_at::date
       AND (pc.effective_to IS NULL OR pc.effective_to >= sc.created_at::date)
     ORDER BY pc.effective_from DESC
@@ -271,7 +275,7 @@ export async function getTierViability(): Promise<TierViability[]> {
     }>(
       `SELECT t.id, t.name, t.unit_price, t.is_active,
               (SELECT pc.unit_cost FROM sms_provider_costs pc
-                WHERE pc.provider = 'textsms' AND pc.effective_to IS NULL
+                WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}' AND pc.effective_to IS NULL
                 ORDER BY pc.effective_from DESC LIMIT 1) AS unit_cost
        FROM sms_pricing_tiers t
        ORDER BY t.display_order, t.min_credits`,

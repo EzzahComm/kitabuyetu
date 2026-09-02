@@ -25,9 +25,11 @@ import {
   sendBulkSmsChunked,
   getDeliveryReport,
   getProviderBalance,
+  activeSmsProvider,
+  isProviderAvailable,
   type BulkSmsItem,
   type SmsResponse,
-} from './textsms.service';
+} from '@/lib/sms/provider';
 import { renderTemplate, renderBuiltin, stripUnresolved, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
 import {
   reserveCredits,
@@ -510,6 +512,11 @@ export const smsService = {
       let allowanceLeft = reservation.fromAllowanceCount;
 
       const rows: SmsUsageLog[] = [];
+      // Recorded per-row, not hardcoded: retryFailures() reads this column
+      // back to route a retry through the SAME provider that accepted the
+      // original send (SMS-AUDIT-v3 T3-3), which only means something if the
+      // row records the provider actually in use rather than a fixed string.
+      const provider = activeSmsProvider();
       for (const phone of toSend) {
         // Allowance can part-fund a multi-segment message, so this is a
         // min() rather than the all-or-nothing it was when a row was always
@@ -522,10 +529,10 @@ export const smsService = {
              (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
               credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
               reference_type, reference_id, provider, payer_type, payer_organization_id, segments)
-           VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,'textsms',$10,$11,$12) RETURNING *`,
+           VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
           [ctx.groupId, phone, message, segsEach.toFixed(4), fromAllowance.toFixed(4),
            referenceType ?? null, referenceId ?? null,
-           referenceType ?? null, referenceId ?? null, payerType, payerOrgId, segsEach],
+           referenceType ?? null, referenceId ?? null, provider, payerType, payerOrgId, segsEach],
         );
         rows.push(inserted[0]);
       }
@@ -724,6 +731,10 @@ export const smsService = {
        * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
        */
       const feature = input.referenceType ?? 'campaign';
+      // See send()'s identical comment above: recorded per-row so
+      // retryFailures() can honour the provider a message actually went out
+      // through, not a fixed string.
+      const provider = activeSmsProvider();
 
       // Insert log rows in batches, each carrying its per-message credit cost
       for (let i = 0; i < eligible.length; i += batchSize) {
@@ -740,7 +751,7 @@ export const smsService = {
                 credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
                 payer_type, payer_organization_id, segments)
-             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,'textsms',$11,$12,$13) RETURNING id`,
+             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
             [
               input.groupId, phone, messageFor(phone), segs.toFixed(4), fromAllowance.toFixed(4),
               feature,
@@ -748,6 +759,7 @@ export const smsService = {
               feature,
               input.referenceId ?? dispatchKey,
               input.campaignId ?? null,
+              provider,
               payerType, payerOrgId, segs,
             ],
           );
@@ -977,8 +989,8 @@ export const smsService = {
     await withAdminDb((db) =>
       db.query(
         `INSERT INTO sms_provider_balances (provider, balance, currency, queried_by, raw_response)
-         VALUES ('textsms',$1,$2,$3,$4)`,
-        [result.balance, result.currency, memberId, JSON.stringify(result.raw)],
+         VALUES ($1,$2,$3,$4,$5)`,
+        [activeSmsProvider(), result.balance, result.currency, memberId, JSON.stringify(result.raw)],
       ),
     );
     return { balance: result.balance, currency: result.currency };
@@ -1190,18 +1202,21 @@ export const smsService = {
    * minutes so the drain rate is unaffected in practice. The per-iteration
    * budget check below is the real bound; the limit just keeps the query small.
    */
-  async retryFailures(limit = 25): Promise<{ retried: number; resolved: number; failed: number }> {
+  async retryFailures(limit = 25): Promise<{ retried: number; resolved: number; failed: number; skipped: number }> {
     // payer_type / payer_organization_id come from the ORIGINAL log row: a
     // retry must bill whoever the first attempt was going to bill, never the
-    // group by default.
+    // group by default. `provider` too (SMS-AUDIT-v3 T3-3): a retry must go
+    // out through the provider that accepted the original send, not whatever
+    // is active now.
     const failures = await withAdminDb((db) =>
       db.query<{
         id: string; group_id: string; sms_log_id: string | null;
         phone: string; message: string; retry_count: number;
         payer_type: string | null; payer_organization_id: string | null;
+        provider: string | null;
       }>(
         `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count,
-                l.payer_type, l.payer_organization_id
+                l.payer_type, l.payer_organization_id, l.provider
          FROM sms_failures f
          LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
          WHERE NOT f.resolved
@@ -1217,7 +1232,7 @@ export const smsService = {
     // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
     // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
-    let retried = 0, resolved = 0, failed = 0;
+    let retried = 0, resolved = 0, failed = 0, skipped = 0;
     let stoppedEarly = false;
 
     for (const f of failures) {
@@ -1231,6 +1246,24 @@ export const smsService = {
         stoppedEarly = true;
         break;
       }
+
+      const provider = f.provider ?? undefined;
+
+      // Circuit open ⇒ skip without touching retry_count/next_retry_at at
+      // all (SMS-AUDIT-v3 T3-3 closure test: "an outage does not exhaust a
+      // message's max_retries budget while the circuit is open"). Checked
+      // BEFORE the opt-out lookup and the credit reservation below,
+      // deliberately — an outage is not this row's fault, so nothing about
+      // it should change state, including work that would otherwise need
+      // undoing. The row stays exactly as eligible next tick as it is now;
+      // once the breaker's cool-down elapses a single probe gets through and
+      // either closes it (this row and the rest resume normally) or re-opens
+      // it (another skipped tick, still free).
+      if (!isProviderAvailable(provider)) {
+        skipped++;
+        continue;
+      }
+
       retried++;
 
       // Consent gate — never re-send to a number that has since opted out.
@@ -1294,7 +1327,7 @@ export const smsService = {
       }
 
       try {
-        const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender });
+        const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender }, provider);
         if (res.success) {
           await withAdminDb(async (db) => {
             if (f.sms_log_id) {
@@ -1333,9 +1366,10 @@ export const smsService = {
 
     logger.info(
       `[sms] retryFailures: ${retried}/${failures.length} due, ${resolved} resolved, ` +
-      `${failed} still failing${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
+      `${failed} still failing, ${skipped} skipped (provider circuit open)` +
+      `${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
     );
-    return { retried, resolved, failed };
+    return { retried, resolved, failed, skipped };
   },
 
   async listUsage(

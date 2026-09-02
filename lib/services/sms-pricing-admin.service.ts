@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
  * Super-admin control over SMS pricing (spec §12). INTERNAL ONLY.
@@ -114,8 +115,9 @@ export async function getPricingConfig() {
       db.query<SmsPackageRow>(`SELECT * FROM sms_packages ORDER BY display_order, credits`),
       db.query<SmsProviderCostRow>(
         `SELECT * FROM sms_provider_costs
-         WHERE provider = 'textsms' AND effective_to IS NULL
+         WHERE provider = $1 AND effective_to IS NULL
          ORDER BY effective_from DESC LIMIT 1`,
+        [DEFAULT_SMS_PROVIDER],
       ),
     ]);
     return { tiers: tiers.rows, packages: packages.rows, providerCost: cost.rows[0] ?? null };
@@ -279,17 +281,19 @@ export async function setProviderCost(actorId: string, unitCost: number, notes?:
   return withAdminDb(async (db) => {
     const { rows: before } = await db.query<SmsProviderCostRow>(
       `SELECT * FROM sms_provider_costs
-       WHERE provider = 'textsms' AND effective_to IS NULL`,
+       WHERE provider = $1 AND effective_to IS NULL`,
+      [DEFAULT_SMS_PROVIDER],
     );
     // Close yesterday so the windows do not overlap on the changeover day.
     await db.query(
       `UPDATE sms_provider_costs SET effective_to = CURRENT_DATE - 1
-       WHERE provider = 'textsms' AND effective_to IS NULL`,
+       WHERE provider = $1 AND effective_to IS NULL`,
+      [DEFAULT_SMS_PROVIDER],
     );
     const { rows } = await db.query<SmsProviderCostRow>(
       `INSERT INTO sms_provider_costs (provider, unit_cost, effective_from, notes)
-       VALUES ('textsms', $1, CURRENT_DATE, $2) RETURNING *`,
-      [unitCost.toFixed(4), notes ?? null],
+       VALUES ($1, $2, CURRENT_DATE, $3) RETURNING *`,
+      [DEFAULT_SMS_PROVIDER, unitCost.toFixed(4), notes ?? null],
     );
     await audit(db, actorId, 'sms_pricing.provider_cost_changed', rows[0].id, before[0] ?? null, rows[0]);
     return rows[0];

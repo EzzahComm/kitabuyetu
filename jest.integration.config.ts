@@ -8,6 +8,7 @@ const createJestConfig = nextJest({ dir: './' });
 
 const config: Config = {
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/jest.integration.setup.ts'],
   testMatch: ['<rootDir>/__tests__/integration/**/*.test.ts'],
   // app-tenant/ has its own config (jest.integration.app-tenant.config.ts) and
   // must never run under this one: it proves RLS enforcement under the
