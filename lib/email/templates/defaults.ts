@@ -410,6 +410,22 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     `,
   },
 
+  // SMS-REAUDIT-2026-09-02 F2. The generic staff notice used by
+  // lib/services/staff-alerts.ts, so a background control that detects a
+  // problem can actually reach a person. Deliberately plain and detail-heavy:
+  // the reader is an operator deciding whether to act tonight, not a customer.
+  staff_operational_alert: {
+    subject: '[ALERT] {{subject}}',
+    body: `
+      <h2 style="margin:0 0 16px;color:#b91c1c;">{{subject}}</h2>
+      <p style="margin:0 0 16px;color:#374151;">{{body}}</p>
+      <pre style="background:#f3f4f6;border-radius:6px;padding:16px;font-size:12px;color:#111827;overflow-x:auto;white-space:pre-wrap;">{{details}}</pre>
+      <p style="margin:16px 0 0;font-size:13px;color:#6b7280;">
+        This condition will not be emailed again until it changes, or after {{window}}.
+      </p>
+    `,
+  },
+
   // Was missing entirely, so every low-balance alert since it shipped rendered
   // through sendTemplatedEmail's last-resort branch — a JSON dump of its vars.
   // A DB template still wins over this if one exists.

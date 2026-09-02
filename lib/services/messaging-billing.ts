@@ -29,6 +29,7 @@ import { pool, withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { enqueueJob } from '@/lib/jobs';
 import { isFeatureEnabled } from './feature-flags.service';
+import { raiseStaffAlert, clearStaffAlert } from './staff-alerts';
 
 /** Postgres error codes raised by reserve_sms_credits (migration 123). */
 const PG_INSUFFICIENT   = '22003';
@@ -397,11 +398,17 @@ export async function redactExpiredMessageBodies(): Promise<{ redacted: number }
   return { redacted: rowCount ?? 0 };
 }
 
+/** Identity of the reconciliation condition in staff_alert_state. */
+const RECONCILIATION_ALERT_KEY = 'sms_credit_reconciliation';
+
 export interface SmsReconciliationResult {
   payersChecked:    number;
   driftedPayers:    number;
   campaignsChecked: number;
   driftedCampaigns: number;
+  /** Whether staff were actually emailed on THIS run (false when suppressed
+   *  as a repeat of the same unchanged problem). */
+  alerted:          boolean;
 }
 
 /**
@@ -465,11 +472,57 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
     });
   }
 
+  // ── Tell a human (SMS-REAUDIT-2026-09-02 F2) ────────────────────────────
+  //
+  // Everything above was already correct and had already been logging its
+  // verdict on every run since it shipped. What it could not do was reach
+  // anybody: logger.error has no sink (T3-4 item 1, deferred), so a real
+  // campaign-counter drift sat unread for six days while this job faithfully
+  // reported it. Detecting without reporting is not a control.
+  //
+  // The alert describes the CONDITION, not each row inside it — one email
+  // saying "1 campaign disagrees", never one per campaign — and staff-alerts
+  // suppresses a repeat of the same unchanged problem. A drift that CHANGES
+  // alerts immediately.
+  const alerted = await (async () => {
+    if (drifted.length === 0 && badCampaigns.length === 0) {
+      // Clear rather than simply stay quiet: this re-arms the alert so the
+      // next incident notifies at once instead of waiting out a window left
+      // over from the last one.
+      await clearStaffAlert(RECONCILIATION_ALERT_KEY);
+      return false;
+    }
+
+    return raiseStaffAlert({
+      key:     RECONCILIATION_ALERT_KEY,
+      subject: `SMS reconciliation: ${drifted.length} payer(s) and ${badCampaigns.length} campaign(s) disagree with their own records`,
+      body:
+        'The daily SMS money-trail check found records that do not agree with each other. '
+        + 'Credit drift means a balance and its ledger tell different stories and a human has to '
+        + 'decide which is true — this job deliberately never repairs. Campaign drift is a '
+        + 'reporting error only: the stored counters disagree with the message log, which is the '
+        + 'authoritative record.',
+      details: {
+        driftedPayers: drifted.map((p) => ({
+          payerType: p.payer_type, payerId: p.payer_id,
+          balance: p.balance, ledgerTotal: p.ledger_total,
+          drift: p.drift, lotDrift: p.lot_drift,
+        })),
+        driftedCampaigns: badCampaigns.map((c) => ({
+          campaignId: c.id,
+          storedSent: c.sent_count, actualSent: Number(c.real_sent),
+          storedFailed: c.failed_count, actualFailed: Number(c.real_failed),
+        })),
+      },
+    });
+  })();
+
   return {
     payersChecked:    payers.length,
     driftedPayers:    drifted.length,
     campaignsChecked: campaigns.length,
     driftedCampaigns: badCampaigns.length,
+    alerted,
   };
 }
 
