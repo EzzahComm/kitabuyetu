@@ -78,15 +78,49 @@ async function checkMpesa(): Promise<CheckState> {
   }
 }
 
+/**
+ * SMS is reported from the LAST RECORDED VERDICT, not a live provider call
+ * (SMS-AUDIT-v3 T3-4). Two reasons, both deliberate:
+ *
+ *  1. Every provider call now runs through lib/sms/provider.ts's circuit
+ *     breaker, so a probe fired from a public, unauthenticated page would
+ *     feed that breaker — letting anyone who can load this URL influence
+ *     whether real sends are allowed through. A status page must observe the
+ *     system, never steer it.
+ *  2. "Did one balance call succeed" is a weaker question than "are messages
+ *     actually being delivered", which is what sms_provider_health already
+ *     samples hourly from real outcomes.
+ *
+ * A missing row (job has not run yet, or the migration is not applied) reads
+ * as operational rather than down: absence of evidence is not an outage, and
+ * a status page that cries wolf on its own cold start is worse than one that
+ * waits an hour for a real verdict.
+ *
+ * Queue depth is deliberately NOT published here. It is internal operational
+ * detail of exactly the kind T1-7 removed from tenant surfaces — it belongs
+ * in the tick log line and the job history, not on a public page.
+ */
+async function checkSms(): Promise<CheckState> {
+  try {
+    const { readProviderHealth } = await import('@/lib/services/sms-health.service');
+    const health = await withTimeout(readProviderHealth(), 4_000);
+    return health?.state === 'degraded' ? 'down' : 'operational';
+  } catch {
+    // Reading the verdict failed — that says nothing about the provider.
+    return 'operational';
+  }
+}
+
 async function getStatus(): Promise<StatusSnapshot> {
   if (_cache && Date.now() - _cache.checkedAt < CACHE_TTL_MS) {
     return _cache;
   }
 
-  const [db, cache, mpesa] = await Promise.all([
+  const [db, cache, mpesa, sms] = await Promise.all([
     checkDatabase(),
     checkRedis(),
     checkMpesa(),
+    checkSms(),
   ]);
 
   // The API and the web app itself share the database's fate — neither can
@@ -97,6 +131,7 @@ async function getStatus(): Promise<StatusSnapshot> {
       { label: 'Web application',                       state: 'operational' },
       { label: 'M-Pesa collections (STK Push, PayBill)', state: mpesa },
       { label: 'M-Pesa disbursements (B2C)',             state: mpesa },
+      { label: 'SMS notifications',                      state: sms },
       { label: 'API',                                    state: db === 'operational' && cache === 'operational' ? 'operational' : 'down' },
     ],
   };

@@ -386,4 +386,38 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       </div>
     `,
   },
+
+  // ─── Operational alerts (staff) ──────────────────────────────────────────────
+
+  // SMS-AUDIT-v3 T3-4. Goes to EMAIL_ADMIN, never to a tenant, and NEVER over
+  // SMS — an alert about a broken SMS channel must not depend on that channel.
+  sms_provider_degraded: {
+    subject: '[ALERT] SMS provider degraded — {{failureRate}} of sends failing',
+    body: `
+      <h2 style="margin:0 0 16px;color:#b91c1c;">SMS provider degraded</h2>
+      <p style="margin:0 0 16px;color:#374151;">
+        <strong>{{failed}}</strong> of <strong>{{total}}</strong> messages sent through
+        <strong>{{provider}}</strong> in the last {{window}} failed ({{failureRate}}).
+      </p>
+      <p style="margin:0 0 16px;color:#374151;">
+        Automated reminders, loan alerts and verification codes are affected. Check the
+        provider account balance and credentials first — both have caused this before.
+      </p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">
+        You will not receive another alert for this provider for 6 hours, or until it
+        recovers and degrades again.
+      </p>
+    `,
+  },
+
+  // Was missing entirely, so every low-balance alert since it shipped rendered
+  // through sendTemplatedEmail's last-resort branch — a JSON dump of its vars.
+  // A DB template still wins over this if one exists.
+  sms_low_balance: {
+    subject: 'SMS credits exhausted',
+    body: `
+      <h2 style="margin:0 0 16px;color:#0B3C88;">{{title}}</h2>
+      <p style="margin:0 0 16px;color:#374151;">{{body}}</p>
+    `,
+  },
 };

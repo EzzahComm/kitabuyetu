@@ -119,6 +119,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_low_balance_alert':
       return handleSmsLowBalanceAlert(job.payload);
 
+    case 'sms_provider_health':
+      return handleSmsProviderHealth();
+
     case 'sms_release_stale_reservations':
       return handleSmsReleaseStaleReservations();
 
@@ -900,6 +903,36 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
   }
 
   return { message: `Low-balance alert raised (${recipients} recipient(s))`, recipients };
+}
+
+/**
+ * Hourly provider-health sample (SMS-AUDIT-v3 T3-4). The service decides
+ * whether anything is wrong and whether anyone has already been told; this
+ * handler only turns that into a run-record line an operator can read in the
+ * job history without opening the database.
+ */
+async function handleSmsProviderHealth(): Promise<HandlerResult> {
+  const { sampleProviderHealth } = await import('@/lib/services/sms-health.service');
+  const s = await sampleProviderHealth();
+
+  const message =
+    s.state === null
+      ? `SMS provider health: only ${s.total} message(s) in the window — no verdict`
+      : s.state === 'degraded'
+        ? `SMS provider DEGRADED: ${s.failed}/${s.total} failed${s.alerted ? ' — staff alerted' : ' — alert already active'}`
+        : s.recovered
+          ? `SMS provider recovered: ${s.failed}/${s.total} failed`
+          : `SMS provider healthy: ${s.failed}/${s.total} failed`;
+
+  return {
+    message,
+    provider:    s.provider,
+    total:       s.total,
+    failed:      s.failed,
+    failureRate: Number(s.failureRate.toFixed(4)),
+    state:       s.state,
+    alerted:     s.alerted,
+  };
 }
 
 /**
