@@ -36,6 +36,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       ctx.organizationId, parsed.data.amountKes, ctx.userId,
       { reference: parsed.data.reference, notes: parsed.data.notes },
     );
+    // null means the insert was swallowed as a duplicate payment (G27).
+    // Unreachable from here — this route never passes a paymentId and a NULL
+    // one cannot conflict — but reporting a top-up that did not happen is the
+    // exact failure the guard exists to prevent, so it is not faked either.
+    if (!result) return badRequest('This payment has already been credited');
     return ok(result, 201);
   });
 }

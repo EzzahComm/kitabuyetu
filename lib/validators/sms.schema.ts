@@ -27,6 +27,23 @@ export const SendSmsSchema = z.object({
   referenceId:   z.string().uuid().optional().nullable(),
 });
 
+/**
+ * Reminder/automation history (SMS-AUDIT-v3 G21).
+ *
+ * `status` accepts 'suppressed' like any other value — a suppressed row is
+ * the record that someone opted out and was honoured, which is exactly what a
+ * data-subject request needs to see. Omitting the filter returns every
+ * outcome, including suppressed.
+ */
+export const ReminderHistoryQuerySchema = z.object({
+  page:     z.coerce.number().int().min(1).default(1),
+  limit:    z.coerce.number().int().min(1).max(100).default(20),
+  memberId: z.string().uuid().optional(),
+  status:   z.enum(['pending', 'sent', 'failed', 'suppressed']).optional(),
+  from:     z.string().date().optional(),
+  to:       z.string().date().optional(),
+});
+
 export const SmsUsageQuerySchema = z.object({
   page:    z.coerce.number().int().min(1).default(1),
   limit:   z.coerce.number().int().min(1).max(100).default(20),
@@ -150,6 +167,28 @@ export const TemplateCreateSchema = z.object({
   category:    z.enum(['transaction', 'loan', 'reminder', 'birthday', 'onboarding', 'auth', 'announcement', 'custom']).default('custom'),
 });
 
+/**
+ * Pre-send cost preview (SMS-AUDIT-v3 G28).
+ *
+ * Mirrors the audience half of BulkSmsSchema so a preview is quoted for the
+ * exact payload that would be sent — a preview that accepts a different shape
+ * than the send would eventually quote for a different audience. Read-only,
+ * so unlike BulkSmsSchema it does not carry senderId/timeToSend/reference*.
+ *
+ * `roles` is excluded for the same reason RawRecipientsSchema omits it: that
+ * branch is reached only by trigger rules calling the resolver directly, and
+ * a strict rawRecipients has nowhere to put a roles list anyway.
+ */
+export const BulkPreviewSchema = z.object({
+  message:       z.string().min(1).max(320),
+  phones:        z.array(phoneSchema).min(1).max(5000).optional(),
+  recipientType: z.enum(['all_members', 'active_members', 'custom_phones', 'selected']).optional(),
+  rawRecipients: RawRecipientsSchema.optional(),
+}).refine(
+  (d) => (d.phones !== undefined) !== (d.recipientType !== undefined),
+  { message: 'Provide exactly one of `phones` or `recipientType`.', path: ['phones'] },
+);
+
 export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({ templateKey: true });
 
 /**
@@ -214,6 +253,8 @@ export const SmsGroupSettingsUpdateSchema = z.object({
 export type SendSmsInput        = z.infer<typeof SendSmsSchema>;
 export type SmsGroupSettingsUpdateInput = z.infer<typeof SmsGroupSettingsUpdateSchema>;
 export type SmsUsageQueryInput  = z.infer<typeof SmsUsageQuerySchema>;
+export type ReminderHistoryQueryInput = z.infer<typeof ReminderHistoryQuerySchema>;
+export type BulkPreviewInput          = z.infer<typeof BulkPreviewSchema>;
 export type BulkSmsInput        = z.infer<typeof BulkSmsSchema>;
 export type CampaignCreateInput = z.infer<typeof CampaignCreateSchema>;
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;

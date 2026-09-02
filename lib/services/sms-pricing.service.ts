@@ -79,7 +79,17 @@ export async function listActiveTiers(): Promise<PricingTier[]> {
   });
 }
 
-/** Sellable bundles. §3 says prioritise these over custom quantities in the UI. */
+/**
+ * Sellable bundles. §3 says prioritise these over custom quantities in the UI.
+ *
+ * NOTE (SMS-AUDIT-v3 G30): this function has NO CALLERS — no purchase surface
+ * has ever offered a package to choose — and `sms_credits.package_id` has no
+ * writer, so nothing records which package a purchase came from either. The
+ * catalogue is unwired at both ends. The revenue-by-package report built over
+ * that column was retired for exactly this reason; see the retirement note in
+ * sms-margin.service.ts for the order in which to wire it up if the catalogue
+ * is ever brought into the purchase flow.
+ */
 export async function listActivePackages(): Promise<SmsPackage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{

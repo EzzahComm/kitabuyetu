@@ -150,7 +150,10 @@ export const contributionsService = {
         billingMode:    'billed',
       });
       if (result.sent) sent++;
-      else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+      // 'cooldown' defers rather than fails — see the identical note in
+      // lib/jobs/handlers.ts.
+      else if (result.status === 'already_sent' || result.status === 'already_suppressed'
+               || result.status === 'cooldown') skipped++;
       else failed++;
     }
 

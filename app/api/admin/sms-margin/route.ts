@@ -17,13 +17,18 @@ export const dynamic = 'force-dynamic';
 export function GET(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async () => {
     const p = new URL(req.url).searchParams;
-    const [summary, byPackage, topCustomers, tiers, byOrganization] = await Promise.all([
+    // `byPackage` was removed here, not merely unused (SMS-AUDIT-v3 G30):
+    // nothing writes sms_credits.package_id, so it could only ever report one
+    // empty bucket. See sms-margin.service.ts's retirement note for what would
+    // have to be built before a package breakdown means anything. No UI ever
+    // rendered it, and this is /api/admin/*, outside the /api/v1/* key-stability
+    // guarantee.
+    const [summary, topCustomers, tiers, byOrganization] = await Promise.all([
       smsMarginService.getMarginSummary(p.get('from') ?? undefined, p.get('to') ?? undefined),
-      smsMarginService.getRevenueByPackage(),
       smsMarginService.getTopCustomers(),
       smsMarginService.getTierViability(),
       smsMarginService.getOrganizationUsage(),
     ]);
-    return ok({ summary, byPackage, topCustomers, tiers, byOrganization });
+    return ok({ summary, topCustomers, tiers, byOrganization });
   });
 }

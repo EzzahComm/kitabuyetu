@@ -490,7 +490,11 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
       billingMode:    'billed',
     });
     if (result.sent) sent++;
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
+    // resumable and the next run sends it. Counting it as failed would
+    // report an outage that isn't one.
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
+             || result.status === 'cooldown') skipped++;
     else failed++;
   }
 
@@ -581,7 +585,11 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
       billingMode:    'billed',
     });
     if (result.sent) sent++;
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
+    // resumable and the next run sends it. Counting it as failed would
+    // report an outage that isn't one.
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
+             || result.status === 'cooldown') skipped++;
     else failed++;
   }
 
@@ -666,7 +674,11 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
       billingMode:    'billed',
     });
     if (result.sent) sent++;
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed') skipped++;
+    // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
+    // resumable and the next run sends it. Counting it as failed would
+    // report an outage that isn't one.
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
+             || result.status === 'cooldown') skipped++;
     else failed++;
   }
 
