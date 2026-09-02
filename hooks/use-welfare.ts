@@ -45,10 +45,11 @@ export const welfareKeys = {
   pool:   ['welfare', 'pool'] as const,
 };
 
-export function useWelfareRequests(params?: Record<string, unknown>) {
+export function useWelfareRequests(params?: Record<string, unknown>, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: welfareKeys.list(params),
     queryFn:  () => api.get<PaginatedResult<WelfareRequestRow>>(`${BASE}${buildQuery(params ?? {})}`),
+    enabled:  opts?.enabled,
   });
 }
 
@@ -79,10 +80,11 @@ export function useReviewWelfareRequest(id: string) {
   });
 }
 
-export function useWelfarePool() {
+export function useWelfarePool(opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: welfareKeys.pool,
     queryFn:  () => api.get<WelfarePoolResponse>(`${BASE}/pool`),
+    enabled:  opts?.enabled,
   });
 }
 
