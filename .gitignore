@@ -35,7 +35,7 @@ Thumbs.db
 .next/standalone/
 
 # TypeScript incremental build cache
-tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 .vercel
 .env*.local
@@ -44,4 +44,9 @@ tsconfig.tsbuildinfo
 coverage/
 
 .vercel
+# Every local env file is ignored by default (added by `vercel link`).
+# .env.test is the deliberate exception: CI reads it from the repo, and it
+# holds only throwaway test values. Without this negation a delete-and-re-add
+# would silently drop it and every integration run would lose its config.
 .env*
+!.env.test
