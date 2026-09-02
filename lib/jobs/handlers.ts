@@ -833,8 +833,15 @@ async function handleSmsProcessSchedules(): Promise<HandlerResult> {
 async function handleSmsPollDlr(): Promise<HandlerResult> {
   const { smsService } = await import('@/lib/services/sms.service');
   const result = await smsService.pollPendingDlrs();
+  // Retired messages are named rather than left silent: "we stopped asking"
+  // is a real event in the delivery record, and a count that quietly stops
+  // growing looks identical to one that was never growing
+  // (SMS-REAUDIT-2026-09-02 F5).
+  const retired = result.abandoned > 0
+    ? `, ${result.abandoned} retired as never-reportable`
+    : '';
   return {
-    message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked})`,
+    message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked}${retired})`,
     ...flattenResult(result),
   };
 }
