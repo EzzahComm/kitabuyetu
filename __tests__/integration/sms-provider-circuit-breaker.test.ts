@@ -65,7 +65,7 @@ async function queueOneFailedSend(groupId: string, userId: string) {
 
 async function failureRow(groupId: string) {
   const [row] = await rawQuery<{
-    retry_count: number; resolved: boolean; next_retry_at: string | null;
+    retry_count: number; resolved: boolean; next_retry_at: Date | null;
   }>(
     `SELECT retry_count, resolved, next_retry_at FROM sms_failures
      WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`,
@@ -119,7 +119,11 @@ describe('retryFailures + provider circuit breaker', () => {
     const after = await failureRow(groupId);
     expect(after.retry_count).toBe(0);
     expect(after.resolved).toBe(false);
-    expect(after.next_retry_at).toBe(before.next_retry_at);
+    // pg returns timestamptz as a Date object, not a string — toBe's
+    // reference equality would fail two distinct Date instances holding the
+    // same instant. toEqual compares by value, which is what "untouched"
+    // actually means here.
+    expect(after.next_retry_at).toEqual(before.next_retry_at);
 
     // No credits were reserved-then-released either — skipping happens
     // before any billing work, not after.
