@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
  * SMS pricing — tiers, packages and provider cost, read from the database
@@ -105,7 +106,7 @@ export async function listActivePackages(): Promise<SmsPackage[]> {
  * that serialises its result into a tenant-facing response.
  */
 export async function getProviderCost(
-  provider = 'textsms',
+  provider = DEFAULT_SMS_PROVIDER,
   onDate?: Date,
 ): Promise<number | null> {
   return withAdminDb(async (db) => {
@@ -137,7 +138,7 @@ export interface Margin {
  * plausible number would be worse than showing nothing.
  */
 export async function marginFor(sellPrice: number, onDate?: Date): Promise<Margin | null> {
-  const unitCost = await getProviderCost('textsms', onDate);
+  const unitCost = await getProviderCost(DEFAULT_SMS_PROVIDER, onDate);
   if (unitCost === null) return null;
   const margin = sellPrice - unitCost;
   return {

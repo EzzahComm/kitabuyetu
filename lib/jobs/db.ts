@@ -65,6 +65,51 @@ export async function getDistinctPendingTypes(): Promise<JobType[]> {
   return rows.map((r) => r.type);
 }
 
+export interface QueueDepth {
+  /** Total pending and due right now. */
+  pending:            number;
+  /** Age of the oldest due job, in minutes. 0 when the queue is empty. */
+  oldestPendingMins:  number;
+  /** Per-type breakdown, worst (oldest) first, for the tick's log line. */
+  byType:             { type: JobType; pending: number; oldestMins: number }[];
+}
+
+/**
+ * Queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4 / G14).
+ *
+ * The starvation that broke reminder delivery for days in August was fully
+ * visible in this one query the entire time — sms_release_stale_reservations
+ * sat at 2,258 pending having completed nothing in 8 days — and nobody ran
+ * it, because nothing emitted it. Four rounds of fixes were shipped partly
+ * blind for want of exactly these two numbers.
+ *
+ * `run_at <= NOW()` deliberately: a job scheduled for the future is not a
+ * backlog, and counting it would make every healthy tick look alarming.
+ */
+export async function getQueueDepth(): Promise<QueueDepth> {
+  const { rows } = await pool.query<{ type: JobType; pending: string; oldest_mins: string }>(
+    `SELECT type,
+            COUNT(*)::text                                                    AS pending,
+            (EXTRACT(EPOCH FROM (NOW() - MIN(run_at))) / 60)::int::text       AS oldest_mins
+       FROM job_queue
+      WHERE status = 'pending' AND run_at <= NOW()
+      GROUP BY type
+      ORDER BY MIN(run_at) ASC`,
+  );
+
+  const byType = rows.map((r) => ({
+    type:       r.type,
+    pending:    Number(r.pending),
+    oldestMins: Number(r.oldest_mins),
+  }));
+
+  return {
+    pending:           byType.reduce((sum, t) => sum + t.pending, 0),
+    oldestPendingMins: byType.length > 0 ? Math.max(...byType.map((t) => t.oldestMins)) : 0,
+    byType,
+  };
+}
+
 /**
  * Reset jobs that have been stuck in 'processing' longer than the
  * threshold (safeguard against Vercel function timeouts).

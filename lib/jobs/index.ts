@@ -167,6 +167,17 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       priority:  5,
       dedup_key: `payment_requests_expire:${dateStr}T${hour}`,
     });
+
+    // SMS provider health (SMS-AUDIT-v3 T3-4 / G14). Hourly matches the other
+    // monitors above and the service's own 1-hour sample window — sampling
+    // more often than the window would re-read the same messages and say the
+    // same thing. Priority 7 alongside the payment-spine monitor: noticing an
+    // outage is not itself time-critical work, but it must not be starved by
+    // the very backlog an outage produces.
+    queued.sms_provider_health = await safe('sms_provider_health', {}, {
+      priority:  7,
+      dedup_key: `sms_provider_health:${dateStr}T${hour}`,
+    });
   }
 
   // ── Daily 06:00 EAT — recurring invoices ──────────────────────

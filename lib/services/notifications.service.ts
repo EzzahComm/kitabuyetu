@@ -38,7 +38,7 @@
 import { pool } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { sendText, isWhatsAppConfigured } from '@/lib/integrations/whatsapp-client';
-import { sendSingleSms } from './textsms.service';
+import { sendSingleSms, activeSmsProvider } from '@/lib/sms/provider';
 import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
 import { segmentsOf } from '@/lib/sms/segments';
 import {
@@ -416,8 +416,8 @@ async function insertSmsLog(
          $1, $2, $3, $4, 'queued',
          0, $5, $6, $7::varchar, CASE WHEN $7 = 'reserved' THEN NOW() ELSE NULL END,
          $8, $9,
-         $10, $11, 'textsms',
-         $12, $13, $14
+         $10, $11, $12,
+         $13, $14, $15
        ) RETURNING id`,
       [
         isPlatform ? null : rcpt.groupId,
@@ -433,6 +433,9 @@ async function insertSmsLog(
         rcpt.correlationId ?? null,
         rcpt.referenceType ?? null,
         rcpt.referenceId ?? null,
+        // Recorded, not hardcoded (SMS-AUDIT-v3 T3-3) — see sms.service.ts's
+        // identical comment on why this column has to be real.
+        activeSmsProvider(),
         payerType,
         isPlatform ? null : (rcpt.payerOrganizationId ?? null),
         segments,

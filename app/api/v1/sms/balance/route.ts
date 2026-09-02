@@ -4,6 +4,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { smsService } from '@/lib/services/sms.service';
 import { ok } from '@/lib/utils/response';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 // sms_provider_balances is KITABU YETU'S OWN float with TextSMS — the
 // platform's purchasing position, not any tenant's credit. A group's own
@@ -25,9 +26,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       db.query(
         `SELECT balance, currency, queried_at
          FROM sms_provider_balances
-         WHERE provider='textsms'
+         WHERE provider=$1
          ORDER BY queried_at DESC LIMIT 1`,
-        [],
+        [DEFAULT_SMS_PROVIDER],
       ),
     );
     const latest = rows[0] ?? null;
