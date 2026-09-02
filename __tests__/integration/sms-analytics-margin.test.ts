@@ -349,6 +349,11 @@ describe('Organization SMS credit top-ups', () => {
     // No prior organization_billing_accounts row — proves the lazy bootstrap.
     const result = await addOrganizationSmsCredits(organizationId, 900, coordinatorId);
 
+    // Manual top-up: no paymentId, so the G27 duplicate guard can never
+    // swallow it and a null return would be a real defect.
+    expect(result).not.toBeNull();
+    if (!result) throw new Error('unreachable: manual top-up returned null');
+
     expect(result.rateApplied).toBeCloseTo(0.90, 4); // schema default
     expect(result.creditsAdded).toBeCloseTo(1000, 4); // 900 / 0.90
     expect(result.newBalance).toBeCloseTo(1000, 4);
@@ -376,10 +381,12 @@ describe('Organization SMS credit top-ups', () => {
 
   it('a changed rate applies to the NEXT top-up, not the last one', async () => {
     const first = await addOrganizationSmsCredits(organizationId, 900, coordinatorId); // at 0.90
+    if (!first) throw new Error('unreachable: manual top-up returned null');
     expect(first.rateApplied).toBeCloseTo(0.90, 4);
 
     await setOrganizationSmsRate(organizationId, 0.50, coordinatorId);
     const second = await addOrganizationSmsCredits(organizationId, 500, coordinatorId); // at 0.50
+    if (!second) throw new Error('unreachable: manual top-up returned null');
 
     expect(second.rateApplied).toBeCloseTo(0.50, 4);
     expect(second.creditsAdded).toBeCloseTo(1000, 4); // 500 / 0.50

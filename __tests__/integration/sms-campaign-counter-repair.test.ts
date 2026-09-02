@@ -27,7 +27,8 @@ jest.mock('@/lib/services/email.service', () => ({
 }));
 
 async function makeCampaign(
-  groupId: string, storedSent: number, storedFailed: number, status = 'completed',
+  groupId: string, createdBy: string,
+  storedSent: number, storedFailed: number, status = 'completed',
 ): Promise<string> {
   // created_by is NOT NULL on sms_campaigns — a campaign always has an author.
   const [row] = await rawQuery<{ id: string }>(
@@ -35,7 +36,7 @@ async function makeCampaign(
        (group_id, name, message, status, sent_count, failed_count, recipient_count, created_by)
      VALUES ($1, 'test campaign', 'hello', $2, $3, $4, 0, $5)
      RETURNING id`,
-    [groupId, status, storedSent, storedFailed, officerId],
+    [groupId, status, storedSent, storedFailed, createdBy],
   );
   return row.id;
 }
@@ -72,7 +73,7 @@ describe('campaign counter repair', () => {
   });
 
   it('recomputes inverted counters from the message log — the 9e1d1bf5 case', async () => {
-    const id = await makeCampaign(groupId, 0, 8);   // stored: 0 sent / 8 failed
+    const id = await makeCampaign(groupId, officerId, 0, 8);   // stored: 0 sent / 8 failed
     await seedLogs(groupId, id, 8, 0);              // real:   8 sent / 0 failed
 
     const r = await reconcileSmsCredits();
@@ -86,7 +87,7 @@ describe('campaign counter repair', () => {
   });
 
   it('is idempotent — a second run finds nothing left to repair', async () => {
-    const id = await makeCampaign(groupId, 0, 8);
+    const id = await makeCampaign(groupId, officerId, 0, 8);
     await seedLogs(groupId, id, 8, 0);
 
     await reconcileSmsCredits();
@@ -99,7 +100,7 @@ describe('campaign counter repair', () => {
   it('NEVER zeroes a campaign whose message rows are gone', async () => {
     // Stored counters say 8 were sent; no log rows survive to recount from.
     // Recomputing here would overwrite the only remaining record with 0/0.
-    const id = await makeCampaign(groupId, 8, 0);
+    const id = await makeCampaign(groupId, officerId, 8, 0);
 
     const r = await reconcileSmsCredits();
 
@@ -111,7 +112,7 @@ describe('campaign counter repair', () => {
 
   it('leaves a campaign that is still sending alone', async () => {
     // Mid-flight disagreement is expected, not drift.
-    const id = await makeCampaign(groupId, 2, 0, 'sending');
+    const id = await makeCampaign(groupId, officerId, 2, 0, 'sending');
     await seedLogs(groupId, id, 5, 0);
 
     const r = await reconcileSmsCredits();
@@ -122,7 +123,7 @@ describe('campaign counter repair', () => {
   });
 
   it('counts a delivered message as sent, not as a disagreement', async () => {
-    const id = await makeCampaign(groupId, 3, 0);
+    const id = await makeCampaign(groupId, officerId, 3, 0);
     await rawQuery(
       `INSERT INTO sms_usage_logs
          (group_id, recipient_phone, message_text, credits_deducted, status, provider, campaign_id, correlation_id)
