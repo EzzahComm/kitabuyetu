@@ -406,6 +406,8 @@ export interface SmsReconciliationResult {
   driftedPayers:    number;
   campaignsChecked: number;
   driftedCampaigns: number;
+  /** Campaigns whose counters were recomputed from the message log this run. */
+  repairedCampaigns: number;
   /** Whether staff were actually emailed on THIS run (false when suppressed
    *  as a repeat of the same unchanged problem). */
   alerted:          boolean;
@@ -464,11 +466,57 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   const badCampaigns = campaigns.filter(
     (c) => c.sent_count !== Number(c.real_sent) || c.failed_count !== Number(c.real_failed),
   );
-  for (const c of badCampaigns) {
-    logger.error('[sms-reconciliation] campaign counters disagree with the message log', {
+
+  // ── Repair the campaign counters (SMS-REAUDIT-2026-09-02 F4) ────────────
+  //
+  // This job's rule is REPORT, NEVER REPAIR — and that rule is about MONEY.
+  // Credit drift means a balance and its ledger tell different stories, and
+  // deciding which is true is a human's call on somebody's funds.
+  //
+  // A campaign counter is a different kind of thing: it is DERIVED reporting
+  // data whose source of truth is sms_usage_logs, which the codebase already
+  // treats as authoritative ("always verify against sms_usage_logs, never the
+  // campaign row"). Recomputing a derived value from its source is not a
+  // judgment call, so leaving it drifted forever — as it was for six days,
+  // reported daily, unrepairable because syncCampaignCompletion has no
+  // retroactive counterpart — buys nothing.
+  //
+  // Two guards make this safe to automate:
+  //   1. Only 'completed' campaigns (the query above). One still sending
+  //      legitimately disagrees mid-flight.
+  //   2. Only when the log actually HAS rows for that campaign. Without this,
+  //      a campaign whose rows were somehow lost would have its real counters
+  //      overwritten with 0/0 — destroying the only remaining record of what
+  //      it did. Recomputing from an empty source is not a repair.
+  const repairable = badCampaigns.filter(
+    (c) => Number(c.real_sent) + Number(c.real_failed) > 0,
+  );
+  const unrepairable = badCampaigns.filter(
+    (c) => Number(c.real_sent) + Number(c.real_failed) === 0,
+  );
+
+  for (const c of repairable) {
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE sms_campaigns
+            SET sent_count = $2, failed_count = $3, updated_at = NOW()
+          WHERE id = $1 AND status = 'completed'`,
+        [c.id, Number(c.real_sent), Number(c.real_failed)],
+      ),
+    );
+    logger.warn('[sms-reconciliation] repaired campaign counters from the message log', {
       campaignId: c.id,
-      storedSent: c.sent_count, actualSent: c.real_sent,
-      storedFailed: c.failed_count, actualFailed: c.real_failed,
+      wasSent: c.sent_count, nowSent: Number(c.real_sent),
+      wasFailed: c.failed_count, nowFailed: Number(c.real_failed),
+    });
+  }
+
+  // A completed campaign that disagrees AND has no messages to recount cannot
+  // be fixed from data — that needs somebody to look.
+  for (const c of unrepairable) {
+    logger.error('[sms-reconciliation] campaign counters disagree and cannot be recomputed (no message rows)', {
+      campaignId: c.id,
+      storedSent: c.sent_count, storedFailed: c.failed_count,
     });
   }
 
@@ -485,7 +533,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   // suppresses a repeat of the same unchanged problem. A drift that CHANGES
   // alerts immediately.
   const alerted = await (async () => {
-    if (drifted.length === 0 && badCampaigns.length === 0) {
+    if (drifted.length === 0 && unrepairable.length === 0) {
       // Clear rather than simply stay quiet: this re-arms the alert so the
       // next incident notifies at once instead of waiting out a window left
       // over from the last one.
@@ -495,20 +543,20 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
 
     return raiseStaffAlert({
       key:     RECONCILIATION_ALERT_KEY,
-      subject: `SMS reconciliation: ${drifted.length} payer(s) and ${badCampaigns.length} campaign(s) disagree with their own records`,
+      subject: `SMS reconciliation: ${drifted.length} payer(s) and ${unrepairable.length} campaign(s) need a human`,
       body:
         'The daily SMS money-trail check found records that do not agree with each other. '
         + 'Credit drift means a balance and its ledger tell different stories and a human has to '
-        + 'decide which is true — this job deliberately never repairs. Campaign drift is a '
-        + 'reporting error only: the stored counters disagree with the message log, which is the '
-        + 'authoritative record.',
+        + 'decide which is true — this job deliberately never repairs money. Any campaign '
+        + 'listed here disagrees with the message log AND has no message rows left to recompute '
+        + 'from, so it cannot be repaired automatically either.',
       details: {
         driftedPayers: drifted.map((p) => ({
           payerType: p.payer_type, payerId: p.payer_id,
           balance: p.balance, ledgerTotal: p.ledger_total,
           drift: p.drift, lotDrift: p.lot_drift,
         })),
-        driftedCampaigns: badCampaigns.map((c) => ({
+        unrepairableCampaigns: unrepairable.map((c) => ({
           campaignId: c.id,
           storedSent: c.sent_count, actualSent: Number(c.real_sent),
           storedFailed: c.failed_count, actualFailed: Number(c.real_failed),
@@ -522,6 +570,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
     driftedPayers:    drifted.length,
     campaignsChecked: campaigns.length,
     driftedCampaigns: badCampaigns.length,
+    repairedCampaigns: repairable.length,
     alerted,
   };
 }
