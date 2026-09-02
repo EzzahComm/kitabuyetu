@@ -149,6 +149,9 @@ describe('route entitlement map', () => {
       '/api/v1/sms/campaign',
       '/api/v1/sms/credits',
       '/api/v1/sms/dlr',
+      // The listing beside the retry below. Without it nothing can learn an
+      // id to retry with, which is why the retry route sat unreachable.
+      '/api/v1/sms/failures',
       // A Chama Reminder group sends, so it also has failed sends to retry.
       // Reaches sms_failures rows scoped to the caller's own group and spends
       // that group's own credits; nothing financial beyond its own SMS balance.
