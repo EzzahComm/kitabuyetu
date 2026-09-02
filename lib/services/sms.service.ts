@@ -1119,7 +1119,37 @@ export const smsService = {
    * for a time limit. At 15 per tick the platform could only ever check ~4,320
    * messages a day, which is below its own send rate.
    */
-  async pollPendingDlrs(limit = 100): Promise<{ checked: number; delivered: number; failed: number; pending: number }> {
+  async pollPendingDlrs(
+    limit = 100,
+  ): Promise<{ checked: number; delivered: number; failed: number; pending: number; abandoned: number }> {
+    // ── Retire what we will never learn (SMS-REAUDIT-2026-09-02 F5) ────────
+    //
+    // A message that has aged past the polling window below can never be
+    // asked about again, so it would otherwise sit at 'sent' forever and keep
+    // the "still stuck" count climbing — which is how 151 rows accumulated
+    // before migration 166 backfilled them.
+    //
+    // This marks the ABSENCE of knowledge, not a bad outcome: status stays
+    // 'sent' because the provider genuinely accepted the message. Writing
+    // 'failed' here would invent a delivery failure that was never observed
+    // and corrupt every failure-rate figure derived from that column.
+    //
+    // Expressed as the poll query's own eligibility rules inverted, so the two
+    // cannot drift apart: anything this marks is exactly what that query can
+    // no longer see.
+    const abandoned = await withAdminDb((db) =>
+      db.query(
+        `UPDATE sms_usage_logs
+            SET dlr_abandoned_at = NOW()
+          WHERE status = 'sent'
+            AND dlr_abandoned_at IS NULL
+            AND (sent_at IS NULL OR sent_at < NOW() - INTERVAL '7 days')`,
+      ).then((r) => r.rowCount ?? 0),
+    );
+    if (abandoned > 0) {
+      logger.info('[sms] delivery tracking gave up on aged messages', { abandoned });
+    }
+
     // Every TextSMS send path (send/bulk/retry and cron reminders) records the
     // provider message id in provider_msg_id, so that single column is the basis
     // for delivery tracking.
@@ -1139,6 +1169,7 @@ export const smsService = {
            ON dr.provider_message_id = l.provider_msg_id
          WHERE l.provider_msg_id IS NOT NULL
            AND l.status = 'sent'
+           AND l.dlr_abandoned_at IS NULL
            AND l.sent_at IS NOT NULL
            AND l.sent_at <= NOW() - INTERVAL '2 minutes'
            -- Widened from 24 hours: that window silently orphaned any message
@@ -1212,7 +1243,7 @@ export const smsService = {
       `[sms] DLR poll: ${checked}/${logs.length} checked, ${delivered} delivered, ` +
       `${failed} failed, ${pending} pending${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
     );
-    return { checked, delivered, failed, pending };
+    return { checked, delivered, failed, pending, abandoned };
   },
 
   /**
