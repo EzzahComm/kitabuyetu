@@ -38,11 +38,13 @@
 import { pool } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { sendText, isWhatsAppConfigured } from '@/lib/integrations/whatsapp-client';
-import { sendSingleSms } from './textsms.service';
+import { sendSingleSms, activeSmsProvider } from '@/lib/sms/provider';
 import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
+import { segmentsOf } from '@/lib/sms/segments';
 import {
   reserveCredits,
   settleReservation,
+  releaseUnticketedReservation,
   raiseLowBalanceAlert,
   type ReservationTarget,
 } from './messaging-billing';
@@ -118,10 +120,10 @@ export interface NotifyOutcome {
  */
 async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
   try {
-    const { rows } = await pool.query<{ opt_out_phones: string[] }>(
-      `SELECT opt_out_phones FROM sms_group_settings WHERE group_id=$1`, [groupId],
+    const { rows } = await pool.query<{ n: number }>(
+      `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, phone],
     );
-    return rows[0]?.opt_out_phones?.includes(phone) ?? false;
+    return rows.length > 0;
   } catch (err) {
     // Fail closed: if we can't confirm consent, don't send.
     logger.error('[notifications] opt-out lookup failed; suppressing', { groupId, err });
@@ -224,11 +226,28 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
 
   let reservedCredits = 0;
   let fromAllowance   = 0;
+  // Kept separately from reservedCredits (their sum) so an earmark can be
+  // handed back on the exact two axes reserve_sms_credits moved.
+  let reservedFromPaid   = 0;
+  let reservedFromBundle = 0;
   if (mode === 'billed') {
-    const reservation = await reserveCredits(pool, target, 1);
+    // Reserve SEGMENTS, not a flat 1 — a long reminder is billed by the
+    // provider as several (SMS-AUDIT-v3 G5).
+    const segs = segmentsOf(rcpt.body);
+    const reservation = await reserveCredits(pool, target, segs);
     if (!reservation.ok) {
       if (reservation.reason === 'insufficient_credits') {
         void raiseLowBalanceAlert(target);
+      }
+      // An operator halt and a daily cap are the reservation failures that are
+      // TEMPORARY (the cap lifts at Kenyan midnight), so they must stay
+      // resumable. reminder_dispatch_log treats 'suppressed' as
+      // terminal and never re-claims it (see reminder.service.ts's claim()),
+      // which would mean every reminder that came due during a halt is lost
+      // for good once the halt lifts. 'failed' is resumable, so the next tick
+      // after the switch flips back picks it up.
+      if (reservation.reason === 'dispatch_halted' || reservation.reason === 'daily_limit_reached') {
+        return { channel: 'sms', status: 'failed', detail: reservation.reason };
       }
       // Terminal suppression, not a failure: reminder_dispatch_log treats
       // 'failed' as retryable, so reporting this as failed would re-attempt
@@ -241,14 +260,30 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     // settle computes paid = credits_reserved - credits_from_allowance, so a
     // 0.90 reserved against a 1 allowance gave -0.10 and GREW the balance on
     // consume. The unit mismatch this migration closes had a second head.
-    reservedCredits = reservation.fromPaid + reservation.fromAllowance;
+    reservedCredits    = reservation.fromPaid + reservation.fromAllowance;
+    reservedFromPaid   = reservation.fromPaid;
+    reservedFromBundle = reservation.fromAllowanceCount;
     // Phase 2b (migration 124): this is always a single-message reservation
     // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
     // full reservedCredits.
     fromAllowance   = reservation.fromAllowance;
   }
 
-  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance);
+  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance, segmentsOf(rcpt.body));
+
+  // No ticket row means the finally-block below can never settle, and the
+  // stale-reservation sweeper cannot find it either — it scans sms_usage_logs.
+  // The earmark would sit on the account forever, invisibly reducing what the
+  // group can spend. Hand it back now, before the send, since an unrecordable
+  // message is also one we cannot prove in order to charge for it.
+  //
+  // The send still proceeds: delivering a reminder matters more than auditing
+  // it, which is the original and deliberate choice here. Only the money is
+  // corrected.
+  if (mode === 'billed' && !logId) {
+    await releaseUnticketedReservation(target, reservedFromPaid, reservedFromBundle);
+  }
+
   let settleAs: 'consume' | 'release' = 'release';
 
   try {
@@ -349,9 +384,14 @@ async function writeWhatsAppLog(
  * Write the ledger row BEFORE the provider is called, in 'queued' state.
  *
  * Returns the row id so the send can be finalised and its reservation settled.
- * Returns null if the write fails — the send still proceeds (delivering the
- * message matters more than auditing it), it simply can't be settled, and an
- * unsettled reservation is what the sweeper exists to recover.
+ * Returns null if the write fails — the send still proceeds, because
+ * delivering the message matters more than auditing it.
+ *
+ * It used to say here that "an unsettled reservation is what the sweeper
+ * exists to recover". That was false: the sweeper
+ * (sms_release_stale_reservations) works from sms_usage_logs rows, so with no
+ * row written there is nothing for it to find and the earmark was permanent.
+ * The caller now compensates explicitly via releaseUnticketedReservation.
  */
 async function insertSmsLog(
   rcpt:    NotifyRecipient,
@@ -359,6 +399,7 @@ async function insertSmsLog(
   mode:    NotifyBillingMode,
   reserved: number,
   fromAllowance: number = 0,
+  segments: number = 1,
 ): Promise<string | null> {
   const isPlatform = mode === 'platform';
   const payerType  = isPlatform ? 'platform'
@@ -370,13 +411,13 @@ async function insertSmsLog(
          credits_deducted, credits_reserved, credits_from_allowance, billing_state, reserved_at,
          notification_type, correlation_id,
          reference_type, reference_id, provider,
-         payer_type, payer_organization_id
+         payer_type, payer_organization_id, segments
        ) VALUES (
          $1, $2, $3, $4, 'queued',
          0, $5, $6, $7::varchar, CASE WHEN $7 = 'reserved' THEN NOW() ELSE NULL END,
          $8, $9,
-         $10, $11, 'textsms',
-         $12, $13
+         $10, $11, $12,
+         $13, $14, $15
        ) RETURNING id`,
       [
         isPlatform ? null : rcpt.groupId,
@@ -392,8 +433,12 @@ async function insertSmsLog(
         rcpt.correlationId ?? null,
         rcpt.referenceType ?? null,
         rcpt.referenceId ?? null,
+        // Recorded, not hardcoded (SMS-AUDIT-v3 T3-3) — see sms.service.ts's
+        // identical comment on why this column has to be real.
+        activeSmsProvider(),
         payerType,
         isPlatform ? null : (rcpt.payerOrganizationId ?? null),
+        segments,
       ],
     );
     return rows[0]?.id ?? null;

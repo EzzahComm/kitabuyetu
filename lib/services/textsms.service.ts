@@ -416,17 +416,69 @@ export async function getProviderBalance(): Promise<BalanceResult> {
 
 const CHUNK_SIZE = 100;
 
+/**
+ * Response stand-in for a chunk the provider never answered.
+ *
+ * Carries the item's own clientSmsId so alignBulkResponses can map it back to
+ * the right log row by identity, exactly as it does for a real response —
+ * a synthesized failure must not be the one thing that falls back to
+ * positional matching.
+ */
+function synthesizeChunkFailure(item: BulkSmsItem, idx: number, detail: string): SmsResponse {
+  return {
+    responseCode:        SYSTEM_ERROR,
+    responseDescription: detail,
+    mobile:              item.mobile,
+    messageId:           '',
+    networkId:           '',
+    success:             false,
+    clientSmsId:         item.clientSmsId ?? idx,
+  };
+}
+
+/**
+ * Send in provider-sized chunks, returning PARTIAL results when a chunk fails.
+ *
+ * This used to `await sendBulkSms(chunk)` bare, so a throw on chunk k
+ * discarded every response from chunks 0..k-1 — messages the provider had
+ * already ACCEPTED and already billed us for. The caller then treated the
+ * whole batch as never-dispatched: it marked every row failed, released every
+ * reservation, and wrote sms_failures rows, so retryFailures sent those
+ * recipients the same message a second time. The result was a real duplicate
+ * to a real member, a provider charge we absorbed, and a first send that no
+ * DLR could ever confirm because its provider_msg_id was thrown away
+ * (SMS-AUDIT-v3 G4).
+ *
+ * Failures are now confined to the chunk that actually failed. The caller's
+ * existing per-row settle logic then does the right thing with both halves,
+ * because a synthesized failure is shaped exactly like a provider rejection.
+ */
 export async function sendBulkSmsChunked(items: BulkSmsItem[]): Promise<BulkSmsResult> {
   const all: SmsResponse[] = [];
+  const chunkErrors: string[] = [];
 
   for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-    const chunk  = items.slice(i, i + CHUNK_SIZE);
-    const result = await sendBulkSms(chunk);
-    all.push(...result.responses);
+    const chunk = items.slice(i, i + CHUNK_SIZE);
+    try {
+      const result = await sendBulkSms(chunk);
+      all.push(...result.responses);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      chunkErrors.push(detail);
+      // Only THIS chunk is lost. Earlier chunks keep their real responses.
+      chunk.forEach((item, j) => all.push(synthesizeChunkFailure(item, i + j, detail)));
+    }
     // Respect rate limits — 500ms between chunks
     if (i + CHUNK_SIZE < items.length) {
       await new Promise((r) => setTimeout(r, 500));
     }
+  }
+
+  // Every chunk failed and there was more than one: the provider is down
+  // rather than rejecting particular messages. Throw so the caller's outage
+  // handling runs, which is what it would have done before this change.
+  if (chunkErrors.length > 0 && all.every((r) => !r.success)) {
+    throw new TextSmsError(chunkErrors[0], SYSTEM_ERROR);
   }
 
   return {

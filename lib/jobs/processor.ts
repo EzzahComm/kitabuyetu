@@ -14,9 +14,11 @@
  */
 import type { Job, JobType, ProcessResult } from './types';
 import { logger } from '@/lib/logger';
+import { setTickDeadline } from './deadline';
 import {
   claimPendingJobs,
   getDistinctPendingTypes,
+  getQueueDepth,
   resetStuckJobs,
   markJobCompleted,
   markJobFailed,
@@ -70,6 +72,20 @@ const BATCH_SIZE = 100;
 const TIME_BUDGET_MS = 50_000;
 
 /**
+ * Do not START another job unless at least this much of the tick remains.
+ *
+ * The budget check above is only consulted BEFORE claiming, so on its own a
+ * job claimed at 49.9s still runs with ~10s before the platform's 60s ceiling
+ * (Vercel Hobby's hard maximum — see lib/jobs/deadline.ts). Refusing to claim
+ * inside the last stretch means a job always begins with a usable slice, and
+ * the long SMS loops additionally stop themselves as the deadline nears.
+ *
+ * Whatever is not claimed is simply left pending for the next tick five
+ * minutes later, which is the same outcome the budget check already produces.
+ */
+const MIN_JOB_BUDGET_MS = 10_000;
+
+/**
  * Claim and process pending jobs in round-robin rounds across every distinct
  * pending type, stopping once BATCH_SIZE is reached or TIME_BUDGET_MS has
  * elapsed — never claims a job it may not get to run. Safe to call
@@ -104,45 +120,101 @@ const TIME_BUDGET_MS = 50_000;
 export async function processJobBatch(): Promise<ProcessResult> {
   const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
   const startedAt = Date.now();
+  // Publish this tick's deadline so long-running handlers can bound themselves
+  // (lib/jobs/deadline.ts). Cleared in the finally below so a service called
+  // outside the job runner never sees a stale one.
+  setTickDeadline(startedAt + TIME_BUDGET_MS);
+  try {
 
-  // Reset any jobs stuck from a prior timeout before claiming new ones. A
-  // timeout now counts as an attempt, so a job that never fits the function
-  // budget eventually fails permanently instead of looping (and, for
-  // sms_bulk_send, re-billing) forever.
-  const { released, failed } = await resetStuckJobs(6);
-  if (released > 0) {
-    logger.warn(`[jobs] Released ${released} stuck job(s) back to pending`);
-  }
-  if (failed > 0) {
-    result.failed += failed;
-    logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
-  }
-
-  const priorityOrderedTypes = await getDistinctPendingTypes();
-  const types = rotateStartingType(priorityOrderedTypes, startedAt);
-
-  outer: while (types.length > 0 && result.processed < BATCH_SIZE) {
-    let claimedAnyThisRound = false;
-
-    for (const type of types) {
-      if (result.processed >= BATCH_SIZE) break outer;
-      if (Date.now() - startedAt >= TIME_BUDGET_MS) {
-        logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
-        break outer;
-      }
-
-      const [job] = await claimPendingJobs(1, type);
-      if (!job) continue; // this type ran dry mid-tick — skip it for the rest of this round
-
-      claimedAnyThisRound = true;
-      result.processed++;
-      await processSingleJob(job, result);
+    // Reset any jobs stuck from a prior timeout before claiming new ones. A
+    // timeout now counts as an attempt, so a job that never fits the function
+    // budget eventually fails permanently instead of looping (and, for
+    // sms_bulk_send, re-billing) forever.
+    const { released, failed } = await resetStuckJobs(6);
+    if (released > 0) {
+      logger.warn(`[jobs] Released ${released} stuck job(s) back to pending`);
+    }
+    if (failed > 0) {
+      result.failed += failed;
+      logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
     }
 
-    if (!claimedAnyThisRound) break; // nothing left across any type
-  }
+    await emitQueueDepth();
 
-  return result;
+    const priorityOrderedTypes = await getDistinctPendingTypes();
+    const types = rotateStartingType(priorityOrderedTypes, startedAt);
+
+    outer: while (types.length > 0 && result.processed < BATCH_SIZE) {
+      let claimedAnyThisRound = false;
+
+      for (const type of types) {
+        if (result.processed >= BATCH_SIZE) break outer;
+        if (Date.now() - startedAt >= TIME_BUDGET_MS - MIN_JOB_BUDGET_MS) {
+          logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
+          break outer;
+        }
+
+        const [job] = await claimPendingJobs(1, type);
+        if (!job) continue; // this type ran dry mid-tick — skip it for the rest of this round
+
+        claimedAnyThisRound = true;
+        result.processed++;
+        await processSingleJob(job, result);
+      }
+
+      if (!claimedAnyThisRound) break; // nothing left across any type
+    }
+
+    return result;
+  } finally {
+    setTickDeadline(null);
+  }
+}
+
+/**
+ * A type whose oldest due job is older than this is not merely busy — it is
+ * not getting a turn. The tick cadence is 5 minutes, so anything beyond an
+ * hour has been passed over at least a dozen times.
+ *
+ * Chosen against the real incident: sms_release_stale_reservations went
+ * EIGHT DAYS without completing a job while sitting at 2,258 pending. Any
+ * threshold in this range would have said so on the first hour.
+ */
+const STARVATION_MINS = 60;
+
+/**
+ * Emit this tick's queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4).
+ *
+ * Best-effort and never allowed to fail a tick: a metric that can stop the
+ * work it measures is worse than no metric. Escalates to logger.error only
+ * when a type is genuinely starving, so the line is a signal rather than
+ * hourly noise — the whole reason the previous starvation went unnoticed is
+ * that nothing distinguished "deep queue, draining fine" from "stuck".
+ */
+async function emitQueueDepth(): Promise<void> {
+  try {
+    const depth = await getQueueDepth();
+    if (depth.pending === 0) return;
+
+    const starving = depth.byType.filter((t) => t.oldestMins >= STARVATION_MINS);
+    const summary = {
+      pending:           depth.pending,
+      oldestPendingMins: depth.oldestPendingMins,
+      byType:            depth.byType.slice(0, 10),
+    };
+
+    if (starving.length > 0) {
+      logger.error('[jobs] queue STARVATION — job types not getting a turn', {
+        ...summary, starving,
+      });
+    } else {
+      logger.info('[jobs] queue depth', summary);
+    }
+  } catch (err) {
+    logger.warn('[jobs] queue-depth snapshot failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000; // matches enqueueTimeBasedJobs' pg_cron cadence
@@ -166,42 +238,42 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
   await logJob(job.id, 'started', `Starting ${job.type} (attempt ${job.attempts + 1}/${job.max_attempts})`);
 
   try {
-    const handlerResult = await handleJob(job);
-    const durationMs = Date.now() - startedAt;
+      const handlerResult = await handleJob(job);
+      const durationMs = Date.now() - startedAt;
 
-    await markJobCompleted(job.id);
-    await logJob(job.id, 'completed', handlerResult.message, durationMs);
+      await markJobCompleted(job.id);
+      await logJob(job.id, 'completed', handlerResult.message, durationMs);
 
-    result.succeeded++;
-  } catch (err) {
-    const durationMs = Date.now() - startedAt;
-    const error      = err instanceof Error ? err.message : String(err);
-    const newAttempts = job.attempts + 1;
+      result.succeeded++;
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const error      = err instanceof Error ? err.message : String(err);
+      const newAttempts = job.attempts + 1;
 
-    if (newAttempts >= job.max_attempts) {
-      await markJobFailed(job.id, error);
-      await logJob(
-        job.id,
-        'failed',
-        `Permanently failed after ${newAttempts} attempt(s): ${error}`,
-        durationMs,
-      );
-      result.failed++;
+      if (newAttempts >= job.max_attempts) {
+        await markJobFailed(job.id, error);
+        await logJob(
+          job.id,
+          'failed',
+          `Permanently failed after ${newAttempts} attempt(s): ${error}`,
+          durationMs,
+        );
+        result.failed++;
 
-      logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, { jobId: job.id, type: job.type, error });
-    } else {
-      // Exponential backoff: 2^attempts * 60 seconds
-      const delaySecs = Math.pow(2, newAttempts) * 60;
-      await scheduleRetry(job.id, newAttempts, delaySecs, error);
-      await logJob(
-        job.id,
-        'retried',
-        `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`,
-        durationMs,
-      );
-      result.retried++;
+        logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, { jobId: job.id, type: job.type, error });
+      } else {
+        // Exponential backoff: 2^attempts * 60 seconds
+        const delaySecs = Math.pow(2, newAttempts) * 60;
+        await scheduleRetry(job.id, newAttempts, delaySecs, error);
+        await logJob(
+          job.id,
+          'retried',
+          `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`,
+          durationMs,
+        );
+        result.retried++;
 
-      logger.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`, { jobId: job.id, type: job.type, delaySecs, error });
+        logger.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`, { jobId: job.id, type: job.type, delaySecs, error });
+    }
     }
   }
-}

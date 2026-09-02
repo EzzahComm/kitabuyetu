@@ -159,9 +159,32 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
  * already holds the row or advanced it past due.
  */
 async function claimOccurrence(client: PoolClient, id: string): Promise<string | null> {
-  const { rows } = await client.query<{ occurrence: string }>(
+  const { rows } = await client.query<{ occurrence: string; missed: string }>(
+    // next_run_at advances to the next FUTURE occurrence, not to one period
+    // after the occurrence just claimed.
+    //
+    // Advancing by a single period left next_run_at still in the past after
+    // any outage longer than the period, so the schedule re-qualified on the
+    // very next tick and fired again, and again, until it caught up: a member
+    // received five identical reminders in a few minutes because the worker
+    // had been down five days. A periodic reminder is a notification, not a
+    // queue to drain — the missed ones have no value once late, and sending
+    // them is worse than skipping them.
+    //
+    // `missed` is how many whole periods elapsed; +1 lands on the next one
+    // still ahead. In the normal on-time case missed is 0, so this is exactly
+    // the previous behaviour.
     `WITH claimed AS (
-       SELECT id, schedule_type, next_run_at AS occurrence
+       SELECT id, schedule_type, next_run_at AS occurrence,
+              CASE schedule_type
+                WHEN 'daily'   THEN FLOOR(EXTRACT(EPOCH FROM (NOW() - next_run_at)) / 86400)
+                WHEN 'weekly'  THEN FLOOR(EXTRACT(EPOCH FROM (NOW() - next_run_at)) / 604800)
+                -- Months are not a fixed number of seconds, so count them as
+                -- calendar months rather than dividing an epoch difference.
+                WHEN 'monthly' THEN EXTRACT(YEAR  FROM AGE(NOW(), next_run_at)) * 12
+                                  + EXTRACT(MONTH FROM AGE(NOW(), next_run_at))
+                ELSE 0
+              END AS missed
        FROM   sms_schedules
        WHERE  id = $1 AND is_active = true AND next_run_at <= NOW()
        FOR UPDATE SKIP LOCKED
@@ -170,17 +193,30 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
      SET    last_run_at = NOW(),
             is_active   = CASE WHEN c.schedule_type = 'one_time' THEN false ELSE s.is_active END,
             next_run_at = CASE c.schedule_type
-                            WHEN 'weekly'  THEN c.occurrence + INTERVAL '7 days'
-                            WHEN 'monthly' THEN c.occurrence + INTERVAL '1 month'
-                            WHEN 'daily'   THEN c.occurrence + INTERVAL '1 day'
+                            WHEN 'weekly'  THEN c.occurrence + ((c.missed + 1) * INTERVAL '7 days')
+                            WHEN 'monthly' THEN c.occurrence + ((c.missed + 1) * INTERVAL '1 month')
+                            WHEN 'daily'   THEN c.occurrence + ((c.missed + 1) * INTERVAL '1 day')
                             ELSE c.occurrence
                           END
      FROM   claimed c
      WHERE  s.id = c.id
-     RETURNING c.occurrence`,
+     RETURNING c.occurrence, c.missed`,
     [id],
   );
-  return rows[0]?.occurrence ?? null;
+
+  const row = rows[0];
+  if (!row) return null;
+
+  const missed = Number(row.missed);
+  if (missed > 0) {
+    // Worth saying out loud: silently dropping sends a group expected is a
+    // decision, and it should be visible when it happens rather than inferred
+    // later from a gap in the logs.
+    logger.warn('[sms-scheduler] skipped missed occurrences after downtime', {
+      scheduleId: id, skipped: missed, claimed: row.occurrence,
+    });
+  }
+  return row.occurrence;
 }
 
 /** Dispatch sms_campaigns whose scheduled_at has arrived. */

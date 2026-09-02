@@ -25,14 +25,14 @@ export function SiteFooter() {
             </Link>
 
             <p className="mt-5 max-w-xs font-display text-xl font-light leading-snug text-brand-blue-900/80">
-              Simple books.
+              Simple books. Stronger groups.
               <br />
-              <em className="italic text-brand-700">Stronger groups.</em>
+              <em className="italic text-brand-700">Vibrant communities.</em>
             </p>
 
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/65">
-              Digital tools for groups and organizations managing people, money and
-              community programs across East Africa.
+              Digital tools for vibrant groups and organizations managing people, money
+              and community programs across East Africa.
             </p>
 
             <ul className="mt-7 space-y-3 text-sm text-brand-blue-900/65">

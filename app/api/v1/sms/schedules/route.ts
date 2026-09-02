@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withAdminDb } from '@/lib/db';
-import { ScheduleCreateSchema } from '@/lib/validators/sms.schema';
+import { ScheduleCreateSchema, ScheduleUpdateSchema } from '@/lib/validators/sms.schema';
 import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/schedules
@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     const id   = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
     const body  = await req.json();
-    const input = ScheduleCreateSchema.partial().parse(body);
+    const input = ScheduleUpdateSchema.parse(body);
 
     const sets: string[] = ['updated_at=NOW()'];
     const vals: unknown[] = [id, auth.groupId];

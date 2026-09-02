@@ -68,14 +68,21 @@ export async function PUT(req: NextRequest): Promise<Response> {
       // Upsert: the row may genuinely not exist yet. COALESCE on every column
       // makes this a partial update — a page that only toggles birthdays must
       // not silently clear the other three automations.
+      // daily_send_limit uses the same COALESCE partial-update idiom as the
+      // booleans. That works here precisely BECAUSE the column is NOT NULL
+      // (migration 013): null can only mean "the caller did not send this
+      // field", never "clear the cap", so there is no ambiguity to resolve.
+      // On insert it is omitted entirely so the column default (500) applies.
       `INSERT INTO sms_group_settings
-         (group_id, auto_send_contribution, auto_send_loan, auto_send_meeting, auto_send_birthday)
-       VALUES ($1, COALESCE($2, false), COALESCE($3, false), COALESCE($4, false), COALESCE($5, false))
+         (group_id, auto_send_contribution, auto_send_loan, auto_send_meeting, auto_send_birthday, daily_send_limit)
+       VALUES ($1, COALESCE($2, false), COALESCE($3, false), COALESCE($4, false), COALESCE($5, false),
+               COALESCE($6, 500))
        ON CONFLICT (group_id) DO UPDATE SET
          auto_send_contribution = COALESCE($2, sms_group_settings.auto_send_contribution),
          auto_send_loan         = COALESCE($3, sms_group_settings.auto_send_loan),
          auto_send_meeting      = COALESCE($4, sms_group_settings.auto_send_meeting),
          auto_send_birthday     = COALESCE($5, sms_group_settings.auto_send_birthday),
+         daily_send_limit       = COALESCE($6, sms_group_settings.daily_send_limit),
          updated_at             = NOW()
        RETURNING sender_id, auto_send_contribution, auto_send_loan,
                  auto_send_meeting, auto_send_birthday, daily_send_limit`,
@@ -85,6 +92,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
         input.autoSendLoan         ?? null,
         input.autoSendMeeting      ?? null,
         input.autoSendBirthday     ?? null,
+        input.dailySendLimit ?? null,
       ],
     ));
 

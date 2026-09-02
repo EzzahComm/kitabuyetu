@@ -361,6 +361,10 @@ export const smsApi = {
   updateSchedule:  (id: string, body: Partial<ScheduleCreatePayload>) => api.patch<SmsSchedule>(`/sms/schedules?id=${id}`, body),
   deleteSchedule:  (id: string)    => api.delete<void>(`/sms/schedules?id=${id}`),
   // Provider balance
+  // super_admin only. This is the PLATFORM's own float with TextSMS, not a
+  // tenant's credit balance — that is `credits` below, which is what the
+  // group-facing panels show. Calling either of these from a tenant surface
+  // 403s by design.
   providerBalance: () => api.get<SmsProviderBalance>('/sms/balance'),
   checkBalance:    () => api.post<SmsProviderBalance>('/sms/balance', {}),
   // Tenant's own credit balance (distinct from the provider-wide balance above)

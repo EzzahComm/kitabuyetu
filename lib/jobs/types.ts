@@ -34,7 +34,10 @@ export type JobType =
   | 'sms_poll_dlr'                // Poll provider for delivery status of sent messages (every 5 min)
   | 'sms_trigger_fire'            // Ad-hoc: dispatch a delayed/retried trigger-rule execution
   | 'sms_low_balance_alert'       // Ad-hoc: warn officers that SMS credits ran out (in-app + email, never SMS)
+  | 'sms_provider_health'         // Sample the provider's recent failure rate, alert staff on an outage (hourly)
   | 'sms_release_stale_reservations' // Recover SMS credit reservations orphaned by a crash (every 5 min)
+  | 'sms_credit_reconciliation'   // Report SMS credit/ledger and campaign-counter drift (daily 02:00 EAT)
+  | 'sms_message_retention'      // Redact SMS bodies past the retention window (daily 02:00 EAT)
   | 'sms_allowance_monthly_reset'  // Zero the bundled SMS allowance for every active-subscription group (1st of month, 01:00 UTC)
   | 'organization_sms_allowance_grant'; // Grant each org's bundled SMS allowance on its plan's monthly anniversary (daily)
 

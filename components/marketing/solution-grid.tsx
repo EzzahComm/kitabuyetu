@@ -1,20 +1,23 @@
 import { Container, RevealedHeading, Section } from './primitives';
 import { Reveal } from './reveal';
-import { CAPABILITIES } from './content';
+import { DividedCard, DividedGrid, PillLink } from './astrolus';
+import { VALUE_PILLARS } from './content';
 import { SECTION_IDS } from './routes';
 
 /**
- * Section 4 — what the product actually does, in six pieces.
+ * The value proposition, in the four terms a group recognises: Members,
+ * Money, Payments, Reports.
  *
- * Six equal cards would flatten the story, so the grid is asymmetric: the
- * first two (savings and loans — the reasons a group exists) take the wide
- * top row, the remaining four sit beneath at normal weight.
+ * Built on Astrolus's divided grid — one bordered slab with hairline-separated
+ * cells — rather than four floating cards. On a page that already alternates
+ * two light grounds, a single object reads more cleanly than four shadows.
+ *
+ * The full module list lives in ProductShowcase further down; this is the
+ * answer to "what is it", not "what does it include".
  */
 export function SolutionGrid() {
-  const [lead, second, ...rest] = CAPABILITIES;
-
   return (
-    <Section id={SECTION_IDS.solution} tone="paper" labelledBy="solution-heading">
+    <Section id={SECTION_IDS.solution} tone="paper-deep" labelledBy="solution-heading">
       <Container>
         <RevealedHeading
           id="solution-heading"
@@ -25,44 +28,24 @@ export function SolutionGrid() {
           lede="Running a group should be about building together — not spending meeting after meeting checking notebooks, spreadsheets and M-Pesa statements against each other."
         />
 
-        <div className="mt-14 grid gap-5 lg:mt-20 lg:grid-cols-2">
-          {[lead, second].map((item, i) => (
-            <Reveal
-              key={item.title}
-              delay={i * 80}
-              className="flex flex-col rounded-2xl bg-paper-deep p-8 ring-1 ring-brand-blue-900/[0.08] transition-shadow duration-300 hover:shadow-[0_20px_50px_-32px_rgba(4,22,47,0.4)] lg:p-10"
-            >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 ring-1 ring-brand-500/20">
-                <item.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
-              </span>
-              <h3 className="mt-6 font-display text-2xl font-normal text-brand-blue-900">
-                {item.title}
-              </h3>
-              <p className="mt-3 max-w-md text-base leading-relaxed text-brand-blue-900/65">
-                {item.body}
-              </p>
-            </Reveal>
-          ))}
-        </div>
-
-        <div className="mt-5 grid gap-px overflow-hidden rounded-2xl bg-brand-blue-900/[0.09] ring-1 ring-brand-blue-900/[0.09] sm:grid-cols-2 lg:grid-cols-4">
-          {rest.map((item, i) => (
-            <Reveal
-              key={item.title}
-              delay={i * 60}
-              className="group bg-paper-deep p-7 transition-colors duration-300 hover:bg-white"
-            >
-              <item.icon
-                aria-hidden="true"
-                className="h-5 w-5 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5"
+        <Reveal className="mt-14 lg:mt-20">
+          <DividedGrid cols={4}>
+            {VALUE_PILLARS.map((pillar) => (
+              <DividedCard
+                key={pillar.title}
+                icon={<pillar.icon aria-hidden="true" className="h-5 w-5" />}
+                title={pillar.title}
+                body={pillar.body}
               />
-              <h3 className="mt-5 text-base font-semibold text-brand-blue-900">{item.title}</h3>
-              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
-                {item.body}
-              </p>
-            </Reveal>
-          ))}
-        </div>
+            ))}
+          </DividedGrid>
+        </Reveal>
+
+        <Reveal className="mt-10 flex justify-center">
+          <PillLink href={`/#${SECTION_IDS.howItWorks}`} variant="outline" withArrow>
+            See how it works
+          </PillLink>
+        </Reveal>
       </Container>
     </Section>
   );

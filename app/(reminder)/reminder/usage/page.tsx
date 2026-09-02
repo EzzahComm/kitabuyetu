@@ -1,7 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/shared/page-header';
-import { BalanceCard, LogsTab } from '@/components/sms/tabs';
+import { LogsTab } from '@/components/sms/tabs';
 import { SmsCreditsPanel } from '@/components/sms/sms-credits-panel';
 
 export default function ReminderUsagePage() {
@@ -11,7 +11,6 @@ export default function ReminderUsagePage() {
       {/* Spec §13: balance and usage first, in plain language. The raw
           message log stays below for anyone who wants the detail. */}
       <SmsCreditsPanel />
-      <BalanceCard />
       <LogsTab />
     </div>
   );

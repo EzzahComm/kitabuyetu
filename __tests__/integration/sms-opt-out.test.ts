@@ -6,7 +6,9 @@
  * sms.service.ts, isPhoneOptedOut in notifications.service.ts) already
  * existed and were already honoured by every send path — the actual finding
  * was that nothing ever CALLED optOut(), so a member had no way to get their
- * own phone into sms_group_settings.opt_out_phones. This file proves the
+ * own phone onto the opt-out list. (That list is now the sms_opt_outs consent
+ * record rather than the sms_group_settings.opt_out_phones array it was
+ * written against — migration 162.) This file proves the
  * full loop: the new /api/v1/sms/preferences route -> smsService.optOut ->
  * a real send attempt is actually suppressed, and the new optIn() reverses it.
  */
@@ -68,10 +70,15 @@ describe('SMS opt-out (M5)', () => {
 
     // Directly against the underlying table — this is the actual gap the
     // audit found: before this route existed, nothing could ever populate it.
-    const [row] = await rawQuery<{ opt_out_phones: string[] }>(
-      `SELECT opt_out_phones FROM sms_group_settings WHERE group_id = $1`, [groupId],
+    // Storage moved from sms_group_settings.opt_out_phones (a text[] that
+    // could not record when/how/who) to the sms_opt_outs consent record —
+    // SMS-AUDIT-v3 INV-24, migration 162. The behaviour asserted above is
+    // unchanged; only where it is written moved.
+    const [row] = await rawQuery<{ phone: string; source: string }>(
+      `SELECT phone, source FROM sms_opt_outs WHERE group_id = $1`, [groupId],
     );
-    expect(row.opt_out_phones).toContain(phone);
+    expect(row.phone).toBe(phone);
+    expect(row.source).toBe('member');
   });
 
   it('a real send attempt is suppressed for an opted-out member — nothing dispatched, nothing billed', async () => {

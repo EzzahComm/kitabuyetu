@@ -11,7 +11,7 @@ import { PAIN_POINTS } from './content';
  */
 export function ProblemSection() {
   return (
-    <Section tone="paper-deep" labelledBy="problem-heading">
+    <Section tone="paper" labelledBy="problem-heading">
       <Container>
         <RevealedHeading
           id="problem-heading"
@@ -43,6 +43,13 @@ export function ProblemSection() {
             </Reveal>
           ))}
         </ul>
+
+        <Reveal className="mt-12 text-center">
+          <p className="mx-auto max-w-2xl font-display text-xl font-light leading-snug text-brand-blue-900 sm:text-2xl">
+            Kitabu Yetu brings the records, the payments and the people{' '}
+            <em className="italic text-brand-700">together</em>.
+          </p>
+        </Reveal>
       </Container>
     </Section>
   );

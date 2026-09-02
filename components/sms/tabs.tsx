@@ -16,7 +16,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
-  RefreshCw, Plus, Trash2, PauseCircle, PlayCircle,
+  Plus, Trash2, PauseCircle, PlayCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
@@ -25,6 +25,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
+import { countSegments } from '@/lib/sms/segments';
 import { StatusPill } from '@/components/shared/status-pill';
 import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
@@ -119,8 +120,13 @@ export function ComposeTab() {
     if (tpl) setMessage(tpl.body);
   };
 
-  const charCount = message.length;
-  const smsPages  = Math.max(1, Math.ceil(charCount / 160));
+  // The SAME counter billing uses (lib/sms/segments.ts). This used to be
+  // ceil(len / 160), which was wrong twice over: 160 is the SINGLE-segment
+  // size (a concatenated part holds 153), and it ignored encoding entirely, so
+  // one emoji silently cut capacity to 67 without changing the estimate. That
+  // left three different numbers for one message — what the officer was shown,
+  // what the provider billed, and what the group was charged.
+  const seg = countSegments(message);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -153,8 +159,11 @@ export function ComposeTab() {
               onChange={(e) => setMessage(e.target.value)}
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>{charCount} chars</span>
-              <span>{smsPages} SMS part{smsPages > 1 ? 's' : ''}</span>
+              <span>{seg.characters} chars</span>
+              <span>
+                {seg.segments} SMS part{seg.segments > 1 ? 's' : ''}
+                {seg.encoding === 'ucs2' ? ' · unicode' : ''}
+              </span>
             </div>
           </div>
 
@@ -197,57 +206,6 @@ export function ComposeTab() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <BalanceCard />
-      </div>
-    </div>
-  );
-}
-
-// ─── Balance Card ─────────────────────────────────────────────────────────────
-
-export function BalanceCard() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['sms-provider-balance'],
-    queryFn:  () => smsApi.providerBalance(),
-    staleTime: 5 * 60_000,
-  });
-
-  const refresh = useMutation({
-    mutationFn: () => smsApi.checkBalance(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-provider-balance'] }); },
-    onError: (e) => toast({ variant: 'destructive', title: 'Balance check failed', description: getErrorMessage(e) }),
-  });
-
-  const bal = data;
-
-  return (
-    <div className="bg-card rounded-xl border p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Provider Balance</span>
-        <button
-          type="button"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-          title="Refresh balance"
-        >
-          <RefreshCw size={14} className={refresh.isPending ? 'animate-spin' : ''} />
-        </button>
-      </div>
-      {isLoading ? (
-        <div className="h-8 bg-muted rounded animate-pulse" />
-      ) : (
-        <p className="text-2xl font-bold text-foreground">
-          KES {bal?.balance != null ? Number(bal.balance).toFixed(2) : '—'}
-        </p>
-      )}
-      {bal?.lastChecked && (
-        <p className="text-xs text-muted-foreground mt-1">Checked {formatDate(bal.lastChecked)}</p>
-      )}
     </div>
   );
 }
@@ -421,7 +379,7 @@ export function TemplatesTab() {
   });
 
   const templates: SmsTemplate[] = data ?? [];
-  const charCount = body.length;
+  const bodySeg = countSegments(body);
 
   return (
     <div className="space-y-4">
@@ -466,7 +424,10 @@ export function TemplatesTab() {
               onChange={(e) => setBody(e.target.value)}
               placeholder="Dear {{first_name}}, your balance is KES {{amount}}."
             />
-            <p className="text-xs text-muted-foreground mt-1">{charCount} chars</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {bodySeg.characters} chars · {bodySeg.segments} SMS part{bodySeg.segments > 1 ? 's' : ''}
+              {bodySeg.encoding === 'ucs2' ? ' · unicode' : ''}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button

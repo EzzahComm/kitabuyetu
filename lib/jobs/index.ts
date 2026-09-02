@@ -12,7 +12,7 @@ import { insertJob } from './db';
 import type { JobType } from './types';
 
 /**
- * Inspect the current UTC time and enqueue whichever time-based jobs
+ * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
  * are due to run in this 5-minute tick.
  *
  * Dedup keys are scoped to the smallest relevant time unit so the same
@@ -24,16 +24,37 @@ import type { JobType } from './types';
  *
  * Returns a map of job_type → job_id (null means skipped/duplicate).
  */
-export async function enqueueTimeBasedJobs(): Promise<Record<string, string | null>> {
-  const now    = new Date();
-  const hour   = now.getUTCHours();
-  const day    = now.getUTCDay();   // 0 = Sun … 6 = Sat
-  const date   = now.getUTCDate();
-  const dateStr = toDateStr(now);   // YYYY-MM-DD
-  const weekStr = toWeekStr(now);   // YYYY-WNN
+/**
+ * Africa/Nairobi is UTC+3 year-round. Kenya has never observed daylight
+ * saving, so this is a constant rather than a lookup — and it is stated as a
+ * named constant precisely so nobody re-derives it as "probably UTC".
+ */
+const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-  // 5-minute bucket index (0–11 per hour)
-  const fiveMinBucket = Math.floor(now.getUTCMinutes() / 5);
+export async function enqueueTimeBasedJobs(): Promise<Record<string, string | null>> {
+  // Every schedule below is expressed in AFRICA/NAIROBI, the time the people
+  // receiving these messages actually live in (SMS-AUDIT-v3 H8 / INV-41).
+  //
+  // These used to be getUTCHours()/getUTCDate() on real UTC, so `hour === 8`
+  // fired at 11:00 EAT and the code did not mean what it said. Every current
+  // time happened to land somewhere reasonable, which is exactly why it went
+  // unnoticed — the hazard was the next schedule someone wrote as a local
+  // hour, which would have been silently three hours out.
+  //
+  // Kenya is UTC+3 with NO daylight saving — it has never observed it — so a
+  // fixed offset is exact here, and correct in a way a naive offset would not
+  // be for most zones. Shifting the instant once lets the existing UTC
+  // accessors and the date/week helpers below read Nairobi values unchanged.
+  const nairobiNow = new Date(Date.now() + EAT_OFFSET_MS);
+  const hour    = nairobiNow.getUTCHours();
+  const day     = nairobiNow.getUTCDay();   // 0 = Sun … 6 = Sat
+  const date    = nairobiNow.getUTCDate();
+  const dateStr = toDateStr(nairobiNow);    // YYYY-MM-DD, Nairobi
+  const weekStr = toWeekStr(nairobiNow);    // YYYY-WNN, Nairobi
+
+  // 5-minute bucket index (0–11 per hour). Unaffected by the shift: the offset
+  // is whole hours, so minutes are identical either way.
+  const fiveMinBucket = Math.floor(nairobiNow.getUTCMinutes() / 5);
 
   const queued: Record<string, string | null> = {};
 
@@ -146,9 +167,20 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       priority:  5,
       dedup_key: `payment_requests_expire:${dateStr}T${hour}`,
     });
+
+    // SMS provider health (SMS-AUDIT-v3 T3-4 / G14). Hourly matches the other
+    // monitors above and the service's own 1-hour sample window — sampling
+    // more often than the window would re-read the same messages and say the
+    // same thing. Priority 7 alongside the payment-spine monitor: noticing an
+    // outage is not itself time-critical work, but it must not be starved by
+    // the very backlog an outage produces.
+    queued.sms_provider_health = await safe('sms_provider_health', {}, {
+      priority:  7,
+      dedup_key: `sms_provider_health:${dateStr}T${hour}`,
+    });
   }
 
-  // ── Daily 06:00 UTC — recurring invoices ──────────────────────
+  // ── Daily 06:00 EAT — recurring invoices ──────────────────────
   if (hour === 6) {
     queued.email_recurring_invoices = await safe('email_recurring_invoices', {}, {
       priority:  4,
@@ -156,7 +188,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 07:00 UTC — birthday emails + birthday SMS ──────────
+  // ── Daily 07:00 EAT — birthday emails + birthday SMS ──────────
   // SMS is a separate job type (billed, per-group opt-in via
   // sms_group_settings.auto_send_birthday, defaults false) rather than
   // folded into email_birthday — the two channels have independent
@@ -179,7 +211,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 09:00 UTC — overdue invoice reminders ───────────────
+  // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
   if (hour === 9) {
     queued.email_overdue_invoices = await safe('email_overdue_invoices', {}, {
       priority:  4,
@@ -187,7 +219,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Monday 08:00 UTC — weekly summaries ───────────────────────
+  // ── Monday 08:00 EAT — weekly summaries ───────────────────────
   if (day === 1 && hour === 8) {
     queued.email_weekly_summary = await safe('email_weekly_summary', {}, {
       priority:  2,
@@ -195,15 +227,29 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 02:00 UTC — cleanup expired tokens ──────────────────
+  // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
   if (hour === 2) {
     queued.cleanup_expired_tokens = await safe('cleanup_expired_tokens', {}, {
       priority:  1,
       dedup_key: `cleanup_expired_tokens:${dateStr}`,
     });
+    // Deliberately an hour AFTER the 01:00 allowance reset/grant: those move
+    // billing_accounts, and checking the books mid-adjustment would report
+    // drift that is really just ordering. Read-only and report-only, so a low
+    // priority is right — it must never displace a send or a reminder.
+    queued.sms_credit_reconciliation = await safe('sms_credit_reconciliation', {}, {
+      priority:  2,
+      dedup_key: `sms_credit_reconciliation:${dateStr}`,
+    });
+    // Retention runs in the same quiet hour. Low priority and idempotent —
+    // a row already redacted is excluded by the query itself.
+    queued.sms_message_retention = await safe('sms_message_retention', {}, {
+      priority:  1,
+      dedup_key: `sms_message_retention:${dateStr}`,
+    });
   }
 
-  // ── Daily 03:00 UTC (06:00 EAT) — M-Pesa charge backfill ──────
+  // ── Daily 03:00 EAT — M-Pesa charge backfill ──────
   // Catches B2C transactions that completed without an mpesa_charges row.
   if (hour === 3) {
     queued.mpesa_reconcile_charges = await safe('mpesa_reconcile_charges', {}, {
@@ -212,7 +258,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 04:00 UTC (07:00 EAT) — accounts.balance drift audit ─
+  // ── Daily 04:00 EAT — accounts.balance drift audit ─
   // Compares the denormalized balance column against journal_lines sums
   // and records any drift for finance review (detection only, no rewrite).
   if (hour === 4) {
@@ -222,7 +268,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 05:00 UTC (08:00 EAT) — sub-account balance snapshot ─
+  // ── Daily 05:00 EAT — sub-account balance snapshot ─
   if (hour === 5) {
     queued.mpesa_balance_snapshot = await safe('mpesa_balance_snapshot', {}, {
       priority:  3,
@@ -230,7 +276,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 06:00 UTC (09:00 EAT) — GL-to-real-cash reconciliation ─
+  // ── Daily 06:00 EAT — GL-to-real-cash reconciliation ─
   // One hour after the balance snapshot trigger above, so its async Daraja
   // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
   if (hour === 6) {
@@ -240,7 +286,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 20:00 UTC (23:00 EAT) — M-Pesa daily report email ───
+  // ── Daily 20:00 EAT — M-Pesa daily report email ───
   if (hour === 20) {
     queued.mpesa_daily_report = await safe('mpesa_daily_report', {}, {
       priority:  3,
@@ -248,7 +294,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── Daily 06:00 UTC (09:00 EAT) — loan-due alerts ─────────────
+  // ── Daily 06:00 EAT — loan-due alerts ─────────────
   // Members in Kenya are most likely to act on a reminder mid-morning;
   // 09:00 EAT lands their notification just before they head to work.
   if (hour === 6) {
@@ -258,7 +304,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── DAILY 01:00 UTC — SMS bundled-allowance reset ────────────────────
+  // ── DAILY 01:00 EAT — SMS bundled-allowance reset ────────────────────
   // Was `date === 1` with a YYYY-MM dedup key: one sweep a month, resetting
   // every group together. Migration 151 moved the allowance period onto each
   // group's own subscription anniversary, and anniversaries fall on every day
@@ -290,12 +336,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── 1st of month 08:00 UTC — prune old jobs ───────────────────
+  // ── 1st of month 08:00 EAT — prune old jobs ───────────────────
   if (date === 1 && hour === 8) {
     const { pruneOldJobs } = await import('./db');
     await pruneOldJobs(30).catch(() => {}); // fire and forget
 
-    // ── 1st of month 08:00 UTC (11:00 EAT) — contribution-reminders ──
+    // ── 1st of month 08:00 EAT — contribution-reminders ──
     // Nudge members who didn't contribute in the previous calendar
     // month. Dedup keyed at month granularity so even repeated
     // 5-min ticks within the same hour won't re-enqueue.
@@ -306,7 +352,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── 1st of month 09:00 UTC — journal_lines partition maintenance ──
+  // ── 1st of month 09:00 EAT — journal_lines partition maintenance ──
   // Ensures monthly partitions exist 3 months ahead (ACCOUNTING_ARCHITECTURE_
   // AUDIT.md §17/§19, migrations 094/095). A distinct hour from the 08:00
   // and 10:00 buckets so nothing competes within the same tick.
@@ -318,7 +364,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── 1st of month 10:00 UTC — per-member account statements ───
+  // ── 1st of month 10:00 EAT — per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
   if (date === 1 && hour === 10) {
@@ -329,7 +375,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     });
   }
 
-  // ── 1st of month 11:00 UTC — governance/health-score computation ─────
+  // ── 1st of month 11:00 EAT — governance/health-score computation ─────
   // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
   // unused across this file, so this never competes with an existing
   // monthly/daily bucket within the same tick.

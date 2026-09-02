@@ -29,7 +29,7 @@ import type {
   getPricingConfig, setActiveTiers, setProviderCost,
 } from '@/lib/services/sms-pricing-admin.service';
 import type {
-  getMarginSummary, getRevenueByPackage, getTopCustomers, getTierViability, getOrganizationUsage,
+  getMarginSummary, getTopCustomers, getTierViability, getOrganizationUsage,
 } from '@/lib/services/sms-margin.service';
 import type { TopUpSmsCreditsInput } from '@/lib/validators/organization.schema';
 import type {
@@ -115,13 +115,11 @@ type SmsPricingConfig         = Awaited<ReturnType<typeof getPricingConfig>>;
 type SmsTiersActivated        = Awaited<ReturnType<typeof setActiveTiers>>;
 type SmsProviderCostSaved     = Awaited<ReturnType<typeof setProviderCost>>;
 type SmsMarginSummary         = Awaited<ReturnType<typeof getMarginSummary>>;
-type SmsRevenueByPackage      = Awaited<ReturnType<typeof getRevenueByPackage>>;
 type SmsGroupUsageList        = Awaited<ReturnType<typeof getTopCustomers>>;
 type SmsTierViabilityList     = Awaited<ReturnType<typeof getTierViability>>;
 type SmsOrganizationUsageList = Awaited<ReturnType<typeof getOrganizationUsage>>;
 export interface SmsMarginResponse {
   summary:        SmsMarginSummary;
-  byPackage:      SmsRevenueByPackage;
   topCustomers:   SmsGroupUsageList;
   tiers:          SmsTierViabilityList;
   byOrganization: SmsOrganizationUsageList;

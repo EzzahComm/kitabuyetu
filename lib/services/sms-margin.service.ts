@@ -1,4 +1,5 @@
 import { withAdminDb } from '@/lib/db';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
  * SMS margin and revenue reporting (spec §15). INTERNAL ONLY.
@@ -31,16 +32,6 @@ export interface MarginSummary {
   creditsWithoutCost: number;
 }
 
-export interface PackageRevenue {
-  packageId:   string | null;
-  packageName: string | null;
-  purchases:   number;
-  creditsSold: number;
-  revenue:     number;
-  providerCost: number;
-  grossMargin: number;
-}
-
 export interface CustomerUsage {
   groupId:     string;
   groupCode:   string;
@@ -70,11 +61,14 @@ export interface TierViability {
  * still contribute its revenue. Dropping it would overstate margin percentage
  * by shrinking the denominator, which is the more dangerous direction.
  */
+// DEFAULT_SMS_PROVIDER is a trusted compile-time constant, not caller input —
+// string interpolation here is fine (no bound param needed for a value the
+// query text itself hardcodes).
 const COST_AT_SALE = `
   LEFT JOIN LATERAL (
     SELECT pc.unit_cost
     FROM sms_provider_costs pc
-    WHERE pc.provider = 'textsms'
+    WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}'
       AND pc.effective_from <= sc.created_at::date
       AND (pc.effective_to IS NULL OR pc.effective_to >= sc.created_at::date)
     ORDER BY pc.effective_from DESC
@@ -116,40 +110,32 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
   });
 }
 
-export async function getRevenueByPackage(): Promise<PackageRevenue[]> {
-  return withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      package_id: string | null; package_name: string | null;
-      purchases: string; credits_sold: string; revenue: string; provider_cost: string;
-    }>(
-      // Custom quantities carry no package_id and group under a null row, which
-      // is information — it says how much of the business bypasses the catalogue.
-      `SELECT sc.package_id, p.name AS package_name,
-              COUNT(*)                                            AS purchases,
-              COALESCE(SUM(sc.credits_added), 0)                  AS credits_sold,
-              COALESCE(SUM(sc.amount_paid), 0)                    AS revenue,
-              COALESCE(SUM(sc.credits_added * cost.unit_cost), 0) AS provider_cost
-       FROM sms_credits sc
-       ${COST_AT_SALE}
-       LEFT JOIN sms_packages p ON p.id = sc.package_id
-       GROUP BY sc.package_id, p.name
-       ORDER BY SUM(sc.amount_paid) DESC`,
-    );
-    return rows.map((r) => {
-      const revenue = Number(r.revenue);
-      const cost    = Number(r.provider_cost);
-      return {
-        packageId:    r.package_id,
-        packageName:  r.package_name,
-        purchases:    Number(r.purchases),
-        creditsSold:  Number(r.credits_sold),
-        revenue,
-        providerCost: cost,
-        grossMargin:  revenue - cost,
-      };
-    });
-  });
-}
+/*
+ * RETIRED: getRevenueByPackage() (SMS-AUDIT-v3 T3-5 / G30).
+ *
+ * It grouped sms_credits by package_id and read as a revenue breakdown across
+ * the package catalogue. It could never be one. NOTHING in this codebase has
+ * ever written sms_credits.package_id — the column has no writer at all — so
+ * every purchase fell into the single NULL bucket and the report's own comment
+ * ("says how much of the business bypasses the catalogue") described an
+ * artifact of that, not a fact about the business. An operator reading it
+ * would have concluded 100% of sales skip the catalogue.
+ *
+ * The catalogue is unwired at the other end too: listActivePackages() in
+ * sms-pricing.service.ts has zero callers, so no purchase surface has ever
+ * offered a package to choose. This is the "built the artifact, never wired
+ * the consumer" pattern the v3 audit named as recurring here.
+ *
+ * The audit offered two ways out — thread package_id through top-ups, or
+ * retire the report. Threading it is not a fix, it is a product feature: a
+ * purchase flow would first have to let someone PICK a package. Until that
+ * exists, a report over a column with no writer is worse than no report.
+ *
+ * To bring it back, in this order: (1) surface listActivePackages() in the
+ * top-up UI, (2) accept a packageId on the top-up request, (3) persist it in
+ * addSmsCredits' INSERT, (4) only then restore a breakdown. Restoring step 4
+ * alone reproduces exactly what was removed here.
+ */
 
 /**
  * Every group's SMS revenue and consumption, highest revenue first — §15's
@@ -271,7 +257,7 @@ export async function getTierViability(): Promise<TierViability[]> {
     }>(
       `SELECT t.id, t.name, t.unit_price, t.is_active,
               (SELECT pc.unit_cost FROM sms_provider_costs pc
-                WHERE pc.provider = 'textsms' AND pc.effective_to IS NULL
+                WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}' AND pc.effective_to IS NULL
                 ORDER BY pc.effective_from DESC LIMIT 1) AS unit_cost
        FROM sms_pricing_tiers t
        ORDER BY t.display_order, t.min_credits`,
@@ -298,7 +284,6 @@ export async function getTierViability(): Promise<TierViability[]> {
 
 export const smsMarginService = {
   getMarginSummary,
-  getRevenueByPackage,
   getTopCustomers,
   getTierViability,
   getOrganizationUsage,

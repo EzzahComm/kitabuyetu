@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
+import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
  * SMS pricing — tiers, packages and provider cost, read from the database
@@ -78,7 +79,17 @@ export async function listActiveTiers(): Promise<PricingTier[]> {
   });
 }
 
-/** Sellable bundles. §3 says prioritise these over custom quantities in the UI. */
+/**
+ * Sellable bundles. §3 says prioritise these over custom quantities in the UI.
+ *
+ * NOTE (SMS-AUDIT-v3 G30): this function has NO CALLERS — no purchase surface
+ * has ever offered a package to choose — and `sms_credits.package_id` has no
+ * writer, so nothing records which package a purchase came from either. The
+ * catalogue is unwired at both ends. The revenue-by-package report built over
+ * that column was retired for exactly this reason; see the retirement note in
+ * sms-margin.service.ts for the order in which to wire it up if the catalogue
+ * is ever brought into the purchase flow.
+ */
 export async function listActivePackages(): Promise<SmsPackage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
@@ -105,7 +116,7 @@ export async function listActivePackages(): Promise<SmsPackage[]> {
  * that serialises its result into a tenant-facing response.
  */
 export async function getProviderCost(
-  provider = 'textsms',
+  provider = DEFAULT_SMS_PROVIDER,
   onDate?: Date,
 ): Promise<number | null> {
   return withAdminDb(async (db) => {
@@ -137,7 +148,7 @@ export interface Margin {
  * plausible number would be worse than showing nothing.
  */
 export async function marginFor(sellPrice: number, onDate?: Date): Promise<Margin | null> {
-  const unitCost = await getProviderCost('textsms', onDate);
+  const unitCost = await getProviderCost(DEFAULT_SMS_PROVIDER, onDate);
   if (unitCost === null) return null;
   const margin = sellPrice - unitCost;
   return {
