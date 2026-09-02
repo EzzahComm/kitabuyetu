@@ -29,11 +29,13 @@ jest.mock('@/lib/services/email.service', () => ({
 async function makeCampaign(
   groupId: string, storedSent: number, storedFailed: number, status = 'completed',
 ): Promise<string> {
+  // created_by is NOT NULL on sms_campaigns — a campaign always has an author.
   const [row] = await rawQuery<{ id: string }>(
-    `INSERT INTO sms_campaigns (group_id, name, message, status, sent_count, failed_count, recipient_count)
-     VALUES ($1, 'test campaign', 'hello', $2, $3, $4, 0)
+    `INSERT INTO sms_campaigns
+       (group_id, name, message, status, sent_count, failed_count, recipient_count, created_by)
+     VALUES ($1, 'test campaign', 'hello', $2, $3, $4, 0, $5)
      RETURNING id`,
-    [groupId, status, storedSent, storedFailed],
+    [groupId, status, storedSent, storedFailed, officerId],
   );
   return row.id;
 }
@@ -60,10 +62,11 @@ async function countersOf(campaignId: string) {
 
 describe('campaign counter repair', () => {
   let groupId: string;
+  let officerId: string;
 
   beforeEach(async () => {
     await resetDatabase();
-    ({ groupId } = await createTestGroup('chairperson'));
+    ({ groupId, officerId } = await createTestGroup('chairperson'));
     process.env.EMAIL_ADMIN = 'ops@example.com';
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = 'sms_credit_reconciliation'`);
   });
