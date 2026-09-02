@@ -1064,10 +1064,16 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
   const r = await reconcileSmsCredits();
 
   const clean = r.driftedPayers === 0 && r.driftedCampaigns === 0;
+  // Whether staff were emailed is part of the run record on purpose
+  // (SMS-REAUDIT-2026-09-02 F2): "DRIFT — investigate" printed for six days
+  // while reaching nobody is exactly the failure this now closes, and the
+  // difference between "reported" and "suppressed as a repeat" is the thing
+  // an operator reading the history needs to be able to tell.
   const message = clean
     ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)`
     : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
-      `${r.driftedCampaigns}/${r.campaignsChecked} campaigns disagree with their own records — investigate`;
+      `${r.driftedCampaigns}/${r.campaignsChecked} campaigns disagree with their own records — ` +
+      (r.alerted ? 'staff emailed' : 'already reported, staff not re-emailed');
 
   return { message, ...r };
 }
