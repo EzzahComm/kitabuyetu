@@ -1,5 +1,6 @@
 import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 
 export class MailgunAdapter implements IEmailAdapter {
   readonly name = 'mailgun';
@@ -12,7 +13,7 @@ export class MailgunAdapter implements IEmailAdapter {
       ? `https://api.eu.mailgun.net/v3/${domain}/messages`
       : `https://api.mailgun.net/v3/${domain}/messages`;
 
-    const from = payload.from ?? process.env.EMAIL_FROM ?? 'noreply@kitabuyetu.com';
+    const from = payload.from ?? env.EMAIL_FROM;
     const fromName = process.env.EMAIL_FROM_NAME ?? 'Kitabu Yetu';
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 

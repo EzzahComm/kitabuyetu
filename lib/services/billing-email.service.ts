@@ -2,9 +2,24 @@ import { sendTemplatedEmail, queueEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import type { EmailResult } from '@/lib/email/provider';
+import { env } from '@/lib/env';
 
 const SHORTCODE   = process.env.MPESA_SHORTCODE ?? '';
-const ADMIN_EMAIL = process.env.EMAIL_ADMIN    ?? 'admin@kitabuyetu.com';
+/**
+ * The staff address, when one is configured.
+ *
+ * The hardcoded `?? 'admin@kitabuyetu.com'` fallback this replaces pointed at
+ * a domain this platform does not own — the site is kitabuyetu.co.ke and mail
+ * comes from ezzahcomm.co.ke — so in the one situation it existed for (no
+ * EMAIL_ADMIN configured) it mailed nowhere, silently, forever. A fallback to
+ * an address nobody owns is worse than no fallback: it hides the
+ * misconfiguration it was meant to survive.
+ *
+ * Deliberately NOT made required in lib/env.ts. Failing app boot because an
+ * ops alert address is missing would take the whole product down over a
+ * notification concern; the two consumers below degrade instead.
+ */
+const ADMIN_EMAIL: string | undefined = process.env.EMAIL_ADMIN;
 
 // ---------------------------------------------------------------------------
 // Internal row shapes returned by the queries below
@@ -175,7 +190,11 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
       amountDue:     formatMoney(amountDue),
       daysOverdue:   String(days),
       shortcode:     SHORTCODE,
-      adminEmail:    ADMIN_EMAIL,
+      // Never blank: this renders inside "Contact <strong>{{adminEmail}}</strong>"
+      // in a customer-facing overdue notice. EMAIL_FROM is required and real,
+      // so an unconfigured EMAIL_ADMIN degrades to an address we own instead
+      // of to an empty sentence.
+      adminEmail:    ADMIN_EMAIL ?? env.EMAIL_FROM,
     };
 
     await sendTemplatedEmail({
@@ -187,8 +206,14 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
       referenceType: 'invoice',
     }).catch(() => {});
 
-    // CC admin at level 2 and beyond
-    if (targetLevel >= 2) {
+    // CC admin at level 2 and beyond — only when there is somewhere to send it.
+    // Previously this always "succeeded" into a domain we do not own.
+    if (targetLevel >= 2 && !ADMIN_EMAIL) {
+      logger.warn('[billing-email] EMAIL_ADMIN unset — overdue notice not copied to staff', {
+        invoiceId: inv.id, level: targetLevel,
+      });
+    }
+    if (targetLevel >= 2 && ADMIN_EMAIL) {
       await sendTemplatedEmail({
         templateKey,
         to:   ADMIN_EMAIL,

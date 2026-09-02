@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -8,7 +9,7 @@ export class ResendAdapter implements IEmailAdapter {
   readonly name = 'resend';
 
   async send(payload: EmailPayload): Promise<EmailResult> {
-    const from = payload.from ?? process.env.EMAIL_FROM ?? 'noreply@kitabuyetu.com';
+    const from = payload.from ?? env.EMAIL_FROM;
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 
     let logId: string | null = null;

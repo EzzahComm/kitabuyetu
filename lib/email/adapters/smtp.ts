@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 
 function createTransport() {
   return nodemailer.createTransport({
@@ -18,7 +19,7 @@ export class SmtpAdapter implements IEmailAdapter {
   readonly name = 'smtp';
 
   async send(payload: EmailPayload): Promise<EmailResult> {
-    const from = payload.from ?? process.env.EMAIL_FROM ?? 'noreply@kitabuyetu.com';
+    const from = payload.from ?? env.EMAIL_FROM;
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 
     let logId: string | null = null;

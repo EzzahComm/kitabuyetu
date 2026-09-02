@@ -37,7 +37,15 @@ const LONG_DESCRIPTION =
   'Kitabu Yetu — Build Vibrant Communities Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.com'),
+  // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is
+  // unset. The previous fallback was 'https://kitabuyetu.com' — a domain this
+  // platform does not own (the site is kitabuyetu.co.ke) — so a missing env
+  // var would have silently pointed every canonical link and OG image at
+  // somebody else's domain. Next resolves relative URLs and warns instead,
+  // which is a visible degradation rather than a confident wrong answer.
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL
+    ? new URL(process.env.NEXT_PUBLIC_APP_URL)
+    : undefined,
   title:       { default: `Kitabu Yetu — ${TAGLINE}`, template: '%s | Kitabu Yetu' },
   description: LONG_DESCRIPTION,
   applicationName: 'Kitabu Yetu',
