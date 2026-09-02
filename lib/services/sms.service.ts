@@ -190,6 +190,17 @@ const DLR_CALL_BUDGET_MS = 16_000;
 const SEND_CALL_BUDGET_MS = 21_000;
 
 /**
+ * Recipient count at which a bulk send should ask "are you sure?"
+ * (SMS-AUDIT-v3 T3-5 / G28).
+ *
+ * A threshold, not a cap — nothing here refuses a send. It marks where a
+ * misfire stops being cheap: 100 recipients is roughly a whole small chama,
+ * and an accidental "all members" past that is a real amount of somebody's
+ * money, spent irreversibly the moment the provider accepts.
+ */
+const BULK_CONFIRM_THRESHOLD = 100;
+
+/**
  * Map this module's payer shape onto the shared reservation target.
  *
  * Billing itself now lives in lib/services/messaging-billing.ts, which is the
@@ -1247,121 +1258,15 @@ export const smsService = {
         break;
       }
 
-      const provider = f.provider ?? undefined;
+      const outcome = await retryOneFailure(f, sender);
 
-      // Circuit open ⇒ skip without touching retry_count/next_retry_at at
-      // all (SMS-AUDIT-v3 T3-3 closure test: "an outage does not exhaust a
-      // message's max_retries budget while the circuit is open"). Checked
-      // BEFORE the opt-out lookup and the credit reservation below,
-      // deliberately — an outage is not this row's fault, so nothing about
-      // it should change state, including work that would otherwise need
-      // undoing. The row stays exactly as eligible next tick as it is now;
-      // once the breaker's cool-down elapses a single probe gets through and
-      // either closes it (this row and the rest resume normally) or re-opens
-      // it (another skipped tick, still free).
-      if (!isProviderAvailable(provider)) {
-        skipped++;
-        continue;
-      }
+      // A circuit skip is not an attempt: it touched no state and must not be
+      // counted as one (SMS-AUDIT-v3 T3-3).
+      if (outcome === 'skipped_circuit') { skipped++; continue; }
 
       retried++;
-
-      // Consent gate — never re-send to a number that has since opted out.
-      if (await this.isOptedOut(f.group_id, f.phone)) {
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE sms_failures
-             SET resolved=true, resolved_at=NOW(), last_retry_at=NOW(),
-                 failure_reason='suppressed: recipient opted out', updated_at=NOW()
-             WHERE id=$1`,
-            [f.id],
-          ),
-        );
-        resolved++;
-        continue;
-      }
-
-      // ── Re-reserve BEFORE dispatch ──────────────────────────────────────
-      // The first attempt reserved credits and RELEASED them when it failed
-      // (billing_state='released'). Nothing re-reserved on retry, so a message
-      // that failed once and succeeded on retry was delivered with
-      // credits_deducted = 0 — free, for every tenant, silently. Confirmed on
-      // real production sends 2026-08-16.
-      //
-      // The reservation has to happen BEFORE sendSingleSms, not after: once
-      // the provider has accepted the message we can no longer decline to
-      // send it, so discovering an empty balance at that point would leave us
-      // having delivered something unbilled all over again. This mirrors the
-      // order in send() — reserve, dispatch, then consume or release.
-      const target = {
-        payerType:      (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
-        groupId:        f.group_id,
-        organizationId: f.payer_organization_id,
-      };
-      // Re-price from the body actually being resent. A retry must reserve
-      // what the provider will bill for THIS send, not a flat 1 (G5).
-      const retrySegments = segmentsOf(f.message);
-      const reservation = await withAdminDb((db) =>
-        reserveCredits(db, target, retrySegments),
-      );
-      if (!reservation.ok) {
-        // Out of credits is not a transient provider fault — retrying on a
-        // timer will not conjure a balance. Record it and stop; a top-up puts
-        // the row back in play because retry_count is untouched.
-        await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} — ${reservation.detail}`);
-        failed++;
-        continue;
-      }
-
-      if (f.sms_log_id) {
-        const fromAllowance = Math.min(reservation.fromAllowanceCount, retrySegments);
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE sms_usage_logs
-             SET credits_reserved=$2, credits_from_allowance=$3, segments=$4,
-                 billing_state='reserved', reserved_at=NOW()
-             WHERE id=$1`,
-            [f.sms_log_id, retrySegments.toFixed(4), fromAllowance.toFixed(4), retrySegments],
-          ),
-        );
-      }
-
-      try {
-        const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender }, provider);
-        if (res.success) {
-          await withAdminDb(async (db) => {
-            if (f.sms_log_id) {
-              await db.query(
-                `UPDATE sms_usage_logs
-                 SET status='sent', provider_msg_id=$2,
-                     network_id=$3, sent_at=NOW(), failed_reason=NULL
-                 WHERE id=$1`,
-                [f.sms_log_id, res.messageId || null, res.networkId || null],
-              );
-            }
-            await db.query(
-              `UPDATE sms_failures
-               SET resolved=true, resolved_at=NOW(),
-                   retry_count=retry_count+1, last_retry_at=NOW(), updated_at=NOW()
-               WHERE id=$1`,
-              [f.id],
-            );
-          });
-          // Provider accepted ⇒ the earmark becomes a real debit.
-          if (f.sms_log_id) await settleReservation([f.sms_log_id], 'consume');
-          resolved++;
-        } else {
-          if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
-          await bumpRetry(f.id, f.retry_count, res.responseDescription);
-          failed++;
-        }
-      } catch (err) {
-        // Release on the throw path too, or a provider timeout strands the
-        // earmark until the stale-reservation sweeper reclaims it.
-        if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
-        await bumpRetry(f.id, f.retry_count, err instanceof Error ? err.message : String(err));
-        failed++;
-      }
+      if (outcome === 'resolved' || outcome === 'suppressed') resolved++;
+      else failed++;
     }
 
     logger.info(
@@ -1370,6 +1275,124 @@ export const smsService = {
       `${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
     );
     return { retried, resolved, failed, skipped };
+  },
+
+  /**
+   * What a bulk send would actually cost, before sending it
+   * (SMS-AUDIT-v3 T3-5 / G28).
+   *
+   * An officer composing a message had no way to learn either number that
+   * matters — how many people it reaches, and what it costs — until after the
+   * send had happened and the credits were gone. Both are knowable up front,
+   * and both have surprised people here before: "Send to All Members" once
+   * silently resolved to 20 recipients, and a 200-character message costs two
+   * credits per person, not one.
+   *
+   * Resolves the audience through the SAME resolveSmsRecipients() the send
+   * path uses and prices with the SAME segmentsOf() the reservation uses — a
+   * preview computed by a second implementation would eventually disagree
+   * with the charge, which is worse than no preview. (Exactly the three-way
+   * quoting divergence V3-01 found in the UI's own "SMS parts" counter.)
+   *
+   * Opt-outs are applied, so the count is who will really be messaged, not
+   * who was selected. Reads only — nothing is reserved, nothing is written.
+   */
+  async previewBulkSend(
+    ctx:   TenantContext,
+    input: { message: string; phones?: string[]; recipientType?: string; rawRecipients?: unknown },
+  ): Promise<{
+    selected:         number;
+    optedOut:         number;
+    recipients:       number;
+    segmentsPerMessage: number;
+    creditsRequired:  number;
+    balance:          { credits: number; allowanceRemaining: number; available: number };
+    affordable:       boolean;
+    requiresConfirmation: boolean;
+  }> {
+    const raw = input.phones?.length
+      ? input.phones.map((p) => normalizePhone(p))
+      : await resolveSmsRecipients(ctx.groupId, input.recipientType ?? '', input.rawRecipients);
+
+    // De-duplicate first: the same number listed twice is one message, and
+    // counting it twice would over-quote the cost.
+    const selected = [...new Set(raw)];
+
+    const optedOutSet = new Set(
+      (await smsService.listOptOuts(ctx.groupId)).map((o) => o.phone),
+    );
+    const recipients  = selected.filter((p) => !optedOutSet.has(p));
+
+    const segmentsPerMessage = segmentsOf(input.message);
+    const creditsRequired    = segmentsPerMessage * recipients.length;
+
+    const balance   = await smsService.getBalance(ctx);
+    const credits   = Number(balance.credits);
+    const available = credits + balance.allowanceRemaining;
+
+    return {
+      selected:   selected.length,
+      optedOut:   selected.length - recipients.length,
+      recipients: recipients.length,
+      segmentsPerMessage,
+      creditsRequired,
+      balance: { credits, allowanceRemaining: balance.allowanceRemaining, available },
+      affordable: available >= creditsRequired,
+      // A threshold, not a hard cap: the caller decides how to present it.
+      // Set where a mistake stops being cheap — 100 recipients is roughly a
+      // whole small chama, and past that an accidental "all members" is a
+      // real amount of somebody's money.
+      requiresConfirmation: recipients.length >= BULK_CONFIRM_THRESHOLD,
+    };
+  },
+
+  /**
+   * Retry ONE failed message on an operator's say-so (SMS-AUDIT-v3 T3-5 / G22).
+   *
+   * Runs retryOneFailure — the same path the cron sweep uses — so the consent
+   * gate, the reserve-before-dispatch ordering and the settle discipline are
+   * inherited rather than re-derived. What it deliberately overrides is only
+   * the SCHEDULING: `next_retry_at` and `max_retries` are ignored, because
+   * waiting out a backoff (or being permanently out of attempts) is exactly
+   * the situation a person clicks this button in.
+   *
+   * What it does NOT override:
+   *  - the opt-out check. A manual retry of a number that has since opted out
+   *    resolves as suppressed and spends nothing, which is the closure test.
+   *  - billing. A delivered retry is charged once, through the same
+   *    reservation the sweep uses. "Manual" is not a synonym for "free".
+   *  - the circuit breaker. If the provider is down, a person clicking retry
+   *    does not make it up.
+   *
+   * Group-scoped by an explicit WHERE on ctx.groupId rather than by relying on
+   * sms_failures' RLS: this row drives a real spend on that group's balance,
+   * so ownership is asserted here in a way that does not depend on which pool
+   * the caller happens to be using.
+   */
+  async retryFailure(
+    ctx: TenantContext,
+    failureId: string,
+  ): Promise<{ status: RetryOutcome | 'not_found' | 'already_resolved' }> {
+    const [row] = await withAdminDb((db) =>
+      db.query<RetryableFailure & { resolved: boolean }>(
+        `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count, f.resolved,
+                l.payer_type, l.payer_organization_id, l.provider
+           FROM sms_failures f
+           LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
+          WHERE f.id = $1 AND f.group_id = $2`,
+        [failureId, ctx.groupId],
+      ).then((r) => r.rows),
+    );
+
+    if (!row)          return { status: 'not_found' };
+    // Already delivered or already suppressed. Re-sending would be a duplicate
+    // to a real person and a second charge — the exact pair of harms the
+    // dedup work in T1-2 existed to stop.
+    if (row.resolved)  return { status: 'already_resolved' };
+
+    const outcome = await retryOneFailure(row, env.TEXTSMS_SENDER_ID);
+    logger.info('[sms] manual retry', { failureId, groupId: ctx.groupId, outcome });
+    return { status: outcome };
   },
 
   async listUsage(
@@ -1613,6 +1636,142 @@ async function updateLogRow(
       [status, msgId || null, networkId || null, reason, id],
     );
   } finally { client.release(); }
+}
+
+export type RetryOutcome = 'resolved' | 'suppressed' | 'failed' | 'skipped_circuit';
+
+/** The columns retryOneFailure needs, joined from sms_failures + its log row. */
+interface RetryableFailure {
+  id:                     string;
+  group_id:               string;
+  sms_log_id:             string | null;
+  phone:                  string;
+  message:                string;
+  retry_count:            number;
+  payer_type:             string | null;
+  payer_organization_id:  string | null;
+  provider:               string | null;
+}
+
+/**
+ * Retry ONE failed message: consent gate, re-reserve, dispatch, settle.
+ *
+ * Extracted from retryFailures' loop so the manual retry action
+ * (SMS-AUDIT-v3 T3-5 / G22) runs the identical path rather than a second
+ * implementation of it. Everything delicate about this sequence was learned
+ * from a production defect — the reservation ordering (a retry that delivered
+ * for free, 2026-08-16), the release-on-throw (a stranded earmark), the
+ * opt-out check preceding any spend — and a hand-rolled "retry" button that
+ * re-derived it would eventually get one of them wrong.
+ *
+ * Returns an outcome rather than mutating counters, so both callers can
+ * describe the result in their own terms.
+ */
+async function retryOneFailure(f: RetryableFailure, sender: string): Promise<RetryOutcome> {
+  const provider = f.provider ?? undefined;
+
+  // Circuit open ⇒ skip without touching retry_count/next_retry_at at all
+  // (SMS-AUDIT-v3 T3-3 closure test: "an outage does not exhaust a message's
+  // max_retries budget while the circuit is open"). Checked BEFORE the opt-out
+  // lookup and the credit reservation below, deliberately — an outage is not
+  // this row's fault, so nothing about it should change state, including work
+  // that would otherwise need undoing.
+  if (!isProviderAvailable(provider)) return 'skipped_circuit';
+
+  // Consent gate — never re-send to a number that has since opted out. Ahead
+  // of the reservation, so a suppressed retry costs nothing.
+  if (await smsService.isOptedOut(f.group_id, f.phone)) {
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE sms_failures
+         SET resolved=true, resolved_at=NOW(), last_retry_at=NOW(),
+             failure_reason='suppressed: recipient opted out', updated_at=NOW()
+         WHERE id=$1`,
+        [f.id],
+      ),
+    );
+    return 'suppressed';
+  }
+
+  // ── Re-reserve BEFORE dispatch ──────────────────────────────────────
+  // The first attempt reserved credits and RELEASED them when it failed
+  // (billing_state='released'). Nothing re-reserved on retry, so a message
+  // that failed once and succeeded on retry was delivered with
+  // credits_deducted = 0 — free, for every tenant, silently. Confirmed on
+  // real production sends 2026-08-16.
+  //
+  // The reservation has to happen BEFORE sendSingleSms, not after: once the
+  // provider has accepted the message we can no longer decline to send it, so
+  // discovering an empty balance at that point would leave us having delivered
+  // something unbilled all over again. This mirrors the order in send() —
+  // reserve, dispatch, then consume or release.
+  const target = {
+    payerType:      (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
+    groupId:        f.group_id,
+    organizationId: f.payer_organization_id,
+  };
+  // Re-price from the body actually being resent. A retry must reserve what
+  // the provider will bill for THIS send, not a flat 1 (G5).
+  const retrySegments = segmentsOf(f.message);
+  const reservation = await withAdminDb((db) =>
+    reserveCredits(db, target, retrySegments),
+  );
+  if (!reservation.ok) {
+    // Out of credits is not a transient provider fault — retrying on a timer
+    // will not conjure a balance. Record it and stop; a top-up puts the row
+    // back in play because retry_count is untouched.
+    await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} — ${reservation.detail}`);
+    return 'failed';
+  }
+
+  if (f.sms_log_id) {
+    const fromAllowance = Math.min(reservation.fromAllowanceCount, retrySegments);
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE sms_usage_logs
+         SET credits_reserved=$2, credits_from_allowance=$3, segments=$4,
+             billing_state='reserved', reserved_at=NOW()
+         WHERE id=$1`,
+        [f.sms_log_id, retrySegments.toFixed(4), fromAllowance.toFixed(4), retrySegments],
+      ),
+    );
+  }
+
+  try {
+    const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender }, provider);
+    if (res.success) {
+      await withAdminDb(async (db) => {
+        if (f.sms_log_id) {
+          await db.query(
+            `UPDATE sms_usage_logs
+             SET status='sent', provider_msg_id=$2,
+                 network_id=$3, sent_at=NOW(), failed_reason=NULL
+             WHERE id=$1`,
+            [f.sms_log_id, res.messageId || null, res.networkId || null],
+          );
+        }
+        await db.query(
+          `UPDATE sms_failures
+           SET resolved=true, resolved_at=NOW(),
+               retry_count=retry_count+1, last_retry_at=NOW(), updated_at=NOW()
+           WHERE id=$1`,
+          [f.id],
+        );
+      });
+      // Provider accepted ⇒ the earmark becomes a real debit.
+      if (f.sms_log_id) await settleReservation([f.sms_log_id], 'consume');
+      return 'resolved';
+    }
+    if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
+    await bumpRetry(f.id, f.retry_count, res.responseDescription);
+    return 'failed';
+  } catch (err) {
+    // Release on the throw path too, or a provider timeout strands the
+    // earmark until the stale-reservation sweeper reclaims it.
+    if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
+    await bumpRetry(f.id, f.retry_count, err instanceof Error ? err.message : String(err));
+    return 'failed';
+  }
 }
 
 /**

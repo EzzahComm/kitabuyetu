@@ -142,15 +142,29 @@ describe('route entitlement map', () => {
       '/api/v1/sms/balance',
       '/api/v1/sms/birthdays',
       '/api/v1/sms/bulk',
+      // The preview for the send directly above it — same audience, same
+      // pricing, no write. If /sms/bulk is reachable, so must be the thing
+      // that tells you what it will cost.
+      '/api/v1/sms/bulk/preview',
       '/api/v1/sms/campaign',
       '/api/v1/sms/credits',
       '/api/v1/sms/dlr',
+      // A Chama Reminder group sends, so it also has failed sends to retry.
+      // Reaches sms_failures rows scoped to the caller's own group and spends
+      // that group's own credits; nothing financial beyond its own SMS balance.
+      '/api/v1/sms/failures/[id]/retry',
       // Deliberate: a communication-only Chama Reminder group has no chart of
       // accounts, but it still sends SMS and so must be able to honour a
       // member's objection under the Data Protection Act. Consent management
       // belongs wherever sending is possible.
       '/api/v1/sms/opt-outs',
       '/api/v1/sms/preferences',
+      // Same reasoning as opt-outs, and arguably stronger: reminder history IS
+      // the Chama Reminder product — a communication-only group needs to see
+      // which automations ran for which member, including the suppressed rows
+      // that evidence an opt-out was honoured. Reads reminder_dispatch_log
+      // only; nothing financial is reachable through it.
+      '/api/v1/sms/reminder-history',
       '/api/v1/sms/schedules',
       '/api/v1/sms/send',
       '/api/v1/sms/settings',
