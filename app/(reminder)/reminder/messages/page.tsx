@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Clock } from 'lucide-react';
+import { Send, Clock, BellOff } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
-import { ComposeTab, SchedulesTab } from '@/components/sms/tabs';
+import { ComposeTab, SchedulesTab, OptOutsTab } from '@/components/sms/tabs';
 
 /**
  * Compose and Schedules share a page here rather than getting a nav slot each:
@@ -13,6 +13,11 @@ import { ComposeTab, SchedulesTab } from '@/components/sms/tabs';
 const SUB_TABS = [
   { key: 'compose',   label: 'Compose',   icon: Send },
   { key: 'scheduled', label: 'Scheduled', icon: Clock },
+  // A Chama Reminder group sends, so it owes its members the same right to
+  // object as any other group — and with no inbound STOP handling, an officer
+  // recording the request is the only way it can be honoured
+  // (SMS-REAUDIT-2026-09-02 F1).
+  { key: 'optouts',   label: 'Opt-outs',  icon: BellOff },
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number]['key'];
@@ -44,6 +49,7 @@ export default function ReminderMessagesPage() {
 
       {tab === 'compose'   && <ComposeTab />}
       {tab === 'scheduled' && <SchedulesTab />}
+      {tab === 'optouts'   && <OptOutsTab />}
     </div>
   );
 }

@@ -378,6 +378,16 @@ export const smsApi = {
   // caller's own phone + active group.
   preferences:       () => api.get<{ optedOut: boolean }>('/sms/preferences'),
   setPreferences:    (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
+  // Officer-managed opt-out list (SMS-REAUDIT-2026-09-02 F1). The route has
+  // existed since the consent work but had no caller, so `sms_opt_outs` held 0
+  // rows — not "nobody asked to opt out" but "no officer could record one".
+  // The member self-service path above only helps a member with an app login;
+  // most are added by an officer as a name and a phone number.
+  optOuts:           () => api.get<{ optOuts: SmsOptOut[] }>('/sms/opt-outs'),
+  addOptOut:         (phone: string, note?: string) =>
+                       api.post<{ optOuts: SmsOptOut[] }>('/sms/opt-outs', { phone, note }),
+  removeOptOut:      (phone: string) =>
+                       api.delete<{ optOuts: SmsOptOut[] }>(`/sms/opt-outs?phone=${encodeURIComponent(phone)}`),
   // Per-group automation toggles. auto_send_birthday has existed since
   // migration 013 and its job since Phase 1, but there was no way to turn it on
   // from inside the product until now.
@@ -390,6 +400,15 @@ export const smsApi = {
   // lib/services/sms-analytics.service.ts.
   analytics:         () => api.get<SmsUsageAnalytics>('/sms/analytics'),
 };
+
+/** One live opt-out, as `sms_opt_outs` records it (migration 162). */
+export interface SmsOptOut {
+  phone:     string;
+  optedOutAt: string;
+  /** 'member' (portal), 'officer' (recorded on their behalf), 'import', 'inbound_stop'. */
+  source:    string;
+  note:      string | null;
+}
 
 export interface SmsGroupSettings {
   senderId:             string | null;

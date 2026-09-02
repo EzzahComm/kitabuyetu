@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { SmsCreditsPanel } from '@/components/sms/sms-credits-panel';
 import {
   TABS, type TabKey,
-  ComposeTab, CampaignsTab, TemplatesTab, SchedulesTab, LogsTab,
+  ComposeTab, CampaignsTab, TemplatesTab, SchedulesTab, LogsTab, OptOutsTab,
 } from '@/components/sms/tabs';
 
 export default function SmsPage() {
@@ -42,6 +42,7 @@ export default function SmsPage() {
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'schedules' && <SchedulesTab />}
       {tab === 'logs'      && <LogsTab />}
+      {tab === 'optouts'   && <OptOutsTab />}
     </div>
   );
 }
