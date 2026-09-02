@@ -1,12 +1,13 @@
 import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 
 export class SendGridAdapter implements IEmailAdapter {
   readonly name = 'sendgrid';
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     const apiKey = process.env.SENDGRID_API_KEY ?? '';
-    const from = payload.from ?? process.env.EMAIL_FROM ?? 'noreply@kitabuyetu.com';
+    const from = payload.from ?? env.EMAIL_FROM;
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 
     let logId: string | null = null;

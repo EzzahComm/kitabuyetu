@@ -6,6 +6,7 @@ import { SendGridAdapter } from './adapters/sendgrid';
 import { SesAdapter } from './adapters/ses';
 import { MailgunAdapter } from './adapters/mailgun';
 import { withAdminDb } from '@/lib/db';
+import { env } from '@/lib/env';
 
 let _adapter: IEmailAdapter | null = null;
 
@@ -23,7 +24,7 @@ function getAdapter(): IEmailAdapter {
 }
 
 async function logDryRun(payload: EmailPayload): Promise<void> {
-  const from = payload.from ?? process.env.EMAIL_FROM ?? 'noreply@kitabuyetu.com';
+  const from = payload.from ?? env.EMAIL_FROM;
   const to   = Array.isArray(payload.to) ? payload.to[0] : payload.to;
   await withAdminDb((db) =>
     db.query(
