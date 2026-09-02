@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Clock, BellOff } from 'lucide-react';
+import { Send, Clock, BellOff, AlertTriangle, History } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { ComposeTab, SchedulesTab, OptOutsTab } from '@/components/sms/tabs';
+import { FailuresTab, ReminderHistoryTab } from '@/components/sms/ops-tabs';
 
 /**
  * Compose and Schedules share a page here rather than getting a nav slot each:
@@ -17,7 +18,11 @@ const SUB_TABS = [
   // object as any other group — and with no inbound STOP handling, an officer
   // recording the request is the only way it can be honoured
   // (SMS-REAUDIT-2026-09-02 F1).
-  { key: 'optouts',   label: 'Opt-outs',  icon: BellOff },
+  // Chama Reminder IS the automations product, so its history and its failed
+  // sends matter here at least as much as on the full portal.
+  { key: 'failures',  label: 'Failed',      icon: AlertTriangle },
+  { key: 'history',   label: 'Automations', icon: History },
+  { key: 'optouts',   label: 'Opt-outs',    icon: BellOff },
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number]['key'];
@@ -49,6 +54,8 @@ export default function ReminderMessagesPage() {
 
       {tab === 'compose'   && <ComposeTab />}
       {tab === 'scheduled' && <SchedulesTab />}
+      {tab === 'failures'  && <FailuresTab />}
+      {tab === 'history'   && <ReminderHistoryTab />}
       {tab === 'optouts'   && <OptOutsTab />}
     </div>
   );

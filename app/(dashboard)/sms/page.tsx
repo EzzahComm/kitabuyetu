@@ -7,6 +7,7 @@ import {
   TABS, type TabKey,
   ComposeTab, CampaignsTab, TemplatesTab, SchedulesTab, LogsTab, OptOutsTab,
 } from '@/components/sms/tabs';
+import { FailuresTab, ReminderHistoryTab } from '@/components/sms/ops-tabs';
 
 export default function SmsPage() {
   const [tab, setTab] = useState<TabKey>('compose');
@@ -42,6 +43,8 @@ export default function SmsPage() {
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'schedules' && <SchedulesTab />}
       {tab === 'logs'      && <LogsTab />}
+      {tab === 'failures'  && <FailuresTab />}
+      {tab === 'history'   && <ReminderHistoryTab />}
       {tab === 'optouts'   && <OptOutsTab />}
     </div>
   );

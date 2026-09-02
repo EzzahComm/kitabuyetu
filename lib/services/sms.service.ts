@@ -43,6 +43,22 @@ import type { SmsUsageQueryInput } from '@/lib/validators/sms.schema';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** One unresolved (or resolved, if asked for) failed message. */
+export interface SmsFailureRow {
+  id:             string;
+  phone:          string;
+  message:        string;
+  failure_reason: string | null;
+  retry_count:    number;
+  max_retries:    number;
+  resolved:       boolean;
+  last_retry_at:  Date | null;
+  next_retry_at:  Date | null;
+  created_at:     Date;
+  /** True when the automatic sweep will never touch this row again. */
+  exhausted:      boolean;
+}
+
 export interface SendSmsResult {
   sent:    number;
   failed:  number;
@@ -1369,6 +1385,54 @@ export const smsService = {
    * so ownership is asserted here in a way that does not depend on which pool
    * the caller happens to be using.
    */
+  /**
+   * This group's unresolved failed messages (SMS-REAUDIT-2026-09-02 F3/F6).
+   *
+   * Added because `POST /sms/failures/[id]/retry` shipped with no way to
+   * obtain an `[id]`: there was no GET over sms_failures anywhere, so the
+   * retry action was not merely un-wired, it was undiscoverable. A capability
+   * nothing can address is not a capability.
+   *
+   * `exhausted` is computed rather than left to the caller: it is the whole
+   * reason a person needs this screen. Those rows are the ones the 5-minute
+   * sweep has permanently abandoned, so a human deciding to retry is the only
+   * thing that will ever move them — 7 such rows existed on the day this
+   * shipped.
+   *
+   * Tenant pool, so RLS scopes the read; the explicit group_id predicate is
+   * belt-and-braces on a table whose rows drive real spend.
+   */
+  async listFailures(
+    ctx: TenantContext,
+    params: { page: number; limit: number; includeResolved?: boolean },
+  ): Promise<PaginatedResult<SmsFailureRow>> {
+    return withDb(ctx, async (client) => {
+      const { page, limit, includeResolved } = params;
+      const offset = (page - 1) * limit;
+      const where = includeResolved
+        ? 'f.group_id = $1'
+        : 'f.group_id = $1 AND NOT f.resolved';
+
+      const { rows: countRows } = await client.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM sms_failures f WHERE ${where}`, [ctx.groupId],
+      );
+      const total = parseInt(countRows[0].count, 10);
+
+      const { rows } = await client.query<SmsFailureRow>(
+        `SELECT f.id, f.phone, f.message, f.failure_reason, f.retry_count, f.max_retries,
+                f.resolved, f.last_retry_at, f.next_retry_at, f.created_at,
+                (f.retry_count >= f.max_retries) AS exhausted
+           FROM sms_failures f
+          WHERE ${where}
+          ORDER BY f.created_at DESC
+          LIMIT $2 OFFSET $3`,
+        [ctx.groupId, limit, offset],
+      );
+
+      return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
+    });
+  },
+
   async retryFailure(
     ctx: TenantContext,
     failureId: string,

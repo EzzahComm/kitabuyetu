@@ -16,7 +16,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
-  Plus, Trash2, PauseCircle, PlayCircle, BellOff,
+  Plus, Trash2, PauseCircle, PlayCircle, BellOff, AlertTriangle, History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
@@ -29,7 +29,7 @@ import { countSegments } from '@/lib/sms/segments';
 import { StatusPill } from '@/components/shared/status-pill';
 import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
-import type { SmsOptOut } from '@/lib/api/endpoints';
+import type { SmsOptOut, SmsBulkPreview } from '@/lib/api/endpoints';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +62,9 @@ export const TABS = [
   { key: 'templates', label: 'Templates', icon: LayoutTemplate },
   { key: 'schedules', label: 'Schedules', icon: Clock },
   { key: 'logs',      label: 'SMS Logs',  icon: MessageSquare },
-  { key: 'optouts',   label: 'Opt-outs',  icon: BellOff },
+  { key: 'failures',  label: 'Failed',      icon: AlertTriangle },
+  { key: 'history',   label: 'Automations', icon: History },
+  { key: 'optouts',   label: 'Opt-outs',    icon: BellOff },
 ] as const;
 
 export type TabKey = (typeof TABS)[number]['key'];
@@ -75,6 +77,7 @@ export function ComposeTab() {
   const [target, setTarget]     = useState<'all' | 'active' | 'custom'>('all');
   const [phones, setPhones]     = useState('');
   const [templateId, setTemplateId] = useState('');
+  const [preview, setPreview] = useState<SmsBulkPreview | null>(null);
 
   const { data: templates } = useQuery({ queryKey: ['sms-templates'], queryFn: () => smsApi.templates() });
 
@@ -87,6 +90,17 @@ export function ComposeTab() {
     onError: (err) => toast({ variant: 'destructive', title: 'Send failed', description: getErrorMessage(err) }),
   });
 
+  const previewMutation = useMutation({
+    mutationFn: (body: BulkSmsPayload) => smsApi.previewBulk({
+      message: body.message,
+      ...(body.phones ? { phones: body.phones } : { recipientType: body.recipientType }),
+    }),
+    onSuccess: (p) => setPreview(p),
+    onError: (err) => toast({
+      variant: 'destructive', title: 'Could not price this send', description: getErrorMessage(err),
+    }),
+  });
+
   /**
    * "All Members" / "Active Only" name an audience; they do not enumerate one.
    * This used to build the phone list here from `useMembers({ pageSize: 500 })`
@@ -95,23 +109,44 @@ export function ComposeTab() {
    * error shown. The server now answers the membership question itself; the
    * client only sends phone numbers a human typed.
    */
-  const handleSend = () => {
-    if (!message.trim()) return;
-
+  /**
+   * The audience as the SERVER will resolve it. Built once, so the preview and
+   * the send cannot disagree about who is being messaged.
+   */
+  const buildPayload = (): BulkSmsPayload | null => {
     if (target === 'custom') {
       const recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
       if (!recipientPhones.length) {
         toast({ variant: 'destructive', title: 'Add at least one phone number' });
-        return;
+        return null;
       }
-      sendMutation.mutate({ phones: recipientPhones, message });
-      return;
+      return { phones: recipientPhones, message };
     }
+    return { recipientType: target === 'active' ? 'active_members' : 'all_members', message };
+  };
 
-    sendMutation.mutate({
-      recipientType: target === 'active' ? 'active_members' : 'all_members',
-      message,
-    });
+  /**
+   * Ask what this will reach and cost BEFORE spending anything
+   * (SMS-AUDIT-v3 G28, wired here by SMS-REAUDIT-2026-09-02 F3).
+   *
+   * Both numbers were previously only discoverable after the credits were
+   * gone, and both have surprised people here: "Send to All Members" once
+   * resolved silently to 20 recipients, and a 200-character message costs two
+   * credits per person rather than one. The preview is priced by the same
+   * counter the reservation uses, so the quote cannot drift from the charge.
+   */
+  const handleSend = () => {
+    if (!message.trim()) return;
+    const payload = buildPayload();
+    if (!payload) return;
+    previewMutation.mutate(payload);
+  };
+
+  const confirmSend = () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    setPreview(null);
+    sendMutation.mutate(payload);
   };
 
   const tplList: SmsTemplate[] = templates ?? [];
@@ -196,15 +231,72 @@ export function ComposeTab() {
             )}
           </div>
 
-          <Button
-            type="button"
-            onClick={handleSend}
-            disabled={!message.trim()}
-            loading={sendMutation.isPending}
-          >
-            <Send size={15} />
-            {sendMutation.isPending ? 'Sending…' : 'Send SMS'}
-          </Button>
+          {/* The quote, between composing and spending. Rendered only once
+              the server has priced THIS payload — never estimated locally,
+              because a second local estimate is exactly how the officer's
+              number, the provider's number and the charge came to disagree
+              (SMS-AUDIT-v3 V3-01). */}
+          {preview && (
+            <div className={`rounded-lg border px-4 py-3 space-y-2 ${
+              preview.affordable ? 'border-border bg-muted/40' : 'border-rose-200 bg-rose-50'
+            }`}>
+              <p className="text-sm font-medium">
+                {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'} ·{' '}
+                {preview.creditsRequired} credit{preview.creditsRequired === 1 ? '' : 's'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {preview.segmentsPerMessage} SMS part{preview.segmentsPerMessage === 1 ? '' : 's'} each.
+                {preview.optedOut > 0 && ` ${preview.optedOut} opted-out number${preview.optedOut === 1 ? '' : 's'} excluded.`}
+                {' '}Balance after: {Math.max(preview.balance.available - preview.creditsRequired, 0)} of {preview.balance.available}.
+              </p>
+
+              {!preview.affordable && (
+                <p className="text-xs font-medium text-rose-700">
+                  Not enough credits — this needs {preview.creditsRequired} and {preview.balance.available} are available.
+                </p>
+              )}
+              {preview.recipients === 0 && (
+                <p className="text-xs font-medium text-rose-700">
+                  This would reach nobody.
+                </p>
+              )}
+              {preview.requiresConfirmation && preview.affordable && preview.recipients > 0 && (
+                <p className="text-xs font-medium text-amber-700">
+                  That is a large send. Check the recipient count before confirming.
+                </p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={confirmSend}
+                  disabled={!preview.affordable || preview.recipients === 0}
+                  loading={sendMutation.isPending}
+                >
+                  <Send size={14} />
+                  {preview.requiresConfirmation
+                    ? `Yes, send to ${preview.recipients}`
+                    : 'Confirm and send'}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!preview && (
+            <Button
+              type="button"
+              onClick={handleSend}
+              disabled={!message.trim()}
+              loading={previewMutation.isPending}
+            >
+              <Send size={15} />
+              {previewMutation.isPending ? 'Checking…' : 'Review and send'}
+            </Button>
+          )}
         </div>
       </div>
 

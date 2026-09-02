@@ -383,6 +383,18 @@ export const smsApi = {
   // rows — not "nobody asked to opt out" but "no officer could record one".
   // The member self-service path above only helps a member with an app login;
   // most are added by an officer as a name and a phone number.
+  // Failed messages + the manual retry (SMS-REAUDIT-2026-09-02 F3/F6). The
+  // retry route shipped in #130 with no listing beside it, so nothing could
+  // learn an id to retry with.
+  failures:          (params?: Record<string, unknown>) =>
+                       api.get<PaginatedResult<SmsFailure>>(`/sms/failures${buildQuery(params ?? {})}`),
+  retryFailure:      (id: string) => api.post<{ status: string }>(`/sms/failures/${id}/retry`, {}),
+  // Reminder/automation history, suppressed outcomes included — the DSAR view.
+  reminderHistory:   (params?: Record<string, unknown>) =>
+                       api.get<PaginatedResult<ReminderHistoryRow>>(`/sms/reminder-history${buildQuery(params ?? {})}`),
+  // What a bulk send will actually reach and cost, before sending it.
+  previewBulk:       (body: { message: string; phones?: string[]; recipientType?: string }) =>
+                       api.post<SmsBulkPreview>('/sms/bulk/preview', body),
   optOuts:           () => api.get<{ optOuts: SmsOptOut[] }>('/sms/opt-outs'),
   addOptOut:         (phone: string, note?: string) =>
                        api.post<{ optOuts: SmsOptOut[] }>('/sms/opt-outs', { phone, note }),
@@ -400,6 +412,47 @@ export const smsApi = {
   // lib/services/sms-analytics.service.ts.
   analytics:         () => api.get<SmsUsageAnalytics>('/sms/analytics'),
 };
+
+export interface SmsFailure {
+  id:             string;
+  phone:          string;
+  message:        string;
+  failure_reason: string | null;
+  retry_count:    number;
+  max_retries:    number;
+  resolved:       boolean;
+  last_retry_at:  string | null;
+  next_retry_at:  string | null;
+  created_at:     string;
+  /** True when the automatic sweep will never touch this row again. */
+  exhausted:      boolean;
+}
+
+export interface ReminderHistoryRow {
+  id:             string;
+  member_id:      string;
+  member_name:    string | null;
+  reference_type: string;
+  reference_id:   string;
+  reminder_stage: string;
+  status:         string;
+  channel:        string | null;
+  reason:         string | null;
+  attempts:       number;
+  created_at:     string;
+  sent_at:        string | null;
+}
+
+export interface SmsBulkPreview {
+  selected:             number;
+  optedOut:             number;
+  recipients:           number;
+  segmentsPerMessage:   number;
+  creditsRequired:      number;
+  balance:              { credits: number; allowanceRemaining: number; available: number };
+  affordable:           boolean;
+  requiresConfirmation: boolean;
+}
 
 /** One live opt-out, as `sms_opt_outs` records it (migration 162). */
 export interface SmsOptOut {
