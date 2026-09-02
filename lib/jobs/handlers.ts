@@ -1063,16 +1063,26 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
   const { reconcileSmsCredits } = await import('@/lib/services/messaging-billing');
   const r = await reconcileSmsCredits();
 
-  const clean = r.driftedPayers === 0 && r.driftedCampaigns === 0;
-  // Whether staff were emailed is part of the run record on purpose
-  // (SMS-REAUDIT-2026-09-02 F2): "DRIFT — investigate" printed for six days
-  // while reaching nobody is exactly the failure this now closes, and the
-  // difference between "reported" and "suppressed as a repeat" is the thing
-  // an operator reading the history needs to be able to tell.
+  // A repaired campaign is not drift that survived the run, so it must not
+  // read as an outstanding problem (SMS-REAUDIT-2026-09-02 F4). It is still
+  // named, because self-healing that happens silently is indistinguishable
+  // from nothing having gone wrong — and the whole point of this job is that
+  // somebody can tell the difference.
+  const outstandingCampaigns = r.driftedCampaigns - r.repairedCampaigns;
+  const clean = r.driftedPayers === 0 && outstandingCampaigns === 0;
+
+  const repaired = r.repairedCampaigns > 0
+    ? ` — recomputed ${r.repairedCampaigns} campaign counter(s) from the message log`
+    : '';
+
+  // Whether staff were emailed is part of the run record on purpose (F2):
+  // "DRIFT — investigate" printed for six days while reaching nobody is
+  // exactly the failure that closed, and "reported" versus "suppressed as a
+  // repeat" is the thing an operator reading the history needs to tell apart.
   const message = clean
-    ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)`
+    ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)${repaired}`
     : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
-      `${r.driftedCampaigns}/${r.campaignsChecked} campaigns disagree with their own records — ` +
+      `${outstandingCampaigns}/${r.campaignsChecked} campaigns need a human${repaired} — ` +
       (r.alerted ? 'staff emailed' : 'already reported, staff not re-emailed');
 
   return { message, ...r };
