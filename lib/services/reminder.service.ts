@@ -31,8 +31,28 @@ export interface ReminderInput extends NotifyRecipient {
 
 export interface ReminderResult {
   sent:   boolean;
-  status: NotifyOutcome['status'] | 'already_sent' | 'already_suppressed' | 'claim_error';
+  status: NotifyOutcome['status'] | 'already_sent' | 'already_suppressed' | 'claim_error' | 'cooldown';
 }
+
+/**
+ * How long after a delivered reminder this member is left alone
+ * (SMS-AUDIT-v3 T3-5 / G26).
+ *
+ * The dedup above is per (reference, stage), which is exactly right for "did
+ * we already send THIS reminder" and says nothing about "how many separate
+ * reminders is this person getting at once". On the 1st of the month several
+ * scanners come due together and each one legitimately claims its own slot,
+ * so one member can receive a burst of distinct-but-simultaneous messages —
+ * each individually correct, collectively indistinguishable from spam, and
+ * each separately billed.
+ *
+ * One hour is chosen to collapse that burst and nothing more. It is
+ * deliberately NOT a day: a long window would silently swallow a genuinely
+ * urgent, genuinely different message (a loan-overdue alert behind a
+ * contribution nudge sent that morning), and suppressing the wrong message is
+ * worse than sending two.
+ */
+const COOLDOWN_MINUTES = 60;
 
 type ClaimResult =
   | { outcome: 'send'; id: string }
@@ -104,14 +124,70 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
 }
 
 /**
- * Send a reminder at most once per (referenceType, referenceId, reminderStage).
+ * Whether this member has already had a reminder delivered inside the cooldown
+ * window (G26).
+ *
+ * Reads reminder_dispatch_log rather than sms_usage_logs deliberately: it is
+ * channel-agnostic, so a member reached on WhatsApp counts as reached. It also
+ * only counts status='sent' — a suppressed or failed attempt did not reach
+ * anybody and must not silence the next real one.
+ *
+ * Excludes the row just claimed by id, which is still 'pending' and so cannot
+ * match anyway; the exclusion is belt-and-braces against a future change that
+ * settles earlier.
+ *
+ * Fail-open on error: this is a politeness constraint, not a correctness one.
+ * A cooldown lookup that breaks must not stop a reminder going out.
+ */
+async function inCooldown(input: ReminderInput, claimedId: string): Promise<boolean> {
+  if (!input.memberId || !input.groupId) return false;
+  try {
+    return await withAdminDb(async (db) => {
+      const { rows } = await db.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM reminder_dispatch_log
+            WHERE group_id  = $1
+              AND member_id = $2
+              AND id       <> $3
+              AND status    = 'sent'
+              AND sent_at  >= NOW() - ($4 || ' minutes')::interval
+         ) AS exists`,
+        [input.groupId, input.memberId, claimedId, String(COOLDOWN_MINUTES)],
+      );
+      return rows[0]?.exists === true;
+    });
+  } catch (err) {
+    logger.warn('[reminder] cooldown lookup failed — allowing the send', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
+/**
+ * Send a reminder at most once per (referenceType, referenceId, reminderStage),
+ * and at most one reminder per member per cooldown window.
+ *
  * Safe to call every time a scanner considers a candidate eligible — repeat
  * calls for an already-sent stage are a cheap no-op (one INSERT that conflicts,
  * no external API call).
+ *
+ * A cooldown hit DEFERS, it does not drop: the claimed row is left 'pending',
+ * which claim() treats as resumable, so the next scanner run sends it for
+ * real. Marking it 'suppressed' would be terminal and would lose the reminder
+ * permanently — the same append-only trap that burned eight welcome
+ * executions in the 401 incident.
  */
 export async function sendOnce(input: ReminderInput): Promise<ReminderResult> {
   const claimed = await claim(input);
   if (claimed.outcome !== 'send') return { sent: false, status: claimed.outcome };
+
+  // Checked AFTER the claim (so the slot is held and no other run races us
+  // into sending it) but BEFORE notifyMember — the whole value is in not
+  // reserving credits and not calling the provider.
+  if (await inCooldown(input, claimed.id)) {
+    return { sent: false, status: 'cooldown' };
+  }
 
   const outcome = await notifyMember(input);
   await settle(claimed.id, outcome);

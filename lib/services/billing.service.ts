@@ -859,18 +859,31 @@ export async function setOrganizationSmsRate(
 }
 
 /**
- * Records a manual SMS credit top-up for an organization. No payment_id ever
- * backs this (nullable on organization_sms_credits) — like deposit(), this
- * trusts that money arrived out-of-band and records it; it does not collect
- * payment itself, so unlike addSmsCredits there is no ON CONFLICT(payment_id)
- * exactly-once guard to worry about — every call is a distinct, real top-up.
+ * Records an SMS credit top-up for an organization.
+ *
+ * Manual today: every current caller omits `paymentId`, trusting that money
+ * arrived out-of-band, exactly as deposit() does. It used to say here that a
+ * payment_id "never backs this" and so no exactly-once guard was needed —
+ * true of the callers, but the wrong thing to build on. The column exists
+ * (migration 051), the group-side twin has been burned by a replayed STK
+ * callback crediting twice, and the first callback-driven org top-up would
+ * have inherited that bug with nothing standing in its way.
+ *
+ * So the guard is here BEFORE the caller that needs it (SMS-AUDIT-v3 G27),
+ * mirroring addSmsCredits exactly: UNIQUE(payment_id) from migration 164, ON
+ * CONFLICT DO NOTHING, and — the part that actually matters — the balance is
+ * only moved when the insert really happened. Manual top-ups pass NULL, which
+ * a UNIQUE constraint does not constrain, so they still apply every time.
+ *
+ * Returns null when a replay was swallowed: nothing was credited, so the
+ * caller must not report a top-up either.
  */
 export async function addOrganizationSmsCredits(
   organizationId: string,
   amountKes:      number,
   actorUserId:    string | null,
-  opts:           { reference?: string; notes?: string } = {},
-): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number }> {
+  opts:           { reference?: string; notes?: string; paymentId?: string | null } = {},
+): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number } | null> {
   if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
 
   const result = await withAdminDb(async (db) => {
@@ -884,11 +897,17 @@ export async function addOrganizationSmsCredits(
 
     const { rows: inserted } = await db.query<{ id: string }>(
       `INSERT INTO organization_sms_credits
-         (organization_id, billing_account_id, amount_paid, credits_added, rate_applied, added_by, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+         (organization_id, billing_account_id, amount_paid, credits_added, rate_applied, added_by, notes, payment_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (payment_id) DO NOTHING
        RETURNING id`,
-      [organizationId, account.id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), actorUserId, notes],
+      [organizationId, account.id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), actorUserId, notes,
+       opts.paymentId ?? null],
     );
+    // Replay: this payment already bought these credits. Crediting the balance
+    // now would hand them out a second time, and appending a ledger entry
+    // would have the books claim a movement that never happened.
+    if (!inserted[0]) return null;
 
     const { rows: after } = await db.query<{ sms_credits: string }>(
       `UPDATE organization_billing_accounts SET sms_credits = sms_credits + $1, updated_at = NOW()
@@ -901,12 +920,17 @@ export async function addOrganizationSmsCredits(
     // payment_id, created_by, notes) — the same generic function
     // addSmsCredits already calls with 'group'; this is the first call site
     // ever to pass 'organization'.
+    //
+    // payment_id is threaded through rather than hardcoded NULL: it is the
+    // only thing that lets a ledger entry be traced back to the money that
+    // caused it, which is the entire point of having the column.
     await db.query(
       `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
       [
         'organization', null, organizationId, 'purchase',
         credits.toFixed(4), 0, after[0]?.sms_credits ?? null,
-        'manual_topup', inserted[0].id, null, actorId(actorUserId ?? undefined), notes,
+        opts.paymentId ? 'sms_topup' : 'manual_topup',
+        inserted[0].id, opts.paymentId ?? null, actorId(actorUserId ?? undefined), notes,
       ],
     );
 
@@ -917,7 +941,10 @@ export async function addOrganizationSmsCredits(
     };
   });
 
-  await clearOrganizationLowBalanceFlag(organizationId);
+  // Only re-arm the low-balance alert when credits actually landed. A
+  // swallowed replay changed no balance, so clearing the flag would re-arm
+  // a warning for a top-up that did not happen.
+  if (result) await clearOrganizationLowBalanceFlag(organizationId);
   return result;
 }
 
