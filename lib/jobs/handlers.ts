@@ -286,12 +286,36 @@ async function handleOutboxDispatch(): Promise<HandlerResult> {
 
 async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
   const { findSpineOrphans } = await import('@/lib/services/outbox.service');
+  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
   const result = await findSpineOrphans();
+
+  // findSpineOrphans' own comment calls its logger.error "the paging signal".
+  // It pages nobody: nothing consumes logger.error (SMS-REAUDIT-2026-09-02 F2,
+  // and T3-4 item 1 still open pending a Sentry decision). Completed money
+  // that never reached a ledger is the single condition this platform most
+  // needs a human to see, and it has been silent since it was written.
+  let alerted = false;
+  if (result.count === 0) {
+    await clearStaffAlert('payment_spine_orphans');
+  } else {
+    alerted = await raiseStaffAlert({
+      key:     'payment_spine_orphans',
+      subject: `${result.count} completed payment(s) never reached a ledger`,
+      body:
+        'These payments are marked completed and were never allocated, so real money has '
+        + 'arrived and the books do not show it. This is not self-correcting: the allocation '
+        + 'engine will not revisit them, and nothing else will notice.',
+      details: { count: result.count, samples: result.samples },
+    });
+  }
+
   return {
     message: result.count === 0
       ? 'Payment spine: no orphans'
-      : `Payment spine: ${result.count} ORPHANED payment(s) — investigate`,
+      : `Payment spine: ${result.count} ORPHANED payment(s) — `
+        + (alerted ? 'staff emailed' : 'already reported'),
     orphans: result.count,
+    alerted,
   };
 }
 
@@ -320,21 +344,74 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
   ]);
   const total = disbursements.count + settlements.count + vendorPayments.count;
 
+  // Money that left the platform and never confirmed. None of these three can
+  // auto-resolve — Safaricom offers no query-by-conversation-ID without a
+  // receipt — so the job's only job is making sure it is never silent.
+  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  let alerted = false;
+  if (total === 0) {
+    await clearStaffAlert('stuck_outbound_payments');
+  } else {
+    alerted = await raiseStaffAlert({
+      key:     'stuck_outbound_payments',
+      subject: `${total} outbound payout(s) stuck with no confirmation`,
+      body:
+        'Money was dispatched and never confirmed. None of these resolve themselves — '
+        + 'Safaricom cannot be queried by conversation ID without a receipt — so each has to be '
+        + 'checked against the Safaricom statement by hand.',
+      details: {
+        disbursements:  disbursements.count,
+        settlements:    settlements.count,
+        vendorPayments: vendorPayments.count,
+      },
+    });
+  }
+
   return {
     message: total === 0
       ? 'Outbound payments: no stuck payouts'
-      : `Outbound payments: ${total} STUCK payout(s) — investigate against the Safaricom statement`,
+      : `Outbound payments: ${total} STUCK payout(s) — `
+        + (alerted ? 'staff emailed' : 'already reported'),
     stuck:               total,
     stuckDisbursements:  disbursements.count,
     stuckSettlements:    settlements.count,
     stuckVendorPayments: vendorPayments.count,
+    alerted,
   };
 }
 
 async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
   const { detectBalanceDrift } = await import('@/lib/services/accounting.service');
+  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
   const result = await detectBalanceDrift();
-  return { message: 'Balance drift audit complete', ...result };
+
+  // A stored account balance disagreeing with the sum of its own journal lines
+  // means the ledger no longer adds up. Reported, never repaired — same rule
+  // as the SMS credit ledger, and for the same reason: deciding which side is
+  // true is a judgment about somebody's money.
+  let alerted = false;
+  if (result.driftsFound === 0) {
+    await clearStaffAlert('accounting_balance_drift');
+  } else {
+    alerted = await raiseStaffAlert({
+      key:     'accounting_balance_drift',
+      subject: `${result.driftsFound} account balance(s) disagree with their journal lines`,
+      body:
+        'A stored balance and the sum of its own journal lines no longer agree, so the ledger '
+        + 'does not add up. Deciding which side is correct is a judgment about real money and '
+        + 'is deliberately left to a person.',
+      details: { accountsChecked: result.accountsChecked, driftsFound: result.driftsFound },
+    });
+  }
+
+  return {
+    message: result.driftsFound === 0
+      ? `Balance drift audit clean (${result.accountsChecked} accounts)`
+      : `Balance drift: ${result.driftsFound}/${result.accountsChecked} accounts disagree — `
+        + (alerted ? 'staff emailed' : 'already reported'),
+    ...result,
+    alerted,
+  };
 }
 
 async function handleGLCashReconciliation(): Promise<HandlerResult> {
@@ -346,7 +423,31 @@ async function handleGLCashReconciliation(): Promise<HandlerResult> {
     no_snapshot:     'GL cash reconciliation: no balance snapshot available yet',
     stale_snapshot:  `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
   }[result.status];
-  return { message, ...result };
+
+  // A mismatch means the books and the actual float disagree about how much
+  // money exists. 'no_snapshot'/'stale_snapshot' are NOT alerted: those say
+  // the check could not run, which is an operational gap rather than a
+  // discrepancy, and alerting on them would train the reader to ignore this.
+  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  let alerted = false;
+  if (result.status === 'mismatch') {
+    alerted = await raiseStaffAlert({
+      key:     'gl_cash_mismatch',
+      subject: 'GL cash does not match the real M-Pesa balance',
+      body:
+        'The general ledger and the actual M-Pesa float disagree about how much money exists. '
+        + 'One of them is wrong and only a person can decide which.',
+      details: {
+        glCashTotal: result.glCashTotal,
+        mpesaBalance: result.mpesaBalance,
+        difference: result.difference,
+      },
+    });
+  } else if (result.status === 'ok') {
+    await clearStaffAlert('gl_cash_mismatch');
+  }
+
+  return { message, ...result, alerted };
 }
 
 async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> {
