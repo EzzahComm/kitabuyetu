@@ -14,7 +14,7 @@
  * disagrees with the bill is worse than no preview: it is a number someone
  * will plan around.
  */
-import { smsService } from '@/lib/services/sms.service';
+import { smsService, resolveRecipientVars } from '@/lib/services/sms.service';
 import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
@@ -110,9 +110,25 @@ describe('preview matches what will be charged', () => {
     // route goes out literally — so comparing a personalised quote against it
     // would be comparing two different messages, which is what an earlier
     // version of this test got wrong.
+    //
+    // varsByPhone is resolved and passed HERE because the two sides of this
+    // comparison are asymmetric, and the asymmetry is easy to get wrong:
+    //
+    //   previewBulkSend  resolves recipient variables ITSELF.
+    //   sendBulkCampaign requires its CALLER to have resolved them.
+    //
+    // Production satisfies that at lib/jobs/handlers.ts:850, the single point
+    // all four bulk paths funnel through. Calling sendBulkCampaign bare —
+    // as this test first did — makes personalize() strip `{{first_name}}`
+    // instead of substituting it, which is 157 characters against the
+    // preview's 161: ONE segment billed against TWO quoted. The test failed
+    // for the same reason a caller that forgets this argument would silently
+    // under-bill, so it is worth being explicit that the argument is load-
+    // bearing rather than incidental.
+    const varsByPhone = await resolveRecipientVars(groupId, [officer.phone]);
     await smsService.sendBulkCampaign({
       groupId, sentBy: officerId, phones: [officer.phone], message,
-      referenceType: 'campaign',
+      referenceType: 'campaign', varsByPhone,
     });
 
     const [log] = await rawQuery<{ segments: number }>(
