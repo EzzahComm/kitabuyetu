@@ -163,7 +163,16 @@ export function ComposeTab() {
   // one emoji silently cut capacity to 67 without changing the estimate. That
   // left three different numbers for one message — what the officer was shown,
   // what the provider billed, and what the group was charged.
+  //
+  // It is still an estimate of the TYPED text, and says so below whenever the
+  // body carries variables: `{{first_name}}` is 14 characters here and becomes
+  // `Mary` (4) — or nothing at all, since personalize() strips a variable it
+  // cannot resolve. The authoritative figure comes from the server on Review,
+  // which prices the personalised body per recipient exactly as the dispatch
+  // path does. Counting the raw template as if it were the message is how an
+  // estimate and an invoice come to disagree.
   const seg = countSegments(message);
+  const hasVariables = message.includes('{{');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -202,6 +211,22 @@ export function ComposeTab() {
                 {seg.encoding === 'ucs2' ? ' · unicode' : ''}
               </span>
             </div>
+            {hasVariables && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Variables change the final length — Review and send shows the real cost.
+              </p>
+            )}
+            {seg.encoding === 'ucs2' && (
+              /* One non-GSM-7 character (a curly quote, an em-dash, an emoji)
+                 cuts a segment from 153 characters to 67, so this routinely
+                 doubles or triples the cost of a send. Worth saying out loud
+                 rather than leaving to be discovered on an invoice. */
+              <p className="text-xs text-amber-700 mt-1">
+                This message uses a special character (curly quote, dash or emoji), which
+                more than halves how much fits in each SMS part. Replacing it with a plain
+                one usually costs less to send.
+              </p>
+            )}
           </div>
 
           <div>
