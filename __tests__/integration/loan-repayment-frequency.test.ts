@@ -103,7 +103,9 @@ describe('loan repayment frequency', () => {
       });
       expect(loan.installments).toHaveLength(12);
       expect(loan.totalRepayable).toBeCloseTo(143_000, 2);
-      expect(Number(loan.installments[0].total_due)).toBeCloseTo(11_916.67, 2);
+      // 143,000 / 12 = 11,916.666...; the schedule truncates each instalment
+      // to 11,916.66 and the last one absorbs the remaining cents of drift.
+      expect(Number(loan.installments[0].total_due)).toBeCloseTo(11_916.66, 2);
     });
 
     it('defaults to monthly when the column is left alone', async () => {
