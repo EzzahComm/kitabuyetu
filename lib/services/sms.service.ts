@@ -30,7 +30,8 @@ import {
   type BulkSmsItem,
   type SmsResponse,
 } from '@/lib/sms/provider';
-import { renderTemplate, renderBuiltin, stripUnresolved, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import { renderTemplate, renderBuiltin, stripUnresolved, BALANCE_VARS, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import { computeMemberFinancialSnapshot } from '@/lib/services/member-balances.service';
 import {
   reserveCredits,
   settleReservation,
@@ -380,22 +381,54 @@ export async function resolveSmsRecipients(
  * Reads current membership at send time, exactly as resolveSmsRecipients()
  * does, so the names rendered match the recipient list that was resolved.
  */
+/**
+ * Money as it should read inside an SMS: grouped thousands, and decimals only
+ * when there are any.
+ *
+ * `maximumFractionDigits: 2` with no minimum keeps a whole balance short
+ * (12500 → "12,500") without rounding a fractional one into a figure that is
+ * not what the member holds (12500.75 → "12,500.75", never "12,501"). Every
+ * character is billed and a misstated balance is worse than a longer message,
+ * so neither rounding nor forced ".00" padding is acceptable here.
+ *
+ * The locale is explicit because this renders on a server whose default
+ * locale is not guaranteed, and grouping that silently changes between
+ * environments would change both the text and its segment count.
+ */
+function formatMoney(n: number): string {
+  return Number(n).toLocaleString('en-KE', { maximumFractionDigits: 2 });
+}
+
 export async function resolveRecipientVars(
   groupId: string,
   phones:  string[],
+  message?: string,
 ): Promise<Map<string, TemplateVars>> {
   const wanted = new Set(phones.map(normalizePhone));
   if (!wanted.size) return new Map();
 
-  const { groupName, members } = await withAdminDb(async (db) => {
+  // Balances cost four aggregate scans over the group's whole financial
+  // history, so they are resolved ONLY when the body actually asks for one.
+  // An ordinary `Dear {{first_name}}` campaign — the overwhelmingly common
+  // case — pays nothing for this, exactly as it pays nothing for the variable
+  // lookup itself when the body has no `{{` at all.
+  //
+  // `message` is optional so every existing caller keeps working untouched;
+  // omitting it simply means no balance variables, which is what those
+  // callers got before this existed.
+  const needsBalances = message !== undefined && BALANCE_VARS.some(
+    (v) => message.includes(`{{${v}}}`),
+  );
+
+  const { groupName, members, balances } = await withAdminDb(async (db) => {
     const [{ rows: groupRows }, { rows: memberRows }] = await Promise.all([
       db.query<{ name: string }>(`SELECT name FROM groups WHERE id=$1`, [groupId]),
-      db.query<{ phone: string; first_name: string; last_name: string; membership_no: string | null }>(
+      db.query<{ phone: string; first_name: string; last_name: string; membership_no: string | null; member_id: string }>(
         // membership_no is the SHORT per-group number (NC000078), not the long
         // platform member_code — it is what a member is asked to quote, and it
         // makes {{membership_no}} usable in an ordinary campaign body, not
         // only in the trigger engine's templates.
-        `SELECT m.phone, m.first_name, m.last_name, gm.membership_no
+        `SELECT m.phone, m.first_name, m.last_name, gm.membership_no, gm.member_id
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id
          WHERE gm.group_id=$1 AND m.phone IS NOT NULL AND m.phone <> ''
@@ -403,7 +436,23 @@ export async function resolveRecipientVars(
         [groupId],
       ),
     ]);
-    return { groupName: groupRows[0]?.name ?? '', members: memberRows };
+
+    // Reused rather than re-implemented. member-balances.service.ts exists
+    // precisely so the wallet, the bulk email job and now SMS cannot drift
+    // apart on what "savings" or "loan balance" mean — its own header cites
+    // this codebase's documented history of bugs from duplicated calculation
+    // logic. It is already set-based (one row per active member, balances
+    // pre-aggregated per member before joining, so no fan-out inflates a
+    // total) and takes the pool client we are already holding.
+    const snapshots = needsBalances
+      ? await computeMemberFinancialSnapshot(db, groupId)
+      : [];
+
+    return {
+      groupName: groupRows[0]?.name ?? '',
+      members:   memberRows,
+      balances:  new Map(snapshots.map((s) => [s.memberId, s])),
+    };
   });
 
   const byPhone = new Map<string, TemplateVars>();
@@ -420,12 +469,31 @@ export async function resolveRecipientVars(
     if (!wanted.has(key)) continue;
     const existing = byPhone.get(key);
     if (existing?.first_name !== undefined) continue;
+
+    // A member with no snapshot row — computeMemberFinancialSnapshot returns
+    // only `status='active'` memberships, while the name query above
+    // deliberately does not filter — keeps their name variables and has their
+    // balance placeholders stripped, rather than being told their balance is
+    // zero. "No figure" and "zero" are different claims to make about
+    // somebody's money.
+    const bal = balances.get(m.member_id);
+
     byPhone.set(key, {
       ...existing,
       first_name:    m.first_name,
       last_name:     m.last_name,
       full_name:     `${m.first_name} ${m.last_name}`.trim(),
       membership_no: m.membership_no ?? undefined,
+      ...(bal ? {
+        // Grouped thousands, no decimals, no "KES" — the currency word stays
+        // in the template so an officer writes "KES {{contribution_balance}}"
+        // and controls the phrasing. Matches how the receipt path formats its
+        // own {{balance}} (mpesa-spine.service.ts).
+        contribution_balance:  formatMoney(bal.savings),
+        loan_balance:          formatMoney(bal.loanBalance),
+        share_capital_balance: formatMoney(bal.shares),
+        contributed_this_month: formatMoney(bal.contributedThisPeriod),
+      } : {}),
     });
   }
   return byPhone;
@@ -1389,7 +1457,7 @@ export const smsService = {
     // The variable lookup is skipped entirely for a message with no `{{`,
     // which is the common case and matches personalize()'s own fast path.
     const varsByPhone = input.message.includes('{{')
-      ? await resolveRecipientVars(ctx.groupId, recipients)
+      ? await resolveRecipientVars(ctx.groupId, recipients, input.message)
       : undefined;
 
     const perRecipient = recipients.map(
