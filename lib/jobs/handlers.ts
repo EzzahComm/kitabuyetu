@@ -494,9 +494,10 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   // many days this daily cron runs while it sits in 'pending'. Overdue
   // buckets are ranges (not exact days) so a missed cron tick still catches
   // the stage on the next run instead of skipping it silently.
-  // The platform paybill — same source mpesa-stk.service.ts's STK-failure
-  // nudge already uses for "here's how to actually pay" SMS copy.
-  const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
+  // The platform paybill, from its single home in lib/sms/templates.ts. This
+  // was one of three identical copies of the same env chain.
+  const { platformPaybill } = await import('@/lib/sms/templates');
+  const paybill = platformPaybill();
 
   const { rows } = await pool.query<{
     repayment_id:    string;

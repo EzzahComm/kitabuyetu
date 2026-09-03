@@ -1370,8 +1370,38 @@ export const smsService = {
     );
     const recipients  = selected.filter((p) => !optedOutSet.has(p));
 
-    const segmentsPerMessage = segmentsOf(input.message);
-    const creditsRequired    = segmentsPerMessage * recipients.length;
+    // ── Price what will ACTUALLY be sent, not what was typed ──────────
+    //
+    // This used to be segmentsOf(input.message) — the RAW template, complete
+    // with its `{{first_name}}` placeholders. That text is never sent to
+    // anybody: personalize() either substitutes the variable (`{{first_name}}`
+    // is 14 characters, `Mary` is 4) or, on a send carrying no vars, STRIPS it
+    // entirely. So the quoted figure was computed on a string that does not
+    // exist, and it disagreed with the charge in precisely the case that costs
+    // money — long values, or many of them.
+    //
+    // The dispatch path was always right: sendBulkCampaign prices
+    // segmentsOf(messageFor(phone)) per recipient (G5). This performs the same
+    // computation, through the same personalize(), against the same variables,
+    // so the quote cannot drift from the invoice. A preview that disagrees
+    // with the bill is the three-way divergence V3-01 was about.
+    //
+    // The variable lookup is skipped entirely for a message with no `{{`,
+    // which is the common case and matches personalize()'s own fast path.
+    const varsByPhone = input.message.includes('{{')
+      ? await resolveRecipientVars(ctx.groupId, recipients)
+      : undefined;
+
+    const perRecipient = recipients.map(
+      (phone) => segmentsOf(personalize(input.message, varsByPhone?.get(normalizePhone(phone)))),
+    );
+    const creditsRequired = perRecipient.reduce((sum, n) => sum + n, 0);
+    // Personalisation makes this vary between recipients — one long name can
+    // tip a single message into a second segment — so the headline figure is
+    // the WORST case rather than an average that understates somebody's bill.
+    const segmentsPerMessage = perRecipient.length
+      ? Math.max(...perRecipient)
+      : segmentsOf(personalize(input.message, undefined));
 
     const balance   = await smsService.getBalance(ctx);
     const credits   = Number(balance.credits);

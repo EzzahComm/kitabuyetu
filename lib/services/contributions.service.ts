@@ -113,15 +113,16 @@ export const contributionsService = {
       return { attempted: 0, sent: 0, skipped: 0, failed: 0 };
     }
 
-    const { renderTemplate } = await import('@/lib/sms/templates');
+    const { renderTemplate, platformPaybill, DEFAULT_TEMPLATES, TEMPLATE_KEYS } =
+      await import('@/lib/sms/templates');
     const { sendOnce } = await import('./reminder.service');
-    // Same platform paybill mpesa-stk.service.ts's STK-failure nudge and the
-    // loan-due reminders (lib/jobs/handlers.ts) already use — a reminder that
-    // doesn't say how to pay isn't actionable.
-    const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
-    const template =
-      'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. ' +
-      'Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}. Thank you.';
+    // The body and the paybill lookup both used to live here as literals,
+    // duplicated in lib/jobs/handlers.ts and mpesa-stk.service.ts — so a
+    // wording or shortcode change had to be made three times or the three
+    // silently diverged. Both now have one home, and the template is
+    // customisable by a group like every other one.
+    const paybill = platformPaybill();
+    const template = DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER];
 
     let sent = 0, skipped = 0, failed = 0;
     for (const r of rows) {
@@ -139,7 +140,12 @@ export const contributionsService = {
           // ParsedAccountRef: -L/-W/-S are loan/welfare/shares; the base
           // number alone is what mpesa-c2b.service.ts's matcher treats as
           // the default, i.e. contributions).
-          account_number: r.membership_no,
+          //
+          // Passed as membership_no, the CANONICAL name. `{{account_number}}`,
+          // `{{payment_account}}` and `{{short_member_id}}` all resolve to it
+          // through VARIABLE_ALIASES, so a group may write whichever reads
+          // best without anything having to keep a second copy in step.
+          membership_no: r.membership_no,
         }),
         referenceType:  'contribution_nudge',
         referenceId:    r.membership_id,

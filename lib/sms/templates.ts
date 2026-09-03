@@ -1,3 +1,4 @@
+import { env } from '@/lib/env';
 /**
  * SMS template engine.
  *
@@ -7,11 +8,121 @@
 
 export type TemplateVars = Record<string, string | number | null | undefined>;
 
+/**
+ * Alternative spellings that resolve to an EXISTING canonical variable.
+ *
+ * The template-personalization spec asked for `short_member_id`,
+ * `payment_account` and `paybill_number`. Every one of those values already
+ * existed under another name (see
+ * docs/audits/SMS-TEMPLATE-VARIABLES-AUDIT-2026-09-03.md), and that spec's own
+ * §12 says not to create parallel identifiers for data that already exists —
+ * so these are ALIASES, not new fields. Nothing new is stored, computed or
+ * passed; only the name a template author may write.
+ *
+ * `membership_no` is the canonical short member id: `PP DDDDD C`, e.g.
+ * BG102534, carrying a Damm check digit so a mistyped account fails validation
+ * rather than paying a stranger in another group (lib/utils/membership-no.ts).
+ * It is also, deliberately, the M-Pesa payment account — which is why
+ * `payment_account` and `account_number` both point at it rather than at a
+ * duplicated field kept in step with it.
+ *
+ * Resolution is one level deep and never chains: an alias names a canonical,
+ * and a canonical is never itself an alias.
+ */
+export const VARIABLE_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  short_member_id: 'membership_no',
+  payment_account: 'membership_no',
+  account_number:  'membership_no',
+  paybill_number:  'paybill',
+  amount_due:      'amount',
+});
+
+/**
+ * Substitute `{{variable}}` placeholders.
+ *
+ * A name present in `vars` always wins, so an explicit `account_number` passed
+ * by an existing caller behaves exactly as before and no historical template
+ * changes meaning. The alias table is consulted ONLY when the written name is
+ * absent, which is what makes this purely additive.
+ */
 export function renderTemplate(template: string, vars: TemplateVars): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
-    const val = vars[key];
+    let val = vars[key];
+    if (val === undefined || val === null) {
+      const canonical = VARIABLE_ALIASES[key];
+      if (canonical) val = vars[canonical];
+    }
     return val !== undefined && val !== null ? String(val) : match;
   });
+}
+
+/**
+ * Who a message is signed by.
+ *
+ * `person` is supplied only when a HUMAN actually sent it — an officer
+ * composing a campaign. Automated sends (cron reminders, trigger rules) omit
+ * it deliberately: a contribution reminder generated at 08:00 is not from the
+ * treasurer, and signing it "- John, Treasurer" tells a member something
+ * untrue. In a chama that is a social fact, not a UI detail — a member may
+ * reasonably ring John about a message he never saw.
+ */
+export interface SenderIdentity {
+  groupName: string;
+  person?: { name: string; role?: string | null };
+}
+
+/**
+ * Build `{{sender_name}}`, `{{sender_role}}` and `{{sender_signature}}`.
+ *
+ * ── The separator is a HYPHEN, never an em-dash ──
+ * This is a money decision, not a typographic one. An em-dash is not in the
+ * GSM-7 alphabet, and a single non-GSM-7 character forces the WHOLE message
+ * into UCS-2, where a segment holds 67 characters instead of 153. Measured on
+ * the real contribution reminder: 151 chars / 1 segment unsigned, 165 chars /
+ * 3 segments with an em-dash signature, 165 chars / 2 with a hyphen. A
+ * punctuation choice would have tripled the cost of every automated message.
+ *
+ * Note also that the built-in automated templates deliberately do NOT use
+ * `{{sender_signature}}`: each already names the group in its body ("your
+ * {{group_name}} contribution"), so a group-name signature would repeat
+ * information the message already carries and push it into a second segment
+ * to do so. The variable exists for authors who want it — campaigns, and
+ * customised templates where the group is not otherwise named.
+ */
+export function buildSenderVars(sender: SenderIdentity): TemplateVars {
+  const { groupName, person } = sender;
+
+  if (!person?.name) {
+    // Automated: the group signs for itself.
+    return { sender_name: null, sender_role: null, sender_signature: groupName };
+  }
+
+  const role = person.role?.trim();
+  const signature = role
+    ? `${person.name}, ${role}, ${groupName}`
+    : `${person.name}, ${groupName}`;
+
+  return { sender_name: person.name, sender_role: role ?? null, sender_signature: signature };
+}
+
+/**
+ * The platform PayBill every "here's how to pay" message quotes.
+ *
+ * Was copy-pasted identically into three files — contributions.service.ts,
+ * jobs/handlers.ts and mpesa-stk.service.ts — so a change had to be made three
+ * times or they silently diverged.
+ *
+ * Deliberately NOT per-group: one platform shortcode pools every group's money
+ * today. Per-group shortcodes are separate, unbuilt work with real custody
+ * consequences, and this function is the one place that would change if they
+ * ever ship.
+ *
+ * Reads the validated env rather than raw process.env, so an unset
+ * MPESA_SHORTCODE fails at cold start instead of quietly rendering an empty
+ * PayBill into a payment instruction.
+ */
+export function platformPaybill(): string {
+  return env.MPESA_WORKING_SHORTCODE ?? env.MPESA_SHORTCODE;
 }
 
 /** Strip all unresolved {{variable}} placeholders from a rendered message. */
@@ -29,6 +140,7 @@ export function extractVars(template: string): string[] {
 
 export const TEMPLATE_KEYS = {
   CONTRIBUTION_RECEIVED:   'contribution_received',
+  CONTRIBUTION_REMINDER:   'contribution_reminder',
   LOAN_APPROVED:           'loan_approved',
   LOAN_DISBURSED:          'loan_disbursed',
   LOAN_REPAYMENT_DUE:      'loan_repayment_due',
@@ -72,6 +184,13 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   //    Kitabu Yetu. Your member number is NC000078. Karibu."
   // {{membership_no}} is the SHORT per-group number, never the long
   // member_code — see the payload comment in members.service.ts.
+  // Was an inline string literal in contributions.service.ts, invisible to the
+  // template system and impossible for a group to customise. `account_number`
+  // resolves to membership_no via VARIABLE_ALIASES, so no caller has to pass
+  // it separately.
+  contribution_reminder:
+    'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. '
+    + 'Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}. Thank you.',
   welcome:
     'Dear {{first_name}}, you have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}. Karibu.',
   otp:

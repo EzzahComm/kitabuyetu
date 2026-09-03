@@ -661,7 +661,10 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
   );
   if (!member) return; // can't attribute the nudge — skip
 
-  const paybill = process.env.MPESA_WORKING_SHORTCODE ?? process.env.MPESA_SHORTCODE ?? '';
+  // Single home — see lib/sms/templates.ts. Previously duplicated here, in
+  // contributions.service.ts and in lib/jobs/handlers.ts.
+  const { platformPaybill } = await import('@/lib/sms/templates');
+  const paybill = platformPaybill();
   const amount  = Math.round(parseFloat(stk.amount));
   // No brand prefix: the message already arrives from the registered sender
   // ID "KITABU YETU" (lib/env.ts TEXTSMS_SENDER_ID), so repeating it here just
