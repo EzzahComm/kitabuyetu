@@ -57,6 +57,55 @@ export function renderTemplate(template: string, vars: TemplateVars): string {
 }
 
 /**
+ * Who a message is signed by.
+ *
+ * `person` is supplied only when a HUMAN actually sent it — an officer
+ * composing a campaign. Automated sends (cron reminders, trigger rules) omit
+ * it deliberately: a contribution reminder generated at 08:00 is not from the
+ * treasurer, and signing it "- John, Treasurer" tells a member something
+ * untrue. In a chama that is a social fact, not a UI detail — a member may
+ * reasonably ring John about a message he never saw.
+ */
+export interface SenderIdentity {
+  groupName: string;
+  person?: { name: string; role?: string | null };
+}
+
+/**
+ * Build `{{sender_name}}`, `{{sender_role}}` and `{{sender_signature}}`.
+ *
+ * ── The separator is a HYPHEN, never an em-dash ──
+ * This is a money decision, not a typographic one. An em-dash is not in the
+ * GSM-7 alphabet, and a single non-GSM-7 character forces the WHOLE message
+ * into UCS-2, where a segment holds 67 characters instead of 153. Measured on
+ * the real contribution reminder: 151 chars / 1 segment unsigned, 165 chars /
+ * 3 segments with an em-dash signature, 165 chars / 2 with a hyphen. A
+ * punctuation choice would have tripled the cost of every automated message.
+ *
+ * Note also that the built-in automated templates deliberately do NOT use
+ * `{{sender_signature}}`: each already names the group in its body ("your
+ * {{group_name}} contribution"), so a group-name signature would repeat
+ * information the message already carries and push it into a second segment
+ * to do so. The variable exists for authors who want it — campaigns, and
+ * customised templates where the group is not otherwise named.
+ */
+export function buildSenderVars(sender: SenderIdentity): TemplateVars {
+  const { groupName, person } = sender;
+
+  if (!person?.name) {
+    // Automated: the group signs for itself.
+    return { sender_name: null, sender_role: null, sender_signature: groupName };
+  }
+
+  const role = person.role?.trim();
+  const signature = role
+    ? `${person.name}, ${role}, ${groupName}`
+    : `${person.name}, ${groupName}`;
+
+  return { sender_name: person.name, sender_role: role ?? null, sender_signature: signature };
+}
+
+/**
  * The platform PayBill every "here's how to pay" message quotes.
  *
  * Was copy-pasted identically into three files — contributions.service.ts,
