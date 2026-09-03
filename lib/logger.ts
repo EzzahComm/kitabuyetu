@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import { reportError } from './observability/error-sink';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -101,6 +102,14 @@ function emit(level: LogLevel, args: unknown[]): void {
     // In production always write errors/warns; suppress debug in quiet mode
     if (level === 'error') {
       console.error(JSON.stringify(entry));
+      // …and to the error sink, if one is configured
+      // (SMS-REAUDIT-2026-09-02 F2 / T3-4 item 1). `entry` has already passed
+      // through sanitize() above, which is what makes this safe to send to a
+      // third party at all: T0-3 fixed a live leak where an axios error's
+      // `config` carried TEXTSMS_API_KEY, and forwarding raw arguments would
+      // reopen that hole outward. Never move this above the sanitize step.
+      const { message: sinkMessage, ...sinkContext } = entry;
+      reportError(String(sinkMessage), sinkContext);
     } else if (level === 'warn') {
       console.warn(JSON.stringify(entry));
     } else if (level === 'info' || level === 'debug') {
@@ -114,7 +123,17 @@ function emit(level: LogLevel, args: unknown[]): void {
     // debuggability is unchanged.
     const prefix = `[${level.toUpperCase()}]`;
     const safe = args.map((a) => sanitize(a));
-    if (level === 'error')      console.error(prefix, ...safe);
+    if (level === 'error') {
+      console.error(prefix, ...safe);
+      // Preview and CI report too: an environment that only reports in
+      // production is one where the reporting itself is never exercised
+      // before it matters. Sanitized on the same terms — `safe`, not `args`.
+      const [head, ...tail] = safe;
+      reportError(
+        typeof head === 'string' ? head : JSON.stringify(head),
+        { detail: tail },
+      );
+    }
     else if (level === 'warn')  console.warn(prefix, ...safe);
     else                        console.log(prefix, ...safe);
   }

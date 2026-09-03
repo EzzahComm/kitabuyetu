@@ -118,6 +118,16 @@ const envObjectSchema = z.object({
     .default('resend'),
   EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
   EMAIL_ADMIN: z.string().email().optional(),
+  /**
+   * Error-tracking sink for lib/logger.ts (SMS-REAUDIT-2026-09-02 F2).
+   *
+   * Optional by design: with it unset the SDK is never imported and every
+   * logger.error behaves exactly as before, so an environment without it is
+   * indistinguishable from today. Setting it in Vercel is the only step
+   * needed to start receiving all 107 logger.error sites — no code change,
+   * no redeploy of anything but the env.
+   */
+  SENTRY_DSN: z.string().url().optional(),
   EMAIL_DRY_RUN: z
     .string()
     .transform((v) => v === 'true')
