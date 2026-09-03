@@ -96,3 +96,41 @@ describe('platformPaybill', () => {
     expect(mod.platformPaybill()).toBe('123456');
   });
 });
+
+/**
+ * unresolvedVars() must agree with renderTemplate() about what "resolved"
+ * means, including through the alias table. The two share resolveVar() for
+ * exactly this reason — a guard that disagrees with its renderer either
+ * clears a message that sends with a hole, or blocks one that renders fine.
+ */
+describe('unresolvedVars agrees with renderTemplate', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const t = require('@/lib/sms/templates') as typeof import('@/lib/sms/templates');
+
+  it('counts a variable satisfied THROUGH an alias as resolved', () => {
+    // `account_number` is an alias of `membership_no`, so supplying the
+    // canonical name must satisfy the alias — and the guard must agree.
+    const body = 'Pay to A/C {{account_number}}';
+    const vars = { membership_no: 'BG102534' };
+
+    expect(t.unresolvedVars(body, vars)).toEqual([]);
+    expect(t.renderTemplate(body, vars)).toBe('Pay to A/C BG102534');
+  });
+
+  it('reports a name nothing supplies, under either spelling', () => {
+    expect(t.unresolvedVars('Receipt: {{receipt}}', { first_name: 'Mary' })).toEqual(['receipt']);
+    expect(t.unresolvedVars('Due: {{amount_due}}', { first_name: 'Mary' })).toEqual(['amount_due']);
+  });
+
+  it('treats null and undefined as unresolved, exactly as the renderer does', () => {
+    const body = 'Balance {{balance}}';
+    expect(t.unresolvedVars(body, { balance: null })).toEqual(['balance']);
+    // The renderer leaves the placeholder intact for the same input, which is
+    // what stripUnresolved() then deletes.
+    expect(t.renderTemplate(body, { balance: null })).toBe('Balance {{balance}}');
+  });
+
+  it('lists each name once however often it appears', () => {
+    expect(t.unresolvedVars('{{x}} then {{x}} again', {})).toEqual(['x']);
+  });
+});
