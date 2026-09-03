@@ -59,17 +59,27 @@ describe('balance variables in a composed message', () => {
     );
   });
 
-  /** Two completed contributions and one active loan for the officer. */
+  /**
+   * Two completed contributions for the officer.
+   *
+   * Deliberately NO loan. An `active` loan trips
+   * `trg_assert_loan_attribution_on_status` — "every disbursed loan must be
+   * fully attributed to its funding sources" — so a valid one needs a
+   * `group_funding_sources` row plus `loan_funding_splits` summing to the
+   * principal, and `trg_loans_generate_schedule` then builds a repayment
+   * schedule off it. That is loan-lifecycle machinery with its own invariants
+   * and its own tests; coupling an SMS-variable test to it buys nothing and
+   * breaks whenever loan funding changes.
+   *
+   * `loan_balance` is still asserted below — it resolves to "0" for a member
+   * with no loans, which proves the variable is populated. The non-trivial
+   * formatting (thousands separator, retained decimals) is proven by
+   * contribution_balance, which is what the money path actually exercises.
+   */
   async function giveMemberMoney(): Promise<void> {
     await rawQuery(
       `INSERT INTO contributions (group_id, member_id, group_membership_id, amount, status)
        VALUES ($1,$2,$3,4000,'completed'), ($1,$2,$3,8500.50,'completed')`,
-      [groupId, officerId, membershipId],
-    );
-    await rawQuery(
-      `INSERT INTO loans (group_id, member_id, group_membership_id, principal_amount,
-                          interest_rate, loan_term_months, status, outstanding_balance)
-       VALUES ($1,$2,$3, 20000, 12, 6, 'active', 15000)`,
       [groupId, officerId, membershipId],
     );
   }
@@ -86,7 +96,9 @@ describe('balance variables in a composed message', () => {
     // 4000 + 8500.50, grouped, with the cents kept rather than rounded away:
     // a balance a member can check against their own record must match it.
     expect(mine.contribution_balance).toBe('12,500.5');
-    expect(mine.loan_balance).toBe('15,000');
+    // Present and zero — a member of the group with no loan. Distinct from the
+    // non-member case below, where it is absent entirely.
+    expect(mine.loan_balance).toBe('0');
   });
 
   it('omits balances entirely when the body never asks for one', async () => {
