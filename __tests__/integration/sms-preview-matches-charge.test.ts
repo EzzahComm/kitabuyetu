@@ -19,10 +19,37 @@ import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
+// Mocked at the PROVIDER-FACING module, not lib/sms/provider: the adapter
+// (lib/sms/adapters/textsms.ts) calls into here, so this intercepts the real
+// HTTP call while leaving the circuit breaker and adapter resolution intact.
+//
+// sendBulkSmsChunked must return a genuine BulkSmsResult. A bare jest.fn()
+// resolves to `undefined`, and sendBulkCampaign reads `result.responses`
+// immediately after dispatch — so the campaign died on a TypeError before it
+// could settle a single reservation.
+//
+// Responses are built FROM the items and echo each clientSmsId back, because
+// alignBulkResponses matches responses to log rows by that id rather than by
+// array position (H6). A mock that returned a fixed-length array would align
+// by luck and stop aligning the moment a test sends two recipients.
 jest.mock('@/lib/services/textsms.service', () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
-  sendBulkSmsChunked: jest.fn(),
+  sendBulkSmsChunked: jest.fn(
+    async (items: Array<{ mobile: string; clientSmsId?: number }>) => ({
+      responses: items.map((it) => ({
+        responseCode:        200,
+        responseDescription: 'Success',
+        mobile:              it.mobile,
+        messageId:           `mock-msg-${it.clientSmsId ?? 0}`,
+        networkId:           '1',
+        success:             true,
+        clientSmsId:         it.clientSmsId,
+      })),
+      sent:   items.length,
+      failed: 0,
+    }),
+  ),
   getDeliveryReport: jest.fn(),
   getProviderBalance: jest.fn(),
 }));
