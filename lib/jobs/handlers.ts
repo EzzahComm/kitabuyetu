@@ -847,8 +847,13 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
   // Skipped entirely for messages with no placeholder — the overwhelmingly
   // common case — so an ordinary campaign costs no extra queries.
   const message = String(payload.message ?? '');
+  // `message` is passed so the resolver can see whether the body asks for a
+  // balance; it runs the extra aggregates only if it does. previewBulkSend
+  // passes it too, and both MUST — a preview that resolved balances against a
+  // dispatch that did not (or the reverse) would render different text and so
+  // quote a different segment count from the one billed.
   const varsByPhone = message.includes('{{')
-    ? await resolveRecipientVars(String(payload.groupId), phones)
+    ? await resolveRecipientVars(String(payload.groupId), phones, message)
     : undefined;
 
   // An organization-funded campaign carries its payer through the queue, so a

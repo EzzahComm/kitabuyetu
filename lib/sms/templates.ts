@@ -38,6 +38,31 @@ export const VARIABLE_ALIASES: Readonly<Record<string, string>> = Object.freeze(
 });
 
 /**
+ * Per-recipient money variables, resolved from member-balances.service.ts.
+ *
+ * Listed here rather than inline in the resolver because two places need the
+ * same list and must not disagree: resolveRecipientVars decides from it
+ * whether to run the balance query at all, and anything showing an officer
+ * which variables are available should read it too.
+ *
+ * Deliberately NOT included: `{{balance}}` and `{{welfare_balance}}`.
+ * `balance` already means three different things depending on which template
+ * renders it (savings total, loan outstanding, welfare contributed — see
+ * mpesa-spine.service.ts's receipt query), and a name that vague in a
+ * free-text composer is a wrong figure waiting to be sent. `welfare_balance`
+ * is worse: welfare is a pool you petition, not an account you hold, so the
+ * only per-member welfare figure that exists is what someone has PUT IN, and
+ * calling that a "balance" invites a member to read it as what they can take
+ * out.
+ */
+export const BALANCE_VARS = [
+  'contribution_balance',
+  'loan_balance',
+  'share_capital_balance',
+  'contributed_this_month',
+] as const;
+
+/**
  * Substitute `{{variable}}` placeholders.
  *
  * A name present in `vars` always wins, so an explicit `account_number` passed
