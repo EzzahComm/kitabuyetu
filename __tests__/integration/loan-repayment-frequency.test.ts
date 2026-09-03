@@ -93,14 +93,19 @@ describe('loan repayment frequency', () => {
 
   describe('invariant 1: the monthly arm is unchanged', () => {
     it('reproduces the live production figures for a flat monthly loan', async () => {
-      // These are the exact numbers written to the four real THE FIONA'S loans
-      // on 2026-08-16: 130,000 at 10%/month flat over 12 months.
+      // 130,000 at 10% p.a. flat over 12 months (1 year) -> 143,000. These
+      // were 286,000 / 23,833.33 before migration 167: the four real THE
+      // FIONA'S loans written on 2026-08-16 at this same principal and rate
+      // were scheduled at 10%/month, not 10%/year, and were reissued at
+      // these corrected figures once the bug was found.
       const loan = await makeLoan({
         principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq: 'monthly',
       });
       expect(loan.installments).toHaveLength(12);
-      expect(loan.totalRepayable).toBeCloseTo(286_000, 2);
-      expect(Number(loan.installments[0].total_due)).toBeCloseTo(23_833.33, 2);
+      expect(loan.totalRepayable).toBeCloseTo(143_000, 2);
+      // 143,000 / 12 = 11,916.666...; the schedule truncates each instalment
+      // to 11,916.66 and the last one absorbs the remaining cents of drift.
+      expect(Number(loan.installments[0].total_due)).toBeCloseTo(11_916.66, 2);
     });
 
     it('defaults to monthly when the column is left alone', async () => {
@@ -117,16 +122,16 @@ describe('loan repayment frequency', () => {
   });
 
   describe('invariant 2: cadence changes the split, not the price', () => {
-    // Flat interest is principal * (monthly rate) * term_months — an expression
-    // with no frequency term in it at all.
+    // Flat interest is principal * (annual rate) * (term_months / 12) — an
+    // expression with no frequency term in it at all.
     it.each<[Freq, number]>([
       ['weekly', 52], ['biweekly', 26], ['monthly', 12], ['quarterly', 4],
-    ])('flat 10%%/mo over 12 months costs 286,000 whether %s (%i instalments)', async (freq, n) => {
+    ])('flat 10%% p.a. over 12 months costs 143,000 whether %s (%i instalments)', async (freq, n) => {
       const loan = await makeLoan({
         principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq,
       });
       expect(loan.installments).toHaveLength(n);
-      expect(loan.totalRepayable).toBeCloseTo(286_000, 2);
+      expect(loan.totalRepayable).toBeCloseTo(143_000, 2);
     });
 
     it('sums the instalments to exactly the total, with drift in the last one', async () => {
@@ -135,7 +140,7 @@ describe('loan repayment frequency', () => {
         principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq: 'weekly',
       });
       const sum = loan.installments.reduce((a, r) => a + Number(r.total_due), 0);
-      expect(sum).toBeCloseTo(286_000, 2);
+      expect(sum).toBeCloseTo(143_000, 2);
       expect(Number(loan.installments.at(-1)!.closing_balance)).toBeCloseTo(0, 2);
     });
   });
@@ -178,7 +183,7 @@ describe('loan repayment frequency', () => {
       const reducing = await makeLoan({
         principal: 130_000, rate: 10, termMonths: 12, method: 'reducing_balance', freq: 'weekly',
       });
-      expect(reducing.totalRepayable).toBeLessThan(286_000);
+      expect(reducing.totalRepayable).toBeLessThan(143_000);
       expect(reducing.totalRepayable).toBeGreaterThan(130_000);
     });
 
@@ -186,8 +191,10 @@ describe('loan repayment frequency', () => {
       const loan = await makeLoan({
         principal: 130_000, rate: 10, termMonths: 12, method: 'reducing_balance', freq: 'monthly',
       });
-      // Migration 148's verified figure: EMI 19,079.23 at 10%/month over 12.
-      expect(Number(loan.installments[0].total_due)).toBeCloseTo(19_079.23, 2);
+      // Migration 148's figure (EMI 19,079.23 at 10%/month) was superseded by
+      // migration 167: the rate is annual, so the period rate used inside the
+      // amortisation formula is now 10%/12 rather than 10% outright.
+      expect(Number(loan.installments[0].total_due)).toBeCloseTo(11_429.07, 2);
     });
   });
 
@@ -206,10 +213,13 @@ describe('loan repayment frequency', () => {
   it('still produces one instalment when the term is shorter than the period', async () => {
     // A 1-month quarterly loan rounds to 0.33 periods; floored at 1 so the loan
     // gets a schedule and a next_payment_date rather than neither.
+    // 10,000 at 5% p.a. flat, prorated over a 1-month (1/12-year) term:
+    // 10,000 * (1 + 0.05 * 1/12) = 10,041.67. (Was 10,500 pre-167, when the
+    // rate was applied as 5%/month flat regardless of term length.)
     const loan = await makeLoan({
       principal: 10_000, rate: 5, termMonths: 1, method: 'flat', freq: 'quarterly',
     });
     expect(loan.installments).toHaveLength(1);
-    expect(loan.totalRepayable).toBeCloseTo(10_500, 2);
+    expect(loan.totalRepayable).toBeCloseTo(10_041.67, 2);
   });
 });

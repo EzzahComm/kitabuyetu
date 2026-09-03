@@ -100,10 +100,14 @@ describe('loan CSV import', () => {
       `SELECT total_repayable FROM loans WHERE group_id = $1 LIMIT 1`, [groupId],
     );
     const total = Number(rows[0].total_repayable);
-    // The deleted computeTotalRepayable() produced 143,000 for these inputs by
-    // dividing the monthly rate by 12. Anything near that means it is back.
-    expect(total).not.toBeCloseTo(143_000, 0);
-    expect(total).toBeGreaterThan(130_000);
+    // importOne()'s default fixture is 130,000 at 10% p.a. flat over 12
+    // months (1 year): 130,000 * (1 + 0.10 * 1) = 143,000. Asserted directly
+    // against that formula, not as "not equal to some other number" — the
+    // deleted computeTotalRepayable() this test was written against also
+    // produced 143,000 for these inputs (by dividing a monthly rate by 12),
+    // which is why a "not equal" sentinel stopped being able to tell the two
+    // apart once migration 167 made 143,000 the correct total too.
+    expect(total).toBeCloseTo(143_000, 2);
   });
 
   describe('interest method follows the group loan policy', () => {
