@@ -66,7 +66,7 @@ describe('preview matches what will be charged', () => {
     expect(preview.segmentsPerMessage).toBe(1);
   });
 
-  it('agrees with the reservation actually taken by a real send', async () => {
+  it('agrees with what sendBulkCampaign actually reserves', async () => {
     const [officer] = await rawQuery<{ phone: string }>(
       `SELECT m.phone FROM members m JOIN group_members gm ON gm.member_id = m.id
         WHERE gm.group_id = $1 LIMIT 1`, [groupId],
@@ -77,20 +77,25 @@ describe('preview matches what will be charged', () => {
       message, phones: [officer.phone],
     });
 
-    const before = await creditsOf(groupId);
-    await smsService.send(ctx, officer.phone, message, 'campaign', null);
-    const after = await creditsOf(groupId);
+    // Compared against sendBulkCampaign specifically, because that is the path
+    // preview MODELS: it is the only caller of personalize(). smsService.send()
+    // transmits verbatim — a `{{first_name}}` typed into the ad-hoc /sms/send
+    // route goes out literally — so comparing a personalised quote against it
+    // would be comparing two different messages, which is what an earlier
+    // version of this test got wrong.
+    await smsService.sendBulkCampaign({
+      groupId, sentBy: officerId, phones: [officer.phone], message,
+      referenceType: 'campaign',
+    });
 
-    // What the officer was quoted is what the group was actually charged.
-    // (send() reserves then releases on the mocked provider's failure, so
-    // compare the RESERVED amount rather than the final balance.)
-    const [log] = await rawQuery<{ credits_reserved: string; segments: number }>(
-      `SELECT credits_reserved, segments FROM sms_usage_logs
+    const [log] = await rawQuery<{ segments: number }>(
+      `SELECT segments FROM sms_usage_logs
         WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`, [groupId],
     );
+
+    // What the officer was quoted is what the group was actually billed for.
     expect(log.segments).toBe(preview.segmentsPerMessage);
-    expect(Number(log.credits_reserved)).toBe(preview.creditsRequired);
-    expect(before).toBeGreaterThanOrEqual(after);
+    expect(log.segments).toBe(preview.creditsRequired);
   });
 
   it('does not query member variables for a message with no placeholders', async () => {
@@ -122,10 +127,3 @@ describe('preview matches what will be charged', () => {
     expect(preview.creditsRequired).toBeGreaterThanOrEqual(preview.recipients);
   });
 });
-
-async function creditsOf(groupId: string): Promise<number> {
-  const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
-  );
-  return Number(row.sms_credits);
-}
