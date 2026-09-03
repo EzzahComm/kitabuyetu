@@ -131,3 +131,75 @@ would otherwise be paid for repeatedly.
 - Any new variable that lengthens a message changes its cost. `segmentsOf()` is the single
   counter for UI estimate and billing alike (V3-01 fixed a three-way divergence here) — anything
   new must go through it rather than beside it.
+
+---
+
+## §7 Correction (2026-09-03) — §4's inventory was drawn from one of two sources
+
+**§4 above counts variables in code only.** Templates also live in the `sms_templates` **table**,
+and §6's own third bullet says so — yet the inventory never queried it. Production holds four
+rows:
+
+| key | scope | active | in `DEFAULT_TEMPLATES`? |
+|---|---|---|---|
+| `payment_received` | platform, `is_system` | yes | **no** |
+| `loan_disbursed` | platform, `is_system` | yes | yes |
+| `welcome` | one group | yes | yes (group row overrides) |
+| `onboarding` | one group | no | **no** |
+
+### The consequence: §5 step 4 is already built and live
+
+`payment_received` — a template with no code counterpart — reads:
+
+```
+KES {{amount}} {{product}} received for {{group_name}} (A/C {{membership_no}}).
+Receipt: {{receipt}}. Balance: KES {{balance}}.
+```
+
+Its resolver is `mpesa-spine.service.ts:140-215`. A three-branch `UNION ALL` returns `product` as
+`savings` / `loan repayment` / `welfare` and `balance` as, respectively, completed-contribution
+total, `loans.outstanding_balance`, or welfare contributed — so **the spec's §6 context-aware
+balances exist**, keyed off which table the payment landed in rather than off a variable name.
+`membership_no` goes through `formatMembershipNo`. So §4's *"`{{balance}}` appears once, in
+`loan_repayment_due`"* is wrong: its most significant use is in a template §4 never looked at.
+
+Two things follow that change the plan in §5:
+
+- **Step 4 is mostly done.** What remains is exposing these balances to *composed* messages, not
+  building the resolution.
+- **The welfare hazard §2 flagged is already handled correctly here.** The welfare branch sums
+  `welfare_pool_contributions` **for that member** — "what you put in", never the group pool
+  balance. That is the safe semantic §2 asked for, already in production. `{{welfare_balance}}`
+  as a *name* should still be avoided; the value that exists is a contributed total.
+
+### Production evidence
+
+The `payment.received` trigger rule is active platform-wide: **15 executions, 9 sent, 6 failed**.
+The failures are understood and none is open:
+
+- **5** (07 Aug, one evening, one group) — `Insufficient SMS credits`, 4 attempts each. This is
+  the exact incident already cited at `trigger-engine.ts:291`, and the fast-fail added there
+  fixed it: 402-class errors no longer burn retries.
+- **1** (31 Jul) — `FOR UPDATE cannot be applied to the nullable side of an outer join`. Not
+  recurred in the 9 sends since; no `FOR UPDATE` remains in the trigger path.
+
+No `payment.received` event has fired since 2026-08-21 because no C2B payment has arrived since.
+The three contributions recorded after that date carry `payment_method='mpesa'` but **no
+`payment_id`** — treasurer-entered records of money that never crossed the platform paybill, so
+there is no receipt to confirm and no event to emit. Correct behaviour, but it does mean a
+manually recorded payment sends the member nothing. Whether it should is a product question, not
+a defect.
+
+### One thing worth a decision (not a defect)
+
+The group-scoped `welcome` row ends with a personal signature — a named individual and a job
+title, authored into that group's own template. It is worth separating this from the **group name
+only** decision taken for §1, which it does *not* contradict: that decision governs the signature
+`buildSenderVars` **generates** for automated sends, so that a system-sent message never appears
+to come from a person who did not write it. A group-authored template body is editorial content
+belonging to whoever wrote it, and a human sign-off there is a legitimate choice.
+
+The only reason to raise it at all: it is stored per-group, so it will not follow if that group's
+templates are ever copied to another, and it will keep sending that individual's name after any
+change of role. Both are arguments for composing it from a variable rather than literal text —
+neither is an argument for removing it.
