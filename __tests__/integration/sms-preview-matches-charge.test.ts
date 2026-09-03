@@ -125,7 +125,7 @@ describe('preview matches what will be charged', () => {
     // for the same reason a caller that forgets this argument would silently
     // under-bill, so it is worth being explicit that the argument is load-
     // bearing rather than incidental.
-    const varsByPhone = await resolveRecipientVars(groupId, [officer.phone]);
+    const varsByPhone = await resolveRecipientVars(groupId, [officer.phone], message);
     await smsService.sendBulkCampaign({
       groupId, sentBy: officerId, phones: [officer.phone], message,
       referenceType: 'campaign', varsByPhone,
