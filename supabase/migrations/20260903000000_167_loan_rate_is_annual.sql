@@ -191,7 +191,19 @@ $function$;
 -- admin paths. The function is not SECURITY DEFINER, so RLS still applies to
 -- each of them.
 REVOKE ALL ON FUNCTION public.generate_loan_schedule(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.generate_loan_schedule(UUID) TO authenticated, service_role, app_tenant;
+GRANT EXECUTE ON FUNCTION public.generate_loan_schedule(UUID) TO authenticated, service_role;
+
+-- app_tenant is provisioned out-of-band in production, not by any migration
+-- (see 133), so it does not exist on a freshly-provisioned database (CI,
+-- Supabase preview branches). Guarded the same way every grant to it has
+-- been since 133.
+DO $grant$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
+    GRANT EXECUTE ON FUNCTION public.generate_loan_schedule(UUID) TO app_tenant;
+  END IF;
+END
+$grant$;
 
 -- ── Reissue the schedules that were written under the old reading ────────────
 --
