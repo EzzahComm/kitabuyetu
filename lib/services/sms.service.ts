@@ -30,7 +30,7 @@ import {
   type BulkSmsItem,
   type SmsResponse,
 } from '@/lib/sms/provider';
-import { renderTemplate, renderBuiltin, stripUnresolved, BALANCE_VARS, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import { renderTemplate, renderBuiltin, stripUnresolved, unresolvedVars, BALANCE_VARS, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
 import { computeMemberFinancialSnapshot } from '@/lib/services/member-balances.service';
 import {
   reserveCredits,
@@ -1421,6 +1421,8 @@ export const smsService = {
     recipients:       number;
     segmentsPerMessage: number;
     creditsRequired:  number;
+    /** Written in the body but supplied to no recipient — these will send as holes. */
+    unresolvableVariables: string[];
     balance:          { credits: number; allowanceRemaining: number; available: number };
     affordable:       boolean;
     requiresConfirmation: boolean;
@@ -1471,6 +1473,29 @@ export const smsService = {
       ? Math.max(...perRecipient)
       : segmentsOf(personalize(input.message, undefined));
 
+    // ── Variables that will not resolve for ANYONE ────────────────────
+    //
+    // Reported because the composer's own "Load Template" list includes the
+    // platform's system templates — ordered is_system DESC, so they appear
+    // FIRST — and those are written for the automated paths that pass their
+    // variables explicitly. Loading `payment_received` into a campaign gives
+    // an officer {{amount}}, {{product}}, {{receipt}} and {{balance}}, none
+    // of which a bulk send supplies, so it goes out as
+    // "KES received for Umoja (A/C BG102534). Receipt: . Balance: KES ." —
+    // the same shape as the receipt defect mpesa-spine.service.ts already
+    // documents and skips a send to avoid.
+    //
+    // Only variables unresolved for EVERY recipient are reported. A message
+    // to a mix of members and custom_phones legitimately leaves
+    // {{first_name}} unfilled for the non-members — that is the documented,
+    // intended stripping, and warning about it on every such send would
+    // train an officer to click past the warning that matters.
+    const unresolvableVariables = varsByPhone && recipients.length
+      ? recipients
+          .map((phone) => unresolvedVars(input.message, varsByPhone.get(normalizePhone(phone)) ?? {}))
+          .reduce((common, next) => common.filter((v) => next.includes(v)))
+      : [];
+
     const balance   = await smsService.getBalance(ctx);
     const credits   = Number(balance.credits);
     const available = credits + balance.allowanceRemaining;
@@ -1481,6 +1506,7 @@ export const smsService = {
       recipients: recipients.length,
       segmentsPerMessage,
       creditsRequired,
+      unresolvableVariables,
       balance: { credits, allowanceRemaining: balance.allowanceRemaining, available },
       affordable: available >= creditsRequired,
       // A threshold, not a hard cap: the caller decides how to present it.

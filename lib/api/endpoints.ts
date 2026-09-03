@@ -449,6 +449,12 @@ export interface SmsBulkPreview {
   recipients:           number;
   segmentsPerMessage:   number;
   creditsRequired:      number;
+  /**
+   * Variables written in the body that NO recipient can fill, so they will be
+   * stripped and send as gaps. Empty for an ordinary message. Variables that
+   * only some recipients lack are deliberately absent — see previewBulkSend.
+   */
+  unresolvableVariables: string[];
   balance:              { credits: number; allowanceRemaining: number; available: number };
   affordable:           boolean;
   requiresConfirmation: boolean;

@@ -72,13 +72,38 @@ export const BALANCE_VARS = [
  */
 export function renderTemplate(template: string, vars: TemplateVars): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
-    let val = vars[key];
-    if (val === undefined || val === null) {
-      const canonical = VARIABLE_ALIASES[key];
-      if (canonical) val = vars[canonical];
-    }
-    return val !== undefined && val !== null ? String(val) : match;
+    return resolveVar(key, vars) ?? match;
   });
+}
+
+/**
+ * One variable's value, or undefined when nothing supplies it.
+ *
+ * Extracted so renderTemplate() and unresolvedVars() cannot disagree about
+ * what "resolved" means. They previously would have had to repeat the
+ * name-then-alias lookup, and a guard that answers that question differently
+ * from the renderer it is guarding is worse than no guard: it would clear a
+ * message that still sends with a hole in it, or block one that renders fine.
+ */
+function resolveVar(key: string, vars: TemplateVars): string | undefined {
+  let val = vars[key];
+  if (val === undefined || val === null) {
+    const canonical = VARIABLE_ALIASES[key];
+    if (canonical) val = vars[canonical];
+  }
+  return val !== undefined && val !== null ? String(val) : undefined;
+}
+
+/**
+ * The variables in `template` that `vars` cannot fill.
+ *
+ * These are exactly the placeholders stripUnresolved() will delete — leaving
+ * the punctuation that framed them, which is how a template written for one
+ * context and sent in another produces "Receipt: . Balance: KES ." rather
+ * than anything a reader can act on.
+ */
+export function unresolvedVars(template: string, vars: TemplateVars): string[] {
+  return extractVars(template).filter((name) => resolveVar(name, vars) === undefined);
 }
 
 /**

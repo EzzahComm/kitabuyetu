@@ -290,6 +290,23 @@ export function ComposeTab() {
                   That is a large send. Check the recipient count before confirming.
                 </p>
               )}
+              {/* Variables nobody in this audience can fill. Shown here rather
+                  than while typing because only the server knows who the
+                  recipients resolve to, and therefore what is actually
+                  missing. The most likely cause is a system template loaded
+                  from the dropdown above — those are written for the
+                  automated paths that pass these values explicitly, and they
+                  sort FIRST in that list. Sent as-is the message keeps the
+                  punctuation around each hole: "Receipt: . Balance: KES ." */}
+              {preview.unresolvableVariables.length > 0 && (
+                <p className="text-xs font-medium text-amber-700">
+                  {preview.unresolvableVariables.map((v) => `{{${v}}}`).join(', ')}{' '}
+                  {preview.unresolvableVariables.length === 1 ? 'has' : 'have'} no value for these
+                  recipients and will be removed, leaving a gap in the message. Delete{' '}
+                  {preview.unresolvableVariables.length === 1 ? 'it' : 'them'} or pick a different
+                  template.
+                </p>
+              )}
 
               <div className="flex gap-2 pt-1">
                 <Button
