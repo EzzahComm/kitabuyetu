@@ -93,6 +93,19 @@ function validateThresholds(thresholds: TierThreshold[]): void {
 export type InterestMethod = 'flat' | 'reducing_balance';
 
 export interface LoanTerms {
+  /**
+   * NOMINAL ANNUAL rate, as a percentage. 5 means 5% per year.
+   *
+   * Stated because it was not, and that cost money. generate_loan_schedule
+   * read this as a rate per MONTH until migration 167, and the application
+   * form was labelled "%/month" to match — so the engine was self-consistent
+   * while every rate a human entered was an annual one. Four live loans were
+   * scheduled at twelve times their intended price (KES 349,427 over-stated;
+   * caught before any instalment was collected).
+   *
+   * The unit lives here, in the form label, and in the schedule generator's
+   * own comments. Any per-product terms built later must carry it too.
+   */
   interestRate:   number;
   interestMethod: InterestMethod;
   maxTermMonths:  number;

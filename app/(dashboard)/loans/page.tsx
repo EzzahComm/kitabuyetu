@@ -108,7 +108,7 @@ export default function LoansPage() {
     },
     { key: 'memberName', header: 'Member', render: (row: LoanRow) => row.member_name ?? row.member_id },
     { key: 'principalAmount', header: 'Principal', render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span> },
-    { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}%` },
+    { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}% p.a.` },
     {
       key: 'term', header: 'Term',
       render: (row: LoanRow) =>
@@ -164,11 +164,18 @@ export default function LoansPage() {
                 {errors.principalAmount && <p className="text-xs text-destructive">{errors.principalAmount.message}</p>}
               </div>
               <div className="space-y-1">
-                <Label>Interest rate (%/month)</Label>
+                {/* Says "per year" because migration 167 made the engine read
+                    it that way. It previously said "%/month" and the engine
+                    agreed — but every rate anyone actually entered was an
+                    annual one, so a product sold at 5% p.a. was scheduled at
+                    5% a month and priced twelve times over. The unit belongs
+                    on the label; leaving it to be inferred is what cost
+                    KES 349,427 across four loans. */}
+                <Label>Interest rate (% per year)</Label>
                 <Input type="number" step="0.1" {...register('interestRate')} />
                 {policyTerms && (
                   <p className="text-xs text-muted-foreground">
-                    Group default {policyTerms.interestRate}% ({policyTerms.interestMethod === 'flat' ? 'flat' : 'reducing balance'})
+                    Group default {policyTerms.interestRate}% per year ({policyTerms.interestMethod === 'flat' ? 'flat' : 'reducing balance'})
                   </p>
                 )}
               </div>
