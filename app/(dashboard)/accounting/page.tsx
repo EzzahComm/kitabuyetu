@@ -801,8 +801,11 @@ function LoanTermsCard() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Interest rate (%/month)</Label>
-                <Input type="number" step="0.1" min={0} max={100} value={form.interestRate}
+                {/* Per year, not per month. This field seeds every loan the
+                    group creates, so a wrong unit here misprices all of them at
+                    once rather than one — see migration 167. */}
+                <Label>Interest rate (% per year)</Label>
+                <Input type="number" step="0.1" min={0} max={300} value={form.interestRate}
                   onChange={(e) => setEdits({ ...form, interestRate: e.target.value })}/>
               </div>
               <div className="space-y-1">

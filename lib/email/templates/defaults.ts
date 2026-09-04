@@ -105,7 +105,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <p style="margin:0 0 20px;color:#374151;">Your loan application has been <strong style="color:#3CB043;">approved</strong>.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Principal</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">KES {{principal}}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Interest Rate</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{interestRate}}% per month</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Interest Rate</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{interestRate}}% per year</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Term</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">{{termMonths}} months</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Monthly Repayment</td><td style="padding:8px;border:1px solid #e5e7eb;color:#0B3C88;">KES {{monthlyRepayment}}</td></tr>
       </table>

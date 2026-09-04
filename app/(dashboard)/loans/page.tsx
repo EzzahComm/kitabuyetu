@@ -35,7 +35,9 @@ type LoanRow = Loan & { member_name: string };
 const applySchema = z.object({
   memberId:       z.string().min(1),
   principalAmount: z.coerce.number().positive().min(100),
-  interestRate:   z.coerce.number().positive().max(100),
+  // Annual. Mirrors CreateLoanSchema's 300 ceiling — a tighter bound here just
+  // blocks the value client-side before the server ever sees it.
+  interestRate:   z.coerce.number().positive().max(300),
   loanTermMonths:     z.coerce.number().int().positive().max(120),
   repaymentFrequency: z.enum(LOAN_REPAYMENT_FREQUENCIES),
   purpose:        z.string().min(3),

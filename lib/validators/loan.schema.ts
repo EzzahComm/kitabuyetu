@@ -37,7 +37,19 @@ export const ApplyLoanSchema = z.object({
    */
   memberId:         z.string().uuid().optional(),
   principalAmount:  z.number().positive(),
-  interestRate:     z.number().min(0).max(100),
+  /**
+   * NOMINAL ANNUAL rate. The ceiling is 300, not 100, because migration 167
+   * changed what this number means without moving the bound.
+   *
+   * 100 was generous for a monthly rate. Read annually it forbids ordinary
+   * chama pricing: migration 148's own text calls 10% per month "the norm for
+   * chama lending in this market", which is 120% a year — rejected with a 400.
+   * The enterprise funding form already labels this field "annual %" and
+   * placeholders it at 120, so the two surfaces disagreed about what was even
+   * enterable. 300 (25%/month equivalent) stays well clear of real pricing
+   * while still catching a fat-fingered 5000.
+   */
+  interestRate:     z.number().min(0).max(300),
   loanTermMonths:   z.number().int().min(1).max(120),
   /** Omit and the loan repays monthly — the only behaviour that existed before
    *  migration 149, so every existing caller keeps working unchanged. */
@@ -111,7 +123,8 @@ export const LoanQuerySchema = z.object({
 
 // LoanPolicy 'terms' — advisory group lending defaults (migration 088).
 export const SetLoanTermsSchema = z.object({
-  interestRate:   z.coerce.number().min(0).max(100),
+  /** NOMINAL ANNUAL rate — see the ceiling rationale on CreateLoanSchema. */
+  interestRate:   z.coerce.number().min(0).max(300),
   interestMethod: z.enum(['flat', 'reducing_balance']),
   maxTermMonths:  z.coerce.number().int().min(1).max(120),
   loanMultiplier: z.coerce.number().positive(),

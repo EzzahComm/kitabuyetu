@@ -1100,9 +1100,11 @@ export const importService = {
           // total_repayable, outstanding_balance and next_payment_date are set
           // BY generate_loan_schedule. The importer used to compute
           // total_repayable itself with a TypeScript copy of the interest
-          // formula that still divided the rate by 12 — after migration 148
-          // established interest_rate as MONTHLY, that copy understated
-          // interest 12x (13,000 vs 156,000 on a 130,000 @ 10% x 12 loan).
+          // formula, which drifted from the SQL when the unit changed — under
+          // migration 148 (interest_rate as MONTHLY) that copy understated
+          // interest 12x. Migration 167 has since made the field ANNUAL, so the
+          // copy's formula would now be the correct one — which is exactly the
+          // point: a second implementation is wrong whenever the first moves.
           // One formula, in SQL, is the only way that stays true.
           //
           // This also replaces the schedule that never got generated:
@@ -1260,10 +1262,13 @@ function buildHeaderMapFor(
  * the operator already has the actual numbers in their ledger.
  */
 // computeTotalRepayable() was deleted here. It was a TypeScript re-implementation
-// of the interest formula that divided interest_rate by 12, treating it as an
-// annual rate. Migration 148 established that the field is MONTHLY, and the
-// duplicate silently understated interest 12x on every imported loan.
-// generate_loan_schedule now writes total_repayable, so there is one formula.
+// of the interest formula that divided interest_rate by 12. Under migration 148
+// (the field was MONTHLY) that made it wrong, and it silently understated
+// interest 12x on every imported loan. Migration 167 then made the field ANNUAL,
+// which would make that same formula right again — do not read this as a reason
+// to bring it back. The defect was never the arithmetic; it was holding the
+// formula in two places, so one of them is wrong every time the unit moves.
+// generate_loan_schedule writes total_repayable, so there is one formula.
 
 async function loadCounties(client: PoolClient): Promise<Map<string, string>> {
   const { rows } = await client.query<{ id: string; name: string }>(
