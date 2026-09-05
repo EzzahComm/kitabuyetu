@@ -369,19 +369,62 @@ export async function queryStkStatus(checkoutRequestId: string): Promise<StkQuer
 
 export type C2BApiVersion = 'v1' | 'v2';
 
-export async function registerC2BUrls(version: C2BApiVersion = 'v2'): Promise<void> {
-  const c = await makeClient();
-  await withRetry(() =>
+export interface C2BUrls {
+  shortCode:       string;
+  environment:     'sandbox' | 'production';
+  confirmationUrl: string;
+  validationUrl:   string;
+}
+
+export interface C2BRegistrationResult extends C2BUrls {
+  responseCode?:        string;
+  responseDescription?: string;
+}
+
+/**
+ * The URLs `registerC2BUrls` will submit to Safaricom, computed but NOT sent.
+ * Exists so an operator can see what THIS deployment would register — e.g. to
+ * catch a callback base pointed at a deployment-protected preview URL —
+ * without spending a live Daraja call or waiting on Vercel CLI access to a
+ * Secret-typed env var.
+ */
+export function getC2BUrls(): C2BUrls {
+  return {
+    shortCode:       SHORTCODE,
+    environment:     IS_SANDBOX ? 'sandbox' : 'production',
     // Registration-safe paths: Safaricom's registerurl API rejects URLs that
     // contain the keyword "mpesa" or a query string, so the registered C2B
     // endpoints live under /api/v1/daraja/ as distinct paths (no `?type=`).
-    c.post(`/mpesa/c2b/${version}/registerurl`, {
-      ShortCode:       SHORTCODE,
-      ResponseType:    'Completed',
-      ConfirmationURL: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm`,
-      ValidationURL:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
-    }),
+    confirmationUrl: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm`,
+    validationUrl:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
+  };
+}
+
+/**
+ * Register the C2B Confirmation/Validation URLs with Safaricom for `SHORTCODE`.
+ *
+ * This has no automatic caller anywhere in the app — Safaricom does not expose
+ * a "what's currently registered" read, and registration can silently drift
+ * from what the app expects (env var changed, shortcode changed, or the
+ * registration was simply never (re-)done after a config change). Call this
+ * on demand from the admin UI ("M-Pesa C2B Registration" on /admin/settings)
+ * whenever the callback config changes or delivery is suspect.
+ */
+export async function registerC2BUrls(version: C2BApiVersion = 'v2'): Promise<C2BRegistrationResult> {
+  const c = await makeClient();
+  const urls = getC2BUrls();
+  const { data } = await withRetry(() =>
+    c.post<{ ResponseCode?: string; ResponseDescription?: string }>(
+      `/mpesa/c2b/${version}/registerurl`,
+      {
+        ShortCode:       urls.shortCode,
+        ResponseType:    'Completed',
+        ConfirmationURL: urls.confirmationUrl,
+        ValidationURL:   urls.validationUrl,
+      },
+    ),
   );
+  return { ...urls, responseCode: data?.ResponseCode, responseDescription: data?.ResponseDescription };
 }
 
 // ─── B2C (Business to Customer) ───────────────────────────────────────────────

@@ -36,6 +36,7 @@ import type {
   getOrganizationPlan, assignOrganizationPlan, CustomPlanTerms,
 } from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
+import type { C2BUrls, C2BRegistrationResult } from '@/lib/services/mpesa.service';
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
@@ -671,6 +672,31 @@ export function useResolveUnroutedPayment() {
     }) =>
       adminFetch<ResolveUnroutedResult>(`/api/admin/mpesa/unrouted/${id}`, { method: 'PATCH', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mpesa-unrouted'] }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C2B (PayBill) URL registration — see the note on registerC2BUrls in
+// daraja.service.ts: Safaricom exposes no "what's currently registered" read,
+// so this pairs a cheap preview (what THIS deployment would register) with an
+// explicit on-demand register action, surfaced on /admin/settings.
+// ─────────────────────────────────────────────────────────────────────────────
+export function useC2BUrls() {
+  return useQuery({
+    queryKey: ['admin', 'mpesa', 'c2b-urls'],
+    queryFn:  () => adminFetch<C2BUrls>('/api/admin/mpesa/register-c2b'),
+    staleTime: 60_000,
+  });
+}
+
+export function useRegisterC2BUrls() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (version?: 'v1' | 'v2') =>
+      adminFetch<C2BRegistrationResult>('/api/admin/mpesa/register-c2b', {
+        method: 'POST', json: version ? { version } : {},
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mpesa', 'c2b-urls'] }),
   });
 }
 
