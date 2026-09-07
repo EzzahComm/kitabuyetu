@@ -1,36 +1,30 @@
 import type { Metadata } from 'next';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { Hero } from '@/components/marketing/hero';
-import { SocialProof } from '@/components/marketing/social-proof';
-import { StoriesSection } from '@/components/marketing/stories-section';
-import { ProductPillarsSection } from '@/components/marketing/product-pillars-section';
-import { ProblemSection } from '@/components/marketing/problem-section';
-import { SolutionGrid } from '@/components/marketing/solution-grid';
-import { ProductShowcase } from '@/components/marketing/product-showcase';
-import { HowItWorks } from '@/components/marketing/how-it-works';
-import { EcosystemSection } from '@/components/marketing/ecosystem-section';
-import { EnterpriseSection } from '@/components/marketing/enterprise-section';
-import { CustomerPaths } from '@/components/marketing/customer-paths';
-import { MemberExperience } from '@/components/marketing/member-experience';
-import { MpesaSection } from '@/components/marketing/mpesa-section';
-import { TrustSection } from '@/components/marketing/trust-section';
-import { PricingSection } from '@/components/marketing/pricing-section';
-import { FinalCta } from '@/components/marketing/final-cta';
+import { Container } from '@/components/marketing/nextly/Container';
+import { Navbar } from '@/components/marketing/nextly/Navbar';
+import { Footer } from '@/components/marketing/nextly/Footer';
+import { Hero } from '@/components/marketing/nextly/Hero';
+import { SectionTitle } from '@/components/marketing/nextly/SectionTitle';
+import { Benefits } from '@/components/marketing/nextly/Benefits';
+import { Video } from '@/components/marketing/nextly/Video';
+import { Testimonials } from '@/components/marketing/nextly/Testimonials';
+import { Pricing } from '@/components/marketing/nextly/Pricing';
+import { Faq } from '@/components/marketing/nextly/Faq';
+import { Cta } from '@/components/marketing/nextly/Cta';
+import { benefitOne, benefitTwo } from '@/components/marketing/nextly/data';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke';
 
 const DESCRIPTION =
-  'Digital tools for groups and organizations to manage members, savings, loans, ' +
-  'welfare, shares, investments, payments, records and community programs. Built for ' +
-  'chamas, SACCOs, welfare groups and investment clubs in Kenya — with M-Pesa ' +
-  'collection and a passbook for every member.';
+  'Kitabu Yetu helps chamas, SACCOs, welfare groups, investment clubs and community ' +
+  'organizations manage members, savings, loans, welfare, shares and investments — with ' +
+  'M-Pesa collection and a passbook for every member. For organizations managing many ' +
+  'groups, Enterprise adds one connected view across every group you support.';
 
 export const metadata: Metadata = {
   // `absolute` matters: the root layout sets a `%s | Kitabu Yetu` template, so
   // a plain string here rendered as "Kitabu Yetu — … | Kitabu Yetu".
-  title: { absolute: 'Kitabu Yetu — Simple Books. Stronger Groups.' },
+  title: { absolute: 'Kitabu Yetu | Simple Books. Stronger Groups.' },
   description: DESCRIPTION,
   keywords: [
     'chama management software',
@@ -43,23 +37,19 @@ export const metadata: Metadata = {
     'table banking',
     'community group finance',
     'double-entry accounting Kenya',
-    'VSLA management',
-    'group savings Kenya',
-    'organization group management',
-    'multi-group management',
   ],
   alternates: { canonical: SITE_URL },
   openGraph: {
     type: 'website',
     url: SITE_URL,
     siteName: 'Kitabu Yetu',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+    title: 'Kitabu Yetu | Simple Books. Stronger Groups.',
     description: DESCRIPTION,
     locale: 'en_KE',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
+    title: 'Kitabu Yetu | Simple Books. Stronger Groups.',
     description: DESCRIPTION,
   },
 };
@@ -99,52 +89,72 @@ function StructuredData() {
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-paper">
+    <div className="flex min-h-screen flex-col">
       <StructuredData />
-      {/* The skip link lives in SiteHeader, so every public page has one. */}
-      {/* solid, not overlay: the hero is light now, and the overlay
-          variant paints white text for a dark hero. */}
-      <SiteHeader variant="solid" />
+      <Navbar />
 
-      {/*
-        Section order follows the story the page is meant to tell:
-        what is this → why do I need it → what can it do → does it work with
-        M-Pesa → what does it mean for members → what if I manage many groups
-        → which am I → can I trust it → what else is there → how do I start →
-        what does it cost → where is this going → who else does this → what do
-        I do now.
-
-        The two audiences split at CustomerPaths, which is why Enterprise sits
-        immediately before it: a visitor who manages many groups has just been
-        shown the organization product, so the fork that follows is a real
-        choice rather than an abstract one.
-
-        Grounds alternate paper / paper-deep / ink and NO TWO ADJACENT
-        SECTIONS SHARE ONE — that alternation is the only thing separating
-        them, since this site draws no section borders. Hero and SocialProof
-        are the single exception: the logo strip is deliberately part of the
-        hero block, exactly as Astrolus composes it.
-      */}
       <main id="main" className="flex-1">
-        <Hero />
-        <SocialProof />
-        <SolutionGrid />
-        <ProblemSection />
-        <ProductShowcase />
-        <MpesaSection />
-        <MemberExperience />
-        <EnterpriseSection />
-        <CustomerPaths />
-        <TrustSection />
-        <ProductPillarsSection />
-        <HowItWorks />
-        <PricingSection />
-        <EcosystemSection />
-        <StoriesSection />
-        <FinalCta />
+        <Container>
+          <Hero />
+
+          <SectionTitle
+            preTitle="What Kitabu Yetu is"
+            title="Your group&apos;s records. Finally in one place."
+          >
+            Members, money, payments and reports live together, instead of a
+            notebook, a spreadsheet and an M-Pesa statement that somebody has to
+            check against each other the night before every meeting.
+          </SectionTitle>
+
+          <Benefits data={benefitOne} />
+          <Benefits imgPos="right" data={benefitTwo} />
+
+          <SectionTitle
+            preTitle="Payments"
+            title="From M-Pesa to your books, in one motion"
+          >
+            A member pays by STK prompt or PayBill, Safaricom&apos;s callback is
+            verified and matched to them, and the split into savings, welfare and
+            loan repayment posts to the ledger — and a payment that arrives
+            without a usable reference waits in a queue rather than being guessed
+            at.
+          </SectionTitle>
+
+          <Video videoId="fZ0D0cnR88E" />
+
+          <SectionTitle
+            preTitle="Testimonials"
+            title="What groups say about Kitabu Yetu"
+          >
+            Treasurers, chairpersons and NGO coordinators on what changed once
+            the group&apos;s book moved online.
+          </SectionTitle>
+
+          <Testimonials />
+
+          <div id="pricing">
+            <SectionTitle
+              preTitle="Pricing"
+              title="One price a month, for the whole group"
+            >
+              Two products, one bill. Take the full book with Kitabu Yetu, or SMS
+              reminders on their own with Chama Reminder. Every price below is
+              the price the system actually charges.
+            </SectionTitle>
+
+            <Pricing />
+          </div>
+
+          <SectionTitle preTitle="FAQ" title="Frequently Asked Questions">
+            What treasurers, chairpersons and NGO coordinators ask us most often.
+          </SectionTitle>
+
+          <Faq />
+          <Cta />
+        </Container>
       </main>
 
-      <SiteFooter />
+      <Footer />
     </div>
   );
 }
