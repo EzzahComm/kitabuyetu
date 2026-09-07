@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import React from "react";
 import { Container } from "./Container";
 
@@ -58,7 +58,7 @@ export const Testimonials = () => {
 };
 
 interface AvatarProps {
-  image: any;
+  image: StaticImageData;
   name: string;
   title: string;
 }

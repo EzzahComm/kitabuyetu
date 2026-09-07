@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import React from "react";
 import { Container }  from "./Container";
 
@@ -8,11 +8,11 @@ interface BenefitsProps {
     imgPos?: "left" | "right";
     title: string;
     desc: string;
-    image: any;
+    image: StaticImageData;
     bullets: {
       title: string;
       desc: string;
-      icon: React.ReactNode;
+      icon: React.ReactElement<{ className?: string }>;
     }[];
   };
 }
@@ -65,7 +65,13 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
   );
 };
 
-function Benefit(props: any) {
+interface BenefitProps {
+  title: string;
+  icon: React.ReactElement<{ className?: string }>;
+  children: React.ReactNode;
+}
+
+function Benefit(props: Readonly<BenefitProps>) {
   return (
       <div className="flex items-start mt-8 space-x-3">
         <div className="flex items-center justify-center flex-shrink-0 mt-1 bg-indigo-500 rounded-md w-11 h-11 ">
