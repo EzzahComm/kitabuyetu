@@ -48,9 +48,9 @@ export function Hero() {
           </p>
 
           <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.05] tracking-tight text-brand-blue-900 sm:text-6xl lg:text-[4.25rem]">
-            Simple tools. Stronger groups.
+            Build vibrant communities.
             <br />
-            <span className="text-brand-600">Vibrant communities.</span>
+            <span className="text-brand-600">Together.</span>
           </h1>
 
           <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-brand-blue-900/70">
@@ -68,8 +68,8 @@ export function Hero() {
             <PillLink href={ROUTES.startGroup} variant="solid" withArrow>
               Get started
             </PillLink>
-            <PillLink href={ROUTES.enterprise} variant="soft">
-              Explore Enterprise
+            <PillLink href={ROUTES.signIn} variant="outline">
+              Sign in
             </PillLink>
           </div>
 
