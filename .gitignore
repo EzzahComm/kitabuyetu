@@ -50,3 +50,5 @@ coverage/
 # would silently drop it and every integration run would lose its config.
 .env*
 !.env.test
+# Generated optimization backups — never lint these
+.optimization/
