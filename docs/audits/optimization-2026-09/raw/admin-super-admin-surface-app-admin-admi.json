@@ -1,0 +1,156 @@
+{
+  "dimension": "Admin / super-admin surface — app/(admin)/admin/** and app/api/admin/** (25 pages, 62 route files, ~6,400 lines of page code)",
+  "summary": "The admin surface is architecturally sound in one important way — the LATERAL-join rewrite from PR #105 was applied carefully to listGroups, getGroupById, getOrganizationDetail and the geography rollups, with comments explaining why. But one function was missed and is still inflating money on a live chart by up to 30x, and the whole surface rests on a false assumption about `pg`: every `Promise.all([db.query(...)])` inside `withAdminDb` runs on a single PoolClient and is therefore strictly serialized. Measured against live production, /api/admin/dashboard costs 9 sequential round-trips where 1 would do — 9.7x wall-clock, with 94% of it network, not database. Beyond that, the recurring pattern is aggregates computed in JavaScript over a paginated fetch (support KPIs, unrouted \"Total value\", risk \"KYC pending\" — all three read the page size or the fetch limit rather than a real count), plus a complete absence of `limit` clamping on all 12 admin list routes while the tenant routes do clamp. Most screens look correct today only because there are 9 groups and 36 members; several have hard caps (12, 200, 500) that turn into silent truncation, and /admin/users is already emitting 39 rows while telling the operator there are 36.",
+  "findings": [
+    {
+      "title": "Every admin endpoint's Promise.all runs serially on one connection — /api/admin/dashboard costs 9 sequential round-trips, measured 9.7x slower than necessary against live prod",
+      "severity": "high",
+      "category": "false-parallelism",
+      "evidence": "node_modules/pg/lib/client.js:579-600 `_pulseQueryQueue()` only submits the next query when `readyForQuery === true` — one query at a time per client. lib/db/index.ts:172-187 `withAdminDb` hands ONE `pool.connect()` client to the callback and wraps it in BEGIN/COMMIT. Benchmarked against the production DB (qztcgryhoanennsizcll) with the app's own pool config: getPlatformStats' exact 7-query set, app shape (BEGIN + Promise.all(7) + COMMIT) = 2612ms avg [2419, 3155, 2262]; the identical 7 statements batched into 1 round trip = 269ms avg [333, 233, 241]; ratio 9.7x. A control probe of 4x `SELECT pg_sleep(0.5)` via Promise.all on one client took 2948ms, not ~500ms — proving strict serialization independent of my network location. pg 8.20.0 also emits `DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0` (node_modules/pg/lib/client.js:34-37) on this exact shape. 25 such call sites in the admin surface: admin.service.ts lines 200, 295, 379, 561, 638, 964, 1017, 1060, 1108, 1173, 1263, 1306, 1404; admin-organizations.service.ts 54, 141; admin-search.service.ts 21; governance.service.ts 144, 263, 443, 504; organization.service.ts 132, 232, 296; organization-finance.service.ts 1207; sms-pricing-admin.service.ts 113. Per-screen round-trip counts (BEGIN + N + COMMIT): /admin dashboard 9, /admin/monitoring 8, /admin/risk 6, /admin/billing-admin 6, /admin/analytics 6, /admin/organizations/[id] 6 (plus 3 more API calls), every list screen 4.",
+      "impact": "Server-side execution for the whole dashboard set is ~5ms; the other ~99% is round-trip latency multiplied by 9. On Vercel→Supavisor the absolute RTT is smaller than my 263ms, but the 9x multiplier is structural and location-independent. Every admin page load and every 120s poll pays it. It also blocks a `pg` major upgrade: this is the pattern pg@9 removes.",
+      "recommendation": "Two fixes, in order. (1) Where the queries are independent scalars/rollups (getPlatformStats, getBillingOverview, getPlatformAnalytics, getMonitoringDashboardData), merge them into ONE statement using scalar subqueries or CTEs — 9 round-trips become 1. (2) Where they must stay separate (data+count pairs), either accept the 2 or give each its own pooled client via `Promise.all([withAdminDb(...), withAdminDb(...)])` — but note DB_POOL_MAX is 3 (lib/env.ts:22), so that trades latency for pool pressure. Do NOT leave the current shape: it is both slow and on pg's removal list.",
+      "effort": "medium",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/analytics 'Top Groups by Contributions' still has the SQL join fan-out PR #105 fixed everywhere else — live values inflated 20x and 30x, and the chart's ranking is wrong",
+      "severity": "high",
+      "category": "join-fan-out",
+      "evidence": "lib/services/admin.service.ts:1318-1330 (identical on origin/main, verified with `git show origin/main:lib/services/admin.service.ts`): `FROM groups g LEFT JOIN group_members gm ... LEFT JOIN contributions c ... LEFT JOIN loans l ...` with `SUM(c.amount)` and `SUM(l.principal_amount)` — a flat three-child join, exactly the shape the comments at admin.service.ts:589-598 and :656-665 say must never be used. Ran the query verbatim against prod alongside a correct per-group subquery version: THE FIONA'S contributions 31,000 vs true 1,550 (20.0x), loan_book 32,100,000 vs true 1,070,000 (30.0x); CAPITAL POINT CHAMA 16,020 vs 1,780 (9.0x); Joka Ezra 2,170 vs 310 (7.0x). `COUNT(DISTINCT gm.id)` correctly protects the member count, which is why the row looks plausible.",
+      "impact": "The only chart on /admin/analytics (app/(admin)/admin/analytics/page.tsx:159 TopGroupsChart) shows fabricated contribution totals to super_admin. Worse than a wrong number: `ORDER BY contributions DESC LIMIT 10` ranks by the inflated value, so the multiplier (= that group's loan-row count) decides who appears in the Top 10. At scale the query also cross-products every member x contribution x loan row for EVERY group before the LIMIT — the cost grows as the product of three tables, not their sum.",
+      "recommendation": "Rewrite with the LATERAL-per-child-table pattern already used four lines away in listGroups (admin.service.ts:599-614). This is a pure SQL change, no schema or API shape change. Then re-check whether any other unaudited service still carries the flat shape — this one survived the PR #105 sweep.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/users renders 39 rows while telling the operator there are 36 — the data query has no DISTINCT, the count query does; multi-group members are duplicated and can become unreachable",
+      "severity": "high",
+      "category": "pagination-desync",
+      "evidence": "lib/services/admin.service.ts:964-992: the data query is `FROM members m LEFT JOIN group_members gm ON gm.member_id = m.id AND gm.status='active'` with no de-duplication; the count query at line 991 is `SELECT COUNT(DISTINCT m.id) ... ${where}` over the same join. Live on prod: data query returns 39 rows, count query returns 36. Two members are multi-membership: Polycap Akoth (id 8b7114df-…) emits 3 rows, Ruth Wanyonyi (5eb868e6-…) emits 2. The page (app/(admin)/admin/users/page.tsx:79) computes `totalPages = Math.ceil(total / 25)` = 2 from the WRONG number. Multi-group registration shipped 2026-08-15 (migration 147), so this population only grows.",
+      "impact": "Today: the header at users/page.tsx:121 reads '36 total members', the table renders 39 rows, and 2 people appear 2-3 times each. Structurally: once (data_rows − count_total) exceeds one page, `Math.ceil(total/25)` produces fewer pages than there is data and real members become unreachable through the UI. The same join shape at admin.service.ts:1043-1052 (getAdminMemberDetail) takes `LIMIT 1` over a member's memberships, so the admin drill-down for Polycap shows an arbitrary one of his 3 groups — and computes his financial snapshot and credit score for that arbitrary group.",
+      "recommendation": "Decide what a row means. If a row is a PERSON, aggregate memberships into an array in a LATERAL and keep `COUNT(DISTINCT m.id)`. If a row is a MEMBERSHIP, change the count query to `COUNT(*)` over the same join so the two agree. Either way, getAdminMemberDetail must stop picking a membership with LIMIT 1 and instead take the group_id as a parameter (the caller at users/page.tsx:164 already has one).",
+      "effort": "small",
+      "confidence": "high"
+    },
+    {
+      "title": "No admin list route clamps `limit` — 12 routes pass raw query-string input into LIMIT, and `page=0` produces a negative OFFSET and a 500",
+      "severity": "high",
+      "category": "unbounded-pagination",
+      "evidence": "`grep -rn \"Math.min\\|Math.max\" app/api/admin/` returns 0 matches across the entire admin API tree. All 12 list routes do `parseInt(p.get('limit') ?? 'N', 10)` with no bound: app/api/admin/groups/route.ts:13, users/route.ts:13, audit-logs/route.ts:13, organizations/route.ts:18, support/route.ts:14, mpesa/unrouted/route.ts:18, governance/alerts/route.ts, organization/audit-logs, organization/disbursements, organization/groups, organization/members, organization/wallet. Control: the tenant tree DOES clamp — app/api/v1/mpesa/transactions/route.ts:17 `Math.min(100, Math.max(1, parseInt(...)))`, app/api/v1/sms/campaign/route.ts:17, app/api/v1/treasury/external-funding/route.ts:17. So this is an admin-specific gap, not a house style. Negative offset proven on prod: `SELECT id FROM public.groups ORDER BY created_at DESC LIMIT 20 OFFSET -20` → `ERROR: 2201X: OFFSET must not be negative`. `page=0` on any of these routes computes `offset = (0-1)*limit`.",
+      "impact": "`/api/admin/groups?limit=100000` runs the 5-LATERAL-per-row aggregate query over every group in one transaction; `/api/admin/audit-logs?limit=100000` ships every audit row including the full old_values/new_values JSONB (81% of that table's bytes). One mistyped URL, one bookmarked link, or one compromised support token turns a page view into a full-table export that holds a connection from a pool of 3. `?page=0` (a plausible off-by-one from any client) 500s the whole screen after wasting a connection and a BEGIN/ROLLBACK.",
+      "recommendation": "Add a shared `parsePagination(searchParams, {defaultLimit, maxLimit})` helper in lib/utils and use it in all 12 routes: clamp limit to [1, 100] and page to >= 1, and coerce NaN to the default. There is no such helper in the codebase today (`grep -rn \"parsePagination|MAX_LIMIT\" lib/ app/` → 0 matches), which is why the three tenant routes each hand-rolled it.",
+      "effort": "small",
+      "confidence": "high"
+    },
+    {
+      "title": "listGroups carries a redundant GROUP BY that forces two full sorts of every group before the LIMIT — 85% of the query's execution time, and the reason /admin/groups will not survive 900 groups",
+      "severity": "medium",
+      "category": "redundant-aggregation",
+      "evidence": "lib/services/admin.service.ts:616 `GROUP BY g.id, s.plan_type, s.status, mem.member_count, con.total_contributions, ln.active_loans, hs.score, hs.category` — but after the LATERAL rewrite the SELECT list contains NO aggregate function; every value comes out of a LATERAL. EXPLAIN (ANALYZE) on prod, with GROUP BY: `Limit ← Sort(created_at) ← Group ← Sort(8 keys, width=825) ← nested-loop LATERALs ← Seq Scan on groups`, Execution Time 3.204 ms, of which the Group+Sort node accounts for 2.83 ms. The identical query with the GROUP BY removed: one Sort node, Execution Time 0.567 ms. Same plan otherwise, same rows.",
+      "impact": "5.6x execution time at 9 groups, and the shape is the problem rather than the constant: the Group node blocks any pushdown, so page 1 and page 45 both materialise all 5 LATERAL aggregates for EVERY group in the platform and then sort the whole set twice on 8 keys (one of them a 825-byte-wide row) before discarding all but 20. At 900 groups that is 4,500 correlated subqueries and two full sorts per page view, per keystroke of the (undebounced) search box, on the most-used admin screen.",
+      "recommendation": "Delete the GROUP BY at admin.service.ts:616. Then add a covering index on `groups(created_at DESC)` so the outer sort can be replaced by an index scan and the LIMIT genuinely pushed down — at that point only 20 groups' LATERALs run per page instead of all of them.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/support's three KPI tiles are computed in JavaScript over the current 20-row page, and contradict the queue-wide counts the platform dashboard already computes in SQL",
+      "severity": "medium",
+      "category": "js-aggregate-over-page",
+      "evidence": "app/(admin)/admin/support/page.tsx:87-89 — `const openCount = items.filter(t => t.status === 'open').length` etc., where `items = data?.items ?? []` is one page of `useAdminTickets({ page, limit: 20, ... })` (line 79). Rendered as StatCards at support/page.tsx:127-138. The correct queue-wide numbers already exist server-side: lib/services/admin.service.ts:241-248 computes `COUNT(*) FILTER (WHERE status='open')`, `in_progress`, and `sla_breached` over the whole table, and /admin renders them at app/(admin)/admin/page.tsx:154-158. support_tickets currently has 0 live rows, so the divergence is not yet observable on prod — the code path is unambiguous.",
+      "impact": "From the 21st ticket onward the Support Center's headline numbers are wrong and change as the operator pages or filters — applying the 'resolved' filter drops 'Open' to 0. The dashboard and the support screen will show different SLA-breach counts for the same queue, which is the number staff triage on.",
+      "recommendation": "Return the queue-wide counts from GET /api/admin/support alongside `items` (reuse the exact FILTER aggregate at admin.service.ts:241-248, scoped by the same `where` the list uses), and delete support/page.tsx:87-89.",
+      "effort": "small",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/mpesa-unrouted 'Total value' sums only the visible 20 rows while the tile beside it counts the whole queue",
+      "severity": "medium",
+      "category": "js-aggregate-over-page",
+      "evidence": "app/(admin)/admin/mpesa-unrouted/page.tsx:88 `const totalAmount = items.reduce((sum, r) => sum + Number(r.amount), 0)` over `items` from `useAdminUnroutedPayments({ page, limit: 20, search })` (line 79). Rendered at page.tsx:150-151 as two adjacent tiles: `<StatCard title=\"Unresolved\" value={total} />` (queue-wide, from the SQL COUNT at admin.service.ts:1415) and `<StatCard title=\"Total value\" value={formatKES(totalAmount)} />` (page-only). Prod currently has 12 mpesa_unrouted rows, 0 unresolved, so the queue is empty and the mismatch cannot be observed today.",
+      "impact": "Two tiles side by side, one queue-wide and one page-scoped, presented identically. Any backlog over 20 rows makes 'Total value' understate the money awaiting reconciliation, and it silently changes when staff page or search. Given the queue's whole purpose is 'how much unallocated money is sitting here', a systematically low number is the worst possible failure mode.",
+      "recommendation": "Add `COALESCE(SUM(amount),0) AS total_amount` to listUnroutedPayments' count query (admin.service.ts:1415 — it already scans the same filtered set, so this is free), return it, and render that instead of the client-side reduce.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/audit-logs fetches 200 fully-aggregated group rows to fill a filter dropdown, and its own list query ships 81% unrendered JSONB",
+      "severity": "medium",
+      "category": "over-fetch",
+      "evidence": "Two separate over-fetches on one screen. (1) app/(admin)/admin/audit-logs/page.tsx:43 `useAdminGroups({ limit: 200 })`, used only at lines 77-79 to render `<option>{g.name}</option>` — but that hook hits listGroups (admin.service.ts:562-619), which runs FIVE correlated LATERAL subqueries per row (member count, contributions SUM, loans SUM, subscription, governance health) plus the redundant GROUP BY sort, plus a second COUNT query. Two of the five aggregate over contributions and loans. (2) admin.service.ts:1265 `SELECT al.*` returns all of audit_logs including old_values/new_values; the page's own `AuditLogRow` interface (audit-logs/page.tsx:13-22) declares 8 fields and renders 7 columns, none of them the JSONB. Measured on prod: `SUM(pg_column_size(al.*))` = 792 kB total vs `old_values + new_values` = 642 kB → 81.0% of the bytes are never rendered; avg row 1,424 bytes, max JSONB 2,114 bytes. `SELECT COUNT(*) FROM public.audit_logs al` already shows mean_exec_time 31.6ms / max 70.3ms in pg_stat_statements on only 570 rows.",
+      "impact": "Opening the audit log — a read-only screen — currently costs a 200-row x 5-subquery aggregate scan of the tenant tables plus ~71 kB per page of which ~58 kB is discarded JSONB. audit_logs is the fastest-growing table in this schema (it takes a row per audited change with full before/after payloads), so the wasted transfer grows without bound while the dropdown's cost grows with group count.",
+      "recommendation": "(1) Add a minimal `GET /api/admin/groups?fields=id,name` path (or a tiny `listGroupOptions()` that is just `SELECT id, name FROM groups ORDER BY name`) for pickers; the same fix applies to mpesa-unrouted/page.tsx:82 which calls the identical heavy hook for its group search. (2) Replace `SELECT al.*` at admin.service.ts:1265 with the seven columns the page actually renders; keep old_values/new_values for a future per-row detail fetch.",
+      "effort": "small",
+      "confidence": "high"
+    },
+    {
+      "title": "GET /api/admin/sms-margin opens 4 concurrent database connections against a pool capped at 3, then renders up to 500 unpaginated rows",
+      "severity": "medium",
+      "category": "pool-exhaustion",
+      "evidence": "app/api/admin/sms-margin/route.ts:26-31 issues `Promise.all([getMarginSummary(), getTopCustomers(), getTierViability(), getOrganizationUsage()])` — each of those is a separate `withAdminDb(...)` (sms-margin.service.ts:80, 155, 218, 254), and withAdminDb calls `pool.connect()` (lib/db/index.ts:175). DB_POOL_MAX defaults to 3 (lib/env.ts:22) and is set to 3 in .env.local:9; connectionTimeoutMillis is 8_000 (lib/db/index.ts:70). Measured on prod with max=3: four concurrent pool.connect()+500ms-sleep took 2551ms rather than ~500ms. Separately, getTopCustomers defaults to `limit = 500` (sms-margin.service.ts:154) with no pagination, and app/(admin)/admin/sms-pricing/page.tsx:365 renders `margin.topCustomers.map(...)` in full.",
+      "impact": "One request needs 4 of a 3-connection pool, so it always self-queues, and while it runs it starves every other request on that warm instance — including the second API call the same page fires (useSmsPricingConfig). The 500-row cap is also a silent truncation point: the service comment says the limit was 'raised well above the old default of 20 so this doesn't quietly start truncating again', which is exactly what it does at 500 groups.",
+      "recommendation": "Restructure so the four reads share ONE withAdminDb transaction (pass the PoolClient into each function — three of them already take a client-shaped `db`), which also removes 3 BEGIN/COMMIT pairs. Then paginate topCustomers in the API and the UI rather than relying on a magic cap.",
+      "effort": "small",
+      "confidence": "high"
+    },
+    {
+      "title": "Six admin search boxes fire a request per keystroke — no debounce anywhere except the command palette, which has one",
+      "severity": "medium",
+      "category": "unthrottled-search",
+      "evidence": "`useDebouncedValue` exists (hooks/use-debounced-value.ts:5) and is used in exactly one place: components/admin/command-palette.tsx:29 `useDebouncedValue(query, 250)`. Every list screen sets state directly on change, which changes the react-query key and fires immediately: users/page.tsx:131, support/page.tsx:148, organizations/page.tsx:185, audit-logs/page.tsx:64, groups/page.tsx:130, mpesa-unrouted/page.tsx:161 (plus the group picker at mpesa-unrouted/page.tsx:261, which is un-debounced AND drives the heavy listGroups hook). None of these list functions are Redis-cached.",
+      "impact": "Typing a 15-character group name is 15 HTTP requests, each costing BEGIN + data query + count query + COMMIT = 4 serialized round-trips (60 round-trips total), against uncached ILIKE '%…%' predicates that cannot use an index. On /admin/groups each of those also runs the 5-LATERAL-per-group aggregate and the redundant double sort. The per-user rate limit is 240 req/60s (proxy.ts:29), so a couple of sustained searches plus the dashboard's polling puts a single operator within reach of the same 'Too many requests' class of failure that PR #113 was shipped to fix.",
+      "recommendation": "Wrap the six search inputs in `useDebouncedValue(search, 300)` and pass the debounced value to the hook (keep the raw value bound to the input so typing stays responsive) — the command palette at command-palette.tsx:29 is the exact pattern to copy.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/risk 'KYC pending' displays the query's LIMIT, not a count — reads 9 on prod when the true figure is 2, and hard-caps at 12 forever",
+      "severity": "medium",
+      "category": "js-aggregate-over-page",
+      "evidence": "lib/services/admin.service.ts:296-304 fetches groups with `ORDER BY g.created_at DESC LIMIT 12` (no status filter). buildRiskDashboardPayload maps ALL of them into `kycQueue` (admin.service.ts:111-125 — a sort, then an unfiltered `.map`). The page then renders `value={kyc.length}` at app/(admin)/admin/risk/page.tsx:88. The CORRECT number is computed at admin.service.ts:109 (`pendingKyc = groups.filter(g => g.onboarding_status !== 'active').length`), returned in the payload at line 131, and never read by any page. Live prod: `SELECT status, onboarding_status, COUNT(*) FROM groups GROUP BY 1,2` → 7 active/active, 2 pending_verification/deactivated. So the tile shows 9 (all groups) where the answer is 2.",
+      "impact": "A compliance-facing tile is showing 4.5x the real pending-KYC count today, and once the platform exceeds 12 groups it will read exactly 12 permanently, regardless of the real backlog — the metric becomes a constant. The same LIMIT 12 caps the queue table below it, so a real KYC backlog of 200 is invisible.",
+      "recommendation": "Render `data.summary.pendingKyc` (already in the payload) in the tile, and filter the queue query itself to `WHERE onboarding_status <> 'active'` with real pagination instead of a bare LIMIT 12 over all groups sorted by creation date.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "/admin/organizations/[id] fires 4 API calls on mount and ships an unbounded assigned-group list plus a 500-option <select> nobody asked for",
+      "severity": "medium",
+      "category": "over-fetch",
+      "evidence": "app/(admin)/admin/organizations/[id]/page.tsx:77-93 mounts four independent queries: useAdminOrganization, useOrgStaff, useOrgInvitations, useOrganizationPlan — 4 HTTP requests, 4 pool connections, 4 BEGIN/COMMIT pairs. The first of those (lib/services/admin-organizations.service.ts:141-194) itself runs 4 serialized queries, of which: `assignedGroups` (lines 150-175) has NO LIMIT at all and carries 2 LATERAL aggregates per row; `assignableGroups` (lines 176-186) is `LIMIT 500` with no search filter. The page renders `assigned.map(...)` unpaginated at page.tsx:377 and `assignable.map(...)` into a plain `<select>` at page.tsx:659-661 — 500 <option> elements, shipped on every page load even though the assign dialog is closed by default. `memberReach` is a client-side reduce over the full assigned list (page.tsx:142).",
+      "impact": "6 sequential DB round-trips for the detail call alone plus 3 more requests, before any interaction. An organization overseeing 5,000 groups would have its entire group list serialized into the response with per-group aggregates. And the 500-cap on assignableGroups is a silent correctness failure at scale: past 500 unassigned groups, the group the admin needs to assign is simply absent from the dropdown with no indication.",
+      "recommendation": "Paginate assignedGroups (it is a list, not a summary — return a count plus a first page). Replace the assignableGroups pre-fetch with a searched, `enabled`-gated lookup fired only when the assign dialog opens — the same shape mpesa-unrouted already uses for its group picker. Fold staff/invitations/plan into the detail response or accept the 3 extra calls, but not both the extra calls and the unbounded payload.",
+      "effort": "medium",
+      "confidence": "high"
+    },
+    {
+      "title": "The three polling admin dashboards have Redis TTLs shorter than their own client poll interval, so every scheduled refetch is a guaranteed cache miss",
+      "severity": "medium",
+      "category": "cache-misconfiguration",
+      "evidence": "Server TTLs: getPlatformStats `cached(..., 90, ...)` (admin.service.ts:199), getRiskDashboardData `60` (line 294), getMonitoringDashboardData `20` (line 378). Client poll intervals: useAdminDashboard `staleTime: 60_000, refetchInterval: 120_000` (hooks/use-admin.ts:164-165); risk page `staleTime: 60_000, refetchInterval: 120_000` (app/(admin)/admin/risk/page.tsx:55-56); monitoring page same (app/(admin)/admin/monitoring/page.tsx:45-46). 120s > 90s, 120s > 60s, 120s > 20s in all three cases.",
+      "impact": "For a single admin viewer — which is the real traffic shape here — the Redis entry has always expired by the time the next poll arrives, so the cache never serves a hit and each poll pays the full serialized query set (9 round-trips for the dashboard, 8 for monitoring, 6 for risk). Three caches were built and none of them can fire for their intended traffic. Combined with finding #1 this is the largest recurring cost on the admin surface.",
+      "recommendation": "Set each TTL to at least the poll interval plus a margin (e.g. 150s for a 120s poll) so consecutive polls hit, or drop the polling to match the TTL. Note the semantics: monitoring's 20s TTL was presumably chosen for freshness — if so, lower refetchInterval to 20-30s rather than raising the TTL, and be explicit about which of the two is the intended contract.",
+      "effort": "trivial",
+      "confidence": "high"
+    },
+    {
+      "title": "POST /api/admin/governance/compute is an unbounded serial loop — one connection, one transaction and ~21 serialized round-trips per group, in a request handler with no maxDuration",
+      "severity": "medium",
+      "category": "unbounded-serial-loop",
+      "evidence": "lib/services/governance.service.ts:405-420: `for (const group of groups) { await withAdminDb((client) => computeGroupGovernanceSnapshot(client, group.id, ...)) }` over `SELECT id FROM groups WHERE is_active = true` — strictly sequential, a fresh pool.connect() + BEGIN/COMMIT per group. Each iteration (governance.service.ts:258-283) is a `Promise.all` of NINETEEN queries on one client, which finding #1 proves is serialized, plus the snapshot INSERTs. app/api/admin/governance/compute/route.ts has no `maxDuration` export. pg_stat_statements confirms the shape and that the cost is not the database: the per-group account-balance query has 850 calls at mean 0.102ms, and the snapshot INSERT 1,700 calls at mean 0.189ms — sub-millisecond server-side, so essentially 100% of the run time is round-trips.",
+      "impact": "~21 round-trips x N groups in a single serverless invocation. At today's 9 groups that is ~190 round-trips; at 900 groups it is ~19,000 and the function will time out long before finishing, leaving a partial recomputation with no resume point (the loop swallows per-group errors into a `failed` counter). The monthly scheduled job calls the same function.",
+      "recommendation": "Collapse computeGroupGovernanceSnapshot's 19 reads into one statement per group (they are all scalar rollups over the same group_id and dates — a single CTE returns them in one round trip). Then batch groups in chunks with a cursor so the job is resumable, and set an explicit maxDuration on the route.",
+      "effort": "medium",
+      "confidence": "high"
+    },
+    {
+      "title": "Five backoffice route files (135 lines, 9 handlers) have zero callers anywhere in the app",
+      "severity": "low",
+      "category": "dead-code",
+      "evidence": "Searched the whole repo excluding app/api/admin/** — the only matches for `admin/policies` are the routes' own doc comments and one line in docs/audits/OPTIMIZATION_CLEANUP_AUDIT.md. Dead: app/api/admin/policies/route.ts (30 lines, GET+PUT), policies/loan/route.ts (26), policies/loan-terms/route.ts (26), policies/posting-templates/route.ts (27), and governance/compute/route.ts (26, POST). /admin/settings — the only plausible home for platform-policy configuration — is 78 lines of account info and a sign-out button (app/(admin)/admin/settings/page.tsx), with no policy UI. governance/compute's own header comment claims it is 'the on-demand path for both admin use (\"recompute now\")' — there is no such button. Note also policies/loan-terms/route.ts:20-25 calls withAdminDb TWICE in one PUT (write, then read back) — two connections and two transactions for one operation.",
+      "impact": "Nine live, super_admin-gated handlers that set platform-wide loan ladders, loan terms, approval policy and posting templates, with no way to reach them from the product. They are maintained, typechecked, bundled and deployed, and they carry the standing risk of any unexercised write path: nobody will notice when one breaks. This is the 'built the artifact, never wired the consumer' pattern the SMS v3 audit already named in this codebase.",
+      "recommendation": "Decide per route: either build the /admin/settings tab that consumes them (the services behind them — loanPolicyService.getPlatformTerms/setPlatformTermsDefault — already exist and work), or delete the routes and keep the services. Do not leave them in the third state. governance/compute is the cheapest to wire: one button on /admin/risk.",
+      "effort": "small",
+      "confidence": "high"
+    }
+  ]
+}
