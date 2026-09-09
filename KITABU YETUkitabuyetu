@@ -1,0 +1,21 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mindex 0bcd4d3..efe0871 100644[m
+[1m--- a/.gitignore[m
+[1m+++ b/.gitignore[m
+[36m@@ -50,3 +50,5 @@[m [mcoverage/[m
+ # would silently drop it and every integration run would lose its config.[m
+ .env*[m
+ !.env.test[m
+[32m+[m[32m# Generated optimization backups — never lint these[m
+[32m+[m[32m.optimization/[m
+[1mdiff --git a/eslint.config.mjs b/eslint.config.mjs[m
+[1mindex b2e440d..57792a7 100644[m
+[1m--- a/eslint.config.mjs[m
+[1m+++ b/eslint.config.mjs[m
+[36m@@ -53,3 +53,5 @@[m [mconst config = [[m
+ ];[m
+ [m
+ export default config;[m
+[41m+[m
+[41m+[m
