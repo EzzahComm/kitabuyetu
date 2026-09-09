@@ -99,5 +99,5 @@ AccountStatement.PreviewProps = {
     { date: '25 May', label: 'Annual dividend', amount: 4500, direction: 'in' },
     { date: '22 May', label: 'Late meeting fine', amount: 200, direction: 'out' },
   ],
-  statementUrl: 'https://kitabuyetu.co.ke/me/passbook',
+  statementUrl: 'https://kitabuyetu.vercel.app/me/passbook',
 } satisfies AccountStatementProps;

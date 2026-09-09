@@ -14,7 +14,7 @@ import AccountStatement, { type StatementTxn } from '@/emails/account-statement'
 import { formatDate } from '@/lib/utils';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
 
-const STATEMENT_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/me/passbook`;
+const STATEMENT_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app'}/me/passbook`;
 
 interface MemberStatementRow {
   id: string;

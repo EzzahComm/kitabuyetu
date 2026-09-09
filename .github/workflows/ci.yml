@@ -13,7 +13,7 @@
 #
 # Optional secrets (only needed if you want Vercel to use a custom domain
 # or if your smoke test targets a specific URL):
-#   PRODUCTION_URL     — e.g. https://kitabuyetu.co.ke
+#   PRODUCTION_URL     — e.g. https://kitabuyetu.vercel.app
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: CI/CD
@@ -78,7 +78,7 @@ env:
 
   # ── Email ───────────────────────────────────────────────────────────────────
   EMAIL_PROVIDER: resend
-  EMAIL_FROM:     noreply@kitabuyetu.co.ke
+  EMAIL_FROM:     noreply@kitabuyetu.vercel.app
   EMAIL_DRY_RUN:  'true'
   RESEND_API_KEY: re_ci_fake
 
@@ -626,3 +626,4 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "**Deployed at:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+

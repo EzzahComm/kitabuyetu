@@ -13,7 +13,7 @@ import { Cta } from '@/components/marketing/nextly/Cta';
 import { benefitOne, benefitTwo } from '@/components/marketing/nextly/data';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke';
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app';
 
 const DESCRIPTION =
   'Kitabu Yetu helps chamas, SACCOs, welfare groups, investment clubs and community ' +
@@ -158,3 +158,4 @@ export default function HomePage() {
     </div>
   );
 }
+

@@ -9,7 +9,7 @@ import type { MetadataRoute } from 'next';
  * /login is wasted, and /admin should not be advertised at all.
  */
 export default function robots(): MetadataRoute.Robots {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
 
   return {
     rules: {
@@ -55,3 +55,4 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: `${base}/sitemap.xml`,
   };
 }
+

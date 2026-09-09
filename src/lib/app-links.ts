@@ -3,7 +3,7 @@
  * for a preview or staging deployment.
  */
 const APP_URL = (
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.co.ke"
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.vercel.app"
 ).replace(/\/$/, "");
 
 export const officialAppUrl = APP_URL;

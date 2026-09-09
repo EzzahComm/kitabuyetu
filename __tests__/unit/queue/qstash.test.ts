@@ -22,7 +22,7 @@ jest.mock('@/lib/logger', () => ({
 const CONFIGURED_ENV = {
   QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok',
   QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next',
-  NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.co.ke',
+  NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.vercel.app',
 };
 
 describe('lib/queue/qstash', () => {
@@ -57,7 +57,7 @@ describe('lib/queue/qstash', () => {
         env: {
           QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok',
           QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next',
-          NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.co.ke',
+          NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.vercel.app',
         },
       }));
       mockPublishJSON.mockResolvedValue({ messageId: 'msg_123' });
@@ -73,7 +73,7 @@ describe('lib/queue/qstash', () => {
 
       expect(messageId).toBe('msg_123');
       expect(mockPublishJSON).toHaveBeenCalledWith({
-        url:     'https://kitabuyetu.co.ke/api/v1/workers/sms-dispatch-chunk',
+        url:     'https://kitabuyetu.vercel.app/api/v1/workers/sms-dispatch-chunk',
         body:    payload,
         retries: 3,
       });
@@ -97,7 +97,7 @@ describe('lib/queue/qstash', () => {
       });
 
       expect(mockPublishJSON).toHaveBeenCalledWith(
-        expect.objectContaining({ url: 'https://kitabuyetu.co.ke/api/v1/workers/sms-dispatch-chunk' }),
+        expect.objectContaining({ url: 'https://kitabuyetu.vercel.app/api/v1/workers/sms-dispatch-chunk' }),
       );
     });
   });
@@ -131,7 +131,7 @@ describe('lib/queue/qstash', () => {
       await triggerDisbursementWatchdog({ kind: 'settlement', rowId: 'row-42' });
 
       expect(mockTrigger).toHaveBeenCalledWith({
-        url:           'https://kitabuyetu.co.ke/api/v1/workers/disbursement-watchdog',
+        url:           'https://kitabuyetu.vercel.app/api/v1/workers/disbursement-watchdog',
         body:          { kind: 'settlement', rowId: 'row-42' },
         workflowRunId: 'settlement:row-42',
       });
