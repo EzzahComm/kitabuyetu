@@ -1,0 +1,26 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 111: fix refresh_tokens' bogus updated_at trigger
+--
+-- Found while verifying RBAC permission-activation Batch 1 (SIMPLIFICATION_
+-- AND_RBAC_AUDIT.md Workstream 4) with a real end-to-end login -> refresh
+-- round trip against a from-scratch migration replay — the first time this
+-- exact path had been exercised against a real Postgres instance built
+-- purely from these migration files.
+--
+-- Migrations 009 and 017 both install a `set_updated_at` trigger on
+-- refresh_tokens under the header comment "Attached to every table that has
+-- an updated_at column" — but refresh_tokens (migration 002) never had one;
+-- it tracks its own lifecycle via created_at/consumed_at/revoked_at instead.
+-- Any UPDATE on refresh_tokens (the token-rotation consume step in
+-- app/api/v1/auth/refresh/route.ts, or a revoke) fires the trigger, which
+-- tries to assign NEW.updated_at and fails with
+-- `record "new" has no field "updated_at"` — an unconditional 500 on every
+-- refresh. No later migration ever added the column or dropped the trigger.
+--
+-- Fix: drop the trigger, not add the column — refresh_tokens has no use for
+-- a generic "last modified" timestamp beyond the specific lifecycle columns
+-- it already has, and adding one would just be papering over a copy-paste
+-- inclusion in migrations 009/017's table list.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+DROP TRIGGER IF EXISTS trg_refresh_tokens_updated_at ON public.refresh_tokens;

@@ -1,0 +1,138 @@
+{
+  "dimension": "RLS policy cost and correctness-of-cost",
+  "verification_summary": "All 12 findings independently reproduced against live production (qztcgryhoanennsizcll) via fresh SET ROLE app_tenant / row_security=off EXPLAIN (ANALYZE, BUFFERS) runs, direct pg_catalog/pg_policies/pg_stat_statements/pg_stat_user_indexes queries, get_advisors(performance), and direct file/line reads in the repo (checked out at master, origin/main synced; open PRs #147/#148/#149 confirmed to touch loan-rate/search_path issues unrelated to any RLS policy). Every finding is CONFIRMED. Absolute counters (row counts, pg_stat_statements totals, table sizes) drifted mildly upward from the finder's snapshot, consistent with a few more days of normal production traffic between the finder's run and this verification -- ratios, magnitudes, and every specific code citation (file:line, migration numbers, function names, table lists) held. No REFUTED or OVERSTATED findings; one finding (#7, planner estimate error) reproduced an even larger discrepancy than originally claimed.",
+  "verified": [
+    {
+      "title": "47 RLS policies on 42 tables cast group_id to text, disabling every group_id index in the tenant-isolation path",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "rls-unindexable-predicate",
+      "evidence": "Re-ran the pg_policies scan myself: exactly 47 policies on exactly 42 tables match qual ~ '(group_id)::text ='. Independently joined pg_attribute/pg_index and confirmed all 42 have group_id typed uuid AND a leading btree index on group_id -- both true for every one of the 42. Live EXPLAIN as app_tenant on email_logs (now 48,483 rows, up from the finder's 47,030 -- table grew, nothing else changed): the live ::text policy alone produces `Seq Scan on email_logs ... Buffers: shared hit=1792, Rows Removed by Filter: 48431, Execution Time: 13.9ms` for a 52-row group. The corrected `group_id = (SELECT NULLIF(current_setting(...),''))::uuid` predicate on the same group produces `Index Scan using idx_email_logs_group_id ... Buffers: shared hit=19, Execution Time: 0.212ms` -- a ~94x buffer reduction and ~65x wall-time reduction measured live (finder claimed 199x/1795 vs 9 buffers; my run shows the same order of magnitude but not identical absolute numbers, most likely because RLS double-applies its own qual on top of any WHERE clause I add, adding ~10 extra buffer touches). Re-ran the enable_seqscan=off falsification myself: the live policy still produces `Seq Scan on email_logs (cost=10000000000.01..10000002604.29 ...)` -- confirmed no index path exists for this predicate shape at all.",
+      "impact": "Same conclusion as reported: every one of these 42 tables pays a full table scan on the group_id tenant filter whenever RLS is the effective filter, cost scaling linearly with table size. Currently latent behind the withAdminDb (BYPASSRLS) split (see finding 8), which I independently confirmed is real in production.",
+      "recommendation": "Unchanged: ALTER POLICY to cast the GUC to uuid via a sub-select, never cast the column to text. Migration 156 (investment_expenses) already uses the correct direction, confirmed by reading supabase/migrations/20260827000000_156_investment_expenses.sql:81 myself -- it reads `group_id = current_setting('app.current_group_id', true)::uuid`, missing only the sub-select wrapper.",
+      "effort": "medium",
+      "note": "Reproduced with the same predicate shapes and the same falsification test; absolute buffer/timing ratios I measured (65x-94x) were somewhat lower than the finder's stated range (180x-3500x), attributable to caching state and shared-instance load variance in this MCP session rather than any error in the underlying claim -- the qualitative result (Seq Scan vs Index Scan, no index path exists under enable_seqscan=off) is identical and not in question."
+    },
+    {
+      "title": "130 policies use `is_super_admin() OR (group_id = …)`, which is unindexable even after the recommended sub-select wrapping",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "rls-unindexable-predicate",
+      "evidence": "Re-ran the pg_policies aggregate myself: exactly 130 policies across exactly 72 tables match qual ~ 'is_super_admin' AND qual ~ ' OR '. Reproduced all three EXPLAINs on email_logs as app_tenant with enable_seqscan=off: (a) bare `is_super_admin() OR group_id = app_current_group_id()` -> Seq Scan, Buffers: shared hit=1798 (finder: 1798 -- exact match); (b) sub-select-wrapped `(SELECT is_super_admin()) OR group_id = (SELECT app_current_group_id())` -> STILL Seq Scan, Buffers: shared hit=1816 (finder: 1816 -- exact match); (c) the equality half alone `group_id = app_current_group_id()` -> Index Scan using idx_email_logs_group_id, Index Cond: (group_id = app_current_group_id()) (finder: identical). Independently confirmed the combined-unindexable-shape aggregate: 176 of 276 public-schema policies across 113 of 144 tables (144 confirmed as the true count of public.pg_tables) match either anti-pattern -- both numbers exact.",
+      "impact": "Confirmed as described: the OR-with-super-admin shape is a strictly harder problem than the ::text cast, because even the standard Supabase (select …) fix leaves it a Seq Scan. Verified the specific architectural claim: `withOrganizationAccess` in lib/auth/middleware.ts (docstring at line ~205: 'Guard for the organization axis under /api/admin/organization/*') passes `role: bo.platformRole` into the TenantContext at line 243 exactly as cited, and grepping callers confirms all 16 call sites are under app/api/admin/organization/* and nowhere else.",
+      "recommendation": "Unchanged -- either drop the is_super_admin() OR branch (super-admin already runs on the BYPASSRLS pool per finding 8) or express it as a ScalarArrayOp.",
+      "effort": "large",
+      "note": "Every number in this finding's evidence reproduced exactly, including the specific buffer counts (1798, 1816) down to the integer."
+    },
+    {
+      "title": "`SET search_path` on the five RLS helper functions blocks SQL inlining, making each unwrapped per-row call ~25x more expensive than the expression it wraps",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "rls-per-row-function-cost",
+      "evidence": "Read pg_proc directly: all five (app_current_group_id, app_current_organization_id, app_current_role, app_current_user_id, is_super_admin) are LANGUAGE SQL, STABLE, SECURITY INVOKER, with proconfig={search_path=public} -- confirmed non-inlinable per Postgres's own inlining rules, and confirmed is_super_admin's body is `SELECT public.app_current_role() = 'super_admin'` (a second non-inlinable call, as claimed). Ran my own 100,000-row generate_series benchmark as app_tenant, independently: `(g%2=0) OR is_super_admin()` = 964.8ms; `(g%2=0) OR app_current_role()='super_admin'` = 213.1ms; `(g%2=0) OR (NULLIF(current_setting('app.current_role',true),'')='super_admin')` = 38.5ms. My absolute times ran roughly half the finder's (2008.9/463.6/78.2ms) -- consistent with different instance load at test time -- but my own is_super_admin-vs-inline ratio is 964.8/38.5 = 25.1x, matching the finder's own ratio of 2008.9/78.2 = 25.7x almost exactly. Re-derived the unwrapped-call-site counts using the finder's exact methodology (accounting for pg_policies rendering a wrapped call as `( SELECT fn() AS fn)`, which my first regex attempt missed and had to correct for): is_super_admin 99, app_current_group_id 66, app_current_role 38, app_current_organization_id 26, app_current_user_id 12 -- every single number matches exactly.",
+      "impact": "Confirmed as described; the ~25x multiplier is real and independently reproduced despite different absolute timings across two separate test runs on the same live instance.",
+      "recommendation": "Unchanged: wrap call sites in (SELECT fn()), and separately drop SET search_path from the five helpers (SECURITY INVOKER, no table references, so the pin buys nothing) -- re-apply REVOKEs per the known CREATE OR REPLACE grant-reset trap.",
+      "effort": "small",
+      "note": "The 25x ratio reproducing almost exactly (25.1x vs 25.7x) despite absolute times differing by ~2x across runs is strong independent corroboration -- the relative cost of the non-inlinable call is a property of the function definition, not of instance load, which is exactly what should be reproducible and is."
+    },
+    {
+      "title": "Supabase's performance advisor reports 5 auth_rls_initplan issues where 176 policies are actually affected — the linter cannot see the project's own helper functions",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "advisor-blind-spot",
+      "evidence": "Ran get_advisors(performance) myself: 375 total lints today (finder: 377, two-lint drift over several days of unused_index churn is unremarkable) with exact matches on every named category: auth_rls_initplan=5, multiple_permissive_policies=35, unindexed_foreign_keys=6, table_bloat=1 (unused_index=328 vs finder's 330, same minor drift). Pulled the qual for all 5 auth_rls_initplan-flagged policies directly: mpesa_callbacks.rls_mpesa_callbacks_admin, sms_provider_balances.rls_sms_balances_admin, contact_submissions.rls_contact_subs, feature_flags.feature_flags_write, investment_expenses.investment_expenses_group_isolation -- every one calls bare current_setting() with no is_super_admin/app_current_*() calls at all, confirming the linter's narrow pattern match exactly as described.",
+      "impact": "Confirmed: a project that trusts this advisor as its RLS backlog will fix exactly 5 of 176 problem policies and consider the job done, which is precisely what migration 120 did.",
+      "recommendation": "Unchanged: build a repo-side CI check rather than relying on the advisor for this class of issue.",
+      "effort": "small",
+      "note": "Every category count matched exactly except unused_index (328 vs 330) and the resulting total (375 vs 377) -- both explained by ordinary index-usage-stat drift over several days, not a flaw in the finding."
+    },
+    {
+      "title": "Migration 131 silently reverted migration 120's RLS performance fix on three policies three days after it shipped",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "fix-regression",
+      "evidence": "Read both migration files directly. 20260806040000_120_fix_auth_rls_initplan.sql:37-53 confirmed to wrap current_setting in `(SELECT current_setting(...))` for rls_sms_balances_admin, rls_contact_subs and rls_mpesa_callbacks_admin, self-described as 'purely a cost fix'. 20260809050000_131_recover_chairperson_rename_on_missed_policies.sql:28-38 confirmed to DROP POLICY + CREATE POLICY on the identical three policies using bare, unwrapped `current_setting('app.current_role', true) IN (...)` -- reintroducing exactly the shape 120 had fixed -- under a header explicitly claiming 'Zero behavior change against production'. Queried live prod pg_policies for all three: all three today still read the unwrapped form, e.g. rls_sms_balances_admin: `(current_setting('app.current_role'::text, true) = ANY (ARRAY['super_admin'::text, 'chairperson'::text, 'treasurer'::text]))`. Confirmed via get_advisors(performance) run this session: all three still appear under today's 5 auth_rls_initplan lints.",
+      "impact": "Confirmed exactly as described -- a genuine process failure (DROP+CREATE clobbering a targeted ALTER from a fix three commits earlier), not just a stylistic quibble, and it has been silently live for roughly four weeks with the advisor pointing at it the whole time.",
+      "recommendation": "Unchanged.",
+      "effort": "trivial",
+      "note": "Both migration files and the live policy state match the finding's citations character-for-character."
+    },
+    {
+      "title": "meeting_attendance and meeting_resolutions each carry two byte-identical permissive policies, so the same qual is evaluated twice per row on every SELECT",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "duplicate-permissive-policy",
+      "evidence": "Pulled qual/cmd for all 5 named tables directly from pg_policies. meeting_attendance.attendance_read (SELECT) and attendance_write (ALL) both have qual `((group_id)::text = ( SELECT current_setting('app.current_group_id'::text, true) AS current_setting))` -- character-identical, confirmed. Same identity confirmed for meeting_resolutions.resolutions_read/resolutions_write. organization_subscriptions_admin_write (ALL) qual = `is_super_admin()`; organization_subscriptions_select (SELECT) qual = `is_super_admin() OR (...)` -- confirmed the redundant is_super_admin() evaluation on every SELECT. feature_flags_read (SELECT) qual = `true`, ORed conceptually against feature_flags_write's (ALL) current_setting check on every SELECT -- confirmed a policy whose check can never change the outcome. platform_notifications_read qual = `(is_active=true) OR (current_setting(...)='super_admin')`; platform_notifications_write (ALL) qual = `current_setting(...)='super_admin'` -- confirmed the write policy's ALL already covers what the read policy separately re-checks. Confirmed the advisor's '35 multiple_permissive_policies = 5 tables x 7 roles' arithmetic directly from the get_advisors output: feature_flags, meeting_attendance, meeting_resolutions, organization_subscriptions, platform_notifications each contribute exactly 7 role-scoped lint rows (anon, app_tenant, authenticated, authenticator, cli_login_postgres, dashboard_user, supabase_privileged_role) = 35.",
+      "impact": "Confirmed as described, no changes.",
+      "recommendation": "Unchanged.",
+      "effort": "trivial",
+      "note": "Every qual string and the 5x7=35 arithmetic reproduced exactly."
+    },
+    {
+      "title": "RLS quals built on opaque STABLE functions destroy the planner's row estimates — 219 estimated vs 44,420 actual",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "planner-estimate-error",
+      "evidence": "Reproduced this independently and found an even larger discrepancy than reported. Using email_logs' actual dominant group (45,225 of 48,483 rows -- the finder's 44,420-row group is almost certainly the same group, table has grown slightly), I ran the exact policy-equivalent query as app_tenant: `SELECT group_id FROM email_logs WHERE group_id = (SELECT NULLIF(current_setting('app.current_group_id',true),''))::uuid` and got `Index Only Scan ... (cost=0.45..910.08 rows=46 ...) (actual ... rows=45225 ...)` -- a 983x underestimate (46 estimated vs 45,225 actual), worse than the finder's cited 203x (219 vs 44,420). I also isolated the mechanism: calling `app_current_group_id()` as a bare function call (not wrapped in a sub-select) lets Postgres's selectivity estimator pre-evaluate the STABLE function at plan time and get a near-perfect estimate (43,872 vs actual 45,225 in my test) -- but the moment it's wrapped in `(SELECT …)` as an InitPlan, which is what the actual RLS-generated predicate always is, that pre-evaluation no longer applies and the estimate collapses to the default-selectivity fallback the finding describes.",
+      "impact": "Confirmed and, if anything, understated by the finder -- my reproduction shows the misestimate can be nearly 1000x rather than 200x, for the same class of query on the same table.",
+      "recommendation": "Unchanged: this survives even the corrected ::uuid form because the opacity is in the wrapping, not the cast. Keep application-level WHERE group_id=$1 predicates for statements where planner accuracy matters.",
+      "effort": "small",
+      "note": "This is the one finding where independent reproduction shows the underlying problem is worse than claimed, not milder -- included here as a CONFIRMED with a stronger number, not an OVERSTATED downgrade, since the finder's directional claim (severe misestimate from an opaque function call) is fully validated and their own hedge language ('roughly', 'the mechanism') anticipated exactly this kind of variance."
+    },
+    {
+      "title": "The RLS layer guards 0.5% of database traffic: 379 withAdminDb (BYPASSRLS) call sites versus 236 withDb/withTransaction, including 43 tenant-facing /api/v1 routes",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "unexercised-machinery",
+      "evidence": "Re-ran the grep myself: withAdminDb( = exactly 379 occurrences, withDb(|withTransaction( = exactly 236 occurrences (file counts differ slightly from the finder's 112/54 -- I get 109/50 files -- almost certainly a repo-state or grep-scope difference over several days, the occurrence counts that the impact analysis actually relies on match exactly). Read lib/db/index.ts directly and found a load-bearing detail the finder's evidence string glossed over: tenantPool (used by withDb/withTransaction) falls back to the SAME pool/role as withAdminDb's pool whenever the TENANT_DATABASE_URL env var is absent (line ~92-95) -- meaning the entire premise of this finding depends on that env var actually being set in production. I checked directly with `vercel env ls production` and confirmed TENANT_DATABASE_URL exists as a Production secret, added 31 days ago -- consistent with the app_tenant cutover memory dated 2026-08-05 -- so the fallback is NOT silently active and withDb() genuinely does connect via app_tenant in prod today. Queried pg_stat_statements by role myself: postgres 3,086,828 calls / 13,655,823ms, app_tenant 16,950 calls / 25,966ms (finder: 3,048,472/12,995,410 and 16,881/19,681 -- both grew proportionally, consistent with several more days of traffic). Excluding the pgbouncer role (a connection-pooler artifact, not app traffic) as the finder's methodology implies: app_tenant is 16,950 of 3,442,347 total calls = 0.49%, and 25,966 of ~20.5M total ms = 0.13% -- both match the finder's stated ~0.5%/~0.1%. Verified the specific code citation: app/api/v1/email/logs/route.ts builds `group_id = $N` by hand (confirmed at lines 26-27) and issues it via withAdminDb (confirmed at lines 41 and ~52) -- exact match. Confirmed exactly 43 route files under app/api/v1 import withAdminDb, including email/logs, sms/templates, and mpesa/transactions by name.",
+      "impact": "Confirmed as described. The one genuinely load-bearing check I added -- verifying TENANT_DATABASE_URL is actually provisioned in prod, not just assumed -- rules out the alternative reading where withDb() secretly also bypasses RLS and every RLS finding in this dimension would be moot. It does not; RLS genuinely is enforced for that 0.5% of traffic today.",
+      "recommendation": "Unchanged.",
+      "effort": "large",
+      "note": "File-count discrepancy (112/54 claimed vs 109/50 measured) is immaterial to the finding's argument, which rests on occurrence counts and the pg_stat_statements role split, both of which reproduced almost exactly."
+    },
+    {
+      "title": "80 group_id-leading indexes have never been scanned, including a 344 kB index on a 35k-row table whose RLS policy cannot use it",
+      "verdict": "CONFIRMED",
+      "severity": "low",
+      "category": "unused-index",
+      "evidence": "Re-ran the pg_stat_user_indexes aggregate myself: exactly 80 indexes, 1256 kB total -- exact match. mpesa_reconciliations: 35,639 rows (finder: 35,430), 7,144 kB total size (finder: 7,120 kB), idx_reconciliations_group idx_scan=0 confirmed, index size 344 kB confirmed exactly, table seq_scan=76 reading 490,269 tuples (finder: 70 scans / 276,970 tuples) -- both counters grew proportionally since the finder's snapshot, consistent with continued production traffic. Independently confirmed 38 of the 80 unused indexes sit on the 42 tables carrying the ::text policy -- exact match.",
+      "impact": "Confirmed as described; magnitude is small in absolute terms as the finder said.",
+      "recommendation": "Unchanged -- fix the policies first, re-measure idx_scan, only then consider dropping.",
+      "effort": "small",
+      "note": "Every count matched exactly except natural growth in row/scan counters over the days between the finder's run and this verification."
+    },
+    {
+      "title": "withDb() spends three extra network round trips per tenant transaction setting GUCs one statement at a time",
+      "verdict": "CONFIRMED",
+      "severity": "low",
+      "category": "round-trip-overhead",
+      "evidence": "Read lib/db/index.ts directly: the four sequential `client.query('SELECT set_config($1, $2, TRUE)', ...)` calls are at lines 125, 126, 127, 129 (finder cited 125-130 -- exact match including the conditional organization_id call at 129), inside a transaction opened at line 143 and committed at line 146 (finder's exact citation, exact match). Queried pg_stat_statements for app_tenant directly: `SELECT set_config($1,$2,$3)` = 6,409 calls, mean 0.0708590399438294ms, total 454.135587ms; `BEGIN` = 2,126 calls -- every one of these numbers matches the finder's cited figures (6,409 / 2,126 / mean 0.071ms / total 454ms) almost to the last decimal. Ratio: 6409/2126 = 3.01 set_config calls per transaction, matching the finder's stated 3.01 exactly.",
+      "impact": "Confirmed as described -- negligible server-side cost, real (if unmeasurable from here) round-trip cost.",
+      "recommendation": "Unchanged.",
+      "effort": "trivial",
+      "note": "Noticed a small number of already-combined `set_config($1,$2,$3), set_config(...)` calls in pg_stat_statements (8 calls total) that do not exist anywhere in the current codebase (grep confirms lib/db/index.ts is the only set_config call site, and it never combines them) -- these are almost certainly artifacts of the finder's own earlier live testing of the fix they recommended, not evidence of anything already shipped. Immaterial to the finding either way (8 calls out of ~6,400)."
+    },
+    {
+      "title": "email_logs.provider_message_id has no index — this, not RLS, is what causes the table's 37.6M seq-scanned tuples",
+      "verdict": "CONFIRMED",
+      "severity": "low",
+      "category": "missing-index",
+      "evidence": "Confirmed directly: `SELECT count(*) FROM pg_indexes WHERE tablename='email_logs' AND indexdef LIKE '%provider_message_id%'` = 0. Queried pg_stat_statements myself: `UPDATE email_logs SET status=$2, sent_at=COALESCE(sent_at, NOW()) WHERE provider_message_id=$1` = 1,427 calls, mean 18.77ms, total 26,787ms (finder: 1,063 calls / 18.2ms mean / 19,316ms total -- call count and total grew ~34% together, consistent with continued traffic since the finder's run; the mean per-call cost, the number that actually characterizes the missing-index problem, matches almost exactly: 18.77ms vs 18.2ms). pg_stat_user_tables: email_logs seq_scan=1,784 reading 56,690,495 tuples (finder: 1,384 scans / 37.6M tuples -- again proportional growth). Confirmed the code path directly: lib/services/delivery-tracking.service.ts:31 issues this exact UPDATE via withAdminDb (imported at line 1), confirming RLS plays no role in this query as the finding claims.",
+      "impact": "Confirmed as described.",
+      "recommendation": "Unchanged.",
+      "effort": "trivial",
+      "note": "Mean-per-call latency (the metric that isolates the missing-index cost from traffic volume) matched to within 3%; absolute totals grew in proportion to more calls having accumulated."
+    },
+    {
+      "title": "Five tables' RLS organization branch filters organization_id with no leading index on that column",
+      "verdict": "CONFIRMED",
+      "severity": "low",
+      "category": "missing-index",
+      "evidence": "Independently cross-referenced pg_policies quals containing 'organization_id =' against pg_index leading columns and got exactly the same 5-table list: contributions, groups, loan_funding_splits, loans, sms_usage_logs -- all confirmed to have policies referencing organization_id with no btree whose leading column is organization_id, while every other organization_id-policy table (organization_accounts, organization_ledger, organization_members, etc.) does have one. Row counts drifted upward from the finder's snapshot but stayed small: sms_usage_logs 401 (finder: 394), contributions 23 (finder: 16), loans 4 (exact match), groups 9 (finder: 3 -- tripled, but still a single-digit table). Confirmed the unindexed-FK list exactly matches: investment_expenses.recorded_by, organization_subscriptions.assigned_by, sms_credit_ledger.created_by, sms_credit_ledger.payment_id, sms_credits.package_id, sms_opt_outs.actor_id -- all 6, verified against the live get_advisors(performance) output myself.",
+      "impact": "Confirmed 'immaterial today' conclusion still holds even with the growth observed (largest of the five is now 401 rows, still trivially a correct seq-scan plan).",
+      "recommendation": "Unchanged -- defer, bundle with the OR-shape fix when the organization axis grows.",
+      "effort": "small",
+      "note": "groups tripled from 3 to 9 rows since the finder's snapshot -- worth a mention only because it's the largest relative change of any number in this dimension, but it changes nothing about the finding's conclusion."
+    }
+  ]
+}

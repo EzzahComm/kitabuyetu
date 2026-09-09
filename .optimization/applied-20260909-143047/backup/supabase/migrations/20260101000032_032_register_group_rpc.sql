@@ -1,0 +1,238 @@
+-- =============================================================================
+-- 016_register_group_rpc.sql
+-- Phase D MVP: atomic register_group() RPC.
+--
+-- Replaces the multi-step orchestration in app/api/v1/auth/register/route.ts
+-- with a single Postgres function call. Either the entire onboarding succeeds
+-- or the transaction rolls back — no partial groups, no orphan members.
+--
+-- This MVP lands the group at status='active' so existing financial-module
+-- behaviour is preserved. Phase D Part 2 will:
+--   • land at status='pending_verification' instead
+--   • require an email link or SMS OTP to advance to status='draft'
+--   • require activation gates (min members, all roles, etc.) for status='active'
+--
+-- The RPC takes a JSONB payload to keep the signature stable while the schema
+-- evolves. Required keys, snake_case is matched server-side by the route:
+--   groupName, groupType, firstName, lastName, phone, passwordHash, creatorRole
+-- Optional: email, countyId, subCountyText, wardText, villageEstate,
+--           primaryObjective, meetingFrequency, meetingDay, meetingTime,
+--           nationalId, dateOfBirth, gender
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.register_group(p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  -- Input
+  v_group_name        TEXT;
+  v_group_type        group_type;
+  v_first_name        TEXT;
+  v_last_name         TEXT;
+  v_phone             TEXT;
+  v_email             TEXT;
+  v_password_hash     TEXT;
+  v_creator_role      officer_role;
+  v_county_id         UUID;
+  v_sub_county_text   TEXT;
+  v_ward_text         TEXT;
+  v_village_estate    TEXT;
+  v_primary_objective primary_objective;
+  v_meeting_frequency meeting_frequency;
+  v_meeting_day       meeting_day;
+  v_meeting_time      TIME;
+  v_national_id       TEXT;
+  v_date_of_birth     DATE;
+  v_gender            gender;
+  v_county_name       TEXT;
+
+  -- Output
+  v_group_code        TEXT;
+  v_group_id          UUID;
+  v_person_id         UUID;
+  v_member_id         UUID;
+  v_member_seq        INT;
+  v_member_code       TEXT;
+  v_platform_role     platform_role;
+BEGIN
+  -- ── Extract + cast payload ────────────────────────────────────────────────
+  v_group_name        := p_payload->>'groupName';
+  v_group_type        := (p_payload->>'groupType')::group_type;
+  v_first_name        := p_payload->>'firstName';
+  v_last_name         := p_payload->>'lastName';
+  v_phone             := p_payload->>'phone';
+  v_email             := NULLIF(p_payload->>'email', '');
+  v_password_hash     := p_payload->>'passwordHash';
+  v_creator_role      := (p_payload->>'creatorRole')::officer_role;
+  v_county_id         := NULLIF(p_payload->>'countyId', '')::UUID;
+  v_sub_county_text   := NULLIF(p_payload->>'subCountyText', '');
+  v_ward_text         := NULLIF(p_payload->>'wardText', '');
+  v_village_estate    := NULLIF(p_payload->>'villageEstate', '');
+  v_primary_objective := NULLIF(p_payload->>'primaryObjective', '')::primary_objective;
+  v_meeting_frequency := NULLIF(p_payload->>'meetingFrequency', '')::meeting_frequency;
+  v_meeting_day       := NULLIF(p_payload->>'meetingDay', '')::meeting_day;
+  v_meeting_time      := NULLIF(p_payload->>'meetingTime', '')::TIME;
+  v_national_id       := NULLIF(p_payload->>'nationalId', '');
+  v_date_of_birth     := NULLIF(p_payload->>'dateOfBirth', '')::DATE;
+  v_gender            := NULLIF(p_payload->>'gender', '')::gender;
+
+  -- ── Required-field validation (defence in depth — UI validates first) ─────
+  IF v_group_name IS NULL OR length(trim(v_group_name)) < 3 THEN
+    RAISE EXCEPTION 'group_name must be at least 3 characters' USING ERRCODE = '22023';
+  END IF;
+  IF v_phone IS NULL OR v_phone !~ '^254(7|1)[0-9]{8}$' THEN
+    RAISE EXCEPTION 'phone must be E.164 Kenyan format (2547######## or 2541########)' USING ERRCODE = '22023';
+  END IF;
+  IF v_password_hash IS NULL OR length(v_password_hash) < 20 THEN
+    RAISE EXCEPTION 'password_hash missing or too short' USING ERRCODE = '22023';
+  END IF;
+  IF v_creator_role NOT IN ('chairperson', 'secretary', 'treasurer') THEN
+    RAISE EXCEPTION 'creator_role must be chairperson, secretary, or treasurer' USING ERRCODE = '22023';
+  END IF;
+
+  -- ── Allocate group code ──────────────────────────────────────────────────
+  v_group_code := 'KY' || LPAD(NEXTVAL('group_seq')::text, 7, '0');
+
+  -- Denormalised county name (kept on groups for legacy text-filter queries
+  -- and reporting until callers migrate to county_id).
+  IF v_county_id IS NOT NULL THEN
+    SELECT name INTO v_county_name FROM counties WHERE id = v_county_id;
+    IF v_county_name IS NULL THEN
+      RAISE EXCEPTION 'county_id does not match any row in counties' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  -- ── Create the group ─────────────────────────────────────────────────────
+  -- MVP: status='active'. Phase D Part 2 switches to 'pending_verification'.
+  INSERT INTO groups (
+    name, "type", phone, email,
+    status, group_code, creator_role,
+    county_id, sub_county, ward,
+    county, village_estate,
+    primary_objective, meeting_frequency, meeting_day, meeting_time
+  ) VALUES (
+    v_group_name, v_group_type, v_phone, v_email,
+    'active', v_group_code, v_creator_role,
+    v_county_id, v_sub_county_text, v_ward_text,
+    v_county_name, v_village_estate,
+    v_primary_objective, v_meeting_frequency, v_meeting_day, v_meeting_time
+  )
+  RETURNING id INTO v_group_id;
+
+  -- ── Initialise the per-group member counter ──────────────────────────────
+  INSERT INTO group_member_counters (group_id, last_seq) VALUES (v_group_id, 0);
+
+  -- ── Upsert the cross-group person identity ───────────────────────────────
+  -- When national_id is provided and already exists, link to that person.
+  -- This is what enables cross-group aggregates (one human, multiple groups).
+  -- When absent (MVP onboarding without KYC), synthesise a placeholder so the
+  -- NOT NULL + UNIQUE constraints hold; a later KYC step replaces it.
+  IF v_national_id IS NOT NULL THEN
+    INSERT INTO person (national_id, full_name, dob, phone, gender)
+    VALUES (
+      v_national_id,
+      trim(v_first_name || ' ' || v_last_name),
+      COALESCE(v_date_of_birth, DATE '1970-01-01'),
+      v_phone,
+      v_gender
+    )
+    ON CONFLICT (national_id) DO UPDATE
+      SET phone     = COALESCE(person.phone, EXCLUDED.phone),
+          full_name = CASE WHEN person.full_name = '' THEN EXCLUDED.full_name ELSE person.full_name END
+    RETURNING id INTO v_person_id;
+  ELSE
+    INSERT INTO person (national_id, full_name, dob, phone, gender)
+    VALUES (
+      'TEMP-' || gen_random_uuid()::text,
+      trim(v_first_name || ' ' || v_last_name),
+      COALESCE(v_date_of_birth, DATE '1970-01-01'),
+      v_phone,
+      v_gender
+    )
+    RETURNING id INTO v_person_id;
+  END IF;
+
+  -- ── Create the member account (auth identity) ────────────────────────────
+  -- members.phone is globally UNIQUE — duplicate phones raise 23505 which
+  -- the route catches and returns as DUPLICATE_PHONE.
+  INSERT INTO members (
+    phone, email, password_hash,
+    first_name, last_name,
+    national_id, date_of_birth, gender
+  ) VALUES (
+    v_phone, v_email, v_password_hash,
+    v_first_name, v_last_name,
+    v_national_id, v_date_of_birth, v_gender
+  )
+  RETURNING id, platform_role INTO v_member_id, v_platform_role;
+
+  -- ── Allocate the member's per-group code (atomic via row lock) ───────────
+  UPDATE group_member_counters
+  SET    last_seq = last_seq + 1
+  WHERE  group_id = v_group_id
+  RETURNING last_seq INTO v_member_seq;
+
+  v_member_code := v_group_code || LPAD(v_member_seq::text, 5, '0');
+
+  -- ── Link member to group ─────────────────────────────────────────────────
+  INSERT INTO group_members (
+    group_id, member_id, person_id, member_code,
+    role, status
+  ) VALUES (
+    v_group_id, v_member_id, v_person_id, v_member_code,
+    'group_admin', 'active'
+  );
+
+  -- ── Seed the creator as their chosen officer ─────────────────────────────
+  INSERT INTO group_officers (group_id, member_id, role, appointed_by)
+  VALUES (v_group_id, v_member_id, v_creator_role, v_member_id);
+
+  -- ── Provision financial core (billing + chart of accounts) ───────────────
+  INSERT INTO billing_accounts (group_id) VALUES (v_group_id);
+
+  INSERT INTO subscriptions (
+    group_id, plan_type, status, started_at, monthly_fee, sms_rate, max_members
+  ) VALUES (
+    v_group_id, 'starter', 'active', NOW(), 0, 0.9000, NULL
+  );
+
+  INSERT INTO accounts (group_id, account_code, name, type, is_system) VALUES
+    (v_group_id, '1001', 'Cash and M-Pesa',          'asset',     true),
+    (v_group_id, '1002', 'Bank Account',              'asset',     true),
+    (v_group_id, '1101', 'Loans Receivable',          'asset',     true),
+    (v_group_id, '1201', 'Fixed Assets',              'asset',     true),
+    (v_group_id, '2001', 'Accounts Payable',          'liability', true),
+    (v_group_id, '2101', 'Member Savings',            'liability', true),
+    (v_group_id, '3001', 'Member Equity',             'equity',    true),
+    (v_group_id, '3101', 'Retained Surplus',          'equity',    true),
+    (v_group_id, '4001', 'Member Contributions',      'income',    true),
+    (v_group_id, '4002', 'Interest Income — Loans',   'income',    true),
+    (v_group_id, '4003', 'Registration Fees',         'income',    true),
+    (v_group_id, '4004', 'Other Income',              'income',    true),
+    (v_group_id, '5001', 'Administrative Expenses',   'expense',   true),
+    (v_group_id, '5002', 'SMS Expenses',              'expense',   true),
+    (v_group_id, '5003', 'Platform Subscription',     'expense',   true),
+    (v_group_id, '5004', 'Loan Write-offs',           'expense',   true);
+
+  RETURN jsonb_build_object(
+    'success',        true,
+    'group_id',       v_group_id,
+    'group_code',     v_group_code,
+    'group_name',     v_group_name,
+    'member_id',      v_member_id,
+    'member_code',    v_member_code,
+    'person_id',      v_person_id,
+    'platform_role',  v_platform_role,
+    'creator_role',   v_creator_role
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.register_group(JSONB) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.register_group(JSONB) TO postgres;
+
+COMMENT ON FUNCTION public.register_group(JSONB) IS
+  'Atomic group onboarding. Allocates KY-prefixed group_code + member_code, creates the group + person + member + officer + billing + chart of accounts in one transaction. Phase D MVP — lands at status=active; verification flow comes in Phase D Part 2.';

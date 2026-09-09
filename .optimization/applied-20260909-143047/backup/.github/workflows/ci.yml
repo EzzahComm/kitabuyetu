@@ -1,0 +1,629 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Kitabu Yetu — CI/CD Pipeline
+#
+# Flow:
+#   [push / PR] → quality + security + migrations (parallel)
+#                 ↓ (all pass)
+#   [main only] → deploy to Vercel production → smoke test
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   VERCEL_TOKEN       — from vercel.com/account/tokens
+#   VERCEL_ORG_ID      — from .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID  — from .vercel/project.json after `vercel link`
+#
+# Optional secrets (only needed if you want Vercel to use a custom domain
+# or if your smoke test targets a specific URL):
+#   PRODUCTION_URL     — e.g. https://kitabuyetu.vercel.app
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel redundant runs on the same branch/PR to save minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared env vars used for build validation only.
+# These are NOT real secrets — they exist solely so lib/env.ts validation
+# passes during `next build` in CI. Real secrets live in Vercel's dashboard.
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  NODE_VERSION: '20'
+
+  # ── App ────────────────────────────────────────────────────────────────────
+  NODE_ENV: production
+  NEXT_PUBLIC_APP_URL: https://kitabuyetu.vercel.app
+
+  # ── Database (fake URI — Pool.connect() is lazy, no real connection made) ──
+  DATABASE_URL: postgresql://postgres:ci_fake@db.ci.supabase.co:5432/postgres
+  DB_POOL_MAX: '3'
+
+  # ── Redis (fake — ioredis emits error events, never throws at import) ───────
+  REDIS_URL: rediss://default:ci_fake@ci.upstash.io:6379
+
+  # ── JWT / Encryption (32-char+ placeholders) ────────────────────────────────
+  JWT_SECRET:      ci_placeholder_secret_minimum_32_chars
+  ENCRYPTION_KEY:  ci_placeholder_enckey_minimum_32_chars
+  WORKER_SECRET:   ci_placeholder_worker_minimum_32_chars
+  CRON_SECRET:     ci_placeholder_cron__minimum_32_chars_
+
+  # ── M-Pesa ──────────────────────────────────────────────────────────────────
+  MPESA_ENV:               sandbox
+  MPESA_CONSUMER_KEY:      ci_fake
+  MPESA_CONSUMER_SECRET:   ci_fake
+  MPESA_SHORTCODE:         '174379'
+  MPESA_PASSKEY:           ci_fake
+  MPESA_CALLBACK_BASE_URL: https://kitabuyetu.vercel.app
+
+  # ── SMS ─────────────────────────────────────────────────────────────────────
+  # TextSMS Kenya is the PROVIDER (the gateway these credentials authenticate
+  # against). The SENDER ID — what a recipient actually sees the message come
+  # from — is "KITABU YETU", the registered alphanumeric ID. The two are
+  # unrelated and easy to conflate: sms_usage_logs.provider says 'textsms',
+  # and that column is about the gateway, never about the sender name.
+  #
+  # Matches lib/env.ts's TEXTSMS_SENDER_ID default and production. Was
+  # "KitabuYetu" here, which is not the registered ID.
+  TEXTSMS_API_KEY:    ci_fake
+  TEXTSMS_SENDER_ID:  KITABU YETU
+  TEXTSMS_PARTNER_ID: ci_fake
+
+  # ── Email ───────────────────────────────────────────────────────────────────
+  EMAIL_PROVIDER: resend
+  EMAIL_FROM:     noreply@kitabuyetu.vercel.app
+  EMAIL_DRY_RUN:  'true'
+  RESEND_API_KEY: re_ci_fake
+
+  # ── Policy defaults ─────────────────────────────────────────────────────────
+  CSV_MAX_ROWS:          '5000'
+  MAX_LOGIN_ATTEMPTS:    '5'
+  LOGIN_LOCKOUT_MINUTES: '30'
+
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  1. QUALITY GATE — Lint · Type-check · Build                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # --include=dev is required: the job-level NODE_ENV=production (set for
+      # build-time env validation) would otherwise make `npm ci` omit
+      # devDependencies — eslint, typescript, jest — and the lint/typecheck/
+      # build steps would fail with "<tool>: not found".
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      # ── Lint ──────────────────────────────────────────────────────────────
+      - name: Lint (eslint)
+        run: npm run lint
+
+      # ── Type check ────────────────────────────────────────────────────────
+      - name: Type check (tsc --noEmit)
+        run: npm run typecheck
+
+      # ── Unit/service tests ────────────────────────────────────────────────
+      # OPTIMIZATION_CLEANUP_AUDIT.md Critical #1 — this suite previously only
+      # ran on developer machines; a red test locally never blocked a merge.
+      # Runs before the build step so a failing test fails fast.
+      - name: Test (jest --ci)
+        run: npm run test:ci
+
+      # ── Next.js build ─────────────────────────────────────────────────────
+      # Verifies the production bundle compiles without errors.
+      # Uses fake env vars (above) so lib/env.ts validation passes.
+      - name: Build (next build)
+        run: npm run build
+
+      # Cache the build output for the deploy job (main branch only)
+      - name: Cache build output
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: next-build-${{ github.sha }}
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  2. SECURITY SCAN — Gitleaks secret detection                          ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  security:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history for commit-level scanning)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Install gitleaks directly — works on both public and private repos
+      # without requiring a paid license
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION=8.18.4
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+
+      - name: Scan for secrets in codebase
+        run: |
+          gitleaks detect \
+            --source=. \
+            --log-level=warn \
+            --exit-code=1 \
+            --redact
+
+      # Scan only the commits introduced by this push/PR (faster on large repos)
+      - name: Scan commits in this push
+        if: github.event_name == 'push'
+        run: |
+          gitleaks detect \
+            --source=. \
+            --log-opts="--since=1 day ago" \
+            --log-level=warn \
+            --exit-code=1 \
+            --redact
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  3. MIGRATION VALIDATION — Schema integrity checks                     ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  migrations:
+    name: Migration Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Verify migration directory exists
+        run: |
+          if [ ! -d supabase/migrations ]; then
+            echo "ERROR: supabase/migrations/ directory not found"
+            exit 1
+          fi
+          echo "Found supabase/migrations/ directory"
+
+      - name: Validate migration file naming & non-empty files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "ERROR: No migration files found in supabase/migrations/"
+            exit 1
+          fi
+
+          echo "Validating ${#files[@]} migration file(s)..."
+          errors=0
+
+          for f in "${files[@]}"; do
+            filename=$(basename "$f")
+
+            # Supabase convention: <14-digit UTC timestamp>_<NNN>_<description>.sql
+            # (NNN is a human-readable sequence label; the timestamp prefix is the
+            # real ordering key, so we don't enforce a gap-free NNN sequence here.)
+            # An optional single lowercase letter suffix (e.g. 046b) is allowed for
+            # follow-up migrations slotted between two existing sequence numbers.
+            if [[ ! "$filename" =~ ^[0-9]{14}_[0-9]{3}[a-z]?_.+\.sql$ ]]; then
+              echo "  FAIL: bad name — '$filename' (expected <timestamp>_NNN[x]_description.sql)"
+              ((errors++)) || true
+              continue
+            fi
+
+            if [ ! -s "$f" ]; then
+              echo "  FAIL: empty file — '$filename'"
+              ((errors++)) || true
+              continue
+            fi
+
+            echo "  OK: $filename"
+          done
+
+          if [ "$errors" -gt 0 ]; then
+            echo ""
+            echo "Migration check failed with $errors error(s)"
+            exit 1
+          fi
+
+          echo ""
+          echo "All ${#files[@]} migration(s) passed"
+
+      - name: Detect destructive SQL (informational)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Scanning for destructive SQL patterns..."
+
+          # Patterns that could cause data loss — warn but don't block
+          WARN_PATTERNS=(
+            'DROP TABLE'
+            'DROP SCHEMA'
+            'TRUNCATE TABLE'
+            'DROP DATABASE'
+          )
+
+          for pattern in "${WARN_PATTERNS[@]}"; do
+            matches=$(grep -rn --include="*.sql" -i "$pattern" supabase/migrations/ || true)
+            if [ -n "$matches" ]; then
+              echo "  WARN ($pattern):"
+              echo "$matches" | sed 's/^/    /'
+            fi
+          done
+          echo "Scan complete"
+
+      - name: Verify cron job-queue migration exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          matches=(supabase/migrations/*_job_queue.sql)
+          if [ ${#matches[@]} -eq 0 ]; then
+            echo "ERROR: no *_job_queue.sql migration found in supabase/migrations/"
+            echo "Run: supabase db push to apply the job queue schema"
+            exit 1
+          fi
+          echo "OK: job-queue migration present — ${matches[*]}"
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  4. CRON & API CONTRACT CHECKS                                         ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  api-contracts:
+    name: API Contract Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Verify /api/cron route (POST handler + CRON_SECRET auth)
+        run: |
+          set -euo pipefail
+
+          FILE="app/api/cron/route.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: $FILE not found"
+            exit 1
+          fi
+          if ! grep -q "export async function POST" "$FILE"; then
+            echo "ERROR: $FILE must export a POST handler"
+            exit 1
+          fi
+          if ! grep -q "CRON_SECRET" "$FILE"; then
+            echo "ERROR: $FILE must validate CRON_SECRET"
+            exit 1
+          fi
+          echo "OK: /api/cron — POST handler and CRON_SECRET check present"
+
+      - name: Verify /api/health route (GET handler)
+        run: |
+          set -euo pipefail
+
+          FILE="app/api/health/route.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: $FILE not found"
+            exit 1
+          fi
+          if ! grep -q "export async function GET" "$FILE"; then
+            echo "ERROR: $FILE must export a GET handler"
+            exit 1
+          fi
+          echo "OK: /api/health — GET handler present"
+
+      - name: Verify proxy middleware protects API routes
+        run: |
+          set -euo pipefail
+
+          # Next.js 16 renamed the root `middleware.ts` convention to `proxy.ts`.
+          FILE="proxy.ts"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: proxy.ts not found"
+            exit 1
+          fi
+          if ! grep -q "JWT_SECRET" "$FILE"; then
+            echo "ERROR: proxy.ts must validate JWT_SECRET"
+            exit 1
+          fi
+          echo "OK: proxy.ts — JWT protection present"
+
+      - name: Verify no Vercel cron in vercel.json
+        run: |
+          set -euo pipefail
+
+          if [ -f "vercel.json" ]; then
+            if grep -q '"crons"' vercel.json; then
+              echo "ERROR: vercel.json still contains 'crons' — this fails on Vercel Hobby plan"
+              echo "Remove the crons key and use Supabase pg_cron instead"
+              exit 1
+            fi
+          fi
+          echo "OK: vercel.json has no cron configuration"
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  5. TENANT-ISOLATION INTEGRATION TESTS — real Postgres                 ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  # OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — auth/tenant-isolation
+  # coverage for the highest-risk routes (payments, disbursements, admin),
+  # run against a real Postgres instance. The app's DB role has BYPASSRLS
+  # (§4 of the audit), so the hand-written `WHERE group_id = ...` clauses in
+  # service code ARE the entire tenant-isolation boundary — a mocked DB
+  # can't prove Postgres would actually block a cross-tenant row, only a
+  # real query against real rows can.
+  db-integration:
+    name: Tenant Isolation (integration)
+    runs-on: ubuntu-latest
+
+    # Overrides the workflow-level NODE_ENV/DATABASE_URL (both set above for
+    # the fake-DB unit-test/build steps): lib/db/index.ts's SSL logic forces
+    # rejectUnauthorized when NODE_ENV=production, which would break against
+    # this job's non-TLS local Postgres service container.
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://kitabuyetu:ci_test_pw@localhost:5432/kitabuyetu
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kitabuyetu
+          POSTGRES_PASSWORD: ci_test_pw
+          POSTGRES_DB: kitabuyetu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      # Several migrations GRANT/REVOKE against Supabase's built-in
+      # anon/authenticated/service_role roles (RLS policy targets) — real
+      # Supabase projects provision these automatically, but a plain
+      # postgres:17-alpine image doesn't. Same script docker-compose.yml uses
+      # locally (see scripts/docker-init/00-bootstrap-roles.sql).
+      - name: Bootstrap Supabase roles
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci_test_pw
+          psql -h localhost -U kitabuyetu -d kitabuyetu -v ON_ERROR_STOP=1 \
+            -f scripts/docker-init/00-bootstrap-roles.sql
+
+      # Mirrors docker-compose.yml's docker-entrypoint-initdb.d behaviour:
+      # apply every migration file in filename (timestamp-prefixed) order.
+      - name: Apply migrations
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci_test_pw
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "Applying $(basename "$f")"
+            psql -h localhost -U kitabuyetu -d kitabuyetu -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Test (tenant isolation, real Postgres)
+        run: npm run test:integration
+
+      # ── ADR-001 Phase 1 CI pre-flight (docs/adr/001-bypassrls-two-role-split.md) ──
+      # Runs the actual production provisioning script, unmodified in
+      # substance, against this job's disposable Postgres. Two substitutions
+      # only: the CI database is named `kitabuyetu` (Supabase's is always
+      # literally `postgres`), and a CI-only placeholder password replaces the
+      # script's own placeholder — same convention as this job's `ci_test_pw`
+      # above.
+      - name: Provision app_tenant role (CI Postgres)
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci_test_pw
+          sed \
+            -e "s/REPLACE_ME_BEFORE_RUNNING/ci_app_tenant_pw/" \
+            -e "s/DATABASE postgres/DATABASE kitabuyetu/" \
+            scripts/ops/create-app-tenant-role.sql \
+            | psql -h localhost -U kitabuyetu -d kitabuyetu -v ON_ERROR_STOP=1
+
+      # Functional-parity pass — the exact same suite as "Test (tenant
+      # isolation, real Postgres)" above, re-run with TENANT_DATABASE_URL now
+      # pointed at app_tenant's CI connection string. lib/db/index.ts routes
+      # withDb()/withTransaction() through it automatically once set, so this
+      # requires zero test changes — it proves the app's real request paths
+      # still work correctly under the least-privileged role.
+      - name: Test (tenant isolation, real Postgres, under app_tenant)
+        env:
+          TENANT_DATABASE_URL: postgresql://app_tenant:ci_app_tenant_pw@localhost:5432/kitabuyetu
+        run: npm run test:integration
+
+      # The actual point of the two-role split: proves Postgres's own RLS
+      # policy — not a service-layer WHERE clause — is what filters
+      # cross-tenant rows. Runs only here, on the app_tenant connection; the
+      # plain step above never exercises this (see jest.integration.config.ts's
+      # testPathIgnorePatterns).
+      - name: Test (RLS enforcement proof, app_tenant role)
+        env:
+          TENANT_DATABASE_URL: postgresql://app_tenant:ci_app_tenant_pw@localhost:5432/kitabuyetu
+        run: npm run test:integration:app-tenant
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  6. DEPLOY — Vercel production (main branch only)                      ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  deploy:
+    name: Deploy → Vercel Production
+    needs: [quality, security, migrations, api-contracts, db-integration]
+    runs-on: ubuntu-latest
+
+    # Only deploy when a commit lands on main (not on PRs)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    # Ties this job to the "production" environment in GitHub
+    # (Dashboard → Settings → Environments → production)
+    # Enables required reviewers, protection rules, and the deployment log.
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.deployment_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      # Pull Vercel project settings (creates .vercel/project.json)
+      - name: Pull Vercel project settings
+        run: |
+          vercel pull --yes \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --environment=production
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Deploy to production — Vercel reads env vars from the dashboard
+      - name: Deploy to Vercel production
+        id: deploy
+        run: |
+          set -euo pipefail
+
+          # Vercel prints the deployment URL to stdout; progress/status lines
+          # (e.g. "✓ Ready in 3m") go to stderr. Capture stdout ONLY — merging
+          # 2>&1 would let `tail -1` grab a progress line instead of the URL.
+          url=$(vercel deploy --prod \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --yes | tail -1)
+
+          # Guard: fail loudly if we didn't capture a real URL, rather than
+          # letting downstream smoke tests curl a garbage host.
+          if [[ "$url" != https://* ]]; then
+            echo "ERROR: deploy did not return a valid URL (got: '$url')"
+            exit 1
+          fi
+
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $url"
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # ── Smoke tests ─────────────────────────────────────────────────────────
+      # Hit the production alias (NEXT_PUBLIC_APP_URL), NOT the per-deployment
+      # *.vercel.app URL. The deployment URL is gated by Vercel Deployment
+      # Protection and returns 401 to unauthenticated CI requests; the
+      # production domain is public. `vercel deploy --prod` updates this alias
+      # atomically before returning, so it already points at this deployment.
+      - name: Smoke test — /api/health
+        run: |
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
+          echo "Smoke testing $BASE ..."
+
+          # Retry up to 6 times (Vercel cold start can take ~5 s)
+          for attempt in 1 2 3 4 5 6; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 \
+              "$BASE/api/health" || echo "000")
+
+            if [ "$status" = "200" ]; then
+              echo "OK: /api/health returned $status (attempt $attempt)"
+              break
+            fi
+
+            if [ "$attempt" = "6" ]; then
+              echo "FAIL: /api/health returned $status after $attempt attempts"
+              exit 1
+            fi
+
+            echo "  attempt $attempt: status=$status — retrying in 10 s..."
+            sleep 10
+          done
+
+      - name: Smoke test — /api/v1/groups (public endpoint)
+        run: |
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            "$BASE/api/v1/groups" || echo "000")
+
+          if [ "$status" = "200" ] || [ "$status" = "304" ]; then
+            echo "OK: /api/v1/groups returned $status"
+          else
+            echo "WARN: /api/v1/groups returned $status (expected 200/304)"
+            # Non-fatal — groups endpoint may need DB to be seeded
+          fi
+
+      - name: Smoke test — landing page renders
+        run: |
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            "$BASE/" || echo "000")
+
+          if [ "$status" = "200" ] || [ "$status" = "304" ]; then
+            echo "OK: / returned $status"
+          else
+            echo "FAIL: Landing page returned $status"
+            exit 1
+          fi
+
+      - name: Smoke test — /api/cron rejects unauthenticated requests
+        run: |
+          BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            -X POST \
+            "$BASE/api/cron" || echo "000")
+
+          if [ "$status" = "401" ]; then
+            echo "OK: /api/cron correctly returned 401 (Unauthorized) without token"
+          else
+            echo "FAIL: /api/cron should return 401 without auth — got $status"
+            exit 1
+          fi
+
+      - name: Report deployment URL
+        run: |
+          echo "### Deployment successful" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** ${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Deployed at:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+

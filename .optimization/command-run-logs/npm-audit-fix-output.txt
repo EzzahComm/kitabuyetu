@@ -1,0 +1,35 @@
+
+added 8 packages, removed 1 package, changed 25 packages, and audited 1091 packages in 2m
+
+233 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+csv-parse  <7.0.2
+Severity: moderate
+node-csv: Prototype replacement still reachable via columns path - https://github.com/advisories/GHSA-8cw4-87c7-c6xx
+fix available via `npm audit fix --force`
+Will install csv-parse@7.0.2, which is a breaking change
+node_modules/csv-parse
+
+esbuild  0.27.3 - 0.28.0
+esbuild allows arbitrary file read when running the development server on Windows - https://github.com/advisories/GHSA-g7r4-m6w7-qqqr
+fix available via `npm audit fix`
+node_modules/esbuild
+
+sharp  <=0.35.4-rc.0
+Severity: high
+sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 - https://github.com/advisories/GHSA-f88m-g3jw-g9cj
+sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545 - https://github.com/advisories/GHSA-rgj7-g3m4-5g8c
+fix available via `npm audit fix --force`
+Will install sharp@0.35.4, which is a breaking change
+node_modules/sharp
+
+3 vulnerabilities (1 low, 1 moderate, 1 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force

@@ -1,0 +1,10 @@
+{
+  "//": "Typechecks the test suite, which tsconfig.json deliberately excludes (see its `exclude`). Not part of the build — run with: npx tsc -p tsconfig.tests.json",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["__tests__/**/*.ts", "__tests__/**/*.tsx", "lib/**/*.ts", "types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,1089 @@
+
+> kitabuyetu@0.1.0 lint
+> eslint .
+
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\20260909-133206\framework\next.config.js
+  1:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\__tests__\unit\services\daraja-callback-token.test.ts
+  35:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  41:38  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  50:38  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  60:38  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\next.config.js
+  1:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\_tmp-watch-discount-sms.ts
+  29:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  33:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  34:29  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  38:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  39:29  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\allocate-capital-point-unrouted.ts
+  57:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  60:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  76:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  80:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\backfill-member-welcome-sms.ts
+   68:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   72:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   74:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   78:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   82:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  105:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  108:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  112:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\backfill-uncredited-sms-topups.ts
+  60:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  64:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  66:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  73:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  81:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  85:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\dismiss-duplicate-unrouted-c2b-echoes.ts
+  50:17  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  51:25  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  53:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  61:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  64:15  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\generate-icons.ts
+  12:17  warning  'writeFile' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  75:3   warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\invalidate-refresh-tokens.ts
+  43:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  44:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  45:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  60:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  61:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\ops\apply-migration.ts
+  51:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  56:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  57:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  58:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  70:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\rebuild-payment-accounts.ts
+   77:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   78:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   79:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   80:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   83:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   87:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+   92:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  105:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\replay-mpesa-callbacks.ts
+  19:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\resolve-last-2-unrouted.ts
+  43:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  53:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  56:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  60:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  70:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  73:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  76:15  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\send-fionas-disbursement-sms.ts
+  76:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  89:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  92:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\scripts\send-fionas-loan-correction-sms.ts
+  71:7  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  77:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  80:3  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\bookkeeper\page.tsx
+  14:10  warning  'Hero' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\chama-reminder\page.tsx
+  5:3  warning  'IconCalendarDot' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  7:3  warning  'IconPhone' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\finance\reports\page.tsx
+  10:10  warning  'selectedMonth' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  10:25  warning  'setSelectedMonth' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\finance\transactions\page.tsx
+   4:10  warning  'IconFilter' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  95:37  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\loans\page.tsx
+    4:20  warning  'IconTrendingDown' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   23:52  error    Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+   91:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error   no-console
+   97:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error   no-console
+  137:38  error    Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\members\page.tsx
+  78:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\page.tsx
+  18:3  warning  'StatCard' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  27:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\dashboard\savings\page.tsx
+  3:10  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\enterprise\page.tsx
+  5:3  warning  'IconCircleCheck' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:3  warning  'IconShieldCheck' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\fundraise\page.tsx
+   7:3   warning  'IconUsers' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   8:3   warning  'IconGift' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  17:10  warning  'signUpUrl' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\app\pricing\page.tsx
+  3:10  warning  'Pricing' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\Benefits.tsx
+  12:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\ContactForm.tsx
+  22:33  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  42:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\DarkSwitch.tsx
+  10:19  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\DarkSwitch.tsx:10:19
+   8 |
+   9 |   // When mounted on client, now we can show the UI
+> 10 |   useEffect(() => setMounted(true), []);
+     |                   ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  11 |
+  12 |   if (!mounted) return null;
+  13 |  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\Faq.tsx
+  11:29  warning  'index' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\Navbar.tsx
+  37:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\Navbar.tsx:37:5
+  35 |   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  36 |   useEffect(() => {
+> 37 |     setOpenMenu(null);
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  38 |   }, [pathname]);
+  39 |
+  40 |   return (  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\PopupWidget.tsx
+  27:33  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  27:41  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  28:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  38:13  error    'json' is never reassigned. Use 'const' instead                                    prefer-const
+  52:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\ThemeToggle.tsx
+  16:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\ThemeToggle.tsx:16:5
+  14 |   // Prevent hydration mismatch
+  15 |   useEffect(() => {
+> 16 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  17 |   }, []);
+  18 |
+  19 |   if (!mounted) return null;  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\Toast.tsx
+   16:11  warning  'ToastContextType' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   33:9   warning  'addToast' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  140:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error    no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\AdvancedDataTable.tsx
+  11:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\DataTable.tsx
+   6:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   6:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\DeleteConfirmationDialog.tsx
+   3:10  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   6:10  warning  'Button' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+  31:3   warning  'isDangerous' is assigned a value but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\FormField.tsx
+  2:10  warning  'Input' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx
+   39:31  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+   90:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:90:18
+  88 |               </p>
+  89 |               <div className="space-y-1">
+> 90 |                 <NavLink href="/dashboard" icon={IconHome} label="Dashboard" />
+     |                  ^^^^^^^ This component is created during render
+  91 |                 <NavLink
+  92 |                   href="/dashboard/notifications"
+  93 |                   icon={IconBell}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                      react-hooks/static-components
+   91:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:91:18
+  89 |               <div className="space-y-1">
+  90 |                 <NavLink href="/dashboard" icon={IconHome} label="Dashboard" />
+> 91 |                 <NavLink
+     |                  ^^^^^^^ This component is created during render
+  92 |                   href="/dashboard/notifications"
+  93 |                   icon={IconBell}
+  94 |                   label="Notifications"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                 react-hooks/static-components
+  105:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:105:18
+  103 |               </p>
+  104 |               <div className="space-y-1">
+> 105 |                 <NavLink href="/dashboard/members" icon={IconUsers} label="Members" />
+      |                  ^^^^^^^ This component is created during render
+  106 |                 <NavLink
+  107 |                   href="/dashboard/contributions"
+  108 |                   icon={IconCoin}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                       react-hooks/static-components
+  106:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:106:18
+  104 |               <div className="space-y-1">
+  105 |                 <NavLink href="/dashboard/members" icon={IconUsers} label="Members" />
+> 106 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  107 |                   href="/dashboard/contributions"
+  108 |                   icon={IconCoin}
+  109 |                   label="Contributions"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>  react-hooks/static-components
+  111:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:111:18
+  109 |                   label="Contributions"
+  110 |                 />
+> 111 |                 <NavLink href="/dashboard/savings" icon={IconPigMoney} label="Savings" />
+      |                  ^^^^^^^ This component is created during render
+  112 |                 <NavLink
+  113 |                   href="/dashboard/loans"
+  114 |                   icon={IconBriefcase}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                         react-hooks/static-components
+  112:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:112:18
+  110 |                 />
+  111 |                 <NavLink href="/dashboard/savings" icon={IconPigMoney} label="Savings" />
+> 112 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  113 |                   href="/dashboard/loans"
+  114 |                   icon={IconBriefcase}
+  115 |                   label="Loans"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                 react-hooks/static-components
+  126:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:126:18
+  124 |               </p>
+  125 |               <div className="space-y-1">
+> 126 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  127 |                   href="/dashboard/finance/transactions"
+  128 |                   icon={IconCalculator}
+  129 |                   label="Transactions"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                          react-hooks/static-components
+  131:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:131:18
+  129 |                   label="Transactions"
+  130 |                 />
+> 131 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  132 |                   href="/dashboard/finance/reports"
+  133 |                   icon={IconFileText}
+  134 |                   label="Reports"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                                         react-hooks/static-components
+  145:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:145:18
+  143 |               </p>
+  144 |               <div className="space-y-1">
+> 145 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  146 |                   href="/dashboard/settings"
+  147 |                   icon={IconSettings}
+  148 |                   label="Settings"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                                            react-hooks/static-components
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\modals\EditLoanModal.tsx
+  34:3  warning  'loanId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  54:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\modals\EditLoanModal.tsx:54:7
+  52 |   useEffect(() => {
+  53 |     if (isOpen && initialData) {
+> 54 |       setFormData(initialData);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  55 |       setErrors({});
+  56 |     }
+  57 |   }, [isOpen, initialData]);  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\modals\EditMemberModal.tsx
+  37:3  warning  'memberId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  60:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\components\dashboard\modals\EditMemberModal.tsx:60:7
+  58 |   useEffect(() => {
+  59 |     if (isOpen && initialData) {
+> 60 |       setFormData(initialData);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  61 |       setErrors({});
+  62 |     }
+  63 |   }, [isOpen, initialData]);  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\hooks\useApi.ts
+    2:10  warning  'apiClient' is defined but never used. Allowed unused vars must match /^_/u                                                                                           @typescript-eslint/no-unused-vars
+    2:26  warning  'endpoints' is defined but never used. Allowed unused vars must match /^_/u                                                                                           @typescript-eslint/no-unused-vars
+   21:28  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   29:35  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   94:30  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   95:26  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   96:17  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+  103:6   warning  React Hook useEffect was passed a dependency list that is not an array literal. This means we can't statically verify whether you've passed the correct dependencies  react-hooks/exhaustive-deps
+  103:6   warning  React Hook useEffect has missing dependencies: 'api' and 'fetchFn'. Either include them or remove the dependency array                                                react-hooks/exhaustive-deps
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\services\api.ts
+   38:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\types.ts
+  5:17  error  The `{}` ("empty object") type allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowObjectTypes' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\utils\export.ts
+  11:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\.optimization\applied-20260909-143047\backup\src\utils\performance.ts
+   10:46  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   10:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   33:46  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   33:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   62:45  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   62:55  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   84:16  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   94:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   94:66  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  103:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  198:3   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\bookkeeper\page.tsx
+  14:10  warning  'Hero' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\chama-reminder\page.tsx
+  5:3  warning  'IconCalendarDot' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  7:3  warning  'IconPhone' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\finance\reports\page.tsx
+  10:10  warning  'selectedMonth' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  10:25  warning  'setSelectedMonth' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\finance\transactions\page.tsx
+   4:10  warning  'IconFilter' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  95:37  error    Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\loans\page.tsx
+    4:20  warning  'IconTrendingDown' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   23:52  error    Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+   91:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error   no-console
+   97:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error   no-console
+  137:38  error    Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\members\page.tsx
+  78:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\page.tsx
+  18:3  warning  'StatCard' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  27:5  warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\dashboard\savings\page.tsx
+  3:10  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\enterprise\page.tsx
+  5:3  warning  'IconCircleCheck' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:3  warning  'IconShieldCheck' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\fundraise\page.tsx
+   7:3   warning  'IconUsers' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   8:3   warning  'IconGift' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  17:10  warning  'signUpUrl' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\app\pricing\page.tsx
+  3:10  warning  'Pricing' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\Benefits.tsx
+  12:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\ContactForm.tsx
+  22:33  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  42:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\DarkSwitch.tsx
+  10:19  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\DarkSwitch.tsx:10:19
+   8 |
+   9 |   // When mounted on client, now we can show the UI
+> 10 |   useEffect(() => setMounted(true), []);
+     |                   ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  11 |
+  12 |   if (!mounted) return null;
+  13 |  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\Faq.tsx
+  11:29  warning  'index' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\Navbar.tsx
+  37:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\Navbar.tsx:37:5
+  35 |   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  36 |   useEffect(() => {
+> 37 |     setOpenMenu(null);
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  38 |   }, [pathname]);
+  39 |
+  40 |   return (  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\PopupWidget.tsx
+  27:33  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  27:41  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  28:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  38:13  error    'json' is never reassigned. Use 'const' instead                                    prefer-const
+  52:9   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\ThemeToggle.tsx
+  16:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\ThemeToggle.tsx:16:5
+  14 |   // Prevent hydration mismatch
+  15 |   useEffect(() => {
+> 16 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  17 |   }, []);
+  18 |
+  19 |   if (!mounted) return null;  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\Toast.tsx
+   16:11  warning  'ToastContextType' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   33:9   warning  'addToast' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  140:7   warning  Unexpected console statement. Only these console methods are allowed: warn, error    no-console
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\AdvancedDataTable.tsx
+  11:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\DataTable.tsx
+   6:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   6:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\DeleteConfirmationDialog.tsx
+   3:10  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   6:10  warning  'Button' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+  31:3   warning  'isDangerous' is assigned a value but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\FormField.tsx
+  2:10  warning  'Input' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx
+   39:31  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   90:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:90:18
+  88 |               </p>
+  89 |               <div className="space-y-1">
+> 90 |                 <NavLink href="/dashboard" icon={IconHome} label="Dashboard" />
+     |                  ^^^^^^^ This component is created during render
+  91 |                 <NavLink
+  92 |                   href="/dashboard/notifications"
+  93 |                   icon={IconBell}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                      react-hooks/static-components
+   91:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:91:18
+  89 |               <div className="space-y-1">
+  90 |                 <NavLink href="/dashboard" icon={IconHome} label="Dashboard" />
+> 91 |                 <NavLink
+     |                  ^^^^^^^ This component is created during render
+  92 |                   href="/dashboard/notifications"
+  93 |                   icon={IconBell}
+  94 |                   label="Notifications"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                 react-hooks/static-components
+  105:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:105:18
+  103 |               </p>
+  104 |               <div className="space-y-1">
+> 105 |                 <NavLink href="/dashboard/members" icon={IconUsers} label="Members" />
+      |                  ^^^^^^^ This component is created during render
+  106 |                 <NavLink
+  107 |                   href="/dashboard/contributions"
+  108 |                   icon={IconCoin}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                       react-hooks/static-components
+  106:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:106:18
+  104 |               <div className="space-y-1">
+  105 |                 <NavLink href="/dashboard/members" icon={IconUsers} label="Members" />
+> 106 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  107 |                   href="/dashboard/contributions"
+  108 |                   icon={IconCoin}
+  109 |                   label="Contributions"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>  react-hooks/static-components
+  111:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:111:18
+  109 |                   label="Contributions"
+  110 |                 />
+> 111 |                 <NavLink href="/dashboard/savings" icon={IconPigMoney} label="Savings" />
+      |                  ^^^^^^^ This component is created during render
+  112 |                 <NavLink
+  113 |                   href="/dashboard/loans"
+  114 |                   icon={IconBriefcase}
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                         react-hooks/static-components
+  112:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:112:18
+  110 |                 />
+  111 |                 <NavLink href="/dashboard/savings" icon={IconPigMoney} label="Savings" />
+> 112 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  113 |                   href="/dashboard/loans"
+  114 |                   icon={IconBriefcase}
+  115 |                   label="Loans"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                 react-hooks/static-components
+  126:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:126:18
+  124 |               </p>
+  125 |               <div className="space-y-1">
+> 126 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  127 |                   href="/dashboard/finance/transactions"
+  128 |                   icon={IconCalculator}
+  129 |                   label="Transactions"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                          react-hooks/static-components
+  131:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:131:18
+  129 |                   label="Transactions"
+  130 |                 />
+> 131 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  132 |                   href="/dashboard/finance/reports"
+  133 |                   icon={IconFileText}
+  134 |                   label="Reports"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                                         react-hooks/static-components
+  145:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:145:18
+  143 |               </p>
+  144 |               <div className="space-y-1">
+> 145 |                 <NavLink
+      |                  ^^^^^^^ This component is created during render
+  146 |                   href="/dashboard/settings"
+  147 |                   icon={IconSettings}
+  148 |                   label="Settings"
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\Sidebar.tsx:33:19
+  31 |   const isActive = (href: string) => pathname.startsWith(href);
+  32 |
+> 33 |   const NavLink = ({
+     |                   ^^
+> 34 |     href,
+     | ^^^^^^^^^
+> 35 |     icon: Icon,
+     ΓÇª
+     | ^^^^^^^^^
+> 56 |     );
+     | ^^^^^^^^^
+> 57 |   };
+     | ^^^^ The component is created during render here
+  58 |
+  59 |   return (
+  60 |     <>                                                                            react-hooks/static-components
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\modals\EditLoanModal.tsx
+  34:3  warning  'loanId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  54:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\modals\EditLoanModal.tsx:54:7
+  52 |   useEffect(() => {
+  53 |     if (isOpen && initialData) {
+> 54 |       setFormData(initialData);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  55 |       setErrors({});
+  56 |     }
+  57 |   }, [isOpen, initialData]);  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\modals\EditMemberModal.tsx
+  37:3  warning  'memberId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  60:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\components\dashboard\modals\EditMemberModal.tsx:60:7
+  58 |   useEffect(() => {
+  59 |     if (isOpen && initialData) {
+> 60 |       setFormData(initialData);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  61 |       setErrors({});
+  62 |     }
+  63 |   }, [isOpen, initialData]);  react-hooks/set-state-in-effect
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\hooks\useApi.ts
+    2:10  warning  'apiClient' is defined but never used. Allowed unused vars must match /^_/u                                                                                           @typescript-eslint/no-unused-vars
+    2:26  warning  'endpoints' is defined but never used. Allowed unused vars must match /^_/u                                                                                           @typescript-eslint/no-unused-vars
+   21:28  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   29:35  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   94:30  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   95:26  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+   96:17  error    Unexpected any. Specify a different type                                                                                                                              @typescript-eslint/no-explicit-any
+  103:6   warning  React Hook useEffect was passed a dependency list that is not an array literal. This means we can't statically verify whether you've passed the correct dependencies  react-hooks/exhaustive-deps
+  103:6   warning  React Hook useEffect has missing dependencies: 'api' and 'fetchFn'. Either include them or remove the dependency array                                                react-hooks/exhaustive-deps
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\services\api.ts
+   38:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\types.ts
+  5:17  error  The `{}` ("empty object") type allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowObjectTypes' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\utils\export.ts
+  11:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Claude\Projects\KITABU YETU\kitabuyetu\src\utils\performance.ts
+   10:46  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   10:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   33:46  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   33:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   62:45  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   62:55  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   84:16  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   94:56  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+   94:66  error    Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  103:5   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+  198:3   warning  Unexpected console statement. Only these console methods are allowed: warn, error  no-console
+
+Γ£û 246 problems (108 errors, 138 warnings)
+  2 errors and 1 warning potentially fixable with the `--fix` option.
+
+

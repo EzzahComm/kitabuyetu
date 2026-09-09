@@ -1,0 +1,8 @@
+{
+  "Detected": true,
+  "Config": "next.config.js",
+  "AppDirectory": true,
+  "PagesDirectory": false,
+  "NextVersion": "^16.2.6",
+  "TypeScript": true
+}

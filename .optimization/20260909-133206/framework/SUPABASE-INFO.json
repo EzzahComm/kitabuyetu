@@ -1,0 +1,10 @@
+{
+  "Detected": true,
+  "Directory": true,
+  "Migrations": 188,
+  "Functions": 0,
+  "ConfigFiles": [
+    "config.toml"
+  ],
+  "ClientReferences": 0
+}

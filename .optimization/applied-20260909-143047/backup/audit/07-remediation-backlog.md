@@ -1,0 +1,109 @@
+# 07 — Remediation Backlog
+
+Consolidated from `02`–`05`. Ordered by severity, then by the brief's own stated priority (RLS
+and M-Pesa reconciliation first). None of these have been fixed yet — each needs either a product
+decision, a live-environment check the repo alone can't answer, or a schema change on a
+money-movement table that this audit's own rules (see `06-fix-log.md`) require verifying against
+a scratch DB first, not shipping from a static read.
+
+## BLOCKER (deployment-readiness gate, see bottom of this file)
+
+**None found that would already be silently broken in production.** The one item that *could*
+be a blocker (item 1 below) can't be resolved by reading the repo — it requires checking the live
+hosting environment's variables, which this audit had no access to.
+
+## Critical
+
+1. ~~**Confirm whether `TENANT_DATABASE_URL` is provisioned in production.**~~ **Resolved
+   2026-07-27**: confirmed via authenticated `vercel env ls production` — it is **not** set in
+   either Production or Preview (only `DATABASE_URL` exists). Tenant traffic runs 100% on
+   hand-written `WHERE group_id` predicates today; RLS is confirmed inert schema decoration in
+   production. See `docs/adr/001-bypassrls-two-role-split.md`'s "Phase 1 CI verification"
+   section — the `db-integration` CI job now provisions `app_tenant` against a disposable
+   Postgres on every push and proves both functional parity and real RLS-based cross-tenant
+   denial there, continuously. **What remains is the production cutover itself** (run
+   `scripts/ops/create-app-tenant-role.sql` against production, set `TENANT_DATABASE_URL`,
+   canary via Preview first) — that step needs direct production access this audit doesn't have,
+   tracked as the ADR's own "Follow-up (not yet done)" item.
+
+## High
+
+~~2. Add RLS policies to `mpesa_b2c_transactions`, `mpesa_b2b_transactions`, `mpesa_b2c_charge_tiers`.~~
+**RETRACTED — false positive.** All three already have `ENABLE ROW LEVEL SECURITY` and a real
+policy (migration 012's `DO $$ ... EXECUTE format(...) $$` loop for the transactions tables,
+migration 047's literal policy for the charge-tiers table). Found during Phase 6 implementation
+research, before any migration was written — see `02-security-findings.md` §2.2 for the full
+correction and root cause (a static grep can't see policies created inside dynamic SQL, and
+migration 097's own comment had already warned about exactly this blind spot).
+
+## Medium
+
+~~3. Paginate `organizationService.listGroupSummaries()`.~~ **FIXED** (`06-fix-log.md`, 2026-07-27).
+   Added `page`/`limit` (default 200, capped 500), returns `PaginatedResult<T>`. Also fixed a
+   latent bug found in the process: all 3 consuming pages (not just the 2 originally identified —
+   `(enterprise)/enterprise`'s top-5 sort also depends on this endpoint) passed `organizationApi.groups`
+   as a bare `queryFn` reference, which would have silently broken once the function gained a
+   params argument (TanStack Query would pass its own context object instead).
+
+4. **Verify the `journal_lines` partition constraint-trigger cloning against a real Postgres 17 instance.** (`03-data-integrity-findings.md` #1)
+   Pre-existing, carried over from the accounting-audit series — never actually executed against
+   real Postgres due to a sandboxed environment's Docker daemon being unreachable at the time.
+   Approach: spin up Postgres 17 locally/in CI, run migrations 094/095, confirm the constraint
+   trigger fires correctly on at least one non-default partition.
+   Effort: small, but requires an environment this audit pass didn't have.
+
+5. **Run a live ledger-balance reconciliation query.** (`03-data-integrity-findings.md` #2)
+   Approach: sum debits/credits across every group's `journal_lines`, assert zero variance,
+   against staging (or production, read-only) before the next posting-logic deploy.
+   Effort: small (one query), but needs a data environment.
+
+6. **Add a direct test for the registration flow.** (`05-code-quality-findings.md` #1)
+   `register_group()` / `POST /api/v1/auth/register` currently only appears as a test-fixture
+   helper for *other* tests, never as the subject under test — notable given this flow caused a
+   real production incident before ([[project-kitabu-yetu-production-incidents]]).
+   Effort: small-medium (one new integration test file, reusing the existing fixture helper as
+   its own subject rather than just its setup).
+
+~~7. Follow-up grep: second pass for unmasked PII beyond the members-service fix.~~ **FIXED**
+   (`06-fix-log.md`, 2026-07-27). Swept `SELECT \*`/`RETURNING \*` across `lib/services` + `app/api`
+   against every table with a sensitive column (`members`, `person`, `member_mfa_secrets`,
+   `refresh_tokens`) — all clean except `next_of_kin`, where `GET .../next-of-kin` had no role
+   check and returned unmasked `national_id`/`phone`/`email`/`address` to any group member.
+   Restricted to `ROLES.canManageMembers` (chairperson/treasurer/secretary/super_admin), matching
+   the existing POST/PATCH/DELETE gate on the same route, per user sign-off.
+
+8. **No formal down-migration/rollback runbook.** (`03-data-integrity-findings.md` #3)
+   Mitigated in practice by defensive forward-migration discipline (rename-not-drop, backfill-
+   then-constrain) — but no written runbook exists for a true emergency rollback.
+   Approach: a short `docs/` runbook documenting the actual recovery pattern this repo already
+   follows, not a new down-migration-per-migration convention (that would be a much larger,
+   arguably unnecessary process change for a single-environment-per-run Supabase project).
+   Effort: small (documentation only).
+
+## Low
+
+9. Trace the refresh-token rotation/reuse-detection path end-to-end. (`02-security-findings.md` #4)
+10. Verify the 4 nullable `amount` columns are all intentional (1 of 4 already confirmed intentional — `welfare_requests.amount_approved`). (`03-data-integrity-findings.md` #4)
+11. Run `EXPLAIN ANALYZE` against real data volume for the hottest list/report queries. (`04-performance-findings.md` #2)
+12. Re-run a bundle-analyzer pass (`next build --analyze`). (`04-performance-findings.md` #3)
+13. Cross-reference every mutating service function against the Nexus business-event-logging standard. (`05-code-quality-findings.md` #2)
+14. Delete `lib/supabase/client.ts` + `lib/supabase/server.ts` (zero importers) and the three now-unused `NEXT_PUBLIC_SUPABASE_*`/`SUPABASE_SERVICE_ROLE_KEY` env-schema entries. (`01-inventory.md` §5)
+
+---
+
+## Deployment Readiness Gate (per the brief)
+
+| Gate | Status |
+|---|---|
+| Zero Critical/High findings open in `02-security-findings.md` | ⚠️ **1 Critical open (needs a live-env check, not code). The 1 High item was retracted as a false positive during implementation research — zero real High findings remain.** |
+| Cross-tenant isolation test suite passes | ✅ Passes — confirmed running as a required CI job, green on every commit this session |
+| Ledger reconciliation check passes across all test/seed data | ⚠️ **Not run this pass** — no data environment available; the DB-level balance-triggers (item 4 above's subject) provide continuous enforcement, but a standalone reconciliation query wasn't executed |
+| Environment variable audit is clean | ✅ No leaked secrets found; the one open item (`TENANT_DATABASE_URL` provisioning) is a "is this set to the right thing" question, not a leak |
+| Rollback strategy documented for the current migration state | ⚠️ **Partial** — the repo's forward-defensive migration discipline is real and consistently followed, but no written runbook exists (item 8) |
+
+**Bottom line**: nothing found in this pass indicates the platform is silently broken today. The
+gate is not fully green because Critical #1 requires a live-environment check this audit had no
+access to — not something to silently resolve mid-audit. (The one High item found alongside it
+was itself retracted as a false positive before any fix was shipped — see above.) Recommend:
+check `TENANT_DATABASE_URL` in production immediately (near-zero effort, resolves the single
+biggest open question), then decide priority on the rest with that answer in hand.

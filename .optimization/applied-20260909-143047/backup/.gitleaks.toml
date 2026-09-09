@@ -1,0 +1,48 @@
+# Gitleaks configuration for Kitabu Yetu.
+# Auto-loaded by `gitleaks detect --source=.` (CI Secret Scan job).
+#
+# Inherits all of gitleaks' default rules, then allowlists the single
+# publicly-documented Safaricom Daraja SANDBOX passkey. That value is published
+# by Safaricom for every developer to use and carries no real secret — but its
+# 64-char hex entropy trips the generic high-entropy rule. It lives only in the
+# first commit's .env.example; this allowlist keeps history scans green without
+# rewriting history. Real production passkeys live in the Vercel env, never here.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets that trip gitleaks' entropy rules"
+regexes = [
+  # Public Safaricom Daraja SANDBOX passkey — published by Safaricom for every
+  # developer; 64 hex chars, so it trips the high-entropy rule.
+  '''bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919''',
+
+  # CAPITAL POINT CHAMA's groups.id, in scripts/resolve-last-2-unrouted.ts.
+  # A primary-key UUID, not a credential — generic-api-key fires on its hex
+  # entropy alone, with no keyword involved.
+  #
+  # Allowlisted BY VALUE, not by commit, and that distinction matters: this
+  # was first pinned as commit 00fb9136, which worked until PR #121 was
+  # SQUASH-merged and git re-created the same file under a new SHA
+  # (0fc09137). The commit entry silently stopped matching and Secret Scan
+  # began failing on every branch again. A commit-pinned allowlist cannot
+  # survive a squash merge; pin the value instead.
+  '''bcf03d15-9d45-4c69-ad45-5458a726817c''',
+]
+# generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the
+# loan disbursement dialog (app/(dashboard)/loans/[id]/page.tsx:238). The
+# rule pattern-matches any 'X-Key': value shape; "Key" here names the HTTP
+# header per RFC convention (Idempotency-Key), and the value is a client-side
+# crypto.randomUUID() — never a credential. A gitleaks:allow inline comment
+# was added in a later commit, but gitleaks scans each historical commit's
+# own diff, so it doesn't retroactively suppress the introducing commit
+# (d719b41) without rewriting already-pushed history — allowlisted by commit
+# instead.
+#
+# NOTE: prefer `regexes` above over new entries here. A commit hash stops
+# matching the moment that work is squash-merged — see the CAPITAL POINT
+# UUID's note above for the time that broke Secret Scan repo-wide.
+commits = [
+  "d719b41cbdf40e02b693239cee14c11d7e2a08f5",
+]

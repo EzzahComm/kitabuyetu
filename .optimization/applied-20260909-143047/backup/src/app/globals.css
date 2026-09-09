@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface: #fdfcfa;
+    --surface-muted: #f4f7f2;
+    --ink: #0b1220;
+    --ink-muted: #526171;
+    --line: #dfe7e1;
+    --brand: #007004;
+    --brand-strong: #005703;
+  }
+
+  html,
+  body {
+    @apply min-h-full;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  body {
+    @apply antialiased;
+  }
+
+  ::selection {
+    background: #ccffce;
+    color: #002e02;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+
+  .dark {
+    --surface: #101713;
+    --surface-muted: #17231b;
+    --ink: #f3f7f3;
+    --ink-muted: #b5c2b8;
+    --line: #2e4033;
+  }
+}
+
+
+@layer base {
+  /* Anchor targets sit under the fixed navbar (h-16 lg:h-20) without this
+     offset, plus a little breathing room. */
+  :target {
+    scroll-margin-top: 6rem;
+  }
+}
