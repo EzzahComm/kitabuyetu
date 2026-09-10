@@ -26,20 +26,19 @@
       "@/*": [
         "./*"
       ],
-      "@/components/*": [
-        "./components/*"
-      ],
       "@/lib/*": [
         "./lib/*"
       ],
       "@/types/*": [
         "./types/*"
       ],
+      "@/components/*": [
+        "./components/*"
+      ],
       "@/hooks/*": [
         "./hooks/*"
       ]
-    },
-    "baseUrl": "."
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -50,9 +49,11 @@
   ],
   "exclude": [
     "node_modules",
-    ".migration-quarantine",
-    ".migration-backup-*",
-    ".optimization",
-    ".claude"
+    "scripts",
+    "src",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/__tests__/**"
   ]
 }

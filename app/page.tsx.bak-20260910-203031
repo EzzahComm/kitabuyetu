@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
-import { Container } from '@/src/components/Container';
-import { Navbar } from '@/src/components/Navbar';
-import { Footer } from '@/src/components/Footer';
-import { Hero } from '@/src/components/Hero';
-import { SectionTitle } from '@/src/components/SectionTitle';
-import { Benefits } from '@/src/components/Benefits';
-import { Video } from '@/src/components/Video';
-import { Testimonials } from '@/src/components/Testimonials';
-import { Pricing } from '@/src/components/Pricing';
-import { Faq } from '@/src/components/Faq';
-import { Cta } from '@/src/components/Cta';
-import { benefitOne, benefitTwo } from '@/src/components/data';
+import { Container } from '@/components/marketing/nextly/Container';
+import { Navbar } from '@/components/marketing/nextly/Navbar';
+import { Footer } from '@/components/marketing/nextly/Footer';
+import { Hero } from '@/components/marketing/nextly/Hero';
+import { SectionTitle } from '@/components/marketing/nextly/SectionTitle';
+import { Benefits } from '@/components/marketing/nextly/Benefits';
+import { Video } from '@/components/marketing/nextly/Video';
+import { Testimonials } from '@/components/marketing/nextly/Testimonials';
+import { Pricing } from '@/components/marketing/nextly/Pricing';
+import { Faq } from '@/components/marketing/nextly/Faq';
+import { Cta } from '@/components/marketing/nextly/Cta';
+import { benefitOne, benefitTwo } from '@/components/marketing/nextly/data';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app';

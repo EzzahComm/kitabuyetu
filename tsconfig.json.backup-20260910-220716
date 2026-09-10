@@ -22,37 +22,38 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
-      ],
-      "@/components/*": [
-        "./components/*"
+        "./src/*"
       ],
       "@/lib/*": [
-        "./lib/*"
+        "./src/lib/*"
       ],
       "@/types/*": [
-        "./types/*"
+        "./src/types/*"
+      ],
+      "@/components/*": [
+        "./src/components/*"
       ],
       "@/hooks/*": [
-        "./hooks/*"
+        "./src/hooks/*"
       ]
-    },
-    "baseUrl": "."
+    }
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    ".migration-quarantine",
-    ".migration-backup-*",
-    ".optimization",
-    ".claude"
+    "scripts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/__tests__/**"
   ]
 }
