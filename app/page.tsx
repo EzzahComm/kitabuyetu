@@ -36,7 +36,7 @@ const Emphasis = ({ children }: { children: React.ReactNode }) => (
 export default function Home() {
   return (
     <>
-      <SiteHeader transparent />
+      <SiteHeader variant="overlay" />
 
       <Hero />
 
@@ -200,3 +200,4 @@ const ecosystem = {
     href: "/ecosystem",
   },
 };
+
