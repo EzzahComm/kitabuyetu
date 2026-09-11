@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { Modal } from "./Modal";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface DeleteConfirmationDialogProps {
   isOpen: boolean;

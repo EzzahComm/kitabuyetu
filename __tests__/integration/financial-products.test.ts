@@ -48,7 +48,7 @@ describe('financial products', () => {
     interestRateAnnual: 12.5,
     repaymentFrequency: 'monthly' as const,
     tenorMonths: 12,
-    repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] as const },
+    repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] as Array<'penalty' | 'interest' | 'principal'> },
   };
 
   describe('§1 reference scenario — EZZAHCOMM Seed Capital', () => {

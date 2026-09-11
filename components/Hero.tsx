@@ -12,10 +12,10 @@ import {
 } from "framer-motion";
 import { Container } from "@/components/Container";
 import { signUpUrl } from "@/lib/app-links";
-import bookkeeperImg from "../../public/img/bookkeeper.jpg";
-import chamaReminderImg from "../../public/img/chama-reminder.jpg";
-import fundraiseImg from "../../public/img/fundraise.jpg";
-import enterpriseImg from "../../public/img/enterprise.jpg";
+const bookkeeperImg = "/img/bookkeeper.jpg";
+const chamaReminderImg = "/img/chama-reminder.jpg";
+const fundraiseImg = "/img/fundraise.jpg";
+const enterpriseImg = "/img/enterprise.jpg";
 
 /**
  * The four product pillars rotate through the home hero so the platform is
@@ -171,8 +171,8 @@ export const Hero = () => {
                   className="col-start-1 row-start-1 aspect-[4/3]">
                 <Image
                   src={current.image}
-                  width={current.image.width}
-                  height={current.image.height}
+                  width={1200}
+                  height={800}
                   className="h-full w-full object-cover"
                   sizes="(max-width: 1023px) 100vw, 48vw"
                   alt={current.imageAlt}
@@ -202,3 +202,5 @@ export const Hero = () => {
     </LazyMotion>
   );
 };
+
+

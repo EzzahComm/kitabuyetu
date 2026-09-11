@@ -5,6 +5,7 @@
  * bucket) and that per-group settled-spend breakdowns land in the right bucket.
  */
 import { withDb } from '@/lib/db';
+import type { TenantContext } from '@/lib/db';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 
 jest.mock('@/lib/db', () => ({
@@ -29,7 +30,7 @@ beforeEach(() => {
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
 });
 
-const ctx = { groupId: null, userId: 'coord-1', role: 'organization_coordinator', organizationId: 'org-1' };
+const ctx = { groupId: null, userId: 'coord-1', role: 'organization_coordinator', organizationId: 'org-1' } as unknown as TenantContext;
 
 // Organization plans (migration 152) gate this report on advancedReports —
 // a query donorSpendReport now issues (via assertReportsAccess) BEFORE its

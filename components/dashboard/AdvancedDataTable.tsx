@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { IconChevronUp, IconChevronDown, IconArrowsUpDown } from "@tabler/icons-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface ColumnDef {
   key: string;

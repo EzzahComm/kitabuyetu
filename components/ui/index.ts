@@ -1,6 +1,20 @@
-// Export all UI components from a central location
-export { default as Button } from "./Button";
-export { default as Input } from "./Input";
-export { Card, CardHeader, CardContent, CardFooter } from "./Card";
-export { default as Badge } from "./Badge";
-export { default as Spinner } from "./Spinner";
+export { Button } from "./button";
+export type { ButtonProps } from "./button";
+
+export {
+  Input,
+} from "./input";
+export type { InputProps } from "./input";
+
+export {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "./card";
+export type { CardProps } from "./card";
+
+export { Badge } from "./badge";
+export type { BadgeProps } from "./badge";

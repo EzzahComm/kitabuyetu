@@ -1,21 +1,41 @@
-warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
-[1mdiff --git a/.gitignore b/.gitignore[m
-[1mindex 0bcd4d3..efe0871 100644[m
-[1m--- a/.gitignore[m
-[1m+++ b/.gitignore[m
-[36m@@ -50,3 +50,5 @@[m [mcoverage/[m
- # would silently drop it and every integration run would lose its config.[m
- .env*[m
- !.env.test[m
-[32m+[m[32m# Generated optimization backups — never lint these[m
-[32m+[m[32m.optimization/[m
-[1mdiff --git a/eslint.config.mjs b/eslint.config.mjs[m
-[1mindex b2e440d..57792a7 100644[m
-[1m--- a/eslint.config.mjs[m
-[1m+++ b/eslint.config.mjs[m
-[36m@@ -53,3 +53,5 @@[m [mconst config = [[m
- ];[m
- [m
- export default config;[m
-[41m+[m
-[41m+[m
+warning: in the working copy of '__tests__/unit/services/organization-finance-donor-report.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/globals.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/Hero.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/AdvancedDataTable.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/DeleteConfirmationDialog.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/EmptyState.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/FormField.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/KPICard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/dashboard/Modal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/data.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/ui/badge.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/ui/button.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/ui/card.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/ui/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/ui/input.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/Card.tsx', LF will be replaced by CRLF the next time Git touches it
+ __tests__/integration/financial-products.test.ts   |   2 [32m+[m[31m-[m
+ __tests__/integration/helpers/request.ts           |   2 [32m+[m[31m-[m
+ __tests__/unit/observability/error-sink.test.ts    |   2 [32m+[m[31m-[m
+ .../organization-finance-donor-report.test.ts      |   3 [32m+[m[31m-[m
+ app/globals.css                                    | 131 [32m+[m[31m--[m
+ app/page.tsx                                       | 343 [32m++++[m[31m----[m
+ components/Hero.tsx                                |  14 [32m+[m[31m-[m
+ components/dashboard/AdvancedDataTable.tsx         |   2 [32m+[m[31m-[m
+ components/dashboard/DeleteConfirmationDialog.tsx  |   2 [32m+[m[31m-[m
+ components/dashboard/EmptyState.tsx                |   2 [32m+[m[31m-[m
+ components/dashboard/FormField.tsx                 |   2 [32m+[m[31m-[m
+ components/dashboard/KPICard.tsx                   |   2 [32m+[m[31m-[m
+ components/dashboard/Modal.tsx                     |   8 [32m+[m[31m-[m
+ components/data.js                                 |   4 [32m+[m[31m-[m
+ components/index.ts                                |   8 [32m+[m[31m-[m
+ components/ui/badge.tsx                            |  99 [32m++[m[31m-[m
+ components/ui/button.tsx                           | 157 [32m++[m[31m--[m
+ components/ui/card.tsx                             | 128 [32m++[m[31m-[m
+ components/ui/index.ts                             |  26 [32m+[m[31m-[m
+ components/ui/input.tsx                            | 100 [32m++[m[31m-[m
+ src/components/ui/Card.tsx                         | 979 [32m+++++++++++++++++++[m[31m--[m
+ tsconfig.json                                      | 116 [32m+[m[31m--[m
+ 22 files changed, 1597 insertions(+), 535 deletions(-)

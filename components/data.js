@@ -7,8 +7,8 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/solid";
 
-import benefitOneImg from "../../public/img/benefit-one.jpg";
-import benefitTwoImg from "../../public/img/benefit-two.jpg";
+import benefitOneImg from "../public/img/benefit-one.jpg";
+import benefitTwoImg from "../public/img/benefit-two.jpg";
 
 const benefitOne = {
   title: "Your group's digital book",

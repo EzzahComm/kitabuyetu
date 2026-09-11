@@ -1,0 +1,489 @@
+/**
+ * TextSMS Kenya (textsms.co.ke) API Client
+ *
+ * Endpoints:
+ *   Single SMS:  POST https://sms.textsms.co.ke/api/services/sendsms/
+ *   Bulk SMS:    POST https://sms.textsms.co.ke/api/services/sendbulk/
+ *   DLR:         GET  https://sms.textsms.co.ke/api/services/getdlr/
+ *   Balance:     GET  https://sms.textsms.co.ke/api/services/getbalance/
+ *
+ * All error codes from the provider spec are handled and mapped to
+ * human-readable messages.
+ */
+
+import axios from 'axios';
+import { normalizePhone } from '@/lib/utils/phone';
+import { env } from '@/lib/env';
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+//
+// Read through the validated `env` (lib/env.ts), not raw `process.env` with a
+// non-null assertion (SMS_MESSAGING_AUDIT_2026-08.md M6). TEXTSMS_API_KEY and
+// TEXTSMS_PARTNER_ID are both `z.string().min(1)` — required, not optional —
+// so this now fails fast at cold-start when unset, instead of silently
+// posting `"apikey": undefined` to the provider and surfacing as an opaque
+// 401/code-1006 far from the actual cause. TEXTSMS_SENDER_ID's Zod default
+// ('KITABU YETU', the registered sender ID) also replaces the second,
+// drifted default ('KITABU') that lived here.
+
+const BASE_URL   = env.TEXTSMS_BASE_URL.replace(/\/$/, '');
+const API_KEY    = env.TEXTSMS_API_KEY;
+const PARTNER_ID = env.TEXTSMS_PARTNER_ID;
+const SENDER_ID  = env.TEXTSMS_SENDER_ID;
+
+// ─── Response codes ───────────────────────────────────────────────────────────
+
+export const SMS_CODES: Record<number, string> = {
+  200:  'Success',
+  1001: 'Invalid Sender ID',
+  1002: 'Network Not Allowed',
+  1003: 'Invalid Mobile Number',
+  1004: 'Low Bulk Credits',
+  1005: 'System Error',
+  1006: 'Invalid Credentials',
+  1007: 'System Error',
+  1008: 'No Delivery Report',
+  1009: 'Unsupported Data Type',
+  1010: 'Unsupported Request Type',
+  4090: 'Internal Error',
+  4091: 'No Partner ID Set',
+  4092: 'No API Key Provided',
+  4093: 'Details Not Found',
+};
+
+function codeDescription(code: number): string {
+  return SMS_CODES[code] ?? `Unknown code: ${code}`;
+}
+
+/** Provider code for an uninterpretable response. */
+const SYSTEM_ERROR = 1005;
+/** The only code TextSMS treats as acceptance. */
+const SUCCESS_CODE = 200;
+
+/**
+ * Normalize the provider's response code to a number.
+ *
+ * TextSMS returns numeric fields as JSON *strings* — confirmed from provider
+ * payloads this system stored itself (sms_delivery_reports.raw_response carries
+ * "messageid": "655405696", "networkid": "1"). A strict `code === 200` therefore
+ * never matched, so every accepted message was recorded as failed while still
+ * carrying a real provider message id (SMS_MESSAGING_AUDIT_2026-08.md C2 — 112
+ * such rows in production, all with failed_reason "Success").
+ *
+ * Coercing here keeps the rest of the platform working against one internal
+ * contract regardless of how the provider formats its JSON. An uninterpretable
+ * code becomes SYSTEM_ERROR rather than NaN, so it fails the success check and
+ * still renders a sensible description — fail-closed is correct for a response
+ * we cannot read.
+ */
+function toResponseCode(raw: unknown): number {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : SYSTEM_ERROR;
+}
+
+/**
+ * A second, live occurrence of the C2 bug class (2026-08-10): every send
+ * through this file was being recorded 'failed' with failed_reason "Success"
+ * again, despite real provider_msg_id/network_id values — proving the
+ * request DID succeed and the response WAS being read (messageid/networkid
+ * parsed fine), just not the code field. Root cause this time: the code only
+ * ever checked the key spelled `'respose-code'` (missing the 'n') — asserted
+ * in the comment below as "the provider's own spelling" but never actually
+ * confirmed against a live send response, only against sms_delivery_reports'
+ * DLR payloads (a different endpoint). A direct read-only getdlr/ call made
+ * while diagnosing this (2026-08-10) returned a real error body keyed
+ * `"response-code"` — correctly spelled, matching `"response-description"`'s
+ * spelling — from the same live account. Checked both spellings below rather
+ * than assume the send endpoint is consistent with the DLR endpoint (no
+ * confirmed raw success payload for sendsms/sendbulk exists yet — see the
+ * follow-up note in SMS_MESSAGING_AUDIT_2026-08.md for capturing one).
+ */
+function extractResponseCode(row: Partial<ProviderResponseRow>): number {
+  const raw = row['response-code'] ?? row['respose-code'] ?? SYSTEM_ERROR;
+  return toResponseCode(raw);
+}
+
+/**
+ * One entry in a TextSMS send response. Every field is typed as it arrives on
+ * the wire, not as it reads — the provider stringifies its numerics, and typing
+ * the code field as `number` is what let C2 typecheck cleanly while being wrong
+ * at runtime. Both `'response-code'` and `'respose-code'` are accepted (see
+ * extractResponseCode) since which spelling a given response actually carries
+ * isn't fully confirmed yet.
+ */
+interface ProviderResponseRow {
+  'response-code'?:       number | string;
+  'respose-code'?:        number | string;
+  'response-description': string;
+  mobile:                 string;
+  messageid:              string | number;
+  networkid:              string | number;
+  /**
+   * Echoed back from the request's own `clientsmsid` (SMS_MESSAGING_AUDIT_2026-08.md
+   * H6). Optional in the type because we cannot be certain every response row
+   * always carries it — sendBulkSms's own mapping below falls back to
+   * positional matching wholesale (not per-row) when even one row lacks it,
+   * see that comment for why a partial fallback would be worse than none.
+   */
+  clientsmsid?: string | number;
+}
+
+export class TextSmsError extends Error {
+  constructor(
+    message: string,
+    public readonly code: number,
+    public readonly phone?: string,
+  ) {
+    super(message);
+    this.name = 'TextSmsError';
+  }
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface SingleSmsInput {
+  mobile:       string;
+  message:      string;
+  senderId?:    string;
+  timeToSend?:  string;  // "YYYY-MM-DD HH:mm" — omit for immediate
+}
+
+export interface SmsResponse {
+  responseCode:        number;
+  responseDescription: string;
+  mobile:              string;
+  messageId:           string;
+  networkId:           string;
+  success:             boolean;
+  /**
+   * Parsed from the response row's own clientsmsid when present (H6) — lets a
+   * caller align this response back to the exact request item it answers,
+   * immune to chunk-boundary drops/reordering that break positional indexing.
+   * undefined when the row didn't carry one (or wasn't a number).
+   */
+  clientSmsId?: number;
+}
+
+export interface BulkSmsItem {
+  mobile:      string;
+  message:     string;
+  clientSmsId?: number;
+  senderId?:   string;
+  timeToSend?: string;
+}
+
+export interface BulkSmsResult {
+  responses: SmsResponse[];
+  sent:      number;
+  failed:    number;
+}
+
+export interface DlrResult {
+  messageId:    string;
+  /**
+   * The provider's HUMAN-READABLE verdict ('DeliveredToTerminal',
+   * 'Scheduled', 'Rejected', …) — NOT the numeric `delivery-status`. See
+   * getDeliveryReport() for why that distinction is the whole ballgame.
+   */
+  status:       string;
+  /**
+   * The numeric `delivery-status` field, kept for diagnostics only.
+   *
+   * Deliberately NOT used for classification: live payloads from this
+   * account return **32 for both a delivered and an undelivered message**,
+   * so it carries no outcome information at all. NaN when the provider
+   * omitted it or sent something unparseable.
+   */
+  statusCode:   number;
+  phone:        string;
+  networkId:    string;
+  deliveredAt?: string;
+  raw:          Record<string, unknown>;
+}
+
+export interface BalanceResult {
+  balance:     number;
+  currency:    string;
+  raw:         Record<string, unknown>;
+}
+
+// ─── Single SMS ───────────────────────────────────────────────────────────────
+
+export async function sendSingleSms(input: SingleSmsInput): Promise<SmsResponse> {
+  const phone = normalizePhone(input.mobile);
+
+  const payload: Record<string, unknown> = {
+    apikey:    API_KEY,
+    partnerID: PARTNER_ID,
+    message:   input.message,
+    shortcode: input.senderId ?? SENDER_ID,
+    mobile:    phone,
+    pass_type: 'plain',  // required on the POST sendsms body, per the TextSMS spec
+  };
+  if (input.timeToSend) payload.timeToSend = input.timeToSend;
+
+  const { data } = await axios.post<{
+    responses: ProviderResponseRow[];
+  }>(`${BASE_URL}/api/services/sendsms/`, payload, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 20_000,
+  });
+
+  const r    = data.responses?.[0];
+  const code = r ? extractResponseCode(r) : SYSTEM_ERROR;
+
+  return {
+    responseCode:        code,
+    responseDescription: r?.['response-description'] ?? codeDescription(code),
+    mobile:              String(r?.mobile ?? phone),
+    messageId:           String(r?.messageid ?? ''),
+    networkId:           String(r?.networkid ?? ''),
+    success:             code === SUCCESS_CODE,
+  };
+}
+
+// ─── Bulk SMS ─────────────────────────────────────────────────────────────────
+
+export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> {
+  const smslist = items.map((item, idx) => ({
+    partnerID:   PARTNER_ID,
+    apikey:      API_KEY,
+    pass_type:   'plain',
+    clientsmsid: item.clientSmsId ?? Date.now() + idx,
+    mobile:      normalizePhone(item.mobile),
+    message:     item.message,
+    shortcode:   item.senderId ?? SENDER_ID,
+    ...(item.timeToSend ? { timeToSend: item.timeToSend } : {}),
+  }));
+
+  const { data } = await axios.post<{
+    responses: ProviderResponseRow[];
+  }>(`${BASE_URL}/api/services/sendbulk/`, { count: smslist.length, smslist }, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 60_000,
+  });
+
+  const responses: SmsResponse[] = (data.responses ?? []).map((r) => {
+    const code = extractResponseCode(r);
+    // clientsmsid is the provider's own numeric echo of the request item's
+    // clientSmsId; Number(undefined) is NaN, so guard explicitly rather than
+    // let an absent field silently become the number 0.
+    const clientIdNum = r.clientsmsid != null ? Number(r.clientsmsid) : NaN;
+    return {
+      responseCode:        code,
+      responseDescription: r['response-description'] ?? codeDescription(code),
+      mobile:              String(r.mobile ?? ''),
+      messageId:           String(r.messageid ?? ''),
+      networkId:           String(r.networkid ?? ''),
+      success:             code === SUCCESS_CODE,
+      clientSmsId:         Number.isFinite(clientIdNum) ? clientIdNum : undefined,
+    };
+  });
+
+  return {
+    responses,
+    sent:   responses.filter((r) => r.success).length,
+    failed: responses.filter((r) => !r.success).length,
+  };
+}
+
+// ─── DLR ─────────────────────────────────────────────────────────────────────
+
+export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
+  // The DLR endpoint reads the message id from the `messageID` query param
+  // (capital ID, per the TextSMS spec/Postman collection). Query params are
+  // case-sensitive, so the previous lowercase `messageid` was never matched
+  // server-side and every DLR lookup came back empty — leaving messages stuck
+  // 'sent'/'pending' and delivered_at unset.
+  // ── Why 404 is an ACCEPTED status ─────────────────────────────────────────
+  //
+  // TextSMS answers "I have no delivery report for that id" with **HTTP 404**
+  // and a JSON body:
+  //
+  //   {"response-code":1009,"response-description":"No dlr"}
+  //
+  // That is a normal, expected answer, not a transport failure. It is what the
+  // provider returns for a message polled before it has generated a report,
+  // and for any message that belongs to a different partner account.
+  //
+  // axios rejects non-2xx by default, so this threw — and pollPendingDlrs
+  // catches per-message and logs, meaning every such poll was silently
+  // discarded. Confirmed in production 2026-08-20: 37 eligible messages, 15
+  // provider calls burned per run, zero rows written to sms_delivery_reports.
+  // Combined with the delivery-description bug fixed alongside it, the DLR
+  // pipeline could not record an outcome under any circumstances.
+  //
+  // Accepting 404 lets the body be parsed normally: 'No dlr' classifies as
+  // pending (see DLR_PENDING in sms.service.ts), the message stays 'sent', and
+  // the next poll tries again — which is exactly right for a report that
+  // genuinely may not exist yet. Any OTHER non-2xx still throws.
+  const { data } = await axios.get<Record<string, unknown>>(
+    `${BASE_URL}/api/services/getdlr/`,
+    {
+      params:  { apikey: API_KEY, partnerID: PARTNER_ID, messageID: messageId },
+      timeout: 15_000,
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
+    },
+  );
+
+  // ── Which field carries the verdict ───────────────────────────────────────
+  //
+  // This used to read `delivery-status` — a NUMBER — and hand it to
+  // classifyDlrStatus(), which matches on words. Live payloads captured from
+  // this very account on 2026-08-20:
+  //
+  //   {"message-id":"810668705","delivery-status":32,
+  //    "delivery-description":"DeliveredToTerminal","delivery-time":"2026-08-14 12:57:42"}
+  //   {"message-id":"821169663","delivery-status":32,
+  //    "delivery-description":"Scheduled","delivery-time":null}
+  //
+  // `delivery-status` is **32 in both**. It is not a status at all in any
+  // sense we can classify on; the real verdict is `delivery-description`.
+  // Passing "32" to a regex that looks for /deliv|success/ matched nothing,
+  // so EVERY delivery report in the platform's history classified as
+  // 'pending' — 323 messages sent, zero ever marked delivered, while 22
+  // stored reports carried a real delivered_at from the provider alongside
+  // status='pending'. See docs/audits/SMS_SYSTEM_AUDIT_2026-08-20.md C1.
+  //
+  // `delivery-description` first, then the legacy fallbacks, so a provider
+  // that omits it degrades to the old behaviour rather than to `undefined`.
+  //
+  // `response-description` is deliberately NOT in that chain. On a successful
+  // lookup it reads "Success", meaning *the API call* succeeded — it says
+  // nothing about the message. Feeding it to classifyDlrStatus would match
+  // /success/ and mark every polled message DELIVERED, which is a far worse
+  // bug than the one being fixed here. It is read below only for the specific
+  // no-report case, where it is the only description on offer.
+  const NO_DLR = 1009;
+  const description =
+    data['delivery-description']
+    ?? data.status
+    ?? (Number(data['response-code']) === NO_DLR ? data['response-description'] : undefined)
+    ?? 'unknown';
+
+  return {
+    messageId,
+    phone:       String(data.mobile ?? ''),
+    status:      String(description),
+    // Plain Number(), not toResponseCode(): that helper fails CLOSED to
+    // SYSTEM_ERROR (1005) because a send response we cannot read must not
+    // count as success. Here the field is diagnostic only and never drives a
+    // decision, so an absent/unparseable value should read as NaN ("we don't
+    // know") rather than as the specific claim "the provider said 1005".
+    statusCode:  Number(data['delivery-status'] ?? NaN),
+    networkId:   String(data.networkid ?? data['delivery-networkid'] ?? ''),
+    deliveredAt: data['delivery-time'] ? String(data['delivery-time']) : undefined,
+    raw:         data,
+  };
+}
+
+// ─── Account Balance ──────────────────────────────────────────────────────────
+
+export async function getProviderBalance(): Promise<BalanceResult> {
+  const { data } = await axios.get<{ balance?: string | number; [key: string]: unknown }>(
+    `${BASE_URL}/api/services/getbalance/`,
+    {
+      params:  { apikey: API_KEY, partnerID: PARTNER_ID },
+      timeout: 15_000,
+    },
+  );
+
+  // An error body ({"response-code":1006,"response-description":"Invalid
+  // credentials"}) carries no `balance` field, and `?? '0'` turned that into a
+  // confident, wrong "KES 0.00". Every sms_provider_balances snapshot since
+  // 2026-08-09 reads 0.00 — including days SMS demonstrably delivered — so the
+  // column has been recording "the balance query failed" as "we have no
+  // credit", which is exactly backwards when you are trying to work out why
+  // messages stopped arriving. Fail loudly instead: a balance we could not read
+  // must never be persisted as a number.
+  const code = extractResponseCode(data as Partial<ProviderResponseRow>);
+  if (data.balance == null || code !== SUCCESS_CODE) {
+    throw new TextSmsError(
+      String(data['response-description'] ?? codeDescription(code)),
+      code,
+    );
+  }
+
+  const balance = parseFloat(String(data.balance));
+  if (!Number.isFinite(balance)) {
+    throw new TextSmsError(`Unparseable balance: ${String(data.balance)}`, SYSTEM_ERROR);
+  }
+
+  return { balance, currency: 'KES', raw: data };
+}
+
+// ─── Batch helper — chunks items to avoid payload limits ─────────────────────
+
+const CHUNK_SIZE = 100;
+
+/**
+ * Response stand-in for a chunk the provider never answered.
+ *
+ * Carries the item's own clientSmsId so alignBulkResponses can map it back to
+ * the right log row by identity, exactly as it does for a real response —
+ * a synthesized failure must not be the one thing that falls back to
+ * positional matching.
+ */
+function synthesizeChunkFailure(item: BulkSmsItem, idx: number, detail: string): SmsResponse {
+  return {
+    responseCode:        SYSTEM_ERROR,
+    responseDescription: detail,
+    mobile:              item.mobile,
+    messageId:           '',
+    networkId:           '',
+    success:             false,
+    clientSmsId:         item.clientSmsId ?? idx,
+  };
+}
+
+/**
+ * Send in provider-sized chunks, returning PARTIAL results when a chunk fails.
+ *
+ * This used to `await sendBulkSms(chunk)` bare, so a throw on chunk k
+ * discarded every response from chunks 0..k-1 — messages the provider had
+ * already ACCEPTED and already billed us for. The caller then treated the
+ * whole batch as never-dispatched: it marked every row failed, released every
+ * reservation, and wrote sms_failures rows, so retryFailures sent those
+ * recipients the same message a second time. The result was a real duplicate
+ * to a real member, a provider charge we absorbed, and a first send that no
+ * DLR could ever confirm because its provider_msg_id was thrown away
+ * (SMS-AUDIT-v3 G4).
+ *
+ * Failures are now confined to the chunk that actually failed. The caller's
+ * existing per-row settle logic then does the right thing with both halves,
+ * because a synthesized failure is shaped exactly like a provider rejection.
+ */
+export async function sendBulkSmsChunked(items: BulkSmsItem[]): Promise<BulkSmsResult> {
+  const all: SmsResponse[] = [];
+  const chunkErrors: string[] = [];
+
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    const chunk = items.slice(i, i + CHUNK_SIZE);
+    try {
+      const result = await sendBulkSms(chunk);
+      all.push(...result.responses);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      chunkErrors.push(detail);
+      // Only THIS chunk is lost. Earlier chunks keep their real responses.
+      chunk.forEach((item, j) => all.push(synthesizeChunkFailure(item, i + j, detail)));
+    }
+    // Respect rate limits — 500ms between chunks
+    if (i + CHUNK_SIZE < items.length) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+
+  // Every chunk failed and there was more than one: the provider is down
+  // rather than rejecting particular messages. Throw so the caller's outage
+  // handling runs, which is what it would have done before this change.
+  if (chunkErrors.length > 0 && all.every((r) => !r.success)) {
+    throw new TextSmsError(chunkErrors[0], SYSTEM_ERROR);
+  }
+
+  return {
+    responses: all,
+    sent:      all.filter((r) => r.success).length,
+    failed:    all.filter((r) => !r.success).length,
+  };
+}

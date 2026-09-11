@@ -1,0 +1,416 @@
+/**
+ * Public API for the Kitabu Yetu job queue.
+ *
+ * Usage:
+ *   import { enqueueJob, processJobBatch, enqueueTimeBasedJobs } from '@/lib/jobs';
+ */
+export { processJobBatch }        from './processor';
+export { insertJob as enqueueJob, pruneOldJobs } from './db';
+export type { Job, JobType, JobStatus, EnqueueOptions, ProcessResult } from './types';
+
+import { insertJob } from './db';
+import type { JobType } from './types';
+
+/**
+ * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
+ * are due to run in this 5-minute tick.
+ *
+ * Dedup keys are scoped to the smallest relevant time unit so the same
+ * job is never queued twice within its scheduling window:
+ *   - Every-5-min jobs:  "{type}:{YYYY-MM-DD}T{HH}:{mm/5}"
+ *   - Hourly jobs:       "{type}:{YYYY-MM-DD}T{HH}"
+ *   - Daily jobs:        "{type}:{YYYY-MM-DD}"
+ *   - Weekly jobs:       "{type}:{YYYY-WNN}"
+ *
+ * Returns a map of job_type → job_id (null means skipped/duplicate).
+ */
+/**
+ * Africa/Nairobi is UTC+3 year-round. Kenya has never observed daylight
+ * saving, so this is a constant rather than a lookup — and it is stated as a
+ * named constant precisely so nobody re-derives it as "probably UTC".
+ */
+const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+export async function enqueueTimeBasedJobs(): Promise<Record<string, string | null>> {
+  // Every schedule below is expressed in AFRICA/NAIROBI, the time the people
+  // receiving these messages actually live in (SMS-AUDIT-v3 H8 / INV-41).
+  //
+  // These used to be getUTCHours()/getUTCDate() on real UTC, so `hour === 8`
+  // fired at 11:00 EAT and the code did not mean what it said. Every current
+  // time happened to land somewhere reasonable, which is exactly why it went
+  // unnoticed — the hazard was the next schedule someone wrote as a local
+  // hour, which would have been silently three hours out.
+  //
+  // Kenya is UTC+3 with NO daylight saving — it has never observed it — so a
+  // fixed offset is exact here, and correct in a way a naive offset would not
+  // be for most zones. Shifting the instant once lets the existing UTC
+  // accessors and the date/week helpers below read Nairobi values unchanged.
+  const nairobiNow = new Date(Date.now() + EAT_OFFSET_MS);
+  const hour    = nairobiNow.getUTCHours();
+  const day     = nairobiNow.getUTCDay();   // 0 = Sun … 6 = Sat
+  const date    = nairobiNow.getUTCDate();
+  const dateStr = toDateStr(nairobiNow);    // YYYY-MM-DD, Nairobi
+  const weekStr = toWeekStr(nairobiNow);    // YYYY-WNN, Nairobi
+
+  // 5-minute bucket index (0–11 per hour). Unaffected by the shift: the offset
+  // is whole hours, so minutes are identical either way.
+  const fiveMinBucket = Math.floor(nairobiNow.getUTCMinutes() / 5);
+
+  const queued: Record<string, string | null> = {};
+
+  // ── Every 5 minutes ────────────────────────────────────────────
+  queued.email_campaign_process = await safe('email_campaign_process', {}, {
+    priority:  5,
+    dedup_key: `email_campaign_process:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  queued.email_retry_failed = await safe('email_retry_failed', {}, {
+    priority:  5,
+    dedup_key: `email_retry_failed:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
+  // batch of 'pending' email_campaign_recipients rows for in-flight
+  // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's
+  // lib/queue + lib/jobs merge).
+  queued.email_campaign_drain = await safe('email_campaign_drain', {}, {
+    priority:  5,
+    dedup_key: `email_campaign_drain:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
+  //
+  // These four claim whatever is due at the moment they run. Two queued copies
+  // do not do twice the work — the second finds the first's rows already
+  // claimed. So the time-bucketed dedup key these used to carry
+  // (`type:date:hour:bucket`) bought nothing and cost a great deal: it minted a
+  // NEW row every 5 minutes whether or not the previous one had ever run.
+  //
+  // When these types were starved of tick budget by higher-priority work, that
+  // turned a scheduling gap into unbounded growth — measured in production
+  // 2026-08-20: sms_release_stale_reservations at 2,258 pending having not
+  // completed a single job in 8 days, sms_poll_dlr at 1,100 pending / 4 days.
+  // The backlog then became its own cause, since every tick scanned thousands
+  // of rows that could only ever do one job's work.
+  //
+  // A CONSTANT dedup key makes the partial unique index on job_queue
+  // (dedup_key WHERE status NOT IN ('completed','failed')) enforce the real
+  // invariant: at most one non-terminal row per type. The key frees itself the
+  // moment the job completes, so the next tick enqueues normally. "Enqueue
+  // every 5 minutes" becomes "ensure one is queued", which is what a sweep
+  // actually wants.
+  //
+  // Safe against a job wedged in 'processing': resetStuckJobs() returns it to
+  // 'pending' after 6 minutes (or 'failed' at max_attempts, which also frees
+  // the key), so this cannot deadlock a type permanently.
+  //
+  // Deliberately NOT applied to the mpesa_*/outbox_* sweeps in the same file:
+  // they have the same shape and probably want the same treatment, but they
+  // were not part of the SMS audit and are not changed blind. See
+  // docs/audits/SMS_SYSTEM_AUDIT_2026-08-20.md H2.
+  queued.sms_retry_failed = await safe('sms_retry_failed', {}, {
+    priority:  6, // SMS retries are time-sensitive (transactional receipts/OTPs)
+    dedup_key: 'sms_retry_failed',
+  });
+
+  queued.sms_process_schedules = await safe('sms_process_schedules', {}, {
+    priority:  5,
+    dedup_key: 'sms_process_schedules',
+  });
+
+  queued.sms_poll_dlr = await safe('sms_poll_dlr', {}, {
+    priority:  4,
+    dedup_key: 'sms_poll_dlr',
+  });
+
+  // Recovers SMS credit earmarks orphaned by a crash between the provider call
+  // and the settle write. Low priority: correctness backstop, not time-critical.
+  queued.sms_release_stale_reservations = await safe('sms_release_stale_reservations', {}, {
+    priority:  3,
+    dedup_key: 'sms_release_stale_reservations',
+  });
+
+  queued.mpesa_reconcile = await safe('mpesa_reconcile', {}, {
+    priority:  10, // highest — payments are time-sensitive
+    dedup_key: `mpesa_reconcile:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // DLQ replay — re-runs inbound money callbacks whose effect didn't land.
+  queued.mpesa_replay_callbacks = await safe('mpesa_replay_callbacks', {}, {
+    priority:  9,
+    dedup_key: `mpesa_replay_callbacks:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // Transactional outbox drain (payment architecture §12).
+  queued.outbox_dispatch = await safe('outbox_dispatch', {}, {
+    priority:  8,
+    dedup_key: `outbox_dispatch:${dateStr}T${hour}:${fiveMinBucket}`,
+  });
+
+  // ── Hourly — payment-spine orphan monitor (§16) ────────────────
+  if (fiveMinBucket === 0) {
+    queued.payment_orphan_monitor = await safe('payment_orphan_monitor', {}, {
+      priority:  7,
+      dedup_key: `payment_orphan_monitor:${dateStr}T${hour}`,
+    });
+
+    // B2C disbursement stuck-payout monitor (B2C audit C5/F13).
+    queued.disbursement_orphan_monitor = await safe('disbursement_orphan_monitor', {}, {
+      priority:  9, // outbound money stuck unresolved — high priority
+      dedup_key: `disbursement_orphan_monitor:${dateStr}T${hour}`,
+    });
+
+    // Payment-request expiry sweep (allocation rule A6). The allocation
+    // engine's query also filters expired rows, so hourly cadence only
+    // affects reporting freshness, never allocation correctness.
+    queued.payment_requests_expire = await safe('payment_requests_expire', {}, {
+      priority:  5,
+      dedup_key: `payment_requests_expire:${dateStr}T${hour}`,
+    });
+
+    // SMS provider health (SMS-AUDIT-v3 T3-4 / G14). Hourly matches the other
+    // monitors above and the service's own 1-hour sample window — sampling
+    // more often than the window would re-read the same messages and say the
+    // same thing. Priority 7 alongside the payment-spine monitor: noticing an
+    // outage is not itself time-critical work, but it must not be starved by
+    // the very backlog an outage produces.
+    queued.sms_provider_health = await safe('sms_provider_health', {}, {
+      priority:  7,
+      dedup_key: `sms_provider_health:${dateStr}T${hour}`,
+    });
+  }
+
+  // ── Daily 06:00 EAT — recurring invoices ──────────────────────
+  if (hour === 6) {
+    queued.email_recurring_invoices = await safe('email_recurring_invoices', {}, {
+      priority:  4,
+      dedup_key: `email_recurring_invoices:${dateStr}`,
+    });
+  }
+
+  // ── Daily 07:00 EAT — birthday emails + birthday SMS ──────────
+  // SMS is a separate job type (billed, per-group opt-in via
+  // sms_group_settings.auto_send_birthday, defaults false) rather than
+  // folded into email_birthday — the two channels have independent
+  // opt-in/consent/cost models and reminder_dispatch_log deduplicates
+  // per-channel via reference_type already, so nothing forces them
+  // through one job. sms_schedules.schedule_type had a 'birthday' value
+  // sitting unprocessed for this (sms-scheduler.service.ts's own header
+  // comment: "left for a dedicated follow-up") — this is that follow-up,
+  // built as a global job like notify_loan_due_alerts rather than a
+  // per-group schedule row, since "who gets messaged" varies by the day
+  // (today's birthdays), not a fixed recipient list on a fixed cadence.
+  if (hour === 7) {
+    queued.email_birthday = await safe('email_birthday', {}, {
+      priority:  3,
+      dedup_key: `email_birthday:${dateStr}`,
+    });
+    queued.sms_birthday_reminders = await safe('sms_birthday_reminders', {}, {
+      priority:  6,
+      dedup_key: `sms_birthday_reminders:${dateStr}`,
+    });
+  }
+
+  // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
+  if (hour === 9) {
+    queued.email_overdue_invoices = await safe('email_overdue_invoices', {}, {
+      priority:  4,
+      dedup_key: `email_overdue_invoices:${dateStr}`,
+    });
+  }
+
+  // ── Monday 08:00 EAT — weekly summaries ───────────────────────
+  if (day === 1 && hour === 8) {
+    queued.email_weekly_summary = await safe('email_weekly_summary', {}, {
+      priority:  2,
+      dedup_key: `email_weekly_summary:${weekStr}`,
+    });
+  }
+
+  // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
+  if (hour === 2) {
+    queued.cleanup_expired_tokens = await safe('cleanup_expired_tokens', {}, {
+      priority:  1,
+      dedup_key: `cleanup_expired_tokens:${dateStr}`,
+    });
+    // Deliberately an hour AFTER the 01:00 allowance reset/grant: those move
+    // billing_accounts, and checking the books mid-adjustment would report
+    // drift that is really just ordering. Read-only and report-only, so a low
+    // priority is right — it must never displace a send or a reminder.
+    queued.sms_credit_reconciliation = await safe('sms_credit_reconciliation', {}, {
+      priority:  2,
+      dedup_key: `sms_credit_reconciliation:${dateStr}`,
+    });
+    // Retention runs in the same quiet hour. Low priority and idempotent —
+    // a row already redacted is excluded by the query itself.
+    queued.sms_message_retention = await safe('sms_message_retention', {}, {
+      priority:  1,
+      dedup_key: `sms_message_retention:${dateStr}`,
+    });
+  }
+
+  // ── Daily 03:00 EAT — M-Pesa charge backfill ──────
+  // Catches B2C transactions that completed without an mpesa_charges row.
+  if (hour === 3) {
+    queued.mpesa_reconcile_charges = await safe('mpesa_reconcile_charges', {}, {
+      priority:  4,
+      dedup_key: `mpesa_reconcile_charges:${dateStr}`,
+    });
+  }
+
+  // ── Daily 04:00 EAT — accounts.balance drift audit ─
+  // Compares the denormalized balance column against journal_lines sums
+  // and records any drift for finance review (detection only, no rewrite).
+  if (hour === 4) {
+    queued.accounting_balance_drift = await safe('accounting_balance_drift', {}, {
+      priority:  4,
+      dedup_key: `accounting_balance_drift:${dateStr}`,
+    });
+  }
+
+  // ── Daily 05:00 EAT — sub-account balance snapshot ─
+  if (hour === 5) {
+    queued.mpesa_balance_snapshot = await safe('mpesa_balance_snapshot', {}, {
+      priority:  3,
+      dedup_key: `mpesa_balance_snapshot:${dateStr}`,
+    });
+  }
+
+  // ── Daily 06:00 EAT — GL-to-real-cash reconciliation ─
+  // One hour after the balance snapshot trigger above, so its async Daraja
+  // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
+  if (hour === 6) {
+    queued.gl_cash_reconciliation = await safe('gl_cash_reconciliation', {}, {
+      priority:  4,
+      dedup_key: `gl_cash_reconciliation:${dateStr}`,
+    });
+  }
+
+  // ── Daily 20:00 EAT — M-Pesa daily report email ───
+  if (hour === 20) {
+    queued.mpesa_daily_report = await safe('mpesa_daily_report', {}, {
+      priority:  3,
+      dedup_key: `mpesa_daily_report:${dateStr}`,
+    });
+  }
+
+  // ── Daily 06:00 EAT — loan-due alerts ─────────────
+  // Members in Kenya are most likely to act on a reminder mid-morning;
+  // 09:00 EAT lands their notification just before they head to work.
+  if (hour === 6) {
+    queued.notify_loan_due_alerts = await safe('notify_loan_due_alerts', {}, {
+      priority:  6,
+      dedup_key: `notify_loan_due_alerts:${dateStr}`,
+    });
+  }
+
+  // ── DAILY 01:00 EAT — SMS bundled-allowance reset ────────────────────
+  // Was `date === 1` with a YYYY-MM dedup key: one sweep a month, resetting
+  // every group together. Migration 151 moved the allowance period onto each
+  // group's own subscription anniversary, and anniversaries fall on every day
+  // of the month, so this has to run daily and the dedup key has to be per
+  // DAY rather than per month — a monthly key would let the first run of a
+  // month suppress the other thirty.
+  //
+  // Resetting nothing is the normal case and costs one indexed UPDATE.
+  // resetDueSmsAllowances() is idempotent (it compares the derived anniversary
+  // against sms_allowance_period_start), so a double tick cannot hand out two
+  // allowances.
+  //
+  // Still runs well before the 08:00 contribution-reminder sweep below, so
+  // that day's first billed sends see a freshly-reset allowance rather than
+  // the previous period's. Hour 1 remains otherwise unused across this file
+  // (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
+  if (hour === 1) {
+    queued.sms_allowance_monthly_reset = await safe('sms_allowance_monthly_reset', {}, {
+      priority:  4,
+      dedup_key: `sms_allowance_monthly_reset:${dateStr}`,
+    });
+    // Organization-side sibling, same hour and same daily-not-monthly
+    // reasoning (migration 152) — a separate job rather than folded into the
+    // one above, since it grants against a different table pair
+    // (organization_subscriptions/organization_billing_accounts) entirely.
+    queued.organization_sms_allowance_grant = await safe('organization_sms_allowance_grant', {}, {
+      priority:  4,
+      dedup_key: `organization_sms_allowance_grant:${dateStr}`,
+    });
+  }
+
+  // ── 1st of month 08:00 EAT — prune old jobs ───────────────────
+  if (date === 1 && hour === 8) {
+    const { pruneOldJobs } = await import('./db');
+    await pruneOldJobs(30).catch(() => {}); // fire and forget
+
+    // ── 1st of month 08:00 EAT — contribution-reminders ──
+    // Nudge members who didn't contribute in the previous calendar
+    // month. Dedup keyed at month granularity so even repeated
+    // 5-min ticks within the same hour won't re-enqueue.
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.notify_contribution_reminders = await safe('notify_contribution_reminders', {}, {
+      priority:  5,
+      dedup_key: `notify_contribution_reminders:${monthStr}`,
+    });
+  }
+
+  // ── 1st of month 09:00 EAT — journal_lines partition maintenance ──
+  // Ensures monthly partitions exist 3 months ahead (ACCOUNTING_ARCHITECTURE_
+  // AUDIT.md §17/§19, migrations 094/095). A distinct hour from the 08:00
+  // and 10:00 buckets so nothing competes within the same tick.
+  if (date === 1 && hour === 9) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.journal_lines_partition_maintenance = await safe('journal_lines_partition_maintenance', {}, {
+      priority:  4,
+      dedup_key: `journal_lines_partition_maintenance:${monthStr}`,
+    });
+  }
+
+  // ── 1st of month 10:00 EAT — per-member account statements ───
+  // A distinct hour from the 08:00 bucket above so this and the
+  // contribution-reminder sweep don't compete within the same tick.
+  if (date === 1 && hour === 10) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.email_member_statements = await safe('email_member_statements', {}, {
+      priority:  2,
+      dedup_key: `email_member_statements:${monthStr}`,
+    });
+  }
+
+  // ── 1st of month 11:00 EAT — governance/health-score computation ─────
+  // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
+  // unused across this file, so this never competes with an existing
+  // monthly/daily bucket within the same tick.
+  if (date === 1 && hour === 11) {
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    queued.governance_compute_metrics = await safe('governance_compute_metrics', {}, {
+      priority:  4,
+      dedup_key: `governance_compute_metrics:${monthStr}`,
+    });
+  }
+
+  return queued;
+}
+
+/** Silently ignore duplicate-key conflicts instead of throwing. */
+async function safe(
+  type:    JobType,
+  payload: Record<string, unknown>,
+  opts?:   Parameters<typeof insertJob>[2],
+): Promise<string | null> {
+  return insertJob(type, payload, opts).catch(() => null);
+}
+
+// ── Date helpers ──────────────────────────────────────────────
+
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function toWeekStr(d: Date): string {
+  // ISO 8601 week number
+  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayOfWeek = tmp.getUTCDay() || 7;
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayOfWeek);
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const weekNo    = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}

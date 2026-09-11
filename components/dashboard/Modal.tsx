@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import { IconX } from "@tabler/icons-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface ModalProps {
   isOpen: boolean;
@@ -85,15 +85,15 @@ export function Modal({
               {actions.secondary && (
                 <Button
                   variant="outline"
-                  size="md"
+                  size="default"
                   onClick={actions.secondary.onClick}
                 >
                   {actions.secondary.label}
                 </Button>
               )}
               <Button
-                variant="primary"
-                size="md"
+                variant="default"
+                size="default"
                 onClick={actions.primary.onClick}
                 disabled={actions.primary.loading}
               >
