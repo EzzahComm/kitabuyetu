@@ -7,6 +7,7 @@ import {
   ArrowRight, Layers,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -295,21 +296,17 @@ export default function AdminDashboardPage() {
 
               {/* Alerts */}
               {(parseInt(t.sla_breached ?? '0') > 0) && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertTriangle size={14} className="text-red-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-red-800">
-                      {t.sla_breached} ticket{parseInt(t.sla_breached) !== 1 ? 's' : ''} breached SLA
-                    </p>
-                    <p className="text-xs text-red-600 mt-0.5">Immediate attention required</p>
-                  </div>
-                </div>
+                <Alert variant="destructive">
+                  <AlertTriangle size={14} />
+                  <AlertTitle>{t.sla_breached} ticket{parseInt(t.sla_breached) !== 1 ? 's' : ''} breached SLA</AlertTitle>
+                  <AlertDescription>Immediate attention required</AlertDescription>
+                </Alert>
               )}
               {parseInt(t.sla_breached ?? '0') === 0 && parseInt(t.open ?? '0') === 0 && (
-                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <CheckCircle2 size={14} className="text-green-600" />
-                  <p className="text-xs font-semibold text-green-800">All tickets resolved — queue clear</p>
-                </div>
+                <Alert>
+                  <CheckCircle2 size={14} />
+                  <AlertTitle>All tickets resolved — queue clear</AlertTitle>
+                </Alert>
               )}
 
               <Link href="/admin/support">
