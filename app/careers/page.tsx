@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { IconArrowUpRight, IconHeartHandshake, IconLeaf, IconUsersGroup } from "@tabler/icons-react";
 import { Container } from "@/components/Container";
 import { SectionTitle } from "@/components/SectionTitle";
+import { SiteHeader } from "@/components/marketing/site-header";
+import { SiteFooter } from "@/components/marketing/site-footer";
 
 export const metadata: Metadata = {
   title: "Careers — Kitabu Yetu",
@@ -9,9 +11,17 @@ export const metadata: Metadata = {
     "Help build practical financial tools for groups and organizations across East Africa.",
 };
 
+/**
+ * Predates the marketing redesign and was missed when the rest of the site
+ * moved to SiteHeader/SiteFooter — it shipped live with no navigation at all.
+ * Wrapped here rather than ported into PageShell, since its layout is a
+ * custom multi-section grid PageShell's prose container isn't built for.
+ */
 export default function CareersPage() {
   return (
-    <>
+    <div className="flex min-h-screen flex-col bg-white">
+      <SiteHeader />
+      <main id="main" className="flex-1 pt-16 lg:pt-20">
       <SectionTitle
         preTitle="Careers"
         title="Build the tools that help communities move forward"
@@ -163,6 +173,8 @@ export default function CareersPage() {
           </a>
         </Container>
       </section>
-    </>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }

@@ -12,6 +12,8 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { Benefits } from "@/components/Benefits";
 import { Video } from "@/components/Video";
 import { Cta } from "@/components/Cta";
+import { SiteHeader } from "@/components/marketing/site-header";
+import { SiteFooter } from "@/components/marketing/site-footer";
 
 import paymentImg from "../../public/img/fundraise.jpg";
 import recordImg from "../../public/img/bookkeeper.jpg";
@@ -22,27 +24,39 @@ export const metadata: Metadata = {
     "From an M-Pesa payment to the member's updated balance and the journal entry behind it — how a contribution reaches the group's books.",
 };
 
+/**
+ * This page predates the marketing redesign and was missed when the rest of
+ * the site moved to SiteHeader/SiteFooter — it shipped with no navigation at
+ * all, live, at /how-it-works. Wrapping it here (rather than porting its
+ * content into PageShell) keeps this fix to "put the nav back" and out of
+ * "redesign the page", since its layout is a custom icon/benefit grid that
+ * PageShell's single-column prose container isn't built for.
+ */
 export default function HowItWorksPage() {
   return (
-    <>
-      <SectionTitle
-        preTitle="How it works"
-        title="From member activity to a record the group can trust"
-        titleAs="h1"
-      >
-        Members pay, officials review and the ledger keeps the history. The
-        platform connects payments, communication and reporting so the group
-        can spend its meetings making decisions instead of rebuilding records.
-      </SectionTitle>
+    <div className="flex min-h-screen flex-col bg-white">
+      <SiteHeader />
+      <main id="main" className="flex-1 pt-16 lg:pt-20">
+        <SectionTitle
+          preTitle="How it works"
+          title="From member activity to a record the group can trust"
+          titleAs="h1"
+        >
+          Members pay, officials review and the ledger keeps the history. The
+          platform connects payments, communication and reporting so the group
+          can spend its meetings making decisions instead of rebuilding records.
+        </SectionTitle>
 
-      <Benefits data={theFlow} />
+        <Benefits data={theFlow} />
 
-      <Video videoId="fZ0D0cnR88E" />
+        <Video videoId="fZ0D0cnR88E" />
 
-      <Benefits imgPos="right" data={theEdges} />
+        <Benefits imgPos="right" data={theEdges} />
 
-      <Cta />
-    </>
+        <Cta />
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
 
