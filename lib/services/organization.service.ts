@@ -1,4 +1,6 @@
 import { withDb, type TenantContext } from '@/lib/db';
+import { computeMemberFinancialSnapshot } from './member-balances.service';
+import { logger } from '@/lib/logger';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -33,6 +35,33 @@ export interface OrganizationAuditLogRow {
   resourceType: string;
   resourceId:   string | null;
   createdAt:    string;
+}
+
+export interface OrganizationMemberDetail {
+  memberId:     string;
+  firstName:    string;
+  lastName:     string;
+  phone:        string;
+  email:        string | null;
+  groupId:      string;
+  groupName:    string;
+  /** The payment account reference (§2.1), e.g. BG1025. Lives on the membership. */
+  membershipNo: string | null;
+  role:         string;
+  isActive:     boolean;
+  joinedAt:     string;
+  /**
+   * null when the snapshot could not be read — never zero-filled (R10).
+   * Numbers, not strings, because that is computeMemberFinancialSnapshot's
+   * existing contract; forking a second money representation for this one
+   * screen would be worse than inheriting its precision choice.
+   */
+  financials:   {
+    savings:               number;
+    loanBalance:           number;
+    shares:                number;
+    contributedThisPeriod: number;
+  } | null;
 }
 
 export interface OrganizationMemberRow {
@@ -401,6 +430,99 @@ export const organizationService = {
       );
 
       return { ...summary[0], monthlyTrend: trend };
+    });
+  },
+
+  /**
+   * One member's detail on the organization axis — the final tier of the
+   * portfolio drill-down (Org → Group → Member).
+   *
+   * Financials are NOT recomputed here. computeMemberFinancialSnapshot
+   * (member-balances.service.ts) is the existing definition of a member's
+   * savings / loan balance / shares / period contributions, and it takes a
+   * PoolClient precisely so a caller can run it inside its own RLS context. A
+   * second set of per-member money queries would be free to disagree with the
+   * member's own passbook, which is the failure mode worth avoiding above all
+   * on a per-member screen.
+   *
+   * PII: national_id is deliberately NOT returned. A coordinator assessing
+   * portfolio performance has no need of it, and audit_logs' own schema comment
+   * cites 'member.view_pii' as a distinct action for a reason — widening
+   * identity-document exposure across an organization boundary should be a
+   * deliberate, separately-audited decision, not a side effect of a drill-down.
+   * Phone and email are already returned by listMembers above, so they stay.
+   *
+   * R1/R3: groupId and memberId both arrive from the client. The organization
+   * comes from the session, the group is verified against
+   * organization_group_access, and the member is verified to belong to THAT
+   * group — so neither id can be used to reach outside the caller's
+   * organization. NotFoundError rather than Forbidden throughout: a 403 would
+   * confirm the id exists somewhere, which is itself cross-tenant disclosure.
+   *
+   * R10: `financials: null` (never zeros) when the snapshot cannot be read, with
+   * the section named in `incomplete`. "Holds nothing" and "could not be read"
+   * must not render alike.
+   */
+  async getMemberDetail(
+    ctx: TenantContext,
+    groupId: string,
+    memberId: string,
+  ): Promise<{ member: OrganizationMemberDetail; incomplete: string[] }> {
+    await this.assertOrganizationCoordinator(ctx);
+
+    return withDb(ctx, async (client) => {
+      const { rows: access } = await client.query<{ id: string }>(
+        `SELECT id FROM organization_group_access
+         WHERE organization_id = $1 AND group_id = $2 AND is_active = true`,
+        [orgId(ctx), groupId],
+      );
+      if (!access[0]) throw new NotFoundError('Group access', groupId);
+
+      const { rows: profile } = await client.query<OrganizationMemberDetail>(
+        `SELECT
+           m.id                 AS "memberId",
+           m.first_name         AS "firstName",
+           m.last_name          AS "lastName",
+           m.phone,
+           m.email,
+           g.id                 AS "groupId",
+           g.name               AS "groupName",
+           gm.membership_no     AS "membershipNo",
+           gm.role,
+           gm.is_active         AS "isActive",
+           gm.joined_at::text   AS "joinedAt"
+         FROM group_members gm
+         JOIN members m ON m.id = gm.member_id
+         JOIN groups  g ON g.id = gm.group_id
+         WHERE gm.group_id = $1 AND gm.member_id = $2`,
+        [groupId, memberId],
+      );
+      const member = profile[0];
+      if (!member) throw new NotFoundError('Member', memberId);
+
+      const incomplete: string[] = [];
+      // Last statement in the transaction, which is what makes catching here
+      // safe: a failed statement aborts the enclosing Postgres transaction, so
+      // anything after it would fail regardless. A future addition below this
+      // point needs its own SAVEPOINT or a separate withDb.
+      try {
+        const [snapshot] = await computeMemberFinancialSnapshot(client, groupId, memberId);
+        member.financials = snapshot
+          ? {
+              savings:               snapshot.savings,
+              loanBalance:           snapshot.loanBalance,
+              shares:                snapshot.shares,
+              contributedThisPeriod: snapshot.contributedThisPeriod,
+            }
+          : null;
+        if (!snapshot) incomplete.push('financials');
+      } catch (err) {
+        logger.error('[organization] member financial snapshot unavailable', err);
+        member.financials = null;
+        incomplete.push('financials');
+      }
+
+      return { member, incomplete };
     });
   },
 };
