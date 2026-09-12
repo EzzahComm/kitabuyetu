@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -187,10 +188,11 @@ export default function ApiKeysPage() {
                   {copied ? <><Check size={14} className="mr-1 text-brand-600" /> Copied</> : <><Copy size={14} className="mr-1" /> Copy</>}
                 </Button>
               </div>
-              <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-800">
-                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>If you lose it, revoke this key and create a new one — it can&apos;t be recovered.</span>
-              </div>
+              <Alert>
+                <ShieldAlert size={14} />
+                <AlertTitle>Keep this key safe</AlertTitle>
+                <AlertDescription>If you lose it, revoke this key and create a new one — it can&apos;t be recovered.</AlertDescription>
+              </Alert>
               <DialogFooter>
                 <Button onClick={() => setCreateOpen(false)}>Done</Button>
               </DialogFooter>
