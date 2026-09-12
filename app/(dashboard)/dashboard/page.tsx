@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { StatusPill } from '@/components/shared/status-pill';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -257,15 +258,23 @@ export default function DashboardPage() {
       />
 
       {erroredDashboardQueries.length > 0 && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Some dashboard data couldn&apos;t load — figures below may be incomplete. {getErrorMessage(erroredDashboardQueries[0].error)}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Couldn&apos;t load dashboard data</AlertTitle>
+          <AlertDescription>
+            Some dashboard data couldn&apos;t load — figures below may be incomplete. {getErrorMessage(erroredDashboardQueries[0].error)}
+          </AlertDescription>
+        </Alert>
       )}
 
       {hiddenSections.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Your role doesn&apos;t have access to {hiddenSections.join(', ')} — related figures aren&apos;t shown below.
-        </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          <AlertTitle className="text-foreground">Limited access</AlertTitle>
+          <AlertDescription>
+            Your role doesn&apos;t have access to {hiddenSections.join(', ')} — related figures aren&apos;t shown below.
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Quick Actions */}
