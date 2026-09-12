@@ -17,9 +17,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree } from 'lucide-react';
+import { Plus, Trash2, Lock, LockOpen, SlidersHorizontal, BookOpen, CalendarClock, ListTree, AlertCircle } from 'lucide-react';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { PageHeader } from '@/components/shared/page-header';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { Account } from '@/types/db.types';
 import type { JournalEntry } from '@/types/api.types';
 
@@ -144,7 +145,13 @@ export default function AccountingPage() {
         </TabsList>
 
         <TabsContent value="trial" className="mt-4">
-          {errorTB ? <p className="text-sm text-destructive">{getErrorMessage(tbError)}</p> : loadingTB ? <Skeleton className="h-64 w-full"/> : (
+          {errorTB ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Couldn&apos;t load trial balance</AlertTitle>
+              <AlertDescription>{getErrorMessage(tbError)}</AlertDescription>
+            </Alert>
+          ) : loadingTB ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Trial Balance</CardTitle></CardHeader>
               <CardContent className="p-0">
@@ -187,7 +194,13 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="pnl" className="mt-4">
-          {errorPnl ? <p className="text-sm text-destructive">{getErrorMessage(pnlError)}</p> : loadingPnl ? <Skeleton className="h-64 w-full"/> : (
+          {errorPnl ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Couldn&apos;t load profit & loss</AlertTitle>
+              <AlertDescription>{getErrorMessage(pnlError)}</AlertDescription>
+            </Alert>
+          ) : loadingPnl ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader><CardTitle className="text-base">Profit &amp; Loss — {now.getFullYear()}</CardTitle></CardHeader>
               <CardContent>
@@ -198,7 +211,13 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="balance" className="mt-4">
-          {errorBS ? <p className="text-sm text-destructive">{getErrorMessage(bsError)}</p> : loadingBS ? <Skeleton className="h-64 w-full"/> : (
+          {errorBS ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Couldn&apos;t load balance sheet</AlertTitle>
+              <AlertDescription>{getErrorMessage(bsError)}</AlertDescription>
+            </Alert>
+          ) : loadingBS ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Balance Sheet — as of {balanceSheet ? formatDate(balanceSheet.asOf) : ''}</CardTitle>
@@ -282,7 +301,13 @@ export default function AccountingPage() {
         </TabsContent>
 
         <TabsContent value="cashflow" className="mt-4">
-          {errorCF ? <p className="text-sm text-destructive">{getErrorMessage(cfError)}</p> : loadingCF ? <Skeleton className="h-64 w-full"/> : (
+          {errorCF ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Couldn&apos;t load cash flow</AlertTitle>
+              <AlertDescription>{getErrorMessage(cfError)}</AlertDescription>
+            </Alert>
+          ) : loadingCF ? <Skeleton className="h-64 w-full"/> : (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Cash Flow Statement — {now.getFullYear()}</CardTitle>
@@ -412,7 +437,13 @@ export default function AccountingPage() {
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
               {errorPolicies ? (
-                <p className="p-4 text-sm text-destructive">{getErrorMessage(policiesError)}</p>
+                <div className="p-4">
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Couldn&apos;t load policies</AlertTitle>
+                    <AlertDescription>{getErrorMessage(policiesError)}</AlertDescription>
+                  </Alert>
+                </div>
               ) : loadingPolicies ? <Skeleton className="h-32 w-full m-4"/> : (
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
@@ -671,7 +702,13 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         {isError ? (
-          <p className="p-4 text-sm text-destructive">{getErrorMessage(error)}</p>
+          <div className="p-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Couldn&apos;t load posting templates</AlertTitle>
+              <AlertDescription>{getErrorMessage(error)}</AlertDescription>
+            </Alert>
+          </div>
         ) : isLoading ? <Skeleton className="h-40 w-full m-4"/> : (
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
