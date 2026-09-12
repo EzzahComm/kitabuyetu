@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormSection, FormFieldGroup } from '@/components/shared/form-section';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -303,48 +304,47 @@ export default function OrganizationsPage() {
       }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Onboard organization</DialogTitle></DialogHeader>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
-              <Label>Name <span className="text-red-500">*</span></Label>
+          <div className="space-y-4">
+            <FormSection label="Name" required>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Equity Bank Foundation" />
-            </div>
-            <div className="space-y-1">
-              <Label>Type <span className="text-red-500">*</span></Label>
-              <select
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                {ORG_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>Registration No.</Label>
-              <Input value={form.registrationNumber}
-                onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
-                placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>Phone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>Email</Label>
-              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>County</Label>
-              <Input value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })}
-                placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>Address</Label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Optional" />
-            </div>
+            </FormSection>
+            <FormFieldGroup columns={2}>
+              <FormSection label="Type" required>
+                <select
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {ORG_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </FormSection>
+              <FormSection label="Registration No.">
+                <Input value={form.registrationNumber}
+                  onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
+                  placeholder="Optional" />
+              </FormSection>
+            </FormFieldGroup>
+            <FormFieldGroup columns={2}>
+              <FormSection label="Phone">
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="Optional" />
+              </FormSection>
+              <FormSection label="Email">
+                <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="Optional" />
+              </FormSection>
+            </FormFieldGroup>
+            <FormFieldGroup columns={2}>
+              <FormSection label="County">
+                <Input value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })}
+                  placeholder="Optional" />
+              </FormSection>
+              <FormSection label="Address">
+                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Optional" />
+              </FormSection>
+            </FormFieldGroup>
           </div>
 
           {/* Plan — required. Organizations never self-serve a plan; this is
