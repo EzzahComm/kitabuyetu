@@ -1190,10 +1190,33 @@ export const organizationFinanceService = {
 
   // ─── Dashboard metrics ─────────────────────────────────────────────────────
 
+  /**
+   * Portfolio dashboard payload.
+   *
+   * R10 — the three sections degrade INDEPENDENTLY and a section that could not
+   * be read comes back `null`, never zero-filled. This previously did the exact
+   * thing R10 forbids: `Promise.all` meant one failing query took the whole
+   * dashboard down, and the row accessors below fell back to `?? '0'`, so a
+   * portfolio query returning no row rendered "Total savings: KES 0" —
+   * indistinguishable on screen from an organization that genuinely holds
+   * nothing. A coordinator could reasonably have read that as their groups'
+   * money having disappeared.
+   *
+   * Each section runs in its OWN withDb (rather than sharing one transaction
+   * under Promise.allSettled) because a failed statement aborts the enclosing
+   * Postgres transaction — siblings sharing it would fail with "current
+   * transaction is aborted" and the independence would be illusory. The cost is
+   * three short pooled reads instead of two; acceptable for a dashboard load,
+   * and it is what genuine per-metric isolation requires here.
+   *
+   * `incomplete` names the sections that failed so the UI can say so explicitly
+   * (§1.5: "what needs attention") instead of rendering a confident wrong number.
+   */
   async getDashboard(ctx: TenantContext): Promise<{
-    financial: Record<string, string | number>;
-    portfolio: Record<string, string | number>;
-    programs:  FundingProgram[];
+    financial:  Record<string, string | number> | null;
+    portfolio:  Record<string, string | number> | null;
+    programs:   FundingProgram[] | null;
+    incomplete: string[];
   }> {
     await organizationService.assertOrganizationCoordinator(ctx);
 
@@ -1202,10 +1225,9 @@ export const organizationFinanceService = {
     // here than on the report-style views. getWallet is fetched inside the
     // cached closure (not before it) so a cache hit skips that query too.
     return cached(keys.cache('org-dashboard', orgId(ctx)), 30, async () => {
-      const wallet = await this.getWallet(ctx);
-      return withDb(ctx, async (db) => {
-        const [portfolio, programs] = await Promise.all([
-          db.query<{
+      const [walletR, portfolioR, programsR] = await Promise.allSettled([
+        this.getWallet(ctx),
+        withDb(ctx, async (db) => db.query<{
             linked_groups: string; active_members: string;
             total_savings: string; loan_portfolio: string;
             loans_disbursed: string; loans_repaid: string;
@@ -1246,36 +1268,66 @@ export const organizationFinanceService = {
                COALESCE(SUM(loans_repaid), 0)::text  AS loans_repaid
              FROM group_stats`,
             [orgId(ctx)],
-          ),
-          db.query<FundingProgram>(
+          )),
+        withDb(ctx, async (db) => db.query<FundingProgram>(
             `SELECT * FROM funding_programs
              WHERE organization_id = $1 AND status = 'active'
              ORDER BY created_at DESC LIMIT 10`,
             [orgId(ctx)],
-          ),
-        ]);
+          )),
+      ]);
 
-        const p = portfolio.rows[0];
+      const incomplete: string[] = [];
+      const failed = (section: string, r: PromiseSettledResult<unknown>) => {
+        if (r.status === 'rejected') {
+          logger.error(`[organization-finance] getDashboard: ${section} unavailable`, r.reason);
+          incomplete.push(section);
+          return true;
+        }
+        return false;
+      };
+
+      const financial = failed('financial', walletR) ? null : (() => {
+        const w = (walletR as PromiseFulfilledResult<OrgWallet>).value;
         return {
-          financial: {
-            walletBalance:   wallet.available_balance,
-            committedFunds:  wallet.committed_balance,
-            totalDeposited:  wallet.total_deposited,
-            totalDisbursed:  wallet.total_disbursed,
-            totalReturned:   wallet.total_returned,
-          },
-          portfolio: {
-            linkedGroups:    parseInt(p?.linked_groups ?? '0', 10),
-            activeMembers:   parseInt(p?.active_members ?? '0', 10),
-            totalSavings:    p?.total_savings ?? '0',
-            loanPortfolio:   p?.loan_portfolio ?? '0',
-            activeLoans:     parseInt(p?.loans_disbursed ?? '0', 10),
-            loanRepayments:  p?.loans_repaid ?? '0',
-            activePrograms:  programs.rows.length,
-          },
-          programs: programs.rows,
+          walletBalance:   w.available_balance,
+          committedFunds:  w.committed_balance,
+          totalDeposited:  w.total_deposited,
+          totalDisbursed:  w.total_disbursed,
+          totalReturned:   w.total_returned,
         };
-      });
+      })();
+
+      const programs = failed('programs', programsR)
+        ? null
+        : (programsR as PromiseFulfilledResult<{ rows: FundingProgram[] }>).value.rows;
+
+      let portfolio: Record<string, string | number> | null = null;
+      if (!failed('portfolio', portfolioR)) {
+        const p = (portfolioR as PromiseFulfilledResult<{ rows: Array<Record<string, string>> }>).value.rows[0];
+        if (!p) {
+          // The aggregate is built over `linked`, so a healthy organization with
+          // zero linked groups still returns ONE row (with zeros). No row at all
+          // therefore means the read did not produce an answer — reporting that
+          // as KES 0 is the precise failure R10 exists to prevent.
+          logger.error('[organization-finance] getDashboard: portfolio aggregate returned no row');
+          incomplete.push('portfolio');
+        } else {
+          portfolio = {
+            linkedGroups:    parseInt(p.linked_groups, 10),
+            activeMembers:   parseInt(p.active_members, 10),
+            totalSavings:    p.total_savings,
+            loanPortfolio:   p.loan_portfolio,
+            activeLoans:     parseInt(p.loans_disbursed, 10),
+            loanRepayments:  p.loans_repaid,
+            // Count of programs actually returned above. Omitted (rather than
+            // shown as 0) when that section failed, so the two never disagree.
+            ...(programs ? { activePrograms: programs.length } : {}),
+          };
+        }
+      }
+
+      return { financial, portfolio, programs, incomplete };
     });
   },
 };
