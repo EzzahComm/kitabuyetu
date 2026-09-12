@@ -1,7 +1,0 @@
-{
-  "PackageJson": true,
-  "PackageManager": "npm",
-  "NodeVersion": "v24.11.1",
-  "NpmVersion": "11.6.2",
-  "DependencyAudit": true
-}
