@@ -3,7 +3,7 @@ import { useEffect, useState, type FocusEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeChanger from "./DarkSwitch";
-import { BrandLogo } from "./BrandLogo";
+import { BrandLogo } from "./branding/BrandLogo";
 import { Disclosure } from "@headlessui/react";
 import {
   IconArrowRight,

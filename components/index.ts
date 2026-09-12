@@ -19,7 +19,7 @@ export { ThemeProvider } from "./ThemeProvider";
 export { ThemeToggle } from "./ThemeToggle";
 
 // Brand Components
-export { BrandLogo } from "./BrandLogo";
+export { BrandLogo } from "./branding/BrandLogo";
 export { Container } from "./Container";
 export { SectionTitle } from "./SectionTitle";
 export { Cta } from "./Cta";

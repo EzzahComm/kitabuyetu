@@ -1,7 +1,7 @@
 import Link from "next/link";
 import React from "react";
 import { Container } from "@/components/Container";
-import { BrandLogo } from "@/components/BrandLogo";
+import { BrandLogo } from "@/components/branding/BrandLogo";
 import {
   products,
   ecosystem,
