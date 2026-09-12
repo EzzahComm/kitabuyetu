@@ -11,6 +11,41 @@
     --line: #dfe7e1;
     --brand: #007004;
     --brand-strong: #005703;
+
+    /* shadcn/Tailwind tokens — every file under components/ui/* (button,
+       card, badge, dialog, dropdown-menu, input, select, switch, table,
+       tabs, alert, ...) plus components/shared/stat-card.tsx and
+       page-header.tsx key off these via tailwind.config.ts's
+       `hsl(var(--x))` color mappings. This block was deleted outright by
+       commit 17cd391 ("full ui fix migration", 2026-09-11) when the file
+       was rewritten for the marketing redesign's --surface/--ink tokens
+       above, silently breaking every button/card/badge across all five
+       authenticated portals ((dashboard)/(admin)/(enterprise)/(member)/
+       (reminder)) in production since that day — an undefined custom
+       property makes `hsl(var(--x))` invalid, which the browser just
+       drops, so these classes rendered with no background/border/radius.
+       Restored verbatim; the hex anchors (#3CB043 green / #0B3C88 navy)
+       still match the single source of truth, lib/ui/brand-palette.ts. */
+    --background: 0 0% 100%;
+    --foreground: 217 85% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 85% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 85% 11%;
+    --primary: 124 42% 46%; /* #3CB043 — brand green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 217 85% 29%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 129 45% 94%;
+    --accent-foreground: 217 85% 29%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 124 42% 46%;
+    --radius: 0.5rem;
   }
 
   html,
@@ -51,6 +86,26 @@
     --ink: #f3f7f3;
     --ink-muted: #b5c2b8;
     --line: #2e4033;
+
+    --background: 217 85% 6%;
+    --foreground: 210 40% 98%;
+    --card: 217 85% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 85% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 124 50% 55%; /* lighter green for contrast on dark */
+    --primary-foreground: 217 85% 6%;
+    --secondary: 217 32% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217 50% 18%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 32% 17.5%;
+    --input: 217 32% 17.5%;
+    --ring: 124 50% 55%;
   }
 }
 
