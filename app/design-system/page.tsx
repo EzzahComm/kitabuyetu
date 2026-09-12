@@ -18,6 +18,10 @@ import { ChartCard, TrendChart, BarSeriesChart, DonutChart, Sparkline } from '@/
 import { StatCardsSkeleton, TableSkeleton, ListSkeleton } from '@/components/shared/skeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { FormSection, FormFieldGroup, FormDivider } from '@/components/shared/form-section';
+import { PageSection, FormActions } from '@/components/shared/page-section';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { PortalSidebar } from '@/components/shared/portal-sidebar';
 import { Search, Settings } from 'lucide-react';
@@ -334,6 +338,74 @@ export default function DesignSystemPage() {
             </div>
           </CardContent>
         </Card>
+      </Section>
+
+      {/* Form components */}
+      <Section id="forms" title="Form components (helpers)">
+        <Card>
+          <CardContent className="space-y-6 p-6">
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">FormSection</h3>
+              <div className="space-y-3">
+                <FormSection label="Email address" required hint="We'll never share your email">
+                  <Input placeholder="jane@example.com" />
+                </FormSection>
+                <FormSection label="Phone" error="Invalid format">
+                  <Input placeholder="+254 712 345 678" />
+                </FormSection>
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">FormFieldGroup</h3>
+              <FormFieldGroup columns={2}>
+                <FormSection label="First name" required>
+                  <Input placeholder="Jane" />
+                </FormSection>
+                <FormSection label="Last name" required>
+                  <Input placeholder="Wanjiku" />
+                </FormSection>
+              </FormFieldGroup>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">FormDivider</h3>
+              <FormDivider label="Contact information" />
+            </div>
+          </CardContent>
+        </Card>
+        <p className="text-sm text-muted-foreground">
+          Standardized form field wrappers for Label + Input/Select/Textarea. Use <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormSection</code> for individual fields with optional error/hint, <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormFieldGroup</code> for side-by-side fields, and <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormDivider</code> to separate form sections.
+        </p>
+      </Section>
+
+      {/* Page structure components */}
+      <Section id="page-structure" title="Page structure components (helpers)">
+        <Card>
+          <CardContent className="space-y-6 p-6">
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">PageSection</h3>
+              <PageSection
+                title="Account settings"
+                description="Manage your profile and preferences"
+                action={<Button size="sm">Edit</Button>}
+              >
+                <p className="text-sm text-muted-foreground">Content area with consistent Card wrapper and padding.</p>
+              </PageSection>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">FormActions</h3>
+              <div className="rounded-md border p-4 bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-4">Bottom of form with consistent spacing:</p>
+                <FormActions>
+                  <Button variant="outline">Cancel</Button>
+                  <Button>Save changes</Button>
+                </FormActions>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <p className="text-sm text-muted-foreground">
+          Page layout wrappers for consistent structure. <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">PageSection</code> wraps content areas in Card with optional title/description/action. <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormActions</code> groups buttons at the bottom with separator and consistent alignment options.
+        </p>
       </Section>
     </div>
   );
