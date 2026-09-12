@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Cake, Send, Users2, MessageSquare } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
-import { SummaryStatsGrid, SectionHeader } from '@/components/dashboard/sms/shared';
+import { SummaryStatsGrid, SectionHeader } from '@/components/shared/dashboard-sections';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMembers } from '@/hooks/use-members';

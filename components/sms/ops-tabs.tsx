@@ -23,7 +23,7 @@ import { ExpandableText } from '@/components/shared/expandable-text';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { StatusPill } from '@/components/shared/status-pill';
-import { SectionHeader } from '@/components/dashboard/sms/shared';
+import { SectionHeader } from '@/components/shared/dashboard-sections';
 
 // ─── Failed messages ─────────────────────────────────────────────────────────
 

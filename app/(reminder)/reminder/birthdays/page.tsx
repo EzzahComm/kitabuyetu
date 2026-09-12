@@ -4,7 +4,7 @@ import { Cake } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage, type PaginatedTableColumn } from '@/components/shared/paginated-table';
 import { StatusPill } from '@/components/shared/status-pill';
-import { SectionHeader } from '@/components/dashboard/sms/shared';
+import { SectionHeader } from '@/components/shared/dashboard-sections';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSmsSettings, useUpdateSmsSettings, useBirthdays } from '@/hooks/use-sms-settings';

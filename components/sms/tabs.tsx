@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { countSegments } from '@/lib/sms/segments';
 import { StatusPill } from '@/components/shared/status-pill';
-import { SectionHeader, SummaryStatsGrid } from '@/components/dashboard/sms/shared';
+import { SectionHeader, SummaryStatsGrid } from '@/components/shared/dashboard-sections';
 import type { SmsTemplate, SmsCampaign, SmsSchedule } from '@/types/api.types';
 import type { SmsOptOut, SmsBulkPreview } from '@/lib/api/endpoints';
 

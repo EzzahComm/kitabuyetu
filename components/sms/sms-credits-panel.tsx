@@ -3,7 +3,7 @@
 import { MessageSquare, TrendingDown, CalendarClock, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/dashboard/sms/shared';
+import { SectionHeader } from '@/components/shared/dashboard-sections';
 import { PaginatedTable, singlePage, type PaginatedTableColumn } from '@/components/shared/paginated-table';
 import { useSmsAnalytics } from '@/hooks/use-sms-analytics';
 import type { FeatureUsage } from '@/lib/services/sms-analytics.service';

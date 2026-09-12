@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
-import { SectionHeader } from '@/components/dashboard/sms/shared';
+import { SectionHeader } from '@/components/shared/dashboard-sections';
 import { useToast } from '@/hooks/use-toast';
 import { organizationApi } from '@/lib/api/endpoints';
 import { formatDate, formatKES } from '@/lib/utils';
