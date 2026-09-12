@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { PageShell } from '@/components/marketing/page-shell';
 import { pool } from '@/lib/db';
 import { redis } from '@/lib/redis';
@@ -149,15 +150,15 @@ export default async function StatusPage() {
       description="Current status of Kitabu Yetu's core services."
     >
       {allOperational ? (
-        <div className="mb-8 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          All systems operational
-        </div>
+        <Alert className="mb-8">
+          <CheckCircle2 size={14} />
+          <AlertTitle>All systems operational</AlertTitle>
+        </Alert>
       ) : (
-        <div className="mb-8 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          Some services are degraded
-        </div>
+        <Alert className="mb-8">
+          <AlertTriangle size={14} />
+          <AlertTitle>Some services are degraded</AlertTitle>
+        </Alert>
       )}
       <ul className="space-y-3">
         {services.map((service) => (

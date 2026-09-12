@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -99,17 +100,15 @@ export default function WhatsAppPage() {
       />
 
       {!configured && (
-        <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Dry-run mode</p>
-            <p className="text-xs">
-              Set <code className="rounded bg-amber-100 px-1">WHATSAPP_PHONE_ID</code> and
-              <code className="ml-1 rounded bg-amber-100 px-1">WHATSAPP_ACCESS_TOKEN</code> in your environment to enable live sends.
-              Messages submitted here are logged with status <Badge variant="warning" className="mx-1">dry_run</Badge> and never leave the system.
-            </p>
-          </div>
-        </div>
+        <Alert>
+          <Info size={14} />
+          <AlertTitle>Dry-run mode</AlertTitle>
+          <AlertDescription>
+            Set <code className="rounded bg-amber-100 px-1">WHATSAPP_PHONE_ID</code> and
+            <code className="ml-1 rounded bg-amber-100 px-1">WHATSAPP_ACCESS_TOKEN</code> in your environment to enable live sends.
+            Messages submitted here are logged with status <Badge variant="warning" className="mx-1">dry_run</Badge> and never leave the system.
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
