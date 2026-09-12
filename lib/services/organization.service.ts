@@ -297,9 +297,15 @@ export const organizationService = {
         client.query<{ n: string }>(
           `SELECT COUNT(*) AS n
            FROM audit_logs al
-           WHERE al.group_id IN (
-             SELECT group_id FROM organization_group_access
-             WHERE organization_id = $1 AND is_active = true
+           WHERE (
+             -- Organization-axis rows (portfolio views, report generation,
+             -- exports) belong to the organization, not to any one group, so
+             -- a group-only filter made them invisible here — see migration 168.
+             al.organization_id = $1
+             OR al.group_id IN (
+               SELECT group_id FROM organization_group_access
+               WHERE organization_id = $1 AND is_active = true
+             )
            ) ${searchClause}`,
           [organizationId, ...searchParam],
         ),
@@ -317,9 +323,15 @@ export const organizationService = {
            FROM audit_logs al
            LEFT JOIN groups g  ON g.id = al.group_id
            LEFT JOIN members m ON m.id = al.actor_id
-           WHERE al.group_id IN (
-             SELECT group_id FROM organization_group_access
-             WHERE organization_id = $1 AND is_active = true
+           WHERE (
+             -- Organization-axis rows (portfolio views, report generation,
+             -- exports) belong to the organization, not to any one group, so
+             -- a group-only filter made them invisible here — see migration 168.
+             al.organization_id = $1
+             OR al.group_id IN (
+               SELECT group_id FROM organization_group_access
+               WHERE organization_id = $1 AND is_active = true
+             )
            ) ${searchClause}
            ORDER BY al.created_at DESC
            LIMIT $${search ? 3 : 2} OFFSET $${search ? 4 : 3}`,
