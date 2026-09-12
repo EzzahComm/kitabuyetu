@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock,
+  Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock, AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -81,9 +82,11 @@ export default function EnterpriseDashboardPage() {
       />
 
       {dashError && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Couldn&apos;t load portfolio data — figures below may be incomplete. {getErrorMessage(dashErr)}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle size={14} />
+          <AlertTitle>Couldn&apos;t load portfolio data</AlertTitle>
+          <AlertDescription>Figures below may be incomplete. {getErrorMessage(dashErr)}</AlertDescription>
+        </Alert>
       )}
 
       {/* KPI grid */}
