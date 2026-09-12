@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Cake, Send, Users2, MessageSquare } from 'lucide-react';
+import { Cake, Send, Users2, MessageSquare, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { SummaryStatsGrid, SectionHeader } from '@/components/shared/dashboard-sections';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useMembers } from '@/hooks/use-members';
 import { useSmsCreditBalance } from '@/hooks/use-billing';
@@ -57,19 +58,16 @@ export default function ReminderDashboardPage() {
       <SummaryStatsGrid items={stats} />
 
       {credits != null && credits < 50 && (
-        <Card className="border-amber-200 bg-amber-50/60">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div>
-              <p className="text-sm font-semibold text-amber-900">Low SMS credits</p>
-              <p className="mt-0.5 text-xs text-amber-800">
-                You have {credits} credits left. Messages stop sending at zero.
-              </p>
-            </div>
+        <Alert>
+          <AlertTriangle size={14} />
+          <AlertTitle>Low SMS credits</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>You have {credits} credits left. Messages stop sending at zero.</span>
             <Button asChild size="sm">
               <Link href="/reminder/usage">Top up</Link>
             </Button>
-          </CardContent>
-        </Card>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
