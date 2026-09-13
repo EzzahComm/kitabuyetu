@@ -43,6 +43,22 @@ export interface OrgWallet {
   total_returned:    string;
 }
 
+/**
+ * One group funded by a program — the Programme tier of the portfolio
+ * drill-down. Money is carried as text, not number, for the same reason every
+ * other money column in this file is: a NUMERIC(15,2) does not survive a round
+ * trip through a JS double intact.
+ */
+export interface ProgramGroupLine {
+  group_id:           string;
+  group_name:         string;
+  disbursed:          string;
+  reserved:           string;
+  disbursement_count: number;
+  last_disbursed_at:  string | null;
+  active_members:     number;
+}
+
 export interface FundingProgram {
   id:              string;
   name:            string;
@@ -610,6 +626,109 @@ export const organizationFinanceService = {
         [orgId(ctx)],
       );
       return rows;
+    });
+  },
+
+  /**
+   * Groups funded by ONE program — the Programme tier of the portfolio
+   * drill-down (Org → Programme → Group → Member).
+   *
+   * The programme↔group edge is organization_disbursements(funding_program_id,
+   * group_id): a group belongs to a programme because money actually moved to
+   * it. A declarative join table is deliberately NOT introduced — for a funding
+   * axis the transfer itself is the truthful relationship, and a second link
+   * would be a second source of truth free to drift from the ledger.
+   *
+   * `status = 'completed'` is the canonical "money moved" filter. Settlement
+   * sets it in the same transaction that posts the group journal entry and
+   * increments funding_programs.disbursed_total, so SUM(completed) here
+   * reconciles with the program header by construction rather than by
+   * coincidence — the two figures render on the same screen. ('returned' and
+   * 'cancelled' are in the CHECK domain but no code path writes them today;
+   * if one ever does, disbursed_total's increment needs the matching reversal
+   * before this filter is widened.)
+   *
+   * `reserved` = 'pending_approval', deliberately the SAME definition
+   * programBudgetReport uses, so the per-group rows sum to the program-level
+   * reserved figure instead of being a third disagreeing bucket on the same
+   * screen. 'approved' is not a bucket here because it is transient —
+   * approveDisbursement sets it and calls settleOrgDisbursement in the next
+   * statement, so at rest a row is 'pending_approval' or 'completed'.
+   *
+   * Per-group figures use correlated subqueries rather than joins: joining
+   * group_members onto organization_disbursements fans every disbursement row
+   * across every member row of the same group — the same 99x fan-out class
+   * fixed in PR #105 and guarded against in getDashboard below.
+   *
+   * R10 — the header is required (there is nothing meaningful to degrade to
+   * without it), but a failure of the per-group breakdown is reported in
+   * `incomplete` rather than rendering absent money as zero.
+   */
+  async listProgramGroups(
+    ctx: TenantContext,
+    programId: string,
+  ): Promise<{ program: FundingProgram; groups: ProgramGroupLine[]; incomplete: string[] }> {
+    await organizationService.assertOrganizationCoordinator(ctx);
+
+    return withDb(ctx, async (db) => {
+      // organization_id is bound explicitly even though RLS already scopes this
+      // connection to the coordinator's organization — same belt-and-braces as
+      // listPrograms above, and what R3 asks for: the app-layer check and the
+      // policy, not either alone.
+      //
+      // NotFoundError (never Forbidden) when the row is absent: a program that
+      // belongs to ANOTHER organization must be indistinguishable from one that
+      // does not exist, or the error itself leaks cross-tenant existence.
+      const { rows: progRows } = await db.query<FundingProgram>(
+        `SELECT * FROM funding_programs WHERE id = $1 AND organization_id = $2`,
+        [programId, orgId(ctx)],
+      );
+      const program = progRows[0];
+      if (!program) throw new NotFoundError('Funding program not found');
+
+      const incomplete: string[] = [];
+      let groups: ProgramGroupLine[] = [];
+
+      // NOTE: this is the LAST statement in the transaction, which is what makes
+      // catching here safe — a failed statement aborts the enclosing Postgres
+      // transaction, so any further query would fail with "current transaction
+      // is aborted" regardless of this catch. The read-only COMMIT that follows
+      // degrades to a rollback harmlessly. Any FUTURE optional metric added
+      // after this point must use its own SAVEPOINT or a separate withDb call.
+      try {
+        const { rows } = await db.query<ProgramGroupLine>(
+          `WITH funded AS (
+             SELECT d.group_id,
+                    COALESCE(SUM(d.amount) FILTER (WHERE d.status = 'completed'), 0) AS disbursed,
+                    COALESCE(SUM(d.amount) FILTER (WHERE d.status = 'pending_approval'), 0) AS reserved,
+                    COUNT(*)               FILTER (WHERE d.status = 'completed')     AS disbursement_count,
+                    MAX(d.completed_at)    FILTER (WHERE d.status = 'completed')     AS last_disbursed_at
+             FROM   organization_disbursements d
+             WHERE  d.funding_program_id = $1
+               AND  d.organization_id    = $2
+               AND  d.group_id IS NOT NULL
+             GROUP BY d.group_id
+           )
+           SELECT g.id                      AS group_id,
+                  g.name                    AS group_name,
+                  f.disbursed::text         AS disbursed,
+                  f.reserved::text          AS reserved,
+                  f.disbursement_count::int AS disbursement_count,
+                  f.last_disbursed_at,
+                  (SELECT COUNT(*) FROM group_members gm
+                    WHERE gm.group_id = g.id AND gm.is_active)::int AS active_members
+           FROM   funded f
+           JOIN   groups g ON g.id = f.group_id
+           ORDER BY f.disbursed DESC, g.name`,
+          [programId, orgId(ctx)],
+        );
+        groups = rows;
+      } catch (err) {
+        logger.error('[organization-finance] listProgramGroups: per-group breakdown failed', err);
+        incomplete.push('groups');
+      }
+
+      return { program, groups, incomplete };
     });
   },
 
