@@ -14,7 +14,8 @@ interface BenefitsProps {
     bullets: {
       title: string;
       desc: string;
-      icon: React.ReactNode;
+      /** Cloned to inject sizing classes, so it must be an element, not any node. */
+      icon: React.ReactElement;
     }[];
     /** Optional CTA shown once the section has made its case. Omit to render no button. */
     cta?: {

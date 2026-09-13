@@ -142,6 +142,12 @@ export default function FundingPortalPage() {
     refetchInterval: 120_000,
   });
 
+  const { data: healthResponse, isLoading: healthLoading } = useQuery({
+    queryKey: ['organization', 'health'],
+    queryFn:  organizationApi.health,
+    staleTime: 30_000,
+  });
+
   const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['organization', 'groups'],
     queryFn:  () => organizationApi.groups(),
@@ -200,14 +206,22 @@ export default function FundingPortalPage() {
 
   const f = dash?.financial;
   const p = dash?.portfolio;
+  const h = healthResponse?.health;
 
   // R10 — never render money we could not actually read. This page is where
   // disbursements get decided, so a wallet balance falling back to "KES 0"
   // would be the most costly possible place to show a confident wrong number.
   const NA = '—';
   const fMoney = (v: string | undefined) => (f && v !== undefined ? formatKES(parseFloat(v)) : NA);
-  const pMoney = (v: string | undefined) => (p && v !== undefined ? formatKES(parseFloat(v)) : NA);
-  const pCount = (v: number | undefined) => (p && v !== undefined ? v.toLocaleString() : NA);
+  const pMoney = (v: string | undefined, available: boolean = true) => (available && v !== undefined ? formatKES(parseFloat(v)) : NA);
+  const pCount = (v: number | undefined, available: boolean = true) => (available && v !== undefined ? v.toLocaleString() : NA);
+  const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
+  // A non-zero risk figure must not render identically to a healthy zero.
+  // Tinted only when a number was actually read — a dash is not a warning.
+  const riskTone = (v: number | undefined, severe = false) =>
+    h && v !== undefined && v > 0
+      ? (severe ? 'text-red-600 dark:text-red-500' : 'text-amber-600 dark:text-amber-500')
+      : '';
   const linkedGroups = groups ?? [];
 
   return (
@@ -245,12 +259,54 @@ export default function FundingPortalPage() {
 
       {/* Portfolio */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Linked groups" value={pCount(p?.linkedGroups)} icon={Landmark} />
-        <StatCard title="Active members" value={pCount(p?.activeMembers)} icon={Users} />
-        <StatCard title="Savings mobilized" value={pMoney(p?.totalSavings)} icon={PiggyBank} />
-        <StatCard title="Loan portfolio" value={pMoney(p?.loanPortfolio)}
-                  description={`${pCount(p?.activeLoans)} active · ${pMoney(p?.loanRepayments)} repaid`} icon={TrendingUp} />
+        <StatCard title="Linked groups" value={pCount(p?.linkedGroups, !!p)} icon={Landmark} />
+        <StatCard title="Active members" value={pCount(p?.activeMembers, !!p)} icon={Users} />
+        <StatCard title="Savings mobilized" value={pMoney(p?.totalSavings, !!p)} icon={PiggyBank} />
+        <StatCard title="Loan portfolio" value={pMoney(p?.loanPortfolio, !!p)}
+                  description={`${pCount(p?.activeLoans, !!p)} active · ${pMoney(p?.loanRepayments, !!p)} repaid`} icon={TrendingUp} />
       </div>
+
+      {/* Portfolio health — risk indicators */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Portfolio health</CardTitle>
+          <p className="text-xs text-muted-foreground">Overdue loans, arrears, defaults, and membership movement</p>
+        </CardHeader>
+        <CardContent>
+          {healthLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>{pCount(h?.overdueLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.overdueLoanPct)} of active</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue outstanding</p>
+                <p className="text-2xl font-semibold tabular-nums">{pMoney(h?.overdueOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Groups in arrears</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>{pCount(h?.groupsInArrears, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.groupsInArrearsPct)} of linked</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Defaulted loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>{pCount(h?.defaultedLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pMoney(h?.defaultedOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Inactive members</p>
+                <p className="text-2xl font-semibold tabular-nums">{pCount(h?.inactiveMembers, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pCount(h?.newMembers30d, !!h)} new (30d)</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Funding programs */}
