@@ -36,7 +36,17 @@ concurrency:
 # passes during `next build` in CI. Real secrets live in Vercel's dashboard.
 # ─────────────────────────────────────────────────────────────────────────────
 env:
-  NODE_VERSION: '20'
+  # 22, not 20. `.npmrc` sets engine-strict=true, so an unmet `engines` field in
+  # ANY transitive dependency is a hard `npm ci` failure, not a warning. The
+  # `workflow` package pulls @workflow/nest → @nestjs/common → file-type@22.0.2,
+  # which requires node >=22 — so on node 20 every job that runs a full install
+  # died at EBADENGINE. That silently took out Quality Gate AND Tenant Isolation
+  # (integration) for ~7 days: no lint, no typecheck, and critically no RLS suite,
+  # which is the one thing that catches a coordinator-visibility regression (the
+  # class of bug migrations 168/169 had to fix in production). Jobs that skip the
+  # full install kept passing, so the run looked partly green and the cause was
+  # easy to misread. Keep this >= the highest `engines.node` in the dep tree.
+  NODE_VERSION: '22'
 
   # ── App ────────────────────────────────────────────────────────────────────
   NODE_ENV: production
