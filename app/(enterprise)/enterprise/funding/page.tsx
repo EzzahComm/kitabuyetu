@@ -47,16 +47,20 @@ import { INTEREST_METHODS, REPAYMENT_FREQUENCIES } from '@/lib/validators/organi
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
 interface DashboardPayload {
+  /** null when unreadable — NEVER zero-filled (R10). */
   financial: {
     walletBalance: string; committedFunds: string; totalDeposited: string;
     totalDisbursed: string; totalReturned: string;
-  };
+  } | null;
+  /** null when unreadable — NEVER zero-filled (R10). */
   portfolio: {
     linkedGroups: number; activeMembers: number; totalSavings: string;
     loanPortfolio: string; activeLoans: number; loanRepayments: string;
-    activePrograms: number;
-  };
-  programs: Program[];
+    activePrograms?: number;
+  } | null;
+  programs: Program[] | null;
+  /** Sections the server could not read, e.g. ['financial']. */
+  incomplete?: string[];
 }
 
 interface Program {
@@ -196,6 +200,14 @@ export default function FundingPortalPage() {
 
   const f = dash?.financial;
   const p = dash?.portfolio;
+
+  // R10 — never render money we could not actually read. This page is where
+  // disbursements get decided, so a wallet balance falling back to "KES 0"
+  // would be the most costly possible place to show a confident wrong number.
+  const NA = '—';
+  const fMoney = (v: string | undefined) => (f && v !== undefined ? formatKES(parseFloat(v)) : NA);
+  const pMoney = (v: string | undefined) => (p && v !== undefined ? formatKES(parseFloat(v)) : NA);
+  const pCount = (v: number | undefined) => (p && v !== undefined ? v.toLocaleString() : NA);
   const linkedGroups = groups ?? [];
 
   return (
@@ -222,22 +234,22 @@ export default function FundingPortalPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Wallet balance" value={formatKES(parseFloat(f?.walletBalance ?? '0'))}
-                    description={`${formatKES(parseFloat(f?.committedFunds ?? '0'))} committed`} icon={Wallet} />
-          <StatCard title="Total deposited" value={formatKES(parseFloat(f?.totalDeposited ?? '0'))} icon={ArrowDownToLine} />
-          <StatCard title="Total disbursed" value={formatKES(parseFloat(f?.totalDisbursed ?? '0'))}
-                    description={`${formatKES(parseFloat(f?.totalReturned ?? '0'))} returned`} icon={ArrowRightLeft} />
-          <StatCard title="Active programs" value={String(p?.activePrograms ?? 0)} icon={FolderKanban} />
+          <StatCard title="Wallet balance" value={fMoney(f?.walletBalance)}
+                    description={`${fMoney(f?.committedFunds)} committed`} icon={Wallet} />
+          <StatCard title="Total deposited" value={fMoney(f?.totalDeposited)} icon={ArrowDownToLine} />
+          <StatCard title="Total disbursed" value={fMoney(f?.totalDisbursed)}
+                    description={`${fMoney(f?.totalReturned)} returned`} icon={ArrowRightLeft} />
+          <StatCard title="Active programs" value={pCount(p?.activePrograms)} icon={FolderKanban} />
         </div>
       )}
 
       {/* Portfolio */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Linked groups" value={String(p?.linkedGroups ?? 0)} icon={Landmark} />
-        <StatCard title="Active members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users} />
-        <StatCard title="Savings mobilized" value={formatKES(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
-        <StatCard title="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
-                  description={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
+        <StatCard title="Linked groups" value={pCount(p?.linkedGroups)} icon={Landmark} />
+        <StatCard title="Active members" value={pCount(p?.activeMembers)} icon={Users} />
+        <StatCard title="Savings mobilized" value={pMoney(p?.totalSavings)} icon={PiggyBank} />
+        <StatCard title="Loan portfolio" value={pMoney(p?.loanPortfolio)}
+                  description={`${pCount(p?.activeLoans)} active · ${pMoney(p?.loanRepayments)} repaid`} icon={TrendingUp} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
