@@ -20,7 +20,6 @@ export { ToastContainer } from "./Toast";
 
 // Theme Components
 export { ThemeProvider } from "./ThemeProvider";
-export { ThemeToggle } from "./ThemeToggle";
 
 // Brand Components
 export { BrandLogo } from "./branding/BrandLogo";

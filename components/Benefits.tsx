@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
+import type { StaticImageData } from "next/image";
 import { Container }  from "@/components/Container";
 
 interface BenefitsProps {
@@ -9,7 +10,7 @@ interface BenefitsProps {
     imgPos?: "left" | "right";
     title: string;
     desc: string;
-    image: any;
+    image: StaticImageData;
     bullets: {
       title: string;
       desc: string;
@@ -81,7 +82,13 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
   );
 };
 
-function Benefit(props: any) {
+interface BenefitProps {
+  icon: React.ReactElement;
+  title: string;
+  children: React.ReactNode;
+}
+
+function Benefit(props: BenefitProps) {
   return (
       <div className="mt-8 flex items-start gap-3">
         <div className="mt-1 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-brand-600">

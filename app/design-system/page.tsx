@@ -24,7 +24,6 @@ import { FormSection, FormFieldGroup, FormDivider } from '@/components/shared/fo
 import { PageSection, FormActions } from '@/components/shared/page-section';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { PortalSidebar } from '@/components/shared/portal-sidebar';
-import { Search, Settings } from 'lucide-react';
 import { brandGreen, brandNavy, chartPalette } from '@/lib/ui/tokens';
 
 const trendData = [
@@ -299,10 +298,10 @@ export default function DesignSystemPage() {
               ])}
               isLoading={false}
               columns={[
-                { key: 'name', header: 'Name', render: (row: any) => <p className="font-medium">{row.name}</p> },
-                { key: 'email', header: 'Email', render: (row: any) => <p className="text-sm text-muted-foreground">{row.email}</p> },
-                { key: 'status', header: 'Status', render: (row: any) => <StatusPill status={row.status} tone={row.status === 'active' ? 'positive' : 'neutral'} size="sm" /> },
-                { key: 'amount', header: 'Balance', render: (row: any) => <p className="text-right font-mono text-sm">{row.amount}</p> },
+                { key: 'name', header: 'Name', render: (row) => <p className="font-medium">{row.name}</p> },
+                { key: 'email', header: 'Email', render: (row) => <p className="text-sm text-muted-foreground">{row.email}</p> },
+                { key: 'status', header: 'Status', render: (row) => <StatusPill status={row.status} tone={row.status === 'active' ? 'positive' : 'neutral'} size="sm" /> },
+                { key: 'amount', header: 'Balance', render: (row) => <p className="text-right font-mono text-sm">{row.amount}</p> },
               ]}
               onPageChange={() => {}}
               emptyMessage="No data"
