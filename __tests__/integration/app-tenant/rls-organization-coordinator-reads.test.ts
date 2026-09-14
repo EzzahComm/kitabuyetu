@@ -73,6 +73,18 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       [linkedGroupId, linkedOfficerId],
       [unlinkedGroupId, unlinkedOfficerId],
     ]) {
+      // loan_funding_splits.group_id (migration 118) and loan_repayments.member_id,
+      // .group_membership_id, .installment_number, .due_date, .opening_balance,
+      // .principal_component, .interest_component, .total_due and
+      // .closing_balance (all NOT NULL with no default, migration 003) were
+      // missing from this insert — it 500'd first on loan_repayments.member_id,
+      // then (once that was fixed) on loan_funding_splits.group_id, before RLS
+      // was ever reached either time. The values below are arbitrary but
+      // satisfy chk_loan_repayments_total_due/chk_loan_repayments_amount_paid
+      // (migration 060) and the loan_funding_splits balance-to-principal
+      // constraint trigger (migration 118: splits must sum to principal_amount
+      // for a loan at status 'active', which this loan is); only group_id/
+      // member_id matter to the assertions below.
       await rawQuery(
         `WITH fs AS (
            INSERT INTO group_funding_sources (group_id, source_type, label)
@@ -83,13 +95,19 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
                               interest_rate, loan_term_months, status)
            SELECT $1, $2, gm.id, 10000, 5, 6, 'active'
            FROM group_members gm WHERE gm.group_id = $1 AND gm.member_id = $2
-           RETURNING id
+           RETURNING id, member_id, group_membership_id
          ), sp AS (
-           INSERT INTO loan_funding_splits (loan_id, funding_source_id, amount)
-           SELECT l.id, fs.id, 10000 FROM l, fs RETURNING loan_id
+           INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+           SELECT $1, l.id, fs.id, 10000 FROM l, fs RETURNING loan_id
          )
-         INSERT INTO loan_repayments (loan_id, group_id, amount_paid, status, payment_date)
-         SELECT l.id, $1, 500, 'completed', CURRENT_DATE FROM l`,
+         INSERT INTO loan_repayments (
+           loan_id, group_id, member_id, group_membership_id, installment_number,
+           due_date, opening_balance, principal_component, interest_component,
+           total_due, closing_balance, amount_paid, status, payment_date
+         )
+         SELECT l.id, $1, l.member_id, l.group_membership_id, 1,
+                CURRENT_DATE, 10000, 500, 0, 500, 9500, 500, 'completed', CURRENT_DATE
+         FROM l`,
         [gid, mid],
       );
     }
@@ -212,13 +230,41 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
   it('did NOT gain write access to subscriptions (the ALL policy was left alone)', async () => {
     // subscriptions carries a single FOR ALL policy; 169 adds a separate FOR
     // SELECT policy rather than widening it, so reads open and writes stay shut.
-    await expect(
-      withDb(coordinatorCtx(coordinatorId, orgId), (c) =>
-        c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [
-          linkedGroupId,
-        ]),
-      ),
-    ).rejects.toThrow();
+    //
+    // subscriptions_all is FOR ALL USING (group_id = app_current_group_id())
+    // with no separate WITH CHECK — for an UPDATE, USING is what limits which
+    // existing rows the statement can even see. A coordinator's group_id is
+    // NULL, so USING matches zero rows: Postgres does NOT raise for that, it
+    // just runs the UPDATE against zero rows. .rejects.toThrow() never held;
+    // the real assertion is rowCount plus an unchanged value read back
+    // through the same coordinator context (whose SELECT access on this
+    // table is proven by the test above) — a check that can't fail proves
+    // nothing.
+    const [before] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
+      const { rows } = await c.query<{ status: string }>(
+        'SELECT status FROM subscriptions WHERE group_id = $1',
+        [linkedGroupId],
+      );
+      return rows;
+    });
+    expect(before).toBeDefined();
+
+    const result = await withDb(coordinatorCtx(coordinatorId, orgId), (c) =>
+      c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [
+        linkedGroupId,
+      ]),
+    );
+    expect(result.rowCount).toBe(0);
+
+    const [after] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
+      const { rows } = await c.query<{ status: string }>(
+        'SELECT status FROM subscriptions WHERE group_id = $1',
+        [linkedGroupId],
+      );
+      return rows;
+    });
+    expect(after.status).toBe(before.status);
+    expect(after.status).not.toBe('cancelled');
   });
 
   // ── no widening for anyone else ───────────────────────────────────────────
