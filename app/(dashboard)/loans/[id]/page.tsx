@@ -166,7 +166,7 @@ export default function LoanDetailPage() {
         </CardContent></Card>
         <Card><CardContent className="p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Interest rate / Term</p>
-          <p className="font-semibold">{l.interest_rate}% /mo × {l.loan_term_months} months</p>
+          <p className="font-semibold">{l.interest_rate}% p.a. × {l.loan_term_months} months</p>
           {/* Cadence is only worth a line when it is not the default — a
               weekly loan reads "12 months" above but has 52 instalments. */}
           {l.repayment_frequency && l.repayment_frequency !== 'monthly' && (
