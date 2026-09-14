@@ -1,5 +1,13 @@
 -- =============================================================================
--- 169: re-pin generate_loan_schedule to `public`, not `private, public`
+-- 171: re-pin generate_loan_schedule to `public`, not `private, public`
+--
+-- Renumbered from this PR's original 169 (authored 2026-09-04, before that
+-- number was taken by 20260913000000_169_organization_coordinator_read_access
+-- .sql, which shipped and reached production while this PR sat open). Content
+-- unchanged apart from the number itself, below and in the RAISE messages —
+-- the timestamp prefix is CI's real ordering key, not the human NNN label
+-- (see Migration Check in ci.yml), so the two "169"s were never a functional
+-- collision, but a fresh number is clearer to read.
 --
 -- 167a set:  SET search_path = private, public
 -- 016/148/149 had all set:  search_path = public
@@ -48,10 +56,10 @@ BEGIN
   -- nobody intended. A check that cannot fail is not a check.
   IF v_config IS DISTINCT FROM 'search_path=public' THEN
     RAISE EXCEPTION
-      'Migration 169 FAILED: expected search_path=public, found "%"', v_config;
+      'Migration 171 FAILED: expected search_path=public, found "%"', v_config;
   END IF;
 
-  RAISE NOTICE 'Migration 169 verified: generate_loan_schedule pinned to %', v_config;
+  RAISE NOTICE 'Migration 171 verified: generate_loan_schedule pinned to %', v_config;
 END
 $verify$;
 
@@ -83,19 +91,19 @@ BEGIN
 
   IF v_skipped_status > 0 THEN
     RAISE NOTICE
-      '169 diagnostic: % loan(s) outside active/disbursed were skipped by 167 and may still '
+      '171 diagnostic: % loan(s) outside active/disbursed were skipped by 167 and may still '
       'carry a schedule priced at 12x. Review them by hand.', v_skipped_status;
   END IF;
 
   IF v_paid > 0 THEN
     RAISE NOTICE
-      '169 diagnostic: % repayment row(s) have amount_paid > 0. Migration 167 is no longer '
+      '171 diagnostic: % repayment row(s) have amount_paid > 0. Migration 167 is no longer '
       'safely replayable against this database — its verify block does not share its regen '
       'guard. Do not replay 167 here.', v_paid;
   END IF;
 
   IF v_skipped_status = 0 AND v_paid = 0 THEN
-    RAISE NOTICE '169 diagnostic: clean — no skipped-status loans, no paid instalments.';
+    RAISE NOTICE '171 diagnostic: clean — no skipped-status loans, no paid instalments.';
   END IF;
 END
 $diagnose$;
