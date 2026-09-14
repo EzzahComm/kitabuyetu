@@ -199,6 +199,27 @@ function Test-ExcludedPath {
     return $false
 }
 
+function Get-EslintIgnoreArgs {
+    <#
+        Builds --ignore-pattern arguments for eslint from $Script:ExcludedDirNames
+        (the same list Test-ExcludedPath uses), so the script's OWN eslint
+        invocations never lint build/dependency/backup artifacts — in
+        particular .optimize/backups/**, the Safety Engine's own phase
+        snapshots (see Invoke-SafetyEngine / manifestTargets), which would
+        otherwise get linted as if they were live source and fail the build
+        on a copy of a file, not the real one.
+
+        This intentionally does NOT touch the project's .eslintrc — it only
+        scopes what this script asks eslint to look at.
+    #>
+    $ignoreArgs = @()
+    foreach ($dir in $Script:ExcludedDirNames) {
+        $ignoreArgs += "--ignore-pattern"
+        $ignoreArgs += "**/$dir/**"
+    }
+    return $ignoreArgs
+}
+
 # ============================================================================
 # 2. STATE MANAGEMENT
 # ============================================================================
@@ -603,7 +624,8 @@ function Invoke-OptimizationEngine {
         Write-Log "Applying safe, reversible auto-fixes (eslint --fix / prettier)..." "STEP"
         Set-Location $RepoPath
         if (Test-Path (Join-Path $RepoPath "node_modules/.bin/eslint")) {
-            & npx eslint --fix . --ext .ts,.tsx,.js,.jsx 2>&1 | Tee-Object -Variable eslintOut | Out-Null
+            $ignoreArgs = Get-EslintIgnoreArgs
+            & npx eslint --fix . --ext .ts,.tsx,.js,.jsx @ignoreArgs 2>&1 | Tee-Object -Variable eslintOut | Out-Null
             Write-Log "eslint --fix completed." "INFO"
         } else {
             Write-Log "eslint not installed — skipping auto-fix (run 'npm install' first)." "WARN"
@@ -659,7 +681,8 @@ function Invoke-ValidationEngine {
     if (Test-Path (Join-Path $RepoPath "tsconfig.json")) {
         $allPassed = (Run-Check "TypeScript (tsc --noEmit)" { npx tsc --noEmit }) -and $allPassed
     }
-    $allPassed = (Run-Check "ESLint" { npx eslint . --ext .ts,.tsx,.js,.jsx }) -and $allPassed
+    $eslintIgnoreArgs = Get-EslintIgnoreArgs
+    $allPassed = (Run-Check "ESLint" { npx eslint . --ext .ts,.tsx,.js,.jsx @eslintIgnoreArgs }) -and $allPassed
     $allPassed = (Run-Check "Unit/Integration tests" { npm test --silent -- --ci }) -and $allPassed
 
     # Phase 0-specific audits
