@@ -230,13 +230,41 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
   it('did NOT gain write access to subscriptions (the ALL policy was left alone)', async () => {
     // subscriptions carries a single FOR ALL policy; 169 adds a separate FOR
     // SELECT policy rather than widening it, so reads open and writes stay shut.
-    await expect(
-      withDb(coordinatorCtx(coordinatorId, orgId), (c) =>
-        c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [
-          linkedGroupId,
-        ]),
-      ),
-    ).rejects.toThrow();
+    //
+    // subscriptions_all is FOR ALL USING (group_id = app_current_group_id())
+    // with no separate WITH CHECK — for an UPDATE, USING is what limits which
+    // existing rows the statement can even see. A coordinator's group_id is
+    // NULL, so USING matches zero rows: Postgres does NOT raise for that, it
+    // just runs the UPDATE against zero rows. .rejects.toThrow() never held;
+    // the real assertion is rowCount plus an unchanged value read back
+    // through the same coordinator context (whose SELECT access on this
+    // table is proven by the test above) — a check that can't fail proves
+    // nothing.
+    const [before] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
+      const { rows } = await c.query<{ status: string }>(
+        'SELECT status FROM subscriptions WHERE group_id = $1',
+        [linkedGroupId],
+      );
+      return rows;
+    });
+    expect(before).toBeDefined();
+
+    const result = await withDb(coordinatorCtx(coordinatorId, orgId), (c) =>
+      c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [
+        linkedGroupId,
+      ]),
+    );
+    expect(result.rowCount).toBe(0);
+
+    const [after] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
+      const { rows } = await c.query<{ status: string }>(
+        'SELECT status FROM subscriptions WHERE group_id = $1',
+        [linkedGroupId],
+      );
+      return rows;
+    });
+    expect(after.status).toBe(before.status);
+    expect(after.status).not.toBe('cancelled');
   });
 
   // ── no widening for anyone else ───────────────────────────────────────────
