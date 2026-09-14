@@ -73,14 +73,18 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       [linkedGroupId, linkedOfficerId],
       [unlinkedGroupId, unlinkedOfficerId],
     ]) {
-      // loan_repayments.member_id, .group_membership_id, .installment_number,
-      // .due_date, .opening_balance, .principal_component, .interest_component,
-      // .total_due and .closing_balance are all NOT NULL with no default (see
-      // migration 003) — this insert was missing all but the CTE-carried
-      // loan_id/group_id, so it 500'd on "null value in column member_id"
-      // before RLS was ever reached. The values below are arbitrary but
+      // loan_funding_splits.group_id (migration 118) and loan_repayments.member_id,
+      // .group_membership_id, .installment_number, .due_date, .opening_balance,
+      // .principal_component, .interest_component, .total_due and
+      // .closing_balance (all NOT NULL with no default, migration 003) were
+      // missing from this insert — it 500'd first on loan_repayments.member_id,
+      // then (once that was fixed) on loan_funding_splits.group_id, before RLS
+      // was ever reached either time. The values below are arbitrary but
       // satisfy chk_loan_repayments_total_due/chk_loan_repayments_amount_paid
-      // (migration 060); only group_id/member_id matter to the assertions.
+      // (migration 060) and the loan_funding_splits balance-to-principal
+      // constraint trigger (migration 118: splits must sum to principal_amount
+      // for a loan at status 'active', which this loan is); only group_id/
+      // member_id matter to the assertions below.
       await rawQuery(
         `WITH fs AS (
            INSERT INTO group_funding_sources (group_id, source_type, label)
@@ -93,8 +97,8 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
            FROM group_members gm WHERE gm.group_id = $1 AND gm.member_id = $2
            RETURNING id, member_id, group_membership_id
          ), sp AS (
-           INSERT INTO loan_funding_splits (loan_id, funding_source_id, amount)
-           SELECT l.id, fs.id, 10000 FROM l, fs RETURNING loan_id
+           INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
+           SELECT $1, l.id, fs.id, 10000 FROM l, fs RETURNING loan_id
          )
          INSERT INTO loan_repayments (
            loan_id, group_id, member_id, group_membership_id, installment_number,
