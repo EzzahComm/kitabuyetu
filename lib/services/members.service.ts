@@ -90,14 +90,35 @@ async function emitMemberRegisteredEvent(
 export type SafeMember = Omit<Member, 'password_hash'>;
 
 /**
- * Strip password_hash before a row leaves the service. The list/detail
- * queries SELECT m.* (so schema additions flow through without edits here),
- * which means the bcrypt hash rides along and MUST be removed before the
- * route serializes the row to the client.
+ * Columns on `members` that must never leave this service. The list/detail
+ * queries SELECT m.* deliberately (so ordinary profile columns added by a
+ * future migration flow through without edits here) — these are the
+ * exception, and every one of them has to be named explicitly because
+ * nothing else catches an addition to this list.
+ *
+ * SECURITY FIX 2026-09-14: only `password_hash` was ever stripped before
+ * this. reset_otp_hash/reset_otp_expires_at/reset_otp_attempts (migration
+ * 104) and session_version (migration 060) rode along unmasked in every
+ * GET /members and /members/:id response to ANY authenticated group member
+ * — reset_otp_hash is an unsalted SHA-256 of a 6-digit OTP (900,000
+ * possibilities), sub-second to offline-brute-force, giving any group
+ * member a path to take over a fellow member's account mid password-reset.
+ * See __tests__/integration/members-secret-fields.test.ts, which pins this.
  */
-function stripSecrets<T extends { password_hash?: string | null }>(row: T): Omit<T, 'password_hash'> {
-  const { password_hash: _secret, ...rest } = row;
-  return rest;
+const SENSITIVE_MEMBER_FIELDS = [
+  'password_hash', 'reset_otp_hash', 'reset_otp_expires_at', 'reset_otp_attempts', 'session_version',
+] as const;
+
+function stripSecrets<T extends {
+  password_hash?:        string | null;
+  reset_otp_hash?:        string | null;
+  reset_otp_expires_at?:  Date | string | null;
+  reset_otp_attempts?:    number | null;
+  session_version?:       number | null;
+}>(row: T): Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]> {
+  const clean = { ...row } as Record<string, unknown>;
+  for (const field of SENSITIVE_MEMBER_FIELDS) delete clean[field];
+  return clean as Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]>;
 }
 
 // Member statuses that need a reason recorded when a transition lands.
