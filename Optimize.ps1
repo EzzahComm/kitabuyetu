@@ -73,12 +73,16 @@ param(
 # 0. CONSTANTS / CONFIG
 # ============================================================================
 
-$Script:EngineVersion = "3.0.0"
+$Script:EngineVersion = "3.0.1"
 $Script:StateDir       = Join-Path $RepoPath ".optimize"
 $Script:StateFile      = Join-Path $Script:StateDir "state.json"
 $Script:BackupRoot     = Join-Path $Script:StateDir "backups"
 $Script:ReportRoot     = Join-Path $Script:StateDir "reports"
 $Script:LogFile        = Join-Path $Script:StateDir "optimize.log"
+
+# Directories that should never be scanned, classified, or backed up as
+# "source" — these are build/dependency artifacts, not repo content.
+$Script:ExcludedDirNames = @('node_modules', '.git', '.next', 'dist', 'build', '.optimize', '.turbo', 'coverage')
 
 $Script:Phases = [ordered]@{
     "0"  = "Phase 0 - Safety + Discovery + Baseline (Public Site & Design System)"
@@ -97,19 +101,22 @@ $Script:Phases = [ordered]@{
 }
 
 # Rules R1-R9.5 = tenancy/financial => anything mapped to these must be PROTECTED.
+# NOTE: these are matched against a path that has been normalized to forward
+# slashes (see ConvertTo-NormalizedRelativePath), so patterns are written with
+# forward slashes only. Do not add backslash variants here.
 $Script:ProtectedPatterns = @(
     '*ledger*', '*payment*', '*daraja*', '*mpesa*', '*m-pesa*', '*callback*',
-    '*\bauth\b*', '*authoriz*', '*rls*', '*row-level-security*', '*policies.sql',
+    '*/auth/*', '*auth.*', '*authoriz*', '*rls*', '*row-level-security*', '*policies.sql',
     '*migrations*', '*tenant*', '*billing*', '*reconcil*', '*idempot*'
 )
 
 $Script:CautionPatterns = @(
-    '*hooks*', '*\bapi\b*client*', '*route.ts', '*route.tsx', '*middleware*',
-    '*auth-ui*', '*config*', '*env*', '*\.env*'
+    '*hooks*', '*api*client*', '*route.ts', '*route.tsx', '*middleware*',
+    '*auth-ui*', '*config*', '*env*', '*.env*'
 )
 
 $Script:SafePatterns = @(
-    '*components/ui*', '*presentation*', '*styles*', '*\.css', '*\.scss',
+    '*components/ui/*', '*presentation*', '*styles*', '*.css', '*.scss',
     '*layouts*', '*navigation*', '*app/(public)*', '*app/(marketing)*',
     '*public-site*', '*flowbite*', '*shadcn*', '*kitabu-ui*', '*@kitabu/ui*'
 )
@@ -153,6 +160,43 @@ function Write-Banner {
     Write-Log $bar "STEP"
     Write-Log $Text "STEP"
     Write-Log $bar "STEP"
+}
+
+# ============================================================================
+# 1b. PATH HELPERS  (Bug fix #2: cross-platform-safe relative path matching)
+# ============================================================================
+
+function ConvertTo-NormalizedRelativePath {
+    <#
+        Converts an absolute path into a repo-relative path that:
+          - always uses forward slashes (so -like patterns written with '/'
+            match regardless of whether the OS/PowerShell gave us '\' or '/')
+          - always starts with a single leading '/'
+        This is the single choke point all classification/sccentering logic
+        should go through. Do not do ad-hoc .Replace($RepoPath,"") elsewhere.
+    #>
+    param([string]$FullPath, [string]$Root = $RepoPath)
+
+    $rel = $FullPath.Substring($Root.Length)
+    $rel = $rel -replace '\\', '/'
+    if (-not $rel.StartsWith('/')) { $rel = "/$rel" }
+    return $rel
+}
+
+function Test-ExcludedPath {
+    <#
+        True if any path segment matches one of the excluded directory names
+        (node_modules, .git, .next, dist, build, .optimize, ...). Used by the
+        Discovery Engine so build/dependency trees are never scanned,
+        classified, or backed up as source.
+    #>
+    param([string]$FullPath)
+
+    $segments = $FullPath -split '[\\/]'
+    foreach ($ex in $Script:ExcludedDirNames) {
+        if ($segments -contains $ex) { return $true }
+    }
+    return $false
 }
 
 # ============================================================================
@@ -276,20 +320,19 @@ function Invoke-SafetyEngine {
     git tag -a $tagName -m "Checkpoint before Phase $PhaseId optimization" | Out-Null
     Write-Log "Checkpoint tag created: $tagName" "PASS"
 
-    # 3.3 Filesystem backup (zip) of the working tree, excluding node_modules/.git
+    # 3.3 Filesystem backup (zip) of the working tree, excluding excluded dirs
     if (-not (Test-Path $Script:BackupRoot)) {
         New-Item -ItemType Directory -Path $Script:BackupRoot -Force | Out-Null
     }
     $backupZip = Join-Path $Script:BackupRoot "phase$PhaseId-$(Get-Date -Format yyyyMMdd-HHmmss).zip"
     Write-Log "Creating filesystem backup: $backupZip" "STEP"
 
-    $exclude = @('node_modules', '.git', '.next', 'dist', 'build', '.optimize')
     $tempStage = Join-Path $env:TEMP "kitabuyetu-backup-stage-$PhaseId"
     if (Test-Path $tempStage) { Remove-Item $tempStage -Recurse -Force }
     New-Item -ItemType Directory -Path $tempStage -Force | Out-Null
 
     Get-ChildItem -Path $RepoPath -Force | Where-Object {
-        $exclude -notcontains $_.Name
+        $Script:ExcludedDirNames -notcontains $_.Name
     } | ForEach-Object {
         Copy-Item -Path $_.FullName -Destination (Join-Path $tempStage $_.Name) -Recurse -Force
     }
@@ -311,10 +354,13 @@ function Invoke-SafetyEngine {
             Copy-Item $src (Join-Path $snapshotDir $m) -Force
         }
     }
-    # Snapshot route tree (Next.js app router) for structural diffing
+    # Snapshot route tree (Next.js app router) for structural diffing.
+    # Excluded dirs are skipped explicitly (Get-ChildItem -Recurse has no
+    # built-in exclude-by-directory-name, so we filter after the fact).
     $appDir = Join-Path $RepoPath "app"
     if (Test-Path $appDir) {
         Get-ChildItem -Path $appDir -Recurse -Filter "page.tsx" |
+            Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
             Select-Object -ExpandProperty FullName |
             Set-Content (Join-Path $snapshotDir "routes-snapshot.txt")
     }
@@ -369,29 +415,44 @@ function Invoke-DiscoveryEngine {
     }
     Set-Location $RepoPath
 
+    # Bug fix #1: every recursive scan below now excludes node_modules/.git/
+    # .next/dist/build/.optimize (Test-ExcludedPath), and every path is
+    # normalized to forward-slash-relative (ConvertTo-NormalizedRelativePath)
+    # before being stored, so downstream -like matching in the Protection
+    # Engine works the same on Windows and non-Windows PowerShell.
+
     Write-Log "Scanning app router routes..." "STEP"
     $inventory.routes = @(Get-ChildItem -Recurse -Filter "page.tsx" -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Scanning components..." "STEP"
-    $inventory.components = @(Get-ChildItem -Recurse -Include *.tsx -Path "**/components/**" -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+    $inventory.components = @(Get-ChildItem -Recurse -Include *.tsx,*.jsx -ErrorAction SilentlyContinue |
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        Where-Object { $_.FullName -replace '\\','/' -match '/components/' } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Scanning hooks..." "STEP"
     $inventory.hooks = @(Get-ChildItem -Recurse -Filter "use*.ts*" -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Scanning services..." "STEP"
-    $inventory.services = @(Get-ChildItem -Recurse -Path "**/services/**" -Include *.ts -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+    $inventory.services = @(Get-ChildItem -Recurse -Include *.ts,*.tsx -ErrorAction SilentlyContinue |
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        Where-Object { $_.FullName -replace '\\','/' -match '/services/' } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Scanning API route handlers..." "STEP"
     $inventory.apiRoutes = @(Get-ChildItem -Recurse -Filter "route.ts" -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Scanning database migrations..." "STEP"
-    $inventory.migrations = @(Get-ChildItem -Recurse -Path "**/migrations/**" -ErrorAction SilentlyContinue |
-        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+    $inventory.migrations = @(Get-ChildItem -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) } |
+        Where-Object { $_.FullName -replace '\\','/' -match '/migrations/' } |
+        ForEach-Object { ConvertTo-NormalizedRelativePath -FullPath $_.FullName })
 
     Write-Log "Detecting UI library usage..." "STEP"
     $pkgJsonPath = Join-Path $RepoPath "package.json"
@@ -442,6 +503,9 @@ function Invoke-DiscoveryEngine {
 function Get-FileClassification {
     param([string]$RelativePath)
 
+    # $RelativePath is expected to already be forward-slash-normalized
+    # (i.e. produced by ConvertTo-NormalizedRelativePath). All pattern
+    # lists above are written with forward slashes to match.
     foreach ($pattern in $Script:ProtectedPatterns) {
         if ($RelativePath -like $pattern) { return "PROTECTED" }
     }
@@ -459,6 +523,10 @@ function Invoke-ProtectionEngine {
     param([array]$AllFiles, [string]$PhaseId)
 
     Write-Banner "PROTECTION ENGINE — Phase $PhaseId"
+
+    # Belt-and-suspenders: even if a caller ever passes in unfiltered paths,
+    # never classify (or later report on) anything under an excluded dir.
+    $AllFiles = @($AllFiles | Where-Object { -not (Test-ExcludedPath -FullPath $_) })
 
     $classified = [ordered]@{ SAFE = @(); CAUTION = @(); PROTECTED = @() }
     foreach ($f in $AllFiles) {
@@ -517,7 +585,9 @@ function Invoke-OptimizationEngine {
     $allIssues = @()
     $scanExt = @('.tsx', '.ts', '.jsx', '.js', '.css')
     foreach ($rel in $targets) {
-        $full = Join-Path $RepoPath $rel
+        # $rel is forward-slash-normalized (leading '/'); Join-Path handles
+        # the '/' -> native separator conversion fine on Windows PowerShell 7.
+        $full = Join-Path $RepoPath ($rel.TrimStart('/'))
         if (($scanExt -contains [IO.Path]::GetExtension($full)) -and (Test-Path $full)) {
             $allIssues += Find-HardCodedValues -FilePath $full
         }
@@ -595,7 +665,8 @@ function Invoke-ValidationEngine {
     # Phase 0-specific audits
     if ($PhaseId -eq "0") {
         $allPassed = (Run-Check "Route smoke check (page.tsx count >= 15 expected pages)" {
-            $count = (Get-ChildItem -Recurse -Filter "page.tsx" -Path $RepoPath -ErrorAction SilentlyContinue).Count
+            $count = (Get-ChildItem -Recurse -Filter "page.tsx" -Path $RepoPath -ErrorAction SilentlyContinue |
+                Where-Object { -not (Test-ExcludedPath -FullPath $_.FullName) }).Count
             if ($count -lt 15) { throw "Only $count page.tsx files found, expected >= 15 for Phase 0." }
         }) -and $allPassed
     }
