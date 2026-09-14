@@ -82,7 +82,6 @@ describe('platformPaybill', () => {
     process.env.MPESA_WORKING_SHORTCODE = '999999';
     process.env.MPESA_SHORTCODE = '123456';
     jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('@/lib/sms/templates') as typeof import('@/lib/sms/templates');
     expect(mod.platformPaybill()).toBe('999999');
   });
@@ -91,7 +90,6 @@ describe('platformPaybill', () => {
     delete process.env.MPESA_WORKING_SHORTCODE;
     process.env.MPESA_SHORTCODE = '123456';
     jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('@/lib/sms/templates') as typeof import('@/lib/sms/templates');
     expect(mod.platformPaybill()).toBe('123456');
   });
@@ -104,7 +102,6 @@ describe('platformPaybill', () => {
  * clears a message that sends with a hole, or blocks one that renders fine.
  */
 describe('unresolvedVars agrees with renderTemplate', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const t = require('@/lib/sms/templates') as typeof import('@/lib/sms/templates');
 
   it('counts a variable satisfied THROUGH an alias as resolved', () => {

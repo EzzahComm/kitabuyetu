@@ -42,10 +42,18 @@ const config = [
     },
   },
   {
-    // daraja-callback-token.test.ts re-requires the service module fresh
-    // after jest.resetModules() per case, to re-run its module-scope env
-    // check — a static top-level import can't be re-evaluated mid-test.
-    files: ['__tests__/unit/services/daraja-callback-token.test.ts'],
+    // daraja-callback-token.test.ts and template-aliases.test.ts both
+    // re-require a module fresh after jest.resetModules() per case, to
+    // re-run module-scope env-dependent logic (platformPaybill() reads
+    // process.env at import time) — a static top-level import can't be
+    // re-evaluated mid-test. Inline eslint-disable-next-line comments were
+    // tried first for template-aliases.test.ts but proved fragile under
+    // automated reformatting (the disable can desync from the require()
+    // line it guards); a file-level override is immune to that.
+    files: [
+      '__tests__/unit/services/daraja-callback-token.test.ts',
+      '__tests__/unit/sms/template-aliases.test.ts',
+    ],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
