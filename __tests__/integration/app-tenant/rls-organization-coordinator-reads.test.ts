@@ -73,6 +73,14 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       [linkedGroupId, linkedOfficerId],
       [unlinkedGroupId, unlinkedOfficerId],
     ]) {
+      // loan_repayments.member_id, .group_membership_id, .installment_number,
+      // .due_date, .opening_balance, .principal_component, .interest_component,
+      // .total_due and .closing_balance are all NOT NULL with no default (see
+      // migration 003) — this insert was missing all but the CTE-carried
+      // loan_id/group_id, so it 500'd on "null value in column member_id"
+      // before RLS was ever reached. The values below are arbitrary but
+      // satisfy chk_loan_repayments_total_due/chk_loan_repayments_amount_paid
+      // (migration 060); only group_id/member_id matter to the assertions.
       await rawQuery(
         `WITH fs AS (
            INSERT INTO group_funding_sources (group_id, source_type, label)
@@ -83,13 +91,19 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
                               interest_rate, loan_term_months, status)
            SELECT $1, $2, gm.id, 10000, 5, 6, 'active'
            FROM group_members gm WHERE gm.group_id = $1 AND gm.member_id = $2
-           RETURNING id
+           RETURNING id, member_id, group_membership_id
          ), sp AS (
            INSERT INTO loan_funding_splits (loan_id, funding_source_id, amount)
            SELECT l.id, fs.id, 10000 FROM l, fs RETURNING loan_id
          )
-         INSERT INTO loan_repayments (loan_id, group_id, amount_paid, status, payment_date)
-         SELECT l.id, $1, 500, 'completed', CURRENT_DATE FROM l`,
+         INSERT INTO loan_repayments (
+           loan_id, group_id, member_id, group_membership_id, installment_number,
+           due_date, opening_balance, principal_component, interest_component,
+           total_due, closing_balance, amount_paid, status, payment_date
+         )
+         SELECT l.id, $1, l.member_id, l.group_membership_id, 1,
+                CURRENT_DATE, 10000, 500, 0, 500, 9500, 500, 'completed', CURRENT_DATE
+         FROM l`,
         [gid, mid],
       );
     }
