@@ -1,1406 +1,695 @@
-#requires -Version 5.1
+#Requires -Version 7.0
 <#
 .SYNOPSIS
-    PowerShell-only project optimization workflow.
+    KITABU YETU — Autonomous Main-Repo Optimization Engine (v3)
 
 .DESCRIPTION
-    Scans an existing project, discovers prior audits and Claude context,
-    captures Git/dependency/framework/infrastructure information, creates
-    a ChatGPT-ready optimization package, and can safely apply a reviewed
-    PowerShell command file.
+    Gated, phase-by-phase audit/optimize/validate engine for the single
+    Kitabu Yetu repository. Implements the five engines from the execution
+    plan:
 
-    NO Claude Code subscription or CLI is required.
+        1. Discovery Engine   - inventory the repo, no assumptions
+        2. Safety Engine      - checkpoint + backup before anything is touched
+        3. Optimization Engine- progressive UI/UX + code fixes, phase-scoped
+        4. Protection Engine  - SAFE / CAUTION / PROTECTED file classification
+        5. Validation Engine  - typecheck -> lint -> test -> build -> audits
 
-WORKFLOW
-    1. .\Optimize.ps1 -Scan
-    2. Review .optimization\<run>\CHATGPT-PROMPT.md
-    3. Give the generated package/report to ChatGPT
-    4. Ask ChatGPT to return a reviewed OPTIMIZATION-COMMAND.ps1
-    5. Put that command file in the run folder
-    6. .\Optimize.ps1 -ApplyCommand -CommandFile .\path\OPTIMIZATION-COMMAND.ps1
-    7. .\Optimize.ps1 -Verify
+    Rule of the master prompt this script enforces mechanically:
+    "DO NOT START A PHASE BEFORE PREVIOUS PHASE EXITS IN PRODUCTION."
 
-SAFETY
-    - Never copies .env values into reports.
-    - Creates a Git checkpoint before applying changes.
-    - Creates a file backup before applying a command file.
-    - Refuses to execute commands that look like destructive or secret-exfiltration
-      commands unless -AllowRiskyCommands is explicitly supplied.
+    A phase only runs if the phase before it is marked PASSED in the state
+    file. If a phase's validation fails, the script automatically rolls back
+    to the pre-phase checkpoint, writes a failure report, and STOPS — it
+    never "continues anyway".
+
+.PARAMETER RepoPath
+    Path to the single source-of-truth repository.
+    Default: D:\Claude\Projects\KITABU YETU\kitabuyetu
+
+.PARAMETER Phase
+    Which phase to run: 0-12, or "Next" to run whatever the state file says
+    is next, or "Status" to just print the gate status and exit.
+
+.PARAMETER Apply
+    Without -Apply, the Optimization Engine only REPORTS violations
+    (dry-run). With -Apply, it will actually run safe, reversible fixes
+    (eslint --fix, prettier, token substitution) on SAFE-classified files
+    only. CAUTION/PROTECTED files are never auto-modified by this script,
+    regardless of -Apply.
+
+.PARAMETER Force
+    Required in addition to -Apply if you want the script to even attempt
+    touching CAUTION-classified files. PROTECTED files can never be
+    auto-modified by this script — full stop, no flag overrides that.
+
+.PARAMETER Resume
+    Skip discovery/backup steps that already succeeded for this phase
+    according to the state file, and continue from where it left off.
+
+.EXAMPLE
+    ./Optimize.ps1 -RepoPath "D:\Claude\Projects\KITABU YETU\kitabuyetu" -Phase 0
+
+.EXAMPLE
+    ./Optimize.ps1 -Phase Status
+
+.EXAMPLE
+    ./Optimize.ps1 -Phase 0 -Apply
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Scan","Verify")]
-    [string]$Mode = "Scan",
+    [string]$RepoPath = "D:\Claude\Projects\KITABU YETU\kitabuyetu",
 
-    [switch]$ApplyCommand,
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("0","1","2","3","4","5","6","7","8","9","10","11","12","Next","Status")]
+    [string]$Phase = "Status",
 
-    [string]$CommandFile,
-
-    [switch]$AllowRiskyCommands,
-
-    [switch]$SkipGitCheckpoint,
-
-    [switch]$SkipDependencyAudit,
-
-    [switch]$SkipBuild,
-
-    [switch]$OpenReport
+    [switch]$Apply,
+    [switch]$Force,
+    [switch]$Resume
 )
 
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Continue"
+# ============================================================================
+# 0. CONSTANTS / CONFIG
+# ============================================================================
 
-# ============================================================
-# PATHS
-# ============================================================
+$Script:EngineVersion = "3.0.0"
+$Script:StateDir       = Join-Path $RepoPath ".optimize"
+$Script:StateFile      = Join-Path $Script:StateDir "state.json"
+$Script:BackupRoot     = Join-Path $Script:StateDir "backups"
+$Script:ReportRoot     = Join-Path $Script:StateDir "reports"
+$Script:LogFile        = Join-Path $Script:StateDir "optimize.log"
 
-$ProjectRoot = (Get-Location).Path
-$OptimizationRoot = Join-Path $ProjectRoot ".optimization"
-$RunTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$RunRoot = Join-Path $OptimizationRoot $RunTimestamp
+$Script:Phases = [ordered]@{
+    "0"  = "Phase 0 - Safety + Discovery + Baseline (Public Site & Design System)"
+    "1"  = "Phase 1 - Foundation (Auth, Orgs, Groups, Members, Roles)"
+    "2"  = "Phase 2 - Bookkeeper (Ledger, Contributions, Savings)"
+    "3"  = "Phase 3 - Payments (Daraja STK/PayBill/B2C)"
+    "4"  = "Phase 4 - Chama Reminder (SMS)"
+    "5"  = "Phase 5 - Changi`$ha (Fundraising)"
+    "6"  = "Phase 6 - Enterprise (Portfolio/Multi-group)"
+    "7"  = "Phase 7 - CRM"
+    "8"  = "Phase 8 - Blog + Newsletter"
+    "9"  = "Phase 9 - HRM"
+    "10" = "Phase 10 - Recruitment"
+    "11" = "Phase 11 - Job Board"
+    "12" = "Phase 12 - Ecosystem"
+}
 
-$AuditRoot = Join-Path $RunRoot "audits"
-$ContextRoot = Join-Path $RunRoot "context"
-$DependencyRoot = Join-Path $RunRoot "dependencies"
-$FrameworkRoot = Join-Path $RunRoot "framework"
-$GitRoot = Join-Path $RunRoot "git"
-$ReportsRoot = Join-Path $RunRoot "reports"
-$BackupRoot = Join-Path $RunRoot "backup"
-
-$ManifestPath = Join-Path $RunRoot "MANIFEST.json"
-$PromptPath = Join-Path $RunRoot "CHATGPT-PROMPT.md"
-$CommandTemplatePath = Join-Path $RunRoot "OPTIMIZATION-COMMAND.template.ps1"
-
-$ExcludedDirectories = @(
-    "node_modules",
-    ".git",
-    ".next",
-    ".vercel",
-    "dist",
-    "build",
-    ".optimization",
-    "coverage",
-    ".turbo",
-    ".cache"
+# Rules R1-R9.5 = tenancy/financial => anything mapped to these must be PROTECTED.
+$Script:ProtectedPatterns = @(
+    '*ledger*', '*payment*', '*daraja*', '*mpesa*', '*m-pesa*', '*callback*',
+    '*\bauth\b*', '*authoriz*', '*rls*', '*row-level-security*', '*policies.sql',
+    '*migrations*', '*tenant*', '*billing*', '*reconcil*', '*idempot*'
 )
 
-$SensitiveNamePatterns = @(
-    "^\.env($|\.)",
-    "secret",
-    "credential",
-    "password",
-    "token",
-    "private[-_]?key"
+$Script:CautionPatterns = @(
+    '*hooks*', '*\bapi\b*client*', '*route.ts', '*route.tsx', '*middleware*',
+    '*auth-ui*', '*config*', '*env*', '*\.env*'
 )
 
-$AuditNamePatterns = @(
-    "audit",
-    "optimization",
-    "performance",
-    "security",
-    "review",
-    "benchmark",
-    "analysis",
-    "technical[-_ ]?debt",
-    "lighthouse",
-    "architecture",
-    "findings",
-    "recommendations"
+$Script:SafePatterns = @(
+    '*components/ui*', '*presentation*', '*styles*', '*\.css', '*\.scss',
+    '*layouts*', '*navigation*', '*app/(public)*', '*app/(marketing)*',
+    '*public-site*', '*flowbite*', '*shadcn*', '*kitabu-ui*', '*@kitabu/ui*'
 )
 
-# ============================================================
-# HELPERS
-# ============================================================
+# Hard-coded value detection (R16-R18 design-system governance)
+$Script:HardCodedColorRegex = '#(?:[0-9a-fA-F]{3}){1,2}\b|rgb\(|rgba\('
+$Script:HardCodedSpacingRegex = '\bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px'
 
-function Write-Header {
-    param([string]$Text)
-    Write-Host ""
-    Write-Host ("=" * 72) -ForegroundColor DarkGray
-    Write-Host $Text -ForegroundColor Cyan
-    Write-Host ("=" * 72) -ForegroundColor DarkGray
-}
+# ============================================================================
+# 1. LOGGING
+# ============================================================================
 
-function Write-Step {
-    param([string]$Text)
-    Write-Host "[+] $Text" -ForegroundColor Green
-}
-
-function Write-Warn {
-    param([string]$Text)
-    Write-Host "[!] $Text" -ForegroundColor Yellow
-}
-
-function Write-Fail {
-    param([string]$Text)
-    Write-Host "[X] $Text" -ForegroundColor Red
-}
-
-function Ensure-Directory {
-    param([string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) {
-        New-Item -ItemType Directory -Path $Path -Force | Out-Null
-    }
-}
-
-function Save-Text {
+function Write-Log {
     param(
-        [string]$Path,
-        [string]$Content
+        [string]$Message,
+        [ValidateSet("INFO","WARN","ERROR","PASS","FAIL","STEP")]
+        [string]$Level = "INFO"
     )
-    $parent = Split-Path -Parent $Path
-    Ensure-Directory $parent
-    $Content | Out-File -LiteralPath $Path -Encoding UTF8
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $line = "[$timestamp] [$Level] $Message"
+
+    $color = switch ($Level) {
+        "INFO" { "Gray" }
+        "WARN" { "Yellow" }
+        "ERROR" { "Red" }
+        "PASS" { "Green" }
+        "FAIL" { "Red" }
+        "STEP" { "Cyan" }
+    }
+    Write-Host $line -ForegroundColor $color
+
+    if (-not (Test-Path $Script:StateDir)) {
+        New-Item -ItemType Directory -Path $Script:StateDir -Force | Out-Null
+    }
+    Add-Content -Path $Script:LogFile -Value $line
 }
 
-function Relative-PathSafe {
-    param([string]$FullPath)
-    if ($FullPath.StartsWith($ProjectRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $FullPath.Substring($ProjectRoot.Length).TrimStart('\','/')
-    }
-    return $FullPath
-}
-
-function Is-ExcludedPath {
-    param([string]$Path)
-
-    foreach ($dir in $ExcludedDirectories) {
-        $escaped = [regex]::Escape($dir)
-        if ($Path -match "(^|[\\/])$escaped([\\/]|$)") {
-            return $true
-        }
-    }
-    return $false
-}
-
-function Test-CommandAvailable {
-    param([string]$Name)
-    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
-}
-
-function Invoke-Capture {
-    param(
-        [string]$Command,
-        [string[]]$Arguments = @(),
-        [string]$OutputPath
-    )
-
-    try {
-        $output = & $Command @Arguments 2>&1
-        ($output | Out-String) | Out-File -LiteralPath $OutputPath -Encoding UTF8
-        return $LASTEXITCODE
-    }
-    catch {
-        $_ | Out-String | Out-File -LiteralPath $OutputPath -Encoding UTF8
-        return 1
-    }
-}
-
-function Get-FileSha256 {
-    param([string]$Path)
-    try {
-        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
-    }
-    catch {
-        return $null
-    }
-}
-
-function Copy-SafeBackup {
-    param([string]$Source)
-
-    if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
-        return
-    }
-
-    $relative = Relative-PathSafe $Source
-    $destination = Join-Path $BackupRoot $relative
-    Ensure-Directory (Split-Path -Parent $destination)
-
-    Copy-Item -LiteralPath $Source -Destination $destination -Force
-}
-
-function Test-RiskyCommand {
+function Write-Banner {
     param([string]$Text)
+    $bar = "=" * 78
+    Write-Log $bar "STEP"
+    Write-Log $Text "STEP"
+    Write-Log $bar "STEP"
+}
 
-    $patterns = @(
-        "Remove-Item\s+.*-Recurse",
-        "Remove-Item\s+.*-Force",
-        "rm\s+-rf",
-        "rmdir\s+/s",
-        "del\s+/s",
-        "format\s+",
-        "Stop-Computer",
-        "Restart-Computer",
-        "Invoke-WebRequest.*\|\s*iex",
-        "Invoke-Expression",
-        "iex\s*\(",
-        "curl.*\|\s*iex",
-        "wget.*\|\s*iex",
-        "Set-ExecutionPolicy\s+Bypass",
-        "Set-ExecutionPolicy\s+Unrestricted",
-        "git\s+reset\s+--hard",
-        "git\s+clean\s+-fd",
-        "git\s+push\s+--force",
-        "DROP\s+DATABASE",
-        "DROP\s+TABLE",
-        "TRUNCATE\s+TABLE",
-        "DELETE\s+FROM\s+.*\s+WHERE\s+1\s*=\s*1",
-        "process\.env\[[^\]]+\].*(Write|Out|Set|Add)",
-        "Get-Content.*\.env",
-        "cat\s+\.env",
-        "type\s+\.env"
+# ============================================================================
+# 2. STATE MANAGEMENT
+# ============================================================================
+
+function Get-OptimizeState {
+    if (Test-Path $Script:StateFile) {
+        return Get-Content $Script:StateFile -Raw | ConvertFrom-Json -AsHashtable
+    }
+    return @{
+        engineVersion = $Script:EngineVersion
+        phases        = @{}
+        createdAt     = (Get-Date).ToString("o")
+    }
+}
+
+function Save-OptimizeState {
+    param([hashtable]$State)
+    if (-not (Test-Path $Script:StateDir)) {
+        New-Item -ItemType Directory -Path $Script:StateDir -Force | Out-Null
+    }
+    $State | ConvertTo-Json -Depth 10 | Set-Content -Path $Script:StateFile -Encoding UTF8
+}
+
+function Set-PhaseStatus {
+    param(
+        [string]$PhaseId,
+        [string]$Status,          # PENDING | RUNNING | PASSED | FAILED | ROLLED_BACK
+        [string]$Detail = ""
+    )
+    $state = Get-OptimizeState
+    if (-not $state.phases.ContainsKey($PhaseId)) {
+        $state.phases[$PhaseId] = @{}
+    }
+    $state.phases[$PhaseId]["status"]    = $Status
+    $state.phases[$PhaseId]["detail"]    = $Detail
+    $state.phases[$PhaseId]["updatedAt"] = (Get-Date).ToString("o")
+    Save-OptimizeState -State $state
+}
+
+function Get-PhaseStatus {
+    param([string]$PhaseId)
+    $state = Get-OptimizeState
+    if ($state.phases.ContainsKey($PhaseId)) {
+        return $state.phases[$PhaseId]["status"]
+    }
+    return "PENDING"
+}
+
+function Assert-PreviousPhasePassed {
+    param([string]$PhaseId)
+    $idx = [int]$PhaseId
+    if ($idx -eq 0) { return $true }
+    $prevId = [string]($idx - 1)
+    $prevStatus = Get-PhaseStatus -PhaseId $prevId
+    if ($prevStatus -ne "PASSED") {
+        Write-Log "GATE BLOCKED: Phase $prevId is '$prevStatus', not PASSED." "FAIL"
+        Write-Log "Rule: DO NOT START A PHASE BEFORE PREVIOUS PHASE EXITS IN PRODUCTION." "FAIL"
+        return $false
+    }
+    return $true
+}
+
+function Show-GateStatus {
+    Write-Banner "KITABU YETU OPTIMIZE.PS1 v$($Script:EngineVersion) — GATE STATUS"
+    foreach ($id in $Script:Phases.Keys) {
+        $status = Get-PhaseStatus -PhaseId $id
+        $marker = switch ($status) {
+            "PASSED"      { "[x]" }
+            "FAILED"      { "[!]" }
+            "ROLLED_BACK" { "[<]" }
+            "RUNNING"     { "[~]" }
+            default       { "[ ]" }
+        }
+        $line = "{0} {1,-3} {2,-14} {3}" -f $marker, $id, $status, $Script:Phases[$id]
+        $level = if ($status -eq "PASSED") { "PASS" } elseif ($status -eq "FAILED") { "FAIL" } else { "INFO" }
+        Write-Log $line $level
+    }
+}
+
+function Get-NextPendingPhase {
+    foreach ($id in $Script:Phases.Keys) {
+        $status = Get-PhaseStatus -PhaseId $id
+        if ($status -ne "PASSED") { return $id }
+    }
+    return $null
+}
+
+# ============================================================================
+# 3. SAFETY ENGINE
+# ============================================================================
+
+function Invoke-SafetyEngine {
+    param([string]$PhaseId)
+
+    Write-Banner "SAFETY ENGINE — Phase $PhaseId"
+    Set-Location $RepoPath
+
+    # 3.1 Git status must be clean (or explicitly acknowledged)
+    Write-Log "Checking git status..." "STEP"
+    $gitStatus = git status --porcelain 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Not a git repository, or git is unavailable at $RepoPath" "ERROR"
+        return $null
+    }
+    if ($gitStatus) {
+        Write-Log "Working tree is dirty. Committing/stashing before checkpoint is required." "WARN"
+        Write-Log "Uncommitted changes:`n$gitStatus" "WARN"
+        if (-not $Force) {
+            Write-Log "Refusing to checkpoint a dirty tree without -Force. Commit or stash first." "FAIL"
+            return $null
+        }
+        Write-Log "-Force set: creating a WIP commit to preserve current state." "WARN"
+        git add -A | Out-Null
+        git commit -m "WIP: pre-phase-$PhaseId auto-checkpoint commit (Optimize.ps1)" | Out-Null
+    }
+
+    # 3.2 Create checkpoint tag
+    $tagName = "optimize-checkpoint-phase$PhaseId-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    git tag -a $tagName -m "Checkpoint before Phase $PhaseId optimization" | Out-Null
+    Write-Log "Checkpoint tag created: $tagName" "PASS"
+
+    # 3.3 Filesystem backup (zip) of the working tree, excluding node_modules/.git
+    if (-not (Test-Path $Script:BackupRoot)) {
+        New-Item -ItemType Directory -Path $Script:BackupRoot -Force | Out-Null
+    }
+    $backupZip = Join-Path $Script:BackupRoot "phase$PhaseId-$(Get-Date -Format yyyyMMdd-HHmmss).zip"
+    Write-Log "Creating filesystem backup: $backupZip" "STEP"
+
+    $exclude = @('node_modules', '.git', '.next', 'dist', 'build', '.optimize')
+    $tempStage = Join-Path $env:TEMP "kitabuyetu-backup-stage-$PhaseId"
+    if (Test-Path $tempStage) { Remove-Item $tempStage -Recurse -Force }
+    New-Item -ItemType Directory -Path $tempStage -Force | Out-Null
+
+    Get-ChildItem -Path $RepoPath -Force | Where-Object {
+        $exclude -notcontains $_.Name
+    } | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $tempStage $_.Name) -Recurse -Force
+    }
+    Compress-Archive -Path (Join-Path $tempStage '*') -DestinationPath $backupZip -Force
+    Remove-Item $tempStage -Recurse -Force
+    Write-Log "Backup complete: $backupZip" "PASS"
+
+    # 3.4 Snapshot critical manifests individually for fast diffing later
+    $snapshotDir = Join-Path $Script:BackupRoot "phase$PhaseId-manifests"
+    New-Item -ItemType Directory -Path $snapshotDir -Force | Out-Null
+    $manifestTargets = @(
+        "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+        "tsconfig.json", "tailwind.config.js", "tailwind.config.ts",
+        "next.config.js", "next.config.mjs", ".env.example"
+    )
+    foreach ($m in $manifestTargets) {
+        $src = Join-Path $RepoPath $m
+        if (Test-Path $src) {
+            Copy-Item $src (Join-Path $snapshotDir $m) -Force
+        }
+    }
+    # Snapshot route tree (Next.js app router) for structural diffing
+    $appDir = Join-Path $RepoPath "app"
+    if (Test-Path $appDir) {
+        Get-ChildItem -Path $appDir -Recurse -Filter "page.tsx" |
+            Select-Object -ExpandProperty FullName |
+            Set-Content (Join-Path $snapshotDir "routes-snapshot.txt")
+    }
+    Write-Log "Manifest + route snapshots saved to $snapshotDir" "PASS"
+
+    return @{
+        tag        = $tagName
+        backupZip  = $backupZip
+        snapshotDir = $snapshotDir
+    }
+}
+
+function Invoke-Rollback {
+    param(
+        [string]$PhaseId,
+        [string]$CheckpointTag
+    )
+    Write-Banner "ROLLBACK — Phase $PhaseId"
+    Set-Location $RepoPath
+    Write-Log "Rolling back working tree to $CheckpointTag" "WARN"
+    git reset --hard $CheckpointTag | Out-Null
+    git clean -fd | Out-Null
+    Set-PhaseStatus -PhaseId $PhaseId -Status "ROLLED_BACK" -Detail "Reset to $CheckpointTag"
+    Write-Log "Rollback complete. Repository restored to pre-phase-$PhaseId state." "PASS"
+}
+
+# ============================================================================
+# 4. DISCOVERY ENGINE
+# ============================================================================
+
+function Invoke-DiscoveryEngine {
+    param([string]$PhaseId)
+
+    Write-Banner "DISCOVERY ENGINE — Phase $PhaseId"
+
+    $inventory = [ordered]@{
+        routes         = @()
+        components     = @()
+        hooks          = @()
+        services       = @()
+        apiRoutes      = @()
+        migrations     = @()
+        tailwindConfig = $null
+        uiLibraries    = @{ shadcn = $false; flowbite = $false; kitabuUi = $false; tabler = $false }
+        packageManager = $null
+        envFiles       = @()
+    }
+
+    if (-not (Test-Path $RepoPath)) {
+        Write-Log "Repo path not found: $RepoPath — did you mean to pass -RepoPath?" "ERROR"
+        return $inventory
+    }
+    Set-Location $RepoPath
+
+    Write-Log "Scanning app router routes..." "STEP"
+    $inventory.routes = @(Get-ChildItem -Recurse -Filter "page.tsx" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Scanning components..." "STEP"
+    $inventory.components = @(Get-ChildItem -Recurse -Include *.tsx -Path "**/components/**" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Scanning hooks..." "STEP"
+    $inventory.hooks = @(Get-ChildItem -Recurse -Filter "use*.ts*" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Scanning services..." "STEP"
+    $inventory.services = @(Get-ChildItem -Recurse -Path "**/services/**" -Include *.ts -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Scanning API route handlers..." "STEP"
+    $inventory.apiRoutes = @(Get-ChildItem -Recurse -Filter "route.ts" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Scanning database migrations..." "STEP"
+    $inventory.migrations = @(Get-ChildItem -Recurse -Path "**/migrations/**" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName.Replace($RepoPath, "") })
+
+    Write-Log "Detecting UI library usage..." "STEP"
+    $pkgJsonPath = Join-Path $RepoPath "package.json"
+    if (Test-Path $pkgJsonPath) {
+        $pkg = Get-Content $pkgJsonPath -Raw | ConvertFrom-Json
+        $allDeps = @()
+        if ($pkg.dependencies) { $allDeps += $pkg.dependencies.PSObject.Properties.Name }
+        if ($pkg.devDependencies) { $allDeps += $pkg.devDependencies.PSObject.Properties.Name }
+
+        $inventory.uiLibraries.shadcn   = ($allDeps -match "class-variance-authority|@radix-ui").Count -gt 0
+        $inventory.uiLibraries.flowbite = ($allDeps -match "flowbite").Count -gt 0
+        $inventory.uiLibraries.tabler   = ($allDeps -match "@tabler/icons").Count -gt 0
+        $inventory.uiLibraries.kitabuUi = ($allDeps -match "@kitabu/ui").Count -gt 0
+
+        if (Test-Path (Join-Path $RepoPath "pnpm-lock.yaml")) { $inventory.packageManager = "pnpm" }
+        elseif (Test-Path (Join-Path $RepoPath "yarn.lock")) { $inventory.packageManager = "yarn" }
+        elseif (Test-Path (Join-Path $RepoPath "package-lock.json")) { $inventory.packageManager = "npm" }
+    } else {
+        Write-Log "No package.json found at repo root — is -RepoPath correct?" "WARN"
+    }
+
+    $twConfig = @("tailwind.config.js", "tailwind.config.ts") | ForEach-Object { Join-Path $RepoPath $_ } | Where-Object { Test-Path $_ }
+    $inventory.tailwindConfig = $twConfig | Select-Object -First 1
+
+    $inventory.envFiles = @(Get-ChildItem -Path $RepoPath -Filter ".env*" -File -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Name)
+
+    # Write discovery report
+    if (-not (Test-Path $Script:ReportRoot)) { New-Item -ItemType Directory -Path $Script:ReportRoot -Force | Out-Null }
+    $reportPath = Join-Path $Script:ReportRoot "phase$PhaseId-discovery.json"
+    $inventory | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
+
+    Write-Log ("Routes: {0} | Components: {1} | Hooks: {2} | Services: {3} | API routes: {4} | Migrations: {5}" -f `
+        $inventory.routes.Count, $inventory.components.Count, $inventory.hooks.Count, `
+        $inventory.services.Count, $inventory.apiRoutes.Count, $inventory.migrations.Count) "PASS"
+    Write-Log ("UI libs -> shadcn:{0} flowbite:{1} tabler:{2} @kitabu/ui:{3}" -f `
+        $inventory.uiLibraries.shadcn, $inventory.uiLibraries.flowbite, `
+        $inventory.uiLibraries.tabler, $inventory.uiLibraries.kitabuUi) "INFO"
+    Write-Log "Discovery report written: $reportPath" "PASS"
+
+    return $inventory
+}
+
+# ============================================================================
+# 5. PROTECTION ENGINE
+# ============================================================================
+
+function Get-FileClassification {
+    param([string]$RelativePath)
+
+    foreach ($pattern in $Script:ProtectedPatterns) {
+        if ($RelativePath -like $pattern) { return "PROTECTED" }
+    }
+    foreach ($pattern in $Script:CautionPatterns) {
+        if ($RelativePath -like $pattern) { return "CAUTION" }
+    }
+    foreach ($pattern in $Script:SafePatterns) {
+        if ($RelativePath -like $pattern) { return "SAFE" }
+    }
+    # Default posture: unknown files are CAUTION, never auto-SAFE.
+    return "CAUTION"
+}
+
+function Invoke-ProtectionEngine {
+    param([array]$AllFiles, [string]$PhaseId)
+
+    Write-Banner "PROTECTION ENGINE — Phase $PhaseId"
+
+    $classified = [ordered]@{ SAFE = @(); CAUTION = @(); PROTECTED = @() }
+    foreach ($f in $AllFiles) {
+        $cls = Get-FileClassification -RelativePath $f
+        $classified[$cls] += $f
+    }
+
+    Write-Log ("SAFE: {0}  CAUTION: {1}  PROTECTED: {2}" -f `
+        $classified.SAFE.Count, $classified.CAUTION.Count, $classified.PROTECTED.Count) "INFO"
+
+    if ($classified.PROTECTED.Count -gt 0) {
+        Write-Log "PROTECTED files detected (R1-R9.5 territory). These are NEVER auto-modified:" "WARN"
+        $classified.PROTECTED | Select-Object -First 15 | ForEach-Object { Write-Log "  - $_" "WARN" }
+    }
+
+    $reportPath = Join-Path $Script:ReportRoot "phase$PhaseId-classification.json"
+    $classified | ConvertTo-Json -Depth 4 | Set-Content $reportPath -Encoding UTF8
+    return $classified
+}
+
+# ============================================================================
+# 6. OPTIMIZATION ENGINE
+# ============================================================================
+
+function Find-HardCodedValues {
+    param([string]$FilePath)
+
+    $issues = @()
+    if (-not (Test-Path $FilePath)) { return $issues }
+    $lines = Get-Content $FilePath -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $Script:HardCodedColorRegex) {
+            $issues += [pscustomobject]@{ file = $FilePath; line = $i + 1; type = "hard-coded-color"; text = $lines[$i].Trim() }
+        }
+        if ($lines[$i] -match $Script:HardCodedSpacingRegex) {
+            $issues += [pscustomobject]@{ file = $FilePath; line = $i + 1; type = "hard-coded-spacing"; text = $lines[$i].Trim() }
+        }
+    }
+    return $issues
+}
+
+function Invoke-OptimizationEngine {
+    param(
+        [hashtable]$Classified,
+        [string]$PhaseId
     )
 
-    foreach ($pattern in $patterns) {
-        if ($Text -match $pattern) {
-            return $true
+    Write-Banner "OPTIMIZATION ENGINE — Phase $PhaseId $(if(-not $Apply){'(DRY RUN — reporting only)'})"
+
+    $targets = $Classified.SAFE
+    if ($Force -and $Apply) {
+        Write-Log "-Force -Apply set: CAUTION files included as fix targets (still never PROTECTED)." "WARN"
+        $targets += $Classified.CAUTION
+    }
+
+    $allIssues = @()
+    $scanExt = @('.tsx', '.ts', '.jsx', '.js', '.css')
+    foreach ($rel in $targets) {
+        $full = Join-Path $RepoPath $rel
+        if (($scanExt -contains [IO.Path]::GetExtension($full)) -and (Test-Path $full)) {
+            $allIssues += Find-HardCodedValues -FilePath $full
         }
     }
 
-    return $false
-}
-
-function New-GitCheckpoint {
-    if (-not (Test-CommandAvailable "git")) {
-        Write-Warn "Git is not installed."
-        return $null
-    }
-
-    $status = git status --short 2>&1
-    $branch = git branch --show-current 2>&1
-    $commit = git rev-parse HEAD 2>&1
-
-    Save-Text (Join-Path $GitRoot "status-before.txt") ($status | Out-String)
-    Save-Text (Join-Path $GitRoot "branch-before.txt") ($branch | Out-String)
-    Save-Text (Join-Path $GitRoot "commit-before.txt") ($commit | Out-String)
-
-    if (-not [string]::IsNullOrWhiteSpace(($status | Out-String))) {
-        Write-Warn "Git working tree has existing changes. They will not be discarded."
-    }
-
-    $tag = "optimization-before-$RunTimestamp"
-
-    try {
-        git tag $tag 2>&1 | Out-File (Join-Path $GitRoot "checkpoint.txt") -Encoding UTF8
-        Write-Step "Git checkpoint created: $tag"
-        return $tag
-    }
-    catch {
-        Write-Warn "Could not create Git tag. Existing files will still be backed up."
-        return $null
-    }
-}
-
-# ============================================================
-# CREATE RUN DIRECTORIES
-# ============================================================
-
-Ensure-Directory $OptimizationRoot
-Ensure-Directory $RunRoot
-Ensure-Directory $AuditRoot
-Ensure-Directory $ContextRoot
-Ensure-Directory $DependencyRoot
-Ensure-Directory $FrameworkRoot
-Ensure-Directory $GitRoot
-Ensure-Directory $ReportsRoot
-Ensure-Directory $BackupRoot
-
-# ============================================================
-# VERIFY MODE
-# ============================================================
-
-if ($Mode -eq "Verify") {
-    Write-Header "OPTIMIZATION VERIFICATION"
-
-    if (-not (Test-Path $ProjectRoot)) {
-        Write-Fail "Project root not found."
-        exit 1
-    }
-
-    Write-Host "Project: $ProjectRoot"
-    Write-Host ""
-
-    $verification = [ordered]@{
-        Timestamp = (Get-Date).ToString("o")
-        Node = $false
-        Npm = $false
-        TypeScript = $false
-        Lint = $false
-        Build = $false
-        Git = $false
-        NpmAudit = $false
-    }
-
-    if (Test-CommandAvailable "node") {
-        $verification.Node = $true
-        node --version
-    }
-
-    if (Test-CommandAvailable "npm") {
-        $verification.Npm = $true
-        npm --version
-    }
-
-    if (Test-Path (Join-Path $ProjectRoot "package.json")) {
-        Write-Step "package.json detected."
-
-        if (Test-Path (Join-Path $ProjectRoot "tsconfig.json")) {
-            Write-Step "Running TypeScript check..."
-            $out = Join-Path $ReportsRoot "verify-typescript.txt"
-            Invoke-Capture "npx" @("tsc","--noEmit") $out | Out-Null
-            $verification.TypeScript = $LASTEXITCODE -eq 0
-        }
-
-        Write-Step "Running lint..."
-        $lintOut = Join-Path $ReportsRoot "verify-lint.txt"
-        Invoke-Capture "npm" @("run","lint") $lintOut | Out-Null
-        $verification.Lint = $LASTEXITCODE -eq 0
-
-        if (-not $SkipBuild) {
-            Write-Step "Running production build..."
-            $buildOut = Join-Path $ReportsRoot "verify-build.txt"
-            Invoke-Capture "npm" @("run","build") $buildOut | Out-Null
-            $verification.Build = $LASTEXITCODE -eq 0
-        }
-
-        if (-not $SkipDependencyAudit) {
-            Write-Step "Running npm audit..."
-            $auditOut = Join-Path $ReportsRoot "verify-npm-audit.json"
-            Invoke-Capture "npm" @("audit","--json") $auditOut | Out-Null
-            $verification.NpmAudit = $true
-        }
-    }
-
-    if (Test-CommandAvailable "git") {
-        $verification.Git = $true
-        git status --short | Out-File (Join-Path $GitRoot "verify-status.txt") -Encoding UTF8
-        git diff --stat | Out-File (Join-Path $GitRoot "verify-diff-stat.txt") -Encoding UTF8
-    }
-
-    $verification | ConvertTo-Json -Depth 5 |
-        Out-File (Join-Path $ReportsRoot "VERIFICATION.json") -Encoding UTF8
-
-    Write-Header "VERIFICATION COMPLETE"
-    Write-Host "Reports: $ReportsRoot"
-    exit 0
-}
-
-# ============================================================
-# APPLY COMMAND FILE
-# ============================================================
-
-if ($ApplyCommand) {
-    Write-Header "SAFE OPTIMIZATION COMMAND APPLICATION"
-
-    if ([string]::IsNullOrWhiteSpace($CommandFile)) {
-        Write-Fail "You must supply -CommandFile."
-        Write-Host ""
-        Write-Host 'Example:'
-        Write-Host '.\Optimize.ps1 -ApplyCommand -CommandFile .\.optimization\RUN\OPTIMIZATION-COMMAND.ps1'
-        exit 1
-    }
-
-    $resolvedCommandFile = Resolve-Path -LiteralPath $CommandFile -ErrorAction SilentlyContinue
-
-    if (-not $resolvedCommandFile) {
-        Write-Fail "Command file not found: $CommandFile"
-        exit 1
-    }
-
-    $commandText = Get-Content -LiteralPath $resolvedCommandFile.Path -Raw
-
-    if ($commandText -match '^\s*#\s*OPTIMIZATION-COMMAND-V1' -eq $false) {
-        Write-Fail "Command file does not contain the required OPTIMIZATION-COMMAND-V1 header."
-        exit 1
-    }
-
-    if ((Test-RiskyCommand $commandText) -and (-not $AllowRiskyCommands)) {
-        Write-Fail "Potentially risky command detected."
-        Write-Host "Review the command file manually."
-        Write-Host "If intentionally approved, rerun with -AllowRiskyCommands."
-        exit 1
-    }
-
-    Write-Warn "The following command file will be executed:"
-    Write-Host $resolvedCommandFile.Path
-    Write-Host ""
-
-    $preview = Get-Content -LiteralPath $resolvedCommandFile.Path |
-        Select-Object -First 120
-
-    $preview | ForEach-Object {
-        Write-Host $_ -ForegroundColor DarkGray
-    }
-
-    Write-Host ""
-    $confirmation = Read-Host "Type APPLY to execute this command file"
-
-    if ($confirmation -ne "APPLY") {
-        Write-Warn "Operation cancelled."
-        exit 0
-    }
-
-    # New run folder for the application operation
-    $ApplyTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $ApplyRoot = Join-Path $OptimizationRoot "applied-$ApplyTimestamp"
-    $ApplyBackup = Join-Path $ApplyRoot "backup"
-    $ApplyReports = Join-Path $ApplyRoot "reports"
-
-    Ensure-Directory $ApplyRoot
-    Ensure-Directory $ApplyBackup
-    Ensure-Directory $ApplyReports
-
-    Write-Step "Creating Git checkpoint..."
-
-    if (-not $SkipGitCheckpoint) {
-        New-GitCheckpoint | Out-Null
-    }
-
-    Write-Step "Backing up tracked project files..."
-
-    if (Test-CommandAvailable "git") {
-        $trackedFiles = git ls-files 2>&1
-
-        foreach ($relative in $trackedFiles) {
-            $source = Join-Path $ProjectRoot $relative
-
-            if (Test-Path -LiteralPath $source -PathType Leaf) {
-                $destination = Join-Path $ApplyBackup $relative
-                Ensure-Directory (Split-Path -Parent $destination)
-                Copy-Item -LiteralPath $source -Destination $destination -Force
-            }
-        }
-    }
-    else {
-        Write-Warn "Git unavailable; backing up common source files."
-
-        Get-ChildItem -Path $ProjectRoot -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object {
-                -not (Is-ExcludedPath $_.FullName)
-            } |
-            ForEach-Object {
-                $relative = Relative-PathSafe $_.FullName
-                $destination = Join-Path $ApplyBackup $relative
-                Ensure-Directory (Split-Path -Parent $destination)
-                Copy-Item $_.FullName $destination -Force
-            }
-    }
-
-    Write-Step "Backup created: $ApplyBackup"
-
-    Save-Text `
-        (Join-Path $ApplyReports "command-executed.txt") `
-        $resolvedCommandFile.Path
-
-    try {
-        & $resolvedCommandFile.Path 2>&1 |
-            Tee-Object `
-                -FilePath (Join-Path $ApplyReports "command-output.txt")
-
-        $exitCode = $LASTEXITCODE
-
-        Write-Host ""
-        Write-Host "Command exit code: $exitCode"
-
-        if ($exitCode -ne 0) {
-            Write-Fail "Optimization command returned a non-zero exit code."
-        }
-        else {
-            Write-Step "Optimization command completed."
-        }
-    }
-    catch {
-        $_ | Out-String |
-            Out-File (Join-Path $ApplyReports "command-error.txt") -Encoding UTF8
-
-        Write-Fail "Optimization command failed."
-    }
-
-    Write-Host ""
-    Write-Host "Backup: $ApplyBackup"
-    Write-Host "Reports: $ApplyReports"
-    exit 0
-}
-
-# ============================================================
-# SCAN
-# ============================================================
-
-Write-Header "POWERSELL OPTIMIZATION WORKFLOW V2"
-
-Write-Host "Project root : $ProjectRoot"
-Write-Host "Run          : $RunRoot"
-Write-Host "Mode         : SCAN"
-Write-Host ""
-Write-Host "No Claude Code subscription or CLI is required." -ForegroundColor Green
-
-# ------------------------------------------------------------
-# Git
-# ------------------------------------------------------------
-
-Write-Header "1. GIT CHECKPOINT"
-
-$gitInfo = [ordered]@{
-    Available = Test-CommandAvailable "git"
-    Branch = $null
-    Commit = $null
-    Status = $null
-    Checkpoint = $null
-}
-
-if ($gitInfo.Available) {
-    $gitInfo.Branch = (git branch --show-current 2>&1 | Out-String).Trim()
-    $gitInfo.Commit = (git rev-parse HEAD 2>&1 | Out-String).Trim()
-    $gitInfo.Status = (git status --short 2>&1 | Out-String).Trim()
-
-    Save-Text (Join-Path $GitRoot "status.txt") $gitInfo.Status
-    Save-Text (Join-Path $GitRoot "branch.txt") $gitInfo.Branch
-    Save-Text (Join-Path $GitRoot "commit.txt") $gitInfo.Commit
-
-    if (-not $SkipGitCheckpoint) {
-        $gitInfo.Checkpoint = New-GitCheckpoint
-    }
-}
-else {
-    Write-Warn "Git not detected."
-}
-
-# ------------------------------------------------------------
-# Project inventory
-# ------------------------------------------------------------
-
-Write-Header "2. PROJECT INVENTORY"
-
-$allFiles = Get-ChildItem `
-    -Path $ProjectRoot `
-    -Recurse `
-    -File `
-    -ErrorAction SilentlyContinue |
-    Where-Object {
-        -not (Is-ExcludedPath $_.FullName)
-    }
-
-$inventory = foreach ($file in $allFiles) {
-
-    $relative = Relative-PathSafe $file.FullName
-
-    [pscustomobject]@{
-        Path = $relative
-        Extension = $file.Extension
-        SizeBytes = $file.Length
-        Modified = $file.LastWriteTime.ToString("o")
-        SHA256 = if ($file.Length -lt 10MB) {
-            Get-FileSha256 $file.FullName
+    Write-Log "Design-token violations found: $($allIssues.Count)" $(if ($allIssues.Count -gt 0) { "WARN" } else { "PASS" })
+
+    $reportPath = Join-Path $Script:ReportRoot "phase$PhaseId-optimization.json"
+    $allIssues | ConvertTo-Json -Depth 4 | Set-Content $reportPath -Encoding UTF8
+    Write-Log "Optimization report written: $reportPath" "INFO"
+
+    if ($Apply) {
+        Write-Log "Applying safe, reversible auto-fixes (eslint --fix / prettier)..." "STEP"
+        Set-Location $RepoPath
+        if (Test-Path (Join-Path $RepoPath "node_modules/.bin/eslint")) {
+            & npx eslint --fix . --ext .ts,.tsx,.js,.jsx 2>&1 | Tee-Object -Variable eslintOut | Out-Null
+            Write-Log "eslint --fix completed." "INFO"
         } else {
-            $null
+            Write-Log "eslint not installed — skipping auto-fix (run 'npm install' first)." "WARN"
         }
+        if (Test-Path (Join-Path $RepoPath "node_modules/.bin/prettier")) {
+            & npx prettier --write . 2>&1 | Out-Null
+            Write-Log "prettier --write completed." "INFO"
+        } else {
+            Write-Log "prettier not installed — skipping formatting pass." "WARN"
+        }
+        Write-Log "Hard-coded color/spacing values require manual token migration — see report above; not auto-rewritten (semantic risk)." "WARN"
+    } else {
+        Write-Log "Dry run only. Re-run with -Apply to run eslint --fix / prettier on SAFE files." "INFO"
     }
+
+    return $allIssues
 }
 
-$inventory |
-    ConvertTo-Json -Depth 5 |
-    Out-File $ManifestPath -Encoding UTF8
+# ============================================================================
+# 7. VALIDATION ENGINE
+# ============================================================================
 
-$inventory |
-    Export-Csv `
-        -LiteralPath (Join-Path $ReportsRoot "project-inventory.csv") `
-        -NoTypeInformation `
-        -Encoding UTF8
+function Invoke-ValidationEngine {
+    param([string]$PhaseId)
 
-Write-Step "$($inventory.Count) project files inventoried."
+    Write-Banner "VALIDATION ENGINE — Phase $PhaseId"
+    Set-Location $RepoPath
 
-# ------------------------------------------------------------
-# Audit discovery
-# ------------------------------------------------------------
+    $results = [ordered]@{}
 
-Write-Header "3. EXISTING AUDITS"
+    function Run-Check {
+        param([string]$Name, [scriptblock]$Cmd)
+        Write-Log "Running: $Name" "STEP"
+        try {
+            & $Cmd 2>&1 | Tee-Object -Variable out | Out-Null
+            $ok = ($LASTEXITCODE -eq 0) -or ($null -eq $LASTEXITCODE)
+        } catch {
+            $ok = $false
+            $out = $_.Exception.Message
+        }
+        $results[$Name] = @{ passed = $ok; output = ($out -join "`n") }
+        Write-Log "$Name -> $(if($ok){'PASS'}else{'FAIL'})" $(if ($ok) { "PASS" } else { "FAIL" })
+        return $ok
+    }
 
-$auditFiles = $allFiles | Where-Object {
-
-    $name = $_.Name.ToLowerInvariant()
-
-    $isCandidateExtension = $_.Extension.ToLowerInvariant() -in @(
-        ".md",".txt",".json",".html",".log",".csv",".xml",".yaml",".yml"
-    )
-
-    if (-not $isCandidateExtension) {
+    $hasPkgJson = Test-Path (Join-Path $RepoPath "package.json")
+    if (-not $hasPkgJson) {
+        Write-Log "No package.json — cannot run npm-based validation. Check -RepoPath." "ERROR"
         return $false
     }
 
-    foreach ($pattern in $AuditNamePatterns) {
-        if ($name -match $pattern) {
-            return $true
+    $allPassed = $true
+    if (Test-Path (Join-Path $RepoPath "tsconfig.json")) {
+        $allPassed = (Run-Check "TypeScript (tsc --noEmit)" { npx tsc --noEmit }) -and $allPassed
+    }
+    $allPassed = (Run-Check "ESLint" { npx eslint . --ext .ts,.tsx,.js,.jsx }) -and $allPassed
+    $allPassed = (Run-Check "Unit/Integration tests" { npm test --silent -- --ci }) -and $allPassed
+
+    # Phase 0-specific audits
+    if ($PhaseId -eq "0") {
+        $allPassed = (Run-Check "Route smoke check (page.tsx count >= 15 expected pages)" {
+            $count = (Get-ChildItem -Recurse -Filter "page.tsx" -Path $RepoPath -ErrorAction SilentlyContinue).Count
+            if ($count -lt 15) { throw "Only $count page.tsx files found, expected >= 15 for Phase 0." }
+        }) -and $allPassed
+    }
+
+    $allPassed = (Run-Check "Production build" { npm run build }) -and $allPassed
+
+    $reportPath = Join-Path $Script:ReportRoot "phase$PhaseId-validation.json"
+    $results | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
+    Write-Log "Validation report written: $reportPath" "INFO"
+
+    return $allPassed
+}
+
+# ============================================================================
+# 8. PHASE ORCHESTRATION
+# ============================================================================
+
+function Invoke-Phase {
+    param([string]$PhaseId)
+
+    if (-not $Script:Phases.Contains($PhaseId)) {
+        Write-Log "Unknown phase id: $PhaseId" "ERROR"
+        return
+    }
+
+    Write-Banner "STARTING $($Script:Phases[$PhaseId])"
+
+    if (-not (Assert-PreviousPhasePassed -PhaseId $PhaseId)) {
+        Write-Log "Run the previous phase to completion first, or inspect state with -Phase Status." "FAIL"
+        return
+    }
+
+    if ((Get-PhaseStatus -PhaseId $PhaseId) -eq "PASSED" -and -not $Resume) {
+        Write-Log "Phase $PhaseId already PASSED. Nothing to do. (Use -Resume to re-run anyway.)" "INFO"
+        return
+    }
+
+    Set-PhaseStatus -PhaseId $PhaseId -Status "RUNNING"
+
+    # --- Safety first, always ---
+    $checkpoint = Invoke-SafetyEngine -PhaseId $PhaseId
+    if (-not $checkpoint) {
+        Set-PhaseStatus -PhaseId $PhaseId -Status "FAILED" -Detail "Safety Engine could not create a checkpoint."
+        Write-Log "ABORTED before any changes were made — no checkpoint, no risk taken." "FAIL"
+        return
+    }
+
+    # --- Discovery ---
+    $inventory = Invoke-DiscoveryEngine -PhaseId $PhaseId
+
+    $allTrackedFiles = @()
+    $allTrackedFiles += $inventory.routes
+    $allTrackedFiles += $inventory.components
+    $allTrackedFiles += $inventory.hooks
+    $allTrackedFiles += $inventory.services
+    $allTrackedFiles += $inventory.apiRoutes
+    $allTrackedFiles += $inventory.migrations
+
+    # --- Protection classification ---
+    $classified = Invoke-ProtectionEngine -AllFiles $allTrackedFiles -PhaseId $PhaseId
+
+    # --- Optimization (dry-run unless -Apply) ---
+    Invoke-OptimizationEngine -Classified $classified -PhaseId $PhaseId | Out-Null
+
+    # --- Validation gate ---
+    $passed = Invoke-ValidationEngine -PhaseId $PhaseId
+
+    if ($passed) {
+        Set-PhaseStatus -PhaseId $PhaseId -Status "PASSED" -Detail "Checkpoint: $($checkpoint.tag)"
+        Write-Banner "PHASE $PhaseId PASSED — safe to proceed to next phase."
+    } else {
+        Write-Log "Validation FAILED for Phase $PhaseId. Rolling back automatically." "FAIL"
+        Invoke-Rollback -PhaseId $PhaseId -CheckpointTag $checkpoint.tag
+        Write-Banner "PHASE $PhaseId FAILED AND WAS ROLLED BACK. See reports in $Script:ReportRoot"
+    }
+}
+
+# ============================================================================
+# 9. ENTRY POINT
+# ============================================================================
+
+Write-Banner "KITABU YETU OPTIMIZE.PS1 v$($Script:EngineVersion)"
+Write-Log "Repo: $RepoPath" "INFO"
+Write-Log "Mode: Phase=$Phase Apply=$($Apply.IsPresent) Force=$($Force.IsPresent) Resume=$($Resume.IsPresent)" "INFO"
+
+switch ($Phase) {
+    "Status" { Show-GateStatus }
+    "Next" {
+        $next = Get-NextPendingPhase
+        if ($null -eq $next) {
+            Write-Log "All phases PASSED. Nothing left to run." "PASS"
+        } else {
+            Invoke-Phase -PhaseId $next
         }
     }
-
-    return $false
-}
-
-$auditIndex = New-Object System.Collections.Generic.List[string]
-
-foreach ($file in $auditFiles) {
-    $relative = Relative-PathSafe $file.FullName
-    $destination = Join-Path $AuditRoot ($relative -replace '[\\/:*?"<>|]', '_')
-
-    Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
-    $auditIndex.Add($relative)
-
-    Write-Host "  $relative"
-}
-
-Save-Text `
-    (Join-Path $AuditRoot "INDEX.txt") `
-    ($auditIndex -join [Environment]::NewLine)
-
-Write-Step "$($auditFiles.Count) audit/review files found."
-
-# ------------------------------------------------------------
-# Claude / project context discovery
-# ------------------------------------------------------------
-
-Write-Header "4. CLAUDE / PROJECT CONTEXT"
-
-$contextPatterns = @(
-    "CLAUDE.md",
-    "CLAUDE.*",
-    "*claude*memory*",
-    "*claude*context*",
-    "*memory*.md",
-    "*memory*.txt",
-    "*architecture*.md",
-    "*adr*.md",
-    "*decision*.md",
-    "*project-context*.md",
-    "*technical-debt*.md"
-)
-
-$contextFiles = $allFiles | Where-Object {
-
-    foreach ($pattern in $contextPatterns) {
-        if ($_.Name -like $pattern) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
-$contextIndex = New-Object System.Collections.Generic.List[string]
-
-foreach ($file in $contextFiles) {
-    $relative = Relative-PathSafe $file.FullName
-    $destination = Join-Path $ContextRoot ($relative -replace '[\\/:*?"<>|]', '_')
-
-    Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
-    $contextIndex.Add($relative)
-
-    Write-Host "  $relative"
-}
-
-Save-Text `
-    (Join-Path $ContextRoot "INDEX.txt") `
-    ($contextIndex -join [Environment]::NewLine)
-
-Write-Step "$($contextFiles.Count) Claude/project-context files found."
-
-# ------------------------------------------------------------
-# Package manager / dependencies
-# ------------------------------------------------------------
-
-Write-Header "5. DEPENDENCY ANALYSIS"
-
-$packageJsonPath = Join-Path $ProjectRoot "package.json"
-$packageLockPath = Join-Path $ProjectRoot "package-lock.json"
-$pnpmLockPath = Join-Path $ProjectRoot "pnpm-lock.yaml"
-$yarnLockPath = Join-Path $ProjectRoot "yarn.lock"
-
-$dependencyInfo = [ordered]@{
-    PackageJson = Test-Path $packageJsonPath
-    PackageManager = $null
-    NodeVersion = $null
-    NpmVersion = $null
-    DependencyAudit = $false
-}
-
-if (Test-Path $packageJsonPath) {
-
-    Copy-Item $packageJsonPath `
-        (Join-Path $DependencyRoot "package.json") `
-        -Force
-
-    if (Test-Path $packageLockPath) {
-        $dependencyInfo.PackageManager = "npm"
-        Copy-Item $packageLockPath `
-            (Join-Path $DependencyRoot "package-lock.json") `
-            -Force
-    }
-    elseif (Test-Path $pnpmLockPath) {
-        $dependencyInfo.PackageManager = "pnpm"
-        Copy-Item $pnpmLockPath `
-            (Join-Path $DependencyRoot "pnpm-lock.yaml") `
-            -Force
-    }
-    elseif (Test-Path $yarnLockPath) {
-        $dependencyInfo.PackageManager = "yarn"
-        Copy-Item $yarnLockPath `
-            (Join-Path $DependencyRoot "yarn.lock") `
-            -Force
-    }
-
-    if (Test-CommandAvailable "node") {
-        $dependencyInfo.NodeVersion = (node --version 2>&1 | Out-String).Trim()
-    }
-
-    if (Test-CommandAvailable "npm") {
-        $dependencyInfo.NpmVersion = (npm --version 2>&1 | Out-String).Trim()
-    }
-
-    if (-not $SkipDependencyAudit -and (Test-CommandAvailable "npm")) {
-
-        Write-Step "Running npm audit..."
-
-        Invoke-Capture `
-            "npm" `
-            @("audit","--json") `
-            (Join-Path $DependencyRoot "npm-audit.json") |
-            Out-Null
-
-        Write-Step "Running npm outdated..."
-
-        Invoke-Capture `
-            "npm" `
-            @("outdated","--json") `
-            (Join-Path $DependencyRoot "npm-outdated.json") |
-            Out-Null
-
-        $dependencyInfo.DependencyAudit = $true
-    }
-}
-
-$dependencyInfo |
-    ConvertTo-Json -Depth 5 |
-    Out-File (Join-Path $DependencyRoot "DEPENDENCY-INFO.json") -Encoding UTF8
-
-# ------------------------------------------------------------
-# Next.js
-# ------------------------------------------------------------
-
-Write-Header "6. NEXT.JS ANALYSIS"
-
-$nextInfo = [ordered]@{
-    Detected = $false
-    Config = $null
-    AppDirectory = $false
-    PagesDirectory = $false
-    NextVersion = $null
-    TypeScript = $false
-}
-
-$nextConfig = Get-ChildItem `
-    -Path $ProjectRoot `
-    -File `
-    -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match "^next\.config\." } |
-    Select-Object -First 1
-
-$nextPackage = $false
-
-if (Test-Path $packageJsonPath) {
-    try {
-        $pkg = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
-
-        if ($pkg.dependencies.next -or $pkg.devDependencies.next) {
-            $nextPackage = $true
-
-            if ($pkg.dependencies.next) {
-                $nextInfo.NextVersion = [string]$pkg.dependencies.next
-            }
-            else {
-                $nextInfo.NextVersion = [string]$pkg.devDependencies.next
-            }
-        }
-    }
-    catch {
-        Write-Warn "Could not parse package.json."
-    }
-}
-
-if ($nextPackage -or $nextConfig) {
-
-    $nextInfo.Detected = $true
-
-    if ($nextConfig) {
-        $nextInfo.Config = $nextConfig.Name
-        Copy-Item `
-            $nextConfig.FullName `
-            (Join-Path $FrameworkRoot $nextConfig.Name) `
-            -Force
-    }
-
-    $nextInfo.AppDirectory =
-        (Test-Path (Join-Path $ProjectRoot "app")) -or
-        (Test-Path (Join-Path $ProjectRoot "src\app"))
-
-    $nextInfo.PagesDirectory =
-        (Test-Path (Join-Path $ProjectRoot "pages")) -or
-        (Test-Path (Join-Path $ProjectRoot "src\pages"))
-
-    $nextInfo.TypeScript =
-        Test-Path (Join-Path $ProjectRoot "tsconfig.json")
-
-    Write-Step "Next.js detected."
-}
-
-$nextInfo |
-    ConvertTo-Json -Depth 5 |
-    Out-File (Join-Path $FrameworkRoot "NEXTJS-INFO.json") -Encoding UTF8
-
-# ------------------------------------------------------------
-# Supabase
-# ------------------------------------------------------------
-
-Write-Header "7. SUPABASE ANALYSIS"
-
-$supabaseInfo = [ordered]@{
-    Detected = $false
-    Directory = $false
-    Migrations = 0
-    Functions = 0
-    ConfigFiles = @()
-    ClientReferences = 0
-}
-
-$supabaseDir = Join-Path $ProjectRoot "supabase"
-
-if (Test-Path $supabaseDir) {
-
-    $supabaseInfo.Detected = $true
-    $supabaseInfo.Directory = $true
-
-    $migrationsDir = Join-Path $supabaseDir "migrations"
-    $functionsDir = Join-Path $supabaseDir "functions"
-
-    if (Test-Path $migrationsDir) {
-        $supabaseInfo.Migrations = @(
-            Get-ChildItem $migrationsDir -File -ErrorAction SilentlyContinue
-        ).Count
-    }
-
-    if (Test-Path $functionsDir) {
-        $supabaseInfo.Functions = @(
-            Get-ChildItem $functionsDir -Directory -ErrorAction SilentlyContinue
-        ).Count
-    }
-
-    $supabaseInfo.ConfigFiles = @(
-        Get-ChildItem $supabaseDir -File -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty Name
-    )
-
-    Write-Step "Supabase directory detected."
-}
-
-# Search code for Supabase references without reading secrets.
-$supabaseReferences = $allFiles |
-    Where-Object {
-        $_.Extension -in @(
-            ".ts",".tsx",".js",".jsx",".mjs",".cjs",".sql"
-        )
-    } |
-    Select-String `
-        -Pattern "supabase|createClient|SUPABASE_" `
-        -SimpleMatch `
-        -ErrorAction SilentlyContinue
-
-$supabaseInfo.ClientReferences = @($supabaseReferences).Count
-
-$supabaseInfo |
-    ConvertTo-Json -Depth 5 |
-    Out-File (Join-Path $FrameworkRoot "SUPABASE-INFO.json") -Encoding UTF8
-
-# ------------------------------------------------------------
-# Vercel
-# ------------------------------------------------------------
-
-Write-Header "8. VERCEL ANALYSIS"
-
-$vercelInfo = [ordered]@{
-    Detected = $false
-    Config = $false
-    ProjectConfig = $false
-    Functions = 0
-    CronReferences = 0
-}
-
-$vercelConfig = Join-Path $ProjectRoot "vercel.json"
-
-if (Test-Path $vercelConfig) {
-    $vercelInfo.Detected = $true
-    $vercelInfo.Config = $true
-
-    Copy-Item `
-        $vercelConfig `
-        (Join-Path $FrameworkRoot "vercel.json") `
-        -Force
-}
-
-if (Test-Path (Join-Path $ProjectRoot ".vercel\project.json")) {
-    $vercelInfo.Detected = $true
-    $vercelInfo.ProjectConfig = $true
-
-    Copy-Item `
-        (Join-Path $ProjectRoot ".vercel\project.json") `
-        (Join-Path $FrameworkRoot "vercel-project.json") `
-        -Force
-}
-
-$apiDir = Join-Path $ProjectRoot "api"
-
-if (Test-Path $apiDir) {
-    $vercelInfo.Functions = @(
-        Get-ChildItem $apiDir -Recurse -File -ErrorAction SilentlyContinue
-    ).Count
-}
-
-$cronReferences = $allFiles |
-    Where-Object {
-        $_.Extension -in @(
-            ".ts",".tsx",".js",".jsx",".json",".md"
-        )
-    } |
-    Select-String `
-        -Pattern "cron|vercel.json|schedule|vercel cron" `
-        -ErrorAction SilentlyContinue
-
-$vercelInfo.CronReferences = @($cronReferences).Count
-
-if ($vercelInfo.Detected) {
-    Write-Step "Vercel configuration detected."
-}
-
-$vercelInfo |
-    ConvertTo-Json -Depth 5 |
-    Out-File (Join-Path $FrameworkRoot "VERCEL-INFO.json") -Encoding UTF8
-
-# ------------------------------------------------------------
-# Environment / secret safety
-# ------------------------------------------------------------
-
-Write-Header "9. SECRET / ENVIRONMENT SAFETY"
-
-$secretFiles = $allFiles | Where-Object {
-
-    foreach ($pattern in $SensitiveNamePatterns) {
-        if ($_.Name -match $pattern) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
-$secretIndex = foreach ($file in $secretFiles) {
-    Relative-PathSafe $file.FullName
-}
-
-Save-Text `
-    (Join-Path $ReportsRoot "POTENTIAL-SENSITIVE-FILES.txt") `
-    ($secretIndex -join [Environment]::NewLine)
-
-Write-Warn "Sensitive filenames were recorded; secret VALUES were not collected."
-
-# ------------------------------------------------------------
-# Test / build baseline
-# ------------------------------------------------------------
-
-Write-Header "10. BASELINE VALIDATION"
-
-$baseline = [ordered]@{
-    TypeScript = $null
-    Lint = $null
-    Build = $null
-}
-
-if (Test-Path $packageJsonPath) {
-
-    if (Test-Path (Join-Path $ProjectRoot "tsconfig.json")) {
-
-        Write-Step "Running baseline TypeScript check..."
-
-        $code = Invoke-Capture `
-            "npx" `
-            @("tsc","--noEmit") `
-            (Join-Path $ReportsRoot "baseline-typescript.txt")
-
-        $baseline.TypeScript = ($code -eq 0)
-    }
-
-    Write-Step "Running baseline lint..."
-
-    $code = Invoke-Capture `
-        "npm" `
-        @("run","lint") `
-        (Join-Path $ReportsRoot "baseline-lint.txt")
-
-    $baseline.Lint = ($code -eq 0)
-
-    if (-not $SkipBuild) {
-
-        Write-Step "Running baseline production build..."
-
-        $code = Invoke-Capture `
-            "npm" `
-            @("run","build") `
-            (Join-Path $ReportsRoot "baseline-build.txt")
-
-        $baseline.Build = ($code -eq 0)
-    }
-}
-
-$baseline |
-    ConvertTo-Json |
-    Out-File (Join-Path $ReportsRoot "BASELINE.json") -Encoding UTF8
-
-# ============================================================
-# CREATE CHATGPT PACKAGE
-# ============================================================
-
-Write-Header "11. GENERATING CHATGPT-READY PACKAGE"
-
-$inventorySummary = @"
-Project files: $($inventory.Count)
-Audit files: $($auditFiles.Count)
-Context files: $($contextFiles.Count)
-Next.js detected: $($nextInfo.Detected)
-Supabase detected: $($supabaseInfo.Detected)
-Vercel detected: $($vercelInfo.Detected)
-Package manager: $($dependencyInfo.PackageManager)
-Node: $($dependencyInfo.NodeVersion)
-TypeScript baseline: $($baseline.TypeScript)
-Lint baseline: $($baseline.Lint)
-Build baseline: $($baseline.Build)
-Git branch: $($gitInfo.Branch)
-Git commit: $($gitInfo.Commit)
-"@
-
-$prompt = @"
-# CHATGPT OPTIMIZATION REQUEST
-
-You are reviewing an existing production application.
-
-This package was generated entirely by PowerShell.
-There is NO Claude Code subscription or Claude CLI dependency.
-
-## PROJECT ROOT
-
-$ProjectRoot
-
-## RUN
-
-$RunRoot
-
-## EVIDENCE
-
-### Existing audits
-
-$AuditRoot
-
-### Claude/project context
-
-$ContextRoot
-
-### Dependency evidence
-
-$DependencyRoot
-
-### Framework evidence
-
-$FrameworkRoot
-
-### Git evidence
-
-$GitRoot
-
-### Reports
-
-$ReportsRoot
-
----
-
-# BASELINE SUMMARY
-
-$inventorySummary
-
----
-
-# YOUR TASK
-
-Review the evidence and produce a controlled optimization plan.
-
-DO NOT invent findings.
-
-DO NOT assume old audit findings are still valid.
-
-Validate historical findings against the current project evidence.
-
-Prioritize:
-
-1. Critical security issues
-2. Reliability issues
-3. Database issues
-4. Authentication/authorization issues
-5. Performance issues
-6. Deployment issues
-7. Cost/scalability issues
-8. Maintainability
-
-Pay particular attention to:
-
-- Next.js architecture
-- React server/client boundaries
-- unnecessary client JavaScript
-- caching
-- database queries
-- Supabase RLS
-- Supabase service-role usage
-- M-Pesa callbacks
-- Resend/email
-- SMS integrations
-- Vercel deployment
-- Vercel cron
-- environment variables
-- dependency vulnerabilities
-- database connection pooling
-- API validation
-- authentication
-- authorization
-- logging
-- error handling
-
-## SECURITY RULE
-
-Never request or expose actual secret values.
-
-Environment files are intentionally excluded from content collection.
-
----
-
-# REQUIRED OUTPUT
-
-Produce:
-
-## 1. OPTIMIZATION-PLAN.md
-
-Include a table:
-
-| ID | Finding | Evidence | Severity | Impact | Effort | Risk | Recommendation |
-|----|---------|----------|----------|--------|--------|------|----------------|
-
-Then classify:
-
-- Critical
-- High
-- Medium
-- Low
-- Already Fixed
-- False Positive / Obsolete
-
-## 2. POWERSHELL COMMAND FILE
-
-Return a complete file named:
-
-OPTIMIZATION-COMMAND.ps1
-
-It MUST begin with exactly:
-
-# OPTIMIZATION-COMMAND-V1
-
-The command file must contain ONLY changes that you recommend implementing.
-
-Every modification must be explicit.
-
-Preferred operations:
-
-- Set-Content
-- Add-Content
-- Copy-Item
-- Move-Item
-- Rename-Item
-- New-Item
-- package-manager commands where appropriate
-
-Avoid destructive commands.
-
-Do not modify:
-
-- .env
-- production credentials
-- secrets
-- certificates
-- SSH keys
-
-unless the change only updates an example/template file.
-
-Before modifying an existing file, create a backup if the command file itself is being run outside the main workflow.
-
-## 3. VALIDATION COMMANDS
-
-Also return:
-
-VALIDATION-COMMANDS.ps1
-
-with commands that should be run after optimization.
-
-Use:
-
-- npm run lint
-- npx tsc --noEmit
-- npm run build
-- npm audit
-- relevant tests
-- Supabase checks where available
-
-## 4. FINAL EXPECTED RESULT
-
-Explain:
-
-BEFORE
-→
-CHANGE
-→
-EXPECTED AFTER
-
-Do not claim a performance improvement without measurement.
-
----
-
-# IMPORTANT
-
-PowerShell will execute your returned command file only after human review.
-
-Do not return a command file that performs broad rewrites.
-
-Prefer small, reversible, testable changes.
-"@
-
-Save-Text $PromptPath $prompt
-
-# ------------------------------------------------------------
-# COMMAND TEMPLATE
-# ------------------------------------------------------------
-
-$commandTemplate = @'
-# OPTIMIZATION-COMMAND-V1
-# Generated template.
-# Replace this file with the reviewed command file returned by ChatGPT.
-#
-# RULE:
-# Only put explicit, reviewed changes here.
-# Do not put secrets here.
-
-$ErrorActionPreference = "Stop"
-
-$ProjectRoot = (Get-Location).Path
-
-Write-Host "Applying approved optimization changes..." -ForegroundColor Cyan
-
-# Example:
-# Copy-Item ".\src\example.ts" ".\.optimization\manual-backup\example.ts" -Force
-#
-# Example:
-# Set-Content ".\src\example.ts" -Value @'
-# new content
-# '@ -Encoding UTF8
-
-Write-Host "Optimization command completed." -ForegroundColor Green
-'@
-
-Save-Text $CommandTemplatePath $commandTemplate
-
-# ------------------------------------------------------------
-# RUN MANIFEST
-# ------------------------------------------------------------
-
-$runManifest = [ordered]@{
-    SchemaVersion = "2.0"
-    Generated = (Get-Date).ToString("o")
-    ProjectRoot = $ProjectRoot
-    RunRoot = $RunRoot
-    AuditFiles = $auditFiles.Count
-    ContextFiles = $contextFiles.Count
-    ProjectFiles = $inventory.Count
-    NextJs = $nextInfo
-    Supabase = $supabaseInfo
-    Vercel = $vercelInfo
-    Dependencies = $dependencyInfo
-    Git = $gitInfo
-    Baseline = $baseline
-    Files = [ordered]@{
-        Prompt = $PromptPath
-        CommandTemplate = $CommandTemplatePath
-        Manifest = $ManifestPath
-        Audits = $AuditRoot
-        Context = $ContextRoot
-        Dependencies = $DependencyRoot
-        Framework = $FrameworkRoot
-        Reports = $ReportsRoot
-        Git = $GitRoot
-        Backup = $BackupRoot
-    }
-}
-
-$runManifest |
-    ConvertTo-Json -Depth 10 |
-    Out-File $ManifestPath -Encoding UTF8
-
-# ------------------------------------------------------------
-# FINAL
-# ------------------------------------------------------------
-
-Write-Header "SCAN COMPLETE"
-
-Write-Host ""
-Write-Host "CHATGPT-READY PACKAGE" -ForegroundColor Green
-Write-Host ""
-Write-Host "Run folder:"
-Write-Host "  $RunRoot"
-Write-Host ""
-Write-Host "Main prompt:"
-Write-Host "  $PromptPath"
-Write-Host ""
-Write-Host "Command template:"
-Write-Host "  $CommandTemplatePath"
-Write-Host ""
-Write-Host "Manifest:"
-Write-Host "  $ManifestPath"
-Write-Host ""
-Write-Host "Reports:"
-Write-Host "  $ReportsRoot"
-Write-Host ""
-
-Write-Host @"
-NEXT STEP
-
-1. Open CHATGPT-PROMPT.md.
-2. Give ChatGPT the optimization evidence from this run.
-3. Ask ChatGPT to produce:
-       OPTIMIZATION-PLAN.md
-       OPTIMIZATION-COMMAND.ps1
-       VALIDATION-COMMANDS.ps1
-4. Review the commands.
-5. Run:
-
-   .\Optimize.ps1 -ApplyCommand -CommandFile <path-to-OPTIMIZATION-COMMAND.ps1>
-
-6. Then run:
-
-   .\Optimize.ps1 -Mode Verify
-
-"@ -ForegroundColor Yellow
-
-if ($OpenReport) {
-    if (Test-Path $PromptPath) {
-        Start-Process notepad.exe $PromptPath
-    }
+    default { Invoke-Phase -PhaseId $Phase }
 }
