@@ -33,7 +33,7 @@ import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.
 import type { MemberNotification } from '@/lib/services/member-notifications.service';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
 import type {
-  OrgWallet, FundingProgram, OrgDisbursement, ProgramBudgetLine, DonorSpendLine,
+  OrgWallet, FundingProgram, OrgDisbursement, ProgramBudgetLine, DonorSpendLine, ProgramGroupLine,
 } from '@/lib/services/organization-finance.service';
 import type {
   OrganizationMemberRow, OrganizationAuditLogRow, OrganizationBranding,
@@ -628,6 +628,14 @@ export const organizationApi = {
   // tsc and only surfaces as a 400 at runtime.
   updateProgramStatus: (id: string, body: UpdateProgramStatusInput) =>
     adminApi.patch<FundingProgram>(`/organization/programs/${id}`, body),
+  // Programme tier of the portfolio drill-down (Org → Programme → Group →
+  // Member) — organization-finance.service.ts's listProgramGroups. Typed
+  // against the service's own return shape (ProgramGroupLine, FundingProgram)
+  // rather than hand-copied, per the PortfolioHealth precedent above.
+  programGroups: (id: string) =>
+    adminApi.get<{ program: FundingProgram; groups: ProgramGroupLine[]; incomplete: string[] }>(
+      `/organization/programs/${id}/groups`,
+    ),
   // Organization's own trial balance (organization-accounting.service.ts).
   accounting: () => adminApi.get<{ trialBalance: OrgTrialBalanceLine[] }>('/organization/accounting'),
   // Note: this route returns {items,total,page,limit} (organization-finance

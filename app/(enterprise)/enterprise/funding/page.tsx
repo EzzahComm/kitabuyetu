@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Wallet, Landmark, Users, TrendingUp, PiggyBank, ArrowDownToLine,
-  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban,
+  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ import { adminApi } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
+import type { ProgramGroupLine } from '@/lib/services/organization-finance.service';
 import type { PaginatedResult } from '@/types/db.types';
 import type { SetApprovalPolicyInput } from '@/lib/validators/accounting.schema';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
@@ -134,6 +135,7 @@ export default function FundingPortalPage() {
   const [depositOpen, setDepositOpen]   = useState(false);
   const [programOpen, setProgramOpen]   = useState(false);
   const [disburseOpen, setDisburseOpen] = useState(false);
+  const [viewProgramId, setViewProgramId] = useState<string | null>(null);
 
   const { data: dash, isLoading } = useQuery<DashboardPayload>({
     queryKey: ['organization', 'dashboard'],
@@ -331,7 +333,13 @@ export default function FundingPortalPage() {
                   const budget = parseFloat(pr.budget);
                   const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
                   return (
-                    <div key={pr.id} className="rounded-lg border p-3">
+                    <div
+                      key={pr.id}
+                      role="button" tabIndex={0}
+                      className="rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50"
+                      onClick={() => setViewProgramId(pr.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewProgramId(pr.id); }}
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{pr.name}</p>
@@ -347,13 +355,17 @@ export default function FundingPortalPage() {
                           <Button
                             size="sm" variant="ghost" className="h-7 w-7 p-0"
                             title={pr.status === 'active' ? 'Pause program' : 'Reactivate program'}
-                            onClick={() => toggleProgram.mutate({
-                              id: pr.id,
-                              status: pr.status === 'active' ? 'paused' : 'active',
-                            })}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleProgram.mutate({
+                                id: pr.id,
+                                status: pr.status === 'active' ? 'paused' : 'active',
+                              });
+                            }}
                           >
                             {pr.status === 'active' ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
                           </Button>
+                          <ChevronRight size={15} className="text-muted-foreground" />
                         </div>
                       </div>
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded bg-muted">
@@ -615,6 +627,7 @@ export default function FundingPortalPage() {
 
       <DepositDialog open={depositOpen} onClose={() => setDepositOpen(false)} />
       <ProgramDialog open={programOpen} onClose={() => setProgramOpen(false)} />
+      <ProgramGroupsDialog programId={viewProgramId} onClose={() => setViewProgramId(null)} />
       <DisburseDialog
         open={disburseOpen}
         onClose={() => setDisburseOpen(false)}
@@ -836,6 +849,87 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={() => create.mutate()} disabled={!ok || create.isPending}>Create program</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Program groups drill-down dialog ──────────────────────────────────────────
+// Programme tier of the portfolio drill-down (Org → Programme → Group →
+// Member) — see organization-finance.service.ts's listProgramGroups.
+
+function ProgramGroupsDialog({ programId, onClose }: { programId: string | null; onClose: () => void }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['organization', 'program-groups', programId],
+    queryFn: () => organizationApi.programGroups(programId as string),
+    enabled: !!programId,
+    staleTime: 30_000,
+  });
+
+  const program = data?.program;
+  const groups: ProgramGroupLine[] = data?.groups ?? [];
+  // R10 — a failed per-group breakdown is reported here, not rendered as "no groups".
+  const groupsIncomplete = !!data?.incomplete?.includes('groups');
+
+  return (
+    <Dialog open={!!programId} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{program ? program.name : 'Funded groups'}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+          </div>
+        ) : isError ? (
+          <p className="text-sm text-destructive py-6 text-center">Could not load this program.</p>
+        ) : (
+          <div className="space-y-3">
+            {program && (
+              <p className="text-xs text-muted-foreground capitalize">
+                {program.program_type.replace(/_/g, ' ')}
+                {program.funding_source ? ` · ${program.funding_source}` : ''}
+                {' · '}{formatKES(parseFloat(program.disbursed_total))} of {formatKES(parseFloat(program.budget))} disbursed
+              </p>
+            )}
+            {groupsIncomplete && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                Could not read per-group figures for this program — showing what did load.
+              </p>
+            )}
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No group has received funds from this program yet.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {groups.map((g) => (
+                  <div key={g.group_id} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{g.group_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {g.active_members} member{g.active_members === 1 ? '' : 's'}
+                        {' · '}{g.disbursement_count} disbursement{g.disbursement_count === 1 ? '' : 's'}
+                        {g.last_disbursed_at ? ` · last ${formatDate(g.last_disbursed_at)}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold tabular-nums">{formatKES(parseFloat(g.disbursed))}</p>
+                      {parseFloat(g.reserved) > 0 && (
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          {formatKES(parseFloat(g.reserved))} reserved
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
