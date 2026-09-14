@@ -1,0 +1,86 @@
+url_path	file	route_group	client_guard
+/admin/analytics	app/(admin)/admin/analytics/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/audit-logs	app/(admin)/admin/audit-logs/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/billing-admin	app/(admin)/admin/billing-admin/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/feature-flags	app/(admin)/admin/feature-flags/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/geography	app/(admin)/admin/geography/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/groups/[id]/members/[memberId]	app/(admin)/admin/groups/[id]/members/[memberId]/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/groups/[id]	app/(admin)/admin/groups/[id]/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/groups	app/(admin)/admin/groups/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/monitoring	app/(admin)/admin/monitoring/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/organizations/[id]	app/(admin)/admin/organizations/[id]/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/organizations/compare	app/(admin)/admin/organizations/compare/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/organizations	app/(admin)/admin/organizations/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin	app/(admin)/admin/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/risk	app/(admin)/admin/risk/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/settings	app/(admin)/admin/settings/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/support	app/(admin)/admin/support/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/admin/users	app/(admin)/admin/users/page.tsx	(admin)	client: audience==backoffice && platformRole in [super_admin,support,organization_coordinator] (app/(admin)/layout.tsx)
+/accept-org-invite/[token]	app/(auth)/accept-org-invite/[token]/page.tsx	(auth)	none — public auth pages
+/admin-login/forgot-password	app/(auth)/admin-login/forgot-password/page.tsx	(auth)	none — public auth pages
+/admin-login	app/(auth)/admin-login/page.tsx	(auth)	none — public auth pages
+/admin-login/reset-password	app/(auth)/admin-login/reset-password/page.tsx	(auth)	none — public auth pages
+/enterprise/login	app/(auth)/enterprise/login/page.tsx	(auth)	none — public auth pages
+/forgot-password	app/(auth)/forgot-password/page.tsx	(auth)	none — public auth pages
+/login	app/(auth)/login/page.tsx	(auth)	none — public auth pages
+/register	app/(auth)/register/page.tsx	(auth)	none — public auth pages
+/verify-group/confirm	app/(auth)/verify-group/confirm/page.tsx	(auth)	none — public auth pages
+/verify-group	app/(auth)/verify-group/page.tsx	(auth)	none — public auth pages
+/accounting	app/(dashboard)/accounting/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/analytics	app/(dashboard)/analytics/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/analytics/risk	app/(dashboard)/analytics/risk/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/billing	app/(dashboard)/billing/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/contributions	app/(dashboard)/contributions/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/credit-scores/[memberId]	app/(dashboard)/credit-scores/[memberId]/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/credit-scores	app/(dashboard)/credit-scores/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/dashboard	app/(dashboard)/dashboard/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/data-import	app/(dashboard)/data-import/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/dividends/[id]	app/(dashboard)/dividends/[id]/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/dividends	app/(dashboard)/dividends/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/email/campaigns	app/(dashboard)/email/campaigns/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/email/logs	app/(dashboard)/email/logs/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/email	app/(dashboard)/email/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/email/preferences	app/(dashboard)/email/preferences/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/email/templates	app/(dashboard)/email/templates/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/investments	app/(dashboard)/investments/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/loans/[id]	app/(dashboard)/loans/[id]/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/loans	app/(dashboard)/loans/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/meetings	app/(dashboard)/meetings/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/members/[id]	app/(dashboard)/members/[id]/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/members/import	app/(dashboard)/members/import/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/members	app/(dashboard)/members/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/mpesa	app/(dashboard)/mpesa/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/mpesa/reallocations	app/(dashboard)/mpesa/reallocations/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/mpesa/reconciliations	app/(dashboard)/mpesa/reconciliations/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/mpesa/unrouted	app/(dashboard)/mpesa/unrouted/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/organization	app/(dashboard)/organization/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/reports	app/(dashboard)/reports/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/settings/contribution-splits	app/(dashboard)/settings/contribution-splits/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/settings	app/(dashboard)/settings/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/shares/classes	app/(dashboard)/shares/classes/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/shares	app/(dashboard)/shares/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/sms	app/(dashboard)/sms/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/treasury	app/(dashboard)/treasury/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/welfare	app/(dashboard)/welfare/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/whatsapp	app/(dashboard)/whatsapp/page.tsx	(dashboard)	client: audience==tenant, redirect backoffice->/admin, pending_verification->/verify-group (app/(dashboard)/layout.tsx)
+/enterprise/api-keys	app/(enterprise)/enterprise/api-keys/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/audit	app/(enterprise)/enterprise/audit/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/branches	app/(enterprise)/enterprise/branches/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/branding	app/(enterprise)/enterprise/branding/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/disbursements	app/(enterprise)/enterprise/disbursements/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/members	app/(enterprise)/enterprise/members/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise	app/(enterprise)/enterprise/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/enterprise/reports	app/(enterprise)/enterprise/reports/page.tsx	(enterprise)	client: audience==backoffice && platformRole in [organization_coordinator,super_admin] (app/(enterprise)/layout.tsx)
+/me/goals	app/(member)/me/goals/page.tsx	(member)	client: audience==tenant, redirect backoffice->/admin (app/(member)/layout.tsx)
+/me/notifications	app/(member)/me/notifications/page.tsx	(member)	client: audience==tenant, redirect backoffice->/admin (app/(member)/layout.tsx)
+/me	app/(member)/me/page.tsx	(member)	client: audience==tenant, redirect backoffice->/admin (app/(member)/layout.tsx)
+/me/passbook	app/(member)/me/passbook/page.tsx	(member)	client: audience==tenant, redirect backoffice->/admin (app/(member)/layout.tsx)
+/about	app/about/page.tsx	(none)	none — public marketing/static page
+/contact	app/contact/page.tsx	(none)	none — public marketing/static page
+/design-system	app/design-system/page.tsx	(none)	none — public marketing/static page
+/docs	app/docs/page.tsx	(none)	none — public marketing/static page
+/	app/page.tsx	(none)	none — public marketing/static page
+/pricing	app/pricing/page.tsx	(none)	none — public marketing/static page
+/status	app/status/page.tsx	(none)	none — public marketing/static page
+/support	app/support/page.tsx	(none)	none — public marketing/static page
+/unauthorized	app/unauthorized/page.tsx	(none)	none — public marketing/static page

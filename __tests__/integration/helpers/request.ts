@@ -73,5 +73,5 @@ export function buildRequest(
       headers.set('content-type', 'application/json');
     }
   }
-  return new NextRequest(new URL(path, 'http://localhost'), init);
+  return new NextRequest(new URL(path, 'http://localhost'), init as ConstructorParameters<typeof NextRequest>[1]);
 }

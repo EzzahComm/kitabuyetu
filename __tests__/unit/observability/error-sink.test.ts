@@ -32,7 +32,7 @@ describe('error sink', () => {
     mockInit.mockClear();
     mockCapture.mockClear();
     delete process.env.SENTRY_DSN;
-    process.env.NODE_ENV = ORIGINAL_ENV.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = ORIGINAL_ENV.NODE_ENV;
   });
 
   afterAll(() => { process.env = ORIGINAL_ENV; });

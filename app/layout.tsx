@@ -39,7 +39,7 @@ const LONG_DESCRIPTION =
 export const metadata: Metadata = {
   // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is
   // unset. The previous fallback was 'https://kitabuyetu.com' — a domain this
-  // platform does not own (the site is kitabuyetu.co.ke) — so a missing env
+  // platform does not own (the site is kitabuyetu.vercel.app) — so a missing env
   // var would have silently pointed every canonical link and OG image at
   // somebody else's domain. Next resolves relative URLs and warns instead,
   // which is a visible degradation rather than a confident wrong answer.
@@ -105,3 +105,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

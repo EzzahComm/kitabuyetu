@@ -10,7 +10,7 @@
  */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, Plus } from 'lucide-react';
+import { Banknote, Plus, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
@@ -18,6 +18,7 @@ import { PaginatedTable } from '@/components/shared/paginated-table';
 import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -334,12 +335,16 @@ export default function DisbursementsPage() {
               </div>
             )}
             {netPreview !== null && (
-              <p className="text-sm rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash
-                (KES {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) —
-                the branch still owes the full KES {parsedAmountPreview.toLocaleString()} as principal.
-                Enter a larger amount here if you need a specific net figure to reach the branch.
-              </p>
+              <Alert>
+                <AlertTriangle size={14} />
+                <AlertTitle>Processing fee applies</AlertTitle>
+                <AlertDescription>
+                  Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash
+                  (KES {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) —
+                  the branch still owes the full KES {parsedAmountPreview.toLocaleString()} as principal.
+                  Enter a larger amount if you need a specific net figure to reach the branch.
+                </AlertDescription>
+              </Alert>
             )}
             <div className="space-y-1">
               <Label>How was it paid? (optional)</Label>

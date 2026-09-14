@@ -47,16 +47,20 @@ import { INTEREST_METHODS, REPAYMENT_FREQUENCIES } from '@/lib/validators/organi
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
 interface DashboardPayload {
+  /** null when unreadable — NEVER zero-filled (R10). */
   financial: {
     walletBalance: string; committedFunds: string; totalDeposited: string;
     totalDisbursed: string; totalReturned: string;
-  };
+  } | null;
+  /** null when unreadable — NEVER zero-filled (R10). */
   portfolio: {
     linkedGroups: number; activeMembers: number; totalSavings: string;
     loanPortfolio: string; activeLoans: number; loanRepayments: string;
-    activePrograms: number;
-  };
-  programs: Program[];
+    activePrograms?: number;
+  } | null;
+  programs: Program[] | null;
+  /** Sections the server could not read, e.g. ['financial']. */
+  incomplete?: string[];
 }
 
 interface Program {
@@ -138,6 +142,12 @@ export default function FundingPortalPage() {
     refetchInterval: 120_000,
   });
 
+  const { data: healthResponse, isLoading: healthLoading } = useQuery({
+    queryKey: ['organization', 'health'],
+    queryFn:  organizationApi.health,
+    staleTime: 30_000,
+  });
+
   const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['organization', 'groups'],
     queryFn:  () => organizationApi.groups(),
@@ -196,6 +206,22 @@ export default function FundingPortalPage() {
 
   const f = dash?.financial;
   const p = dash?.portfolio;
+  const h = healthResponse?.health;
+
+  // R10 — never render money we could not actually read. This page is where
+  // disbursements get decided, so a wallet balance falling back to "KES 0"
+  // would be the most costly possible place to show a confident wrong number.
+  const NA = '—';
+  const fMoney = (v: string | undefined) => (f && v !== undefined ? formatKES(parseFloat(v)) : NA);
+  const pMoney = (v: string | undefined, available: boolean = true) => (available && v !== undefined ? formatKES(parseFloat(v)) : NA);
+  const pCount = (v: number | undefined, available: boolean = true) => (available && v !== undefined ? v.toLocaleString() : NA);
+  const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
+  // A non-zero risk figure must not render identically to a healthy zero.
+  // Tinted only when a number was actually read — a dash is not a warning.
+  const riskTone = (v: number | undefined, severe = false) =>
+    h && v !== undefined && v > 0
+      ? (severe ? 'text-red-600 dark:text-red-500' : 'text-amber-600 dark:text-amber-500')
+      : '';
   const linkedGroups = groups ?? [];
 
   return (
@@ -222,23 +248,65 @@ export default function FundingPortalPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Wallet balance" value={formatKES(parseFloat(f?.walletBalance ?? '0'))}
-                    description={`${formatKES(parseFloat(f?.committedFunds ?? '0'))} committed`} icon={Wallet} />
-          <StatCard title="Total deposited" value={formatKES(parseFloat(f?.totalDeposited ?? '0'))} icon={ArrowDownToLine} />
-          <StatCard title="Total disbursed" value={formatKES(parseFloat(f?.totalDisbursed ?? '0'))}
-                    description={`${formatKES(parseFloat(f?.totalReturned ?? '0'))} returned`} icon={ArrowRightLeft} />
-          <StatCard title="Active programs" value={String(p?.activePrograms ?? 0)} icon={FolderKanban} />
+          <StatCard title="Wallet balance" value={fMoney(f?.walletBalance)}
+                    description={`${fMoney(f?.committedFunds)} committed`} icon={Wallet} />
+          <StatCard title="Total deposited" value={fMoney(f?.totalDeposited)} icon={ArrowDownToLine} />
+          <StatCard title="Total disbursed" value={fMoney(f?.totalDisbursed)}
+                    description={`${fMoney(f?.totalReturned)} returned`} icon={ArrowRightLeft} />
+          <StatCard title="Active programs" value={pCount(p?.activePrograms)} icon={FolderKanban} />
         </div>
       )}
 
       {/* Portfolio */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Linked groups" value={String(p?.linkedGroups ?? 0)} icon={Landmark} />
-        <StatCard title="Active members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users} />
-        <StatCard title="Savings mobilized" value={formatKES(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
-        <StatCard title="Loan portfolio" value={formatKES(parseFloat(p?.loanPortfolio ?? '0'))}
-                  description={`${p?.activeLoans ?? 0} active · ${formatKES(parseFloat(p?.loanRepayments ?? '0'))} repaid`} icon={TrendingUp} />
+        <StatCard title="Linked groups" value={pCount(p?.linkedGroups, !!p)} icon={Landmark} />
+        <StatCard title="Active members" value={pCount(p?.activeMembers, !!p)} icon={Users} />
+        <StatCard title="Savings mobilized" value={pMoney(p?.totalSavings, !!p)} icon={PiggyBank} />
+        <StatCard title="Loan portfolio" value={pMoney(p?.loanPortfolio, !!p)}
+                  description={`${pCount(p?.activeLoans, !!p)} active · ${pMoney(p?.loanRepayments, !!p)} repaid`} icon={TrendingUp} />
       </div>
+
+      {/* Portfolio health — risk indicators */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Portfolio health</CardTitle>
+          <p className="text-xs text-muted-foreground">Overdue loans, arrears, defaults, and membership movement</p>
+        </CardHeader>
+        <CardContent>
+          {healthLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>{pCount(h?.overdueLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.overdueLoanPct)} of active</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue outstanding</p>
+                <p className="text-2xl font-semibold tabular-nums">{pMoney(h?.overdueOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Groups in arrears</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>{pCount(h?.groupsInArrears, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.groupsInArrearsPct)} of linked</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Defaulted loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>{pCount(h?.defaultedLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pMoney(h?.defaultedOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Inactive members</p>
+                <p className="text-2xl font-semibold tabular-nums">{pCount(h?.inactiveMembers, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pCount(h?.newMembers30d, !!h)} new (30d)</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Funding programs */}

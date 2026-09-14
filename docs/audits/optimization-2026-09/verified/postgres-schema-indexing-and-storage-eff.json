@@ -1,0 +1,126 @@
+{
+  "dimension": "Postgres schema, indexing and storage efficiency (live production qztcgryhoanennsizcll)",
+  "verified": [
+    {
+      "title": "net._http_response holds ~15 kB of live data in ~40 MB on disk, with 476 GB of cumulative buffer traffic",
+      "verdict": "CONFIRMED",
+      "severity": "critical",
+      "category": "table-bloat",
+      "evidence": "I re-ran the finder's queries myself. pg_column_size sum = 15 kB, pg_relation_size = 40 MB, rows = 72 (unchanged). pg_class.relpages = 5075 (5075*8kB = 39.6 MB, matches the 40 MB figure). pg_statio_user_tables.heap_blks_hit = 62,399,603 (up slightly from the finder's 62,342,042, consistent with more time elapsed) => 62,399,603*8KB ≈ 476 GB, matching the claim. autovacuum_count=1, last_autovacuum=2026-08-05, n_dead_tup=0 confirmed — plain VACUUM will never re-trigger. I also independently re-ran EXPLAIN (ANALYZE, BUFFERS) DELETE FROM net._http_response WHERE created < now() - interval '6 hours' and got the same result the finder reported: a Bitmap Index Scan on _http_response_created_idx (shared hit=28, 0.455 ms) — the scheduled cleanup DELETE is not the problem; it correctly uses its index. Table owner is supabase_admin while the query session runs as postgres, so a VACUUM FULL needs to be run as an owner/superuser-equivalent role as the finder noted.",
+      "impact": "Same as reported: ~40 MB of a ~240 MB database sits in empty pages that autovacuum will never reclaim, and every one of the 34k+ sequential scans on this table walks all 5075 pages to find ~72 rows, which is the mechanism generating the 476 GB of cumulative buffer-cache traffic. A VACUUM FULL (or equivalent compaction) would cut that by roughly three orders of magnitude, matching the original estimate.",
+      "recommendation": "Same as finder's: VACUUM FULL net._http_response (needs owner/superuser session — a Supabase support request or elevated role), then tighten pg_net's response retention/TTL so it can't regrow, and schedule periodic compaction. Do not touch the DELETE cleanup path — it is already using its index correctly.",
+      "effort": "small",
+      "note": "Fully reproduced, no correction needed."
+    },
+    {
+      "title": "job_queue's tick query has no covering index; costs ~0.3-1.7 s per call because GROUP BY type forces a full heap-adjacent scan",
+      "verdict": "CONFIRMED",
+      "severity": "critical",
+      "category": "missing-index",
+      "evidence": "I ran EXPLAIN (ANALYZE, BUFFERS) SELECT type, MAX(priority) FROM job_queue WHERE status='pending' AND run_at<=NOW() GROUP BY type twice. First run: 290 ms (cache-warm outlier). Second run, same query: 1689.9 ms, Buffers: shared hit=10,997 (all cache hits, zero disk reads), using Index Scan on idx_job_queue_pick with Index Cond only on run_at (no type/priority pushdown) — exactly the pathology described: 20,016 rows are pulled off the index and hashed by type in a HashAggregate. pg_stat_user_indexes confirms idx_job_queue_pick has idx_scan=53,494 with idx_tup_read=208,591,392 (≈3,900 tuples read per scan). I also found the real production statement in pg_stat_statements (normalized slightly differently: 'SELECT type, MAX(priority) AS priority FROM job_queue WHERE status = $1 AND run_at <= NOW() GROUP BY type ORDER BY priority DESC') with calls=4,657, total_exec_time=3,732,538 ms, mean=801 ms, max=3,158 ms — this is the same query the finder cited (4,127 calls / 3,724,750 ms / mean 902 ms / max 3.1s), just with ~530 more calls accumulated since their snapshot, and the mean has drifted down slightly (more recent calls skew faster) — the totals and max line up almost exactly.",
+      "impact": "Confirmed as the single most expensive statement on the database: ~3.7M ms cumulative and climbing, at a live per-call cost I measured directly at up to 1.7 s. A composite index on (type, priority DESC, run_at) WHERE status='pending' converts this into an index-only scan and should eliminate nearly all of that cost, as the finder proposed.",
+      "recommendation": "Same as finder's: CREATE INDEX CONCURRENTLY idx_job_queue_tick ON job_queue (type, priority DESC, run_at) WHERE status = 'pending'; keep idx_job_queue_pick for the claim path; re-measure after creation.",
+      "effort": "trivial",
+      "note": "Fully reproduced with a live 1.7s measurement; the cumulative pg_stat_statements totals match almost exactly modulo normal growth since the finder's snapshot."
+    },
+    {
+      "title": "email_logs.provider_message_id has no index; the delivery-webhook UPDATE does a full-table sequential scan on every call",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "missing-index",
+      "evidence": "EXPLAIN (ANALYZE, BUFFERS) SELECT id FROM email_logs WHERE provider_message_id = 'no-such-id-control-probe-2' => Seq Scan, Rows Removed by Filter: 48,493 (table has grown from the finder's 47,036), Buffers: shared hit=1,792 (identical block count to the finder's run, confirming table page-count is stable), Execution Time varied between my two runs (718 ms cited by finder, 1,530 ms in my run — normal variance on a live server, same order of magnitude). pg_indexes lists exactly 6 indexes on email_logs (pkey, (group_id,created_at desc), status, template_key, (reference_type,reference_id), \"to\") — none on provider_message_id, matching the finder's count exactly. pg_stat_statements for the UPDATE: calls=1,427 (up from 1,063), total_exec_time=26,787 ms (up from 19,316 ms), mean=18.77 ms (close to the cited 18.2 ms), shared_blks_hit=2,087,226 (≈1,463 blocks/call, close to the cited 1,348) — all growing proportionally, consistent with real accumulating production traffic. Cardinality re-check: 705 total non-null provider_message_id values, 705 distinct (up from the finder's 524/524) — still perfectly selective.",
+      "impact": "Confirmed as described: every inbound delivery-status webhook forces a full scan of a table now at ~48.5k rows just to update one row, and this is unbounded (no retention on email_logs).",
+      "recommendation": "Same as finder's: CREATE UNIQUE INDEX CONCURRENTLY idx_email_logs_provider_message_id ON email_logs (provider_message_id) WHERE provider_message_id IS NOT NULL.",
+      "effort": "trivial",
+      "note": "Fully reproduced; all counts track the finder's within the growth expected from a live table."
+    },
+    {
+      "title": "email_logs has no (status, created_at) index; the retry-scan query plan is forced onto the wrong index and pays for a Filter + Sort",
+      "verdict": "OVERSTATED",
+      "severity": "high",
+      "category": "missing-index",
+      "evidence": "The structural claim reproduces exactly: EXPLAIN (ANALYZE, BUFFERS) with status='failed' and a 7-day window twice gave Index Scan using idx_email_logs_group_id, Filter: status='failed' (Rows Removed by Filter: 2,444), Sort Method: top-N heapsort — identical shape to the finder's plan. But the finder's single-run execution-time figure (969.847 ms) did not reproduce: my two independent runs of the exact same query, same buffer-hit count (~2,630, all cache hits, no disk reads), came back at 16.2 ms and 18.4 ms — roughly 50-60x faster than the cited worst case, with no plausible cache-warming explanation since both plans hit only shared buffers. The real, load-bearing evidence is the aggregate: pg_stat_statements for the actual normalized production query now shows calls=28,125 (up from 27,842), total_exec_time=1,081,634 ms / 18.03 min (up from 17.0 min), mean_exec_time=38.46 ms (close to the cited 36.6 ms) — the cumulative cost and the per-call mean are real and confirmed, but they are ~25x smaller than the '969 ms worst-case' figure used to dramatize the impact. I also confirmed the email_retry_failed job characterization independently: job_queue rows of that type show status='completed' last_activity=2026-08-20 12:21 (4,200 rows, matches 'last success 2026-08-20'), status='pending' count=4,748 (up from the cited 4,301), and status='failed' still accumulating today — so the 'dead job type' framing holds.",
+      "impact": "The systemic cost is real (roughly 18 cumulative minutes of DB time over 28k calls at a genuine ~38 ms mean, growing) and the missing-index/wrong-plan mechanism is correctly diagnosed, but the headline 969 ms 'worst case' single-query figure is not reproducible on this data and overstates the per-call severity by more than an order of magnitude versus the true mean.",
+      "recommendation": "Same fix as proposed — CREATE INDEX CONCURRENTLY idx_email_logs_status_created_at ON email_logs (status, created_at) — is still correct and worth doing; just don't cite 969 ms as a representative cost, cite the ~38 ms mean over 28k+ calls (~18 min cumulative and rising). Retiring/fixing the dead email_retry_failed job type separately remains valid.",
+      "effort": "trivial",
+      "note": "Downgraded from CONFIRMED to OVERSTATED solely because the single 969ms timing figure used as the primary impact evidence did not reproduce (I got 16-18ms twice); the aggregate production cost and the missing-index diagnosis are both real and independently verified."
+    },
+    {
+      "title": "cron.job_run_details is ~30 MB of bloat/unpruned history for a single 5-minute cron job that nothing reads",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "unbounded-retention",
+      "evidence": "min(start_time)=2026-05-25 23:50, max=2026-09-05 14:15 (today), count=29,550 (up from 29,184), live_data=16 MB, on_disk=47 MB (up slightly from 46 MB) — 66% waste, matching the finder's 65.8%. vacuum_count=0, autovacuum_count=0, last_autovacuum=NULL confirmed. pg_class shows relpages=0, reltuples=-1 (never analyzed) exactly as claimed. cron.job has exactly one row: jobid=2, schedule='*/5 * * * *', jobname='kitabuyetu-every-5-min', and 288 runs/day matches the row-count growth trend.",
+      "impact": "Confirmed as described: ~47 MB of unread run-log history for one cron job, growing at the reported rate (46MB/101 days extrapolates to ~166 MB/year, matching the finder's 165 MB/year), and nothing queries this table (idx_scan=0 on its only index).",
+      "recommendation": "Same as finder's: prune rows older than 7 days and add a nightly pg_cron job to keep it bounded, then VACUUM FULL once to reclaim the existing bloat.",
+      "effort": "trivial",
+      "note": "Fully reproduced."
+    },
+    {
+      "title": "Migration 121's 60 unindexed-FK indexes are 93% dead weight: 56 of 60 have never been scanned",
+      "verdict": "CONFIRMED",
+      "severity": "high",
+      "category": "write-amplification",
+      "evidence": "I extracted all 60 index names directly from supabase/migrations/20260806050000_121_index_unindexed_foreign_keys.sql (grep confirms exactly 60 'idx_*' names) and queried pg_stat_user_indexes for them: created_and_present=60, never_scanned=56, used=4, total_scans=811, total_size=784 kB — an EXACT match to every number the finder cited. I also independently derived the list of remaining unindexed single-column FKs in public via a fresh query against pg_constraint/pg_index, and got exactly the same 6 columns the finder named: investment_expenses.recorded_by, sms_credit_ledger.{payment_id,created_by}, sms_credits.package_id, organization_subscriptions.assigned_by, sms_opt_outs.actor_id. Row counts on those tables: sms_credits=2, sms_credit_ledger=73, organization_subscriptions=1, investment_expenses=0, sms_opt_outs=0 — all in the '0-73 rows' range claimed.",
+      "impact": "Confirmed exactly as described — 56 B-trees maintained on every write to their tables for zero read benefit in a month of production traffic.",
+      "recommendation": "Same as finder's: drop the 56 never-scanned plain indexes from migration 121; leave the 6 remaining unindexed FKs alone given their tiny row counts.",
+      "effort": "small",
+      "note": "Every cited number reproduced exactly — the strongest-evidenced finding in this set."
+    },
+    {
+      "title": "job_logs has no retention and its primary-key index is nearly unused",
+      "verdict": "OVERSTATED",
+      "severity": "medium",
+      "category": "unbounded-retention",
+      "evidence": "job_logs: n_live_tup=135,445, n_tup_ins=452,534 (both up from the cited 131,666/448,738, consistent with ~4k rows/day continuing to accumulate), total size 58 MB (31 MB heap-equivalent + 26 MB indexes, close to the cited 58MB/31MB/26MB split), oldest row 2026-08-02, i.e. still ~34 days of retention. I confirmed via grep that lib/jobs/db.ts:259-267 defines pruneOldJobs(days=30) and its DELETE targets only job_queue — I traced its only call site (lib/jobs/index.ts:342, fire-and-forget from the cleanup job) and confirmed no code path anywhere prunes job_logs. However, the specific claim 'job_logs_pkey idx_scan=0' does NOT reproduce: I measured idx_scan=5 (not 0) on job_logs_pkey, versus idx_scan=213,828 on idx_job_logs_job_id. Five scans against 452k+ inserts is still statistically negligible use of an 11 MB index, but the finding's own wording ('nothing has ever looked a job_log up by its own id in four months') is factually incorrect — it has happened at least 5 times.",
+      "impact": "The core retention problem is real and correctly sized (58 MB now, ~640 MB/year trajectory, no pruning code anywhere), but the supporting 'zero scans ever' claim about the primary key is wrong by a small margin — it's 5 scans, not 0 — so the index is very-lightly-used rather than provably dead weight.",
+      "recommendation": "Same as finder's — extend pruneOldJobs (or a sibling function) to also delete old job_logs rows on the same schedule. Re-verify idx_scan on job_logs_pkey before deciding whether to drop the PK entirely, since it is not literally at zero.",
+      "effort": "small",
+      "note": "Downgraded to OVERSTATED for the specific 'idx_scan=0'/'nothing has ever looked up by id' claim, which I measured at 5, not 0; the retention/size/trajectory numbers and the code-path claim about pruneOldJobs are otherwise fully confirmed."
+    },
+    {
+      "title": "Twelve pairs of exact-duplicate indexes are maintained redundantly on every write",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "duplicate-index",
+      "evidence": "I independently wrote a self-join of pg_index on (indrelid, indkey, indpred) restricted to schema public and got exactly the same 12 pairs the finder listed, by name, on the same 12 tables (billing_accounts, cycles, member_mfa_secrets, members x2, mpesa_b2b_transactions, mpesa_b2c_transactions, mpesa_stk_requests, organization_sms_credits, sms_credits, sms_delivery_reports, sms_group_settings). For sms_delivery_reports specifically I confirmed: idx_dlr_msg_id idx_scan=0 vs sms_delivery_reports_provider_msg_unique idx_scan=26,001 (up from the cited 25,829) — exact match to the described pathology. Table stats: n_live_tup=118, n_tup_upd=19,338 — both exact matches to the finder's numbers. All 7 indexes on that table enumerated and exactly 4 have idx_scan=0 (pkey, group_id, msg_id, queried_at), matching '4 are unused' precisely. For the prefix-covered claim I spot-checked group_members: idx_group_members_group_id has idx_scan=0 and is prefix-covered by group_members_unique(group_id, member_id) plus 6 other (group_id, x) composites — consistent with, if not exactly, the 'plus five other' count cited (off by one, immaterial).",
+      "impact": "Confirmed as described — genuine redundant B-trees maintained on every write with negligible storage cost but real write-amplification and planner-candidate overhead, most visible on sms_delivery_reports (118 rows, 19k+ updates, 7 indexes).",
+      "recommendation": "Same as finder's — drop the non-unique half of each pair (the unique/PK index already serves every query the plain twin could), then drop the ~30 zero-scan prefix-covered indexes, verifying uniqueness before any drop.",
+      "effort": "small",
+      "note": "All 12 pairs and the sms_delivery_reports/group_members spot-checks reproduced exactly or within expected live-data drift."
+    },
+    {
+      "title": "Default autovacuum thresholds leave dozens of small hot tables permanently unvacuumed and analyze-blind",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "autovacuum-config",
+      "evidence": "pg_class.reloptions IS NOT NULL for relkind='r' returns 0 rows — no per-table autovacuum tuning anywhere, confirmed. Cluster-level autovacuum_vacuum_scale_factor=0.2 confirmed via SHOW. When I restricted the never-vacuumed/never-analyzed/reltuples=-1 counts to tables WITH at least one live row (n_live_tup>0) — the same implicit filter the finder's phrasing ('64 tables with rows', 'planner blind on 34') requires — I got 63/51/33, against the finder's 64/52/34: each off by exactly one, consistent with ordinary drift in the ~1 month since their snapshot (one table crossed an autovacuum/autoanalyze threshold in the interim). The 'groups' table specifically matches almost exactly: reltuples=3 (exact), n_live_tup=9 (exact), n_dead_tup=16 (exact), seq_scan=69,829 (up from 68,717), seq_tup_read=360,920 (up from 354,645), last_autoanalyze=NULL (exact). subscriptions (5 planner vs 11 actual), journal_entries (12 vs 29), payment_requests (7 vs 21) all reproduced exactly.",
+      "impact": "Confirmed — this is a structural, permanent consequence of default thresholds on tables with dozens of rows, not a transient condition, and it is demonstrably the mechanism keeping 'groups' (9 rows) on the hot path of ~70k sequential scans with a stale reltuples estimate of 3.",
+      "recommendation": "Same as finder's — set per-table autovacuum_vacuum/analyze_scale_factor and _threshold on the small hot tables (groups, group_members, members, welfare_requests, subscriptions, journal_entries, payment_requests, etc.) and run a one-off ANALYZE across the public schema immediately.",
+      "effort": "small",
+      "note": "Reproduced almost exactly; small (±1) count differences are attributable to normal drift over the ~1 month between audits, not measurement error."
+    },
+    {
+      "title": "55 of 144 public tables have never held a row, yet carry hundreds of indexes/policies/FKs/triggers",
+      "verdict": "CONFIRMED",
+      "severity": "medium",
+      "category": "dead-schema",
+      "evidence": "I re-ran the finder's core query independently and got an EXACT match on every number: 55 tables with n_live_tup=0 AND n_tup_ins=0, total size 2,640 kB; joined against pg_index/pg_policy/pg_trigger (non-internal)/pg_constraint (FK only) on those 55 tables' relids: 283 indexes, 105 policies, 27 triggers, 145 FK constraints. Total public-schema RLS policy count = 276, matching '105 of the 276' exactly. As a positive control I reproduced the finder's own code-reference sanity checks first: grepping app/lib/components/hooks/scripts/types for 'job_queue' returned 8 files and for 'sms_usage_logs' returned 20 files — both match the finder's cited control values exactly, confirming my grep methodology finds real references when they exist. With that control passing, I then grepped for the same 5 tables the finder named (contact_submissions, newsletter_subscribers, platform_billing, platform_notifications, share_certificate_counters) across the same directories and got zero hits for all five — confirming none are referenced from application code. I additionally confirmed via pg_proc.prosrc that a function named allocate_share_certificate_serial references share_certificate_counters, matching the finder's claim that this table is NOT dead despite having no app-code reference. All 5 migrations the finder cited as having touched contact_submissions/platform_notifications (068, 096, 120, 122, 131) were confirmed present in the repo by direct grep.",
+      "impact": "Confirmed exactly as described — 38% of the schema is inert, with real recurring maintenance tax evidenced by the 5 migrations that had to touch dead tables for unrelated fixes.",
+      "recommendation": "Same as finder's — drop the 4 confirmed-dead tables (contact_submissions, newsletter_subscribers, platform_billing, platform_notifications); leave share_certificate_counters and the other 50 empty-but-referenced/product tables alone.",
+      "effort": "medium",
+      "note": "Every number reproduced exactly, including the finder's own methodology-validating control checks."
+    },
+    {
+      "title": "The '481 unused indexes' headline is not a meaningful storage target — only ~5 MB in public schema is actually droppable",
+      "verdict": "CONFIRMED",
+      "severity": "low",
+      "category": "metric-reframing",
+      "evidence": "Re-running the finder's public-schema query gave total=478 (vs 479 cited), primary_keys=98 (exact), unique_constraints=52 (exact), plain_droppable=328 (vs 329), plain_droppable_size=4,864 kB (vs 4,872 kB cited, effectively identical) — the off-by-one on total/plain traces to idx_email_logs_template_key, which had idx_scan=0 when the finder measured but now shows idx_scan=11 (a query using template_key ran sometime since), moving it out of the zero-scan set; everything else ties out. The three largest-droppable examples check out with only expected drift: idx_reconciliations_date (472 kB, 0 scans, exact match) and idx_reconciliations_group (344 kB, 0 scans, exact match) both confirmed unchanged; idx_email_logs_to now shows idx_scan=2 (matches '2 scans in four months' exactly) at 680 kB (vs 640 kB cited, table growth); idx_mpesa_reconciliations_initiated_by now shows idx_scan=17 with idx_tup_read=178,049 (vs the cited 13 scans/35,505 reads) — still overwhelmingly low-selectivity (≈10,470 tuples read per scan), so the 'reads nearly the whole table each time' characterization still holds even though the exact counts moved. One number I could NOT reproduce: the finder's 'across all schemas: 926 indexes, 593 unused, 20 MB' — I get the same 926 total and a close 590 unused, but the total size of every idx_scan=0 index across every schema is 8,328 kB (~8.1 MB) on my measurement, not 20 MB. This does not change the finding's thesis (if anything it makes the 'don't chase byte count' argument stronger, since the true all-schema total is even smaller than claimed).",
+      "impact": "Confirmed: treating '481 unused indexes' as a storage project is still the wrong framing, and the real droppable footprint in public schema (≈4.9 MB) is essentially exactly what was claimed. The one figure that doesn't reproduce (20 MB across all schemas, actually ~8.3 MB) only reinforces the finding's own point that unused-index byte counts are trivial regardless of which schema boundary you draw.",
+      "recommendation": "Same as finder's — target unused indexes for write amplification on high-churn tables (email_logs, and migration 121's 56 dead FK indexes) rather than chasing total bytes; the 16 kB single-page stubs on empty tables aren't worth the migration risk.",
+      "effort": "trivial",
+      "note": "Nearly every number reproduced exactly or within expected live-data drift; the one non-reproducing figure (20 MB vs my measured 8.3 MB across all schemas) doesn't affect the finding's conclusion and I've corrected it above."
+    }
+  ]
+}
