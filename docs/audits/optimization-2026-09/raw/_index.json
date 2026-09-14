@@ -1,0 +1,61 @@
+{
+  "dimensions": [
+    {
+      "dimension": "Postgres schema, indexing and storage efficiency (live production qztcgryhoanennsizcll)",
+      "file": "postgres-schema-indexing-and-storage-eff.json",
+      "count": 11
+    },
+    {
+      "dimension": "RLS policy cost and correctness-of-cost",
+      "file": "rls-policy-cost-and-correctness-of-cost.json",
+      "count": 12
+    },
+    {
+      "dimension": "cron scheduling and pg_net egress",
+      "file": "cron-scheduling-and-pg-net-egress.json",
+      "count": 11
+    },
+    {
+      "dimension": "Background job engine (lib/jobs + pg_cron tick) — performance, throughput and structural waste",
+      "file": "background-job-engine-lib-jobs-pg-cron-t.json",
+      "count": 13
+    },
+    {
+      "dimension": "API routes and the service layer",
+      "file": "api-routes-and-the-service-layer.json",
+      "count": 13
+    },
+    {
+      "dimension": "Frontend performance and bundle weight (Next.js 16.2.10 App Router, Turbopack build)",
+      "file": "frontend-performance-and-bundle-weight-n.json",
+      "count": 8
+    },
+    {
+      "dimension": "Admin / super-admin surface — app/(admin)/admin/** and app/api/admin/** (25 pages, 62 route files, ~6,400 lines of page code)",
+      "file": "admin-super-admin-surface-app-admin-admi.json",
+      "count": 15
+    },
+    {
+      "dimension": "Enterprise / organization surface (organizations, organization_* schema, /enterprise portal, /api/admin/organization[s]/*)",
+      "file": "enterprise-organization-surface-organiza.json",
+      "count": 15
+    },
+    {
+      "dimension": "The GROUP surface — member/officer dashboard (app/(dashboard)/**, excluding admin)",
+      "file": "the-group-surface-member-officer-dashboa.json",
+      "count": 15
+    },
+    {
+      "dimension": "External I/O cost — outbound integrations (email/Resend, SMTP, TextSMS, M-Pesa/Daraja, Sentry, pg_net)",
+      "file": "external-i-o-cost-outbound-integrations-.json",
+      "count": 10
+    },
+    {
+      "dimension": "Dead weight and structural duplication across the whole repo",
+      "file": "dead-weight-and-structural-duplication-a.json",
+      "count": 15
+    }
+  ],
+  "totalFindings": 138,
+  "verifiersCompleted": 0
+}

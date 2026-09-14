@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -140,9 +141,11 @@ export default function AnalyticsPage() {
       />
 
       {summaryQ.isError ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Couldn&apos;t load analytics data. {getErrorMessage(summaryQ.error)}
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle size={14} />
+          <AlertTitle>Couldn&apos;t load analytics data</AlertTitle>
+          <AlertDescription>{getErrorMessage(summaryQ.error)}</AlertDescription>
+        </Alert>
       ) : summaryQ.isLoading || !s ? (
         <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : (

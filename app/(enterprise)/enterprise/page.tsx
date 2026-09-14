@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock,
+  Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock, AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,10 +21,13 @@ import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
 interface OrgDashboard {
+  /** null when the portfolio aggregate could not be read — NEVER zero-filled (R10). */
   portfolio: {
     linkedGroups: number; activeMembers: number; totalSavings: string;
-    loanPortfolio: string; activeLoans: number; activePrograms: number;
-  };
+    loanPortfolio: string; activeLoans: number; activePrograms?: number;
+  } | null;
+  /** Sections the server could not read, e.g. ['portfolio']. */
+  incomplete?: string[];
 }
 
 const fmtCompact = (n: number) => {
@@ -47,12 +51,34 @@ export default function EnterpriseDashboardPage() {
     queryKey: ['enterprise', 'dashboard'],
     queryFn:  () => adminApi.get('/organization/dashboard'),
   });
+  const { data: healthResponse, isLoading: healthLoading, isError: healthError, error: healthErr } = useQuery({
+    queryKey: ['enterprise', 'health'],
+    queryFn:  organizationApi.health,
+  });
   const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: ['enterprise', 'groups'],
     queryFn:  () => organizationApi.groups(),
   });
 
   const p = dash?.portfolio;
+  const h = healthResponse?.health;
+
+  // R10 — a figure we could not actually read is shown as a dash, never as 0.
+  // "KES 0" is a confident lie here: it is indistinguishable from an
+  // organization that genuinely holds nothing, so a coordinator could read a
+  // failed query as their groups' money having disappeared.
+  const NA = '—';
+  const count = (v: number | undefined, available: boolean = true) => (available && v !== undefined ? v.toLocaleString() : NA);
+  const money = (v: string | undefined, available: boolean = true) => (available && v !== undefined ? fmtCompact(parseFloat(v)) : NA);
+  const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
+  // §1.5's middle question is "what needs attention?", so a non-zero risk figure
+  // must not render identically to a healthy zero. Same idiom the Top groups
+  // table below already uses for defaulted counts. Tinted only when we actually
+  // read a number: an unread figure is a dash, and a dash is not a warning.
+  const riskTone = (v: number | undefined, severe = false) =>
+    h && v !== undefined && v > 0
+      ? (severe ? 'text-red-600 dark:text-red-500' : 'text-amber-600 dark:text-amber-500')
+      : '';
   const topGroups = [...(groupsPage?.items ?? [])]
     .sort((a, b) => parseFloat(b.totalContributions) - parseFloat(a.totalContributions))
     .slice(0, 5)
@@ -81,20 +107,102 @@ export default function EnterpriseDashboardPage() {
       />
 
       {dashError && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Couldn&apos;t load portfolio data — figures below may be incomplete. {getErrorMessage(dashErr)}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle size={14} />
+          <AlertTitle>Couldn&apos;t load portfolio data</AlertTitle>
+          <AlertDescription>
+            Figures are shown as &ldquo;{NA}&rdquo; rather than zero, so nothing below is
+            mistaken for a real balance. {getErrorMessage(dashErr)}
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* KPI grid */}
+      {/* Partial failure: the request succeeded but a section could not be read.
+          Named explicitly — §1.5's "what needs attention" — rather than letting
+          a missing figure pass as a real one. */}
+      {!dashError && (dash?.incomplete?.length ?? 0) > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle size={14} />
+          <AlertTitle>Some figures are unavailable</AlertTitle>
+          <AlertDescription>
+            Couldn&apos;t read: {dash!.incomplete!.join(', ')}. Those figures show
+            &ldquo;{NA}&rdquo; instead of a number — they are not zero. Refresh to retry.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {healthError && (
+        <Alert variant="destructive">
+          <AlertCircle size={14} />
+          <AlertTitle>Couldn&apos;t load risk indicators</AlertTitle>
+          <AlertDescription>
+            Portfolio health metrics are shown as &ldquo;{NA}&rdquo;. {getErrorMessage(healthErr)}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!healthError && (healthResponse?.incomplete?.length ?? 0) > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle size={14} />
+          <AlertTitle>Risk indicators unavailable</AlertTitle>
+          <AlertDescription>
+            Couldn&apos;t read: {healthResponse!.incomplete!.join(', ')}. Those metrics show
+            &ldquo;{NA}&rdquo; instead of a number — they are not zero. Refresh to retry.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* KPI grid — "what is happening?" */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard title="Total members" value={(p?.activeMembers ?? 0).toLocaleString()} icon={Users2} />
-        <StatCard title="Total savings" value={fmtCompact(parseFloat(p?.totalSavings ?? '0'))} icon={PiggyBank} />
-        <StatCard title="Loans outstanding" value={fmtCompact(parseFloat(p?.loanPortfolio ?? '0'))} icon={Landmark} />
-        <StatCard title="Active loans" value={(p?.activeLoans ?? 0).toLocaleString()} icon={Landmark} />
-        <StatCard title="Active programs" value={(p?.activePrograms ?? 0).toLocaleString()} icon={Layers} />
-        <StatCard title="Linked groups" value={(p?.linkedGroups ?? 0).toLocaleString()} icon={Network} />
+        <StatCard title="Total members" value={count(p?.activeMembers, !!p)} icon={Users2} />
+        <StatCard title="Total savings" value={money(p?.totalSavings, !!p)} icon={PiggyBank} />
+        <StatCard title="Loans outstanding" value={money(p?.loanPortfolio, !!p)} icon={Landmark} />
+        <StatCard title="Active loans" value={count(p?.activeLoans, !!p)} icon={Landmark} />
+        <StatCard title="Active programs" value={count(p?.activePrograms, !!p)} icon={Layers} />
+        <StatCard title="Linked groups" value={count(p?.linkedGroups, !!p)} icon={Network} />
       </div>
+
+      {/* Risk indicators — "what needs attention?" (§1.5) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Portfolio health</CardTitle>
+          <p className="text-xs text-muted-foreground">Overdue loans, arrears, defaults, and membership movement</p>
+        </CardHeader>
+        <CardContent>
+          {healthLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>{count(h?.overdueLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.overdueLoanPct)} of active</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Overdue outstanding</p>
+                <p className="text-2xl font-semibold tabular-nums">{money(h?.overdueOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Groups in arrears</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>{count(h?.groupsInArrears, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{pct(h?.groupsInArrearsPct)} of linked</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Defaulted loans</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>{count(h?.defaultedLoans, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{money(h?.defaultedOutstanding, !!h)}</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium text-muted-foreground">Inactive members</p>
+                <p className="text-2xl font-semibold tabular-nums">{count(h?.inactiveMembers, !!h)}</p>
+                <p className="text-xs text-muted-foreground">{count(h?.newMembers30d, !!h)} new (30d)</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts — no historical-trend or demographic data exists yet */}
       <div className="grid gap-6 lg:grid-cols-3">

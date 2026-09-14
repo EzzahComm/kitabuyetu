@@ -34,7 +34,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
   const lastModified = new Date();
 
   return ROUTES.map((route) => ({
@@ -44,3 +44,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route.priority,
   }));
 }
+

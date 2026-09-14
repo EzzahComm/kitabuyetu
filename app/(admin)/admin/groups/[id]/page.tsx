@@ -15,6 +15,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -262,13 +263,11 @@ export default function GroupDetailPage({
 
       {/* Suspended banner */}
       {grp.onboarding_status === 'suspended' && (
-        <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-500" />
-          <div>
-            <p className="font-semibold">Group suspended on {formatDate(grp.suspended_at)}</p>
-            {grp.suspended_reason && <p className="text-xs mt-0.5 text-red-600">{grp.suspended_reason}</p>}
-          </div>
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle size={14} />
+          <AlertTitle>Group suspended on {formatDate(grp.suspended_at)}</AlertTitle>
+          {grp.suspended_reason && <AlertDescription>{grp.suspended_reason}</AlertDescription>}
+        </Alert>
       )}
 
       {/* KPI stats */}

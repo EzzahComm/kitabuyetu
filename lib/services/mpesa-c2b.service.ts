@@ -10,7 +10,10 @@ import { logger } from '@/lib/logger';
 import { safeNormalizePhone, UNKNOWN_PAYER_PHONE } from '@/lib/utils/phone';
 import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/lib/utils/mpesa-bill-ref';
 import { looksLikeMembershipNo, isValidMembershipNo, parseAccountRef } from '@/lib/utils/membership-no';
-import { registerC2BUrls as _registerC2B, assertSafaricomIp, type C2BApiVersion } from './daraja.service';
+import {
+  registerC2BUrls as _registerC2B, getC2BUrls, assertSafaricomIp,
+  type C2BApiVersion, type C2BUrls, type C2BRegistrationResult,
+} from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
 import { IS_SANDBOX, emitPaymentReceiptEvent, logPaymentEvent, emitOutbox, spinePaymentId } from './mpesa-spine.service';
 import {
@@ -28,7 +31,9 @@ import {
 
 // ─── C2B registration ─────────────────────────────────────────────────────────
 
-export async function registerC2BUrls(version?: C2BApiVersion): Promise<void> {
+export { getC2BUrls, type C2BUrls, type C2BRegistrationResult };
+
+export async function registerC2BUrls(version?: C2BApiVersion): Promise<C2BRegistrationResult> {
   return _registerC2B(version);
 }
 

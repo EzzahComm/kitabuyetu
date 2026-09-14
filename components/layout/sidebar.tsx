@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Users, CreditCard, Landmark, BookOpen,
-  MessageSquare, BarChart2, Settings,
-  Receipt, Mail, Heart, TrendingUp, Calendar, Vault, Coins, ReceiptText, Gauge,
-  Upload, Smartphone, Wallet, MoreHorizontal,
-} from 'lucide-react';
+  IconLayoutDashboard, IconUsers, IconCreditCard, IconBuildingBank, IconBook,
+  IconMessage, IconChartBar, IconSettings,
+  IconReceipt, IconMail, IconHeart, IconTrendingUp, IconCalendar, IconVault,
+  IconCoins, IconGauge, IconUpload, IconDeviceMobile, IconWallet, IconDots,
+} from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
@@ -21,35 +21,35 @@ const NAV: PortalNavSection[] = [
   {
     title: null,
     items: [
-      { href: '/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-      { href: '/members',       label: 'Members',       icon: Users },
-      { href: '/contributions', label: 'Contributions', icon: CreditCard },
-      { href: '/loans',         label: 'Loans',          icon: Landmark },
+      { href: '/dashboard',     label: 'Dashboard',     icon: IconLayoutDashboard },
+      { href: '/members',       label: 'Members',       icon: IconUsers },
+      { href: '/contributions', label: 'Contributions', icon: IconCreditCard },
+      { href: '/loans',         label: 'Loans',          icon: IconBuildingBank },
       {
-        href: '#', label: 'Finance', icon: Wallet,
+        href: '#', label: 'Finance', icon: IconWallet,
         children: [
-          { href: '/mpesa',      label: 'M-Pesa',     icon: Smartphone },
-          { href: '/treasury',   label: 'Treasury',   icon: Vault },
-          { href: '/welfare',    label: 'Welfare',    icon: Heart },
-          { href: '/shares',     label: 'Shares',     icon: Coins },
-          { href: '/dividends',  label: 'Dividends',  icon: ReceiptText },
-          { href: '/accounting', label: 'Accounting', icon: BookOpen },
+          { href: '/mpesa',      label: 'M-Pesa',     icon: IconDeviceMobile },
+          { href: '/treasury',   label: 'Treasury',   icon: IconVault },
+          { href: '/welfare',    label: 'Welfare',    icon: IconHeart },
+          { href: '/shares',     label: 'Shares',     icon: IconCoins },
+          { href: '/dividends',  label: 'Dividends',  icon: IconReceipt },
+          { href: '/accounting', label: 'Accounting', icon: IconBook },
         ],
       },
-      { href: '/reports', label: 'Reports', icon: BarChart2 },
+      { href: '/reports', label: 'Reports', icon: IconChartBar },
       {
-        href: '#', label: 'More', icon: MoreHorizontal,
+        href: '#', label: 'More', icon: IconDots,
         children: [
-          { href: '/meetings',      label: 'Meetings',      icon: Calendar },
-          { href: '/sms',           label: 'SMS',           icon: MessageSquare },
-          { href: '/whatsapp',      label: 'WhatsApp',      icon: MessageSquare },
-          { href: '/email',         label: 'Email',         icon: Mail },
-          { href: '/investments',   label: 'Investments',   icon: TrendingUp },
-          { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
-          { href: '/analytics',     label: 'Analytics',     icon: BarChart2 },
-          { href: '/data-import',   label: 'Data import',   icon: Upload },
-          { href: '/billing',       label: 'Billing',       icon: Receipt },
-          { href: '/settings',      label: 'Settings',      icon: Settings },
+          { href: '/meetings',      label: 'Meetings',      icon: IconCalendar },
+          { href: '/sms',           label: 'SMS',           icon: IconMessage },
+          { href: '/whatsapp',      label: 'WhatsApp',      icon: IconMessage },
+          { href: '/email',         label: 'Email',         icon: IconMail },
+          { href: '/investments',   label: 'Investments',   icon: IconTrendingUp },
+          { href: '/credit-scores', label: 'Credit scores', icon: IconGauge },
+          { href: '/analytics',     label: 'Analytics',     icon: IconChartBar },
+          { href: '/data-import',   label: 'Data import',   icon: IconUpload },
+          { href: '/billing',       label: 'Billing',       icon: IconReceipt },
+          { href: '/settings',      label: 'Settings',      icon: IconSettings },
         ],
       },
     ],

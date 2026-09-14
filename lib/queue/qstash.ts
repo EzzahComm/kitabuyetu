@@ -69,7 +69,7 @@ function client(): Client {
 // Falls back to the production domain, matching lib/brand.ts and every
 // other NEXT_PUBLIC_APP_URL call site's convention.
 function appBaseUrl(): string {
-  return (env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
+  return (env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
 }
 
 export interface SmsDispatchChunkPayload {

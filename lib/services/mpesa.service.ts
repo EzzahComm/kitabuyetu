@@ -35,6 +35,9 @@ export {
 
 export {
   registerC2BUrls,
+  getC2BUrls,
+  type C2BUrls,
+  type C2BRegistrationResult,
   type C2BValidationVerdict,
   validateC2BAccount,
   type C2BCallbackBody,

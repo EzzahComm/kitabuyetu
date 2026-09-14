@@ -22,6 +22,7 @@ import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCre
 import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validators/billing.schema';
 import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput, TopUpSmsCreditsPayload } from '@/lib/validators/organization.schema';
 import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
+import type { PortfolioHealth } from '@/lib/services/organization-health.service';
 import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
@@ -584,6 +585,16 @@ export const organizationApi = {
   policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: SetApprovalPolicyInput) =>
     adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
+
+  // §1.5 "what needs attention?" — served separately from dashboard() so a
+  // failure in either cannot blank the other. `health: null` with
+  // incomplete: ['health'] is the R10 signal, NOT zero risk: the caller must
+  // render a dash, because "no arrears" and "could not check for arrears" are
+  // different statements. Typed against the service's own return type so a
+  // change to the aggregate breaks the UI at compile time rather than silently.
+  health: () => adminApi.get<{ health: PortfolioHealth | null; incomplete: string[] }>(
+    '/organization/health',
+  ),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — disbursements page.
   // Backend (organization-finance.service.ts) already existed; this is the

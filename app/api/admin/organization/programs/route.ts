@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
+import { recordOrgRead, auditRequestMeta } from '@/lib/services/audit.service';
 import { CreateProgramSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
@@ -19,14 +20,33 @@ export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.programs.manage', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const report = req.nextUrl.searchParams.get('report');
+
+    // R11 — the three ?report= views are financial analyses across the whole
+    // organization, so each is a significant read and is audited. The bare
+    // list below deliberately is NOT: it is what the funding page polls on a
+    // 120s interval, and recording that would bury the real accesses.
+    const auditReport = async (kind: string) => {
+      await recordOrgRead({
+        ctx, action: `organization.report.${kind}.view`,
+        resourceType: 'organization', resourceId: auth.organizationId ?? null,
+        ...auditRequestMeta(req),
+      });
+    };
+
     if (report === 'budget') {
-      return ok({ items: await organizationFinanceService.programBudgetReport(ctx) });
+      const items = await organizationFinanceService.programBudgetReport(ctx);
+      await auditReport('budget');
+      return ok({ items });
     }
     if (report === 'donor') {
-      return ok({ items: await organizationFinanceService.donorSpendReport(ctx) });
+      const items = await organizationFinanceService.donorSpendReport(ctx);
+      await auditReport('donor');
+      return ok({ items });
     }
     if (report === 'balances') {
-      return ok({ items: await organizationFinanceService.productBalances(ctx) });
+      const items = await organizationFinanceService.productBalances(ctx);
+      await auditReport('balances');
+      return ok({ items });
     }
     return ok({ items: await organizationFinanceService.listPrograms(ctx) });
   });

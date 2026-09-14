@@ -4,100 +4,116 @@
 
 @layer base {
   :root {
-    /* Kitabu Yetu — light theme.
-       Brand anchors: primary = #3CB043 (green), brand-blue = #0B3C88 (navy),
-       accent = #EAF7EC (soft green tint), neutral surface = #F8FAFC.
-       These hex values are the same ones declared in lib/ui/brand-palette.ts
-       (the canonical source for tailwind.config.ts / lib/ui/tokens.ts /
-       lib/brand.ts) — CSS can't import TS, so this file stays hand-authored,
-       but every HSL value below should keep the hex anchor in its comment so
-       drift is visible on read, not just on build. */
-    --background:   0 0% 100%;            /* pure white page */
-    --foreground:   217 85% 11%;          /* navy text — derived from brand-blue */
-    --card:         0 0% 100%;
+    --surface: #fdfcfa;
+    --surface-muted: #f4f7f2;
+    --ink: #0b1220;
+    --ink-muted: #526171;
+    --line: #dfe7e1;
+    --brand: #007004;
+    --brand-strong: #005703;
+
+    /* shadcn/Tailwind tokens — every file under components/ui/* (button,
+       card, badge, dialog, dropdown-menu, input, select, switch, table,
+       tabs, alert, ...) plus components/shared/stat-card.tsx and
+       page-header.tsx key off these via tailwind.config.ts's
+       `hsl(var(--x))` color mappings. This block was deleted outright by
+       commit 17cd391 ("full ui fix migration", 2026-09-11) when the file
+       was rewritten for the marketing redesign's --surface/--ink tokens
+       above, silently breaking every button/card/badge across all five
+       authenticated portals ((dashboard)/(admin)/(enterprise)/(member)/
+       (reminder)) in production since that day — an undefined custom
+       property makes `hsl(var(--x))` invalid, which the browser just
+       drops, so these classes rendered with no background/border/radius.
+       Restored verbatim; the hex anchors (#3CB043 green / #0B3C88 navy)
+       still match the single source of truth, lib/ui/brand-palette.ts. */
+    --background: 0 0% 100%;
+    --foreground: 217 85% 11%;
+    --card: 0 0% 100%;
     --card-foreground: 217 85% 11%;
-    --popover:      0 0% 100%;
+    --popover: 0 0% 100%;
     --popover-foreground: 217 85% 11%;
-    --primary:      124 42% 46%;          /* #3CB043 — brand green */
-    --primary-foreground: 0 0% 100%;      /* white text on green */
-    --secondary:    210 40% 98%;          /* #F8FAFC — neutral surface */
-    --secondary-foreground: 217 85% 29%;  /* brand-blue text on neutral */
-    --muted:        210 40% 96.1%;
+    --primary: 124 42% 46%; /* #3CB043 — brand green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 217 85% 29%;
+    --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent:       129 45% 94%;          /* #EAF7EC — soft green highlight */
-    --accent-foreground: 217 85% 29%;     /* brand-blue text on accent */
-    --destructive:  0 84.2% 60.2%;
+    --accent: 129 45% 94%;
+    --accent-foreground: 217 85% 29%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border:       214.3 31.8% 91.4%;
-    --input:        214.3 31.8% 91.4%;
-    --ring:         124 42% 46%;          /* focus ring matches primary green */
-    --radius:       0.5rem;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 124 42% 46%;
+    --radius: 0.5rem;
+  }
+
+  html,
+  body {
+    @apply min-h-full;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  body {
+    @apply antialiased;
+  }
+
+  ::selection {
+    background: #ccffce;
+    color: #002e02;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
   }
 
   .dark {
-    /* Dark theme — lift brand green for accessibility on dark surfaces. */
-    --background:   217 85% 6%;
-    --foreground:   210 40% 98%;
-    --card:         217 85% 8%;
+    --surface: #101713;
+    --surface-muted: #17231b;
+    --ink: #f3f7f3;
+    --ink-muted: #b5c2b8;
+    --line: #2e4033;
+
+    --background: 217 85% 6%;
+    --foreground: 210 40% 98%;
+    --card: 217 85% 8%;
     --card-foreground: 210 40% 98%;
-    --popover:      217 85% 8%;
+    --popover: 217 85% 8%;
     --popover-foreground: 210 40% 98%;
-    --primary:      124 50% 55%;          /* lighter green for contrast on dark */
+    --primary: 124 50% 55%; /* lighter green for contrast on dark */
     --primary-foreground: 217 85% 6%;
-    --secondary:    217 32% 17.5%;
+    --secondary: 217 32% 17.5%;
     --secondary-foreground: 210 40% 98%;
-    --muted:        217 32% 17.5%;
+    --muted: 217 32% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent:       217 50% 18%;          /* deep blue tint for hover */
+    --accent: 217 50% 18%;
     --accent-foreground: 210 40% 98%;
-    --destructive:  0 62.8% 40%;
+    --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 100%;
-    --border:       217 32% 17.5%;
-    --input:        217 32% 17.5%;
-    --ring:         124 50% 55%;
+    --border: 217 32% 17.5%;
+    --input: 217 32% 17.5%;
+    --ring: 124 50% 55%;
   }
 }
+
 
 @layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
-}
-
-/* Smooth scrolling — but never against the user's stated preference. The
-   marketing header is fixed, so `scroll-padding-top` keeps an anchored
-   section's heading from landing underneath it. */
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-
-  /* Belt and braces for the public surface: components/marketing/reveal.tsx
-     already skips its animation when this preference is set, but any CSS
-     animation or transition that slips through is neutralised here rather
-     than relying on every future author remembering `motion-safe:`. */
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  /* Anchor targets sit under the fixed navbar (h-16 lg:h-20) without this
+     offset, plus a little breathing room. */
+  :target {
+    scroll-margin-top: 6rem;
   }
-}
-
-/* Money values — always use tabular nums for alignment */
-.money { font-variant-numeric: tabular-nums; }
-
-/* Loading skeleton animation */
-@keyframes shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position:  200% 0; }
-}
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
 }

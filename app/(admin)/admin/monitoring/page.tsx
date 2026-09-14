@@ -4,9 +4,10 @@ import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity, Play, Pause, Server, Smartphone, MessageSquare,
-  ArrowDownLeft, ArrowUpRight, Zap, Info, RefreshCw,
+  ArrowDownLeft, ArrowUpRight, Zap, Info, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -80,12 +81,11 @@ export default function MonitoringPage() {
 
       {/* Degraded banner */}
       {degraded.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <RefreshCw size={14} className="shrink-0" />
-          <span>
-            <strong>{degraded.length} service{degraded.length > 1 ? 's' : ''} degraded</strong> — {degraded.map((s) => s.name).join(', ')}. Monitoring upstream.
-          </span>
-        </div>
+        <Alert>
+          <AlertTriangle size={14} />
+          <AlertTitle>{degraded.length} service{degraded.length > 1 ? 's' : ''} degraded</AlertTitle>
+          <AlertDescription>{degraded.map((s) => s.name).join(', ')}. Monitoring upstream.</AlertDescription>
+        </Alert>
       )}
 
       {/* KPIs */}

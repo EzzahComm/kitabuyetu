@@ -76,5 +76,5 @@ LoanAlert.PreviewProps = {
   amount: 3200,
   balance: 18000,
   dueDate: '5 Jun 2026',
-  payUrl: 'https://kitabuyetu.co.ke/me',
+  payUrl: 'https://kitabuyetu.vercel.app/me',
 } satisfies LoanAlertProps;

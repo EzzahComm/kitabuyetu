@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wallet, Landmark, Receipt, RefreshCw, Plus } from 'lucide-react';
+import { Wallet, Landmark, Receipt, RefreshCw, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -297,10 +298,17 @@ export default function TreasuryPage() {
                   actual status, and resolves mismatches automatically.
                 </p>
                 {reconcileMsg && (
-                  <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2 mt-2">{reconcileMsg}</p>
+                  <Alert className="mt-2 border-green-200 bg-green-50/50">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">{reconcileMsg}</AlertDescription>
+                  </Alert>
                 )}
                 {reconcileMut.isError && (
-                  <p className="text-sm text-destructive mt-2">Reconciliation failed — check logs.</p>
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Reconciliation failed</AlertTitle>
+                    <AlertDescription>Check logs for details.</AlertDescription>
+                  </Alert>
                 )}
               </div>
               <Button className="shrink-0" onClick={() => reconcileMut.mutate()} loading={reconcileMut.isPending}>

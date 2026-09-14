@@ -1,150 +1,203 @@
-import type { Metadata } from 'next';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { Hero } from '@/components/marketing/hero';
-import { SocialProof } from '@/components/marketing/social-proof';
-import { StoriesSection } from '@/components/marketing/stories-section';
-import { ProductPillarsSection } from '@/components/marketing/product-pillars-section';
-import { ProblemSection } from '@/components/marketing/problem-section';
-import { SolutionGrid } from '@/components/marketing/solution-grid';
-import { ProductShowcase } from '@/components/marketing/product-showcase';
-import { HowItWorks } from '@/components/marketing/how-it-works';
-import { EcosystemSection } from '@/components/marketing/ecosystem-section';
-import { EnterpriseSection } from '@/components/marketing/enterprise-section';
-import { CustomerPaths } from '@/components/marketing/customer-paths';
-import { MemberExperience } from '@/components/marketing/member-experience';
-import { MpesaSection } from '@/components/marketing/mpesa-section';
-import { TrustSection } from '@/components/marketing/trust-section';
-import { PricingSection } from '@/components/marketing/pricing-section';
-import { FinalCta } from '@/components/marketing/final-cta';
-import { PLAN_MONTHLY_FEES } from '@/types/enums';
+import Link from "next/link";
+import {
+  IconCash,
+  IconTrendingUp,
+  IconMessages,
+  IconChartBar,
+  IconSchool,
+  IconBuildingStore,
+  IconShieldCheck,
+  IconFileText,
+} from "@tabler/icons-react";
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke';
+import { Hero } from "@/components/Hero";
+import { Container } from "@/components/Container";
+import { SectionTitle } from "@/components/SectionTitle";
+import { Benefits } from "@/components/Benefits";
+import { ProductGrid } from "@/components/ProductGrid";
+import { Testimonials } from "@/components/Testimonials";
+import { Cta } from "@/components/Cta";
+import { SiteHeader } from "@/components/marketing/site-header";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { signUpUrl } from "@/lib/app-links";
 
-const DESCRIPTION =
-  'Digital tools for groups and organizations to manage members, savings, loans, ' +
-  'welfare, shares, investments, payments, records and community programs. Built for ' +
-  'chamas, SACCOs, welfare groups and investment clubs in Kenya — with M-Pesa ' +
-  'collection and a passbook for every member.';
+import benefitOneImg from "../public/img/benefit-one.jpg";
+import benefitTwoImg from "../public/img/benefit-two.jpg";
 
-export const metadata: Metadata = {
-  // `absolute` matters: the root layout sets a `%s | Kitabu Yetu` template, so
-  // a plain string here rendered as "Kitabu Yetu — … | Kitabu Yetu".
-  title: { absolute: 'Kitabu Yetu — Simple Books. Stronger Groups.' },
-  description: DESCRIPTION,
-  keywords: [
-    'chama management software',
-    'SACCO software Kenya',
-    'welfare group accounting',
-    'investment club bookkeeping',
-    'M-Pesa reconciliation',
-    'Daraja STK push',
-    'PayBill collections',
-    'table banking',
-    'community group finance',
-    'double-entry accounting Kenya',
-    'VSLA management',
-    'group savings Kenya',
-    'organization group management',
-    'multi-group management',
+/** The punchy one-liner that closes several sections. */
+const Emphasis = ({ children }: { children: React.ReactNode }) => (
+  <Container className="mb-20">
+    <p className="mx-auto max-w-2xl border-l-4 border-brand-500 px-5 text-center text-lg font-semibold leading-8 text-brand-blue-900 dark:text-gray-200">
+      {children}
+    </p>
+  </Container>
+);
+
+export default function Home() {
+  return (
+    <>
+      <SiteHeader variant="overlay" />
+
+      <Hero />
+
+      <SectionTitle
+        preTitle="The whole picture"
+        title="Everything your group needs, in one place."
+      >
+        No more switching between notebooks, spreadsheets, M-Pesa messages and
+        WhatsApp to understand your group&apos;s finances.
+      </SectionTitle>
+
+      <Benefits data={manage} />
+
+      <Emphasis>
+        More visibility. More accountability. Better decisions.
+      </Emphasis>
+
+      <SectionTitle
+        preTitle="Ecosystem"
+        title="From managing your group to growing it."
+      >
+        The Kitabu Yetu Ecosystem connects organized groups to opportunities,
+        knowledge and resources beyond their own savings.
+      </SectionTitle>
+
+      <Benefits imgPos="right" data={ecosystem} />
+
+      <Emphasis>
+        Manage your group. Build its track record. Unlock its potential.
+      </Emphasis>
+
+      <SectionTitle preTitle="Products" title="One platform. Four solutions." />
+
+      <ProductGrid />
+
+      <SectionTitle preTitle="How it works" title="From M-Pesa to your books.">
+        Payments and records work together. Members pay through M-Pesa and
+        Kitabu Yetu helps match payments to members and update the group&apos;s
+        records.
+      </SectionTitle>
+
+      <Container className="mb-20">
+        <p className="max-w-2xl mx-auto text-lg font-medium text-center text-gray-800 dark:text-gray-200">
+          Less manual reconciliation. Less guessing. More confidence.
+        </p>
+        <div className="mt-8 text-center">
+          <Link
+            href="/how-it-works"
+            className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            See How It Works
+          </Link>
+        </div>
+      </Container>
+
+      <SectionTitle preTitle="Testimonials" title="Trusted by groups" />
+
+      <Testimonials />
+
+      <SectionTitle
+        preTitle="Pricing"
+        title="Simple pricing. Start small. Grow with us."
+      >
+        SMS included in every plan, with affordable top-ups when you need more.
+      </SectionTitle>
+
+      <Container className="mb-20">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-xl font-medium text-gray-800 dark:text-gray-200">
+            Bookkeeper from KES 150/month
+          </p>
+          <p className="mt-2 text-xl font-medium text-gray-800 dark:text-gray-200">
+            Chama Reminder from KES 100/month
+          </p>
+          <div className="mt-8">
+            <Link
+              href="/pricing"
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              View Pricing
+            </Link>
+          </div>
+        </div>
+      </Container>
+
+      <Cta
+        title="Ready to grow your group?"
+        subtitle="Bring your members, money, records and investments together."
+        note="Not sure where to start? Tell us about your group and we'll recommend the right solution."
+        footnote="No lock-in period · Pay by M-Pesa · Built for Kenyan groups"
+        primary={{ text: "Get Started", href: signUpUrl() }}
+        secondary={{ text: "Talk to Us", href: "/contact" }}
+      />
+
+      <SiteFooter />
+    </>
+  );
+}
+
+const manage = {
+  title: "Everything your group needs, in one place.",
+  desc: "No more switching between notebooks, spreadsheets, M-Pesa messages and WhatsApp to understand your group's finances.",
+  image: benefitOneImg,
+  bullets: [
+    {
+      title: "Manage your money",
+      desc: "Track members, contributions, savings, loans, welfare, shares, dividends, income and expenses from one reliable financial record.",
+      icon: <IconCash size={24} />,
+    },
+    {
+      title: "Track what you're building",
+      desc: "Manage farms, rentals, shops, businesses, projects and other investments. See what each activity costs, earns and contributes to the group.",
+      icon: <IconTrendingUp size={24} />,
+    },
+    {
+      title: "Keep members informed",
+      desc: "Send contribution reminders, payment confirmations, announcements and campaigns — while members access their own balances and statements.",
+      icon: <IconMessages size={24} />,
+    },
+    {
+      title: "Make every shilling visible",
+      desc: "Know where group money comes from, where it goes and what it is building.",
+      icon: <IconChartBar size={24} />,
+    },
   ],
-  alternates: { canonical: SITE_URL },
-  openGraph: {
-    type: 'website',
-    url: SITE_URL,
-    siteName: 'Kitabu Yetu',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
-    description: DESCRIPTION,
-    locale: 'en_KE',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Kitabu Yetu — Simple Books. Stronger Groups.',
-    description: DESCRIPTION,
+};
+
+const ecosystem = {
+  title: "From managing your group to growing it.",
+  desc: "The Kitabu Yetu Ecosystem connects organized groups to opportunities, knowledge and resources beyond their own savings.",
+  image: benefitTwoImg,
+  bullets: [
+    {
+      title: "Funding",
+      desc: "Connect with potential donors, development partners and funding opportunities for groups and community projects.",
+      icon: <IconCash size={24} />,
+    },
+    {
+      title: "Financial products",
+      desc: "Discover relevant loans, insurance and other financial products for groups and their members.",
+      icon: <IconShieldCheck size={24} />,
+    },
+    {
+      title: "Professional knowledge",
+      desc: "Access information, training and practical guidance from professionals in finance, agriculture, investment, entrepreneurship, governance and other areas.",
+      icon: <IconSchool size={24} />,
+    },
+    {
+      title: "Markets & services",
+      desc: "Discover potential markets, suppliers, service providers and business opportunities that can support your group's activities.",
+      icon: <IconBuildingStore size={24} />,
+    },
+    {
+      title: "Build your track record",
+      desc: "Better records help your group build a clearer picture of its financial health, activities and impact.",
+      icon: <IconFileText size={24} />,
+    },
+  ],
+  cta: {
+    text: "Explore the Ecosystem",
+    href: "/ecosystem",
   },
 };
 
-/**
- * Structured data. Prices come from the same fee table the billing API quotes
- * and the M-Pesa callback verifies against — a search result advertising a
- * price the product does not charge would be the same bug the pricing pages
- * already had once, just harder to notice.
- */
-function StructuredData() {
-  const json = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'Kitabu Yetu',
-    applicationCategory: 'FinanceApplication',
-    operatingSystem: 'Web',
-    url: SITE_URL,
-    description: DESCRIPTION,
-    areaServed: 'KE',
-    offers: {
-      '@type': 'Offer',
-      price: PLAN_MONTHLY_FEES.kitabu_yetu.starter,
-      priceCurrency: 'KES',
-      category: 'Monthly subscription',
-      url: `${SITE_URL}/pricing`,
-    },
-  };
-  return (
-    <script
-      type="application/ld+json"
-      // Static, locally-built object — no user input reaches this string.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }}
-    />
-  );
-}
-
-export default function HomePage() {
-  return (
-    <div className="flex min-h-screen flex-col bg-paper">
-      <StructuredData />
-      {/* The skip link lives in SiteHeader, so every public page has one. */}
-      {/* solid, not overlay: the hero is light now, and the overlay
-          variant paints white text for a dark hero. */}
-      <SiteHeader variant="solid" />
-
-      {/*
-        Section order follows the story the page is meant to tell:
-        what is this → why do I need it → what can it do → does it work with
-        M-Pesa → what does it mean for members → what if I manage many groups
-        → which am I → can I trust it → what else is there → how do I start →
-        what does it cost → where is this going → who else does this → what do
-        I do now.
-
-        The two audiences split at CustomerPaths, which is why Enterprise sits
-        immediately before it: a visitor who manages many groups has just been
-        shown the organization product, so the fork that follows is a real
-        choice rather than an abstract one.
-
-        Grounds alternate paper / paper-deep / ink and NO TWO ADJACENT
-        SECTIONS SHARE ONE — that alternation is the only thing separating
-        them, since this site draws no section borders. Hero and SocialProof
-        are the single exception: the logo strip is deliberately part of the
-        hero block, exactly as Astrolus composes it.
-      */}
-      <main id="main" className="flex-1">
-        <Hero />
-        <SocialProof />
-        <SolutionGrid />
-        <ProblemSection />
-        <ProductShowcase />
-        <MpesaSection />
-        <MemberExperience />
-        <EnterpriseSection />
-        <CustomerPaths />
-        <TrustSection />
-        <ProductPillarsSection />
-        <HowItWorks />
-        <PricingSection />
-        <EcosystemSection />
-        <StoriesSection />
-        <FinalCta />
-      </main>
-
-      <SiteFooter />
-    </div>
-  );
-}
