@@ -1,5 +1,12 @@
 -- =============================================================================
--- 168: the column comment still says MONTHLY. Correct it.
+-- 170: the column comment still says MONTHLY. Correct it.
+--
+-- Renumbered from this PR's original 168 (authored 2026-09-04, before that
+-- number was taken by 20260912000000_168_audit_logs_organization_scope.sql,
+-- which shipped and reached production while this PR sat open). Content
+-- unchanged — the timestamp prefix is CI's real ordering key, not the human
+-- NNN label (see Migration Check in ci.yml), so the two "168"s were never a
+-- functional collision, but a fresh number is clearer to read.
 --
 -- Migration 167 changed how generate_loan_schedule reads loans.interest_rate
 -- (nominal ANNUAL, not per month) and updated the form labels and the
