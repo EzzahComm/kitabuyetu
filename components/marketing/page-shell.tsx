@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Container } from './primitives';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
+import { fraunces } from './fraunces-font';
 
 interface PageShellProps {
   title:        string;
@@ -10,10 +11,13 @@ interface PageShellProps {
 }
 
 /**
- * The wrapper for every public page that is not the home page — About,
- * Contact, Bookkeeper, Chama Reminder, Fundraise, Ecosystem, Docs, Support,
- * Status. Same three-prop API as the shell it replaces, so those pages only
- * changed an import path.
+ * The wrapper for most public pages that are not the home page — About,
+ * Contact, Docs, Ecosystem, Enterprise Solutions, Fundraise, Legal, Products,
+ * Status, Support. Same three-prop API as the shell it replaces, so those
+ * pages only changed an import path. Bookkeeper and Chama Reminder have
+ * their own independent root layout (richer/more custom than this shell
+ * supports) — each applies fraunces-font.ts's variable directly rather than
+ * through this file.
  *
  * The header is `solid` here, deliberately. The previous shell used the
  * overlay header on every page, which painted white text over a white
@@ -23,7 +27,7 @@ interface PageShellProps {
  */
 export function PageShell({ title, description, children }: PageShellProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         {/* Title band, on paper — gives short informational pages a proper

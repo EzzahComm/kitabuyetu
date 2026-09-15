@@ -19,6 +19,7 @@ import { Testimonials } from "@/components/Testimonials";
 import { Cta } from "@/components/Cta";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { fraunces } from "@/components/marketing/fraunces-font";
 import { signUpUrl } from "@/lib/app-links";
 
 import benefitOneImg from "../public/img/benefit-one.jpg";
@@ -35,7 +36,7 @@ const Emphasis = ({ children }: { children: React.ReactNode }) => (
 
 export default function Home() {
   return (
-    <>
+    <div className={fraunces.variable}>
       <SiteHeader variant="overlay" />
 
       <Hero />
@@ -132,7 +133,7 @@ export default function Home() {
       />
 
       <SiteFooter />
-    </>
+    </div>
   );
 }
 

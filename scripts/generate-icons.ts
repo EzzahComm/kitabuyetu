@@ -5,6 +5,7 @@
  * Output:  public/icons/icon-{size}.png       (PWA icons referenced by manifest)
  *          public/icons/apple-touch-icon.png  (iOS 180×180)
  *          public/favicon.ico                 (16/32/48 multi-resolution — Next picks it up from /public)
+ *          public/brand/kitabu-yetu-logo-email.png (144×144, see EMAIL_LOGO_SIZE below)
  *
  * Run:  npx tsx scripts/generate-icons.ts
  */
@@ -19,6 +20,12 @@ const OUT  = join(ROOT, 'public', 'icons');
 // Sizes referenced by app/manifest.ts + app/layout.tsx
 const PWA_SIZES = [72, 96, 128, 144, 152, 192, 384, 512] as const;
 const APPLE_TOUCH_SIZE = 180;
+// 2x the largest size the logo is actually rendered at in outbound email
+// (emails/components/layout.tsx renders 36x36, lib/email/templates/engine.ts
+// renders 72x72) — crisp on retina email clients, without shipping the
+// 1024x1024 (1.43MB) master into every recipient's inbox
+// (docs/audits/optimization-2026-09).
+const EMAIL_LOGO_SIZE = 144;
 
 // Brand colors — used for the maskable PWA icons that need a solid background
 const BRAND_BG = { r: 248, g: 250, b: 252, alpha: 1 }; // #F8FAFC (neutral background)
@@ -69,6 +76,18 @@ async function main(): Promise<void> {
   // For a true multi-resolution favicon.ico we'd need a separate ICO encoder.
   // Browsers accept PNG via the `icon` link relation, and Next.js metadata uses
   // explicit PNG icons — so favicon.png is sufficient. Skip generating .ico.
+
+  // Email logo — plain resize, no flatten/background: preserves the master's
+  // own appearance exactly (just fewer pixels), rather than the PWA icons'
+  // opaque-background treatment above, which those need for OS home screens
+  // but an inline <img> in an email does not.
+  const emailLogoOut = join(ROOT, 'public', 'brand', 'kitabu-yetu-logo-email.png');
+  await sharp(SRC)
+    .resize(EMAIL_LOGO_SIZE, EMAIL_LOGO_SIZE, { fit: 'contain' })
+    .png({ compressionLevel: 9 })
+    .toFile(emailLogoOut);
+  // eslint-disable-next-line no-console
+  console.log(`  ✓ ${emailLogoOut}`);
 }
 
 main().catch((err) => {

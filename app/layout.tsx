@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Fraunces, DM_Mono } from 'next/font/google';
+import { Inter, DM_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-// Editorial display serif for the marketing surface ("Kitabu Yetu" = "our
-// ledger"). Scoped via the `font-display` utility — the dashboard keeps Inter.
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  variable: '--font-fraunces',
-  display: 'swap',
-  axes: ['opsz', 'SOFT'],
-});
+// Fraunces (the marketing display serif) is NOT loaded here — it lives in
+// components/marketing/fraunces-font.ts, applied only at marketing entry
+// points. It used to load in this root layout and apply to every route via
+// <body>, so all 80 authenticated routes (which never render it) preload-
+// hinted 117.9KB of a font they don't use (docs/audits/optimization-2026-09).
 
 // Monospace for figures, account references, and receipt numbers — the ledger
 // detail that makes financial data feel precise.
@@ -98,7 +95,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${fraunces.variable} ${dmMono.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${dmMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
         <SpeedInsights />
       </body>

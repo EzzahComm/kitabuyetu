@@ -37,15 +37,17 @@ export const BRAND = {
 } as const;
 
 /**
- * Absolute URL to the canonical logo, suitable for embedding in emails and
- * PDFs (where relative paths don't resolve).
- *
- * Falls back to the production domain when NEXT_PUBLIC_APP_URL isn't set —
- * which is the case during local development without overrides.
+ * Absolute URL to the logo, sized for embedding in emails (where relative
+ * paths don't resolve). Points at a 144x144 raster (12.7KB) generated from
+ * the 1024x1024 canonical master (1.43MB) by scripts/generate-icons.ts —
+ * emails only ever render this at 36x36 or 72x72
+ * (emails/components/layout.tsx, lib/email/templates/engine.ts), so every
+ * recipient whose client loads images was downloading ~115x more image
+ * data than the logo is ever displayed at (docs/audits/optimization-2026-09).
  */
 export function getBrandLogoUrl(): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
-  return `${base}/brand/kitabu-yetu-logo.png`;
+  return `${base}/brand/kitabu-yetu-logo-email.png`;
 }
 
 /** Standard email/PDF footer line — brand name + tagline. */
