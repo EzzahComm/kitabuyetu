@@ -192,8 +192,25 @@ AS $function$
   SELECT public.app_current_role() = 'super_admin';
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.app_current_group_id() TO anon, app_tenant, authenticated, postgres, service_role;
-GRANT EXECUTE ON FUNCTION public.app_current_organization_id() TO anon, app_tenant, authenticated, postgres, service_role;
-GRANT EXECUTE ON FUNCTION public.app_current_role() TO anon, app_tenant, authenticated, postgres, service_role;
-GRANT EXECUTE ON FUNCTION public.app_current_user_id() TO anon, app_tenant, authenticated, postgres, service_role;
-GRANT EXECUTE ON FUNCTION public.is_super_admin() TO anon, app_tenant, authenticated, postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.app_current_group_id() TO anon, authenticated, postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.app_current_organization_id() TO anon, authenticated, postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.app_current_role() TO anon, authenticated, postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.app_current_user_id() TO anon, authenticated, postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO anon, authenticated, postgres, service_role;
+
+-- app_tenant is provisioned out-of-band in production (ADR-001) and by a
+-- separate CI step that runs AFTER migrations apply (.github/workflows/
+-- ci.yml's "Provision app_tenant role" step) — never by a migration. Every
+-- other migration that grants to it in this codebase guards with this same
+-- IF EXISTS check (e.g. 107, 133, 139-147, 156, 159, 162, 167); this one
+-- had missed it, which is exactly what broke the fresh-build CI replay.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
+    GRANT EXECUTE ON FUNCTION public.app_current_group_id() TO app_tenant;
+    GRANT EXECUTE ON FUNCTION public.app_current_organization_id() TO app_tenant;
+    GRANT EXECUTE ON FUNCTION public.app_current_role() TO app_tenant;
+    GRANT EXECUTE ON FUNCTION public.app_current_user_id() TO app_tenant;
+    GRANT EXECUTE ON FUNCTION public.is_super_admin() TO app_tenant;
+  END IF;
+END $$;
