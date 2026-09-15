@@ -190,6 +190,39 @@ SELECT cron.schedule(
 
 Replace `YOUR-APP.vercel.app` with your actual Vercel domain and `YOUR_CRON_SECRET` with the value from Step 4c.
 
+### 5c-1. Schedule cron.job_run_details pruning
+
+`cron.job_run_details` has no retention of its own — with a 5-minute job
+running 288 times/day, it grows ~30 MB/month of history nothing reads
+(docs/audits/optimization-2026-09/verified/
+postgres-schema-indexing-and-storage-eff.json). Same reasoning as migration
+042's header comment: this touches the `cron` schema, which CI's plain
+Postgres doesn't have, so it's a runtime step here rather than a migration.
+Run once per environment (Supabase Dashboard → SQL Editor):
+
+```sql
+SELECT cron.schedule(
+  'kitabuyetu-prune-cron-job-run-details',
+  '0 3 * * *',
+  $$DELETE FROM cron.job_run_details WHERE start_time < now() - interval '7 days'$$
+);
+```
+
+Live on production (project qztcgryhoanennsizcll) as of 2026-09-15: jobid 3,
+runs nightly at 03:00 UTC. The existing ~47 MB of accumulated bloat at the
+time this was added was reclaimed with a one-off `DELETE ... WHERE
+start_time < now() - interval '7 days'` followed by `VACUUM FULL
+cron.job_run_details` (52.9 MB → 1.15 MB); the same `VACUUM FULL` was also
+run once on `net._http_response` (41.5 MB → 80 KB, pg_net's own 6-hour
+cleanup DELETE was already correct — this table's problem was purely
+historical bloat from before that started working). Both need to be run as
+a role with ownership of the `net`/`cron` schemas' tables (owned by
+`supabase_admin`) — confirmed the Supabase-managed `postgres` role can do
+this directly via the SQL Editor / MCP despite `pg_roles.rolsuper = false`
+and not being a member of `supabase_admin`, so no support ticket was
+needed. If `VACUUM FULL` ever fails with a permission error on a different
+project, that's the fallback to reach for.
+
 ### 5d. Verify the schedule
 
 ```sql
