@@ -15,7 +15,8 @@ import { routeToUnrouted, type StkRequestRow as AllocationStkRequestRow } from '
 import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
 
 export interface ReconciliationResult {
-  reconciliationId:    string;
+  /** null when the run short-circuited before opening an audit row — see runReconciliation. */
+  reconciliationId:    string | null;
   transactionsChecked: number;
   mismatchesFound:     number;
   resolvedCount:       number;
@@ -112,6 +113,31 @@ export async function runReconciliation(
   groupId: string | null,
   initiatedBy: string | null,
 ): Promise<ReconciliationResult> {
+  // Scan for actual work BEFORE opening an audit row — confirmed live,
+  // 98.4% of runs (34,656 of 35,233) found zero stale STK requests yet each
+  // one still opened a 'running' row and two more write transactions on
+  // completion. Every 5 minutes, forever, against a platform with 46
+  // mpesa_stk_requests rows total (docs/audits/optimization-2026-09).
+  const stale = await withAdminDb(async (db) => {
+    const cutoff = new Date(Date.now() - 5 * 60_000);
+    const { rows } = groupId
+      ? await db.query<{ id: string; checkout_request_id: string }>(
+          `SELECT id, checkout_request_id FROM mpesa_stk_requests
+           WHERE status='pending' AND initiated_at<$1 AND group_id=$2 LIMIT 50`,
+          [cutoff, groupId],
+        )
+      : await db.query<{ id: string; checkout_request_id: string }>(
+          `SELECT id, checkout_request_id FROM mpesa_stk_requests
+           WHERE status='pending' AND initiated_at<$1 LIMIT 50`,
+          [cutoff],
+        );
+    return rows;
+  });
+
+  if (stale.length === 0) {
+    return { reconciliationId: null, transactionsChecked: 0, mismatchesFound: 0, resolvedCount: 0 };
+  }
+
   const { rows: runRows } = await withAdminDb((db) =>
     db.query<{ id: string }>(
       `INSERT INTO mpesa_reconciliations (group_id, initiated_by, status)
@@ -121,28 +147,11 @@ export async function runReconciliation(
   );
   const runId = runRows[0].id;
 
-  let checked = 0, mismatches = 0, resolved = 0;
+  const checked = stale.length;
+  let mismatches = 0, resolved = 0;
   const details: unknown[] = [];
 
   try {
-    const stale = await withAdminDb(async (db) => {
-      const cutoff = new Date(Date.now() - 5 * 60_000);
-      const { rows } = groupId
-        ? await db.query<{ id: string; checkout_request_id: string }>(
-            `SELECT id, checkout_request_id FROM mpesa_stk_requests
-             WHERE status='pending' AND initiated_at<$1 AND group_id=$2 LIMIT 50`,
-            [cutoff, groupId],
-          )
-        : await db.query<{ id: string; checkout_request_id: string }>(
-            `SELECT id, checkout_request_id FROM mpesa_stk_requests
-             WHERE status='pending' AND initiated_at<$1 LIMIT 50`,
-            [cutoff],
-          );
-      return rows;
-    });
-
-    checked = stale.length;
-
     for (const req of stale) {
       try {
         const statusRes = await _stkQuery(req.checkout_request_id);

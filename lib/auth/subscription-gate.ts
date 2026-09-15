@@ -153,6 +153,37 @@ const entitlements = new Map<string, CacheEntry>();
  */
 const MAX_CACHE_ENTRIES = 10_000;
 
+/**
+ * Deny-path cache. Deliberately a SEPARATE map with a TTL far below
+ * CACHE_TTL_MS, not a relaxation of the positive cache's grant-only rule
+ * above: a group with zero active products, or entitled but not for THIS
+ * route's product, previously re-queried the database on every single
+ * request (no cache at all covered a deny). Confirmed live: 3 of 9 groups
+ * were in this state, and it is exactly the mode that grows badly — every
+ * request from every lapsed group becomes an uncached transaction on the
+ * hottest code path in the app the moment a cohort of subscriptions lapses
+ * (this has happened before, all 5 production groups expiring at once).
+ * 8s bounds the worst case to a handful of queries/minute per lapsed group
+ * instead of one per request, while staying an order of magnitude below
+ * the positive cache's staleness window (docs/audits/optimization-2026-09).
+ */
+const RECENT_CHECK_TTL_MS = 8_000;
+const recentChecks = new Map<string, CacheEntry>();
+
+function rememberRecentCheck(groupId: string, products: ReadonlySet<SubscriptionProduct>): void {
+  if (recentChecks.size >= MAX_CACHE_ENTRIES) {
+    const now = Date.now();
+    for (const [key, entry] of recentChecks) {
+      if (entry.expiresAt <= now) recentChecks.delete(key);
+    }
+    if (recentChecks.size >= MAX_CACHE_ENTRIES) {
+      const oldest = recentChecks.keys().next();
+      if (!oldest.done) recentChecks.delete(oldest.value);
+    }
+  }
+  recentChecks.set(groupId, { products, expiresAt: Date.now() + RECENT_CHECK_TTL_MS });
+}
+
 function remember(groupId: string, products: ReadonlySet<SubscriptionProduct>): void {
   if (entitlements.size >= MAX_CACHE_ENTRIES) {
     const now = Date.now();
@@ -172,6 +203,7 @@ function remember(groupId: string, products: ReadonlySet<SubscriptionProduct>): 
 /** Test-only: drop cached entitlements so a suite can flip state mid-test. */
 export function __resetSubscriptionCache(): void {
   entitlements.clear();
+  recentChecks.clear();
 }
 
 async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProduct>> {
@@ -228,10 +260,27 @@ export async function assertSubscriptionActive(
   const cached = entitlements.get(auth.groupId);
   if (cached && cached.expiresAt > Date.now() && satisfies(cached.products)) return;
 
-  // Nothing cached, expired, or cached but insufficient for THIS route.
-  // Never deny on cached state — re-read.
+  // Deny path, bounded: a product set read within the last
+  // RECENT_CHECK_TTL_MS that still doesn't satisfy this route can deny
+  // without a fresh query — 8s old, not stale enough to risk the "I paid
+  // and it's still broken" case the file's own doc comment above warns
+  // about, but enough to stop every request from a lapsed group hitting
+  // the database.
+  const recent = recentChecks.get(auth.groupId);
+  if (recent && recent.expiresAt > Date.now() && !satisfies(recent.products)) {
+    if (recent.products.size === 0) {
+      throw new PaymentRequiredError(
+        'This group has no active subscription. Choose a plan and pay to restore access.',
+      );
+    }
+    throw new ProductNotEntitledError(required as SubscriptionProduct);
+  }
+
+  // Nothing usable cached. Never GRANT on cached state beyond the checks
+  // above — re-read.
   const products = await loadActiveProducts(auth.groupId);
   if (products.size > 0) remember(auth.groupId, products);
+  else rememberRecentCheck(auth.groupId, products);
 
   if (products.size === 0) {
     throw new PaymentRequiredError(
@@ -239,6 +288,7 @@ export async function assertSubscriptionActive(
     );
   }
   if (!satisfies(products)) {
+    rememberRecentCheck(auth.groupId, products);
     throw new ProductNotEntitledError(required as SubscriptionProduct);
   }
 }
