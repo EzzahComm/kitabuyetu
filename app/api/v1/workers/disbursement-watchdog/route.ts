@@ -27,14 +27,17 @@
  * ever reached (see that file's own comment for the sms-dispatch-chunk
  * precedent this mirrors).
  */
-import { serve } from '@upstash/workflow/nextjs';
-import type { WorkflowContext } from '@upstash/workflow';
-import { watchdogKey, type DisbursementWatchdogPayload } from '@/lib/queue/qstash';
-import { resolveWatchdogTimeout } from '@/lib/services/disbursement-watchdog.service';
-import { logger } from '@/lib/logger';
+import { serve } from "@upstash/workflow/nextjs";
+import type { WorkflowContext } from "@upstash/workflow";
+import {
+  watchdogKey,
+  type DisbursementWatchdogPayload,
+} from "@/lib/queue/qstash";
+import { resolveWatchdogTimeout } from "@/lib/services/disbursement-watchdog.service";
+import { logger } from "@/lib/logger";
 
-export const runtime = 'nodejs'; // withAdminDb's pg pool isn't edge-compatible.
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs"; // withAdminDb's pg pool isn't edge-compatible.
+export const dynamic = "force-dynamic";
 
 // How long a payout may sit dispatched/processing before the watchdog gives
 // up waiting for Safaricom's result callback and surfaces it as 'timed_out'.
@@ -42,14 +45,14 @@ export const dynamic = 'force-dynamic';
 // (disbursements.service.ts, 10 minutes) — conservative, and still a large
 // improvement on that monitor's own up-to-~59-minute latency between hourly
 // cron ticks (lib/jobs/index.ts).
-const WAIT_TIMEOUT = '20m';
+const WAIT_TIMEOUT = "20m";
 
 export const { POST } = serve<DisbursementWatchdogPayload>(
   async (context: WorkflowContext<DisbursementWatchdogPayload>) => {
     const { kind, rowId } = context.requestPayload;
     const key = watchdogKey(kind, rowId);
 
-    const { timeout } = await context.waitForEvent('wait-for-callback', key, {
+    const { timeout } = await context.waitForEvent("wait-for-callback", key, {
       timeout: WAIT_TIMEOUT,
     });
 
@@ -59,7 +62,9 @@ export const { POST } = serve<DisbursementWatchdogPayload>(
       return;
     }
 
-    await context.run('resolve-timeout', () => resolveWatchdogTimeout(kind, rowId));
+    await context.run("resolve-timeout", () =>
+      resolveWatchdogTimeout(kind, rowId),
+    );
   },
   {
     failureFunction: async ({ context, failStatus, failResponse }) => {
@@ -67,8 +72,10 @@ export const { POST } = serve<DisbursementWatchdogPayload>(
       // the workflow itself dies for an unrelated reason (e.g. QStash
       // outage, a code bug) — this is a visibility log, not the payout's
       // only safety net.
-      logger.error('[disbursement-watchdog] workflow run failed permanently', {
-        workflowRunId: context.workflowRunId, failStatus, failResponse,
+      logger.error("[disbursement-watchdog] workflow run failed permanently", {
+        workflowRunId: context.workflowRunId,
+        failStatus,
+        failResponse,
       });
     },
   },

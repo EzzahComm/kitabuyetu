@@ -1,6 +1,10 @@
-import * as React from 'react';
-import { renderReactEmail } from './render';
-import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
+import * as React from "react";
+import { renderReactEmail } from "./render";
+import {
+  sendEmailWithFallback,
+  type EmailPayload,
+  type EmailResult,
+} from "@/lib/email/provider";
 
 export interface SendReactEmailOptions {
   to: string | string[];
@@ -9,7 +13,7 @@ export interface SendReactEmailOptions {
   element: React.ReactElement;
   from?: string;
   replyTo?: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
   // Metadata written to email_logs (same as the rest of the pipeline)
   groupId?: string;
   userId?: string;
@@ -35,7 +39,9 @@ export interface SendReactEmailOptions {
  *     category: 'contribution', referenceId: contributionId, referenceType: 'contribution',
  *   });
  */
-export async function sendReactEmail(opts: SendReactEmailOptions): Promise<EmailResult> {
+export async function sendReactEmail(
+  opts: SendReactEmailOptions,
+): Promise<EmailResult> {
   const { html, text } = await renderReactEmail(opts.element);
   return sendEmailWithFallback({
     to: opts.to,

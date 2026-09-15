@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { smsService } from '@/lib/services/sms.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { smsService } from "@/lib/services/sms.service";
+import { ok } from "@/lib/utils/response";
 
 /** GET /api/v1/sms/credits — the calling group's own SMS credit balance
  *  (`billing_accounts.sms_credits`) + its effective per-credit rate. Distinct

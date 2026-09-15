@@ -11,7 +11,11 @@ export { Badge } from "./ui/badge";
 export { Spinner } from "./ui/Spinner";
 
 // Shared Portal Components
-export { FormSection, FormFieldGroup, FormDivider } from "./shared/form-section";
+export {
+  FormSection,
+  FormFieldGroup,
+  FormDivider,
+} from "./shared/form-section";
 export { PageSection, FormActions } from "./shared/page-section";
 
 // Layout Components — legacy dashboard components have been removed

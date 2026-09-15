@@ -1,7 +1,7 @@
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { ValidationError, NotFoundError } from '@/lib/utils/errors';
-import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { ValidationError, NotFoundError } from "@/lib/utils/errors";
+import { DEFAULT_SMS_PROVIDER } from "@/lib/sms/provider";
 
 /**
  * Super-admin control over SMS pricing (spec §12). INTERNAL ONLY.
@@ -27,61 +27,64 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  * accident.
  */
 export interface SmsPricingTierRow {
-  id:            string;
-  name:          string;
-  min_credits:   number;
-  max_credits:   number | null;
-  unit_price:    string;
-  currency:      string;
-  is_active:     boolean;
+  id: string;
+  name: string;
+  min_credits: number;
+  max_credits: number | null;
+  unit_price: string;
+  currency: string;
+  is_active: boolean;
   display_order: number;
-  notes:         string | null;
-  created_at:    string;
-  updated_at:    string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SmsPackageRow {
-  id:             string;
-  name:           string;
-  description:    string | null;
-  credits:        number;
-  price:          string;
-  currency:       string;
-  is_active:      boolean;
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  price: string;
+  currency: string;
+  is_active: boolean;
   is_recommended: boolean;
-  display_order:  number;
-  created_at:     string;
-  updated_at:     string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /** What `setActiveTiers` reports back: the whole band list either side of the swap. */
-export type TierActivationRow = Pick<SmsPricingTierRow, 'id' | 'name' | 'is_active'>;
+export type TierActivationRow = Pick<
+  SmsPricingTierRow,
+  "id" | "name" | "is_active"
+>;
 
 export interface SmsProviderCostRow {
-  id:             string;
-  provider:       string;
-  unit_cost:      string;
-  currency:       string;
+  id: string;
+  provider: string;
+  unit_cost: string;
+  currency: string;
   effective_from: string;
-  effective_to:   string | null;
-  notes:          string | null;
-  created_at:     string;
+  effective_to: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface TierInput {
-  name:         string;
-  minCredits:   number;
-  maxCredits:   number | null;
-  unitPrice:    number;
+  name: string;
+  minCredits: number;
+  maxCredits: number | null;
+  unitPrice: number;
   displayOrder?: number;
-  notes?:       string | null;
+  notes?: string | null;
 }
 
 export interface PackageInput {
-  name:          string;
-  description?:  string | null;
-  credits:       number;
-  price:         number;
+  name: string;
+  description?: string | null;
+  credits: number;
+  price: number;
   isRecommended?: boolean;
   displayOrder?: number;
 }
@@ -91,7 +94,7 @@ export interface PackageInput {
  * decisions, not something any one tenant did.
  */
 async function audit(
-  client: Pick<PoolClient, 'query'>,
+  client: Pick<PoolClient, "query">,
   actorId: string,
   action: string,
   resourceId: string | null,
@@ -101,9 +104,13 @@ async function audit(
   await client.query(
     `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
      VALUES (NULL, $1, $2, 'sms_pricing', $3, $4, $5)`,
-    [actorId, action, resourceId,
-     oldValues ? JSON.stringify(oldValues) : null,
-     newValues ? JSON.stringify(newValues) : null],
+    [
+      actorId,
+      action,
+      resourceId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ],
   );
 }
 
@@ -111,8 +118,12 @@ async function audit(
 export async function getPricingConfig() {
   return withAdminDb(async (db) => {
     const [tiers, packages, cost] = await Promise.all([
-      db.query<SmsPricingTierRow>(`SELECT * FROM sms_pricing_tiers ORDER BY display_order, min_credits`),
-      db.query<SmsPackageRow>(`SELECT * FROM sms_packages ORDER BY display_order, credits`),
+      db.query<SmsPricingTierRow>(
+        `SELECT * FROM sms_pricing_tiers ORDER BY display_order, min_credits`,
+      ),
+      db.query<SmsPackageRow>(
+        `SELECT * FROM sms_packages ORDER BY display_order, credits`,
+      ),
       db.query<SmsProviderCostRow>(
         `SELECT * FROM sms_provider_costs
          WHERE provider = $1 AND effective_to IS NULL
@@ -120,13 +131,17 @@ export async function getPricingConfig() {
         [DEFAULT_SMS_PROVIDER],
       ),
     ]);
-    return { tiers: tiers.rows, packages: packages.rows, providerCost: cost.rows[0] ?? null };
+    return {
+      tiers: tiers.rows,
+      packages: packages.rows,
+      providerCost: cost.rows[0] ?? null,
+    };
   });
 }
 
 export async function createTier(actorId: string, input: TierInput) {
   if (input.maxCredits !== null && input.maxCredits < input.minCredits) {
-    throw new ValidationError('maxCredits must be at least minCredits');
+    throw new ValidationError("maxCredits must be at least minCredits");
   }
   return withAdminDb(async (db) => {
     // Created INACTIVE always. A new band that priced live traffic the instant
@@ -137,18 +152,38 @@ export async function createTier(actorId: string, input: TierInput) {
          (name, min_credits, max_credits, unit_price, display_order, notes, is_active)
        VALUES ($1,$2,$3,$4,$5,$6,false)
        RETURNING *`,
-      [input.name, input.minCredits, input.maxCredits, input.unitPrice.toFixed(4),
-       input.displayOrder ?? 0, input.notes ?? null],
+      [
+        input.name,
+        input.minCredits,
+        input.maxCredits,
+        input.unitPrice.toFixed(4),
+        input.displayOrder ?? 0,
+        input.notes ?? null,
+      ],
     );
-    await audit(db, actorId, 'sms_pricing.tier_created', rows[0].id, null, rows[0]);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.tier_created",
+      rows[0].id,
+      null,
+      rows[0],
+    );
     return rows[0];
   });
 }
 
-export async function updateTier(actorId: string, id: string, input: Partial<TierInput>) {
+export async function updateTier(
+  actorId: string,
+  id: string,
+  input: Partial<TierInput>,
+) {
   return withAdminDb(async (db) => {
-    const { rows: before } = await db.query(`SELECT * FROM sms_pricing_tiers WHERE id = $1`, [id]);
-    if (!before[0]) throw new NotFoundError('Pricing tier', id);
+    const { rows: before } = await db.query(
+      `SELECT * FROM sms_pricing_tiers WHERE id = $1`,
+      [id],
+    );
+    if (!before[0]) throw new NotFoundError("Pricing tier", id);
 
     const { rows } = await db.query(
       `UPDATE sms_pricing_tiers SET
@@ -160,13 +195,27 @@ export async function updateTier(actorId: string, id: string, input: Partial<Tie
          notes        = COALESCE($8, notes),
          updated_at   = NOW()
        WHERE id = $1 RETURNING *`,
-      [id, input.name ?? null, input.minCredits ?? null,
-       // maxCredits is meaningfully nullable ("and above"), so COALESCE cannot
-       // distinguish "leave it" from "set it to unbounded". A flag can.
-       Object.prototype.hasOwnProperty.call(input, 'maxCredits'), input.maxCredits ?? null,
-       input.unitPrice?.toFixed(4) ?? null, input.displayOrder ?? null, input.notes ?? null],
+      [
+        id,
+        input.name ?? null,
+        input.minCredits ?? null,
+        // maxCredits is meaningfully nullable ("and above"), so COALESCE cannot
+        // distinguish "leave it" from "set it to unbounded". A flag can.
+        Object.prototype.hasOwnProperty.call(input, "maxCredits"),
+        input.maxCredits ?? null,
+        input.unitPrice?.toFixed(4) ?? null,
+        input.displayOrder ?? null,
+        input.notes ?? null,
+      ],
     );
-    await audit(db, actorId, 'sms_pricing.tier_updated', id, before[0], rows[0]);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.tier_updated",
+      id,
+      before[0],
+      rows[0],
+    );
     return rows[0];
   });
 }
@@ -191,13 +240,15 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
   // next time that client was used. The deferred constraint is checked at
   // withAdminDb's COMMIT, which is exactly the boundary we want.
   return withAdminDb(async (db) => {
-    await db.query('SET CONSTRAINTS sms_tier_no_overlap DEFERRED');
+    await db.query("SET CONSTRAINTS sms_tier_no_overlap DEFERRED");
 
     const { rows: before } = await db.query<TierActivationRow>(
       `SELECT id, name, is_active FROM sms_pricing_tiers ORDER BY display_order`,
     );
 
-    await db.query(`UPDATE sms_pricing_tiers SET is_active = false, updated_at = NOW() WHERE is_active`);
+    await db.query(
+      `UPDATE sms_pricing_tiers SET is_active = false, updated_at = NOW() WHERE is_active`,
+    );
     if (tierIds.length) {
       await db.query(
         `UPDATE sms_pricing_tiers SET is_active = true, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
@@ -208,7 +259,14 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
     const { rows: after } = await db.query<TierActivationRow>(
       `SELECT id, name, is_active FROM sms_pricing_tiers ORDER BY display_order`,
     );
-    await audit(db, actorId, 'sms_pricing.tiers_activated', null, before, after);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.tiers_activated",
+      null,
+      before,
+      after,
+    );
 
     // The overlap check runs when withAdminDb commits. An overlapping request
     // therefore throws and changes nothing — the price list cannot be left
@@ -224,18 +282,38 @@ export async function createPackage(actorId: string, input: PackageInput) {
          (name, description, credits, price, is_recommended, display_order, is_active)
        VALUES ($1,$2,$3,$4,$5,$6,false)
        RETURNING *`,
-      [input.name, input.description ?? null, input.credits, input.price.toFixed(2),
-       input.isRecommended ?? false, input.displayOrder ?? 0],
+      [
+        input.name,
+        input.description ?? null,
+        input.credits,
+        input.price.toFixed(2),
+        input.isRecommended ?? false,
+        input.displayOrder ?? 0,
+      ],
     );
-    await audit(db, actorId, 'sms_pricing.package_created', rows[0].id, null, rows[0]);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.package_created",
+      rows[0].id,
+      null,
+      rows[0],
+    );
     return rows[0];
   });
 }
 
-export async function updatePackage(actorId: string, id: string, input: Partial<PackageInput> & { isActive?: boolean }) {
+export async function updatePackage(
+  actorId: string,
+  id: string,
+  input: Partial<PackageInput> & { isActive?: boolean },
+) {
   return withAdminDb(async (db) => {
-    const { rows: before } = await db.query(`SELECT * FROM sms_packages WHERE id = $1`, [id]);
-    if (!before[0]) throw new NotFoundError('SMS package', id);
+    const { rows: before } = await db.query(
+      `SELECT * FROM sms_packages WHERE id = $1`,
+      [id],
+    );
+    if (!before[0]) throw new NotFoundError("SMS package", id);
 
     // Only one active package may be recommended (partial unique index), and
     // the same per-row checking applies — clear the old one first rather than
@@ -243,7 +321,8 @@ export async function updatePackage(actorId: string, id: string, input: Partial<
     if (input.isRecommended) {
       await db.query(
         `UPDATE sms_packages SET is_recommended = false, updated_at = NOW()
-         WHERE is_recommended AND id <> $1`, [id],
+         WHERE is_recommended AND id <> $1`,
+        [id],
       );
     }
 
@@ -258,11 +337,25 @@ export async function updatePackage(actorId: string, id: string, input: Partial<
          display_order  = COALESCE($8, display_order),
          updated_at     = NOW()
        WHERE id = $1 RETURNING *`,
-      [id, input.name ?? null, input.description ?? null, input.credits ?? null,
-       input.price?.toFixed(2) ?? null, input.isRecommended ?? null,
-       input.isActive ?? null, input.displayOrder ?? null],
+      [
+        id,
+        input.name ?? null,
+        input.description ?? null,
+        input.credits ?? null,
+        input.price?.toFixed(2) ?? null,
+        input.isRecommended ?? null,
+        input.isActive ?? null,
+        input.displayOrder ?? null,
+      ],
     );
-    await audit(db, actorId, 'sms_pricing.package_updated', id, before[0], rows[0]);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.package_updated",
+      id,
+      before[0],
+      rows[0],
+    );
     return rows[0];
   });
 }
@@ -274,8 +367,13 @@ export async function updatePackage(actorId: string, id: string, input: Partial<
  * against the cost that applied THEN (sms-margin.service.ts), so overwriting
  * would silently restate history. The old row is closed, not replaced.
  */
-export async function setProviderCost(actorId: string, unitCost: number, notes?: string) {
-  if (unitCost < 0) throw new ValidationError('Provider cost cannot be negative');
+export async function setProviderCost(
+  actorId: string,
+  unitCost: number,
+  notes?: string,
+) {
+  if (unitCost < 0)
+    throw new ValidationError("Provider cost cannot be negative");
   // Again no manual transaction — withAdminDb provides one, and closing the old
   // window plus opening the new one must land together or not at all.
   return withAdminDb(async (db) => {
@@ -295,7 +393,14 @@ export async function setProviderCost(actorId: string, unitCost: number, notes?:
        VALUES ($1, $2, CURRENT_DATE, $3) RETURNING *`,
       [DEFAULT_SMS_PROVIDER, unitCost.toFixed(4), notes ?? null],
     );
-    await audit(db, actorId, 'sms_pricing.provider_cost_changed', rows[0].id, before[0] ?? null, rows[0]);
+    await audit(
+      db,
+      actorId,
+      "sms_pricing.provider_cost_changed",
+      rows[0].id,
+      before[0] ?? null,
+      rows[0],
+    );
     return rows[0];
   });
 }

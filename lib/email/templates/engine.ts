@@ -1,22 +1,22 @@
-import { withAdminDb } from '@/lib/db';
-import { BRAND, getBrandLogoUrl, brandFooterLine } from '@/lib/brand';
+import { withAdminDb } from "@/lib/db";
+import { BRAND, getBrandLogoUrl, brandFooterLine } from "@/lib/brand";
 
 export interface TemplateVars {
   [key: string]: string | number | boolean | null | undefined;
 }
 
 export interface BrandingContext {
-  senderName?:   string;
-  logoUrl?:      string;
+  senderName?: string;
+  logoUrl?: string;
   primaryColor?: string;
-  footerText?:   string;
+  footerText?: string;
 }
 
 // Simple {{variable}} substitution
 export function interpolate(template: string, vars: TemplateVars): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
     const val = vars[key];
-    if (val === null || val === undefined) return '';
+    if (val === null || val === undefined) return "";
     return String(val);
   });
 }
@@ -25,7 +25,7 @@ export function interpolate(template: string, vars: TemplateVars): string {
 export async function loadDbTemplate(
   templateKey: string,
   groupId: string | null,
-  locale = 'en',
+  locale = "en",
 ): Promise<{ subject: string; body: string } | null> {
   const { rows } = await withAdminDb((db) =>
     db.query(
@@ -42,7 +42,7 @@ export async function loadDbTemplate(
   if (rows.length) return { subject: rows[0].subject, body: rows[0].body };
 
   // Fallback to 'en' if locale not found
-  if (locale !== 'en') {
+  if (locale !== "en") {
     const { rows: fallback } = await withAdminDb((db) =>
       db.query(
         `SELECT subject, body FROM email_templates
@@ -55,14 +55,17 @@ export async function loadDbTemplate(
         [templateKey, groupId],
       ),
     );
-    if (fallback.length) return { subject: fallback[0].subject, body: fallback[0].body };
+    if (fallback.length)
+      return { subject: fallback[0].subject, body: fallback[0].body };
   }
 
   return null;
 }
 
 // Load group branding from DB
-export async function loadBranding(groupId: string | null): Promise<BrandingContext> {
+export async function loadBranding(
+  groupId: string | null,
+): Promise<BrandingContext> {
   if (!groupId) return {};
   try {
     const { rows } = await withAdminDb((db) =>
@@ -86,10 +89,13 @@ export async function loadBranding(groupId: string | null): Promise<BrandingCont
 
 // Wrap body content in a branded HTML shell. Designed for email clients —
 // inline styles, table-based layout, no JS, no external CSS.
-export function wrapWithBranding(content: string, branding: BrandingContext): string {
-  const primary    = branding.primaryColor ?? BRAND.colors.green;
-  const logoUrl    = branding.logoUrl      ?? getBrandLogoUrl();
-  const footerText = branding.footerText   ?? brandFooterLine();
+export function wrapWithBranding(
+  content: string,
+  branding: BrandingContext,
+): string {
+  const primary = branding.primaryColor ?? BRAND.colors.green;
+  const logoUrl = branding.logoUrl ?? getBrandLogoUrl();
+  const footerText = branding.footerText ?? brandFooterLine();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -135,7 +141,7 @@ export async function renderTemplate(
   templateKey: string,
   vars: TemplateVars,
   groupId: string | null,
-  locale = 'en',
+  locale = "en",
   fallbackHtml?: string,
 ): Promise<{ subject: string; html: string }> {
   const branding = await loadBranding(groupId);
@@ -151,8 +157,13 @@ export async function renderTemplate(
   // Fall back to inline default
   if (fallbackHtml) {
     const html = wrapWithBranding(interpolate(fallbackHtml, vars), branding);
-    return { subject: vars.subject ? String(vars.subject) : 'Kitabu Yetu', html };
+    return {
+      subject: vars.subject ? String(vars.subject) : "Kitabu Yetu",
+      html,
+    };
   }
 
-  throw new Error(`Email template '${templateKey}' not found and no fallback provided.`);
+  throw new Error(
+    `Email template '${templateKey}' not found and no fallback provided.`,
+  );
 }

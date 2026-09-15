@@ -1,8 +1,8 @@
-import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
-import { Container, RevealedHeading, Section } from './primitives';
-import { Reveal } from './reveal';
-import { RESOURCES } from './content';
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { Container, RevealedHeading, Section } from "./primitives";
+import { Reveal } from "./reveal";
+import { RESOURCES } from "./content";
 
 /**
  * Section 11 — where to go next.
@@ -28,7 +28,12 @@ export function ResourcesSection() {
 
         <ul className="mt-14 grid gap-px overflow-hidden rounded-2xl bg-brand-blue-900/[0.09] ring-1 ring-brand-blue-900/[0.09] sm:grid-cols-2 lg:mt-20 lg:grid-cols-3">
           {RESOURCES.map((item, i) => (
-            <Reveal as="li" key={item.href} delay={i * 55} className="bg-paper-deep">
+            <Reveal
+              as="li"
+              key={item.href}
+              delay={i * 55}
+              className="bg-paper-deep"
+            >
               <Link
                 href={item.href}
                 className="group flex h-full flex-col p-8 transition-colors duration-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"

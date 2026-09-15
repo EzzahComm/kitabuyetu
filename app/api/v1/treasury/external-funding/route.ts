@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/treasury/external-funding — disbursements this group has
@@ -13,8 +13,14 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const page  = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '20', 10)));
+    const page = Math.max(
+      1,
+      parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10),
+    );
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.nextUrl.searchParams.get("limit") ?? "20", 10)),
+    );
 
     const data = await withAdminDb(async (db) => {
       const { rows: countRows } = await db.query<{ n: string }>(
@@ -42,9 +48,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       );
       return {
         items: rows,
-        total: parseInt(countRows[0]?.n ?? '0', 10),
-        totalReceived: totals[0]?.total_received ?? '0',
-        page, limit,
+        total: parseInt(countRows[0]?.n ?? "0", 10),
+        totalReceived: totals[0]?.total_received ?? "0",
+        page,
+        limit,
       };
     });
 

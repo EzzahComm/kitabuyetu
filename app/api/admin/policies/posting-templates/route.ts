@@ -1,10 +1,10 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withPlatformRole } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { postingTemplatesService } from '@/lib/services/posting-templates.service';
-import { SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPlatformRole } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { postingTemplatesService } from "@/lib/services/posting-templates.service";
+import { SetPostingTemplateSchema } from "@/lib/validators/accounting.schema";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/admin/policies/posting-templates — platform-wide posting templates.
@@ -13,15 +13,30 @@ import { ok } from '@/lib/utils/response';
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPlatformRole(req, ['super_admin', 'support'], async () => {
-    return ok(await withAdminDb((client) => postingTemplatesService.getPlatformTemplates(client)));
+  return withPlatformRole(req, ["super_admin", "support"], async () => {
+    return ok(
+      await withAdminDb((client) =>
+        postingTemplatesService.getPlatformTemplates(client),
+      ),
+    );
   });
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withPlatformRole(req, 'super_admin', async (auth) => {
+  return withPlatformRole(req, "super_admin", async (auth) => {
     const input = SetPostingTemplateSchema.parse(await req.json());
-    await withAdminDb((client) => postingTemplatesService.setPlatformDefault(auth.userId, client, input.event, input.lines));
-    return ok(await withAdminDb((client) => postingTemplatesService.getPlatformTemplates(client)));
+    await withAdminDb((client) =>
+      postingTemplatesService.setPlatformDefault(
+        auth.userId,
+        client,
+        input.event,
+        input.lines,
+      ),
+    );
+    return ok(
+      await withAdminDb((client) =>
+        postingTemplatesService.getPlatformTemplates(client),
+      ),
+    );
   });
 }

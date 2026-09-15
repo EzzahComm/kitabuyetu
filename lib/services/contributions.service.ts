@@ -1,37 +1,58 @@
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ConflictError } from '@/lib/utils/errors';
-import { assertActiveMembership } from './membership-guard';
-import type { Contribution, PaginatedResult } from '@/types/db.types';
-import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
-import { postContributionJournal } from './accounting.service';
-import { sendContributionConfirmation } from './notification-email.service';
-import { logger } from '@/lib/logger';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError, ConflictError } from "@/lib/utils/errors";
+import { assertActiveMembership } from "./membership-guard";
+import type { Contribution, PaginatedResult } from "@/types/db.types";
+import type {
+  CreateContributionInput,
+  UpdateContributionInput,
+  ContributionQueryInput,
+} from "@/lib/validators/contribution.schema";
+import { postContributionJournal } from "./accounting.service";
+import { sendContributionConfirmation } from "./notification-email.service";
+import { logger } from "@/lib/logger";
 
 export const contributionsService = {
-
-  async list(ctx: TenantContext, params: ContributionQueryInput): Promise<PaginatedResult<Contribution & { member_name: string }>> {
+  async list(
+    ctx: TenantContext,
+    params: ContributionQueryInput,
+  ): Promise<PaginatedResult<Contribution & { member_name: string }>> {
     return withDb(ctx, async (client) => {
       const { page, limit, memberId, status, from, to, sortDir } = params;
       const offset = (page - 1) * limit;
 
-      const conditions: string[] = ['c.group_id = $1'];
+      const conditions: string[] = ["c.group_id = $1"];
       const values: unknown[] = [ctx.groupId];
       let idx = 2;
 
-      if (memberId) { conditions.push(`c.member_id = $${idx++}`);                              values.push(memberId); }
-      if (status)   { conditions.push(`c.status = $${idx++}`);                                 values.push(status); }
-      if (from)     { conditions.push(`c.contribution_date >= $${idx++}`);                     values.push(from); }
-      if (to)       { conditions.push(`c.contribution_date <= $${idx++}`);                     values.push(to); }
+      if (memberId) {
+        conditions.push(`c.member_id = $${idx++}`);
+        values.push(memberId);
+      }
+      if (status) {
+        conditions.push(`c.status = $${idx++}`);
+        values.push(status);
+      }
+      if (from) {
+        conditions.push(`c.contribution_date >= $${idx++}`);
+        values.push(from);
+      }
+      if (to) {
+        conditions.push(`c.contribution_date <= $${idx++}`);
+        values.push(to);
+      }
 
-      const where   = conditions.join(' AND ');
-      const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+      const where = conditions.join(" AND ");
+      const orderDir = sortDir === "asc" ? "ASC" : "DESC";
 
       const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
+        `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`,
+        values,
       );
       const total = parseInt(countRows[0].count, 10);
 
-      const { rows } = await client.query<Contribution & { member_name: string }>(
+      const { rows } = await client.query<
+        Contribution & { member_name: string }
+      >(
         `SELECT c.*,
                 m.first_name || ' ' || m.last_name AS member_name
          FROM contributions c
@@ -42,14 +63,22 @@ export const contributionsService = {
         [...values, limit, offset],
       );
 
-      return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
+      return {
+        items: rows,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
+      };
     });
   },
 
   // Active members with no completed contribution in the current calendar month.
   // Powers the treasurer home "needs you now" list — small per group, so we
   // return the full set and let the caller cap the preview.
-  async nonContributors(ctx: TenantContext): Promise<{ count: number; sample: { id: string; name: string }[] }> {
+  async nonContributors(
+    ctx: TenantContext,
+  ): Promise<{ count: number; sample: { id: string; name: string }[] }> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<{ id: string; name: string }>(
         `SELECT m.id, m.first_name || ' ' || m.last_name AS name
@@ -80,11 +109,23 @@ export const contributionsService = {
   // vice versa) via reminder_dispatch_log's UNIQUE constraint, suppressing a
   // real reminder neither action actually sent. Idempotent per (member,
   // month) regardless — clicking twice in the same month only sends once.
-  async remindNonContributors(ctx: TenantContext): Promise<{ attempted: number; sent: number; skipped: number; failed: number }> {
+  async remindNonContributors(
+    ctx: TenantContext,
+  ): Promise<{
+    attempted: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+  }> {
     const { rows } = await withDb(ctx, (client) =>
       client.query<{
-        membership_id: string; member_id: string; phone: string;
-        first_name: string; group_name: string; period_key: string; month_label: string;
+        membership_id: string;
+        member_id: string;
+        phone: string;
+        first_name: string;
+        group_name: string;
+        period_key: string;
+        month_label: string;
         membership_no: string;
       }>(
         `SELECT gm.id AS membership_id, gm.member_id, m.phone, m.first_name, g.name AS group_name,
@@ -113,9 +154,13 @@ export const contributionsService = {
       return { attempted: 0, sent: 0, skipped: 0, failed: 0 };
     }
 
-    const { renderTemplate, platformPaybill, DEFAULT_TEMPLATES, TEMPLATE_KEYS } =
-      await import('@/lib/sms/templates');
-    const { sendOnce } = await import('./reminder.service');
+    const {
+      renderTemplate,
+      platformPaybill,
+      DEFAULT_TEMPLATES,
+      TEMPLATE_KEYS,
+    } = await import("@/lib/sms/templates");
+    const { sendOnce } = await import("./reminder.service");
     // The body and the paybill lookup both used to live here as literals,
     // duplicated in lib/jobs/handlers.ts and mpesa-stk.service.ts — so a
     // wording or shortcode change had to be made three times or the three
@@ -124,16 +169,18 @@ export const contributionsService = {
     const paybill = platformPaybill();
     const template = DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER];
 
-    let sent = 0, skipped = 0, failed = 0;
+    let sent = 0,
+      skipped = 0,
+      failed = 0;
     for (const r of rows) {
       const result = await sendOnce({
-        groupId:       ctx.groupId,
-        memberId:      r.member_id,
-        phone:         r.phone,
-        body:          renderTemplate(template, {
-          first_name:     r.first_name,
-          group_name:     r.group_name,
-          month:          r.month_label,
+        groupId: ctx.groupId,
+        memberId: r.member_id,
+        phone: r.phone,
+        body: renderTemplate(template, {
+          first_name: r.first_name,
+          group_name: r.group_name,
+          month: r.month_label,
           paybill,
           // No product suffix — a bare membership_no is the contribution/
           // savings account reference (lib/utils/membership-no.ts's
@@ -147,53 +194,72 @@ export const contributionsService = {
           // best without anything having to keep a second copy in step.
           membership_no: r.membership_no,
         }),
-        referenceType:  'contribution_nudge',
-        referenceId:    r.membership_id,
-        reminderStage:  `contribution_nudge:${r.period_key}`,
+        referenceType: "contribution_nudge",
+        referenceId: r.membership_id,
+        reminderStage: `contribution_nudge:${r.period_key}`,
         // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision
         // B): bundled allowance now exists, so this real send-path bills,
         // same as the scheduled reminder it mirrors.
-        billingMode:    'billed',
+        billingMode: "billed",
       });
       if (result.sent) sent++;
       // 'cooldown' defers rather than fails — see the identical note in
       // lib/jobs/handlers.ts.
-      else if (result.status === 'already_sent' || result.status === 'already_suppressed'
-               || result.status === 'cooldown') skipped++;
+      else if (
+        result.status === "already_sent" ||
+        result.status === "already_suppressed" ||
+        result.status === "cooldown"
+      )
+        skipped++;
       else failed++;
     }
 
     return { attempted: rows.length, sent, skipped, failed };
   },
 
-  async getById(ctx: TenantContext, id: string): Promise<Contribution & { member_name: string }> {
+  async getById(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<Contribution & { member_name: string }> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<Contribution & { member_name: string }>(
+      const { rows } = await client.query<
+        Contribution & { member_name: string }
+      >(
         `SELECT c.*, m.first_name || ' ' || m.last_name AS member_name
          FROM contributions c
          JOIN members m ON m.id = c.member_id
          WHERE c.id = $1 AND c.group_id = $2`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Contribution', id);
+      if (!rows[0]) throw new NotFoundError("Contribution", id);
       return rows[0];
     });
   },
 
-  async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
+  async create(
+    ctx: TenantContext,
+    data: CreateContributionInput,
+  ): Promise<Contribution> {
     return withTransaction(ctx, async (client) => {
       // The target member must hold an active membership in THIS group —
       // RLS scopes group_id but never member_id (audit H-1). The returned
       // membership id is stamped on the row (§6a): validation and
       // attribution are the same act.
-      const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
+      const { membershipId } = await assertActiveMembership(
+        client,
+        ctx.groupId,
+        data.memberId,
+      );
 
       if (data.mpesaReceiptNumber) {
         const dup = await client.query(
-          'SELECT id FROM contributions WHERE mpesa_receipt_number = $1',
+          "SELECT id FROM contributions WHERE mpesa_receipt_number = $1",
           [data.mpesaReceiptNumber],
         );
-        if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
+        if (dup.rows[0])
+          throw new ConflictError(
+            `M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`,
+          );
       }
 
       const { rows } = await client.query<Contribution>(
@@ -203,9 +269,13 @@ export const contributionsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
-          ctx.groupId, data.memberId, membershipId, data.amount.toFixed(2),
-          data.contributionDate, data.dueDate ?? null,
-          data.paymentMethod ? 'completed' : 'pending',
+          ctx.groupId,
+          data.memberId,
+          membershipId,
+          data.amount.toFixed(2),
+          data.contributionDate,
+          data.dueDate ?? null,
+          data.paymentMethod ? "completed" : "pending",
           data.paymentMethod ?? null,
           data.mpesaReceiptNumber ?? null,
           data.notes ?? null,
@@ -216,10 +286,14 @@ export const contributionsService = {
       const contribution = rows[0];
 
       // Auto-post a journal entry when the contribution is completed on creation
-      if (contribution.status === 'completed') {
+      if (contribution.status === "completed") {
         await postContributionJournal(client, {
-          groupId: ctx.groupId, contributionId: contribution.id, amount: parseFloat(contribution.amount),
-          entryDate: contribution.contribution_date, reference: contribution.mpesa_receipt_number, createdBy: ctx.userId,
+          groupId: ctx.groupId,
+          contributionId: contribution.id,
+          amount: parseFloat(contribution.amount),
+          entryDate: contribution.contribution_date,
+          reference: contribution.mpesa_receipt_number,
+          createdBy: ctx.userId,
         });
       }
 
@@ -232,12 +306,18 @@ export const contributionsService = {
    * Never throws — a missing/failed email must never affect the contribution.
    * Only fires for completed contributions.
    */
-  async notifyReceipt(ctx: TenantContext, contribution: Contribution): Promise<void> {
-    if (contribution.status !== 'completed') return;
+  async notifyReceipt(
+    ctx: TenantContext,
+    contribution: Contribution,
+  ): Promise<void> {
+    if (contribution.status !== "completed") return;
     try {
       const data = await withDb(ctx, async (client) => {
         const { rows } = await client.query<{
-          email: string | null; member_name: string; group_name: string; total: string;
+          email: string | null;
+          member_name: string;
+          group_name: string;
+          total: string;
         }>(
           `SELECT m.email,
                   m.first_name || ' ' || m.last_name AS member_name,
@@ -257,29 +337,43 @@ export const contributionsService = {
         email: data.email,
         memberName: data.member_name,
         amount: String(contribution.amount),
-        periodLabel: when.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' }),
-        reference: contribution.mpesa_receipt_number ?? '',
-        date: when.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' }),
-        paymentMethod: contribution.payment_method ?? 'mpesa',
+        periodLabel: when.toLocaleDateString("en-KE", {
+          month: "long",
+          year: "numeric",
+        }),
+        reference: contribution.mpesa_receipt_number ?? "",
+        date: when.toLocaleDateString("en-KE", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+        paymentMethod: contribution.payment_method ?? "mpesa",
         totalContributions: String(data.total),
         groupId: ctx.groupId,
         memberId: contribution.member_id,
         contributionId: contribution.id,
         groupName: data.group_name,
-        status: 'completed',
+        status: "completed",
       });
     } catch (err) {
-      logger.warn('[contributions] receipt email failed', { contributionId: contribution.id, error: (err as Error).message });
+      logger.warn("[contributions] receipt email failed", {
+        contributionId: contribution.id,
+        error: (err as Error).message,
+      });
     }
   },
 
-  async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
+  async update(
+    ctx: TenantContext,
+    id: string,
+    data: UpdateContributionInput,
+  ): Promise<Contribution> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Contribution>(
-        'SELECT * FROM contributions WHERE id = $1 AND group_id = $2',
+        "SELECT * FROM contributions WHERE id = $1 AND group_id = $2",
         [id, ctx.groupId],
       );
-      if (!existing[0]) throw new NotFoundError('Contribution', id);
+      if (!existing[0]) throw new NotFoundError("Contribution", id);
 
       const prev = existing[0];
 
@@ -287,28 +381,41 @@ export const contributionsService = {
       const values: unknown[] = [];
       let idx = 1;
 
-      if (data.status  !== undefined) { sets.push(`status = $${idx++}`);               values.push(data.status); }
-      if (data.paymentMethod !== undefined) { sets.push(`payment_method = $${idx++}`); values.push(data.paymentMethod); }
+      if (data.status !== undefined) {
+        sets.push(`status = $${idx++}`);
+        values.push(data.status);
+      }
+      if (data.paymentMethod !== undefined) {
+        sets.push(`payment_method = $${idx++}`);
+        values.push(data.paymentMethod);
+      }
       if (data.mpesaReceiptNumber !== undefined) {
         sets.push(`mpesa_receipt_number = $${idx++}`);
         values.push(data.mpesaReceiptNumber);
       }
-      if (data.notes !== undefined) { sets.push(`notes = $${idx++}`);                  values.push(data.notes); }
+      if (data.notes !== undefined) {
+        sets.push(`notes = $${idx++}`);
+        values.push(data.notes);
+      }
 
       if (!sets.length) return prev;
 
       values.push(id);
       const { rows } = await client.query<Contribution>(
-        `UPDATE contributions SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+        `UPDATE contributions SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`,
         values,
       );
       const updated = rows[0];
 
       // Post journal when status transitions to completed
-      if (updated.status === 'completed' && prev.status !== 'completed') {
+      if (updated.status === "completed" && prev.status !== "completed") {
         await postContributionJournal(client, {
-          groupId: ctx.groupId, contributionId: updated.id, amount: parseFloat(updated.amount),
-          entryDate: updated.contribution_date, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
+          groupId: ctx.groupId,
+          contributionId: updated.id,
+          amount: parseFloat(updated.amount),
+          entryDate: updated.contribution_date,
+          reference: updated.mpesa_receipt_number,
+          createdBy: ctx.userId,
         });
       }
 
@@ -324,7 +431,7 @@ export const contributionsService = {
         `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
         [id, ctx.groupId],
       );
-      if (!rowCount) throw new NotFoundError('Pending contribution', id);
+      if (!rowCount) throw new NotFoundError("Pending contribution", id);
     });
   },
 };

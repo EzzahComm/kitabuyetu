@@ -1,7 +1,9 @@
-import { z } from 'zod';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
+import { z } from "zod";
+import { isValidKenyanPhone } from "@/lib/utils/phone";
 
-const phoneSchema = z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number');
+const phoneSchema = z
+  .string()
+  .refine(isValidKenyanPhone, "Invalid Kenyan phone number");
 
 /**
  * Ceiling on the ad-hoc `/sms/send` surface.
@@ -21,10 +23,10 @@ const phoneSchema = z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone 
 const SEND_MAX_RECIPIENTS = 10;
 
 export const SendSmsSchema = z.object({
-  phone:         phoneSchema.or(z.array(phoneSchema).min(1).max(SEND_MAX_RECIPIENTS)),
-  message:       z.string().min(1).max(320),
+  phone: phoneSchema.or(z.array(phoneSchema).min(1).max(SEND_MAX_RECIPIENTS)),
+  message: z.string().min(1).max(320),
   referenceType: z.string().max(50).optional().nullable(),
-  referenceId:   z.string().uuid().optional().nullable(),
+  referenceId: z.string().uuid().optional().nullable(),
 });
 
 /**
@@ -36,20 +38,22 @@ export const SendSmsSchema = z.object({
  * outcome, including suppressed.
  */
 export const ReminderHistoryQuerySchema = z.object({
-  page:     z.coerce.number().int().min(1).default(1),
-  limit:    z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   memberId: z.string().uuid().optional(),
-  status:   z.enum(['pending', 'sent', 'failed', 'suppressed']).optional(),
-  from:     z.string().date().optional(),
-  to:       z.string().date().optional(),
+  status: z.enum(["pending", "sent", "failed", "suppressed"]).optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
 });
 
 export const SmsUsageQuerySchema = z.object({
-  page:    z.coerce.number().int().min(1).default(1),
-  limit:   z.coerce.number().int().min(1).max(100).default(20),
-  status:  z.enum(['queued', 'sent', 'delivered', 'failed', 'rejected']).optional(),
-  from:    z.string().date().optional(),
-  to:      z.string().date().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z
+    .enum(["queued", "sent", "delivered", "failed", "rejected"])
+    .optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
 });
 
 /**
@@ -71,21 +75,23 @@ export const SmsUsageQuerySchema = z.object({
  * `.max(5000)` binds only the client-supplied list. A server-resolved audience
  * is the group's real membership and is not truncated to fit a request cap.
  */
-export const BulkSmsSchema = z.object({
-  phones:        z.array(phoneSchema).min(1).max(5000).optional(),
-  recipientType: z.enum(['all_members', 'active_members']).optional(),
-  message:       z.string().min(1).max(320),
-  senderId:      z.string().max(20).optional(),
-  timeToSend:    z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/).optional(),
-  referenceType: z.string().max(50).optional().nullable(),
-  referenceId:   z.string().uuid().optional().nullable(),
-}).refine(
-  (d) => (d.phones !== undefined) !== (d.recipientType !== undefined),
-  {
-    message: 'Provide exactly one of `phones` or `recipientType`.',
-    path: ['phones'],
-  },
-);
+export const BulkSmsSchema = z
+  .object({
+    phones: z.array(phoneSchema).min(1).max(5000).optional(),
+    recipientType: z.enum(["all_members", "active_members"]).optional(),
+    message: z.string().min(1).max(320),
+    senderId: z.string().max(20).optional(),
+    timeToSend: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
+      .optional(),
+    referenceType: z.string().max(50).optional().nullable(),
+    referenceId: z.string().uuid().optional().nullable(),
+  })
+  .refine((d) => (d.phones !== undefined) !== (d.recipientType !== undefined), {
+    message: "Provide exactly one of `phones` or `recipientType`.",
+    path: ["phones"],
+  });
 
 /**
  * The audience payload for the two `recipientType` values that carry one.
@@ -111,10 +117,12 @@ export const BulkSmsSchema = z.object({
  * predate any schema and are read back by the scheduler without
  * re-validation, so tightening here cannot break an existing schedule.
  */
-const RawRecipientsSchema = z.object({
-  phones:    z.array(phoneSchema).min(1).max(5000).optional(),
-  memberIds: z.array(z.string().uuid()).min(1).max(5000).optional(),
-}).strict();
+const RawRecipientsSchema = z
+  .object({
+    phones: z.array(phoneSchema).min(1).max(5000).optional(),
+    memberIds: z.array(z.string().uuid()).min(1).max(5000).optional(),
+  })
+  .strict();
 
 /**
  * `recipientType` and `rawRecipients` are two halves of one statement, so
@@ -122,49 +130,71 @@ const RawRecipientsSchema = z.object({
  * without memberIds) resolved to an empty audience and sent to nobody, with
  * no error anywhere.
  */
-function refineAudience<T extends { recipientType: string; rawRecipients?: { phones?: unknown[]; memberIds?: unknown[] } }>(
-  v: T,
-  ctx: z.RefinementCtx,
-): void {
-  if (v.recipientType === 'custom_phones' && !v.rawRecipients?.phones?.length) {
+function refineAudience<
+  T extends {
+    recipientType: string;
+    rawRecipients?: { phones?: unknown[]; memberIds?: unknown[] };
+  },
+>(v: T, ctx: z.RefinementCtx): void {
+  if (v.recipientType === "custom_phones" && !v.rawRecipients?.phones?.length) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['rawRecipients', 'phones'],
+      path: ["rawRecipients", "phones"],
       message: 'recipientType "custom_phones" requires rawRecipients.phones',
     });
   }
-  if (v.recipientType === 'selected' && !v.rawRecipients?.memberIds?.length) {
+  if (v.recipientType === "selected" && !v.rawRecipients?.memberIds?.length) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['rawRecipients', 'memberIds'],
+      path: ["rawRecipients", "memberIds"],
       message: 'recipientType "selected" requires rawRecipients.memberIds',
     });
   }
 }
 
-export const CampaignCreateSchema = z.object({
-  name:           z.string().min(1).max(100),
-  description:    z.string().max(500).optional(),
-  message:        z.string().min(1).max(320),
-  templateId:     z.string().uuid().optional(),
-  recipientType:  z.enum(['all_members', 'active_members', 'selected', 'custom_phones']).default('all_members'),
-  rawRecipients:  RawRecipientsSchema.optional(),
-  scheduledAt:    z.string().datetime({ offset: true }).optional().nullable(),
-  senderId:       z.string().max(20).optional(),
-  // Who pays. Defaults to the group, preserving prior behaviour. An
-  // organization-funded campaign debits organization_billing_accounts instead.
-  fundedBy:       z.enum(['group', 'organization']).default('group'),
-  organizationId: z.string().uuid().optional(),
-}).superRefine(refineAudience).refine(
-  (v) => v.fundedBy === 'group' || !!v.organizationId,
-  { message: 'organizationId is required when fundedBy is "organization"', path: ['organizationId'] },
-);
+export const CampaignCreateSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    description: z.string().max(500).optional(),
+    message: z.string().min(1).max(320),
+    templateId: z.string().uuid().optional(),
+    recipientType: z
+      .enum(["all_members", "active_members", "selected", "custom_phones"])
+      .default("all_members"),
+    rawRecipients: RawRecipientsSchema.optional(),
+    scheduledAt: z.string().datetime({ offset: true }).optional().nullable(),
+    senderId: z.string().max(20).optional(),
+    // Who pays. Defaults to the group, preserving prior behaviour. An
+    // organization-funded campaign debits organization_billing_accounts instead.
+    fundedBy: z.enum(["group", "organization"]).default("group"),
+    organizationId: z.string().uuid().optional(),
+  })
+  .superRefine(refineAudience)
+  .refine((v) => v.fundedBy === "group" || !!v.organizationId, {
+    message: 'organizationId is required when fundedBy is "organization"',
+    path: ["organizationId"],
+  });
 
 export const TemplateCreateSchema = z.object({
-  templateKey: z.string().min(1).max(50).regex(/^[a-z0-9_]+$/),
-  name:        z.string().min(1).max(100),
-  body:        z.string().min(1).max(640),
-  category:    z.enum(['transaction', 'loan', 'reminder', 'birthday', 'onboarding', 'auth', 'announcement', 'custom']).default('custom'),
+  templateKey: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-z0-9_]+$/),
+  name: z.string().min(1).max(100),
+  body: z.string().min(1).max(640),
+  category: z
+    .enum([
+      "transaction",
+      "loan",
+      "reminder",
+      "birthday",
+      "onboarding",
+      "auth",
+      "announcement",
+      "custom",
+    ])
+    .default("custom"),
 });
 
 /**
@@ -179,17 +209,23 @@ export const TemplateCreateSchema = z.object({
  * branch is reached only by trigger rules calling the resolver directly, and
  * a strict rawRecipients has nowhere to put a roles list anyway.
  */
-export const BulkPreviewSchema = z.object({
-  message:       z.string().min(1).max(320),
-  phones:        z.array(phoneSchema).min(1).max(5000).optional(),
-  recipientType: z.enum(['all_members', 'active_members', 'custom_phones', 'selected']).optional(),
-  rawRecipients: RawRecipientsSchema.optional(),
-}).refine(
-  (d) => (d.phones !== undefined) !== (d.recipientType !== undefined),
-  { message: 'Provide exactly one of `phones` or `recipientType`.', path: ['phones'] },
-);
+export const BulkPreviewSchema = z
+  .object({
+    message: z.string().min(1).max(320),
+    phones: z.array(phoneSchema).min(1).max(5000).optional(),
+    recipientType: z
+      .enum(["all_members", "active_members", "custom_phones", "selected"])
+      .optional(),
+    rawRecipients: RawRecipientsSchema.optional(),
+  })
+  .refine((d) => (d.phones !== undefined) !== (d.recipientType !== undefined), {
+    message: "Provide exactly one of `phones` or `recipientType`.",
+    path: ["phones"],
+  });
 
-export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({ templateKey: true });
+export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({
+  templateKey: true,
+});
 
 /**
  * Base object kept separate from the refined create schema below: superRefine
@@ -198,8 +234,8 @@ export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({ templa
  * that touches only `name` must not be forced to resend the audience.
  */
 const ScheduleCreateBase = z.object({
-  name:           z.string().min(1).max(100),
-  description:    z.string().max(500).optional(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
   // 'birthday'/'loan_due' are deliberately excluded here even though the DB
   // CHECK constraint (migration 013) still permits them historically — both
   // are handled as dedicated global jobs (sms_birthday_reminders,
@@ -210,19 +246,22 @@ const ScheduleCreateBase = z.object({
   // forever. Blocking creation here, not widening the scheduler to handle
   // them, since the recipient-selection model these two need doesn't fit
   // this table's shape.
-  scheduleType:   z.enum(['one_time', 'daily', 'weekly', 'monthly']),
-  templateId:     z.string().uuid().optional(),
-  message:        z.string().min(1).max(320).optional(),
-  recipientType:  z.enum(['all_members', 'active_members', 'selected', 'custom_phones']).default('all_members'),
-  rawRecipients:  RawRecipientsSchema.optional(),
+  scheduleType: z.enum(["one_time", "daily", "weekly", "monthly"]),
+  templateId: z.string().uuid().optional(),
+  message: z.string().min(1).max(320).optional(),
+  recipientType: z
+    .enum(["all_members", "active_members", "selected", "custom_phones"])
+    .default("all_members"),
+  rawRecipients: RawRecipientsSchema.optional(),
   cronExpression: z.string().max(50).optional(),
-  nextRunAt:      z.string().datetime({ offset: true }).optional(),
-  timezone:       z.string().max(50).default('Africa/Nairobi'),
-  daysBefore:     z.number().int().min(0).max(30).optional(),
-  isActive:       z.boolean().default(true),
+  nextRunAt: z.string().datetime({ offset: true }).optional(),
+  timezone: z.string().max(50).default("Africa/Nairobi"),
+  daysBefore: z.number().int().min(0).max(30).optional(),
+  isActive: z.boolean().default(true),
 });
 
-export const ScheduleCreateSchema = ScheduleCreateBase.superRefine(refineAudience);
+export const ScheduleCreateSchema =
+  ScheduleCreateBase.superRefine(refineAudience);
 
 /**
  * PATCH shape. Field-level validation (phone format, uuid, caps) still
@@ -238,24 +277,28 @@ export const ScheduleUpdateSchema = ScheduleCreateBase.partial();
  */
 export const SmsGroupSettingsUpdateSchema = z.object({
   autoSendContribution: z.boolean().optional(),
-  autoSendLoan:         z.boolean().optional(),
-  autoSendMeeting:      z.boolean().optional(),
-  autoSendBirthday:     z.boolean().optional(),
+  autoSendLoan: z.boolean().optional(),
+  autoSendMeeting: z.boolean().optional(),
+  autoSendBirthday: z.boolean().optional(),
   // NOT nullable: sms_group_settings.daily_send_limit is `INTEGER NOT NULL
   // DEFAULT 500` (migration 013), so "no cap" has no storable representation.
   // A group with no settings row at all is uncapped — which is what
   // GET /sms/settings already reports for them — and once a row exists the
   // cap can be raised but not removed. Bounded well above any plausible
   // legitimate daily volume so a typo cannot silently defeat the control.
-  dailySendLimit:       z.number().int().min(1).max(100_000).optional(),
+  dailySendLimit: z.number().int().min(1).max(100_000).optional(),
 });
 
-export type SendSmsInput        = z.infer<typeof SendSmsSchema>;
-export type SmsGroupSettingsUpdateInput = z.infer<typeof SmsGroupSettingsUpdateSchema>;
-export type SmsUsageQueryInput  = z.infer<typeof SmsUsageQuerySchema>;
-export type ReminderHistoryQueryInput = z.infer<typeof ReminderHistoryQuerySchema>;
-export type BulkPreviewInput          = z.infer<typeof BulkPreviewSchema>;
-export type BulkSmsInput        = z.infer<typeof BulkSmsSchema>;
+export type SendSmsInput = z.infer<typeof SendSmsSchema>;
+export type SmsGroupSettingsUpdateInput = z.infer<
+  typeof SmsGroupSettingsUpdateSchema
+>;
+export type SmsUsageQueryInput = z.infer<typeof SmsUsageQuerySchema>;
+export type ReminderHistoryQueryInput = z.infer<
+  typeof ReminderHistoryQuerySchema
+>;
+export type BulkPreviewInput = z.infer<typeof BulkPreviewSchema>;
+export type BulkSmsInput = z.infer<typeof BulkSmsSchema>;
 export type CampaignCreateInput = z.infer<typeof CampaignCreateSchema>;
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;
 export type TemplateUpdateInput = z.infer<typeof TemplateUpdateSchema>;

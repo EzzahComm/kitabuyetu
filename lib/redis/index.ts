@@ -1,5 +1,5 @@
-import { Redis } from '@upstash/redis';
-import { logger } from '@/lib/logger';
+import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/logger";
 
 // Parse REST URL and token from the REDIS_URL connection string.
 // Both formats are accepted:
@@ -7,11 +7,11 @@ import { logger } from '@/lib/logger';
 //   https://host.upstash.io                      (Upstash REST URL — token via REDIS_TOKEN)
 function buildRedisClient(): Redis {
   const raw = process.env.REDIS_URL;
-  if (!raw) throw new Error('REDIS_URL environment variable is not set');
+  if (!raw) throw new Error("REDIS_URL environment variable is not set");
 
   try {
     const u = new URL(raw);
-    const token = u.password || process.env.REDIS_TOKEN || '';
+    const token = u.password || process.env.REDIS_TOKEN || "";
     const restUrl = `https://${u.hostname}`;
     return new Redis({ url: restUrl, token });
   } catch {
@@ -31,18 +31,18 @@ export const redis = globalWithRedis._kyRedis;
 // Typed key namespaces — prevents key collisions across modules
 // ------------------------------------------------------------------
 export const keys = {
-  refreshToken:  (tokenHash: string)       => `rt:${tokenHash}`,
-  loginAttempts: (phone: string)           => `login_attempts:${phone}`,
-  accountLock:   (phone: string)           => `account_lock:${phone}`,
-  smsQueue:      (groupId: string)         => `sms_queue:${groupId}`,
-  mpesaStatus:   (checkoutReqId: string)   => `mpesa:${checkoutReqId}`,
-  stkLock:       (fingerprint: string)     => `stk_lock:${fingerprint}`,
-  rateLimit:     (ip: string)              => `rl:${ip}`,
-  sessionCache:  (userId: string)          => `session:${userId}`,
-  cache:         (name: string, scope: string) => `cache:${name}:${scope}`,
+  refreshToken: (tokenHash: string) => `rt:${tokenHash}`,
+  loginAttempts: (phone: string) => `login_attempts:${phone}`,
+  accountLock: (phone: string) => `account_lock:${phone}`,
+  smsQueue: (groupId: string) => `sms_queue:${groupId}`,
+  mpesaStatus: (checkoutReqId: string) => `mpesa:${checkoutReqId}`,
+  stkLock: (fingerprint: string) => `stk_lock:${fingerprint}`,
+  rateLimit: (ip: string) => `rl:${ip}`,
+  sessionCache: (userId: string) => `session:${userId}`,
+  cache: (name: string, scope: string) => `cache:${name}:${scope}`,
 };
 
-const PREFIX = process.env.REDIS_PREFIX ?? 'ky:';
+const PREFIX = process.env.REDIS_PREFIX ?? "ky:";
 const k = (key: string) => `${PREFIX}${key}`;
 
 // ------------------------------------------------------------------
@@ -57,7 +57,9 @@ export async function storeRefreshToken(
   await redis.set(k(keys.refreshToken(tokenHash)), userId, { ex: ttlSeconds });
 }
 
-export async function getRefreshToken(tokenHash: string): Promise<string | null> {
+export async function getRefreshToken(
+  tokenHash: string,
+): Promise<string | null> {
   return redis.get<string>(k(keys.refreshToken(tokenHash)));
 }
 
@@ -77,18 +79,21 @@ export async function revokeRefreshToken(tokenHash: string): Promise<void> {
  * Returns the number of keys removed.
  */
 export async function revokeAllRefreshTokens(): Promise<number> {
-  const pattern = k(keys.refreshToken('*'));
-  let cursor = '0';
+  const pattern = k(keys.refreshToken("*"));
+  let cursor = "0";
   let deleted = 0;
 
   do {
-    const [next, batch] = await redis.scan(cursor, { match: pattern, count: 500 });
+    const [next, batch] = await redis.scan(cursor, {
+      match: pattern,
+      count: 500,
+    });
     cursor = String(next);
     if (batch.length) {
       await redis.del(...batch);
       deleted += batch.length;
     }
-  } while (cursor !== '0');
+  } while (cursor !== "0");
 
   logger.info(`[redis] revoked ${deleted} refresh tokens`);
   return deleted;
@@ -112,8 +117,11 @@ export async function getLoginAttempts(phone: string): Promise<number> {
   return val ? parseInt(val, 10) : 0;
 }
 
-export async function lockAccount(phone: string, minutes: number): Promise<void> {
-  await redis.set(k(keys.accountLock(phone)), '1', { ex: minutes * 60 });
+export async function lockAccount(
+  phone: string,
+  minutes: number,
+): Promise<void> {
+  await redis.set(k(keys.accountLock(phone)), "1", { ex: minutes * 60 });
 }
 
 export async function isAccountLocked(phone: string): Promise<boolean> {
@@ -123,16 +131,20 @@ export async function isAccountLocked(phone: string): Promise<boolean> {
 
 export async function cacheMpesaStatus(
   checkoutRequestId: string,
-  status: 'pending' | 'completed' | 'failed',
+  status: "pending" | "completed" | "failed",
   ttlSeconds = 300,
 ): Promise<void> {
-  await redis.set(k(keys.mpesaStatus(checkoutRequestId)), status, { ex: ttlSeconds });
+  await redis.set(k(keys.mpesaStatus(checkoutRequestId)), status, {
+    ex: ttlSeconds,
+  });
 }
 
 export async function getMpesaStatus(
   checkoutRequestId: string,
-): Promise<'pending' | 'completed' | 'failed' | null> {
-  return redis.get<'pending' | 'completed' | 'failed'>(k(keys.mpesaStatus(checkoutRequestId)));
+): Promise<"pending" | "completed" | "failed" | null> {
+  return redis.get<"pending" | "completed" | "failed">(
+    k(keys.mpesaStatus(checkoutRequestId)),
+  );
 }
 
 /**
@@ -146,10 +158,15 @@ export async function acquireStkLock(
   ttlSeconds = 30,
 ): Promise<boolean> {
   try {
-    const res = await redis.set(k(keys.stkLock(fingerprint)), '1', { nx: true, ex: ttlSeconds });
-    return res === 'OK';
+    const res = await redis.set(k(keys.stkLock(fingerprint)), "1", {
+      nx: true,
+      ex: ttlSeconds,
+    });
+    return res === "OK";
   } catch (err) {
-    logger.warn('[redis] STK lock unavailable — allowing request', { err: String(err) });
+    logger.warn("[redis] STK lock unavailable — allowing request", {
+      err: String(err),
+    });
     return true;
   }
 }
@@ -179,7 +196,9 @@ export async function checkRateLimit(
     if (count === 1) await redis.expire(fullKey, windowSeconds);
     return count <= limit;
   } catch (err) {
-    logger.warn('[redis] rate limiter unavailable — allowing request', { err: String(err) });
+    logger.warn("[redis] rate limiter unavailable — allowing request", {
+      err: String(err),
+    });
     return true;
   }
 }
@@ -202,12 +221,17 @@ export async function cached<T>(
     const hit = await redis.get<T>(k(key));
     if (hit !== null && hit !== undefined) return hit;
   } catch (err) {
-    logger.warn('[redis] cache read failed — falling through to source', { key, err: String(err) });
+    logger.warn("[redis] cache read failed — falling through to source", {
+      key,
+      err: String(err),
+    });
   }
 
   const value = await fn();
-  redis.set(k(key), value, { ex: ttlSeconds }).catch((err) =>
-    logger.warn('[redis] cache write failed', { key, err: String(err) }),
-  );
+  redis
+    .set(k(key), value, { ex: ttlSeconds })
+    .catch((err) =>
+      logger.warn("[redis] cache write failed", { key, err: String(err) }),
+    );
   return value;
 }

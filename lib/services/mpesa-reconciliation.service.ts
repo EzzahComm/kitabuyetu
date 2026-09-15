@@ -4,33 +4,40 @@
  * (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { cacheMpesaStatus } from '@/lib/redis';
-import { queryStkStatus as _stkQuery } from './daraja.service';
-import { postContributionJournal } from './accounting.service';
-import { IS_SANDBOX } from './mpesa-spine.service';
-import { routeToUnrouted, type StkRequestRow as AllocationStkRequestRow } from './mpesa-allocation.service';
-import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { cacheMpesaStatus } from "@/lib/redis";
+import { queryStkStatus as _stkQuery } from "./daraja.service";
+import { postContributionJournal } from "./accounting.service";
+import { IS_SANDBOX } from "./mpesa-spine.service";
+import {
+  routeToUnrouted,
+  type StkRequestRow as AllocationStkRequestRow,
+} from "./mpesa-allocation.service";
+import {
+  computeB2CCharge,
+  insertMpesaCharge,
+  postStandaloneChargeJournal,
+} from "./mpesa-charges.service";
 
 export interface ReconciliationResult {
-  reconciliationId:    string;
+  reconciliationId: string;
   transactionsChecked: number;
-  mismatchesFound:     number;
-  resolvedCount:       number;
+  mismatchesFound: number;
+  resolvedCount: number;
 }
 
 export interface ReconStkRow {
-  id:                string;
+  id: string;
   checkout_request_id: string;
-  group_id:          string;
-  purpose:           string | null;
+  group_id: string;
+  purpose: string | null;
   loan_repayment_id: string | null;
   account_reference: string;
-  amount:            string;
-  contribution_id:   string | null;
-  phone:             string;
+  amount: string;
+  contribution_id: string | null;
+  phone: string;
 }
 
 /**
@@ -43,9 +50,12 @@ export interface ReconStkRow {
  * so the contribution is recorded with a NULL receipt and a note explaining the
  * provenance. Unmatched phones still route to the unrouted queue.
  */
-async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): Promise<void> {
-  if (row.contribution_id) return;            // already fulfilled
-  if (row.purpose !== 'contribution') return; // only contributions auto-fulfil here
+async function fulfilReconciledContribution(
+  db: PoolClient,
+  row: ReconStkRow,
+): Promise<void> {
+  if (row.contribution_id) return; // already fulfilled
+  if (row.purpose !== "contribution") return; // only contributions auto-fulfil here
 
   const amount = parseFloat(row.amount);
 
@@ -63,21 +73,32 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
   if (!memberId) {
     // Surrogate receipt = checkout id (mpesa_unrouted.receipt is NOT NULL/UNIQUE).
     const stkReq: AllocationStkRequestRow = {
-      id: row.id, group_id: row.group_id, purpose: row.purpose, invoice_id: null,
-      loan_repayment_id: row.loan_repayment_id, account_reference: row.account_reference,
+      id: row.id,
+      group_id: row.group_id,
+      purpose: row.purpose,
+      invoice_id: null,
+      loan_repayment_id: row.loan_repayment_id,
+      account_reference: row.account_reference,
       amount: row.amount,
       // Only used to route an unmatched payment to mpesa_unrouted, which never
       // activates a subscription.
-      plan_type: null, product: null, billing_cycle: null,
+      plan_type: null,
+      product: null,
+      billing_cycle: null,
     };
     await routeToUnrouted(
       db,
       stkReq,
       {
-        receipt: row.checkout_request_id, amount, phone: row.phone,
-        rawBody: JSON.stringify({ reconciled: true, checkout: row.checkout_request_id }),
+        receipt: row.checkout_request_id,
+        amount,
+        phone: row.phone,
+        rawBody: JSON.stringify({
+          reconciled: true,
+          checkout: row.checkout_request_id,
+        }),
       },
-      { reason: 'unknown_member', candidateGroupId: row.group_id },
+      { reason: "unknown_member", candidateGroupId: row.group_id },
     );
     return;
   }
@@ -92,20 +113,32 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
              $3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL)
      RETURNING id`,
     [
-      row.group_id, memberId, amount.toFixed(2),
+      row.group_id,
+      memberId,
+      amount.toFixed(2),
       `Reconciled from STK ${row.account_reference} — callback not received; M-Pesa receipt unavailable`,
     ],
   );
   const contributionId = cRows[0].id;
 
   await postContributionJournal(db, {
-    groupId: row.group_id, contributionId, amount,
-    entryDate: new Date().toISOString().slice(0, 10), reference: row.checkout_request_id,
-    createdBy: null, isTest: IS_SANDBOX,
+    groupId: row.group_id,
+    contributionId,
+    amount,
+    entryDate: new Date().toISOString().slice(0, 10),
+    reference: row.checkout_request_id,
+    createdBy: null,
+    isTest: IS_SANDBOX,
   });
 
-  await db.query(`UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`, [contributionId, row.id]);
-  logger.warn('[mpesa] reconcile self-healed a lost contribution callback', { stkId: row.id, contributionId });
+  await db.query(
+    `UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`,
+    [contributionId, row.id],
+  );
+  logger.warn("[mpesa] reconcile self-healed a lost contribution callback", {
+    stkId: row.id,
+    contributionId,
+  });
 }
 
 export async function runReconciliation(
@@ -121,7 +154,9 @@ export async function runReconciliation(
   );
   const runId = runRows[0].id;
 
-  let checked = 0, mismatches = 0, resolved = 0;
+  let checked = 0,
+    mismatches = 0,
+    resolved = 0;
   const details: unknown[] = [];
 
   try {
@@ -148,10 +183,10 @@ export async function runReconciliation(
         const statusRes = await _stkQuery(req.checkout_request_id);
         mismatches++;
 
-        const isDone = statusRes.resultCode !== '1032'; // 1032 = request in process
+        const isDone = statusRes.resultCode !== "1032"; // 1032 = request in process
         if (!isDone) continue;
 
-        const newStatus = statusRes.resultCode === '0' ? 'completed' : 'failed';
+        const newStatus = statusRes.resultCode === "0" ? "completed" : "failed";
 
         await withAdminDb(async (db) => {
           // Lock the STK row so a late callback and this sweep can't both fulfil.
@@ -175,15 +210,22 @@ export async function runReconciliation(
 
           // Self-heal: a payment that completed but whose callback was lost
           // (e.g. 403'd / dropped) gets its contribution + journal created here.
-          if (newStatus === 'completed' && row) {
+          if (newStatus === "completed" && row) {
             await fulfilReconciledContribution(db, row);
           }
         });
-        await cacheMpesaStatus(req.checkout_request_id, newStatus as 'completed' | 'failed');
+        await cacheMpesaStatus(
+          req.checkout_request_id,
+          newStatus as "completed" | "failed",
+        );
         resolved++;
-        details.push({ id: req.id, action: `resolved_${newStatus}`, code: statusRes.resultCode });
+        details.push({
+          id: req.id,
+          action: `resolved_${newStatus}`,
+          code: statusRes.resultCode,
+        });
       } catch {
-        details.push({ id: req.id, action: 'query_error' });
+        details.push({ id: req.id, action: "query_error" });
       }
     }
 
@@ -206,7 +248,12 @@ export async function runReconciliation(
     throw err;
   }
 
-  return { reconciliationId: runId, transactionsChecked: checked, mismatchesFound: mismatches, resolvedCount: resolved };
+  return {
+    reconciliationId: runId,
+    transactionsChecked: checked,
+    mismatchesFound: mismatches,
+    resolvedCount: resolved,
+  };
 }
 
 /**
@@ -233,13 +280,15 @@ export async function sweepPaybillTransactions(
   );
   const runId = runRows[0].id;
 
-  let checked = 0, orphaned = 0, queued = 0;
+  let checked = 0,
+    orphaned = 0,
+    queued = 0;
   const details: unknown[] = [];
 
   try {
     await withAdminDb(async (db) => {
       const params: unknown[] = [];
-      let groupFilter = '';
+      let groupFilter = "";
       if (groupId) {
         params.push(groupId);
         groupFilter = `AND t.group_id = $${params.length}`;
@@ -253,17 +302,17 @@ export async function sweepPaybillTransactions(
            AND  t.created_at > NOW() - INTERVAL '24 hours' ${groupFilter}`,
         params,
       );
-      checked = parseInt(countRows[0]?.n ?? '0', 10);
+      checked = parseInt(countRows[0]?.n ?? "0", 10);
 
       // Orphans: completed C2B receipts with no domain fulfilment anywhere.
       const { rows: orphans } = await db.query<{
-        id:                   string;
-        group_id:             string;
+        id: string;
+        group_id: string;
         mpesa_receipt_number: string;
-        phone_number:         string | null;
-        amount:               string;
-        reference:            string | null;
-        raw_response:         unknown;
+        phone_number: string | null;
+        amount: string;
+        reference: string | null;
+        raw_response: unknown;
       }>(
         `SELECT t.id, t.group_id, t.mpesa_receipt_number, t.phone_number,
                 t.amount, t.reference, t.raw_response
@@ -291,9 +340,14 @@ export async function sweepPaybillTransactions(
       orphaned = orphans.length;
 
       for (const txn of orphans) {
-        const rawPayload = txn.raw_response != null
-          ? JSON.stringify(txn.raw_response)
-          : JSON.stringify({ sweep: true, mpesaTransactionId: txn.id, billRef: txn.reference });
+        const rawPayload =
+          txn.raw_response != null
+            ? JSON.stringify(txn.raw_response)
+            : JSON.stringify({
+                sweep: true,
+                mpesaTransactionId: txn.id,
+                billRef: txn.reference,
+              });
 
         const { rowCount } = await db.query(
           `INSERT INTO mpesa_unrouted
@@ -302,17 +356,23 @@ export async function sweepPaybillTransactions(
            VALUES ($1,$2,$3,$4,$5,'other',$6::jsonb,$7)
            ON CONFLICT (receipt) DO NOTHING`,
           [
-            txn.id, txn.mpesa_receipt_number, txn.phone_number ?? '',
-            txn.amount, txn.reference, rawPayload, txn.group_id,
+            txn.id,
+            txn.mpesa_receipt_number,
+            txn.phone_number ?? "",
+            txn.amount,
+            txn.reference,
+            rawPayload,
+            txn.group_id,
           ],
         );
         if (rowCount) {
           queued++;
           details.push({
             receipt: txn.mpesa_receipt_number,
-            amount:  txn.amount,
-            action:  'queued_unrouted',
-            reason:  'completed C2B with no domain record (contribution/repayment/invoice)',
+            amount: txn.amount,
+            action: "queued_unrouted",
+            reason:
+              "completed C2B with no domain record (contribution/repayment/invoice)",
           });
         }
       }
@@ -328,7 +388,12 @@ export async function sweepPaybillTransactions(
       ),
     );
 
-    logger.info('[mpesa] paybill sweep complete', { runId, checked, orphaned, queued });
+    logger.info("[mpesa] paybill sweep complete", {
+      runId,
+      checked,
+      orphaned,
+      queued,
+    });
   } catch (err) {
     await withAdminDb((db) =>
       db.query(
@@ -336,11 +401,16 @@ export async function sweepPaybillTransactions(
         [String(err), runId],
       ),
     );
-    logger.error('[mpesa] paybill sweep failed', { runId, error: err });
+    logger.error("[mpesa] paybill sweep failed", { runId, error: err });
     throw err;
   }
 
-  return { reconciliationId: runId, transactionsChecked: checked, mismatchesFound: orphaned, resolvedCount: queued };
+  return {
+    reconciliationId: runId,
+    transactionsChecked: checked,
+    mismatchesFound: orphaned,
+    resolvedCount: queued,
+  };
 }
 
 /**
@@ -348,10 +418,14 @@ export async function sweepPaybillTransactions(
  * never got an mpesa_charges row (e.g. the inline charge step failed). Computes
  * the deterministic fee, posts a standalone charge journal, and records it.
  */
-export async function reconcileCharges(): Promise<{ examined: number; backfilled: number }> {
+export async function reconcileCharges(): Promise<{
+  examined: number;
+  backfilled: number;
+}> {
   const rows = await withAdminDb((db) =>
-    db.query<{ id: string; group_id: string; amount: string }>(
-      `SELECT t.id, t.group_id, t.amount
+    db
+      .query<{ id: string; group_id: string; amount: string }>(
+        `SELECT t.id, t.group_id, t.amount
        FROM   mpesa_transactions t
        WHERE  t.transaction_type = 'b2c'
          AND  t.status = 'completed'
@@ -360,7 +434,8 @@ export async function reconcileCharges(): Promise<{ examined: number; backfilled
                 SELECT 1 FROM mpesa_charges c WHERE c.mpesa_transaction_id = t.id
               )
        LIMIT  200`,
-    ).then((r) => r.rows),
+      )
+      .then((r) => r.rows),
   );
 
   let backfilled = 0;
@@ -370,21 +445,31 @@ export async function reconcileCharges(): Promise<{ examined: number; backfilled
       if (charge <= 0) {
         // No fee for this tier — record a zero-charge row so we stop re-examining it.
         await insertMpesaCharge(db, {
-          groupId: row.group_id, mpesaTransactionId: row.id,
-          chargeType: 'b2c', amount: 0, journalEntryId: null,
+          groupId: row.group_id,
+          mpesaTransactionId: row.id,
+          chargeType: "b2c",
+          amount: 0,
+          journalEntryId: null,
         });
         return;
       }
       await postStandaloneChargeJournal(db, {
-        groupId:            row.group_id,
-        amount:             charge,
-        reference:          `backfill-${row.id}`,
+        groupId: row.group_id,
+        amount: charge,
+        reference: `backfill-${row.id}`,
         mpesaTransactionId: row.id,
-        chargeType:         'b2c',
+        chargeType: "b2c",
       });
-    }).then(() => { backfilled++; }).catch((err) => {
-      logger.error('[mpesa] charge backfill failed', { txId: row.id, err: String(err) });
-    });
+    })
+      .then(() => {
+        backfilled++;
+      })
+      .catch((err) => {
+        logger.error("[mpesa] charge backfill failed", {
+          txId: row.id,
+          err: String(err),
+        });
+      });
   }
   return { examined: rows.length, backfilled };
 }

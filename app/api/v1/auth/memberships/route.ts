@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok, handleError } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok, handleError } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/auth/memberships — the signed-in member's active memberships,
@@ -43,15 +43,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 
       return ok({
         items: items.map((r) => ({
-          membershipId:   r.membership_id,
-          groupId:        r.group_id,
-          groupCode:      r.group_code,
-          groupName:      r.group_name,
-          role:           r.role,
-          membershipNo:   r.membership_no,
-          displayAlias:   r.display_alias,
+          membershipId: r.membership_id,
+          groupId: r.group_id,
+          groupCode: r.group_code,
+          groupName: r.group_name,
+          role: r.role,
+          membershipNo: r.membership_no,
+          displayAlias: r.display_alias,
           savingsBalance: r.savings_balance,
-          isCurrent:      r.group_id === auth.groupId,
+          isCurrent: r.group_id === auth.groupId,
         })),
       });
     } catch (err) {

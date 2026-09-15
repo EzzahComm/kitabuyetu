@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useLayoutEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface ExpandableTextProps {
   children: React.ReactNode;
@@ -22,10 +22,14 @@ interface ExpandableTextProps {
  * rendering a button matters: a control that looks interactive but does
  * nothing is its own (smaller) version of the same problem.
  */
-export function ExpandableText({ children, lines = 2, className }: ExpandableTextProps) {
+export function ExpandableText({
+  children,
+  lines = 2,
+  className,
+}: ExpandableTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [overflows, setOverflows] = useState(false);
-  const [expanded, setExpanded]   = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -35,11 +39,15 @@ export function ExpandableText({ children, lines = 2, className }: ExpandableTex
   }, [children, expanded]);
 
   const clamp = expanded
-    ? ''
-    : lines === 1 ? 'line-clamp-1' : lines === 3 ? 'line-clamp-3' : 'line-clamp-2';
+    ? ""
+    : lines === 1
+      ? "line-clamp-1"
+      : lines === 3
+        ? "line-clamp-3"
+        : "line-clamp-2";
 
   const text = (
-    <span ref={ref} className={cn('block', clamp, className)}>
+    <span ref={ref} className={cn("block", clamp, className)}>
       {children}
     </span>
   );
@@ -52,7 +60,7 @@ export function ExpandableText({ children, lines = 2, className }: ExpandableTex
       onClick={() => setExpanded((e) => !e)}
       aria-expanded={expanded}
       className="block w-full cursor-pointer text-left hover:opacity-80"
-      title={expanded ? 'Show less' : 'Show more'}
+      title={expanded ? "Show less" : "Show more"}
     >
       {text}
     </button>

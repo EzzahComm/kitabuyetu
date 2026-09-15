@@ -1,8 +1,8 @@
-import type { SubscriptionProduct } from '@/types/enums';
+import type { SubscriptionProduct } from "@/types/enums";
 
 /** What a session is entitled to. Both optional — callers that have neither get the old behaviour. */
 export interface PostLoginEntitlements {
-  products?:      SubscriptionProduct[];
+  products?: SubscriptionProduct[];
   signupProduct?: SubscriptionProduct;
 }
 
@@ -36,13 +36,15 @@ export function postLoginPath(
 ): string {
   const products = entitlements?.products ?? [];
 
-  const reminderOnly = !products.includes('kitabu_yetu')
-    && (products.includes('chama_reminder')
-        || (products.length === 0 && entitlements?.signupProduct === 'chama_reminder'));
+  const reminderOnly =
+    !products.includes("kitabu_yetu") &&
+    (products.includes("chama_reminder") ||
+      (products.length === 0 &&
+        entitlements?.signupProduct === "chama_reminder"));
 
-  if (reminderOnly) return '/reminder';
+  if (reminderOnly) return "/reminder";
 
-  return groupRole === 'member' ? '/me' : '/dashboard';
+  return groupRole === "member" ? "/me" : "/dashboard";
 }
 
 /**
@@ -57,8 +59,10 @@ export function postLoginPath(
  * pre-migration-140 behaviour — a routing helper must not be able to strand
  * someone who has just signed in.
  */
-export async function resolvePostLoginPath(groupRole?: string): Promise<string> {
-  const { billingApi } = await import('@/lib/api/endpoints');
+export async function resolvePostLoginPath(
+  groupRole?: string,
+): Promise<string> {
+  const { billingApi } = await import("@/lib/api/endpoints");
   const entitlements = await billingApi.entitlements().catch(() => undefined);
   return postLoginPath(groupRole, entitlements);
 }

@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 /** Tags this wrapper is allowed to render as. Kept to a closed set so the
  *  `as 'div'` cast below stays honest — every member takes the same
  *  HTMLElement props and ref. */
-type RevealTag = 'div' | 'li' | 'section' | 'article' | 'figure' | 'p' | 'span';
+type RevealTag = "div" | "li" | "section" | "article" | "figure" | "p" | "span";
 
 interface RevealProps {
-  children:   ReactNode;
-  as?:        RevealTag;
+  children: ReactNode;
+  as?: RevealTag;
   /** Stagger within a group, in milliseconds. */
-  delay?:     number;
+  delay?: number;
   className?: string;
 }
 
 /** Literal class names, written out so Tailwind's content scanner generates
  *  them — they are added from JS, never rendered into JSX. */
-const HIDDEN_CLASS = 'opacity-0';
-const REVEAL_CLASS = 'motion-safe:animate-fade-up';
+const HIDDEN_CLASS = "opacity-0";
+const REVEAL_CLASS = "motion-safe:animate-fade-up";
 
 /**
  * The marketing surface's only scroll animation, and (with the header) one of
@@ -51,10 +51,15 @@ const REVEAL_CLASS = 'motion-safe:animate-fade-up';
  *     scrolled to later animates.
  *  3. `prefers-reduced-motion` short-circuits the whole thing.
  */
-export function Reveal({ children, as = 'div', delay = 0, className }: RevealProps) {
+export function Reveal({
+  children,
+  as = "div",
+  delay = 0,
+  className,
+}: RevealProps) {
   // Cast to a single concrete tag: every RevealTag shares the same DOM props
   // and ref type, and this is what keeps `ref` type-checking without `any`.
-  const Comp = as as 'div';
+  const Comp = as as "div";
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,8 +67,8 @@ export function Reveal({ children, as = 'div', delay = 0, className }: RevealPro
     if (!el) return;
 
     if (
-      typeof IntersectionObserver === 'undefined' ||
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+      typeof IntersectionObserver === "undefined" ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
       el.getBoundingClientRect().top < window.innerHeight * 0.92
     ) {
       return;
@@ -78,7 +83,7 @@ export function Reveal({ children, as = 'div', delay = 0, className }: RevealPro
         el.classList.add(REVEAL_CLASS);
         observer.disconnect();
       },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.06 },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.06 },
     );
     observer.observe(el);
 

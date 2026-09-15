@@ -1,14 +1,21 @@
-import crypto from 'crypto';
-import type { TenantContext } from '@/lib/db';
-import { PLAN_MONTHLY_FEES, type PlanType, type SubscriptionProduct } from '@/types/enums';
-import { membersService } from '@/lib/services/members.service';
-import { disbursementsService } from '@/lib/services/disbursements.service';
-import { paymentRequestsService } from '@/lib/services/payment-requests.service';
-import { organizationFinanceService } from '@/lib/services/organization-finance.service';
-import { updatePlatformUserRole } from '@/lib/services/admin.service';
-import { createOrganization, assignGroupToOrganization } from '@/lib/services/admin-organizations.service';
-import { assignOrganizationPlan } from '@/lib/services/organization-plan.service';
-import { rawQuery } from './db';
+import crypto from "crypto";
+import type { TenantContext } from "@/lib/db";
+import {
+  PLAN_MONTHLY_FEES,
+  type PlanType,
+  type SubscriptionProduct,
+} from "@/types/enums";
+import { membersService } from "@/lib/services/members.service";
+import { disbursementsService } from "@/lib/services/disbursements.service";
+import { paymentRequestsService } from "@/lib/services/payment-requests.service";
+import { organizationFinanceService } from "@/lib/services/organization-finance.service";
+import { updatePlatformUserRole } from "@/lib/services/admin.service";
+import {
+  createOrganization,
+  assignGroupToOrganization,
+} from "@/lib/services/admin-organizations.service";
+import { assignOrganizationPlan } from "@/lib/services/organization-plan.service";
+import { rawQuery } from "./db";
 
 // register_group() requires E.164 Kenyan format (2547######## / 2541########)
 // and phone is UNIQUE across the whole `members` table. Each test file is a
@@ -18,7 +25,7 @@ function uniquePhone(): string {
   return `2547${crypto.randomInt(10_000_000, 100_000_000)}`;
 }
 
-const DUMMY_PASSWORD_HASH = 'integration_test_password_hash_placeholder';
+const DUMMY_PASSWORD_HASH = "integration_test_password_hash_placeholder";
 
 export interface TestGroup {
   groupId: string;
@@ -49,29 +56,31 @@ export interface TestGroup {
  * working as designed, not a broken fixture.
  */
 export async function createTestGroup(
-  creatorRole: 'chairperson' | 'secretary' | 'treasurer' = 'treasurer',
+  creatorRole: "chairperson" | "secretary" | "treasurer" = "treasurer",
   opts: { subscribed?: boolean; product?: SubscriptionProduct } = {},
 ): Promise<TestGroup> {
-  const phone   = uniquePhone();
-  const product = opts.product ?? 'kitabu_yetu';
-  const [row] = await rawQuery<{ result: { group_id: string; member_id: string } }>(
-    `SELECT register_group($1::jsonb) AS result`,
-    [JSON.stringify({
+  const phone = uniquePhone();
+  const product = opts.product ?? "kitabu_yetu";
+  const [row] = await rawQuery<{
+    result: { group_id: string; member_id: string };
+  }>(`SELECT register_group($1::jsonb) AS result`, [
+    JSON.stringify({
       groupName: `Integration Test Group ${phone}`,
-      groupType: 'chama',
-      firstName: 'Test',
-      lastName: 'Officer',
+      groupType: "chama",
+      firstName: "Test",
+      lastName: "Officer",
       phone,
       passwordHash: DUMMY_PASSWORD_HASH,
       creatorRole,
       product,
-    })],
-  );
+    }),
+  ]);
   const groupId = row.result.group_id;
 
   // Subscribe to the product it registered for, so a chama_reminder group is
   // entitled to the reminder surface rather than to Kitabu Yetu.
-  if (opts.subscribed !== false) await subscribeTestGroup(groupId, 'starter', product);
+  if (opts.subscribed !== false)
+    await subscribeTestGroup(groupId, "starter", product);
 
   return { groupId, officerId: row.result.member_id };
 }
@@ -84,8 +93,8 @@ export async function createTestGroup(
  */
 export async function subscribeTestGroup(
   groupId: string,
-  planType: PlanType = 'starter',
-  product: SubscriptionProduct = 'kitabu_yetu',
+  planType: PlanType = "starter",
+  product: SubscriptionProduct = "kitabu_yetu",
 ): Promise<void> {
   await rawQuery(
     `INSERT INTO subscriptions
@@ -93,7 +102,12 @@ export async function subscribeTestGroup(
         sms_allowance_included, max_members)
      VALUES ($1,$2,$3,'active',NOW(),$4,0.9000,50,NULL)
      ON CONFLICT DO NOTHING`,
-    [groupId, product, planType, PLAN_MONTHLY_FEES[product][planType].toFixed(2)],
+    [
+      groupId,
+      product,
+      planType,
+      PLAN_MONTHLY_FEES[product][planType].toFixed(2),
+    ],
   );
 }
 
@@ -101,20 +115,27 @@ export async function subscribeTestGroup(
 export async function addGroupOfficer(
   groupId: string,
   actorMemberId: string,
-  role: 'chairperson' | 'secretary' | 'treasurer' | 'member',
+  role: "chairperson" | "secretary" | "treasurer" | "member",
 ): Promise<string> {
-  const ctx: TenantContext = { userId: actorMemberId, groupId, role: 'chairperson' };
+  const ctx: TenantContext = {
+    userId: actorMemberId,
+    groupId,
+    role: "chairperson",
+  };
   const member = await membersService.create(ctx, {
     phone: uniquePhone(),
-    firstName: 'Second',
-    lastName: 'Officer',
+    firstName: "Second",
+    lastName: "Officer",
     role,
   } as Parameters<typeof membersService.create>[1]);
   return member.id;
 }
 
 /** Tops up the group's seeded 1001 Cash and M-Pesa account so disbursement/payment fixtures pass the balance check. Direct UPDATE is safe here: `accounts.balance` is a stable column unchanged since its original migration. */
-export async function fundGroupCashAccount(groupId: string, amount: number): Promise<void> {
+export async function fundGroupCashAccount(
+  groupId: string,
+  amount: number,
+): Promise<void> {
   await rawQuery(
     `UPDATE accounts SET balance = $1 WHERE group_id = $2 AND account_code = '1001'`,
     [amount.toFixed(2), groupId],
@@ -127,11 +148,16 @@ export interface TestPaymentRequest {
 
 /** Opens a real payment_requests row via paymentRequestsService.create (status='open'). */
 export async function createTestPaymentRequest(
-  groupId: string, officerId: string, memberId: string, amount = 1000,
+  groupId: string,
+  officerId: string,
+  memberId: string,
+  amount = 1000,
 ): Promise<TestPaymentRequest> {
-  const ctx: TenantContext = { userId: officerId, groupId, role: 'treasurer' };
+  const ctx: TenantContext = { userId: officerId, groupId, role: "treasurer" };
   const row = await paymentRequestsService.create(ctx, {
-    memberId, product: 'savings', amount,
+    memberId,
+    product: "savings",
+    amount,
   });
   return { id: (row as { id: string }).id };
 }
@@ -148,14 +174,20 @@ export interface TestDisbursement {
  * for the approve/reject tests.
  */
 export async function createTestDisbursement(
-  groupId: string, initiatorId: string, amount = 50_000,
+  groupId: string,
+  initiatorId: string,
+  amount = 50_000,
 ): Promise<TestDisbursement> {
   await fundGroupCashAccount(groupId, amount * 10);
-  const ctx: TenantContext = { userId: initiatorId, groupId, role: 'treasurer' };
+  const ctx: TenantContext = {
+    userId: initiatorId,
+    groupId,
+    role: "treasurer",
+  };
   const result = await disbursementsService.initiateDisbursement(ctx, {
     phone: uniquePhone(),
     amount,
-    occasion: 'Integration test disbursement',
+    occasion: "Integration test disbursement",
     idempotencyKey: crypto.randomUUID(),
   });
   return { id: result.id };
@@ -181,7 +213,7 @@ export async function createOrgCoordinator(): Promise<string> {
      VALUES ($1, $2, 'Test', 'Coordinator') RETURNING id`,
     [uniquePhone(), DUMMY_PASSWORD_HASH],
   );
-  await updatePlatformUserRole(id, 'organization_coordinator');
+  await updatePlatformUserRole(id, "organization_coordinator");
   return id;
 }
 
@@ -202,12 +234,17 @@ export async function createOrgCoordinator(): Promise<string> {
 export async function createTestOrganization(): Promise<TestOrganization> {
   const org = await createOrganization({
     name: `Integration Test Org ${crypto.randomUUID().slice(0, 8)}`,
-    type: 'ngo',
+    type: "ngo",
   });
   const coordinatorId = await createOrgCoordinator();
-  await assignOrganizationPlan((org as { id: string }).id, 'premium_plus', coordinatorId, {
-    custom: { monthlyFee: 0 },
-  });
+  await assignOrganizationPlan(
+    (org as { id: string }).id,
+    "premium_plus",
+    coordinatorId,
+    {
+      custom: { monthlyFee: 0 },
+    },
+  );
   return { organizationId: (org as { id: string }).id, coordinatorId };
 }
 
@@ -222,20 +259,36 @@ export interface TestOrgDisbursement {
  * pending_approval for the approve/reject tests.
  */
 export async function createTestOrgDisbursement(
-  organizationId: string, coordinatorId: string, groupId: string, amount = 100_000,
+  organizationId: string,
+  coordinatorId: string,
+  groupId: string,
+  amount = 100_000,
 ): Promise<TestOrgDisbursement> {
-  await assignGroupToOrganization(organizationId, groupId, coordinatorId, 'read');
+  await assignGroupToOrganization(
+    organizationId,
+    groupId,
+    coordinatorId,
+    "read",
+  );
 
   const ctx: TenantContext = {
-    userId: coordinatorId, groupId, role: 'organization_coordinator', organizationId,
+    userId: coordinatorId,
+    groupId,
+    role: "organization_coordinator",
+    organizationId,
   };
   // getWallet() lazily bootstraps the organization_wallets row (createOrganization
   // itself doesn't); deposit()'s own getWalletForUpdate() has no such fallback and
   // throws NotFoundError against a brand-new org.
   await organizationFinanceService.getWallet(ctx);
-  await organizationFinanceService.deposit(ctx, { amount: amount * 10, source: 'Integration test funding' });
+  await organizationFinanceService.deposit(ctx, {
+    amount: amount * 10,
+    source: "Integration test funding",
+  });
   const disb = await organizationFinanceService.disburse(ctx, {
-    groupId, amount, disbursementType: 'grant',
+    groupId,
+    amount,
+    disbursementType: "grant",
   });
   return { id: disb.id };
 }

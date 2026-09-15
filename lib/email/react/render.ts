@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { render } from '@react-email/render';
+import * as React from "react";
+import { render } from "@react-email/render";
 
 /**
  * Render a React Email element to both HTML and a plain-text alternative.

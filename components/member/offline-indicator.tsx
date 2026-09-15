@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Offline / sync status pill for the member portal.
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
  */
 export function OfflineIndicator({ className }: { className?: string }) {
   const [online, setOnline] = React.useState(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true,
+    typeof navigator !== "undefined" ? navigator.onLine : true,
   );
   const [syncing, setSyncing] = React.useState(false);
 
@@ -31,30 +31,45 @@ export function OfflineIndicator({ className }: { className?: string }) {
       return () => clearTimeout(t);
     };
     const goOffline = () => setOnline(false);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
     return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
     };
   }, []);
 
   if (!online) {
     return (
-      <span className={cn('inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800', className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800",
+          className,
+        )}
+      >
         <CloudOff size={12} /> Offline — changes saved on device
       </span>
     );
   }
   if (syncing) {
     return (
-      <span className={cn('inline-flex items-center gap-1 rounded-full bg-brand-blue-50 px-2 py-0.5 text-[11px] font-medium text-brand-blue-600', className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full bg-brand-blue-50 px-2 py-0.5 text-[11px] font-medium text-brand-blue-600",
+          className,
+        )}
+      >
         <RefreshCw size={12} className="animate-spin" /> Syncing…
       </span>
     );
   }
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700', className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700",
+        className,
+      )}
+    >
       <Cloud size={12} /> All saved
     </span>
   );

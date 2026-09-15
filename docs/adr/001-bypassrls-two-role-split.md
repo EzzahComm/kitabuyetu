@@ -14,7 +14,7 @@ The application's Postgres connection role (`postgres`) has `BYPASSRLS`, documen
 in `supabase/migrations/20260714020000_058_registry_rls_hardening.sql:9`. Every one
 of the 188 `CREATE POLICY` statements across the schema is therefore decorative for
 the app's own traffic — tenant isolation in production has always been enforced
-*only* by hand-written `WHERE group_id = $1` clauses in service code, not by the
+_only_ by hand-written `WHERE group_id = $1` clauses in service code, not by the
 database. Code review had already confirmed those clauses are correctly applied
 everywhere sampled, but that's a review guarantee, not a database one: a single
 missed `WHERE` clause in a future change would leak data across tenants with
@@ -40,7 +40,7 @@ files** — not a handful of admin routes. A research pass grouped them:
   the outbox dispatcher, scheduled email/SMS — genuinely need to scan across all
   groups in one pass (e.g. `runReconciliation(null, null)`).
 - **Webhooks** (~35 sites) — M-Pesa callbacks and email delivery webhooks, which
-  often must resolve the tenant via an admin-context lookup *before* a tenant
+  often must resolve the tenant via an admin-context lookup _before_ a tenant
   context can even be constructed (keyed by external IDs, not `group_id`).
 - **Pre-authentication** (~20 sites) — login, registration, token refresh. These
   **cannot** have a tenant context by construction: identity itself is what's being
@@ -74,7 +74,7 @@ requests — ship independently.
   shares, dividends, credit scores, welfare, and more the moment any role stopped
   bypassing. Fixed and verified against a real Postgres 17 instance.
 - **12 tables gained `FORCE ROW LEVEL SECURITY`** (migration 097). Note for future
-  readers: `FORCE` only changes behavior for the table *owner* — since no migration
+  readers: `FORCE` only changes behavior for the table _owner_ — since no migration
   ever runs `ALTER TABLE ... OWNER TO`, every table's owner is `postgres`, so `FORCE`
   is what makes RLS apply to a hypothetical future bypass-removal of `postgres`
   itself. It has no effect on `app_tenant`, which is never the owner and is
@@ -114,7 +114,7 @@ requests — ship independently.
 Confirmed via authenticated `vercel env ls production`: `TENANT_DATABASE_URL` is
 **not** set in either Production or Preview (only `DATABASE_URL` exists, one shared
 value across both environments — there is no separate staging database). This
-closes `audit/07-remediation-backlog.md` Critical #1's open *question*: RLS is
+closes `audit/07-remediation-backlog.md` Critical #1's open _question_: RLS is
 confirmed decorative in production today, the worst case this ADR describes.
 
 The `db-integration` CI job (`.github/workflows/ci.yml`) now provisions `app_tenant`

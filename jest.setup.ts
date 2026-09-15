@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom';
-import { resetCircuit } from '@/lib/sms/circuit-breaker';
+import "@testing-library/jest-dom";
+import { resetCircuit } from "@/lib/sms/circuit-breaker";
 
 // The SMS provider circuit breaker (SMS-AUDIT-v3 T3-3) holds process-lifetime
 // state by design (lib/sms/circuit-breaker.ts). Jest gives each test FILE its

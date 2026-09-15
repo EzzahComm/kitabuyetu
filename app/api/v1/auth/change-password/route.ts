@@ -1,10 +1,10 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { membersService } from '@/lib/services/members.service';
-import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { membersService } from "@/lib/services/members.service";
+import { ChangePasswordSchema } from "@/lib/validators/auth.schema";
+import { ok } from "@/lib/utils/response";
 
 /**
  * POST /api/v1/auth/change-password — change the signed-in member's own
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     await membersService.changePassword(
-      ctx, auth.userId, input.currentPassword, input.newPassword,
+      ctx,
+      auth.userId,
+      input.currentPassword,
+      input.newPassword,
     );
 
     // A password change should not leave older sessions alive. The caller's

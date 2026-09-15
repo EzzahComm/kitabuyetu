@@ -1,12 +1,12 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { smsService } from '@/lib/services/sms.service';
-import { ok } from '@/lib/utils/response';
-import { z } from 'zod';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { smsService } from "@/lib/services/sms.service";
+import { ok } from "@/lib/utils/response";
+import { z } from "zod";
 
 const QuerySchema = z.object({
-  page:  z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   // Resolved rows are excluded by default: this screen exists to show what
   // still needs a decision, and a resolved failure needs none.
@@ -26,8 +26,10 @@ const QuerySchema = z.object({
  * credits and needs `messaging.send`, which the sibling retry route enforces.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.view', async (auth) => {
-    const params = QuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
+  return withPermission(req, "messaging.view", async (auth) => {
+    const params = QuerySchema.parse(
+      Object.fromEntries(req.nextUrl.searchParams),
+    );
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await smsService.listFailures(ctx, params));
   });

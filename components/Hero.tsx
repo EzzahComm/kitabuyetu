@@ -119,8 +119,11 @@ export const Hero = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -20 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="col-start-1 row-start-1">
-                  <p className="mb-3 text-sm font-bold uppercase tracking-wider text-brand-600">{current.product}</p>
+                  className="col-start-1 row-start-1"
+                >
+                  <p className="mb-3 text-sm font-bold uppercase tracking-wider text-brand-600">
+                    {current.product}
+                  </p>
                   <h1 className="text-4xl font-bold leading-tight tracking-tight text-brand-blue-900 lg:text-5xl lg:leading-tight xl:text-6xl dark:text-white">
                     {current.title}
                   </h1>
@@ -140,12 +143,14 @@ export const Hero = () => {
             <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <a
                 href={signUpUrl()}
-                className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500">
+                className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
                 Get Started
               </a>
               <Link
                 href="/contact"
-                className="inline-flex min-h-12 items-center justify-center rounded-md border border-brand-600 px-8 py-4 text-lg font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-brand-400 dark:text-brand-300 dark:hover:bg-trueGray-800">
+                className="inline-flex min-h-12 items-center justify-center rounded-md border border-brand-600 px-8 py-4 text-lg font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-brand-400 dark:text-brand-300 dark:hover:bg-trueGray-800"
+              >
                 Talk to Us
               </Link>
             </div>
@@ -168,7 +173,8 @@ export const Hero = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: prefersReducedMotion ? 0 : -40 }}
                 transition={{ duration: 0.6, ease: [0.32, 0.94, 0.6, 1] }}
-                  className="col-start-1 row-start-1 aspect-[4/3]">
+                className="col-start-1 row-start-1 aspect-[4/3]"
+              >
                 <Image
                   src={current.image}
                   width={1200}
@@ -202,5 +208,3 @@ export const Hero = () => {
     </LazyMotion>
   );
 };
-
-

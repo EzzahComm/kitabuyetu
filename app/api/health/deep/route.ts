@@ -9,20 +9,20 @@
  * (which can leak into access logs/referrers) and compared it with a plain
  * `!==`, unlike every other secret check in this codebase.
  */
-import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { pool } from '@/lib/db';
-import { redis } from '@/lib/redis';
-import { env } from '@/lib/env';
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import { pool } from "@/lib/db";
+import { redis } from "@/lib/redis";
+import { env } from "@/lib/env";
 
 function timingSafeEqual(a: string, b: string): boolean {
-  const ha = crypto.createHash('sha256').update(a).digest();
-  const hb = crypto.createHash('sha256').update(b).digest();
+  const ha = crypto.createHash("sha256").update(a).digest();
+  const hb = crypto.createHash("sha256").update(b).digest();
   return crypto.timingSafeEqual(ha, hb);
 }
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type CheckResult = { ok: boolean; latencyMs: number; error?: string };
 
@@ -30,11 +30,15 @@ async function checkDb(): Promise<CheckResult> {
   const start = Date.now();
   try {
     const client = await pool.connect();
-    await client.query('SELECT 1');
+    await client.query("SELECT 1");
     client.release();
     return { ok: true, latencyMs: Date.now() - start };
   } catch (err) {
-    return { ok: false, latencyMs: Date.now() - start, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -44,14 +48,18 @@ async function checkRedis(): Promise<CheckResult> {
     await redis.ping();
     return { ok: true, latencyMs: Date.now() - start };
   } catch (err) {
-    return { ok: false, latencyMs: Date.now() - start, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const secret = req.headers.get('x-worker-secret') ?? '';
+  const secret = req.headers.get("x-worker-secret") ?? "";
   if (!timingSafeEqual(secret, env.WORKER_SECRET)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const [db, redisResult] = await Promise.all([checkDb(), checkRedis()]);
@@ -59,13 +67,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json(
     {
-      status:    allOk ? 'ok' : 'degraded',
+      status: allOk ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
       checks: { database: db, redis: redisResult },
     },
     {
-      status:  allOk ? 200 : 503,
-      headers: { 'Cache-Control': 'no-store' },
+      status: allOk ? 200 : 503,
+      headers: { "Cache-Control": "no-store" },
     },
   );
 }

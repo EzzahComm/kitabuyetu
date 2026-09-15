@@ -1,20 +1,21 @@
-import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import type { IEmailAdapter, EmailPayload, EmailResult } from "./types";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 
 export class MailgunAdapter implements IEmailAdapter {
-  readonly name = 'mailgun';
+  readonly name = "mailgun";
 
   async send(payload: EmailPayload): Promise<EmailResult> {
-    const apiKey = process.env.MAILGUN_API_KEY ?? '';
-    const domain = process.env.MAILGUN_DOMAIN ?? '';
-    const region = process.env.MAILGUN_REGION ?? 'us'; // 'us' or 'eu'
-    const baseUrl = region === 'eu'
-      ? `https://api.eu.mailgun.net/v3/${domain}/messages`
-      : `https://api.mailgun.net/v3/${domain}/messages`;
+    const apiKey = process.env.MAILGUN_API_KEY ?? "";
+    const domain = process.env.MAILGUN_DOMAIN ?? "";
+    const region = process.env.MAILGUN_REGION ?? "us"; // 'us' or 'eu'
+    const baseUrl =
+      region === "eu"
+        ? `https://api.eu.mailgun.net/v3/${domain}/messages`
+        : `https://api.mailgun.net/v3/${domain}/messages`;
 
     const from = payload.from ?? env.EMAIL_FROM;
-    const fromName = process.env.EMAIL_FROM_NAME ?? 'Kitabu Yetu';
+    const fromName = process.env.EMAIL_FROM_NAME ?? "Kitabu Yetu";
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 
     let logId: string | null = null;
@@ -29,7 +30,7 @@ export class MailgunAdapter implements IEmailAdapter {
             payload.groupId ?? null,
             payload.userId ?? null,
             payload.templateKey ?? null,
-            payload.category ?? 'transactional',
+            payload.category ?? "transactional",
             toArr[0],
             from,
             payload.subject,
@@ -43,29 +44,35 @@ export class MailgunAdapter implements IEmailAdapter {
 
     try {
       const form = new FormData();
-      form.append('from', `${fromName} <${from}>`);
-      form.append('to', toArr.join(','));
-      form.append('subject', payload.subject ?? '');
-      if (payload.html) form.append('html', payload.html);
-      if (payload.text) form.append('text', payload.text);
-      if (payload.replyTo) form.append('h:Reply-To', payload.replyTo);
+      form.append("from", `${fromName} <${from}>`);
+      form.append("to", toArr.join(","));
+      form.append("subject", payload.subject ?? "");
+      if (payload.html) form.append("html", payload.html);
+      if (payload.text) form.append("text", payload.text);
+      if (payload.replyTo) form.append("h:Reply-To", payload.replyTo);
       if (payload.cc) {
         const ccArr = Array.isArray(payload.cc) ? payload.cc : [payload.cc];
-        form.append('cc', ccArr.join(','));
+        form.append("cc", ccArr.join(","));
       }
 
       if (payload.attachments?.length) {
         for (const att of payload.attachments) {
           const buf = Buffer.isBuffer(att.content)
             ? att.content
-            : Buffer.from(att.content as string, 'base64');
-          form.append('attachment', new Blob([new Uint8Array(buf)], { type: att.contentType ?? 'application/octet-stream' }), att.filename);
+            : Buffer.from(att.content as string, "base64");
+          form.append(
+            "attachment",
+            new Blob([new Uint8Array(buf)], {
+              type: att.contentType ?? "application/octet-stream",
+            }),
+            att.filename,
+          );
         }
       }
 
-      const credentials = Buffer.from(`api:${apiKey}`).toString('base64');
+      const credentials = Buffer.from(`api:${apiKey}`).toString("base64");
       const res = await fetch(baseUrl, {
-        method: 'POST',
+        method: "POST",
         headers: { Authorization: `Basic ${credentials}` },
         body: form,
       });
@@ -75,7 +82,7 @@ export class MailgunAdapter implements IEmailAdapter {
         throw new Error(`Mailgun ${res.status}: ${text}`);
       }
 
-      const json = await res.json() as { id?: string; message?: string };
+      const json = (await res.json()) as { id?: string; message?: string };
       const messageId = json.id ?? undefined;
 
       if (logId) {

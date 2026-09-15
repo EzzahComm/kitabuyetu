@@ -15,55 +15,85 @@
  * multiplier) — migrated from the retired group_constitutions table by
  * migration 088 (§33.1) as advisory defaults for the loan-application form.
  */
-import type { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { resolvePolicy, resolvePolicyDetailed, setPolicy, type PolicySource } from './configuration.service';
-import { ValidationError } from '@/lib/utils/errors';
+import type { PoolClient } from "pg";
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import {
+  resolvePolicy,
+  resolvePolicyDetailed,
+  setPolicy,
+  type PolicySource,
+} from "./configuration.service";
+import { ValidationError } from "@/lib/utils/errors";
 
-const DOMAIN = 'loan';
-const POLICY_KEY = 'tier_thresholds';
-const TERMS_KEY  = 'terms';
+const DOMAIN = "loan";
+const POLICY_KEY = "tier_thresholds";
+const TERMS_KEY = "terms";
 
-export type ReliabilityTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
+export type ReliabilityTier =
+  | "excellent"
+  | "good"
+  | "fair"
+  | "poor"
+  | "high_risk";
 
 export interface TierThreshold {
-  tier:           ReliabilityTier;
-  min:            number;
+  tier: ReliabilityTier;
+  min: number;
   loanMultiplier: number;
 }
 
 // Kept identical to migration 087's seed — the defensive floor if a domain
 // row is ever missing (should not happen once the migration has run).
 const DEFAULT_TIER_THRESHOLDS: TierThreshold[] = [
-  { tier: 'excellent', min: 85, loanMultiplier: 10   },
-  { tier: 'good',      min: 70, loanMultiplier: 5    },
-  { tier: 'fair',      min: 55, loanMultiplier: 3    },
-  { tier: 'poor',      min: 40, loanMultiplier: 1    },
-  { tier: 'high_risk', min: 0,  loanMultiplier: 0.5  },
+  { tier: "excellent", min: 85, loanMultiplier: 10 },
+  { tier: "good", min: 70, loanMultiplier: 5 },
+  { tier: "fair", min: 55, loanMultiplier: 3 },
+  { tier: "poor", min: 40, loanMultiplier: 1 },
+  { tier: "high_risk", min: 0, loanMultiplier: 0.5 },
 ];
 
 export interface EffectiveTierThresholds {
   thresholds: TierThreshold[];
-  source:     PolicySource;
+  source: PolicySource;
 }
 
 /** Used inline by credit-scores.service.ts — no route/role concerns, just a read. */
 export async function getEffectiveTierThresholds(
   client: PoolClient,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<TierThreshold[]> {
-  return resolvePolicy<TierThreshold[]>(client, DOMAIN, POLICY_KEY, scope, DEFAULT_TIER_THRESHOLDS);
+  return resolvePolicy<TierThreshold[]>(
+    client,
+    DOMAIN,
+    POLICY_KEY,
+    scope,
+    DEFAULT_TIER_THRESHOLDS,
+  );
 }
 
 function validateThresholds(thresholds: TierThreshold[]): void {
-  const requiredTiers: ReliabilityTier[] = ['excellent', 'good', 'fair', 'poor', 'high_risk'];
-  if (thresholds.length !== requiredTiers.length
-      || !requiredTiers.every((t) => thresholds.some((th) => th.tier === t))) {
-    throw new ValidationError(`Must supply exactly one threshold for each tier: ${requiredTiers.join(', ')}`);
+  const requiredTiers: ReliabilityTier[] = [
+    "excellent",
+    "good",
+    "fair",
+    "poor",
+    "high_risk",
+  ];
+  if (
+    thresholds.length !== requiredTiers.length ||
+    !requiredTiers.every((t) => thresholds.some((th) => th.tier === t))
+  ) {
+    throw new ValidationError(
+      `Must supply exactly one threshold for each tier: ${requiredTiers.join(", ")}`,
+    );
   }
   for (const t of thresholds) {
-    if (!(t.min >= 0 && t.min <= 100)) throw new ValidationError(`${t.tier}: min must be between 0 and 100`);
-    if (!(t.loanMultiplier >= 0)) throw new ValidationError(`${t.tier}: loanMultiplier must be zero or positive`);
+    if (!(t.min >= 0 && t.min <= 100))
+      throw new ValidationError(`${t.tier}: min must be between 0 and 100`);
+    if (!(t.loanMultiplier >= 0))
+      throw new ValidationError(
+        `${t.tier}: loanMultiplier must be zero or positive`,
+      );
   }
   // Each tier's min must be strictly greater than the next-lowest tier's —
   // checked against requiredTiers' fixed rank order, not just the sorted
@@ -72,15 +102,17 @@ function validateThresholds(thresholds: TierThreshold[]): void {
   const byTier = new Map(thresholds.map((t) => [t.tier, t]));
   for (let i = 1; i < requiredTiers.length; i++) {
     const higher = byTier.get(requiredTiers[i - 1])!;
-    const lower  = byTier.get(requiredTiers[i])!;
+    const lower = byTier.get(requiredTiers[i])!;
     if (lower.min >= higher.min) {
       throw new ValidationError(
         `${requiredTiers[i - 1]}'s min (${higher.min}) must be strictly greater than ${requiredTiers[i]}'s min (${lower.min})`,
       );
     }
   }
-  if (byTier.get('high_risk')!.min !== 0) {
-    throw new ValidationError('high_risk must have min = 0 so every score resolves to a tier');
+  if (byTier.get("high_risk")!.min !== 0) {
+    throw new ValidationError(
+      "high_risk must have min = 0 so every score resolves to a tier",
+    );
   }
 }
 
@@ -90,7 +122,7 @@ function validateThresholds(thresholds: TierThreshold[]): void {
 // set a different rate/term on any individual loan (confirmed product
 // decision: advisory, not hard enforcement).
 
-export type InterestMethod = 'flat' | 'reducing_balance';
+export type InterestMethod = "flat" | "reducing_balance";
 
 export interface LoanTerms {
   /**
@@ -106,9 +138,9 @@ export interface LoanTerms {
    * The unit lives here, in the form label, and in the schedule generator's
    * own comments. Any per-product terms built later must carry it too.
    */
-  interestRate:   number;
+  interestRate: number;
   interestMethod: InterestMethod;
-  maxTermMonths:  number;
+  maxTermMonths: number;
   loanMultiplier: number;
   /**
    * The specific lengths a loan may run for, e.g. [1, 3, 6, 12]. Groups do not
@@ -125,46 +157,72 @@ export interface LoanTerms {
    * Optional so a policy stored before this existed still resolves. Absent
    * means "any term up to maxTermMonths", which is the old behaviour exactly.
    */
-  termOptions?:   number[];
+  termOptions?: number[];
 }
 
 // Kept identical to migration 088's seed (which itself preserved the
 // retired group_constitutions column defaults), plus termOptions, which has
 // no migration-088 ancestor — [1,3,6,12] under the same 12-month ceiling.
 const DEFAULT_LOAN_TERMS: LoanTerms = {
-  interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+  interestRate: 10,
+  interestMethod: "flat",
+  maxTermMonths: 12,
+  loanMultiplier: 3,
   termOptions: [1, 3, 6, 12],
 };
 
 export interface EffectiveLoanTerms {
-  terms:  LoanTerms;
+  terms: LoanTerms;
   source: PolicySource;
 }
 
 /** Used inline by loan/credit code paths — no route/role concerns, just a read. */
 export async function getEffectiveLoanTerms(
   client: PoolClient,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<LoanTerms> {
-  return resolvePolicy<LoanTerms>(client, DOMAIN, TERMS_KEY, scope, DEFAULT_LOAN_TERMS);
+  return resolvePolicy<LoanTerms>(
+    client,
+    DOMAIN,
+    TERMS_KEY,
+    scope,
+    DEFAULT_LOAN_TERMS,
+  );
 }
 
 function validateLoanTerms(terms: LoanTerms): void {
   if (!(terms.interestRate >= 0 && terms.interestRate <= 100)) {
-    throw new ValidationError('interestRate must be between 0 and 100');
+    throw new ValidationError("interestRate must be between 0 and 100");
   }
-  if (terms.interestMethod !== 'flat' && terms.interestMethod !== 'reducing_balance') {
-    throw new ValidationError("interestMethod must be 'flat' or 'reducing_balance'");
+  if (
+    terms.interestMethod !== "flat" &&
+    terms.interestMethod !== "reducing_balance"
+  ) {
+    throw new ValidationError(
+      "interestMethod must be 'flat' or 'reducing_balance'",
+    );
   }
-  if (!(Number.isInteger(terms.maxTermMonths) && terms.maxTermMonths >= 1 && terms.maxTermMonths <= 120)) {
-    throw new ValidationError('maxTermMonths must be a whole number between 1 and 120');
+  if (
+    !(
+      Number.isInteger(terms.maxTermMonths) &&
+      terms.maxTermMonths >= 1 &&
+      terms.maxTermMonths <= 120
+    )
+  ) {
+    throw new ValidationError(
+      "maxTermMonths must be a whole number between 1 and 120",
+    );
   }
   if (terms.termOptions !== undefined) {
     if (terms.termOptions.length === 0) {
-      throw new ValidationError('termOptions must list at least one term, or be omitted entirely');
+      throw new ValidationError(
+        "termOptions must list at least one term, or be omitted entirely",
+      );
     }
     if (terms.termOptions.some((t) => !Number.isInteger(t) || t < 1)) {
-      throw new ValidationError('Every term option must be a whole number of months of at least 1');
+      throw new ValidationError(
+        "Every term option must be a whole number of months of at least 1",
+      );
     }
     // The ceiling has to stay the ceiling. Without this a group could offer an
     // 18-month option while maxTermMonths says 12, and the two halves of the
@@ -172,15 +230,15 @@ function validateLoanTerms(terms: LoanTerms): void {
     const over = terms.termOptions.filter((t) => t > terms.maxTermMonths);
     if (over.length > 0) {
       throw new ValidationError(
-        `Term options ${over.join(', ')} exceed the maximum of ${terms.maxTermMonths} months`,
+        `Term options ${over.join(", ")} exceed the maximum of ${terms.maxTermMonths} months`,
       );
     }
     if (new Set(terms.termOptions).size !== terms.termOptions.length) {
-      throw new ValidationError('termOptions must not repeat a term');
+      throw new ValidationError("termOptions must not repeat a term");
     }
   }
   if (!(terms.loanMultiplier > 0)) {
-    throw new ValidationError('loanMultiplier must be positive');
+    throw new ValidationError("loanMultiplier must be positive");
   }
 }
 
@@ -188,27 +246,53 @@ export const loanPolicyService = {
   async getGroupPolicy(ctx: TenantContext): Promise<EffectiveTierThresholds> {
     return withDb(ctx, async (client) => {
       const resolved = await resolvePolicyDetailed<TierThreshold[]>(
-        client, DOMAIN, POLICY_KEY, { groupId: ctx.groupId }, DEFAULT_TIER_THRESHOLDS,
+        client,
+        DOMAIN,
+        POLICY_KEY,
+        { groupId: ctx.groupId },
+        DEFAULT_TIER_THRESHOLDS,
       );
       return { thresholds: resolved.value, source: resolved.source };
     });
   },
 
   /** Access gated at the route (withRole(req, 'chairperson', ...)) — changes scoring for the whole group. */
-  async setGroupOverride(ctx: TenantContext, thresholds: TierThreshold[]): Promise<void> {
+  async setGroupOverride(
+    ctx: TenantContext,
+    thresholds: TierThreshold[],
+  ): Promise<void> {
     validateThresholds(thresholds);
     await withTransaction(ctx, async (client) => {
-      await setPolicy(client, DOMAIN, POLICY_KEY, { groupId: ctx.groupId }, thresholds, ctx.userId);
+      await setPolicy(
+        client,
+        DOMAIN,
+        POLICY_KEY,
+        { groupId: ctx.groupId },
+        thresholds,
+        ctx.userId,
+      );
     });
   },
 
   /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
-  async getPlatformPolicy(client: PoolClient): Promise<EffectiveTierThresholds> {
-    const resolved = await resolvePolicyDetailed<TierThreshold[]>(client, DOMAIN, POLICY_KEY, {}, DEFAULT_TIER_THRESHOLDS);
+  async getPlatformPolicy(
+    client: PoolClient,
+  ): Promise<EffectiveTierThresholds> {
+    const resolved = await resolvePolicyDetailed<TierThreshold[]>(
+      client,
+      DOMAIN,
+      POLICY_KEY,
+      {},
+      DEFAULT_TIER_THRESHOLDS,
+    );
     return { thresholds: resolved.value, source: resolved.source };
   },
 
-  async setPlatformDefault(userId: string, client: PoolClient, thresholds: TierThreshold[]): Promise<void> {
+  async setPlatformDefault(
+    userId: string,
+    client: PoolClient,
+    thresholds: TierThreshold[],
+  ): Promise<void> {
     validateThresholds(thresholds);
     await setPolicy(client, DOMAIN, POLICY_KEY, {}, thresholds, userId);
   },
@@ -218,27 +302,51 @@ export const loanPolicyService = {
   async getGroupTerms(ctx: TenantContext): Promise<EffectiveLoanTerms> {
     return withDb(ctx, async (client) => {
       const resolved = await resolvePolicyDetailed<LoanTerms>(
-        client, DOMAIN, TERMS_KEY, { groupId: ctx.groupId }, DEFAULT_LOAN_TERMS,
+        client,
+        DOMAIN,
+        TERMS_KEY,
+        { groupId: ctx.groupId },
+        DEFAULT_LOAN_TERMS,
       );
       return { terms: resolved.value, source: resolved.source };
     });
   },
 
   /** Access gated at the route (withRole(req, 'chairperson', ...)) — changes the group's default lending terms. */
-  async setGroupTermsOverride(ctx: TenantContext, terms: LoanTerms): Promise<void> {
+  async setGroupTermsOverride(
+    ctx: TenantContext,
+    terms: LoanTerms,
+  ): Promise<void> {
     validateLoanTerms(terms);
     await withTransaction(ctx, async (client) => {
-      await setPolicy(client, DOMAIN, TERMS_KEY, { groupId: ctx.groupId }, terms, ctx.userId);
+      await setPolicy(
+        client,
+        DOMAIN,
+        TERMS_KEY,
+        { groupId: ctx.groupId },
+        terms,
+        ctx.userId,
+      );
     });
   },
 
   /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformTerms(client: PoolClient): Promise<EffectiveLoanTerms> {
-    const resolved = await resolvePolicyDetailed<LoanTerms>(client, DOMAIN, TERMS_KEY, {}, DEFAULT_LOAN_TERMS);
+    const resolved = await resolvePolicyDetailed<LoanTerms>(
+      client,
+      DOMAIN,
+      TERMS_KEY,
+      {},
+      DEFAULT_LOAN_TERMS,
+    );
     return { terms: resolved.value, source: resolved.source };
   },
 
-  async setPlatformTermsDefault(userId: string, client: PoolClient, terms: LoanTerms): Promise<void> {
+  async setPlatformTermsDefault(
+    userId: string,
+    client: PoolClient,
+    terms: LoanTerms,
+  ): Promise<void> {
     validateLoanTerms(terms);
     await setPolicy(client, DOMAIN, TERMS_KEY, {}, terms, userId);
   },

@@ -15,19 +15,23 @@
  * (which may legitimately belong to a third party), so an unusable phone must
  * degrade the RECORD and never reject the MONEY.
  */
-import { handleSTKCallback, type StkCallbackBody } from '@/lib/services/mpesa-stk.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import {
+  handleSTKCallback,
+  type StkCallbackBody,
+} from "@/lib/services/mpesa-stk.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
-jest.mock('@/lib/redis', () => ({
+jest.mock("@/lib/redis", () => ({
   cacheMpesaStatus: jest.fn().mockResolvedValue(undefined),
-  acquireStkLock:   jest.fn().mockResolvedValue(true),
-  releaseStkLock:   jest.fn().mockResolvedValue(undefined),
+  acquireStkLock: jest.fn().mockResolvedValue(true),
+  releaseStkLock: jest.fn().mockResolvedValue(undefined),
 }));
 
 /** A real Safaricom-style hashed MSISDN: 64 hex chars, not a phone number. */
-const HASHED_MSISDN = '1bc5cfe71c4ed76d6881e05f1e396f82e91b796046c8df5051a4b8945c7d0d2a';
+const HASHED_MSISDN =
+  "1bc5cfe71c4ed76d6881e05f1e396f82e91b796046c8df5051a4b8945c7d0d2a";
 
 function stkSuccess(
   checkoutRequestId: string,
@@ -36,13 +40,13 @@ function stkSuccess(
   phone: string | null,
 ): StkCallbackBody {
   const items: { Name: string; Value: string | number }[] = [
-    { Name: 'Amount', Value: amount },
-    { Name: 'MpesaReceiptNumber', Value: receipt },
-    { Name: 'TransactionDate', Value: 20260815120000 },
+    { Name: "Amount", Value: amount },
+    { Name: "MpesaReceiptNumber", Value: receipt },
+    { Name: "TransactionDate", Value: 20260815120000 },
   ];
   // Omit the item entirely when phone is null — the "metadata present but
   // PhoneNumber missing" shape.
-  if (phone !== null) items.push({ Name: 'PhoneNumber', Value: phone });
+  if (phone !== null) items.push({ Name: "PhoneNumber", Value: phone });
 
   return {
     Body: {
@@ -50,20 +54,33 @@ function stkSuccess(
         MerchantRequestID: `merchant-${checkoutRequestId}`,
         CheckoutRequestID: checkoutRequestId,
         ResultCode: 0,
-        ResultDesc: 'The service request is processed successfully.',
+        ResultDesc: "The service request is processed successfully.",
         CallbackMetadata: { Item: items },
       },
     },
   } as StkCallbackBody;
 }
 
-async function seedStkRequest(groupId: string, checkoutRequestId: string, accountRef: string, amount: number, phone: string) {
+async function seedStkRequest(
+  groupId: string,
+  checkoutRequestId: string,
+  accountRef: string,
+  amount: number,
+  phone: string,
+) {
   await rawQuery(
     `INSERT INTO mpesa_stk_requests
        (group_id, checkout_request_id, merchant_request_id, phone, amount,
         account_reference, description, purpose, status)
      VALUES ($1,$2,$3,$4,$5,$6,'Contribution','contribution','pending')`,
-    [groupId, checkoutRequestId, `merchant-${checkoutRequestId}`, phone, amount.toFixed(2), accountRef],
+    [
+      groupId,
+      checkoutRequestId,
+      `merchant-${checkoutRequestId}`,
+      phone,
+      amount.toFixed(2),
+      accountRef,
+    ],
   );
   await rawQuery(
     `INSERT INTO payments
@@ -73,7 +90,7 @@ async function seedStkRequest(groupId: string, checkoutRequestId: string, accoun
   );
 }
 
-describe('STK callback with an unusable payer phone', () => {
+describe("STK callback with an unusable payer phone", () => {
   beforeEach(async () => {
     await resetDatabase();
   });
@@ -82,9 +99,12 @@ describe('STK callback with an unusable payer phone', () => {
     await resetDatabase();
   });
 
-  it('still credits the payment when the MSISDN is hashed, routing by AccountReference', async () => {
-    const { groupId, officerId } = await createTestGroup('treasurer');
-    const [{ phone }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id=$1`, [officerId]);
+  it("still credits the payment when the MSISDN is hashed, routing by AccountReference", async () => {
+    const { groupId, officerId } = await createTestGroup("treasurer");
+    const [{ phone }] = await rawQuery<{ phone: string }>(
+      `SELECT phone FROM members WHERE id=$1`,
+      [officerId],
+    );
     const [{ membership_no }] = await rawQuery<{ membership_no: string }>(
       `SELECT membership_no FROM group_members WHERE group_id=$1 AND member_id=$2`,
       [groupId, officerId],
@@ -98,29 +118,36 @@ describe('STK callback with an unusable payer phone', () => {
     // crediting transaction at all.
     const result = await handleSTKCallback(
       stkSuccess(checkoutRequestId, receipt, 500, HASHED_MSISDN),
-      '0.0.0.0',
+      "0.0.0.0",
       { skipIpCheck: true },
     );
     expect(result.success).toBe(true);
 
-    const [payment] = await rawQuery<{ status: string; allocation_status: string }>(
+    const [payment] = await rawQuery<{
+      status: string;
+      allocation_status: string;
+    }>(
       `SELECT status, allocation_status FROM payments WHERE mpesa_checkout_request_id=$1`,
       [checkoutRequestId],
     );
-    expect(payment.status).toBe('completed');
+    expect(payment.status).toBe("completed");
     // AccountReference identified the member, so the money still landed.
-    expect(payment.allocation_status).toBe('allocated');
+    expect(payment.allocation_status).toBe("allocated");
 
     const contributions = await rawQuery<{ amount: string }>(
-      `SELECT amount FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT amount FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
     expect(contributions).toHaveLength(1);
     expect(parseFloat(contributions[0].amount)).toBeCloseTo(500, 2);
   });
 
-  it('does not crash when a success payload omits PhoneNumber entirely', async () => {
-    const { groupId, officerId } = await createTestGroup('treasurer');
-    const [{ phone }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id=$1`, [officerId]);
+  it("does not crash when a success payload omits PhoneNumber entirely", async () => {
+    const { groupId, officerId } = await createTestGroup("treasurer");
+    const [{ phone }] = await rawQuery<{ phone: string }>(
+      `SELECT phone FROM members WHERE id=$1`,
+      [officerId],
+    );
     const [{ membership_no }] = await rawQuery<{ membership_no: string }>(
       `SELECT membership_no FROM group_members WHERE group_id=$1 AND member_id=$2`,
       [groupId, officerId],
@@ -132,35 +159,44 @@ describe('STK callback with an unusable payer phone', () => {
 
     const result = await handleSTKCallback(
       stkSuccess(checkoutRequestId, receipt, 250, null),
-      '0.0.0.0',
+      "0.0.0.0",
       { skipIpCheck: true },
     );
     expect(result.success).toBe(true);
 
     const [payment] = await rawQuery<{ status: string }>(
-      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`, [checkoutRequestId],
+      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`,
+      [checkoutRequestId],
     );
-    expect(payment.status).toBe('completed');
+    expect(payment.status).toBe("completed");
   });
 
-  it('treats a ResultCode-0 callback with no receipt as a failure instead of writing a row keyed on undefined', async () => {
-    const { groupId, officerId } = await createTestGroup('treasurer');
-    const [{ phone }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id=$1`, [officerId]);
+  it("treats a ResultCode-0 callback with no receipt as a failure instead of writing a row keyed on undefined", async () => {
+    const { groupId, officerId } = await createTestGroup("treasurer");
+    const [{ phone }] = await rawQuery<{ phone: string }>(
+      `SELECT phone FROM members WHERE id=$1`,
+      [officerId],
+    );
     const checkoutRequestId = `ws_CO_noreceipt_${Date.now()}`;
-    await seedStkRequest(groupId, checkoutRequestId, 'CONTRIB', 100, phone);
+    await seedStkRequest(groupId, checkoutRequestId, "CONTRIB", 100, phone);
 
-    const malformed = stkSuccess(checkoutRequestId, 'PLACEHOLDER', 100, phone);
+    const malformed = stkSuccess(checkoutRequestId, "PLACEHOLDER", 100, phone);
     // Strip the receipt item — a success code with no MpesaReceiptNumber.
     malformed.Body.stkCallback.CallbackMetadata!.Item =
-      malformed.Body.stkCallback.CallbackMetadata!.Item.filter((i) => i.Name !== 'MpesaReceiptNumber');
+      malformed.Body.stkCallback.CallbackMetadata!.Item.filter(
+        (i) => i.Name !== "MpesaReceiptNumber",
+      );
 
-    const result = await handleSTKCallback(malformed, '0.0.0.0', { skipIpCheck: true });
+    const result = await handleSTKCallback(malformed, "0.0.0.0", {
+      skipIpCheck: true,
+    });
     expect(result.success).toBe(false);
 
     // The pending payment must be left alone, not completed against a null receipt.
     const [payment] = await rawQuery<{ status: string }>(
-      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`, [checkoutRequestId],
+      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`,
+      [checkoutRequestId],
     );
-    expect(payment.status).toBe('pending');
+    expect(payment.status).toBe("pending");
   });
 });

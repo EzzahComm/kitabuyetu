@@ -1,10 +1,11 @@
-import { createElement } from 'react';
-import { sendTemplatedEmail, queueEmail } from './email.service';
-import { sendReactEmail } from '@/lib/email/react/send';
-import ContributionReceipt from '@/emails/contribution-receipt';
-import type { EmailResult } from '@/lib/email/provider';
+import { createElement } from "react";
+import { sendTemplatedEmail, queueEmail } from "./email.service";
+import { sendReactEmail } from "@/lib/email/react/send";
+import ContributionReceipt from "@/emails/contribution-receipt";
+import type { EmailResult } from "@/lib/email/provider";
 
-const kesFromString = (v: string): number => Number(String(v).replace(/[^0-9.]/g, '')) || 0;
+const kesFromString = (v: string): number =>
+  Number(String(v).replace(/[^0-9.]/g, "")) || 0;
 
 // ─── Contribution Notifications ───────────────────────────────────────────────
 
@@ -25,13 +26,13 @@ export async function sendContributionConfirmation(opts: {
   contributionId: string;
   groupName?: string;
   accountRef?: string;
-  status?: 'completed' | 'pending';
+  status?: "completed" | "pending";
 }): Promise<EmailResult> {
   const amount = kesFromString(opts.amount);
-  const isCash = opts.paymentMethod?.toLowerCase().includes('cash');
+  const isCash = opts.paymentMethod?.toLowerCase().includes("cash");
   return sendReactEmail({
     to: opts.email,
-    subject: `Receipt — ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)} contribution received`,
+    subject: `Receipt — ${new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(amount)} contribution received`,
     element: createElement(ContributionReceipt, {
       memberName: opts.memberName,
       amount,
@@ -42,14 +43,14 @@ export async function sendContributionConfirmation(opts: {
       mpesaRef: isCash ? undefined : opts.reference || undefined,
       accountRef: opts.accountRef,
       totalContributions: opts.totalContributions || undefined,
-      status: opts.status ?? 'completed',
+      status: opts.status ?? "completed",
     }),
     groupId: opts.groupId,
     userId: opts.memberId,
-    templateKey: 'contribution_received',
-    category: 'contribution',
+    templateKey: "contribution_received",
+    category: "contribution",
     referenceId: opts.contributionId,
-    referenceType: 'contribution',
+    referenceType: "contribution",
   });
 }
 
@@ -65,7 +66,7 @@ export async function sendContributionReminder(opts: {
   memberId: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'contribution_reminder',
+    templateKey: "contribution_reminder",
     to: opts.email,
     vars: {
       memberName: opts.memberName,
@@ -77,7 +78,7 @@ export async function sendContributionReminder(opts: {
     },
     groupId: opts.groupId,
     userId: opts.memberId,
-    referenceType: 'contribution',
+    referenceType: "contribution",
   });
 }
 
@@ -95,7 +96,7 @@ export async function sendLoanApprovedEmail(opts: {
   loanId: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'loan_approved',
+    templateKey: "loan_approved",
     to: opts.email,
     vars: {
       memberName: opts.memberName,
@@ -107,7 +108,7 @@ export async function sendLoanApprovedEmail(opts: {
     groupId: opts.groupId,
     userId: opts.memberId,
     referenceId: opts.loanId,
-    referenceType: 'loan',
+    referenceType: "loan",
   });
 }
 
@@ -122,7 +123,7 @@ export async function sendLoanRejectedEmail(opts: {
   loanId: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'loan_rejected',
+    templateKey: "loan_rejected",
     to: opts.email,
     vars: {
       memberName: opts.memberName,
@@ -133,7 +134,7 @@ export async function sendLoanRejectedEmail(opts: {
     groupId: opts.groupId,
     userId: opts.memberId,
     referenceId: opts.loanId,
-    referenceType: 'loan',
+    referenceType: "loan",
   });
 }
 
@@ -150,7 +151,7 @@ export async function sendLoanDisbursedEmail(opts: {
   loanId: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'loan_disbursed',
+    templateKey: "loan_disbursed",
     to: opts.email,
     vars: {
       memberName: opts.memberName,
@@ -163,7 +164,7 @@ export async function sendLoanDisbursedEmail(opts: {
     groupId: opts.groupId,
     userId: opts.memberId,
     referenceId: opts.loanId,
-    referenceType: 'loan',
+    referenceType: "loan",
   });
 }
 
@@ -179,7 +180,7 @@ export async function sendLoanRepaymentReceivedEmail(opts: {
   loanId: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'loan_repayment_received',
+    templateKey: "loan_repayment_received",
     to: opts.email,
     vars: {
       memberName: opts.memberName,
@@ -191,7 +192,7 @@ export async function sendLoanRepaymentReceivedEmail(opts: {
     groupId: opts.groupId,
     userId: opts.memberId,
     referenceId: opts.loanId,
-    referenceType: 'loan',
+    referenceType: "loan",
   });
 }
 
@@ -210,7 +211,7 @@ export async function sendMeetingInvites(opts: {
 }): Promise<void> {
   for (const m of opts.memberEmails) {
     await queueEmail({
-      templateKey: 'meeting_invite',
+      templateKey: "meeting_invite",
       to: m.email,
       vars: {
         memberName: m.name,
@@ -224,8 +225,8 @@ export async function sendMeetingInvites(opts: {
       },
       groupId: opts.groupId,
       userId: m.memberId,
-      priority: 'normal',
-      referenceType: 'meeting',
+      priority: "normal",
+      referenceType: "meeting",
     }).catch(() => {});
   }
 }
@@ -241,7 +242,7 @@ export async function sendMeetingReminders(opts: {
 }): Promise<void> {
   for (const m of opts.memberEmails) {
     await queueEmail({
-      templateKey: 'meeting_reminder',
+      templateKey: "meeting_reminder",
       to: m.email,
       vars: {
         memberName: m.name,
@@ -253,8 +254,8 @@ export async function sendMeetingReminders(opts: {
       },
       groupId: opts.groupId,
       userId: m.memberId,
-      priority: 'normal',
-      referenceType: 'meeting',
+      priority: "normal",
+      referenceType: "meeting",
     }).catch(() => {});
   }
 }

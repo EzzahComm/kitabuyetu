@@ -13,24 +13,30 @@
  * tests below walk that whole loop, because every individual piece can look
  * correct while the loop stays closed.
  */
-import { GET as billingPlansGet } from '@/app/api/v1/billing/plans/route';
-import { GET as contributionsGet } from '@/app/api/v1/contributions/route';
-import { GET as smsUsageGet } from '@/app/api/v1/sms/usage/route';
-import { buildRequest, authHeaders } from './helpers/request';
-import { createTestGroup, subscribeTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { GET as billingPlansGet } from "@/app/api/v1/billing/plans/route";
+import { GET as contributionsGet } from "@/app/api/v1/contributions/route";
+import { GET as smsUsageGet } from "@/app/api/v1/sms/usage/route";
+import { buildRequest, authHeaders } from "./helpers/request";
+import { createTestGroup, subscribeTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
-import { __resetSubscriptionCache } from '@/lib/auth/subscription-gate';
+import { __resetSubscriptionCache } from "@/lib/auth/subscription-gate";
 
-function headersFor(groupId: string, officerId: string, role = 'chairperson') {
+function headersFor(groupId: string, officerId: string, role = "chairperson") {
   return authHeaders({
-    userId: officerId, groupId, role,
-    permissions: ['billing.manage', 'contributions.view', 'contributions.record'],
+    userId: officerId,
+    groupId,
+    role,
+    permissions: [
+      "billing.manage",
+      "contributions.view",
+      "contributions.record",
+    ],
   });
 }
 
-describe('paid-subscription lock', () => {
+describe("paid-subscription lock", () => {
   let groupId: string;
   let officerId: string;
 
@@ -41,38 +47,50 @@ describe('paid-subscription lock', () => {
     // than an entitlement an earlier test warmed.
     __resetSubscriptionCache();
     // Genuinely unpaid, exactly as register_group now leaves a new group.
-    ({ groupId, officerId } = await createTestGroup('chairperson', { subscribed: false }));
+    ({ groupId, officerId } = await createTestGroup("chairperson", {
+      subscribed: false,
+    }));
   });
 
-  it('locks a feature route for a group that has never paid', async () => {
+  it("locks a feature route for a group that has never paid", async () => {
     const res = await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
+      buildRequest("/api/v1/contributions", {
+        headers: headersFor(groupId, officerId),
+      }),
     );
     expect(res.status).toBe(402);
 
-    const body = await res.json() as { code: string };
-    expect(body.code).toBe('PAYMENT_REQUIRED');
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe("PAYMENT_REQUIRED");
   });
 
-  it('still lets a locked group reach billing, so it can see what it owes and pay', async () => {
+  it("still lets a locked group reach billing, so it can see what it owes and pay", async () => {
     // If this ever 402s the product is unrecoverable: the only route that can
     // end the lock would itself be behind the lock.
     const res = await billingPlansGet(
-      buildRequest('/api/v1/billing/plans', { headers: headersFor(groupId, officerId) }),
+      buildRequest("/api/v1/billing/plans", {
+        headers: headersFor(groupId, officerId),
+      }),
     );
     expect(res.status).toBe(200);
 
-    const body = await res.json() as { data: { plans: { plan: string; monthlyFee: number }[] } };
+    const body = (await res.json()) as {
+      data: { plans: { plan: string; monthlyFee: number }[] };
+    };
     expect(body.data.plans.map((p) => p.plan)).toEqual(
-      expect.arrayContaining(['starter', 'growth', 'premium', 'enterprise']),
+      expect.arrayContaining(["starter", "growth", "premium", "enterprise"]),
     );
     // And it must quote real prices, or there is nothing actionable to pay.
-    expect(body.data.plans.find((p) => p.plan === 'starter')?.monthlyFee).toBe(150);
+    expect(body.data.plans.find((p) => p.plan === "starter")?.monthlyFee).toBe(
+      150,
+    );
   });
 
-  it('unlocks the moment a subscription becomes active', async () => {
+  it("unlocks the moment a subscription becomes active", async () => {
     const locked = await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
+      buildRequest("/api/v1/contributions", {
+        headers: headersFor(groupId, officerId),
+      }),
     );
     expect(locked.status).toBe(402);
 
@@ -82,20 +100,29 @@ describe('paid-subscription lock', () => {
     // takes effect immediately rather than after a TTL. A group that pays and
     // stays locked reads as "I paid and it's still broken".
     const unlocked = await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
+      buildRequest("/api/v1/contributions", {
+        headers: headersFor(groupId, officerId),
+      }),
     );
     expect(unlocked.status).toBe(200);
   });
 
-  it('re-locks when the only subscription is expired', async () => {
+  it("re-locks when the only subscription is expired", async () => {
     await subscribeTestGroup(groupId);
-    expect((await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
-    )).status).toBe(200);
+    expect(
+      (
+        await contributionsGet(
+          buildRequest("/api/v1/contributions", {
+            headers: headersFor(groupId, officerId),
+          }),
+        )
+      ).status,
+    ).toBe(200);
 
     // Exactly what migration 139 does to the legacy free plans.
     await rawQuery(
-      `UPDATE subscriptions SET status = 'expired' WHERE group_id = $1`, [groupId],
+      `UPDATE subscriptions SET status = 'expired' WHERE group_id = $1`,
+      [groupId],
     );
 
     // Losing entitlement is NOT instant, by design: a positive is cached for
@@ -106,25 +133,33 @@ describe('paid-subscription lock', () => {
     // rather than waiting out the TTL.
     __resetSubscriptionCache();
 
-    expect((await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
-    )).status).toBe(402);
+    expect(
+      (
+        await contributionsGet(
+          buildRequest("/api/v1/contributions", {
+            headers: headersFor(groupId, officerId),
+          }),
+        )
+      ).status,
+    ).toBe(402);
   });
 
-  it('does not lock support staff out of an unpaid group', async () => {
+  it("does not lock support staff out of an unpaid group", async () => {
     // Support has to be able to look at a group precisely when it is unpaid.
     const res = await contributionsGet(
-      buildRequest('/api/v1/contributions', {
+      buildRequest("/api/v1/contributions", {
         headers: authHeaders({
-          userId: officerId, groupId, role: 'super_admin',
-          permissions: ['contributions.view'],
+          userId: officerId,
+          groupId,
+          role: "super_admin",
+          permissions: ["contributions.view"],
         }),
       }),
     );
     expect(res.status).toBe(200);
   });
 
-  it('a subscription for a DIFFERENT product does NOT unlock this one', async () => {
+  it("a subscription for a DIFFERENT product does NOT unlock this one", async () => {
     // DELIBERATE REVERSAL (migration 140). This case used to assert 200: the
     // gate asked "is this group paying for anything", not "is it paying for
     // kitabu_yetu". That was right while Chama Reminder was only ever an add-on
@@ -136,29 +171,33 @@ describe('paid-subscription lock', () => {
     //
     // The distinct code is what the client uses to send this group to its own
     // subscribe page instead of Kitabu Yetu's billing page.
-    await subscribeTestGroup(groupId, 'growth', 'chama_reminder');
+    await subscribeTestGroup(groupId, "growth", "chama_reminder");
 
     const res = await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
+      buildRequest("/api/v1/contributions", {
+        headers: headersFor(groupId, officerId),
+      }),
     );
     expect(res.status).toBe(402);
 
-    const body = await res.json() as { code: string };
-    expect(body.code).toBe('PRODUCT_NOT_ENTITLED');
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe("PRODUCT_NOT_ENTITLED");
   });
 
-  it('but that subscription DOES unlock the surface it actually bought', async () => {
+  it("but that subscription DOES unlock the surface it actually bought", async () => {
     // The other half of the reversal above, and the reason it is safe: a Chama
     // Reminder subscriber is a paying customer and must reach the product it
     // paid for. If this ever fails, the previous test has stopped being a
     // product boundary and started being an outage.
-    await subscribeTestGroup(groupId, 'growth', 'chama_reminder');
+    await subscribeTestGroup(groupId, "growth", "chama_reminder");
 
     const res = await smsUsageGet(
-      buildRequest('/api/v1/sms/usage', {
+      buildRequest("/api/v1/sms/usage", {
         headers: authHeaders({
-          userId: officerId, groupId, role: 'chairperson',
-          permissions: ['messaging.view', 'messaging.send'],
+          userId: officerId,
+          groupId,
+          role: "chairperson",
+          permissions: ["messaging.view", "messaging.send"],
         }),
       }),
     );

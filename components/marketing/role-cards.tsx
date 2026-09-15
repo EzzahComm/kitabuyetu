@@ -1,9 +1,9 @@
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Container, RevealedHeading, Section } from './primitives';
-import { Reveal } from './reveal';
-import { ROLES } from './content';
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Container, RevealedHeading, Section } from "./primitives";
+import { Reveal } from "./reveal";
+import { ROLES } from "./content";
 
 /**
  * Section 8 — one platform, every role.
@@ -38,9 +38,14 @@ export function RoleCards() {
               className="flex h-full flex-col rounded-2xl bg-paper p-7 ring-1 ring-brand-blue-900/[0.08]"
             >
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-paper-deep ring-1 ring-brand-blue-900/[0.08]">
-                <role.icon aria-hidden="true" className="h-5 w-5 text-brand-600" />
+                <role.icon
+                  aria-hidden="true"
+                  className="h-5 w-5 text-brand-600"
+                />
               </span>
-              <h3 className="mt-6 text-lg font-semibold text-brand-blue-900">{role.title}</h3>
+              <h3 className="mt-6 text-lg font-semibold text-brand-blue-900">
+                {role.title}
+              </h3>
               <p className="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
                 {role.body}
               </p>
@@ -60,13 +65,16 @@ export function RoleCards() {
         <Reveal
           delay={80}
           className={cn(
-            'relative isolate mt-5 overflow-hidden rounded-2xl bg-brand-blue-900 p-8 text-white sm:p-10',
-            'lg:flex lg:items-center lg:justify-between lg:gap-12',
+            "relative isolate mt-5 overflow-hidden rounded-2xl bg-brand-blue-900 p-8 text-white sm:p-10",
+            "lg:flex lg:items-center lg:justify-between lg:gap-12",
           )}
         >
           <div className="max-w-2xl">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-              <organization.icon aria-hidden="true" className="h-5 w-5 text-brand-400" />
+              <organization.icon
+                aria-hidden="true"
+                className="h-5 w-5 text-brand-400"
+              />
             </span>
             <h3 className="mt-6 font-display text-2xl font-normal text-white">
               {organization.title}

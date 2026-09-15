@@ -24,20 +24,23 @@ export function normalizePhone(raw: string): string {
   // Throw the documented error for a null/undefined/non-string caller rather
   // than a TypeError from .replace — callers catch on message, and a
   // TypeError escapes the guards written against this contract.
-  if (typeof raw !== 'string') {
+  if (typeof raw !== "string") {
     throw new Error(`Invalid Kenyan phone number: ${String(raw)}`);
   }
 
-  const digits = raw.replace(/\D/g, '');
+  const digits = raw.replace(/\D/g, "");
 
   const subscriber =
-    digits.startsWith('254') && digits.length === 12 ? digits.slice(3)
-    : digits.startsWith('0')  && digits.length === 10 ? digits.slice(1)
-    : digits.length === 9                             ? digits
-    : null;
+    digits.startsWith("254") && digits.length === 12
+      ? digits.slice(3)
+      : digits.startsWith("0") && digits.length === 10
+        ? digits.slice(1)
+        : digits.length === 9
+          ? digits
+          : null;
 
   if (subscriber !== null && KE_MOBILE_PREFIX.test(subscriber)) {
-    return '254' + subscriber;
+    return "254" + subscriber;
   }
 
   throw new Error(`Invalid Kenyan phone number: ${raw}`);
@@ -70,7 +73,9 @@ export function isValidKenyanPhone(raw: string): boolean {
  * money. Where the phone genuinely identifies someone (login, member
  * creation, STK push targeting), keep using normalizePhone and let it throw.
  */
-export function safeNormalizePhone(raw: string | null | undefined): string | null {
+export function safeNormalizePhone(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   try {
     return normalizePhone(raw);
@@ -87,10 +92,10 @@ export function safeNormalizePhone(raw: string | null | undefined): string | nul
  * constant rather than a bare 'unknown' literal so this is greppable when the
  * question "why does this row say unknown" is eventually asked.
  */
-export const UNKNOWN_PAYER_PHONE = 'unknown';
+export const UNKNOWN_PAYER_PHONE = "unknown";
 
 /** Format E.164 number for display: 0712 345 678 */
 export function formatPhoneDisplay(e164: string): string {
-  const local = '0' + e164.replace(/^254/, '');
-  return local.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
+  const local = "0" + e164.replace(/^254/, "");
+  return local.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3");
 }

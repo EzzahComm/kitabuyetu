@@ -1,12 +1,12 @@
 # Production Schema Drift Audit
 
 **Date:** 2026-07-30
-**Scope:** Repository migrations (`supabase/migrations/*.sql`, 126 files) vs. the *actual live state* of the production Supabase project `kitabuyetu` (`qztcgryhoanennsizcll`, eu-central-1, Postgres 17.6).
+**Scope:** Repository migrations (`supabase/migrations/*.sql`, 126 files) vs. the _actual live state_ of the production Supabase project `kitabuyetu` (`qztcgryhoanennsizcll`, eu-central-1, Postgres 17.6).
 **Method:** Direct SQL introspection of the production catalog (`pg_class`, `pg_proc`, `pg_trigger`, `pg_policies`, `pg_indexes`, `information_schema.columns`, `pg_enum`, `pg_roles`, `cron.job`, `job_queue`) via the Supabase MCP connection, diffed against every object each migration claims to create. Supabase's own security and performance advisors were run against the same live database.
 
 **Score: 52/100.**
 
-> **Why this audit is different from the eleven before it.** Every prior audit in `docs/audits/` reasoned about production from the repository alone — no session had a live database connection. This one queried production directly. That distinction matters: the repo's DDL turns out to be almost perfectly in sync with production, while the things the repo *cannot* show you — grants, and whether the application's SQL actually matches the columns that exist — are where the real damage is. Two scheduled jobs have been failing in production continuously for weeks, and neither is visible from any file in this repository.
+> **Why this audit is different from the eleven before it.** Every prior audit in `docs/audits/` reasoned about production from the repository alone — no session had a live database connection. This one queried production directly. That distinction matters: the repo's DDL turns out to be almost perfectly in sync with production, while the things the repo _cannot_ show you — grants, and whether the application's SQL actually matches the columns that exist — are where the real damage is. Two scheduled jobs have been failing in production continuously for weeks, and neither is visible from any file in this repository.
 
 ---
 
@@ -20,7 +20,7 @@ The findings are concentrated in three areas the repository cannot self-verify:
 
 2. **Code↔schema drift (High).** `members` has no `full_name` column — it has `first_name`/`last_name`. Six SQL call sites across four services select `m.full_name`. This is not theoretical: `email_birthday` has failed **96 consecutive times** in production with `column m.full_name does not exist`, and `email_weekly_summary` has failed 15 times with a second, unrelated column error (`loan_repayments.amount`, which is actually `amount_paid`). Email campaigns are also affected — `getCampaignRecipients` cannot resolve a single recipient.
 
-3. **A dated, imminent failure (Medium).** Three monthly jobs have *never run* since being written. All three fire on **2026-08-01**, two days from this audit. At least two will fail: `journal_lines_partition_maintenance` (09:00 UTC) issues `CREATE TABLE ... PARTITION OF journal_lines` against a table that is not partitioned, and `email_member_statements` (10:00 UTC) selects the nonexistent `m.full_name`.
+3. **A dated, imminent failure (Medium).** Three monthly jobs have _never run_ since being written. All three fire on **2026-08-01**, two days from this audit. At least two will fail: `journal_lines_partition_maintenance` (09:00 UTC) issues `CREATE TABLE ... PARTITION OF journal_lines` against a table that is not partitioned, and `email_member_statements` (10:00 UTC) selects the nonexistent `m.full_name`.
 
 A necessary caveat on severity throughout: production currently holds **5 groups, 23 members, 9 contributions, 0 loans, 0 loan repayments, and 19 journal lines**. This is a pilot/pre-launch database. Nothing below has destroyed real money, because there is almost no real money in the system yet. That makes this the cheapest possible moment to fix all of it — and it also means the 299 "unused index" performance advisories are statistical noise, not findings.
 
@@ -28,15 +28,15 @@ A necessary caveat on severity throughout: production currently holds **5 groups
 
 ## Scoring breakdown
 
-| Dimension | Score | Basis |
-|---|---|---|
-| Schema object parity (tables/columns/functions/triggers/indexes/enums) | 95/100 | Everything live except the deliberately-deferred 094/095 |
-| Grant & privilege parity | 25/100 | 3 `SECURITY DEFINER` functions reachable by `anon` |
-| Seed/reference-data parity | 70/100 | Migrations 092 and 093 policy rows never seeded (harmless today — code falls back) |
-| Code↔schema agreement | 30/100 | 6 broken call sites; 2 jobs failing continuously in production |
-| Migration tracking & process | 30/100 | `schema_migrations` ledger stops at 068; 38 migrations applied by hand with no record |
-| Operational observability | 20/100 | 96 daily failures of one job went unnoticed; nothing alerts on `job_queue.status='failed'` |
-| **Overall** | **52/100** | |
+| Dimension                                                              | Score      | Basis                                                                                      |
+| ---------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
+| Schema object parity (tables/columns/functions/triggers/indexes/enums) | 95/100     | Everything live except the deliberately-deferred 094/095                                   |
+| Grant & privilege parity                                               | 25/100     | 3 `SECURITY DEFINER` functions reachable by `anon`                                         |
+| Seed/reference-data parity                                             | 70/100     | Migrations 092 and 093 policy rows never seeded (harmless today — code falls back)         |
+| Code↔schema agreement                                                  | 30/100     | 6 broken call sites; 2 jobs failing continuously in production                             |
+| Migration tracking & process                                           | 30/100     | `schema_migrations` ledger stops at 068; 38 migrations applied by hand with no record      |
+| Operational observability                                              | 20/100     | 96 daily failures of one job went unnoticed; nothing alerts on `job_queue.status='failed'` |
+| **Overall**                                                            | **52/100** |                                                                                            |
 
 ---
 
@@ -67,7 +67,7 @@ REVOKE EXECUTE ON FUNCTION public.register_group(JSONB) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.register_group(JSONB) TO postgres;
 ```
 
-Migrations [098](../../supabase/migrations/20260727000000_098_link_member_to_group_function.sql) and [100](../../supabase/migrations/20260727020000_100_account_reservation_functions.sql) contain **zero** `REVOKE` statements. Migration 098 even reasons explicitly about grants — "No new GRANT needed: `create-app-tenant-role.sql`'s blanket `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public`..." — but considered only what needed *adding*, never the default `PUBLIC` grant that needed *removing*. Migration 105 closed exactly this class of finding for `debit_organization_sms_credits` eight days later without noticing the three neighbours.
+Migrations [098](../../supabase/migrations/20260727000000_098_link_member_to_group_function.sql) and [100](../../supabase/migrations/20260727020000_100_account_reservation_functions.sql) contain **zero** `REVOKE` statements. Migration 098 even reasons explicitly about grants — "No new GRANT needed: `create-app-tenant-role.sql`'s blanket `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public`..." — but considered only what needed _adding_, never the default `PUBLIC` grant that needed _removing_. Migration 105 closed exactly this class of finding for `debit_organization_sms_credits` eight days later without noticing the three neighbours.
 
 `supabase/config.toml` exposes `schemas = ["public", "graphql_public"]`, so all three are reachable at `POST /rest/v1/rpc/<name>`.
 
@@ -77,7 +77,7 @@ Migrations [098](../../supabase/migrations/20260727000000_098_link_member_to_gro
 - **`adjust_account_reserved_amount(p_account_id, p_delta)`** — applies an arbitrary signed delta to `accounts.reserved_amount`. A negative delta releases the budget earmarks that gate disbursement approval; a positive delta freezes a group's ability to disburse. The `reserved_amount >= 0` CHECK constrains the floor but does not prevent releasing legitimate reservations.
 - **`lock_group_cash_account(p_group_id, p_account_code)`** — returns `balance` and `reserved_amount` for any group's account (information disclosure) and holds a `FOR UPDATE` row lock for the transaction's duration.
 
-**Mitigating factor, stated honestly.** Reaching PostgREST requires the project's publishable/anon key. That key is *provisioned* in Vercel Production as `NEXT_PUBLIC_SUPABASE_ANON_KEY` (added ~20h before this audit), but `lib/supabase/client.ts` and `lib/supabase/server.ts` — the only files that read it — have **zero importers**, so Next.js does not currently inline it into the client bundle. The key is therefore not published *today*. It is nonetheless a value designed to be distributable, it sits in a `NEXT_PUBLIC_`-prefixed variable that will ship the moment anyone imports that dead client, and Supabase anon keys are routinely scraped from deployed bundles. Rated Critical on the strength of the exposure being one import away and the fix being three lines.
+**Mitigating factor, stated honestly.** Reaching PostgREST requires the project's publishable/anon key. That key is _provisioned_ in Vercel Production as `NEXT_PUBLIC_SUPABASE_ANON_KEY` (added ~20h before this audit), but `lib/supabase/client.ts` and `lib/supabase/server.ts` — the only files that read it — have **zero importers**, so Next.js does not currently inline it into the client bundle. The key is therefore not published _today_. It is nonetheless a value designed to be distributable, it sits in a `NEXT_PUBLIC_`-prefixed variable that will ship the moment anyone imports that dead client, and Supabase anon keys are routinely scraped from deployed bundles. Rated Critical on the strength of the exposure being one import away and the fix being three lines.
 
 **Fix:** migration 107 (shipped with this audit) — `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on all three, matching migration 032's pattern.
 
@@ -106,14 +106,14 @@ Last failure 2026-07-29 07:00 UTC; the job runs daily at 07:00 and has been fail
 
 **All six broken call sites**, each `FROM members m`:
 
-| File | Line | Function | Reached by |
-|---|---|---|---|
-| [member-email.service.ts](../../lib/services/member-email.service.ts#L74) | 74 | `sendBirthdayEmails` | job `email_birthday`, daily 07:00 — **failing now** |
-| [member-email.service.ts](../../lib/services/member-email.service.ts#L103-L113) | 103, 113 | `sendMonthlyStatements` | |
-| [report-email.service.ts](../../lib/services/report-email.service.ts#L57) | 57 | `sendGroupReport` | |
-| [report-email.service.ts](../../lib/services/report-email.service.ts#L138) | 138 | `sendWeeklySummaries` | job `email_weekly_summary` — **failing now** (on H2 first) |
-| [statement-email.service.ts](../../lib/services/statement-email.service.ts#L33) | 33 | `sendMemberStatements` | job `email_member_statements`, 1st of month 10:00 — **first run 2026-08-01** |
-| [campaign.service.ts](../../lib/services/campaign.service.ts#L53) | 53 | `getCampaignRecipients` | `launchCampaign` — **every email campaign** |
+| File                                                                            | Line     | Function                | Reached by                                                                   |
+| ------------------------------------------------------------------------------- | -------- | ----------------------- | ---------------------------------------------------------------------------- |
+| [member-email.service.ts](../../lib/services/member-email.service.ts#L74)       | 74       | `sendBirthdayEmails`    | job `email_birthday`, daily 07:00 — **failing now**                          |
+| [member-email.service.ts](../../lib/services/member-email.service.ts#L103-L113) | 103, 113 | `sendMonthlyStatements` |                                                                              |
+| [report-email.service.ts](../../lib/services/report-email.service.ts#L57)       | 57       | `sendGroupReport`       |                                                                              |
+| [report-email.service.ts](../../lib/services/report-email.service.ts#L138)      | 138      | `sendWeeklySummaries`   | job `email_weekly_summary` — **failing now** (on H2 first)                   |
+| [statement-email.service.ts](../../lib/services/statement-email.service.ts#L33) | 33       | `sendMemberStatements`  | job `email_member_statements`, 1st of month 10:00 — **first run 2026-08-01** |
+| [campaign.service.ts](../../lib/services/campaign.service.ts#L53)               | 53       | `getCampaignRecipients` | `launchCampaign` — **every email campaign**                                  |
 
 The last row is the widest-reaching: `getCampaignRecipients` is the sole recipient-resolution path for email campaigns, so no campaign has ever been able to resolve a recipient.
 
@@ -198,7 +198,7 @@ derive_journal_line_entry_date | (none)
 sync_journal_lines_entry_date  | (none)
 ```
 
-Every other function in `public` and `private` pins `search_path`. Both of these come from migration 091 — which, per commit `bb2fc68`, was applied to production out of order, *after* migration 105's hardening sweep had already enumerated its eight targets. Neither is `SECURITY DEFINER`, so exposure is low, but they are the last two open `function_search_path_mutable` warnings on the project.
+Every other function in `public` and `private` pins `search_path`. Both of these come from migration 091 — which, per commit `bb2fc68`, was applied to production out of order, _after_ migration 105's hardening sweep had already enumerated its eight targets. Neither is `SECURITY DEFINER`, so exposure is low, but they are the last two open `function_search_path_mutable` warnings on the project.
 
 ---
 

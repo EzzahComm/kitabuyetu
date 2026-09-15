@@ -18,9 +18,9 @@
  *   npx tsx --env-file=.env.local scripts/backfill-member-welcome-sms.ts <groupId>
  *   npx tsx --env-file=.env.local scripts/backfill-member-welcome-sms.ts <groupId> --apply
  */
-import { withAdminDb } from '../lib/db';
-import { emitBusinessEvent } from '../lib/sms/trigger-engine';
-import { SMS_EVENTS } from '../lib/sms/events';
+import { withAdminDb } from "../lib/db";
+import { emitBusinessEvent } from "../lib/sms/trigger-engine";
+import { SMS_EVENTS } from "../lib/sms/events";
 
 interface Row {
   id: string;
@@ -35,10 +35,10 @@ interface Row {
 
 async function main() {
   const groupId = process.argv[2];
-  const apply   = process.argv.includes('--apply');
+  const apply = process.argv.includes("--apply");
 
-  if (!groupId || groupId.startsWith('--')) {
-    console.error('usage: backfill-member-welcome-sms.ts <groupId> [--apply]');
+  if (!groupId || groupId.startsWith("--")) {
+    console.error("usage: backfill-member-welcome-sms.ts <groupId> [--apply]");
     process.exit(1);
   }
 
@@ -65,21 +65,27 @@ async function main() {
   );
 
   if (rows.length === 0) {
-    console.log('Nothing to do — every active member with a phone already has a welcome execution.');
+    console.log(
+      "Nothing to do — every active member with a phone already has a welcome execution.",
+    );
     return;
   }
 
-  console.log(`${rows.length} member(s) in ${rows[0].group_name} without a welcome:\n`);
+  console.log(
+    `${rows.length} member(s) in ${rows[0].group_name} without a welcome:\n`,
+  );
   for (const r of rows) {
-    console.log(`  ${r.membership_no.padEnd(10)} ${`${r.first_name} ${r.last_name}`.padEnd(20)} ${r.phone}  (joined ${r.joined_at.toISOString().slice(0, 10)})`);
+    console.log(
+      `  ${r.membership_no.padEnd(10)} ${`${r.first_name} ${r.last_name}`.padEnd(20)} ${r.phone}  (joined ${r.joined_at.toISOString().slice(0, 10)})`,
+    );
   }
 
   if (!apply) {
-    console.log('\nDry run only — rerun with --apply to send.');
+    console.log("\nDry run only — rerun with --apply to send.");
     return;
   }
 
-  console.log('\nSending…\n');
+  console.log("\nSending…\n");
   let sent = 0;
   let skipped = 0;
 
@@ -89,23 +95,27 @@ async function main() {
     // copies the payload and injects nothing of its own.
     const summary = await emitBusinessEvent({
       eventType: SMS_EVENTS.MEMBER_REGISTERED,
-      eventId:   r.id,
+      eventId: r.id,
       groupId,
       payload: {
-        memberId:      r.id,
-        first_name:    r.first_name,
-        last_name:     r.last_name,
-        group_name:    r.group_name,
+        memberId: r.id,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        group_name: r.group_name,
         membership_no: r.membership_no,
       },
     });
 
     if (summary.dispatched > 0) {
       sent++;
-      console.log(`  sent    ${r.membership_no} ${r.first_name} ${r.last_name}`);
+      console.log(
+        `  sent    ${r.membership_no} ${r.first_name} ${r.last_name}`,
+      );
     } else {
       skipped++;
-      console.log(`  skipped ${r.membership_no} ${r.first_name} ${r.last_name} — ${JSON.stringify(summary)}`);
+      console.log(
+        `  skipped ${r.membership_no} ${r.first_name} ${r.last_name} — ${JSON.stringify(summary)}`,
+      );
     }
   }
 
@@ -114,4 +124,7 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch((err) => { console.error(err); process.exit(1); });
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

@@ -22,13 +22,13 @@
  * channel. Email + the log line only. This mirrors the low-balance alert's
  * own rule and is stated in the pathway doc's closure test.
  */
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { queueEmail } from './email.service';
-import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { queueEmail } from "./email.service";
+import { DEFAULT_SMS_PROVIDER } from "@/lib/sms/provider";
 
 /** How far back a sample looks. Matches the hourly job cadence. */
-const SAMPLE_WINDOW = '1 hour';
+const SAMPLE_WINDOW = "1 hour";
 
 /**
  * Below this many messages in the window, no verdict is issued at all.
@@ -59,17 +59,17 @@ const DEGRADED_RATE = 0.5;
  * holds. Six hours, so a long outage re-reminds rather than either spamming
  * hourly or going quiet forever.
  */
-const ALERT_COOLOFF = '6 hours';
+const ALERT_COOLOFF = "6 hours";
 
 export interface HealthSample {
-  provider:    string;
-  total:       number;
-  failed:      number;
+  provider: string;
+  total: number;
+  failed: number;
   failureRate: number;
   /** null when the window held too few messages to judge. */
-  state:       'healthy' | 'degraded' | null;
-  alerted:     boolean;
-  recovered:   boolean;
+  state: "healthy" | "degraded" | null;
+  alerted: boolean;
+  recovered: boolean;
 }
 
 /**
@@ -84,21 +84,23 @@ export async function sampleProviderHealth(
   provider: string = DEFAULT_SMS_PROVIDER,
 ): Promise<HealthSample> {
   const [counts] = await withAdminDb((db) =>
-    db.query<{ total: string; failed: string }>(
-      // Only rows that reached a provider verdict are eligible. 'queued' means
-      // the dispatch has not answered yet and 'suppressed' never went out —
-      // counting either would make a busy queue look like an outage.
-      `SELECT COUNT(*)::text                                        AS total,
+    db
+      .query<{ total: string; failed: string }>(
+        // Only rows that reached a provider verdict are eligible. 'queued' means
+        // the dispatch has not answered yet and 'suppressed' never went out —
+        // counting either would make a busy queue look like an outage.
+        `SELECT COUNT(*)::text                                        AS total,
               COUNT(*) FILTER (WHERE status = 'failed')::text       AS failed
          FROM sms_usage_logs
         WHERE provider = $1
           AND created_at >= NOW() - INTERVAL '${SAMPLE_WINDOW}'
           AND status IN ('sent', 'delivered', 'failed')`,
-      [provider],
-    ).then((r) => r.rows),
+        [provider],
+      )
+      .then((r) => r.rows),
   );
 
-  const total  = Number(counts?.total ?? 0);
+  const total = Number(counts?.total ?? 0);
   const failed = Number(counts?.failed ?? 0);
   const failureRate = total > 0 ? failed / total : 0;
 
@@ -107,17 +109,38 @@ export async function sampleProviderHealth(
   // but issue no verdict and never alert.
   if (total < MIN_SAMPLE) {
     await touchChecked(provider, total, failed);
-    return { provider, total, failed, failureRate, state: null, alerted: false, recovered: false };
+    return {
+      provider,
+      total,
+      failed,
+      failureRate,
+      state: null,
+      alerted: false,
+      recovered: false,
+    };
   }
 
-  const state: 'healthy' | 'degraded' = failureRate >= DEGRADED_RATE ? 'degraded' : 'healthy';
+  const state: "healthy" | "degraded" =
+    failureRate >= DEGRADED_RATE ? "degraded" : "healthy";
 
-  if (state === 'healthy') {
+  if (state === "healthy") {
     const recovered = await markHealthy(provider, total, failed);
     if (recovered) {
-      logger.warn('[sms-health] provider recovered', { provider, total, failed });
+      logger.warn("[sms-health] provider recovered", {
+        provider,
+        total,
+        failed,
+      });
     }
-    return { provider, total, failed, failureRate, state, alerted: false, recovered };
+    return {
+      provider,
+      total,
+      failed,
+      failureRate,
+      state,
+      alerted: false,
+      recovered,
+    };
   }
 
   // Degraded. Claim the right to alert by moving last_alerted_at — only the
@@ -127,16 +150,32 @@ export async function sampleProviderHealth(
 
   // The log line fires on every degraded sample whether or not the alert was
   // claimed: it is the record of the condition, not the notification.
-  logger.error('[sms-health] SMS provider is DEGRADED', {
-    provider, total, failed, failureRate: Number(failureRate.toFixed(4)), alerting: claimed,
+  logger.error("[sms-health] SMS provider is DEGRADED", {
+    provider,
+    total,
+    failed,
+    failureRate: Number(failureRate.toFixed(4)),
+    alerting: claimed,
   });
 
   if (claimed) await notifyStaff(provider, total, failed, failureRate);
 
-  return { provider, total, failed, failureRate, state, alerted: claimed, recovered: false };
+  return {
+    provider,
+    total,
+    failed,
+    failureRate,
+    state,
+    alerted: claimed,
+    recovered: false,
+  };
 }
 
-async function touchChecked(provider: string, total: number, failed: number): Promise<void> {
+async function touchChecked(
+  provider: string,
+  total: number,
+  failed: number,
+): Promise<void> {
   await withAdminDb((db) =>
     db.query(
       `INSERT INTO sms_provider_health_state (provider, last_checked_at, sample_total, sample_failed, updated_at)
@@ -157,15 +196,21 @@ async function touchChecked(provider: string, total: number, failed: number): Pr
  * previous one. Exactly the defect M1 found in the low-balance alert, which
  * went silent for 24 hours after a top-up because nothing cleared its flag.
  */
-async function markHealthy(provider: string, total: number, failed: number): Promise<boolean> {
+async function markHealthy(
+  provider: string,
+  total: number,
+  failed: number,
+): Promise<boolean> {
   const rowCount = await withAdminDb((db) =>
-    db.query(
-      `UPDATE sms_provider_health_state
+    db
+      .query(
+        `UPDATE sms_provider_health_state
           SET state = 'healthy', last_alerted_at = NULL, last_checked_at = NOW(),
               sample_total = $2, sample_failed = $3, updated_at = NOW()
         WHERE provider = $1 AND state = 'degraded'`,
-      [provider, total, failed],
-    ).then((r) => r.rowCount ?? 0),
+        [provider, total, failed],
+      )
+      .then((r) => r.rowCount ?? 0),
   );
 
   if (rowCount === 0) {
@@ -181,10 +226,15 @@ async function markHealthy(provider: string, total: number, failed: number): Pro
   return rowCount > 0;
 }
 
-async function claimAlert(provider: string, total: number, failed: number): Promise<boolean> {
+async function claimAlert(
+  provider: string,
+  total: number,
+  failed: number,
+): Promise<boolean> {
   return withAdminDb((db) =>
-    db.query(
-      `INSERT INTO sms_provider_health_state
+    db
+      .query(
+        `INSERT INTO sms_provider_health_state
          (provider, state, last_alerted_at, last_checked_at, sample_total, sample_failed, updated_at)
        VALUES ($1, 'degraded', NOW(), NOW(), $2, $3, NOW())
        ON CONFLICT (provider) DO UPDATE
@@ -192,8 +242,9 @@ async function claimAlert(provider: string, total: number, failed: number): Prom
              sample_total = $2, sample_failed = $3, updated_at = NOW()
          WHERE sms_provider_health_state.last_alerted_at IS NULL
             OR sms_provider_health_state.last_alerted_at < NOW() - INTERVAL '${ALERT_COOLOFF}'`,
-      [provider, total, failed],
-    ).then((r) => (r.rowCount ?? 0) > 0),
+        [provider, total, failed],
+      )
+      .then((r) => (r.rowCount ?? 0) > 0),
   );
 }
 
@@ -206,28 +257,34 @@ async function claimAlert(provider: string, total: number, failed: number): Prom
  * noticed. The logger.error above has already recorded the condition.
  */
 async function notifyStaff(
-  provider: string, total: number, failed: number, failureRate: number,
+  provider: string,
+  total: number,
+  failed: number,
+  failureRate: number,
 ): Promise<void> {
   const to = process.env.EMAIL_ADMIN;
   if (!to) {
-    logger.error('[sms-health] EMAIL_ADMIN is unset — provider alert has no recipient', { provider });
+    logger.error(
+      "[sms-health] EMAIL_ADMIN is unset — provider alert has no recipient",
+      { provider },
+    );
     return;
   }
 
   await queueEmail({
     to,
-    templateKey: 'sms_provider_degraded',
+    templateKey: "sms_provider_degraded",
     vars: {
       provider,
       failed,
       total,
       failureRate: `${Math.round(failureRate * 100)}%`,
-      window:      SAMPLE_WINDOW,
+      window: SAMPLE_WINDOW,
     },
-    referenceType: 'sms_provider_health',
-    priority:      'high',
+    referenceType: "sms_provider_health",
+    priority: "high",
   }).catch((err) => {
-    logger.error('[sms-health] failed to queue provider alert email', {
+    logger.error("[sms-health] failed to queue provider alert email", {
       err: err instanceof Error ? err.message : String(err),
     });
   });
@@ -239,12 +296,14 @@ async function notifyStaff(
  */
 export async function readProviderHealth(
   provider: string = DEFAULT_SMS_PROVIDER,
-): Promise<{ state: 'healthy' | 'degraded'; checkedAt: Date | null } | null> {
+): Promise<{ state: "healthy" | "degraded"; checkedAt: Date | null } | null> {
   const [row] = await withAdminDb((db) =>
-    db.query<{ state: 'healthy' | 'degraded'; last_checked_at: Date | null }>(
-      `SELECT state, last_checked_at FROM sms_provider_health_state WHERE provider = $1`,
-      [provider],
-    ).then((r) => r.rows),
+    db
+      .query<{
+        state: "healthy" | "degraded";
+        last_checked_at: Date | null;
+      }>(`SELECT state, last_checked_at FROM sms_provider_health_state WHERE provider = $1`, [provider])
+      .then((r) => r.rows),
   );
   return row ? { state: row.state, checkedAt: row.last_checked_at } : null;
 }

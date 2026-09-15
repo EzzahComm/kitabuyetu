@@ -1,13 +1,16 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
-import { ScheduleCreateSchema, ScheduleUpdateSchema } from '@/lib/validators/sms.schema';
-import { ok, notFound } from '@/lib/utils/response';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { withDb, withAdminDb } from "@/lib/db";
+import {
+  ScheduleCreateSchema,
+  ScheduleUpdateSchema,
+} from "@/lib/validators/sms.schema";
+import { ok, notFound } from "@/lib/utils/response";
 
 // GET /api/v1/sms/schedules
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.schedules.view', async (auth) => {
+  return withPermission(req, "messaging.schedules.view", async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return withDb(ctx, async (client) => {
       const { rows } = await client.query(
@@ -25,11 +28,13 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // POST /api/v1/sms/schedules
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
-    const body  = await req.json();
+  return withPermission(req, "messaging.schedules.manage", async (auth) => {
+    const body = await req.json();
     const input = ScheduleCreateSchema.parse(body);
 
-    const { rows: [schedule] } = await withAdminDb((db) =>
+    const {
+      rows: [schedule],
+    } = await withAdminDb((db) =>
       db.query(
         `INSERT INTO sms_schedules
            (group_id, name, description, schedule_type, template_id, message,
@@ -60,29 +65,29 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // PATCH /api/v1/sms/schedules?id=xxx
 export async function PATCH(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
-    const id   = new URL(req.url).searchParams.get('id');
+  return withPermission(req, "messaging.schedules.manage", async (auth) => {
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return notFound();
-    const body  = await req.json();
+    const body = await req.json();
     const input = ScheduleUpdateSchema.parse(body);
 
-    const sets: string[] = ['updated_at=NOW()'];
+    const sets: string[] = ["updated_at=NOW()"];
     const vals: unknown[] = [id, auth.groupId];
     let idx = 3;
 
     const fieldMap: Record<string, string> = {
-      name: 'name',
-      description: 'description',
-      message: 'message',
-      scheduleType: 'schedule_type',
-      templateId: 'template_id',
-      recipientType: 'recipient_type',
-      rawRecipients: 'raw_recipients',
-      cronExpression: 'cron_expression',
-      nextRunAt: 'next_run_at',
-      timezone: 'timezone',
-      daysBefore: 'days_before_due',
-      isActive: 'is_active',
+      name: "name",
+      description: "description",
+      message: "message",
+      scheduleType: "schedule_type",
+      templateId: "template_id",
+      recipientType: "recipient_type",
+      rawRecipients: "raw_recipients",
+      cronExpression: "cron_expression",
+      nextRunAt: "next_run_at",
+      timezone: "timezone",
+      daysBefore: "days_before_due",
+      isActive: "is_active",
     };
     for (const [jsKey, col] of Object.entries(fieldMap)) {
       const val = (input as Record<string, unknown>)[jsKey];
@@ -94,7 +99,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
     const { rows } = await withAdminDb((db) =>
       db.query(
-        `UPDATE sms_schedules SET ${sets.join(',')}
+        `UPDATE sms_schedules SET ${sets.join(",")}
          WHERE id=$1 AND group_id=$2 RETURNING *`,
         vals,
       ),
@@ -106,8 +111,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/schedules?id=xxx
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.schedules.manage', async (auth) => {
-    const id = new URL(req.url).searchParams.get('id');
+  return withPermission(req, "messaging.schedules.manage", async (auth) => {
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return notFound();
 
     const { rows } = await withAdminDb((db) =>

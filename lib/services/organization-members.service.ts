@@ -24,17 +24,25 @@
  * bypasses them entirely via withAdminDb like every other admin-organizations
  * function already does.
  */
-import bcrypt from 'bcryptjs';
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { normalizePhone } from '@/lib/utils/phone';
-import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
-import { BCRYPT_ROUNDS, generateTempPassword } from './members.service';
-import { updatePlatformUserRole } from './admin.service';
-import { hashSecret, generateEmailToken, generateOtp } from './group-verification.service';
-import { sendTemplatedEmail } from './email.service';
-import { sendServiceSms } from './notifications.service';
-import { assertStaffCap } from './organization-plan.service';
+import bcrypt from "bcryptjs";
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { normalizePhone } from "@/lib/utils/phone";
+import {
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "@/lib/utils/errors";
+import { BCRYPT_ROUNDS, generateTempPassword } from "./members.service";
+import { updatePlatformUserRole } from "./admin.service";
+import {
+  hashSecret,
+  generateEmailToken,
+  generateOtp,
+} from "./group-verification.service";
+import { sendTemplatedEmail } from "./email.service";
+import { sendServiceSms } from "./notifications.service";
+import { assertStaffCap } from "./organization-plan.service";
 
 /**
  * Finds an existing member by phone, or creates one with a temp/given
@@ -47,7 +55,13 @@ import { assertStaffCap } from './organization-plan.service';
  */
 async function findOrCreateMemberForOrgStaff(
   db: PoolClient,
-  input: { phone: string; firstName: string; lastName: string; email?: string | null; passwordHash?: string },
+  input: {
+    phone: string;
+    firstName: string;
+    lastName: string;
+    email?: string | null;
+    passwordHash?: string;
+  },
 ): Promise<string> {
   const phone = normalizePhone(input.phone);
   const existing = await db.query<{ id: string; platform_role: string }>(
@@ -56,13 +70,18 @@ async function findOrCreateMemberForOrgStaff(
   );
 
   if (existing.rows[0]) {
-    if (existing.rows[0].platform_role === 'member') {
-      await updatePlatformUserRole(existing.rows[0].id, 'organization_coordinator');
+    if (existing.rows[0].platform_role === "member") {
+      await updatePlatformUserRole(
+        existing.rows[0].id,
+        "organization_coordinator",
+      );
     }
     return existing.rows[0].id;
   }
 
-  const passwordHash = input.passwordHash ?? await bcrypt.hash(generateTempPassword(), BCRYPT_ROUNDS);
+  const passwordHash =
+    input.passwordHash ??
+    (await bcrypt.hash(generateTempPassword(), BCRYPT_ROUNDS));
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO public.members (phone, email, password_hash, first_name, last_name, platform_role)
      VALUES ($1, $2, $3, $4, $5, 'organization_coordinator')
@@ -72,34 +91,49 @@ async function findOrCreateMemberForOrgStaff(
   return rows[0].id;
 }
 
-export type OrgRole = 'lead' | 'staff';
+export type OrgRole = "lead" | "staff";
 
 export interface OrgStaffRow {
-  id:         string;
-  memberId:   string;
-  firstName:  string;
-  lastName:   string;
-  phone:      string;
-  email:      string | null;
-  orgRole:    OrgRole;
-  status:     'active' | 'archived';
-  joinedAt:   Date;
+  id: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  orgRole: OrgRole;
+  status: "active" | "archived";
+  joinedAt: Date;
 }
 
 interface StaffQueryRow {
-  id: string; member_id: string; first_name: string; last_name: string;
-  phone: string; email: string | null; org_role: OrgRole; status: 'active' | 'archived';
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  org_role: OrgRole;
+  status: "active" | "archived";
   joined_at: Date;
 }
 
 function mapRow(r: StaffQueryRow): OrgStaffRow {
   return {
-    id: r.id, memberId: r.member_id, firstName: r.first_name, lastName: r.last_name,
-    phone: r.phone, email: r.email, orgRole: r.org_role, status: r.status, joinedAt: r.joined_at,
+    id: r.id,
+    memberId: r.member_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    phone: r.phone,
+    email: r.email,
+    orgRole: r.org_role,
+    status: r.status,
+    joinedAt: r.joined_at,
   };
 }
 
-export async function listOrgStaff(organizationId: string): Promise<OrgStaffRow[]> {
+export async function listOrgStaff(
+  organizationId: string,
+): Promise<OrgStaffRow[]> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<StaffQueryRow>(
       `SELECT om.id, om.member_id, m.first_name, m.last_name, m.phone, m.email,
@@ -115,10 +149,10 @@ export async function listOrgStaff(organizationId: string): Promise<OrgStaffRow[
 }
 
 export interface AddOrgStaffInput {
-  phone:     string;
+  phone: string;
   firstName: string;
-  lastName:  string;
-  orgRole:   OrgRole;
+  lastName: string;
+  orgRole: OrgRole;
   invitedBy: string; // super_admin's own member id
 }
 
@@ -141,7 +175,7 @@ export async function addOrgStaff(
       `SELECT id FROM public.organizations WHERE id = $1`,
       [organizationId],
     );
-    if (!org.rows[0]) throw new NotFoundError('Organization', organizationId);
+    if (!org.rows[0]) throw new NotFoundError("Organization", organizationId);
 
     const memberId = await findOrCreateMemberForOrgStaff(db, input);
 
@@ -149,7 +183,10 @@ export async function addOrgStaff(
       `SELECT 1 FROM public.organization_members WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
       [organizationId, memberId],
     );
-    if (alreadyMember.rows[0]) throw new ConflictError('This person is already active staff for this organization');
+    if (alreadyMember.rows[0])
+      throw new ConflictError(
+        "This person is already active staff for this organization",
+      );
 
     await assertStaffCap(db, organizationId);
 
@@ -163,14 +200,23 @@ export async function addOrgStaff(
     );
 
     return {
-      id: omRows[0].id, memberId, firstName: input.firstName, lastName: input.lastName,
-      phone, email: null, orgRole: input.orgRole, status: 'active', joinedAt: omRows[0].joined_at,
+      id: omRows[0].id,
+      memberId,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone,
+      email: null,
+      orgRole: input.orgRole,
+      status: "active",
+      joinedAt: omRows[0].joined_at,
     };
   });
 }
 
 export async function changeOrgStaffRole(
-  organizationId: string, memberId: string, orgRole: OrgRole,
+  organizationId: string,
+  memberId: string,
+  orgRole: OrgRole,
 ): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
     const { rowCount } = await db.query(
@@ -178,12 +224,15 @@ export async function changeOrgStaffRole(
        WHERE organization_id = $2 AND member_id = $3 AND status = 'active'`,
       [orgRole, organizationId, memberId],
     );
-    if (!rowCount) throw new NotFoundError('Active organization staff member', memberId);
+    if (!rowCount)
+      throw new NotFoundError("Active organization staff member", memberId);
   });
 }
 
 export async function removeOrgStaff(
-  organizationId: string, memberId: string, removedBy: string,
+  organizationId: string,
+  memberId: string,
+  removedBy: string,
 ): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
     const remaining = await db.query<{ count: string }>(
@@ -196,9 +245,15 @@ export async function removeOrgStaff(
        WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
       [organizationId, memberId],
     );
-    if (!target.rows[0]) throw new NotFoundError('Active organization staff member', memberId);
-    if (target.rows[0].org_role === 'lead' && parseInt(remaining.rows[0].count, 10) === 0) {
-      throw new ValidationError('Cannot remove the last lead — assign another lead first');
+    if (!target.rows[0])
+      throw new NotFoundError("Active organization staff member", memberId);
+    if (
+      target.rows[0].org_role === "lead" &&
+      parseInt(remaining.rows[0].count, 10) === 0
+    ) {
+      throw new ValidationError(
+        "Cannot remove the last lead — assign another lead first",
+      );
     }
 
     const { rowCount } = await db.query(
@@ -207,7 +262,8 @@ export async function removeOrgStaff(
        WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
       [organizationId, memberId, removedBy],
     );
-    if (!rowCount) throw new NotFoundError('Active organization staff member', memberId);
+    if (!rowCount)
+      throw new NotFoundError("Active organization staff member", memberId);
   });
 }
 
@@ -227,27 +283,41 @@ const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
 
 export interface OrgInvitationRow {
-  id:               string;
-  organizationId:   string;
+  id: string;
+  organizationId: string;
   organizationName: string;
-  email:            string;
-  firstName:        string;
-  lastName:         string;
-  orgRole:          OrgRole;
-  status:           string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  orgRole: OrgRole;
+  status: string;
 }
 
 function acceptInviteUrlFor(token: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.vercel.app"
+  ).replace(/\/$/, "");
   return `${base}/accept-org-invite/${token}`;
 }
 
 async function loadInvitationByTokenHash(
-  db: PoolClient, tokenHash: string,
+  db: PoolClient,
+  tokenHash: string,
 ): Promise<{
-  id: string; organization_id: string; organization_name: string; email: string; phone: string;
-  first_name: string; last_name: string; org_role: OrgRole; status: string; invited_by: string;
-  otp_hash: string | null; otp_expires_at: Date | null; otp_attempts: number; expires_at: Date;
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  email: string;
+  phone: string;
+  first_name: string;
+  last_name: string;
+  org_role: OrgRole;
+  status: string;
+  invited_by: string;
+  otp_hash: string | null;
+  otp_expires_at: Date | null;
+  otp_attempts: number;
+  expires_at: Date;
 } | null> {
   const { rows } = await db.query(
     `SELECT oi.id, oi.organization_id, o.name AS organization_name, oi.email, oi.phone,
@@ -264,7 +334,14 @@ async function loadInvitationByTokenHash(
 /** Lead/super_admin-only. Creates the invitation and sends the confirmation email. */
 export async function createOrgInvitation(
   organizationId: string,
-  input: { email: string; phone: string; firstName: string; lastName: string; orgRole: OrgRole; invitedBy: string },
+  input: {
+    email: string;
+    phone: string;
+    firstName: string;
+    lastName: string;
+    orgRole: OrgRole;
+    invitedBy: string;
+  },
 ): Promise<{ id: string; expiresAt: Date }> {
   const phone = normalizePhone(input.phone);
   const token = generateEmailToken();
@@ -275,25 +352,38 @@ export async function createOrgInvitation(
       `SELECT id, name FROM public.organizations WHERE id = $1`,
       [organizationId],
     );
-    if (!org.rows[0]) throw new NotFoundError('Organization', organizationId);
+    if (!org.rows[0]) throw new NotFoundError("Organization", organizationId);
 
     const { rows } = await db.query<{ id: string; expires_at: Date }>(
       `INSERT INTO public.organization_invitations
          (organization_id, email, phone, first_name, last_name, org_role, invited_by, token_hash)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, expires_at`,
-      [organizationId, input.email, phone, input.firstName, input.lastName, input.orgRole, input.invitedBy, tokenHash],
+      [
+        organizationId,
+        input.email,
+        phone,
+        input.firstName,
+        input.lastName,
+        input.orgRole,
+        input.invitedBy,
+        tokenHash,
+      ],
     );
-    return { id: rows[0].id, expiresAt: rows[0].expires_at, organizationName: org.rows[0].name };
+    return {
+      id: rows[0].id,
+      expiresAt: rows[0].expires_at,
+      organizationName: org.rows[0].name,
+    };
   });
 
   await sendTemplatedEmail({
-    templateKey: 'org_staff_invite',
-    to:          input.email,
+    templateKey: "org_staff_invite",
+    to: input.email,
     vars: {
-      firstName:        input.firstName,
+      firstName: input.firstName,
       organizationName: result.organizationName,
-      inviteUrl:         acceptInviteUrlFor(token),
+      inviteUrl: acceptInviteUrlFor(token),
     },
   });
 
@@ -301,34 +391,45 @@ export async function createOrgInvitation(
 }
 
 /** Public. Safe to call from a GET — read-only, no state transition. */
-export async function getOrgInvitation(token: string): Promise<OrgInvitationRow> {
+export async function getOrgInvitation(
+  token: string,
+): Promise<OrgInvitationRow> {
   const tokenHash = hashSecret(token);
   return withAdminDb(async (db: PoolClient) => {
     const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv || inv.status === 'cancelled') throw new NotFoundError('Invitation', token);
-    if (inv.status !== 'completed' && inv.expires_at < new Date()) {
-      throw new ValidationError('This invitation has expired');
+    if (!inv || inv.status === "cancelled")
+      throw new NotFoundError("Invitation", token);
+    if (inv.status !== "completed" && inv.expires_at < new Date()) {
+      throw new ValidationError("This invitation has expired");
     }
     return {
-      id: inv.id, organizationId: inv.organization_id, organizationName: inv.organization_name,
-      email: inv.email, firstName: inv.first_name, lastName: inv.last_name,
-      orgRole: inv.org_role, status: inv.status,
+      id: inv.id,
+      organizationId: inv.organization_id,
+      organizationName: inv.organization_name,
+      email: inv.email,
+      firstName: inv.first_name,
+      lastName: inv.last_name,
+      orgRole: inv.org_role,
+      status: inv.status,
     };
   });
 }
 
 /** Public. Marks the email link as used and sends the SMS OTP — the second, distinct channel. */
-export async function confirmOrgInvitationEmail(token: string): Promise<{ phone: string }> {
+export async function confirmOrgInvitationEmail(
+  token: string,
+): Promise<{ phone: string }> {
   const tokenHash = hashSecret(token);
   const otp = generateOtp();
   const otpHash = hashSecret(otp);
 
   const phone = await withAdminDb(async (db: PoolClient) => {
     const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
-    if (inv.expires_at < new Date()) throw new ValidationError('This invitation has expired');
-    if (!['invited', 'email_confirmed', 'otp_sent'].includes(inv.status)) {
-      throw new ValidationError('This invitation has already been used');
+    if (!inv) throw new NotFoundError("Invitation", token);
+    if (inv.expires_at < new Date())
+      throw new ValidationError("This invitation has expired");
+    if (!["invited", "email_confirmed", "otp_sent"].includes(inv.status)) {
+      throw new ValidationError("This invitation has already been used");
     }
 
     await db.query(
@@ -344,7 +445,7 @@ export async function confirmOrgInvitationEmail(token: string): Promise<{ phone:
   // tenant to bill even in principle.
   await sendServiceSms({
     phone,
-    notificationType: 'auth_org_invite',
+    notificationType: "auth_org_invite",
     body: `Your Kitabu Yetu staff invite code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
   });
 
@@ -352,64 +453,94 @@ export async function confirmOrgInvitationEmail(token: string): Promise<{ phone:
 }
 
 /** Public. */
-export async function verifyOrgInvitationOtp(token: string, otp: string): Promise<void> {
+export async function verifyOrgInvitationOtp(
+  token: string,
+  otp: string,
+): Promise<void> {
   const tokenHash = hashSecret(token);
   const otpHash = hashSecret(otp.trim());
 
   return withAdminDb(async (db: PoolClient) => {
     const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
-    if (inv.status !== 'otp_sent') throw new ValidationError('Request a code before verifying it');
-    if (!inv.otp_hash || !inv.otp_expires_at || inv.otp_expires_at < new Date()) {
-      throw new ValidationError('This code has expired — request a new one');
+    if (!inv) throw new NotFoundError("Invitation", token);
+    if (inv.status !== "otp_sent")
+      throw new ValidationError("Request a code before verifying it");
+    if (
+      !inv.otp_hash ||
+      !inv.otp_expires_at ||
+      inv.otp_expires_at < new Date()
+    ) {
+      throw new ValidationError("This code has expired — request a new one");
     }
     if (inv.otp_attempts >= MAX_OTP_ATTEMPTS) {
-      throw new ValidationError('Too many attempts — request a new code');
+      throw new ValidationError("Too many attempts — request a new code");
     }
     if (inv.otp_hash !== otpHash) {
       await db.query(
         `UPDATE public.organization_invitations SET otp_attempts = otp_attempts + 1 WHERE id = $1`,
         [inv.id],
       );
-      throw new ValidationError('Incorrect code');
+      throw new ValidationError("Incorrect code");
     }
 
-    await db.query(`UPDATE public.organization_invitations SET status = 'verified' WHERE id = $1`, [inv.id]);
+    await db.query(
+      `UPDATE public.organization_invitations SET status = 'verified' WHERE id = $1`,
+      [inv.id],
+    );
   });
 }
 
 export interface OrgInvitationListItem {
-  id:        string;
-  email:     string;
+  id: string;
+  email: string;
   firstName: string;
-  lastName:  string;
-  orgRole:   OrgRole;
-  status:    string;
+  lastName: string;
+  orgRole: OrgRole;
+  status: string;
   expiresAt: Date;
   createdAt: Date;
 }
 
 interface InvitationListQueryRow {
-  id: string; email: string; first_name: string; last_name: string;
-  org_role: OrgRole; status: string; expires_at: Date; created_at: Date;
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  org_role: OrgRole;
+  status: string;
+  expires_at: Date;
+  created_at: Date;
 }
 
-const TERMINAL_INVITATION_STATUSES = ['completed', 'cancelled'] as const;
+const TERMINAL_INVITATION_STATUSES = ["completed", "cancelled"] as const;
 
-function mapInvitationListRow(r: InvitationListQueryRow): OrgInvitationListItem {
+function mapInvitationListRow(
+  r: InvitationListQueryRow,
+): OrgInvitationListItem {
   // 'expired' isn't written anywhere by the accept flow itself (getOrgInvitation
   // just rejects a stale token at read-time) — surface it here instead, since
   // this is the one place an admin actually needs to see it.
-  const status = !TERMINAL_INVITATION_STATUSES.includes(r.status as never) && r.expires_at < new Date()
-    ? 'expired' : r.status;
+  const status =
+    !TERMINAL_INVITATION_STATUSES.includes(r.status as never) &&
+    r.expires_at < new Date()
+      ? "expired"
+      : r.status;
   return {
-    id: r.id, email: r.email, firstName: r.first_name, lastName: r.last_name,
-    orgRole: r.org_role, status, expiresAt: r.expires_at, createdAt: r.created_at,
+    id: r.id,
+    email: r.email,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    orgRole: r.org_role,
+    status,
+    expiresAt: r.expires_at,
+    createdAt: r.created_at,
   };
 }
 
 /** Lead/super_admin-only. Every invitation ever sent for this org, newest first — completed/cancelled included so the history is auditable, not just the actionable ones. */
-export async function listOrgInvitations(organizationId: string): Promise<OrgInvitationListItem[]> {
+export async function listOrgInvitations(
+  organizationId: string,
+): Promise<OrgInvitationListItem[]> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<InvitationListQueryRow>(
       `SELECT id, email, first_name, last_name, org_role, status, expires_at, created_at
@@ -428,13 +559,18 @@ export async function listOrgInvitations(organizationId: string): Promise<OrgInv
  * OTP tied to it must restart too) and re-sends the invite email. Works
  * from any non-terminal status, including an already-expired one.
  */
-export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date }> {
+export async function resendOrgInvitation(
+  id: string,
+): Promise<{ expiresAt: Date }> {
   const token = generateEmailToken();
   const tokenHash = hashSecret(token);
 
   const result = await withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{
-      status: string; email: string; first_name: string; organization_name: string;
+      status: string;
+      email: string;
+      first_name: string;
+      organization_name: string;
     }>(
       `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name
        FROM public.organization_invitations oi
@@ -443,7 +579,7 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
       [id],
     );
     const inv = rows[0];
-    if (!inv) throw new NotFoundError('Invitation', id);
+    if (!inv) throw new NotFoundError("Invitation", id);
     if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
       throw new ValidationError(`Cannot resend a ${inv.status} invitation`);
     }
@@ -456,16 +592,21 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
        RETURNING expires_at`,
       [id, tokenHash],
     );
-    return { expiresAt: updated[0].expires_at, email: inv.email, firstName: inv.first_name, organizationName: inv.organization_name };
+    return {
+      expiresAt: updated[0].expires_at,
+      email: inv.email,
+      firstName: inv.first_name,
+      organizationName: inv.organization_name,
+    };
   });
 
   await sendTemplatedEmail({
-    templateKey: 'org_staff_invite',
-    to:          result.email,
+    templateKey: "org_staff_invite",
+    to: result.email,
     vars: {
-      firstName:        result.firstName,
+      firstName: result.firstName,
       organizationName: result.organizationName,
-      inviteUrl:         acceptInviteUrlFor(token),
+      inviteUrl: acceptInviteUrlFor(token),
     },
   });
 
@@ -476,14 +617,18 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
 export async function cancelOrgInvitation(id: string): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{ status: string }>(
-      `SELECT status FROM public.organization_invitations WHERE id = $1`, [id],
+      `SELECT status FROM public.organization_invitations WHERE id = $1`,
+      [id],
     );
     const inv = rows[0];
-    if (!inv) throw new NotFoundError('Invitation', id);
+    if (!inv) throw new NotFoundError("Invitation", id);
     if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
       throw new ValidationError(`Cannot cancel a ${inv.status} invitation`);
     }
-    await db.query(`UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`, [id]);
+    await db.query(
+      `UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`,
+      [id],
+    );
   });
 }
 
@@ -493,30 +638,43 @@ export async function cancelOrgInvitation(id: string): Promise<void> {
  * every other public step here doesn't: the token itself is the proof of
  * who's acting.
  */
-export async function declineOrgInvitationByToken(token: string): Promise<void> {
+export async function declineOrgInvitationByToken(
+  token: string,
+): Promise<void> {
   const tokenHash = hashSecret(token);
   return withAdminDb(async (db: PoolClient) => {
     const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
+    if (!inv) throw new NotFoundError("Invitation", token);
     if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
       throw new ValidationError(`This invitation is already ${inv.status}`);
     }
-    await db.query(`UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`, [inv.id]);
+    await db.query(
+      `UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`,
+      [inv.id],
+    );
   });
 }
 
 /** Public. Creates/links the member and marks the invitation completed. */
-export async function completeOrgInvitation(token: string, password: string): Promise<void> {
+export async function completeOrgInvitation(
+  token: string,
+  password: string,
+): Promise<void> {
   const tokenHash = hashSecret(token);
 
   return withAdminDb(async (db: PoolClient) => {
     const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
-    if (inv.status !== 'verified') throw new ValidationError('Verify your code before setting a password');
+    if (!inv) throw new NotFoundError("Invitation", token);
+    if (inv.status !== "verified")
+      throw new ValidationError("Verify your code before setting a password");
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const memberId = await findOrCreateMemberForOrgStaff(db, {
-      phone: inv.phone, firstName: inv.first_name, lastName: inv.last_name, email: inv.email, passwordHash,
+      phone: inv.phone,
+      firstName: inv.first_name,
+      lastName: inv.last_name,
+      email: inv.email,
+      passwordHash,
     });
 
     // The seat is consumed HERE, at acceptance — not when the invitation was

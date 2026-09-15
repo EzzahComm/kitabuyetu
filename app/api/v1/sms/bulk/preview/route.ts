@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { smsService } from '@/lib/services/sms.service';
-import { BulkPreviewSchema } from '@/lib/validators/sms.schema';
-import { ok, badRequest } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { smsService } from "@/lib/services/sms.service";
+import { BulkPreviewSchema } from "@/lib/validators/sms.schema";
+import { ok, badRequest } from "@/lib/utils/response";
 
 /**
  * POST /api/v1/sms/bulk/preview — how many people, and how many credits,
@@ -27,7 +27,7 @@ import { ok, badRequest } from '@/lib/utils/response';
  * someone about to send. Same permission as the send it precedes.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.send', async (auth) => {
+  return withPermission(req, "messaging.send", async (auth) => {
     const parsed = BulkPreviewSchema.safeParse(await req.json());
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 

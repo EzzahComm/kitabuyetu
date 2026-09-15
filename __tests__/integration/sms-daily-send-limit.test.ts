@@ -9,13 +9,16 @@
  * Enforced in reserveCredits, the chokepoint every billed send passes, so
  * automation paths are covered as well as the HTTP routes.
  */
-import { reserveCredits } from '@/lib/services/messaging-billing';
-import { pool } from '@/lib/db';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { reserveCredits } from "@/lib/services/messaging-billing";
+import { pool } from "@/lib/db";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+async function provisionBilling(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -40,12 +43,20 @@ async function setLimit(groupId: string, limit: number): Promise<void> {
 }
 
 /** A settings row created without naming a limit — takes the column default. */
-async function createSettingsRowWithDefaultLimit(groupId: string): Promise<void> {
-  await rawQuery(`INSERT INTO sms_group_settings (group_id) VALUES ($1)`, [groupId]);
+async function createSettingsRowWithDefaultLimit(
+  groupId: string,
+): Promise<void> {
+  await rawQuery(`INSERT INTO sms_group_settings (group_id) VALUES ($1)`, [
+    groupId,
+  ]);
 }
 
 /** Insert `n` usage rows for today, as if the group had already sent them. */
-async function seedSentToday(groupId: string, n: number, billingState = 'consumed'): Promise<void> {
+async function seedSentToday(
+  groupId: string,
+  n: number,
+  billingState = "consumed",
+): Promise<void> {
   for (let i = 0; i < n; i++) {
     await rawQuery(
       `INSERT INTO sms_usage_logs
@@ -56,77 +67,80 @@ async function seedSentToday(groupId: string, n: number, billingState = 'consume
   }
 }
 
-describe('daily send limit (G25)', () => {
-  it('is unlimited when no settings row exists — every group today', async () => {
+describe("daily send limit (G25)", () => {
+  it("is unlimited when no settings row exists — every group today", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await seedSentToday(groupId, 50);
 
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 10);
+    const r = await reserveCredits(pool, { payerType: "group", groupId }, 10);
     expect(r.ok).toBe(true);
   });
 
-  it('applies the schema default (500) once a settings row exists', async () => {
+  it("applies the schema default (500) once a settings row exists", async () => {
     // daily_send_limit is `INTEGER NOT NULL DEFAULT 500` (migration 013), so
     // there is no "unlimited" value — a row always carries a cap. This is the
     // behaviour change to be aware of: a group that saves ANY messaging
     // setting acquires a 500/day ceiling it did not have before.
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 600);
     await createSettingsRowWithDefaultLimit(groupId);
     await seedSentToday(groupId, 499);
 
-    expect((await reserveCredits(pool, { payerType: 'group', groupId }, 1)).ok).toBe(true);
-    const over = await reserveCredits(pool, { payerType: 'group', groupId }, 5);
+    expect(
+      (await reserveCredits(pool, { payerType: "group", groupId }, 1)).ok,
+    ).toBe(true);
+    const over = await reserveCredits(pool, { payerType: "group", groupId }, 5);
     expect(over.ok).toBe(false);
-    if (!over.ok) expect(over.reason).toBe('daily_limit_reached');
+    if (!over.ok) expect(over.reason).toBe("daily_limit_reached");
   });
 
-  it('allows a send that lands exactly on the cap', async () => {
+  it("allows a send that lands exactly on the cap", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await setLimit(groupId, 10);
     await seedSentToday(groupId, 8);
 
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 2);
+    const r = await reserveCredits(pool, { payerType: "group", groupId }, 2);
     expect(r.ok).toBe(true);
   });
 
-  it('refuses the send that would exceed the cap, and charges nothing', async () => {
+  it("refuses the send that would exceed the cap, and charges nothing", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await setLimit(groupId, 10);
     await seedSentToday(groupId, 8);
 
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 3);
+    const r = await reserveCredits(pool, { payerType: "group", groupId }, 3);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('daily_limit_reached');
+    if (!r.ok) expect(r.reason).toBe("daily_limit_reached");
 
     const [acct] = await rawQuery<{ reserved_sms_credits: string }>(
-      `SELECT reserved_sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT reserved_sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
     expect(Number(acct.reserved_sms_credits)).toBe(0);
   });
 
-  it('does not count released rows — a refunded failure did not use the allowance', async () => {
+  it("does not count released rows — a refunded failure did not use the allowance", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await setLimit(groupId, 10);
-    await seedSentToday(groupId, 9, 'released');
+    await seedSentToday(groupId, 9, "released");
 
     // 9 released + 1 new = 1 against the cap, not 10.
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 1);
+    const r = await reserveCredits(pool, { payerType: "group", groupId }, 1);
     expect(r.ok).toBe(true);
   });
 
-  it('ignores rows from a previous day', async () => {
+  it("ignores rows from a previous day", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await setLimit(groupId, 5);
     await seedSentToday(groupId, 5);
@@ -136,18 +150,22 @@ describe('daily send limit (G25)', () => {
       [groupId],
     );
 
-    const r = await reserveCredits(pool, { payerType: 'group', groupId }, 5);
+    const r = await reserveCredits(pool, { payerType: "group", groupId }, 5);
     expect(r.ok).toBe(true);
   });
 
-  it('never caps platform/OTP sends', async () => {
+  it("never caps platform/OTP sends", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 500);
     await setLimit(groupId, 1);
     await seedSentToday(groupId, 50);
 
-    const r = await reserveCredits(pool, { payerType: 'platform', groupId: null }, 1);
+    const r = await reserveCredits(
+      pool,
+      { payerType: "platform", groupId: null },
+      1,
+    );
     expect(r.ok).toBe(true);
   });
 });

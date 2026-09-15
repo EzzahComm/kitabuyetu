@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withOrganizationAccess } from '@/lib/auth/middleware';
-import { getOrganizationPlanForCoordinator } from '@/lib/services/organization-plan.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withOrganizationAccess } from "@/lib/auth/middleware";
+import { getOrganizationPlanForCoordinator } from "@/lib/services/organization-plan.service";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/organization/plan — this organization's own current plan.
@@ -11,7 +11,7 @@ import { ok } from '@/lib/utils/response';
  * or changes a plan (/api/admin/organizations/[id]/plan).
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withOrganizationAccess(req, 'organization.plan.view', async (ctx) => {
+  return withOrganizationAccess(req, "organization.plan.view", async (ctx) => {
     return ok(await getOrganizationPlanForCoordinator(ctx));
   });
 }

@@ -1,10 +1,10 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPlatformRole } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { smsService } from '@/lib/services/sms.service';
-import { ok } from '@/lib/utils/response';
-import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPlatformRole } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { smsService } from "@/lib/services/sms.service";
+import { ok } from "@/lib/utils/response";
+import { DEFAULT_SMS_PROVIDER } from "@/lib/sms/provider";
 
 // sms_provider_balances is KITABU YETU'S OWN float with TextSMS — the
 // platform's purchasing position, not any tenant's credit. A group's own
@@ -21,7 +21,7 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 // super_admin on both verbs. POST additionally spends a live provider API
 // call against that same platform account.
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, "super_admin", async () => {
     const { rows } = await withAdminDb((db) =>
       db.query(
         `SELECT balance, currency, queried_at
@@ -32,13 +32,17 @@ export async function GET(req: NextRequest): Promise<Response> {
       ),
     );
     const latest = rows[0] ?? null;
-    return ok({ balance: latest?.balance ?? null, currency: 'KES', lastChecked: latest?.queried_at ?? null });
+    return ok({
+      balance: latest?.balance ?? null,
+      currency: "KES",
+      lastChecked: latest?.queried_at ?? null,
+    });
   });
 }
 
 // POST — live query from TextSMS + snapshot
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPlatformRole(req, 'super_admin', async (auth) => {
+  return withPlatformRole(req, "super_admin", async (auth) => {
     const result = await smsService.getProviderBalance(auth.userId);
     return ok(result);
   });

@@ -1,7 +1,7 @@
-import * as React from 'react';
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface Crumb {
   label: string;
@@ -27,10 +27,15 @@ interface PageHeaderProps {
  * and member views.
  */
 export function PageHeader({
-  title, description, breadcrumbs, actions, children, className,
+  title,
+  description,
+  breadcrumbs,
+  actions,
+  children,
+  className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
@@ -39,15 +44,26 @@ export function PageHeader({
               return (
                 <li key={`${c.label}-${i}`} className="flex items-center gap-1">
                   {c.href && !last ? (
-                    <Link href={c.href} className="transition-colors hover:text-foreground">
+                    <Link
+                      href={c.href}
+                      className="transition-colors hover:text-foreground"
+                    >
                       {c.label}
                     </Link>
                   ) : (
-                    <span className={cn(last && 'font-medium text-foreground')} aria-current={last ? 'page' : undefined}>
+                    <span
+                      className={cn(last && "font-medium text-foreground")}
+                      aria-current={last ? "page" : undefined}
+                    >
                       {c.label}
                     </span>
                   )}
-                  {!last && <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  {!last && (
+                    <ChevronRight
+                      className="h-3.5 w-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  )}
                 </li>
               );
             })}
@@ -57,10 +73,18 @@ export function PageHeader({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {title}
+          </h1>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        )}
       </div>
 
       {children}

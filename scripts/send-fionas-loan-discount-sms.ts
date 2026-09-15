@@ -20,12 +20,12 @@
  *   node --env-file=.env.local --import tsx scripts/send-fionas-loan-discount-sms.ts
  *   node --env-file=.env.local --import tsx scripts/send-fionas-loan-discount-sms.ts --send
  */
-import { withAdminDb } from '@/lib/db';
-import { smsService } from '@/lib/services/sms.service';
-import { platformPaybill } from '@/lib/sms/templates';
-import type { TenantContext } from '@/lib/db';
+import { withAdminDb } from "@/lib/db";
+import { smsService } from "@/lib/services/sms.service";
+import { platformPaybill } from "@/lib/sms/templates";
+import type { TenantContext } from "@/lib/db";
 
-const SEND = process.argv.includes('--send');
+const SEND = process.argv.includes("--send");
 
 /**
  * The instalment each borrower was quoted on 2026-08-16, keyed by membership
@@ -38,7 +38,7 @@ const QUOTED_ON_16_AUG: Readonly<Record<string, number>> = Object.freeze({
   TF000022: 45130.16, // Fiona,   400,000
   TF000033: 30462.86, // Ruth,    270,000
   TF000040: 30462.86, // Polycap, 270,000
-  TF000054: 14667.30, // Reuben,  130,000
+  TF000054: 14667.3, // Reuben,  130,000
 });
 
 /**
@@ -48,21 +48,28 @@ const QUOTED_ON_16_AUG: Readonly<Record<string, number>> = Object.freeze({
  * MPESA_SHORTCODE is a placeholder, and a payment instruction quoting the
  * wrong paybill sends money nowhere.
  */
-const EXPECTED_PAYBILL = '4044141';
+const EXPECTED_PAYBILL = "4044141";
 
 interface Row {
-  loan_id: string; member_id: string; first_name: string; phone: string;
-  membership_no: string; group_id: string; group_name: string;
-  principal_amount: string; total_repayable: string;
-  first_inst: string; n: string;
+  loan_id: string;
+  member_id: string;
+  first_name: string;
+  phone: string;
+  membership_no: string;
+  group_id: string;
+  group_name: string;
+  principal_amount: string;
+  total_repayable: string;
+  first_inst: string;
+  n: string;
 }
 
 async function main() {
   const paybill = platformPaybill();
   if (paybill !== EXPECTED_PAYBILL) {
     throw new Error(
-      `Paybill is "${paybill}" but live C2B callbacks arrive on ${EXPECTED_PAYBILL}. `
-      + 'Refusing to send a payment instruction that would point members at the wrong shortcode.',
+      `Paybill is "${paybill}" but live C2B callbacks arrive on ${EXPECTED_PAYBILL}. ` +
+        "Refusing to send a payment instruction that would point members at the wrong shortcode.",
     );
   }
 
@@ -84,23 +91,32 @@ async function main() {
   });
 
   if (rows.length !== 4) {
-    throw new Error(`Expected 4 disbursed loans, found ${rows.length} — refusing`);
+    throw new Error(
+      `Expected 4 disbursed loans, found ${rows.length} — refusing`,
+    );
   }
 
   const money = (v: number | string) =>
-    Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const whole = (v: string) => Number(v).toLocaleString('en-KE');
+    Number(v).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const whole = (v: string) => Number(v).toLocaleString("en-KE");
 
   // Every message is built and checked BEFORE any of them is sent, so a bad
   // row cannot leave two members messaged and two not.
   const outbound = rows.map((r) => {
     const wasInst = QUOTED_ON_16_AUG[r.membership_no];
     if (wasInst === undefined) {
-      throw new Error(`No 16-Aug quote recorded for ${r.membership_no} (${r.first_name}) — refusing`);
+      throw new Error(
+        `No 16-Aug quote recorded for ${r.membership_no} (${r.first_name}) — refusing`,
+      );
     }
     const nowInst = Number(r.first_inst);
     if (!(nowInst > 0)) {
-      throw new Error(`${r.first_name} has no first instalment — schedule missing, refusing`);
+      throw new Error(
+        `${r.first_name} has no first instalment — schedule missing, refusing`,
+      );
     }
     // This message calls it a discount. If the figure went UP, that word is a
     // lie and the migration did not do what it was supposed to.
@@ -110,15 +126,17 @@ async function main() {
       );
     }
     if (Number(r.n) !== 12) {
-      throw new Error(`${r.first_name} has ${r.n} instalments, message says 12 — refusing`);
+      throw new Error(
+        `${r.first_name} has ${r.n} instalments, message says 12 — refusing`,
+      );
     }
 
     const message =
-      `Dear ${r.first_name}, your loan of KES ${whole(r.principal_amount)} from ${r.group_name} `
-      + `has been discounted from KES ${money(wasInst)} to KES ${money(nowInst)} per month. `
-      + `Your new total for ${r.n} monthly repayments is now KES ${money(r.total_repayable)}. `
-      + `Start repaying on M-Pesa Paybill ${paybill}, Account ${r.membership_no}L `
-      + 'to qualify for another loan. Thank you.';
+      `Dear ${r.first_name}, your loan of KES ${whole(r.principal_amount)} from ${r.group_name} ` +
+      `has been discounted from KES ${money(wasInst)} to KES ${money(nowInst)} per month. ` +
+      `Your new total for ${r.n} monthly repayments is now KES ${money(r.total_repayable)}. ` +
+      `Start repaying on M-Pesa Paybill ${paybill}, Account ${r.membership_no}L ` +
+      "to qualify for another loan. Thank you.";
 
     return { r, message };
   });
@@ -153,35 +171,54 @@ async function main() {
   // handset.
   for (const { r, message } of outbound) {
     if (alreadySent.has(r.phone)) {
-      console.log(`SKIP  ${r.first_name} ${r.phone} — already has a discount message logged`);
+      console.log(
+        `SKIP  ${r.first_name} ${r.phone} — already has a discount message logged`,
+      );
       continue;
     }
     if (!SEND) {
-      console.log(`\n[DRY RUN] ${r.first_name} ${r.phone} (${message.length} chars)\n${message}`);
+      console.log(
+        `\n[DRY RUN] ${r.first_name} ${r.phone} (${message.length} chars)\n${message}`,
+      );
       continue;
     }
-    const ctx = { groupId: r.group_id, userId: r.member_id, role: 'chairperson' } as TenantContext;
-    const logs = await smsService.send(ctx, r.phone, message, 'loan', null);
+    const ctx = {
+      groupId: r.group_id,
+      userId: r.member_id,
+      role: "chairperson",
+    } as TenantContext;
+    const logs = await smsService.send(ctx, r.phone, message, "loan", null);
 
     // Assert the row is NEW. A returned status alone proves nothing — that is
     // precisely how the first run looked successful while sending nothing.
-    const fresh = logs.filter((l) => l.message_text?.includes('has been discounted from'));
+    const fresh = logs.filter((l) =>
+      l.message_text?.includes("has been discounted from"),
+    );
     if (!logs.length) {
       console.log(`SUPPRESSED ${r.first_name} ${r.phone} — opted out`);
     } else if (!fresh.length) {
       throw new Error(
-        `${r.first_name}: send() returned ${logs.length} row(s) but none carry this message — `
-        + 'it was deduped again. Refusing to continue and report a send that did not happen.',
+        `${r.first_name}: send() returned ${logs.length} row(s) but none carry this message — ` +
+          "it was deduped again. Refusing to continue and report a send that did not happen.",
       );
     } else {
-      console.log(`SENT  ${r.first_name} ${r.phone} -> ${fresh.map((l) => l.status).join(',')}`);
+      console.log(
+        `SENT  ${r.first_name} ${r.phone} -> ${fresh.map((l) => l.status).join(",")}`,
+      );
     }
   }
 
-  console.log(SEND
-    ? '\nQueued. A local 401 on placeholder provider creds is expected; production\'s'
-      + ' sms_retry_failed sweep (225 runs/24h, healthy) delivers within minutes.'
-    : '\nDry run only — pass --send to dispatch.');
+  console.log(
+    SEND
+      ? "\nQueued. A local 401 on placeholder provider creds is expected; production's" +
+          " sms_retry_failed sweep (225 runs/24h, healthy) delivers within minutes."
+      : "\nDry run only — pass --send to dispatch.",
+  );
 }
 
-main().then(() => process.exit(0)).catch((err) => { console.error(err); process.exit(1); });
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

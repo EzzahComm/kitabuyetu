@@ -17,16 +17,16 @@
  * These tests pin the fix: the worker derives a real uuid per chunk, stable
  * across QStash retries and distinct between siblings.
  */
-import { smsService } from '@/lib/services/sms.service';
-import { deriveUuid } from '@/lib/utils/uuid';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { BulkSmsResult } from '@/lib/services/textsms.service';
+import { smsService } from "@/lib/services/sms.service";
+import { deriveUuid } from "@/lib/utils/uuid";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { BulkSmsResult } from "@/lib/services/textsms.service";
 
 const mockSendBulkSmsChunked = jest.fn<Promise<BulkSmsResult>, [unknown]>();
 
-jest.mock('@/lib/services/textsms.service', () => ({
+jest.mock("@/lib/services/textsms.service", () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
   sendBulkSmsChunked: (...args: unknown[]) => mockSendBulkSmsChunked(args[0]),
@@ -34,7 +34,10 @@ jest.mock('@/lib/services/textsms.service', () => ({
   getProviderBalance: jest.fn(),
 }));
 
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+async function provisionBilling(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -52,40 +55,53 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
 function acceptedResponses(phones: string[]): BulkSmsResult {
   return {
     responses: phones.map((mobile, i) => ({
-      responseCode: 200, responseDescription: 'Success', mobile,
-      messageId: `msg-${i + 1}`, networkId: '1', success: true, clientSmsId: i + 1,
+      responseCode: 200,
+      responseDescription: "Success",
+      mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: "1",
+      success: true,
+      clientSmsId: i + 1,
     })),
-    sent: phones.length, failed: 0,
+    sent: phones.length,
+    failed: 0,
   };
 }
 
-const JOB_ID = '77777777-7777-7777-7777-777777777777';
+const JOB_ID = "77777777-7777-7777-7777-777777777777";
 
-describe('chunked bulk send without a campaign (G1)', () => {
+describe("chunked bulk send without a campaign (G1)", () => {
   beforeEach(() => {
     mockSendBulkSmsChunked.mockReset();
   });
 
-  it('dispatches and bills a chunk keyed only by a derived per-chunk uuid', async () => {
+  it("dispatches and bills a chunk keyed only by a derived per-chunk uuid", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
 
-    const phones = ['254700000031', '254700000032'];
+    const phones = ["254700000031", "254700000032"];
     // Exactly what app/api/v1/workers/sms-dispatch-chunk/route.ts now builds.
-    const chunkKey = deriveUuid(JOB_ID, 'chunk:0');
+    const chunkKey = deriveUuid(JOB_ID, "chunk:0");
 
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(phones));
     const result = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
-      dispatchBatchId: chunkKey, totalRecipientCount: phones.length,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: chunkKey,
+      totalRecipientCount: phones.length,
       // deliberately NO campaignId — this is the production shape
     });
 
     // Before the fix this threw 22P02 and wrote nothing.
     expect(result.sent).toBe(2);
 
-    const rows = await rawQuery<{ correlation_id: string; recipient_phone: string }>(
+    const rows = await rawQuery<{
+      correlation_id: string;
+      recipient_phone: string;
+    }>(
       `SELECT correlation_id, recipient_phone FROM sms_usage_logs WHERE group_id=$1 ORDER BY recipient_phone`,
       [groupId],
     );
@@ -93,27 +109,36 @@ describe('chunked bulk send without a campaign (G1)', () => {
     expect(rows.every((r) => r.correlation_id === chunkKey)).toBe(true);
   });
 
-  it('a QStash retry of the same chunk re-derives the key and does not re-bill or re-send', async () => {
+  it("a QStash retry of the same chunk re-derives the key and does not re-bill or re-send", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
 
-    const phones = ['254700000033', '254700000034'];
+    const phones = ["254700000033", "254700000034"];
 
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(phones));
     await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
-      dispatchBatchId: deriveUuid(JOB_ID, 'chunk:0'), totalRecipientCount: phones.length,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: deriveUuid(JOB_ID, "chunk:0"),
+      totalRecipientCount: phones.length,
     });
 
     const [afterFirst] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
 
     // The retry recomputes the key from the same (jobId, chunkIndex).
     const retry = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
-      dispatchBatchId: deriveUuid(JOB_ID, 'chunk:0'), totalRecipientCount: phones.length,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: deriveUuid(JOB_ID, "chunk:0"),
+      totalRecipientCount: phones.length,
     });
 
     // Every recipient was already logged under this key, so the retry sends
@@ -123,29 +148,38 @@ describe('chunked bulk send without a campaign (G1)', () => {
     // No second dispatch to the provider, and no extra log rows.
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
     const [afterRetry] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
     expect(afterRetry.n).toBe(afterFirst.n);
   });
 
-  it('sibling chunks of one job do not dedupe each other away', async () => {
+  it("sibling chunks of one job do not dedupe each other away", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
 
-    const chunk0 = ['254700000035', '254700000036'];
-    const chunk1 = ['254700000037'];
+    const chunk0 = ["254700000035", "254700000036"];
+    const chunk1 = ["254700000037"];
 
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunk0));
     const first = await smsService.sendBulkCampaign({
-      groupId, phones: chunk0, message: 'reminder', sentBy: 'test',
-      dispatchBatchId: deriveUuid(JOB_ID, 'chunk:0'), totalRecipientCount: 3,
+      groupId,
+      phones: chunk0,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: deriveUuid(JOB_ID, "chunk:0"),
+      totalRecipientCount: 3,
     });
 
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunk1));
     const second = await smsService.sendBulkCampaign({
-      groupId, phones: chunk1, message: 'reminder', sentBy: 'test',
-      dispatchBatchId: deriveUuid(JOB_ID, 'chunk:1'), totalRecipientCount: 3,
+      groupId,
+      phones: chunk1,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: deriveUuid(JOB_ID, "chunk:1"),
+      totalRecipientCount: 3,
     });
 
     // Chunk 1 must NOT be deduped away by chunk 0's key: it dispatches on its
@@ -155,29 +189,35 @@ describe('chunked bulk send without a campaign (G1)', () => {
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(2);
 
     const [{ n }] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
-    expect(n).toBe('3');
+    expect(n).toBe("3");
   });
 
-  it('rejects a non-uuid dispatch key at the boundary instead of failing in Postgres', async () => {
+  it("rejects a non-uuid dispatch key at the boundary instead of failing in Postgres", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
 
     await expect(
       smsService.sendBulkCampaign({
-        groupId, phones: ['254700000038'], message: 'reminder', sentBy: 'test',
+        groupId,
+        phones: ["254700000038"],
+        message: "reminder",
+        sentBy: "test",
         // The exact pre-fix shape.
-        dispatchBatchId: `${JOB_ID}:chunk:0`, totalRecipientCount: 1,
+        dispatchBatchId: `${JOB_ID}:chunk:0`,
+        totalRecipientCount: 1,
       }),
     ).rejects.toThrow(/must be a UUID/);
 
     // Nothing was dispatched and nothing was billed.
     expect(mockSendBulkSmsChunked).not.toHaveBeenCalled();
     const [{ n }] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
-    expect(n).toBe('0');
+    expect(n).toBe("0");
   });
 });

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Investment detail.
@@ -15,72 +15,123 @@
  * service methods, no schema change.
  */
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, CheckCircle, Ban, TrendingUp, Coins, Landmark, CalendarClock, Receipt,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatusPill } from '@/components/shared/status-pill';
-import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+  ArrowLeft,
+  CheckCircle,
+  Ban,
+  TrendingUp,
+  Coins,
+  Landmark,
+  CalendarClock,
+  Receipt,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusPill } from "@/components/shared/status-pill";
 import {
-  useInvestment, useUpdateInvestment, useRecordInvestmentReturn,
+  PaginatedTable,
+  singlePage,
+} from "@/components/shared/paginated-table";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useInvestment,
+  useUpdateInvestment,
+  useRecordInvestmentReturn,
   useRecordInvestmentExpense,
-  type InvestmentReturnRow, type InvestmentExpenseRow, type InvestmentShareRow,
-} from '@/hooks/use-investments';
-import { useHasPermission } from '@/lib/auth/use-permission';
-import { useToast } from '@/hooks/use-toast';
-import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+  type InvestmentReturnRow,
+  type InvestmentExpenseRow,
+  type InvestmentShareRow,
+} from "@/hooks/use-investments";
+import { useHasPermission } from "@/lib/auth/use-permission";
+import { useToast } from "@/hooks/use-toast";
+import { formatKES, formatDate, getErrorMessage } from "@/lib/utils";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const typeLabels: Record<string, string> = {
-  real_estate: 'Real Estate', shares: 'Shares', bonds: 'Bonds',
-  fixed_deposit: 'Fixed Deposit', business: 'Business', land: 'Land',
-  treasury_bills: 'Treasury Bills', money_market: 'Money Market', other: 'Other',
+  real_estate: "Real Estate",
+  shares: "Shares",
+  bonds: "Bonds",
+  fixed_deposit: "Fixed Deposit",
+  business: "Business",
+  land: "Land",
+  treasury_bills: "Treasury Bills",
+  money_market: "Money Market",
+  other: "Other",
 };
 
 // Mirrors RecordReturnSchema. `coupon` is deliberately absent — it is not a
 // member of the public.return_type enum and posting it fails at INSERT.
 const returnSchema = z.object({
-  returnType:    z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
-  amount:        z.coerce.number().positive(),
-  returnDate:    z.string().min(1, 'Date required'),
+  returnType: z.enum([
+    "dividend",
+    "interest",
+    "capital_gain",
+    "rental_income",
+    "other",
+  ]),
+  amount: z.coerce.number().positive(),
+  returnDate: z.string().min(1, "Date required"),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 type ReturnForm = z.infer<typeof returnSchema>;
 
-const returnTypeLabels: Record<ReturnForm['returnType'], string> = {
-  dividend: 'Dividend', interest: 'Interest', capital_gain: 'Capital gain',
-  rental_income: 'Rental income', other: 'Other',
+const returnTypeLabels: Record<ReturnForm["returnType"], string> = {
+  dividend: "Dividend",
+  interest: "Interest",
+  capital_gain: "Capital gain",
+  rental_income: "Rental income",
+  other: "Other",
 };
 
 // Mirrors RecordExpenseSchema, which mirrors public.expense_type (migration
 // 156). Same lockstep rule as returns above: a value here that the enum does
 // not hold passes validation and then fails at INSERT.
 const expenseSchema = z.object({
-  expenseType:   z.enum(['inputs', 'labour', 'maintenance', 'transport', 'utilities', 'fees', 'tax', 'insurance', 'other']),
-  amount:        z.coerce.number().positive(),
-  expenseDate:   z.string().min(1, 'Date required'),
+  expenseType: z.enum([
+    "inputs",
+    "labour",
+    "maintenance",
+    "transport",
+    "utilities",
+    "fees",
+    "tax",
+    "insurance",
+    "other",
+  ]),
+  amount: z.coerce.number().positive(),
+  expenseDate: z.string().min(1, "Date required"),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 type ExpenseForm = z.infer<typeof expenseSchema>;
 
-const expenseTypeLabels: Record<ExpenseForm['expenseType'], string> = {
-  inputs: 'Inputs (feed, seed, stock)', labour: 'Labour', maintenance: 'Maintenance',
-  transport: 'Transport', utilities: 'Utilities', fees: 'Fees', tax: 'Tax',
-  insurance: 'Insurance', other: 'Other',
+const expenseTypeLabels: Record<ExpenseForm["expenseType"], string> = {
+  inputs: "Inputs (feed, seed, stock)",
+  labour: "Labour",
+  maintenance: "Maintenance",
+  transport: "Transport",
+  utilities: "Utilities",
+  fees: "Fees",
+  tax: "Tax",
+  insurance: "Insurance",
+  other: "Other",
 };
 
 export default function InvestmentDetailPage() {
@@ -89,24 +140,24 @@ export default function InvestmentDetailPage() {
 
   const { data: inv, isLoading, isError, error } = useInvestment(id);
   const updateInvestment = useUpdateInvestment(id);
-  const recordReturn     = useRecordInvestmentReturn(id);
-  const recordExpense    = useRecordInvestmentExpense(id);
-  const canManage        = useHasPermission('investments.manage');
+  const recordReturn = useRecordInvestmentReturn(id);
+  const recordExpense = useRecordInvestmentExpense(id);
+  const canManage = useHasPermission("investments.manage");
 
-  const [approveOpen, setApproveOpen]     = useState(false);
-  const [cancelOpen, setCancelOpen]       = useState(false);
-  const [maturedOpen, setMaturedOpen]     = useState(false);
-  const [revalueOpen, setRevalueOpen]     = useState(false);
-  const [revalueAmount, setRevalueAmount] = useState('');
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [maturedOpen, setMaturedOpen] = useState(false);
+  const [revalueOpen, setRevalueOpen] = useState(false);
+  const [revalueAmount, setRevalueAmount] = useState("");
   const [liquidateOpen, setLiquidateOpen] = useState(false);
-  const [liquidateAmount, setLiquidateAmount] = useState('');
-  const [returnOpen, setReturnOpen]       = useState(false);
-  const [expenseOpen, setExpenseOpen]     = useState(false);
+  const [liquidateAmount, setLiquidateAmount] = useState("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
 
   const returnForm = useForm<ReturnForm>({
     resolver: zodResolver(returnSchema),
     defaultValues: {
-      returnType: 'dividend',
+      returnType: "dividend",
       returnDate: new Date().toISOString().slice(0, 10),
     },
   });
@@ -114,7 +165,7 @@ export default function InvestmentDetailPage() {
   const expenseForm = useForm<ExpenseForm>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
-      expenseType: 'inputs',
+      expenseType: "inputs",
       expenseDate: new Date().toISOString().slice(0, 10),
     },
   });
@@ -129,180 +180,279 @@ export default function InvestmentDetailPage() {
       toast({ title: successTitle });
       onDone?.();
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(e) });
+      toast({
+        variant: "destructive",
+        title: "Failed",
+        description: getErrorMessage(e),
+      });
     }
   };
 
   const onRecordReturn = async (values: ReturnForm) => {
     try {
       await recordReturn.mutateAsync({
-        returnType:    values.returnType,
-        amount:        values.amount,
-        returnDate:    values.returnDate,
+        returnType: values.returnType,
+        amount: values.amount,
+        returnDate: values.returnDate,
         receiptNumber: values.receiptNumber?.trim() || undefined,
-        notes:         values.notes?.trim() || undefined,
+        notes: values.notes?.trim() || undefined,
       });
-      toast({ title: 'Return recorded' });
+      toast({ title: "Return recorded" });
       setReturnOpen(false);
       returnForm.reset({
-        returnType: 'dividend',
+        returnType: "dividend",
         returnDate: new Date().toISOString().slice(0, 10),
       });
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(e) });
+      toast({
+        variant: "destructive",
+        title: "Failed",
+        description: getErrorMessage(e),
+      });
     }
   };
 
   const onRecordExpense = async (values: ExpenseForm) => {
     try {
       await recordExpense.mutateAsync({
-        expenseType:   values.expenseType,
-        amount:        values.amount,
-        expenseDate:   values.expenseDate,
+        expenseType: values.expenseType,
+        amount: values.amount,
+        expenseDate: values.expenseDate,
         receiptNumber: values.receiptNumber?.trim() || undefined,
-        notes:         values.notes?.trim() || undefined,
+        notes: values.notes?.trim() || undefined,
       });
-      toast({ title: 'Expense recorded' });
+      toast({ title: "Expense recorded" });
       setExpenseOpen(false);
       expenseForm.reset({
-        expenseType: 'inputs',
+        expenseType: "inputs",
         expenseDate: new Date().toISOString().slice(0, 10),
       });
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Failed', description: getErrorMessage(e) });
+      toast({
+        variant: "destructive",
+        title: "Failed",
+        description: getErrorMessage(e),
+      });
     }
   };
 
   if (isLoading) {
-    return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
   }
-  if (isError) return <p className="text-destructive">{getErrorMessage(error)}</p>;
-  if (!inv)    return <p className="text-muted-foreground">Investment not found</p>;
+  if (isError)
+    return <p className="text-destructive">{getErrorMessage(error)}</p>;
+  if (!inv)
+    return <p className="text-muted-foreground">Investment not found</p>;
 
-  const returns   = inv.returns ?? [];
-  const expenses  = inv.expenses ?? [];
-  const shares    = inv.shares ?? [];
-  const revalued  = inv.current_value !== null;
-  const totalReturns  = returns.reduce((sum, r) => sum + Number(r.amount), 0);
+  const returns = inv.returns ?? [];
+  const expenses = inv.expenses ?? [];
+  const shares = inv.shares ?? [];
+  const revalued = inv.current_value !== null;
+  const totalReturns = returns.reduce((sum, r) => sum + Number(r.amount), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const netReturn     = totalReturns - totalExpenses;
+  const netReturn = totalReturns - totalExpenses;
   // Carried at cost until someone records a revaluation, which is exactly how
   // the portfolio summary values it.
-  const carryingValue = revalued ? Number(inv.current_value) : Number(inv.principal_amount);
-  const isOpen = inv.status !== 'liquidated' && inv.status !== 'cancelled';
+  const carryingValue = revalued
+    ? Number(inv.current_value)
+    : Number(inv.principal_amount);
+  const isOpen = inv.status !== "liquidated" && inv.status !== "cancelled";
 
   const returnColumns = [
     {
-      key: 'return_date', header: 'Date',
-      render: (r: InvestmentReturnRow) => <span className="text-sm">{formatDate(r.return_date)}</span>,
-    },
-    {
-      key: 'return_type', header: 'Type',
+      key: "return_date",
+      header: "Date",
       render: (r: InvestmentReturnRow) => (
-        <span className="text-sm">{returnTypeLabels[r.return_type as ReturnForm['returnType']] ?? r.return_type}</span>
+        <span className="text-sm">{formatDate(r.return_date)}</span>
       ),
     },
     {
-      key: 'amount', header: 'Amount',
-      render: (r: InvestmentReturnRow) => <span className="font-semibold text-sm text-blue-600">{formatKES(r.amount)}</span>,
+      key: "return_type",
+      header: "Type",
+      render: (r: InvestmentReturnRow) => (
+        <span className="text-sm">
+          {returnTypeLabels[r.return_type as ReturnForm["returnType"]] ??
+            r.return_type}
+        </span>
+      ),
     },
     {
-      key: 'receipt_number', header: 'Receipt',
-      render: (r: InvestmentReturnRow) => r.receipt_number
-        ? <span className="text-sm">{r.receipt_number}</span>
-        : <span className="text-muted-foreground text-sm">—</span>,
+      key: "amount",
+      header: "Amount",
+      render: (r: InvestmentReturnRow) => (
+        <span className="font-semibold text-sm text-blue-600">
+          {formatKES(r.amount)}
+        </span>
+      ),
     },
     {
-      key: 'recorded_by_name', header: 'Recorded by',
-      render: (r: InvestmentReturnRow) => <span className="text-xs">{r.recorded_by_name}</span>,
+      key: "receipt_number",
+      header: "Receipt",
+      render: (r: InvestmentReturnRow) =>
+        r.receipt_number ? (
+          <span className="text-sm">{r.receipt_number}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
+    },
+    {
+      key: "recorded_by_name",
+      header: "Recorded by",
+      render: (r: InvestmentReturnRow) => (
+        <span className="text-xs">{r.recorded_by_name}</span>
+      ),
     },
   ];
 
   const expenseColumns = [
     {
-      key: 'expense_date', header: 'Date',
-      render: (e: InvestmentExpenseRow) => <span className="text-sm">{formatDate(e.expense_date)}</span>,
-    },
-    {
-      key: 'expense_type', header: 'Type',
+      key: "expense_date",
+      header: "Date",
       render: (e: InvestmentExpenseRow) => (
-        <span className="text-sm">{expenseTypeLabels[e.expense_type as ExpenseForm['expenseType']] ?? e.expense_type}</span>
+        <span className="text-sm">{formatDate(e.expense_date)}</span>
       ),
     },
     {
-      key: 'amount', header: 'Amount',
-      render: (e: InvestmentExpenseRow) => <span className="font-semibold text-sm text-amber-700">{formatKES(e.amount)}</span>,
+      key: "expense_type",
+      header: "Type",
+      render: (e: InvestmentExpenseRow) => (
+        <span className="text-sm">
+          {expenseTypeLabels[e.expense_type as ExpenseForm["expenseType"]] ??
+            e.expense_type}
+        </span>
+      ),
     },
     {
-      key: 'receipt_number', header: 'Receipt',
-      render: (e: InvestmentExpenseRow) => e.receipt_number
-        ? <span className="text-sm">{e.receipt_number}</span>
-        : <span className="text-muted-foreground text-sm">—</span>,
+      key: "amount",
+      header: "Amount",
+      render: (e: InvestmentExpenseRow) => (
+        <span className="font-semibold text-sm text-amber-700">
+          {formatKES(e.amount)}
+        </span>
+      ),
     },
     {
-      key: 'recorded_by_name', header: 'Recorded by',
-      render: (e: InvestmentExpenseRow) => <span className="text-xs">{e.recorded_by_name}</span>,
+      key: "receipt_number",
+      header: "Receipt",
+      render: (e: InvestmentExpenseRow) =>
+        e.receipt_number ? (
+          <span className="text-sm">{e.receipt_number}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
+    },
+    {
+      key: "recorded_by_name",
+      header: "Recorded by",
+      render: (e: InvestmentExpenseRow) => (
+        <span className="text-xs">{e.recorded_by_name}</span>
+      ),
     },
   ];
 
   const shareColumns = [
     {
-      key: 'member_name', header: 'Member',
-      render: (s: InvestmentShareRow) => <span className="text-sm font-medium">{s.member_name}</span>,
+      key: "member_name",
+      header: "Member",
+      render: (s: InvestmentShareRow) => (
+        <span className="text-sm font-medium">{s.member_name}</span>
+      ),
     },
     {
-      key: 'amount_contributed', header: 'Contributed',
-      render: (s: InvestmentShareRow) => <span className="text-sm font-semibold">{formatKES(s.amount_contributed)}</span>,
+      key: "amount_contributed",
+      header: "Contributed",
+      render: (s: InvestmentShareRow) => (
+        <span className="text-sm font-semibold">
+          {formatKES(s.amount_contributed)}
+        </span>
+      ),
     },
   ];
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon" aria-label="Back to investments" asChild className="mt-1">
-          <Link href="/investments"><ArrowLeft size={18} /></Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Back to investments"
+          asChild
+          className="mt-1"
+        >
+          <Link href="/investments">
+            <ArrowLeft size={18} />
+          </Link>
         </Button>
         <PageHeader
           className="flex-1"
           title={inv.name}
           description={typeLabels[inv.investment_type] ?? inv.investment_type}
-          actions={<StatusPill status={inv.status} tone={inv.status === 'pending_approval' ? 'pending' : undefined} />}
+          actions={
+            <StatusPill
+              status={inv.status}
+              tone={inv.status === "pending_approval" ? "pending" : undefined}
+            />
+          }
         />
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Principal</p>
-          <p className="font-bold text-xl">{formatKES(inv.principal_amount)}</p>
-        </CardContent></Card>
-
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">
-            {revalued ? 'Current value' : 'Carrying value'}
-          </p>
-          <p className="font-bold text-xl">{formatKES(carryingValue)}</p>
-          {!revalued && (
-            <p className="text-xs text-muted-foreground">
-              At cost — no revaluation recorded yet
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Principal</p>
+            <p className="font-bold text-xl">
+              {formatKES(inv.principal_amount)}
             </p>
-          )}
-        </CardContent></Card>
+          </CardContent>
+        </Card>
 
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Returns earned</p>
-          <p className="font-bold text-xl text-blue-600">{formatKES(totalReturns)}</p>
-          <p className="text-xs text-muted-foreground">
-            {returns.length === 0 ? 'None recorded' : `${returns.length} recorded`}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">
+              {revalued ? "Current value" : "Carrying value"}
+            </p>
+            <p className="font-bold text-xl">{formatKES(carryingValue)}</p>
+            {!revalued && (
+              <p className="text-xs text-muted-foreground">
+                At cost — no revaluation recorded yet
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Running costs</p>
-          <p className="font-bold text-xl text-amber-700">{formatKES(totalExpenses)}</p>
-          <p className="text-xs text-muted-foreground">
-            {expenses.length === 0 ? 'None recorded' : `${expenses.length} recorded`}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Returns earned</p>
+            <p className="font-bold text-xl text-blue-600">
+              {formatKES(totalReturns)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {returns.length === 0
+                ? "None recorded"
+                : `${returns.length} recorded`}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Running costs</p>
+            <p className="font-bold text-xl text-amber-700">
+              {formatKES(totalExpenses)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {expenses.length === 0
+                ? "None recorded"
+                : `${expenses.length} recorded`}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Net is only meaningful once at least one side has been recorded.
@@ -310,38 +460,63 @@ export default function InvestmentDetailPage() {
           nobody has entered anything for, which looks like a real answer to
           a question that has not been asked yet. */}
       {(returns.length > 0 || expenses.length > 0) && (
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Net of running costs</p>
-          <p className={`font-bold text-xl ${netReturn < 0 ? 'text-destructive' : 'text-green-700'}`}>
-            {formatKES(netReturn)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatKES(totalReturns)} earned less {formatKES(totalExpenses)} spent
-            {netReturn < 0 && ' — this activity is running at a loss'}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Net of running costs
+            </p>
+            <p
+              className={`font-bold text-xl ${netReturn < 0 ? "text-destructive" : "text-green-700"}`}
+            >
+              {formatKES(netReturn)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatKES(totalReturns)} earned less {formatKES(totalExpenses)}{" "}
+              spent
+              {netReturn < 0 && " — this activity is running at a loss"}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
-      <Card><CardContent className="p-4 space-y-1">
-        <p className="text-sm text-muted-foreground">Expected rate</p>
-        <p className="font-semibold">
-          {inv.expected_return_rate ? `${inv.expected_return_rate}%` : <span className="text-muted-foreground">Not set</span>}
-        </p>
-        {inv.custodian && <p className="text-xs text-muted-foreground">Held with {inv.custodian}</p>}
-      </CardContent></Card>
+      <Card>
+        <CardContent className="p-4 space-y-1">
+          <p className="text-sm text-muted-foreground">Expected rate</p>
+          <p className="font-semibold">
+            {inv.expected_return_rate ? (
+              `${inv.expected_return_rate}%`
+            ) : (
+              <span className="text-muted-foreground">Not set</span>
+            )}
+          </p>
+          {inv.custodian && (
+            <p className="text-xs text-muted-foreground">
+              Held with {inv.custodian}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4 grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div className="flex items-center gap-2">
-            <CalendarClock size={15} className="text-muted-foreground shrink-0" />
+            <CalendarClock
+              size={15}
+              className="text-muted-foreground shrink-0"
+            />
             <span className="text-muted-foreground">Started</span>
-            <span className="ml-auto font-medium">{formatDate(inv.start_date)}</span>
+            <span className="ml-auto font-medium">
+              {formatDate(inv.start_date)}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <CalendarClock size={15} className="text-muted-foreground shrink-0" />
+            <CalendarClock
+              size={15}
+              className="text-muted-foreground shrink-0"
+            />
             <span className="text-muted-foreground">Matures</span>
             <span className="ml-auto font-medium">
-              {inv.maturity_date ? formatDate(inv.maturity_date) : '—'}
+              {inv.maturity_date ? formatDate(inv.maturity_date) : "—"}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -351,39 +526,60 @@ export default function InvestmentDetailPage() {
           </div>
           {inv.approved_by_name && (
             <div className="flex items-center gap-2">
-              <CheckCircle size={15} className="text-muted-foreground shrink-0" />
+              <CheckCircle
+                size={15}
+                className="text-muted-foreground shrink-0"
+              />
               <span className="text-muted-foreground">Approved by</span>
-              <span className="ml-auto font-medium">{inv.approved_by_name}</span>
+              <span className="ml-auto font-medium">
+                {inv.approved_by_name}
+              </span>
             </div>
           )}
           {inv.liquidation_value && (
             <div className="flex items-center gap-2">
               <Coins size={15} className="text-muted-foreground shrink-0" />
               <span className="text-muted-foreground">Liquidated for</span>
-              <span className="ml-auto font-medium">{formatKES(inv.liquidation_value)}</span>
+              <span className="ml-auto font-medium">
+                {formatKES(inv.liquidation_value)}
+              </span>
             </div>
           )}
           {inv.notes && (
-            <p className="sm:col-span-2 text-muted-foreground border-t pt-3">{inv.notes}</p>
+            <p className="sm:col-span-2 text-muted-foreground border-t pt-3">
+              {inv.notes}
+            </p>
           )}
         </CardContent>
       </Card>
 
       {canManage && isOpen && (
         <div className="flex gap-2 flex-wrap">
-          {inv.status === 'pending_approval' && (
+          {inv.status === "pending_approval" && (
             <>
-              <Button onClick={() => setApproveOpen(true)} loading={updateInvestment.isPending}>
+              <Button
+                onClick={() => setApproveOpen(true)}
+                loading={updateInvestment.isPending}
+              >
                 <CheckCircle size={16} className="mr-2" /> Approve
               </Button>
-              <Button variant="outline" onClick={() => setCancelOpen(true)} loading={updateInvestment.isPending}>
+              <Button
+                variant="outline"
+                onClick={() => setCancelOpen(true)}
+                loading={updateInvestment.isPending}
+              >
                 <Ban size={16} className="mr-2" /> Cancel
               </Button>
             </>
           )}
-          {(inv.status === 'active' || inv.status === 'matured') && (
+          {(inv.status === "active" || inv.status === "matured") && (
             <>
-              <Button onClick={() => { setRevalueAmount(String(Math.round(carryingValue))); setRevalueOpen(true); }}>
+              <Button
+                onClick={() => {
+                  setRevalueAmount(String(Math.round(carryingValue)));
+                  setRevalueOpen(true);
+                }}
+              >
                 <TrendingUp size={16} className="mr-2" /> Update value
               </Button>
               <Button variant="outline" onClick={() => setReturnOpen(true)}>
@@ -392,14 +588,21 @@ export default function InvestmentDetailPage() {
               <Button variant="outline" onClick={() => setExpenseOpen(true)}>
                 <Receipt size={16} className="mr-2" /> Record expense
               </Button>
-              {inv.status === 'active' && (
-                <Button variant="outline" onClick={() => setMaturedOpen(true)} loading={updateInvestment.isPending}>
+              {inv.status === "active" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setMaturedOpen(true)}
+                  loading={updateInvestment.isPending}
+                >
                   Mark matured
                 </Button>
               )}
               <Button
                 variant="outline"
-                onClick={() => { setLiquidateAmount(String(Math.round(carryingValue))); setLiquidateOpen(true); }}
+                onClick={() => {
+                  setLiquidateAmount(String(Math.round(carryingValue)));
+                  setLiquidateOpen(true);
+                }}
               >
                 Liquidate
               </Button>
@@ -409,7 +612,9 @@ export default function InvestmentDetailPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Returns</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Returns</CardTitle>
+        </CardHeader>
         <CardContent>
           <PaginatedTable
             data={singlePage(returns)}
@@ -418,8 +623,8 @@ export default function InvestmentDetailPage() {
             columns={returnColumns}
             emptyMessage="No returns recorded yet"
             emptyDescription={
-              canManage && (inv.status === 'active' || inv.status === 'matured')
-                ? 'Record a dividend, interest payment or capital gain as it is received.'
+              canManage && (inv.status === "active" || inv.status === "matured")
+                ? "Record a dividend, interest payment or capital gain as it is received."
                 : undefined
             }
           />
@@ -427,7 +632,9 @@ export default function InvestmentDetailPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Running costs</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Running costs</CardTitle>
+        </CardHeader>
         <CardContent>
           <PaginatedTable
             data={singlePage(expenses)}
@@ -436,8 +643,8 @@ export default function InvestmentDetailPage() {
             columns={expenseColumns}
             emptyMessage="No expenses recorded yet"
             emptyDescription={
-              canManage && (inv.status === 'active' || inv.status === 'matured')
-                ? 'Record feed, labour, transport, licence fees and other costs as they are paid.'
+              canManage && (inv.status === "active" || inv.status === "matured")
+                ? "Record feed, labour, transport, licence fees and other costs as they are paid."
                 : undefined
             }
           />
@@ -449,7 +656,9 @@ export default function InvestmentDetailPage() {
           implies per-member stakes are being tracked. */}
       {shares.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Member contributions</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Member contributions</CardTitle>
+          </CardHeader>
           <CardContent>
             <PaginatedTable
               data={singlePage(shares)}
@@ -468,7 +677,7 @@ export default function InvestmentDetailPage() {
         title="Approve this investment?"
         description="It becomes an active holding and starts counting toward the group's portfolio."
         confirmLabel="Approve"
-        onConfirm={() => runUpdate({ status: 'active' }, 'Investment approved')}
+        onConfirm={() => runUpdate({ status: "active" }, "Investment approved")}
       />
 
       <ConfirmDialog
@@ -479,7 +688,9 @@ export default function InvestmentDetailPage() {
         confirmLabel="Cancel investment"
         cancelLabel="Keep"
         variant="danger"
-        onConfirm={() => runUpdate({ status: 'cancelled' }, 'Investment cancelled')}
+        onConfirm={() =>
+          runUpdate({ status: "cancelled" }, "Investment cancelled")
+        }
       />
 
       <ConfirmDialog
@@ -488,15 +699,18 @@ export default function InvestmentDetailPage() {
         title="Mark as matured?"
         description="The holding stays in the portfolio and can still be revalued or liquidated."
         confirmLabel="Mark matured"
-        onConfirm={() => runUpdate({ status: 'matured' }, 'Marked matured')}
+        onConfirm={() => runUpdate({ status: "matured" }, "Marked matured")}
       />
 
       <Dialog open={revalueOpen} onOpenChange={setRevalueOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Update current value</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Update current value</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              What is this holding worth today? This is what the portfolio total uses.
+              What is this holding worth today? This is what the portfolio total
+              uses.
             </p>
             <div className="space-y-1">
               <Label htmlFor="revalue-amount">Current value (KES)</Label>
@@ -514,15 +728,19 @@ export default function InvestmentDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRevalueOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setRevalueOpen(false)}>
+              Cancel
+            </Button>
             <Button
               loading={updateInvestment.isPending}
               disabled={!(Number(revalueAmount) > 0)}
-              onClick={() => runUpdate(
-                { currentValue: Number(revalueAmount) },
-                'Value updated',
-                () => setRevalueOpen(false),
-              )}
+              onClick={() =>
+                runUpdate(
+                  { currentValue: Number(revalueAmount) },
+                  "Value updated",
+                  () => setRevalueOpen(false),
+                )
+              }
             >
               Save value
             </Button>
@@ -532,11 +750,13 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={liquidateOpen} onOpenChange={setLiquidateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Liquidate this investment</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Liquidate this investment</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Record what the group actually received on exit. The holding leaves the
-              active portfolio and is carried at this figure.
+              Record what the group actually received on exit. The holding
+              leaves the active portfolio and is carried at this figure.
             </p>
             <div className="space-y-1">
               <Label htmlFor="liquidate-amount">Amount received (KES)</Label>
@@ -551,15 +771,22 @@ export default function InvestmentDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLiquidateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setLiquidateOpen(false)}>
+              Cancel
+            </Button>
             <Button
               loading={updateInvestment.isPending}
               disabled={!(Number(liquidateAmount) > 0)}
-              onClick={() => runUpdate(
-                { status: 'liquidated', liquidationValue: Number(liquidateAmount) },
-                'Investment liquidated',
-                () => setLiquidateOpen(false),
-              )}
+              onClick={() =>
+                runUpdate(
+                  {
+                    status: "liquidated",
+                    liquidationValue: Number(liquidateAmount),
+                  },
+                  "Investment liquidated",
+                  () => setLiquidateOpen(false),
+                )
+              }
             >
               Liquidate
             </Button>
@@ -569,47 +796,85 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Record a return</DialogTitle></DialogHeader>
-          <form onSubmit={returnForm.handleSubmit(onRecordReturn)} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Record a return</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={returnForm.handleSubmit(onRecordReturn)}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="return-type">Type</Label>
                 <select
                   id="return-type"
-                  {...returnForm.register('returnType')}
+                  {...returnForm.register("returnType")}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {(Object.keys(returnTypeLabels) as ReturnForm['returnType'][]).map((v) => (
-                    <option key={v} value={v}>{returnTypeLabels[v]}</option>
+                  {(
+                    Object.keys(returnTypeLabels) as ReturnForm["returnType"][]
+                  ).map((v) => (
+                    <option key={v} value={v}>
+                      {returnTypeLabels[v]}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="return-amount">Amount (KES)</Label>
-                <Input id="return-amount" type="number" step="0.01" {...returnForm.register('amount')} />
+                <Input
+                  id="return-amount"
+                  type="number"
+                  step="0.01"
+                  {...returnForm.register("amount")}
+                />
                 {returnForm.formState.errors.amount && (
-                  <p className="text-xs text-destructive">{returnForm.formState.errors.amount.message}</p>
+                  <p className="text-xs text-destructive">
+                    {returnForm.formState.errors.amount.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="return-date">Date received</Label>
-                <Input id="return-date" type="date" {...returnForm.register('returnDate')} />
+                <Input
+                  id="return-date"
+                  type="date"
+                  {...returnForm.register("returnDate")}
+                />
                 {returnForm.formState.errors.returnDate && (
-                  <p className="text-xs text-destructive">{returnForm.formState.errors.returnDate.message}</p>
+                  <p className="text-xs text-destructive">
+                    {returnForm.formState.errors.returnDate.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="return-receipt">Receipt number</Label>
-                <Input id="return-receipt" placeholder="Optional" {...returnForm.register('receiptNumber')} />
+                <Input
+                  id="return-receipt"
+                  placeholder="Optional"
+                  {...returnForm.register("receiptNumber")}
+                />
               </div>
             </div>
             <div className="space-y-1">
               <Label htmlFor="return-notes">Notes</Label>
-              <Input id="return-notes" placeholder="Optional" {...returnForm.register('notes')} />
+              <Input
+                id="return-notes"
+                placeholder="Optional"
+                {...returnForm.register("notes")}
+              />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={returnForm.formState.isSubmitting}>Record return</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReturnOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={returnForm.formState.isSubmitting}>
+                Record return
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -617,47 +882,90 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Record an expense</DialogTitle></DialogHeader>
-          <form onSubmit={expenseForm.handleSubmit(onRecordExpense)} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Record an expense</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={expenseForm.handleSubmit(onRecordExpense)}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="expense-type">Type</Label>
                 <select
                   id="expense-type"
-                  {...expenseForm.register('expenseType')}
+                  {...expenseForm.register("expenseType")}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {(Object.keys(expenseTypeLabels) as ExpenseForm['expenseType'][]).map((v) => (
-                    <option key={v} value={v}>{expenseTypeLabels[v]}</option>
+                  {(
+                    Object.keys(
+                      expenseTypeLabels,
+                    ) as ExpenseForm["expenseType"][]
+                  ).map((v) => (
+                    <option key={v} value={v}>
+                      {expenseTypeLabels[v]}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="expense-amount">Amount (KES)</Label>
-                <Input id="expense-amount" type="number" step="0.01" {...expenseForm.register('amount')} />
+                <Input
+                  id="expense-amount"
+                  type="number"
+                  step="0.01"
+                  {...expenseForm.register("amount")}
+                />
                 {expenseForm.formState.errors.amount && (
-                  <p className="text-xs text-destructive">{expenseForm.formState.errors.amount.message}</p>
+                  <p className="text-xs text-destructive">
+                    {expenseForm.formState.errors.amount.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="expense-date">Date paid</Label>
-                <Input id="expense-date" type="date" {...expenseForm.register('expenseDate')} />
+                <Input
+                  id="expense-date"
+                  type="date"
+                  {...expenseForm.register("expenseDate")}
+                />
                 {expenseForm.formState.errors.expenseDate && (
-                  <p className="text-xs text-destructive">{expenseForm.formState.errors.expenseDate.message}</p>
+                  <p className="text-xs text-destructive">
+                    {expenseForm.formState.errors.expenseDate.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="expense-receipt">Receipt number</Label>
-                <Input id="expense-receipt" placeholder="Optional" {...expenseForm.register('receiptNumber')} />
+                <Input
+                  id="expense-receipt"
+                  placeholder="Optional"
+                  {...expenseForm.register("receiptNumber")}
+                />
               </div>
             </div>
             <div className="space-y-1">
               <Label htmlFor="expense-notes">Notes</Label>
-              <Input id="expense-notes" placeholder="Optional" {...expenseForm.register('notes')} />
+              <Input
+                id="expense-notes"
+                placeholder="Optional"
+                {...expenseForm.register("notes")}
+              />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setExpenseOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={expenseForm.formState.isSubmitting}>Record expense</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setExpenseOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={expenseForm.formState.isSubmitting}
+              >
+                Record expense
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

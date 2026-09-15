@@ -16,23 +16,23 @@
  * on the transaction row once attribution columns exist (Phase 3) —
  * validation and attribution are the same act.
  */
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { ValidationError, UnauthorizedError } from '@/lib/utils/errors';
-import type { AuthContext } from '@/types/api.types';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { ValidationError, UnauthorizedError } from "@/lib/utils/errors";
+import type { AuthContext } from "@/types/api.types";
 
 export interface MembershipRef {
   membershipId: string;
-  memberCode:   string;
+  memberCode: string;
 }
 
 export async function assertActiveMembership(
-  client:   PoolClient,
-  groupId:  string,
+  client: PoolClient,
+  groupId: string,
   memberId: string,
   opts?: { allowStatuses?: string[] },
 ): Promise<MembershipRef> {
-  const statuses = opts?.allowStatuses ?? ['active'];
+  const statuses = opts?.allowStatuses ?? ["active"];
   const { rows } = await client.query<{ id: string; member_code: string }>(
     `SELECT id, member_code
      FROM   group_members
@@ -41,7 +41,7 @@ export async function assertActiveMembership(
   );
   if (!rows[0]) {
     throw new ValidationError(
-      `Member ${memberId} has no ${statuses.join('/')} membership in this group`,
+      `Member ${memberId} has no ${statuses.join("/")} membership in this group`,
     );
   }
   return { membershipId: rows[0].id, memberCode: rows[0].member_code };
@@ -69,12 +69,17 @@ export async function assertActiveMembership(
  * to zero for exactly the routes that already pay this DB round-trip's cost,
  * without adding a live lookup to the other 100+ withPermission call sites.
  */
-export async function assertAuthFresh(auth: AuthContext): Promise<string[] | undefined> {
-  if (auth.authVersion == null && auth.sessionVersion == null) return auth.permissions;
+export async function assertAuthFresh(
+  auth: AuthContext,
+): Promise<string[] | undefined> {
+  if (auth.authVersion == null && auth.sessionVersion == null)
+    return auth.permissions;
 
   const row = await withAdminDb(async (client) => {
     const { rows } = await client.query<{
-      session_version: number; auth_version: number | null; permissions: string[] | null;
+      session_version: number;
+      auth_version: number | null;
+      permissions: string[] | null;
     }>(
       `SELECT m.session_version, gm.auth_version, r.permissions
        FROM   members m
@@ -87,13 +92,22 @@ export async function assertAuthFresh(auth: AuthContext): Promise<string[] | und
   });
 
   if (!row) {
-    throw new UnauthorizedError('Session out of date. Please sign in again.');
+    throw new UnauthorizedError("Session out of date. Please sign in again.");
   }
-  if (auth.sessionVersion != null && row.session_version !== auth.sessionVersion) {
-    throw new UnauthorizedError('Session out of date. Please sign in again.');
+  if (
+    auth.sessionVersion != null &&
+    row.session_version !== auth.sessionVersion
+  ) {
+    throw new UnauthorizedError("Session out of date. Please sign in again.");
   }
-  if (auth.authVersion != null && row.auth_version != null && row.auth_version !== auth.authVersion) {
-    throw new UnauthorizedError('Your role or membership changed. Please sign in again.');
+  if (
+    auth.authVersion != null &&
+    row.auth_version != null &&
+    row.auth_version !== auth.authVersion
+  ) {
+    throw new UnauthorizedError(
+      "Your role or membership changed. Please sign in again.",
+    );
   }
   return row.permissions ?? auth.permissions;
 }

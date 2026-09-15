@@ -53,7 +53,7 @@ const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
         </svg>
       </div>
     );
-  }
+  },
 );
 
 Spinner.displayName = "Spinner";

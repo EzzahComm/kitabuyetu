@@ -1,9 +1,12 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withAuth, withPermission } from '@/lib/auth/middleware';
-import { membersService } from '@/lib/services/members.service';
-import { MemberQuerySchema, CreateMemberSchema } from '@/lib/validators/member.schema';
-import { ok, created } from '@/lib/utils/response';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth, withPermission } from "@/lib/auth/middleware";
+import { membersService } from "@/lib/services/members.service";
+import {
+  MemberQuerySchema,
+  CreateMemberSchema,
+} from "@/lib/validators/member.schema";
+import { ok, created } from "@/lib/utils/response";
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
@@ -16,10 +19,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'members.manage', async (auth) => {
-    const body  = await req.json();
+  return withPermission(req, "members.manage", async (auth) => {
+    const body = await req.json();
     const input = CreateMemberSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const member = await membersService.create(ctx, input);
     return created(member);
   });

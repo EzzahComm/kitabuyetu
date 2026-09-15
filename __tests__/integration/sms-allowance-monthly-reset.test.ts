@@ -20,23 +20,25 @@
  * of surfacing it to sms_release_stale_reservations, which exists to catch
  * exactly that.
  */
-import { handleJob } from '@/lib/jobs/handlers';
-import { rawQuery } from './helpers/db';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import type { Job } from '@/lib/jobs/types';
+import { handleJob } from "@/lib/jobs/handlers";
+import { rawQuery } from "./helpers/db";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import type { Job } from "@/lib/jobs/types";
 
 const RESET_JOB = {
-  id: '00000000-0000-0000-0000-000000000002',
-  type: 'sms_allowance_monthly_reset',
+  id: "00000000-0000-0000-0000-000000000002",
+  type: "sms_allowance_monthly_reset",
   payload: {},
-  status: 'processing',
+  status: "processing",
   attempts: 0,
   max_attempts: 5,
 } as unknown as Job;
 
 async function setAllowanceState(
-  groupId: string, used: number, reserved: number,
+  groupId: string,
+  used: number,
+  reserved: number,
 ): Promise<void> {
   await rawQuery(
     `UPDATE billing_accounts SET sms_allowance_used = $2, sms_allowance_reserved = $3
@@ -77,7 +79,8 @@ async function markCycleCurrent(groupId: string): Promise<void> {
 
 async function allowanceStateOf(groupId: string) {
   const [row] = await rawQuery<{
-    sms_allowance_used: number; sms_allowance_reserved: number;
+    sms_allowance_used: number;
+    sms_allowance_reserved: number;
     sms_allowance_period_start: Date | null;
   }>(
     `SELECT sms_allowance_used, sms_allowance_reserved, sms_allowance_period_start
@@ -87,15 +90,15 @@ async function allowanceStateOf(groupId: string) {
   return row;
 }
 
-describe('sms_allowance_monthly_reset', () => {
+describe("sms_allowance_monthly_reset", () => {
   let groupId: string;
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId } = await createTestGroup('treasurer'));
+    ({ groupId } = await createTestGroup("treasurer"));
   });
 
-  it('zeroes sms_allowance_used once the billing cycle has rolled over', async () => {
+  it("zeroes sms_allowance_used once the billing cycle has rolled over", async () => {
     await setAllowanceState(groupId, 37, 0);
     await simulateCycleRollover(groupId);
 
@@ -105,7 +108,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_used).toBe(0);
   });
 
-  it('leaves usage alone mid-cycle — the job now runs every day', async () => {
+  it("leaves usage alone mid-cycle — the job now runs every day", async () => {
     // The regression that matters most after migration 151. Before it, this
     // job ran monthly and reset unconditionally; running that behaviour daily
     // would give every group a fresh allowance every night.
@@ -118,7 +121,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_used).toBe(12);
   });
 
-  it('is idempotent within a cycle — a second run changes nothing', async () => {
+  it("is idempotent within a cycle — a second run changes nothing", async () => {
     await simulateCycleRollover(groupId);
     await setAllowanceState(groupId, 9, 0);
 
@@ -134,7 +137,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(second.sms_allowance_used).toBe(5); // not re-zeroed
   });
 
-  it('advances the recorded period so the next cycle can be detected', async () => {
+  it("advances the recorded period so the next cycle can be detected", async () => {
     await simulateCycleRollover(groupId);
     const before = await allowanceStateOf(groupId);
 
@@ -142,11 +145,12 @@ describe('sms_allowance_monthly_reset', () => {
 
     const after = await allowanceStateOf(groupId);
     expect(after.sms_allowance_period_start).not.toBeNull();
-    expect(new Date(after.sms_allowance_period_start!).getTime())
-      .toBeGreaterThan(new Date(before.sms_allowance_period_start!).getTime());
+    expect(
+      new Date(after.sms_allowance_period_start!).getTime(),
+    ).toBeGreaterThan(new Date(before.sms_allowance_period_start!).getTime());
   });
 
-  it('leaves sms_allowance_reserved untouched — an in-flight reservation is not this job\'s job', async () => {
+  it("leaves sms_allowance_reserved untouched — an in-flight reservation is not this job's job", async () => {
     await setAllowanceState(groupId, 10, 4);
     await simulateCycleRollover(groupId);
 
@@ -157,8 +161,8 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_reserved).toBe(4); // untouched
   });
 
-  it('does not touch a group whose subscription is cancelled', async () => {
-    const { groupId: cancelled } = await createTestGroup('treasurer');
+  it("does not touch a group whose subscription is cancelled", async () => {
+    const { groupId: cancelled } = await createTestGroup("treasurer");
     await setAllowanceState(cancelled, 22, 0);
     await simulateCycleRollover(cancelled);
     await rawQuery(
@@ -172,7 +176,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_used).toBe(22); // untouched — no active subscription
   });
 
-  it('runs cleanly when nothing is due (idempotent, no error on an empty run)', async () => {
+  it("runs cleanly when nothing is due (idempotent, no error on an empty run)", async () => {
     await markCycleCurrent(groupId);
     await setAllowanceState(groupId, 0, 0);
 

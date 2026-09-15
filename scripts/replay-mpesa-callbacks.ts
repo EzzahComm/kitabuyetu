@@ -12,14 +12,16 @@
  * too, since this calls the exact same handleSTKCallback/handleC2BConfirmation
  * functions, not a separate reimplementation.
  */
-import { replayUnprocessedCallbacks } from '../lib/services/mpesa.service';
+import { replayUnprocessedCallbacks } from "../lib/services/mpesa.service";
 
 async function main() {
   const result = await replayUnprocessedCallbacks();
   console.log(JSON.stringify(result, null, 2));
 }
 
-main().then(() => process.exit(0)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

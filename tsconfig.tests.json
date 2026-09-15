@@ -5,6 +5,11 @@
     "noEmit": true,
     "types": ["node", "jest"]
   },
-  "include": ["__tests__/**/*.ts", "__tests__/**/*.tsx", "lib/**/*.ts", "types/**/*.ts"],
+  "include": [
+    "__tests__/**/*.ts",
+    "__tests__/**/*.tsx",
+    "lib/**/*.ts",
+    "types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

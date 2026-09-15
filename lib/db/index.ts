@@ -1,6 +1,6 @@
-import { Pool, PoolClient } from 'pg';
-import { env } from '@/lib/env';
-import { logger } from '@/lib/logger';
+import { Pool, PoolClient } from "pg";
+import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 // Module-level singleton pools. Safe in Next.js API routes (Node.js runtime).
 // HMR in dev can create multiple instances — guard with globalThis.
@@ -35,8 +35,10 @@ function isSupabaseHost(dsn: string | undefined): boolean {
   try {
     const host = new URL(dsn).hostname.toLowerCase();
     return (
-      host === 'supabase.com' || host.endsWith('.supabase.com') ||
-      host === 'supabase.co'  || host.endsWith('.supabase.co')
+      host === "supabase.com" ||
+      host.endsWith(".supabase.com") ||
+      host === "supabase.co" ||
+      host.endsWith(".supabase.co")
     );
   } catch {
     return false;
@@ -63,18 +65,18 @@ function buildPool(connectionString: string | undefined): Pool {
 
   const newPool = new Pool({
     connectionString,
-    max:                     env.DB_POOL_MAX,
-    idleTimeoutMillis:       10_000,
+    max: env.DB_POOL_MAX,
+    idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
     ssl: isSupabase
       ? { rejectUnauthorized: false }
-      : env.NODE_ENV === 'production'
+      : env.NODE_ENV === "production"
         ? { rejectUnauthorized: true }
         : false,
   });
 
-  newPool.on('error', (err) => {
-    logger.error('[pg pool] Idle client error', err);
+  newPool.on("error", (err) => {
+    logger.error("[pg pool] Idle client error", err);
   });
 
   return newPool;
@@ -102,7 +104,7 @@ export const tenantPool = globalWithPool._kyTenantPool;
 // SET LOCAL persists across all queries in the same transaction block.
 // ------------------------------------------------------------------
 export interface TenantContext {
-  userId:  string;
+  userId: string;
   /**
    * Required, and deliberately kept required: every group-scoped service
    * relies on it being a real id. The ONE caller without a group is the
@@ -114,19 +116,34 @@ export interface TenantContext {
    * nothing under that tree reads `groupId`.
    */
   groupId: string;
-  role:    string;
-  organizationId?:  string;
+  role: string;
+  organizationId?: string;
 }
 
-async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<void> {
+async function setTenantLocals(
+  client: PoolClient,
+  ctx: TenantContext,
+): Promise<void> {
   // set_config(name, value, is_local=TRUE) is transaction-scoped, equivalent to SET LOCAL.
   // Using the function form lets us pass values as parameterised arguments instead of
   // string-interpolating them into SQL, eliminating any injection risk.
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_user_id',  ctx.userId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_group_id', ctx.groupId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_role',     ctx.role]);
+  await client.query("SELECT set_config($1, $2, TRUE)", [
+    "app.current_user_id",
+    ctx.userId,
+  ]);
+  await client.query("SELECT set_config($1, $2, TRUE)", [
+    "app.current_group_id",
+    ctx.groupId,
+  ]);
+  await client.query("SELECT set_config($1, $2, TRUE)", [
+    "app.current_role",
+    ctx.role,
+  ]);
   if (ctx.organizationId) {
-    await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_organization_id', ctx.organizationId]);
+    await client.query("SELECT set_config($1, $2, TRUE)", [
+      "app.current_organization_id",
+      ctx.organizationId,
+    ]);
   }
 }
 
@@ -140,13 +157,13 @@ export async function withDb<T>(
 ): Promise<T> {
   const client = await tenantPool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     await setTenantLocals(client, ctx);
     const result = await fn(client);
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
@@ -174,12 +191,12 @@ export async function withAdminDb<T>(
 ): Promise<T> {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     const result = await fn(client);
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();

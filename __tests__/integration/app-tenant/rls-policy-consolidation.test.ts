@@ -17,25 +17,26 @@
  * idempotency_keys, Group 3 (merged two-axis SELECT) via
  * organization_disbursements and sms_usage_logs.
  */
-import { withDb, type TenantContext } from '@/lib/db';
+import { withDb, type TenantContext } from "@/lib/db";
 import {
   createTestGroup,
   addGroupOfficer,
   createTestOrganization,
   createTestOrgDisbursement,
-} from '../helpers/fixtures';
-import { resetDatabase } from '../helpers/cleanup';
-import { rawQuery } from '../helpers/db';
+} from "../helpers/fixtures";
+import { resetDatabase } from "../helpers/cleanup";
+import { rawQuery } from "../helpers/db";
 
-describe('RLS policy consolidation (migration 122) — real Postgres, no service-layer WHERE clause', () => {
+describe("RLS policy consolidation (migration 122) — real Postgres, no service-layer WHERE clause", () => {
   afterEach(async () => {
     await resetDatabase();
   });
 
-  describe('Group 1a representative: share_classes (group-scoped, role-gated write)', () => {
-    it('SELECT is cross-tenant isolated with no WHERE clause', async () => {
-      const { groupId: groupAId, officerId } = await createTestGroup('treasurer');
-      const { groupId: groupBId } = await createTestGroup('treasurer');
+  describe("Group 1a representative: share_classes (group-scoped, role-gated write)", () => {
+    it("SELECT is cross-tenant isolated with no WHERE clause", async () => {
+      const { groupId: groupAId, officerId } =
+        await createTestGroup("treasurer");
+      const { groupId: groupBId } = await createTestGroup("treasurer");
 
       const [classA] = await rawQuery<{ id: string }>(
         `INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'Ordinary', 'ORD', 100)
@@ -47,25 +48,43 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
         [groupBId],
       );
 
-      const ctx: TenantContext = { userId: officerId, groupId: groupAId, role: 'treasurer' };
-      const rows = await withDb(ctx, (client) => client.query('SELECT id FROM share_classes').then(r => r.rows));
+      const ctx: TenantContext = {
+        userId: officerId,
+        groupId: groupAId,
+        role: "treasurer",
+      };
+      const rows = await withDb(ctx, (client) =>
+        client.query("SELECT id FROM share_classes").then((r) => r.rows),
+      );
 
       expect(rows).toHaveLength(1);
       expect(rows[0].id).toBe(classA.id);
     });
 
-    it('INSERT is rejected for a plain member and accepted for treasurer', async () => {
-      const { groupId, officerId: treasurerId } = await createTestGroup('treasurer');
-      const memberId = await addGroupOfficer(groupId, treasurerId, 'member');
+    it("INSERT is rejected for a plain member and accepted for treasurer", async () => {
+      const { groupId, officerId: treasurerId } =
+        await createTestGroup("treasurer");
+      const memberId = await addGroupOfficer(groupId, treasurerId, "member");
 
-      const memberCtx: TenantContext = { userId: memberId, groupId, role: 'member' };
+      const memberCtx: TenantContext = {
+        userId: memberId,
+        groupId,
+        role: "member",
+      };
       await expect(
         withDb(memberCtx, (client) =>
-          client.query(`INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'X', 'X', 1)`, [groupId]),
+          client.query(
+            `INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'X', 'X', 1)`,
+            [groupId],
+          ),
         ),
       ).rejects.toThrow(/row-level security/i);
 
-      const treasurerCtx: TenantContext = { userId: treasurerId, groupId, role: 'treasurer' };
+      const treasurerCtx: TenantContext = {
+        userId: treasurerId,
+        groupId,
+        role: "treasurer",
+      };
       const { rows } = await withDb(treasurerCtx, (client) =>
         client.query<{ id: string }>(
           `INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'Ordinary', 'ORD', 100) RETURNING id`,
@@ -75,52 +94,76 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       expect(rows).toHaveLength(1);
     });
 
-    it('DELETE affects 0 rows for a plain member and 1 row for treasurer (USING failure is silent, not an error)', async () => {
-      const { groupId, officerId: treasurerId } = await createTestGroup('treasurer');
-      const memberId = await addGroupOfficer(groupId, treasurerId, 'member');
+    it("DELETE affects 0 rows for a plain member and 1 row for treasurer (USING failure is silent, not an error)", async () => {
+      const { groupId, officerId: treasurerId } =
+        await createTestGroup("treasurer");
+      const memberId = await addGroupOfficer(groupId, treasurerId, "member");
       const [{ id: classId }] = await rawQuery<{ id: string }>(
         `INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'Ordinary', 'ORD', 100) RETURNING id`,
         [groupId],
       );
 
-      const memberCtx: TenantContext = { userId: memberId, groupId, role: 'member' };
+      const memberCtx: TenantContext = {
+        userId: memberId,
+        groupId,
+        role: "member",
+      };
       const memberResult = await withDb(memberCtx, (client) =>
-        client.query('DELETE FROM share_classes WHERE id = $1', [classId]),
+        client.query("DELETE FROM share_classes WHERE id = $1", [classId]),
       );
       expect(memberResult.rowCount).toBe(0);
 
-      const treasurerCtx: TenantContext = { userId: treasurerId, groupId, role: 'treasurer' };
+      const treasurerCtx: TenantContext = {
+        userId: treasurerId,
+        groupId,
+        role: "treasurer",
+      };
       const treasurerResult = await withDb(treasurerCtx, (client) =>
-        client.query('DELETE FROM share_classes WHERE id = $1', [classId]),
+        client.query("DELETE FROM share_classes WHERE id = $1", [classId]),
       );
       expect(treasurerResult.rowCount).toBe(1);
     });
   });
 
-  describe('Group 1b representative: mpesa_b2c_charge_tiers (global reference data, admin-only write)', () => {
-    it('SELECT works for any authenticated role', async () => {
-      const { groupId, officerId: treasurerId } = await createTestGroup('treasurer');
-      const memberId = await addGroupOfficer(groupId, treasurerId, 'member');
+  describe("Group 1b representative: mpesa_b2c_charge_tiers (global reference data, admin-only write)", () => {
+    it("SELECT works for any authenticated role", async () => {
+      const { groupId, officerId: treasurerId } =
+        await createTestGroup("treasurer");
+      const memberId = await addGroupOfficer(groupId, treasurerId, "member");
       await rawQuery(
         `INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5)`,
       );
 
-      const ctx: TenantContext = { userId: memberId, groupId, role: 'member' };
-      const rows = await withDb(ctx, (client) => client.query('SELECT id FROM mpesa_b2c_charge_tiers').then(r => r.rows));
+      const ctx: TenantContext = { userId: memberId, groupId, role: "member" };
+      const rows = await withDb(ctx, (client) =>
+        client
+          .query("SELECT id FROM mpesa_b2c_charge_tiers")
+          .then((r) => r.rows),
+      );
       expect(rows.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('write is rejected for a non-admin role and accepted for super_admin', async () => {
-      const { groupId, officerId } = await createTestGroup('chairperson');
+    it("write is rejected for a non-admin role and accepted for super_admin", async () => {
+      const { groupId, officerId } = await createTestGroup("chairperson");
 
-      const officerCtx: TenantContext = { userId: officerId, groupId, role: 'chairperson' };
+      const officerCtx: TenantContext = {
+        userId: officerId,
+        groupId,
+        role: "chairperson",
+      };
       await expect(
         withDb(officerCtx, (client) =>
-          client.query(`INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5)`),
+          client.query(
+            `INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5)`,
+          ),
         ),
       ).rejects.toThrow(/row-level security/i);
 
-      const adminCtx: TenantContext = { userId: officerId, groupId, role: 'super_admin' };
+      const adminCtx: TenantContext = {
+        userId: officerId,
+        groupId,
+        role: "super_admin",
+      };
       const { rows } = await withDb(adminCtx, (client) =>
         client.query<{ id: string }>(
           `INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5) RETURNING id`,
@@ -130,59 +173,95 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
     });
   });
 
-  describe('Group 2: idempotency_keys (member-scoped, not group-scoped — redundant duplicate policy dropped)', () => {
-    it('SELECT with no WHERE clause returns only the caller’s own key', async () => {
-      const { groupId, officerId: memberA } = await createTestGroup('treasurer');
-      const memberB = await addGroupOfficer(groupId, memberA, 'member');
+  describe("Group 2: idempotency_keys (member-scoped, not group-scoped — redundant duplicate policy dropped)", () => {
+    it("SELECT with no WHERE clause returns only the caller’s own key", async () => {
+      const { groupId, officerId: memberA } =
+        await createTestGroup("treasurer");
+      const memberB = await addGroupOfficer(groupId, memberA, "member");
 
       await rawQuery(
         `INSERT INTO idempotency_keys (key, endpoint, member_id, request_hash, response_status, response_body, expires_at)
          VALUES ($1, '/test', $2, 'hash-a', 200, '{}'::jsonb, now() + interval '1 hour')`,
-        ['key-a', memberA],
+        ["key-a", memberA],
       );
       await rawQuery(
         `INSERT INTO idempotency_keys (key, endpoint, member_id, request_hash, response_status, response_body, expires_at)
          VALUES ($1, '/test', $2, 'hash-b', 200, '{}'::jsonb, now() + interval '1 hour')`,
-        ['key-b', memberB],
+        ["key-b", memberB],
       );
 
-      const ctx: TenantContext = { userId: memberA, groupId, role: 'treasurer' };
-      const rows = await withDb(ctx, (client) => client.query<{ key: string }>('SELECT key FROM idempotency_keys').then(r => r.rows));
+      const ctx: TenantContext = {
+        userId: memberA,
+        groupId,
+        role: "treasurer",
+      };
+      const rows = await withDb(ctx, (client) =>
+        client
+          .query<{ key: string }>("SELECT key FROM idempotency_keys")
+          .then((r) => r.rows),
+      );
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].key).toBe('key-a');
+      expect(rows[0].key).toBe("key-a");
     });
   });
 
-  describe('Group 3a: organization_disbursements (org-coordinator axis + group-member axis merged into one SELECT)', () => {
-    it('both the org-coordinator path and the group-member path independently grant SELECT; an unrelated group sees nothing; a non-coordinator group member cannot INSERT', async () => {
+  describe("Group 3a: organization_disbursements (org-coordinator axis + group-member axis merged into one SELECT)", () => {
+    it("both the org-coordinator path and the group-member path independently grant SELECT; an unrelated group sees nothing; a non-coordinator group member cannot INSERT", async () => {
       const { organizationId, coordinatorId } = await createTestOrganization();
-      const { groupId: groupAId, officerId: groupAOfficerId } = await createTestGroup('treasurer');
-      const { groupId: groupBId, officerId: groupBOfficerId } = await createTestGroup('treasurer');
-      const groupAMemberId = await addGroupOfficer(groupAId, groupAOfficerId, 'member');
+      const { groupId: groupAId, officerId: groupAOfficerId } =
+        await createTestGroup("treasurer");
+      const { groupId: groupBId, officerId: groupBOfficerId } =
+        await createTestGroup("treasurer");
+      const groupAMemberId = await addGroupOfficer(
+        groupAId,
+        groupAOfficerId,
+        "member",
+      );
 
-      const disb = await createTestOrgDisbursement(organizationId, coordinatorId, groupAId);
+      const disb = await createTestOrgDisbursement(
+        organizationId,
+        coordinatorId,
+        groupAId,
+      );
 
       // Org-coordinator axis
       const coordinatorCtx: TenantContext = {
-        userId: coordinatorId, groupId: groupAId, role: 'organization_coordinator', organizationId,
+        userId: coordinatorId,
+        groupId: groupAId,
+        role: "organization_coordinator",
+        organizationId,
       };
       const coordinatorRows = await withDb(coordinatorCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client
+          .query<{ id: string }>("SELECT id FROM organization_disbursements")
+          .then((r) => r.rows),
       );
-      expect(coordinatorRows.map(r => r.id)).toContain(disb.id);
+      expect(coordinatorRows.map((r) => r.id)).toContain(disb.id);
 
       // Group-member axis — a plain member of group A, with NO organization role at all
-      const groupMemberCtx: TenantContext = { userId: groupAMemberId, groupId: groupAId, role: 'member' };
+      const groupMemberCtx: TenantContext = {
+        userId: groupAMemberId,
+        groupId: groupAId,
+        role: "member",
+      };
       const groupMemberRows = await withDb(groupMemberCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client
+          .query<{ id: string }>("SELECT id FROM organization_disbursements")
+          .then((r) => r.rows),
       );
-      expect(groupMemberRows.map(r => r.id)).toContain(disb.id);
+      expect(groupMemberRows.map((r) => r.id)).toContain(disb.id);
 
       // Unrelated group B sees nothing
-      const groupBCtx: TenantContext = { userId: groupBOfficerId, groupId: groupBId, role: 'treasurer' };
+      const groupBCtx: TenantContext = {
+        userId: groupBOfficerId,
+        groupId: groupBId,
+        role: "treasurer",
+      };
       const groupBRows = await withDb(groupBCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client
+          .query<{ id: string }>("SELECT id FROM organization_disbursements")
+          .then((r) => r.rows),
       );
       expect(groupBRows).toHaveLength(0);
 
@@ -206,17 +285,17 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
     });
   });
 
-  describe('Group 3b: sms_usage_logs (group axis, previously FOR ALL, + org-payer axis, previously and still SELECT-only)', () => {
-    it('both payer axes independently grant SELECT; an org coordinator cannot write (write stayed group-scoped only)', async () => {
+  describe("Group 3b: sms_usage_logs (group axis, previously FOR ALL, + org-payer axis, previously and still SELECT-only)", () => {
+    it("both payer axes independently grant SELECT; an org coordinator cannot write (write stayed group-scoped only)", async () => {
       const { organizationId, coordinatorId } = await createTestOrganization();
-      const { groupId, officerId } = await createTestGroup('treasurer');
+      const { groupId, officerId } = await createTestGroup("treasurer");
       // A group the coordinator has no relationship to at all — used as their
       // tenant-context groupId so the group axis (group_id = app_current_group_id(),
       // which has NO role check) can't accidentally satisfy the assertions below.
       // Without this, the coordinator's own session would trivially match
       // sms_usage_logs' group axis too if it reused `groupId`, masking whether
       // the org-payer axis specifically is doing the granting/withholding.
-      const { groupId: unrelatedGroupId } = await createTestGroup('treasurer');
+      const { groupId: unrelatedGroupId } = await createTestGroup("treasurer");
 
       const [groupFunded] = await rawQuery<{ id: string }>(
         `INSERT INTO sms_usage_logs (group_id, recipient_phone, message_text, credits_deducted, payer_type)
@@ -229,16 +308,33 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
         [groupId, organizationId],
       );
 
-      const groupCtx: TenantContext = { userId: officerId, groupId, role: 'treasurer' };
-      const groupRows = await withDb(groupCtx, (client) => client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then(r => r.rows));
-      expect(groupRows.map(r => r.id)).toEqual(expect.arrayContaining([groupFunded.id, orgFunded.id]));
+      const groupCtx: TenantContext = {
+        userId: officerId,
+        groupId,
+        role: "treasurer",
+      };
+      const groupRows = await withDb(groupCtx, (client) =>
+        client
+          .query<{ id: string }>("SELECT id FROM sms_usage_logs")
+          .then((r) => r.rows),
+      );
+      expect(groupRows.map((r) => r.id)).toEqual(
+        expect.arrayContaining([groupFunded.id, orgFunded.id]),
+      );
 
       const coordinatorCtx: TenantContext = {
-        userId: coordinatorId, groupId: unrelatedGroupId, role: 'organization_coordinator', organizationId,
+        userId: coordinatorId,
+        groupId: unrelatedGroupId,
+        role: "organization_coordinator",
+        organizationId,
       };
-      const coordinatorRows = await withDb(coordinatorCtx, (client) => client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then(r => r.rows));
-      expect(coordinatorRows.map(r => r.id)).toContain(orgFunded.id);
-      expect(coordinatorRows.map(r => r.id)).not.toContain(groupFunded.id);
+      const coordinatorRows = await withDb(coordinatorCtx, (client) =>
+        client
+          .query<{ id: string }>("SELECT id FROM sms_usage_logs")
+          .then((r) => r.rows),
+      );
+      expect(coordinatorRows.map((r) => r.id)).toContain(orgFunded.id);
+      expect(coordinatorRows.map((r) => r.id)).not.toContain(groupFunded.id);
 
       await expect(
         withDb(coordinatorCtx, (client) =>

@@ -1,12 +1,17 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import * as React from "react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { cn, formatKES } from '@/lib/utils';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { cn, formatKES } from "@/lib/utils";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -18,7 +23,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   /** `danger` for destructive/irreversible actions (red confirm button). */
-  variant?: 'default' | 'danger';
+  variant?: "default" | "danger";
 }
 
 /**
@@ -27,8 +32,14 @@ interface ConfirmDialogProps {
  * disables dismissal while in flight so an action can't be double-fired.
  */
 export function ConfirmDialog({
-  open, onOpenChange, title, description, onConfirm,
-  confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default',
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  variant = "default",
 }: ConfirmDialogProps) {
   const [loading, setLoading] = React.useState(false);
 
@@ -47,17 +58,27 @@ export function ConfirmDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {variant === 'danger' && <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden />}
+            {variant === "danger" && (
+              <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden />
+            )}
             <DialogTitle>{title}</DialogTitle>
           </div>
-          {description && <DialogDescription asChild><div>{description}</div></DialogDescription>}
+          {description && (
+            <DialogDescription asChild>
+              <div>{description}</div>
+            </DialogDescription>
+          )}
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
             {cancelLabel}
           </Button>
           <Button
-            variant={variant === 'danger' ? 'destructive' : 'default'}
+            variant={variant === "danger" ? "destructive" : "default"}
             onClick={handleConfirm}
             loading={loading}
           >
@@ -89,7 +110,14 @@ interface MoneyActionDialogProps {
  * verify every detail before funds move — the moment that most needs clarity.
  */
 export function MoneyActionDialog({
-  open, onOpenChange, title, amount, details, warning, onConfirm, confirmLabel,
+  open,
+  onOpenChange,
+  title,
+  amount,
+  details,
+  warning,
+  onConfirm,
+  confirmLabel,
 }: MoneyActionDialogProps) {
   const [loading, setLoading] = React.useState(false);
 
@@ -108,12 +136,18 @@ export function MoneyActionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Review the details below before confirming.</DialogDescription>
+          <DialogDescription>
+            Review the details below before confirming.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border bg-muted/40 p-4 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount</p>
-          <p className="money mt-1 text-3xl font-bold tracking-tight text-foreground">{formatKES(amount)}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Amount
+          </p>
+          <p className="money mt-1 text-3xl font-bold tracking-tight text-foreground">
+            {formatKES(amount)}
+          </p>
         </div>
 
         {details && details.length > 0 && (
@@ -121,7 +155,9 @@ export function MoneyActionDialog({
             {details.map((d, i) => (
               <div key={i} className="flex items-center justify-between gap-4">
                 <dt className="text-muted-foreground">{d.label}</dt>
-                <dd className="text-right font-medium text-foreground">{d.value}</dd>
+                <dd className="text-right font-medium text-foreground">
+                  {d.value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -129,8 +165,10 @@ export function MoneyActionDialog({
 
         <div
           className={cn(
-            'flex items-start gap-2 rounded-md p-3 text-sm',
-            warning ? 'bg-amber-50 text-amber-800' : 'bg-brand-50 text-brand-800',
+            "flex items-start gap-2 rounded-md p-3 text-sm",
+            warning
+              ? "bg-amber-50 text-amber-800"
+              : "bg-brand-50 text-brand-800",
           )}
         >
           {warning ? (
@@ -138,11 +176,20 @@ export function MoneyActionDialog({
           ) : (
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           )}
-          <span>{warning ?? 'Funds move immediately once confirmed. Check the recipient details.'}</span>
+          <span>
+            {warning ??
+              "Funds move immediately once confirmed. Check the recipient details."}
+          </span>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
           <Button onClick={handleConfirm} loading={loading}>
             {confirmLabel ?? `Confirm ${formatKES(amount)}`}
           </Button>

@@ -2,15 +2,15 @@
 // Used by the registration form's county dropdown — must be reachable
 // pre-auth, which is granted in proxy.ts.
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { withAdminDb } from '@/lib/db';
-import { ok, handleError } from '@/lib/utils/response';
+import { withAdminDb } from "@/lib/db";
+import { ok, handleError } from "@/lib/utils/response";
 
 interface County {
-  id:     string;
-  code:   string;
-  name:   string;
+  id: string;
+  code: string;
+  name: string;
   region: string | null;
 }
 
@@ -27,7 +27,10 @@ export async function GET(): Promise<Response> {
 
     // Counties don't change — cache the response aggressively at the CDN.
     const res = ok(counties);
-    res.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=86400, stale-while-revalidate=604800",
+    );
     return res;
   } catch (err) {
     return handleError(err);

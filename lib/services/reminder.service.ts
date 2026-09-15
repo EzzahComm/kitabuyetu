@@ -14,16 +14,20 @@
  * per real event and don't have a "stage" concept; forcing them through here
  * would be unnecessary friction, not a safety improvement.
  */
-import { withAdminDb, withDb, type TenantContext } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { notifyMember, type NotifyRecipient, type NotifyOutcome } from './notifications.service';
-import type { PaginatedResult } from '@/types/db.types';
+import { withAdminDb, withDb, type TenantContext } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import {
+  notifyMember,
+  type NotifyRecipient,
+  type NotifyOutcome,
+} from "./notifications.service";
+import type { PaginatedResult } from "@/types/db.types";
 
 export interface ReminderInput extends NotifyRecipient {
   /** Required here (optional on the underlying NotifyRecipient) — the whole
    *  point of this module is keying off a specific business record. */
   referenceType: string;
-  referenceId:   string;
+  referenceId: string;
   /** e.g. 'due_3_days', 'overdue_7_days', 'missing_contribution:2026-06'. */
   reminderStage: string;
   /** job_queue.id of the run that produced this attempt — audit trail only. */
@@ -31,8 +35,13 @@ export interface ReminderInput extends NotifyRecipient {
 }
 
 export interface ReminderResult {
-  sent:   boolean;
-  status: NotifyOutcome['status'] | 'already_sent' | 'already_suppressed' | 'claim_error' | 'cooldown';
+  sent: boolean;
+  status:
+    | NotifyOutcome["status"]
+    | "already_sent"
+    | "already_suppressed"
+    | "claim_error"
+    | "cooldown";
 }
 
 /**
@@ -56,8 +65,8 @@ export interface ReminderResult {
 const COOLDOWN_MINUTES = 60;
 
 type ClaimResult =
-  | { outcome: 'send'; id: string }
-  | { outcome: 'already_sent' | 'already_suppressed' | 'claim_error' };
+  | { outcome: "send"; id: string }
+  | { outcome: "already_sent" | "already_suppressed" | "claim_error" };
 
 /**
  * Claim (or resume) the (reference_type, reference_id, reminder_stage) slot.
@@ -75,10 +84,16 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (reference_type, reference_id, reminder_stage) DO NOTHING
        RETURNING id`,
-      [input.groupId, input.memberId, input.referenceType, input.referenceId,
-       input.reminderStage, input.jobExecutionId ?? null],
+      [
+        input.groupId,
+        input.memberId,
+        input.referenceType,
+        input.referenceId,
+        input.reminderStage,
+        input.jobExecutionId ?? null,
+      ],
     );
-    if (inserted.rows[0]) return { outcome: 'send', id: inserted.rows[0].id };
+    if (inserted.rows[0]) return { outcome: "send", id: inserted.rows[0].id };
 
     const existing = await db.query<{ id: string; status: string }>(
       `SELECT id, status FROM reminder_dispatch_log
@@ -89,21 +104,26 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
     if (!row) {
       // The row we just failed to insert should exist — append-only table,
       // nothing deletes it. Fail closed rather than risk a duplicate send.
-      logger.error('[reminder] claim conflict but no existing row found', {
-        referenceType: input.referenceType, referenceId: input.referenceId, stage: input.reminderStage,
+      logger.error("[reminder] claim conflict but no existing row found", {
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        stage: input.reminderStage,
       });
-      return { outcome: 'claim_error' };
+      return { outcome: "claim_error" };
     }
-    if (row.status === 'sent')       return { outcome: 'already_sent' };
-    if (row.status === 'suppressed') return { outcome: 'already_suppressed' };
-    return { outcome: 'send', id: row.id }; // 'pending' or 'failed' — retry.
+    if (row.status === "sent") return { outcome: "already_sent" };
+    if (row.status === "suppressed") return { outcome: "already_suppressed" };
+    return { outcome: "send", id: row.id }; // 'pending' or 'failed' — retry.
   });
 }
 
 async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
-  const status = outcome.status === 'sent' ? 'sent'
-    : outcome.status === 'suppressed' ? 'suppressed'
-    : 'failed';
+  const status =
+    outcome.status === "sent"
+      ? "sent"
+      : outcome.status === "suppressed"
+        ? "suppressed"
+        : "failed";
   await withAdminDb((db) =>
     db.query(
       // $2 is cast explicitly in BOTH the SET and the CASE below. Left
@@ -119,33 +139,38 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
        SET status=$2::reminder_dispatch_status, channel=$3, reason=$4, attempts=attempts+1,
            sent_at=CASE WHEN $2::reminder_dispatch_status='sent' THEN NOW() ELSE sent_at END
        WHERE id=$1 AND status IN ('pending','failed')`,
-      [id, status, outcome.channel === 'none' ? null : outcome.channel, outcome.detail ?? null],
+      [
+        id,
+        status,
+        outcome.channel === "none" ? null : outcome.channel,
+        outcome.detail ?? null,
+      ],
     ),
   );
 }
 
 export interface ReminderHistoryQuery {
-  page:     number;
-  limit:    number;
+  page: number;
+  limit: number;
   memberId?: string;
-  status?:  'pending' | 'sent' | 'failed' | 'suppressed';
-  from?:    string;
-  to?:      string;
+  status?: "pending" | "sent" | "failed" | "suppressed";
+  from?: string;
+  to?: string;
 }
 
 export interface ReminderHistoryRow {
-  id:             string;
-  member_id:      string;
-  member_name:    string | null;
+  id: string;
+  member_id: string;
+  member_name: string | null;
   reference_type: string;
-  reference_id:   string;
+  reference_id: string;
   reminder_stage: string;
-  status:         string;
-  channel:        string | null;
-  reason:         string | null;
-  attempts:       number;
-  created_at:     Date;
-  sent_at:        Date | null;
+  status: string;
+  channel: string | null;
+  reason: string | null;
+  attempts: number;
+  created_at: Date;
+  sent_at: Date | null;
 }
 
 /**
@@ -179,19 +204,32 @@ export async function listReminderHistory(
     const { page, limit, memberId, status, from, to } = params;
     const offset = (page - 1) * limit;
 
-    const conds: string[] = ['r.group_id = $1'];
+    const conds: string[] = ["r.group_id = $1"];
     const vals: unknown[] = [ctx.groupId];
     let idx = 2;
 
-    if (memberId) { conds.push(`r.member_id = $${idx++}`);         vals.push(memberId); }
-    if (status)   { conds.push(`r.status = $${idx++}::reminder_dispatch_status`); vals.push(status); }
-    if (from)     { conds.push(`r.created_at::date >= $${idx++}`); vals.push(from); }
-    if (to)       { conds.push(`r.created_at::date <= $${idx++}`); vals.push(to); }
+    if (memberId) {
+      conds.push(`r.member_id = $${idx++}`);
+      vals.push(memberId);
+    }
+    if (status) {
+      conds.push(`r.status = $${idx++}::reminder_dispatch_status`);
+      vals.push(status);
+    }
+    if (from) {
+      conds.push(`r.created_at::date >= $${idx++}`);
+      vals.push(from);
+    }
+    if (to) {
+      conds.push(`r.created_at::date <= $${idx++}`);
+      vals.push(to);
+    }
 
-    const where = conds.join(' AND ');
+    const where = conds.join(" AND ");
 
     const { rows: countRows } = await client.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM reminder_dispatch_log r WHERE ${where}`, vals,
+      `SELECT COUNT(*) AS count FROM reminder_dispatch_log r WHERE ${where}`,
+      vals,
     );
     const total = parseInt(countRows[0].count, 10);
 
@@ -213,7 +251,13 @@ export async function listReminderHistory(
       [...vals, limit, offset],
     );
 
-    return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
+    return {
+      items: rows,
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+    };
   });
 }
 
@@ -233,7 +277,10 @@ export async function listReminderHistory(
  * Fail-open on error: this is a politeness constraint, not a correctness one.
  * A cooldown lookup that breaks must not stop a reminder going out.
  */
-async function inCooldown(input: ReminderInput, claimedId: string): Promise<boolean> {
+async function inCooldown(
+  input: ReminderInput,
+  claimedId: string,
+): Promise<boolean> {
   if (!input.memberId || !input.groupId) return false;
   try {
     return await withAdminDb(async (db) => {
@@ -251,7 +298,7 @@ async function inCooldown(input: ReminderInput, claimedId: string): Promise<bool
       return rows[0]?.exists === true;
     });
   } catch (err) {
-    logger.warn('[reminder] cooldown lookup failed — allowing the send', {
+    logger.warn("[reminder] cooldown lookup failed — allowing the send", {
       err: err instanceof Error ? err.message : String(err),
     });
     return false;
@@ -274,16 +321,17 @@ async function inCooldown(input: ReminderInput, claimedId: string): Promise<bool
  */
 export async function sendOnce(input: ReminderInput): Promise<ReminderResult> {
   const claimed = await claim(input);
-  if (claimed.outcome !== 'send') return { sent: false, status: claimed.outcome };
+  if (claimed.outcome !== "send")
+    return { sent: false, status: claimed.outcome };
 
   // Checked AFTER the claim (so the slot is held and no other run races us
   // into sending it) but BEFORE notifyMember — the whole value is in not
   // reserving credits and not calling the provider.
   if (await inCooldown(input, claimed.id)) {
-    return { sent: false, status: 'cooldown' };
+    return { sent: false, status: "cooldown" };
   }
 
   const outcome = await notifyMember(input);
   await settle(claimed.id, outcome);
-  return { sent: outcome.status === 'sent', status: outcome.status };
+  return { sent: outcome.status === "sent", status: outcome.status };
 }

@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { IconCheck, IconX, IconAlertCircle, IconInfoCircle } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconX,
+  IconAlertCircle,
+  IconInfoCircle,
+} from "@tabler/icons-react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -30,41 +35,56 @@ export function ToastContainer() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((toast: Omit<Toast, "id">) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const duration = toast.duration ?? 3000;
-    const newToast: Toast = { ...toast, id, duration };
+  const addToast = useCallback(
+    (toast: Omit<Toast, "id">) => {
+      const id = Math.random().toString(36).substr(2, 9);
+      const duration = toast.duration ?? 3000;
+      const newToast: Toast = { ...toast, id, duration };
 
-    setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => [...prev, newToast]);
 
-    if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    }
+      if (duration > 0) {
+        setTimeout(() => {
+          removeToast(id);
+        }, duration);
+      }
 
-    return id;
-  }, [removeToast]);
+      return id;
+    },
+    [removeToast],
+  );
 
   const getIcon = (type: ToastType) => {
     const iconProps = { size: 20, className: "flex-shrink-0" };
     switch (type) {
       case "success":
         return (
-          <IconCheck {...iconProps} className="text-success-600 dark:text-success-400" />
+          <IconCheck
+            {...iconProps}
+            className="text-success-600 dark:text-success-400"
+          />
         );
       case "error":
         return (
-          <IconX {...iconProps} className="text-error-600 dark:text-error-400" />
+          <IconX
+            {...iconProps}
+            className="text-error-600 dark:text-error-400"
+          />
         );
       case "warning":
         return (
-          <IconAlertCircle {...iconProps} className="text-warning-600 dark:text-warning-400" />
+          <IconAlertCircle
+            {...iconProps}
+            className="text-warning-600 dark:text-warning-400"
+          />
         );
       case "info":
       default:
         return (
-          <IconInfoCircle {...iconProps} className="text-info-600 dark:text-info-400" />
+          <IconInfoCircle
+            {...iconProps}
+            className="text-info-600 dark:text-info-400"
+          />
         );
     }
   };
@@ -103,7 +123,7 @@ export function ToastContainer() {
         <div
           key={toast.id}
           className={`pointer-events-auto max-w-sm p-4 rounded-lg border ${getBackgroundColor(
-            toast.type
+            toast.type,
           )} ${getTextColor(toast.type)} shadow-lg animate-in slide-in-from-right-4 duration-200`}
           role="alert"
         >
@@ -111,7 +131,9 @@ export function ToastContainer() {
             {getIcon(toast.type)}
             <div className="flex-1">
               <h3 className="font-semibold">{toast.title}</h3>
-              {toast.message && <p className="text-sm opacity-90 mt-1">{toast.message}</p>}
+              {toast.message && (
+                <p className="text-sm opacity-90 mt-1">{toast.message}</p>
+              )}
             </div>
             <button
               onClick={() => removeToast(toast.id)}

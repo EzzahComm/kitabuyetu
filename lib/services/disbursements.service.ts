@@ -18,49 +18,59 @@
  * UNIQUE, and a repeated call with the same key returns the existing row
  * instead of a second real payout — regardless of what state that row is in.
  */
-import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
-import { logger } from '@/lib/logger';
-import { getEffectiveThreshold } from './approval-policy.service';
-import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
+import {
+  withDb,
+  withTransaction,
+  withAdminDb,
+  type TenantContext,
+} from "@/lib/db";
+import {
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from "@/lib/utils/errors";
+import { logger } from "@/lib/logger";
+import { getEffectiveThreshold } from "./approval-policy.service";
+import { triggerDisbursementWatchdog } from "@/lib/queue/qstash";
 
 export interface InitiateDisbursementInput {
-  loanId?:         string;
-  phone:           string;
-  amount:          number;
-  commandId?:      'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
-  occasion:        string;
-  idempotencyKey:  string;
+  loanId?: string;
+  phone: string;
+  amount: number;
+  commandId?: "BusinessPayment" | "SalaryPayment" | "PromotionPayment";
+  occasion: string;
+  idempotencyKey: string;
 }
 
 export interface DisbursementRow {
-  id:                string;
-  group_id:          string;
-  loan_id:           string | null;
-  phone:             string;
-  amount:            string;
-  status:            string;
+  id: string;
+  group_id: string;
+  loan_id: string | null;
+  phone: string;
+  amount: string;
+  status: string;
   requires_approval: boolean;
-  initiated_by:       string;
-  approved_by:        string | null;
+  initiated_by: string;
+  approved_by: string | null;
   mpesa_receipt_number: string | null;
-  failure_reason:     string | null;
-  created_at:         Date;
+  failure_reason: string | null;
+  created_at: Date;
 }
 
 export const disbursementsService = {
-
   /**
    * Validates + reserves funds + either dispatches immediately (single
    * control, under threshold) or parks pending_approval (funds stay
    * reserved while awaiting a second officer). Returns the row either way.
    */
   async initiateDisbursement(
-    ctx: TenantContext, input: InitiateDisbursementInput,
+    ctx: TenantContext,
+    input: InitiateDisbursementInput,
   ): Promise<DisbursementRow & { needsApproval: boolean }> {
-    if (!(input.amount > 0)) throw new ValidationError('Amount must be positive');
+    if (!(input.amount > 0))
+      throw new ValidationError("Amount must be positive");
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
-      throw new ValidationError('A valid idempotency key is required');
+      throw new ValidationError("A valid idempotency key is required");
     }
 
     const { row, alreadyExisted } = await withTransaction(ctx, async (db) => {
@@ -75,12 +85,15 @@ export const disbursementsService = {
       // Loan-linked payout: gate on approval status (fixes the pre-existing
       // defect where a rejected/already-disbursed loan could still be paid).
       if (input.loanId) {
-        const { rows: loanRows } = await db.query<{ id: string; status: string }>(
+        const { rows: loanRows } = await db.query<{
+          id: string;
+          status: string;
+        }>(
           `SELECT id, status FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`,
           [input.loanId, ctx.groupId],
         );
-        if (!loanRows[0]) throw new NotFoundError('Loan', input.loanId);
-        if (loanRows[0].status !== 'approved') {
+        if (!loanRows[0]) throw new NotFoundError("Loan", input.loanId);
+        if (loanRows[0].status !== "approved") {
           throw new ValidationError(
             `Only approved loans can be disbursed (current status: ${loanRows[0].status})`,
           );
@@ -93,15 +106,20 @@ export const disbursementsService = {
       // — a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
-      const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`,
-        [ctx.groupId],
-      );
+      const { rows: acctRows } = await db.query<{
+        id: string;
+        balance: string;
+        reserved_amount: string;
+      }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId]);
       if (!acctRows[0]) {
-        throw new ValidationError('Group has no active Cash/M-Pesa account (1001) to disburse from');
+        throw new ValidationError(
+          "Group has no active Cash/M-Pesa account (1001) to disburse from",
+        );
       }
       const cashAccountId = acctRows[0].id;
-      const available = parseFloat(acctRows[0].balance) - parseFloat(acctRows[0].reserved_amount);
+      const available =
+        parseFloat(acctRows[0].balance) -
+        parseFloat(acctRows[0].reserved_amount);
       if (input.amount > available) {
         throw new ValidationError(
           `Insufficient available balance (KES ${available.toFixed(2)} available)`,
@@ -109,7 +127,11 @@ export const disbursementsService = {
       }
 
       // Maker-checker threshold (C3).
-      const threshold = await getEffectiveThreshold(db, 'group_disbursement_threshold', { groupId: ctx.groupId });
+      const threshold = await getEffectiveThreshold(
+        db,
+        "group_disbursement_threshold",
+        { groupId: ctx.groupId },
+      );
       const requiresApproval = input.amount > threshold;
 
       // Reserve (C1/C4): earmark the funds now, before Daraja is ever called
@@ -117,10 +139,10 @@ export const disbursementsService = {
       // request can't also pass the balance check against the same cash.
       // adjust_account_reserved_amount() (migration 100, SECURITY DEFINER) —
       // see the lock above for why a direct UPDATE needs it too.
-      await db.query(
-        `SELECT adjust_account_reserved_amount($1, $2)`,
-        [cashAccountId, input.amount.toFixed(2)],
-      );
+      await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [
+        cashAccountId,
+        input.amount.toFixed(2),
+      ]);
 
       const { rows: inserted } = await db.query<DisbursementRow>(
         `INSERT INTO disbursement_requests
@@ -129,10 +151,17 @@ export const disbursementsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
-          input.idempotencyKey, ctx.groupId, input.loanId ?? null, cashAccountId,
-          input.phone, input.amount.toFixed(2), input.commandId ?? 'BusinessPayment',
-          input.occasion, requiresApproval ? 'pending_approval' : 'approved',
-          requiresApproval, ctx.userId,
+          input.idempotencyKey,
+          ctx.groupId,
+          input.loanId ?? null,
+          cashAccountId,
+          input.phone,
+          input.amount.toFixed(2),
+          input.commandId ?? "BusinessPayment",
+          input.occasion,
+          requiresApproval ? "pending_approval" : "approved",
+          requiresApproval,
+          ctx.userId,
         ],
       );
       return { row: inserted[0], alreadyExisted: false };
@@ -140,12 +169,16 @@ export const disbursementsService = {
 
     // Dispatch happens OUTSIDE the transaction — the Daraja call is a network
     // request and must not hold a Postgres row lock for its duration.
-    if (!alreadyExisted && row.status === 'approved') {
+    if (!alreadyExisted && row.status === "approved") {
       await dispatchDisbursement(row.id);
     }
 
     const fresh = await this.getById(ctx, row.id);
-    return { ...fresh, needsApproval: fresh.requires_approval && fresh.status === 'pending_approval' };
+    return {
+      ...fresh,
+      needsApproval:
+        fresh.requires_approval && fresh.status === "pending_approval",
+    };
   },
 
   /** Second-officer approval (maker-checker) — approver ≠ initiator. */
@@ -157,9 +190,11 @@ export const disbursementsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+      if (!rows[0]) throw new NotFoundError("Pending disbursement", id);
       if (rows[0].initiated_by === ctx.userId) {
-        throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
+        throw new ForbiddenError(
+          "Maker-checker: the initiator cannot approve their own disbursement",
+        );
       }
       const { rows: updated } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
@@ -175,15 +210,22 @@ export const disbursementsService = {
   },
 
   /** Reject a pending disbursement — releases the reservation. */
-  async reject(ctx: TenantContext, id: string, reason: string): Promise<DisbursementRow> {
+  async reject(
+    ctx: TenantContext,
+    id: string,
+    reason: string,
+  ): Promise<DisbursementRow> {
     return withTransaction(ctx, async (db) => {
-      const { rows } = await db.query<{ cash_account_id: string; amount: string }>(
+      const { rows } = await db.query<{
+        cash_account_id: string;
+        amount: string;
+      }>(
         `SELECT cash_account_id, amount FROM disbursement_requests
          WHERE  id = $1 AND group_id = $2 AND status = 'pending_approval'
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+      if (!rows[0]) throw new NotFoundError("Pending disbursement", id);
 
       await db.query(
         // String-negate rather than parseFloat/re-serialize, to avoid any
@@ -207,22 +249,31 @@ export const disbursementsService = {
         `SELECT * FROM disbursement_requests WHERE id = $1 AND group_id = $2`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Disbursement', id);
+      if (!rows[0]) throw new NotFoundError("Disbursement", id);
       return rows[0];
     });
   },
 
-  async list(ctx: TenantContext, params: { page: number; limit: number; status?: string }) {
+  async list(
+    ctx: TenantContext,
+    params: { page: number; limit: number; status?: string },
+  ) {
     return withDb(ctx, async (db) => {
-      const conds: string[] = ['dr.group_id = $1'];
+      const conds: string[] = ["dr.group_id = $1"];
       const vals: unknown[] = [ctx.groupId];
       let i = 2;
-      if (params.status) { conds.push(`dr.status = $${i++}`); vals.push(params.status); }
-      const where  = conds.join(' AND ');
+      if (params.status) {
+        conds.push(`dr.status = $${i++}`);
+        vals.push(params.status);
+      }
+      const where = conds.join(" AND ");
       const offset = (params.page - 1) * params.limit;
 
-      const { rows: [{ count }] } = await db.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM disbursement_requests dr WHERE ${where}`, vals,
+      const {
+        rows: [{ count }],
+      } = await db.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM disbursement_requests dr WHERE ${where}`,
+        vals,
       );
       const { rows } = await db.query(
         `SELECT dr.*, l.principal_amount, m.first_name || ' ' || m.last_name AS borrower_name,
@@ -239,8 +290,11 @@ export const disbursementsService = {
         [...vals, params.limit, offset],
       );
       return {
-        items: rows, total: parseInt(count, 10), page: params.page,
-        pageSize: params.limit, totalPages: Math.ceil(parseInt(count, 10) / params.limit),
+        items: rows,
+        total: parseInt(count, 10),
+        page: params.page,
+        pageSize: params.limit,
+        totalPages: Math.ceil(parseInt(count, 10) / params.limit),
       };
     });
   },
@@ -267,11 +321,19 @@ export const disbursementsService = {
  */
 export async function findStuckDisbursements(): Promise<{
   count: number;
-  samples: { id: string; groupId: string; amount: string; ageMinutes: number }[];
+  samples: {
+    id: string;
+    groupId: string;
+    amount: string;
+    ageMinutes: number;
+  }[];
 }> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; age_minutes: number;
+      id: string;
+      group_id: string;
+      amount: string;
+      age_minutes: number;
     }>(
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - dispatched_at)) / 60 AS age_minutes
@@ -283,13 +345,19 @@ export async function findStuckDisbursements(): Promise<{
        LIMIT  20`,
     );
     const samples = rows.map((r) => ({
-      id: r.id, groupId: r.group_id, amount: r.amount,
+      id: r.id,
+      groupId: r.group_id,
+      amount: r.amount,
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[disbursements] stuck B2C payouts — no result callback received', {
-        count: samples.length, samples: samples.slice(0, 5),
-      });
+      logger.error(
+        "[disbursements] stuck B2C payouts — no result callback received",
+        {
+          count: samples.length,
+          samples: samples.slice(0, 5),
+        },
+      );
     }
     return { count: samples.length, samples };
   });
@@ -307,8 +375,15 @@ export async function findStuckDisbursements(): Promise<{
 async function dispatchDisbursement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; loan_id: string | null; phone: string; amount: string;
-      command_id: string; occasion: string; initiated_by: string; cash_account_id: string;
+      id: string;
+      group_id: string;
+      loan_id: string | null;
+      phone: string;
+      amount: string;
+      command_id: string;
+      occasion: string;
+      initiated_by: string;
+      cash_account_id: string;
     }>(
       `UPDATE disbursement_requests
        SET    status = 'dispatched', dispatched_at = NOW()
@@ -322,14 +397,17 @@ async function dispatchDisbursement(id: string): Promise<void> {
   if (!claimed) return; // already dispatched, or not in a dispatchable state
 
   try {
-    const { initiateB2C } = await import('./mpesa.service');
+    const { initiateB2C } = await import("./mpesa.service");
     await initiateB2C({
-      phone:       claimed.phone,
-      amount:      parseFloat(claimed.amount),
-      occasion:    claimed.occasion,
-      commandId:   claimed.command_id as 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment',
-      groupId:     claimed.group_id,
-      loanId:      claimed.loan_id ?? undefined,
+      phone: claimed.phone,
+      amount: parseFloat(claimed.amount),
+      occasion: claimed.occasion,
+      commandId: claimed.command_id as
+        | "BusinessPayment"
+        | "SalaryPayment"
+        | "PromotionPayment",
+      groupId: claimed.group_id,
+      loanId: claimed.loan_id ?? undefined,
       disbursedBy: claimed.initiated_by,
       disbursementRequestId: claimed.id,
     });
@@ -338,13 +416,20 @@ async function dispatchDisbursement(id: string): Promise<void> {
     // 'dispatched' before being surfaced as 'timed_out' instead of silently
     // stuck forever. Never blocks/fails a real dispatch that already
     // succeeded — see triggerDisbursementWatchdog's own non-throwing contract.
-    await triggerDisbursementWatchdog({ kind: 'disbursement', rowId: claimed.id });
+    await triggerDisbursementWatchdog({
+      kind: "disbursement",
+      rowId: claimed.id,
+    });
   } catch (err) {
     // The Daraja POST never landed — release the hold and mark failed so the
     // treasurer can see it and retry with a fresh idempotency key.
-    logger.error('[disbursements] dispatch failed before Daraja accepted the request', {
-      disbursementId: id, err: String(err),
-    });
+    logger.error(
+      "[disbursements] dispatch failed before Daraja accepted the request",
+      {
+        disbursementId: id,
+        err: String(err),
+      },
+    );
     await withAdminDb(async (db) => {
       await db.query(
         `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,

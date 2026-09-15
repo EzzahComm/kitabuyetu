@@ -3,19 +3,37 @@
  * SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3. The palette's ⌘K shell already
  * existed; this is the missing data source (previously pure static nav).
  */
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
 
 export interface PlatformSearchResults {
-  organizations: Array<{ id: string; name: string; type: string; registration_number: string | null }>;
-  groups: Array<{ id: string; name: string; group_type: string; group_code: string | null }>;
+  organizations: Array<{
+    id: string;
+    name: string;
+    type: string;
+    registration_number: string | null;
+  }>;
+  groups: Array<{
+    id: string;
+    name: string;
+    group_type: string;
+    group_code: string | null;
+  }>;
   members: Array<{
-    id: string; first_name: string; last_name: string; phone: string | null;
-    member_code: string | null; group_id: string | null; group_name: string | null;
+    id: string;
+    first_name: string;
+    last_name: string;
+    phone: string | null;
+    member_code: string | null;
+    group_id: string | null;
+    group_name: string | null;
   }>;
 }
 
-export async function searchPlatform(query: string, limit = 5): Promise<PlatformSearchResults> {
+export async function searchPlatform(
+  query: string,
+  limit = 5,
+): Promise<PlatformSearchResults> {
   return withAdminDb(async (db: PoolClient) => {
     const q = `%${query}%`;
     const [orgs, groups, members] = await Promise.all([
@@ -42,6 +60,10 @@ export async function searchPlatform(query: string, limit = 5): Promise<Platform
         [q, limit],
       ),
     ]);
-    return { organizations: orgs.rows, groups: groups.rows, members: members.rows };
+    return {
+      organizations: orgs.rows,
+      groups: groups.rows,
+      members: members.rows,
+    };
   });
 }

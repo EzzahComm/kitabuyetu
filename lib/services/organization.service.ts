@@ -1,10 +1,17 @@
-import { withDb, type TenantContext } from '@/lib/db';
-import { computeMemberFinancialSnapshot } from './member-balances.service';
-import { logger } from '@/lib/logger';
-import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
-import type { OrganizationGroupSummary, OrganizationProfile } from '@/types/api.types';
-import type { PaginatedResult } from '@/types/db.types';
-import { assertWhiteLabelAccess } from './organization-plan.service';
+import { withDb, type TenantContext } from "@/lib/db";
+import { computeMemberFinancialSnapshot } from "./member-balances.service";
+import { logger } from "@/lib/logger";
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/utils/errors";
+import type {
+  OrganizationGroupSummary,
+  OrganizationProfile,
+} from "@/types/api.types";
+import type { PaginatedResult } from "@/types/db.types";
+import { assertWhiteLabelAccess } from "./organization-plan.service";
 
 // PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
 // H3): the 3 call sites below used to fall back to `ctx.groupId` when
@@ -16,75 +23,77 @@ import { assertWhiteLabelAccess } from './organization-plan.service';
 // organizationId claim. Throws instead now, mirroring the identical
 // throw-on-missing helper already in organization-finance.service.ts.
 const orgId = (ctx: TenantContext): string => {
-  if (!ctx.organizationId) throw new ValidationError('Organization context is required');
+  if (!ctx.organizationId)
+    throw new ValidationError("Organization context is required");
   return ctx.organizationId;
 };
 
 export interface OrganizationBranding {
-  logoUrl:      string | null;
+  logoUrl: string | null;
   primaryColor: string | null;
 }
 
 export interface OrganizationAuditLogRow {
-  id:           string;
-  groupId:      string | null;
-  groupName:    string | null;
-  actorId:      string | null;
-  actorName:    string | null;
-  action:       string;
+  id: string;
+  groupId: string | null;
+  groupName: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
   resourceType: string;
-  resourceId:   string | null;
-  createdAt:    string;
+  resourceId: string | null;
+  createdAt: string;
 }
 
 export interface OrganizationMemberDetail {
-  memberId:     string;
-  firstName:    string;
-  lastName:     string;
-  phone:        string;
-  email:        string | null;
-  groupId:      string;
-  groupName:    string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  groupId: string;
+  groupName: string;
   /** The payment account reference (§2.1), e.g. BG1025. Lives on the membership. */
   membershipNo: string | null;
-  role:         string;
-  isActive:     boolean;
-  joinedAt:     string;
+  role: string;
+  isActive: boolean;
+  joinedAt: string;
   /**
    * null when the snapshot could not be read — never zero-filled (R10).
    * Numbers, not strings, because that is computeMemberFinancialSnapshot's
    * existing contract; forking a second money representation for this one
    * screen would be worse than inheriting its precision choice.
    */
-  financials:   {
-    savings:               number;
-    loanBalance:           number;
-    shares:                number;
+  financials: {
+    savings: number;
+    loanBalance: number;
+    shares: number;
     contributedThisPeriod: number;
   } | null;
 }
 
 export interface OrganizationMemberRow {
-  memberId:   string;
-  firstName:  string;
-  lastName:   string;
-  phone:      string;
-  email:      string | null;
-  groupId:    string;
-  groupName:  string;
-  role:       string;
-  isActive:   boolean;
-  joinedAt:   string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  groupId: string;
+  groupName: string;
+  role: string;
+  isActive: boolean;
+  joinedAt: string;
 }
 
 export const organizationService = {
-
   async assertOrganizationCoordinator(ctx: TenantContext): Promise<void> {
-    if (ctx.role !== 'organization_coordinator' && ctx.role !== 'super_admin') {
-      throw new ForbiddenError('Only Organization coordinators can access this resource');
+    if (ctx.role !== "organization_coordinator" && ctx.role !== "super_admin") {
+      throw new ForbiddenError(
+        "Only Organization coordinators can access this resource",
+      );
     }
-    if (ctx.role === 'organization_coordinator' && !ctx.organizationId) {
-      throw new ForbiddenError('Organization context is required');
+    if (ctx.role === "organization_coordinator" && !ctx.organizationId) {
+      throw new ForbiddenError("Organization context is required");
     }
   },
 
@@ -96,7 +105,8 @@ export const organizationService = {
         `SELECT id, name, type FROM organizations WHERE id = $1`,
         [ctx.organizationId],
       );
-      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      if (!rows[0])
+        throw new NotFoundError("Organization", ctx.organizationId ?? "");
       return rows[0];
     });
   },
@@ -113,7 +123,8 @@ export const organizationService = {
         `SELECT logo_url AS "logoUrl", primary_color AS "primaryColor" FROM organizations WHERE id = $1`,
         [ctx.organizationId],
       );
-      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      if (!rows[0])
+        throw new NotFoundError("Organization", ctx.organizationId ?? "");
       return rows[0];
     });
   },
@@ -132,7 +143,8 @@ export const organizationService = {
          RETURNING logo_url AS "logoUrl", primary_color AS "primaryColor"`,
         [ctx.organizationId, input.logoUrl ?? null, input.primaryColor ?? null],
       );
-      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+      if (!rows[0])
+        throw new NotFoundError("Organization", ctx.organizationId ?? "");
       return rows[0];
     });
   },
@@ -152,7 +164,7 @@ export const organizationService = {
     params: { page?: number; limit?: number } = {},
   ): Promise<PaginatedResult<OrganizationGroupSummary>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page  = Math.max(1, params.page ?? 1);
+    const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(500, Math.max(1, params.limit ?? 200));
 
     return withDb(ctx, async (client) => {
@@ -228,8 +240,14 @@ export const organizationService = {
         ),
       ]);
 
-      const total = parseInt(countRows[0]?.n ?? '0', 10);
-      return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+      const total = parseInt(countRows[0]?.n ?? "0", 10);
+      return {
+        items: rows,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
     });
   },
 
@@ -245,8 +263,8 @@ export const organizationService = {
     params: { page?: number; limit?: number; search?: string } = {},
   ): Promise<PaginatedResult<OrganizationMemberRow>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page   = Math.max(1, params.page ?? 1);
-    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
@@ -255,8 +273,12 @@ export const organizationService = {
       // Distinct placeholder numbering per query — the count query has no
       // limit/offset params, so `search` sits at a different position than
       // in the list query below.
-      const countSearchClause = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $2 OR m.phone ILIKE $2)` : '';
-      const listSearchClause  = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $4 OR m.phone ILIKE $4)` : '';
+      const countSearchClause = search
+        ? `AND (m.first_name || ' ' || m.last_name ILIKE $2 OR m.phone ILIKE $2)`
+        : "";
+      const listSearchClause = search
+        ? `AND (m.first_name || ' ' || m.last_name ILIKE $4 OR m.phone ILIKE $4)`
+        : "";
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
         client.query<{ n: string }>(
@@ -295,8 +317,14 @@ export const organizationService = {
         ),
       ]);
 
-      const total = parseInt(countRows[0]?.n ?? '0', 10);
-      return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+      const total = parseInt(countRows[0]?.n ?? "0", 10);
+      return {
+        items: rows,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
     });
   },
 
@@ -313,14 +341,14 @@ export const organizationService = {
     params: { page?: number; limit?: number; search?: string } = {},
   ): Promise<PaginatedResult<OrganizationAuditLogRow>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page   = Math.max(1, params.page ?? 1);
-    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
       const organizationId = orgId(ctx);
-      const searchClause = search ? `AND al.resource_type ILIKE $2` : '';
-      const searchParam  = search ? [`%${search}%`] : [];
+      const searchClause = search ? `AND al.resource_type ILIKE $2` : "";
+      const searchParam = search ? [`%${search}%`] : [];
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
         client.query<{ n: string }>(
@@ -368,12 +396,21 @@ export const organizationService = {
         ),
       ]);
 
-      const total = parseInt(countRows[0]?.n ?? '0', 10);
-      return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+      const total = parseInt(countRows[0]?.n ?? "0", 10);
+      return {
+        items: rows,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
     });
   },
 
-  async getGroupDetail(ctx: TenantContext, groupId: string): Promise<OrganizationGroupSummary & { monthlyTrend: unknown[] }> {
+  async getGroupDetail(
+    ctx: TenantContext,
+    groupId: string,
+  ): Promise<OrganizationGroupSummary & { monthlyTrend: unknown[] }> {
     await this.assertOrganizationCoordinator(ctx);
 
     return withDb(ctx, async (client) => {
@@ -383,7 +420,7 @@ export const organizationService = {
          WHERE organization_id = $1 AND group_id = $2 AND is_active = true`,
         [ctx.organizationId, groupId],
       );
-      if (!access[0]) throw new NotFoundError('Group access', groupId);
+      if (!access[0]) throw new NotFoundError("Group access", groupId);
 
       const { rows: summary } = await client.query<OrganizationGroupSummary>(
         `SELECT
@@ -424,7 +461,7 @@ export const organizationService = {
          WHERE g.id = $1`,
         [groupId],
       );
-      if (!summary[0]) throw new NotFoundError('Group', groupId);
+      if (!summary[0]) throw new NotFoundError("Group", groupId);
 
       // Monthly contribution trend (last 12 months, anonymized)
       const { rows: trend } = await client.query(
@@ -488,7 +525,7 @@ export const organizationService = {
          WHERE organization_id = $1 AND group_id = $2 AND is_active = true`,
         [orgId(ctx), groupId],
       );
-      if (!access[0]) throw new NotFoundError('Group access', groupId);
+      if (!access[0]) throw new NotFoundError("Group access", groupId);
 
       const { rows: profile } = await client.query<OrganizationMemberDetail>(
         `SELECT
@@ -510,7 +547,7 @@ export const organizationService = {
         [groupId, memberId],
       );
       const member = profile[0];
-      if (!member) throw new NotFoundError('Member', memberId);
+      if (!member) throw new NotFoundError("Member", memberId);
 
       const incomplete: string[] = [];
       // Last statement in the transaction, which is what makes catching here
@@ -518,20 +555,27 @@ export const organizationService = {
       // anything after it would fail regardless. A future addition below this
       // point needs its own SAVEPOINT or a separate withDb.
       try {
-        const [snapshot] = await computeMemberFinancialSnapshot(client, groupId, memberId);
+        const [snapshot] = await computeMemberFinancialSnapshot(
+          client,
+          groupId,
+          memberId,
+        );
         member.financials = snapshot
           ? {
-              savings:               snapshot.savings,
-              loanBalance:           snapshot.loanBalance,
-              shares:                snapshot.shares,
+              savings: snapshot.savings,
+              loanBalance: snapshot.loanBalance,
+              shares: snapshot.shares,
               contributedThisPeriod: snapshot.contributedThisPeriod,
             }
           : null;
-        if (!snapshot) incomplete.push('financials');
+        if (!snapshot) incomplete.push("financials");
       } catch (err) {
-        logger.error('[organization] member financial snapshot unavailable', err);
+        logger.error(
+          "[organization] member financial snapshot unavailable",
+          err,
+        );
         member.financials = null;
-        incomplete.push('financials');
+        incomplete.push("financials");
       }
 
       return { member, incomplete };

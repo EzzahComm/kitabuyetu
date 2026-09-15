@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Organization identity card at the top of the enterprise sidebar.
@@ -12,20 +12,26 @@
  * components/layout/group-switcher.tsx already does the same thing for
  * tenant group members via /auth/switch-group.
  */
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { Building2, ChevronsUpDown, Check, Loader2 } from 'lucide-react';
-import { cn, getErrorMessage } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { organizationApi } from '@/lib/api/endpoints';
-import { useAuth } from '@/lib/auth/context';
-import { useMyOrganizations, useSwitchOrg } from '@/hooks/use-admin';
-import type { OrganizationProfile } from '@/types/api.types';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Building2, ChevronsUpDown, Check, Loader2 } from "lucide-react";
+import { cn, getErrorMessage } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { organizationApi } from "@/lib/api/endpoints";
+import { useAuth } from "@/lib/auth/context";
+import { useMyOrganizations, useSwitchOrg } from "@/hooks/use-admin";
+import type { OrganizationProfile } from "@/types/api.types";
 
-const TYPE_LABEL: Record<OrganizationProfile['type'], string> = {
-  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
-  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Organization',
+const TYPE_LABEL: Record<OrganizationProfile["type"], string> = {
+  bank: "Bank",
+  sacco: "SACCO",
+  foundation: "Foundation",
+  ngo: "NGO",
+  government: "Government",
+  cooperative: "Cooperative",
+  faith_based: "Faith-based",
+  other: "Organization",
 };
 
 export function WorkspaceSwitcher() {
@@ -36,14 +42,16 @@ export function WorkspaceSwitcher() {
   const [error, setError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<OrganizationProfile>({
-    queryKey: ['enterprise', 'org-profile'],
-    queryFn:  organizationApi.profile,
+    queryKey: ["enterprise", "org-profile"],
+    queryFn: organizationApi.profile,
     staleTime: 5 * 60_000,
   });
   const { data: orgs } = useMyOrganizations();
   const switchOrg = useSwitchOrg();
 
-  const otherOrgs = (orgs?.items ?? []).filter((o) => o.organizationId !== data?.id);
+  const otherOrgs = (orgs?.items ?? []).filter(
+    (o) => o.organizationId !== data?.id,
+  );
   const canSwitch = otherOrgs.length > 0;
 
   const switchTo = async (organizationId: string) => {
@@ -54,7 +62,7 @@ export function WorkspaceSwitcher() {
       const result = await switchOrg.mutateAsync(organizationId);
       loginAdmin(result);
       setOpen(false);
-      router.push('/enterprise');
+      router.push("/enterprise");
       router.refresh();
     } catch (err) {
       // Surface the real reason (e.g. "You are already in this organization"
@@ -85,12 +93,16 @@ export function WorkspaceSwitcher() {
         <Building2 size={16} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{data?.name ?? 'Your organization'}</span>
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {data?.name ?? "Your organization"}
+        </span>
         <span className="block truncate text-[11px] text-muted-foreground">
-          {data ? TYPE_LABEL[data.type] : '—'}
+          {data ? TYPE_LABEL[data.type] : "—"}
         </span>
       </span>
-      {canSwitch && <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />}
+      {canSwitch && (
+        <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />
+      )}
     </div>
   );
 
@@ -98,16 +110,25 @@ export function WorkspaceSwitcher() {
 
   return (
     <div>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full text-left">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full text-left"
+      >
         {card}
       </button>
 
       {open && (
         <div className="mt-1 space-y-1 rounded-lg border bg-card p-1.5">
-          {error && <p className="px-2 py-1 text-xs text-destructive">{error}</p>}
+          {error && (
+            <p className="px-2 py-1 text-xs text-destructive">{error}</p>
+          )}
           {data && (
             <div className="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1.5">
-              <span className="min-w-0 truncate text-xs font-medium text-foreground">{data.name}</span>
+              <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                {data.name}
+              </span>
               <Check size={13} className="shrink-0 text-brand-600" />
             </div>
           )}
@@ -118,13 +139,18 @@ export function WorkspaceSwitcher() {
               disabled={switchingTo !== null}
               onClick={() => switchTo(o.organizationId)}
               className={cn(
-                'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
-                'hover:bg-muted disabled:opacity-50',
+                "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+                "hover:bg-muted disabled:opacity-50",
               )}
             >
-              <span className="min-w-0 truncate text-xs font-medium text-foreground">{o.organizationName}</span>
+              <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                {o.organizationName}
+              </span>
               {switchingTo === o.organizationId && (
-                <Loader2 size={13} className="shrink-0 animate-spin text-muted-foreground" />
+                <Loader2
+                  size={13}
+                  className="shrink-0 animate-spin text-muted-foreground"
+                />
               )}
             </button>
           ))}

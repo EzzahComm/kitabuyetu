@@ -13,8 +13,8 @@
  * hasRole. This mirrors that established shape rather than inventing new
  * DB schema for an axis nothing else uses permission strings for.
  */
-import type { MemberRole, PlatformRole } from '@/types/enums';
-import { ForbiddenError } from '@/lib/utils/errors';
+import type { MemberRole, PlatformRole } from "@/types/enums";
+import { ForbiddenError } from "@/lib/utils/errors";
 
 // Every permission below currently maps to the exact same two roles because
 // no route in the real inventory distinguishes coordinator-vs-super_admin
@@ -22,33 +22,38 @@ import { ForbiddenError } from '@/lib/utils/errors';
 // narrower split is ever needed (e.g. a read-only coordinator tier), this is
 // the one place to add it — do not fork the roles table for it.
 export const ORGANIZATION_PERMISSIONS = [
-  'organization.profile.view',
-  'organization.branding.manage',
-  'organization.groups.view',
-  'organization.members.view',
-  'organization.audit_logs.view',
-  'organization.reports.view',
-  'organization.dashboard.view',
-  'organization.programs.manage',
-  'organization.disbursements.manage',
-  'organization.wallet.view',
-  'organization.sms.manage',
-  'organization.plan.view',
-  'organization.accounting.view',
-  'organization.policies.manage',
+  "organization.profile.view",
+  "organization.branding.manage",
+  "organization.groups.view",
+  "organization.members.view",
+  "organization.audit_logs.view",
+  "organization.reports.view",
+  "organization.dashboard.view",
+  "organization.programs.manage",
+  "organization.disbursements.manage",
+  "organization.wallet.view",
+  "organization.sms.manage",
+  "organization.plan.view",
+  "organization.accounting.view",
+  "organization.policies.manage",
   // Capital & Investment Layer (docs/capital-layer/). These live here, on the
   // code-level org axis, and NOT in roles.permissions — per the note above,
   // roles.base_role is typed member_role and cannot represent org roles.
   // Consequence: no roles migration, and no edit to clear-tenant-data.sql's
   // reseed block (the drift trap documented at that file's line 141).
-  'capital.product.view',
-  'capital.product.manage',
+  "capital.product.view",
+  "capital.product.manage",
 ] as const;
-export type OrganizationPermission = typeof ORGANIZATION_PERMISSIONS[number];
+export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 
-const ORG_AXIS_ROLES: (MemberRole | PlatformRole)[] = ['organization_coordinator', 'super_admin'];
+const ORG_AXIS_ROLES: (MemberRole | PlatformRole)[] = [
+  "organization_coordinator",
+  "super_admin",
+];
 
-export function hasOrganizationPermission(role: MemberRole | PlatformRole): boolean {
+export function hasOrganizationPermission(
+  role: MemberRole | PlatformRole,
+): boolean {
   return ORG_AXIS_ROLES.includes(role);
 }
 
@@ -60,18 +65,21 @@ export function hasOrganizationPermission(role: MemberRole | PlatformRole): bool
  * drift. Both `AuthContext` and an adapted backoffice context satisfy this.
  */
 export interface OrganizationActor {
-  role:            MemberRole | PlatformRole;
+  role: MemberRole | PlatformRole;
   organizationId?: string;
 }
 
 /** _permission is unused today (flat map) but kept in the signature so a future narrower split doesn't need every call site rewritten. */
-export function requireOrganizationPermission(auth: OrganizationActor, _permission: OrganizationPermission): void {
+export function requireOrganizationPermission(
+  auth: OrganizationActor,
+  _permission: OrganizationPermission,
+): void {
   if (!hasOrganizationPermission(auth.role)) {
     throw new ForbiddenError(
       `Role '${auth.role}' cannot perform this action — organization_coordinator or super_admin required`,
     );
   }
-  if (auth.role === 'organization_coordinator' && !auth.organizationId) {
-    throw new ForbiddenError('Organization context is required');
+  if (auth.role === "organization_coordinator" && !auth.organizationId) {
+    throw new ForbiddenError("Organization context is required");
   }
 }

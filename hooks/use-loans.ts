@@ -1,33 +1,39 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { loansApi } from '@/lib/api/endpoints';
-import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { loansApi } from "@/lib/api/endpoints";
+import type {
+  ApplyLoanPayload,
+  LoanActionInput,
+  RecordRepaymentPayload,
+  SetLoanTermsPayload,
+} from "@/lib/validators/loan.schema";
 
 export const loanKeys = {
-  all:    ['loans'] as const,
-  list:   (params?: Record<string, unknown>) => [...loanKeys.all, 'list', params] as const,
+  all: ["loans"] as const,
+  list: (params?: Record<string, unknown>) =>
+    [...loanKeys.all, "list", params] as const,
   detail: (id: string) => [...loanKeys.all, id] as const,
 };
 
 export function useLoans(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: loanKeys.list(params),
-    queryFn:  () => loansApi.list(params),
+    queryFn: () => loansApi.list(params),
   });
 }
 
 export function useLoan(id: string) {
   return useQuery({
     queryKey: loanKeys.detail(id),
-    queryFn:  () => loansApi.getById(id),
-    enabled:  !!id,
+    queryFn: () => loansApi.getById(id),
+    enabled: !!id,
   });
 }
 
 /** Effective group loan terms (advisory defaults for the application form). */
 export function useLoanPolicy() {
   return useQuery({
-    queryKey: [...loanKeys.all, 'policy'],
-    queryFn:  () => loansApi.policy(),
+    queryKey: [...loanKeys.all, "policy"],
+    queryFn: () => loansApi.policy(),
   });
 }
 
@@ -35,7 +41,8 @@ export function useSetLoanPolicy() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: SetLoanTermsPayload) => loansApi.setPolicy(body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: [...loanKeys.all, 'policy'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [...loanKeys.all, "policy"] }),
   });
 }
 
@@ -43,7 +50,7 @@ export function useApplyLoan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: ApplyLoanPayload) => loansApi.apply(body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: loanKeys.all }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: loanKeys.all }),
   });
 }
 
@@ -51,7 +58,7 @@ export function useLoanAction(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: LoanActionInput) => loansApi.action(id, body),
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: loanKeys.list() });
       qc.invalidateQueries({ queryKey: loanKeys.detail(id) });
     },
@@ -61,7 +68,9 @@ export function useLoanAction(id: string) {
 export function useRecordRepayment(loanId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: RecordRepaymentPayload) => loansApi.recordRepayment(loanId, body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: loanKeys.detail(loanId) }),
+    mutationFn: (body: RecordRepaymentPayload) =>
+      loansApi.recordRepayment(loanId, body),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: loanKeys.detail(loanId) }),
   });
 }

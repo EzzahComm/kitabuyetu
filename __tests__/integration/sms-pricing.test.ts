@@ -15,10 +15,14 @@
  * mock.
  */
 import {
-  getUnitPrice, listActiveTiers, listActivePackages, getProviderCost, marginFor,
-} from '@/lib/services/sms-pricing.service';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+  getUnitPrice,
+  listActiveTiers,
+  listActivePackages,
+  getProviderCost,
+  marginFor,
+} from "@/lib/services/sms-pricing.service";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
 /**
  * Restore the pricing tables to exactly what migration 143 seeds.
@@ -31,16 +35,24 @@ import { rawQuery } from './helpers/db';
  * explicitly, not assumed.
  */
 async function restoreSeededPricing(): Promise<void> {
-  await rawQuery(`DELETE FROM sms_pricing_tiers WHERE name IN ('Overlap', 'Draft')`);
+  await rawQuery(
+    `DELETE FROM sms_pricing_tiers WHERE name IN ('Overlap', 'Draft')`,
+  );
   // Two statements, deactivate before activate. A single
   // `SET is_active = (name = 'Standard')` fails: exclusion constraints are
   // checked per ROW, so mid-statement both the flat band and the volume bands
   // are active and overlap. (The constraint is DEFERRABLE precisely so a real
   // admin swap can do this atomically inside one transaction — see migration
   // 143 — but rawQuery runs each statement on its own connection.)
-  await rawQuery(`UPDATE sms_pricing_tiers SET is_active = false WHERE is_active`);
-  await rawQuery(`UPDATE sms_pricing_tiers SET is_active = true WHERE name = 'Standard'`);
-  await rawQuery(`UPDATE sms_packages SET is_active = false, is_recommended = false`);
+  await rawQuery(
+    `UPDATE sms_pricing_tiers SET is_active = false WHERE is_active`,
+  );
+  await rawQuery(
+    `UPDATE sms_pricing_tiers SET is_active = true WHERE name = 'Standard'`,
+  );
+  await rawQuery(
+    `UPDATE sms_packages SET is_active = false, is_recommended = false`,
+  );
   await rawQuery(
     `UPDATE sms_provider_costs
      SET effective_from = CURRENT_DATE, effective_to = NULL, unit_cost = 0.3500
@@ -48,7 +60,7 @@ async function restoreSeededPricing(): Promise<void> {
   );
 }
 
-describe('SMS pricing engine', () => {
+describe("SMS pricing engine", () => {
   beforeEach(async () => {
     await resetDatabase();
     await restoreSeededPricing();
@@ -57,7 +69,7 @@ describe('SMS pricing engine', () => {
   afterAll(restoreSeededPricing);
 
   describe('seeded state — the "changes nothing" guarantee', () => {
-    it('prices every volume at the flat rate charged today', async () => {
+    it("prices every volume at the flat rate charged today", async () => {
       // If any of these ever stops being 0.90, migration 143 has repriced live
       // customers as a side effect of deploying, which §21 forbids.
       for (const volume of [0, 1, 5000, 10_000, 50_000, 250_000, 10_000_000]) {
@@ -65,14 +77,14 @@ describe('SMS pricing engine', () => {
       }
     });
 
-    it('exposes exactly one active band', async () => {
+    it("exposes exactly one active band", async () => {
       const tiers = await listActiveTiers();
       expect(tiers).toHaveLength(1);
       expect(tiers[0].unitPrice).toBe(0.9);
       expect(tiers[0].maxCredits).toBeNull(); // open-ended: covers all volumes
     });
 
-    it('ships the proposed volume table inactive, not live', async () => {
+    it("ships the proposed volume table inactive, not live", async () => {
       const [row] = await rawQuery<{ count: string }>(
         `SELECT count(*)::text AS count FROM sms_pricing_tiers WHERE NOT is_active`,
       );
@@ -82,7 +94,7 @@ describe('SMS pricing engine', () => {
       expect(await listActiveTiers()).toHaveLength(1);
     });
 
-    it('ships packages inactive until there is a flow to sell them', async () => {
+    it("ships packages inactive until there is a flow to sell them", async () => {
       expect(await listActivePackages()).toHaveLength(0);
       const [row] = await rawQuery<{ count: string }>(
         `SELECT count(*)::text AS count FROM sms_packages`,
@@ -91,40 +103,46 @@ describe('SMS pricing engine', () => {
     });
   });
 
-  describe('volume banding, once activated', () => {
+  describe("volume banding, once activated", () => {
     beforeEach(async () => {
       // Flip to the proposed table the way an admin would.
       // Deactivate before activate — see restoreSeededPricing for why.
-      await rawQuery(`UPDATE sms_pricing_tiers SET is_active = false WHERE name = 'Standard'`);
-      await rawQuery(`UPDATE sms_pricing_tiers SET is_active = true  WHERE name <> 'Standard'`);
+      await rawQuery(
+        `UPDATE sms_pricing_tiers SET is_active = false WHERE name = 'Standard'`,
+      );
+      await rawQuery(
+        `UPDATE sms_pricing_tiers SET is_active = true  WHERE name <> 'Standard'`,
+      );
     });
 
     it.each([
-      [1,       0.9],
-      [5000,    0.9],
-      [5001,    0.8],
-      [10_000,  0.8],
-      [10_001,  0.7],
-      [50_000,  0.7],
-      [50_001,  0.6],
+      [1, 0.9],
+      [5000, 0.9],
+      [5001, 0.8],
+      [10_000, 0.8],
+      [10_001, 0.7],
+      [50_000, 0.7],
+      [50_001, 0.6],
       [100_000, 0.6],
       [100_001, 0.5],
       [999_999, 0.5],
-    ])('prices %i messages at %d', async (volume, expected) => {
+    ])("prices %i messages at %d", async (volume, expected) => {
       expect(await getUnitPrice(volume)).toBe(expected);
     });
 
-    it('leaves no gap between bands', async () => {
+    it("leaves no gap between bands", async () => {
       // A volume that falls in no band would silently take the fallback price.
       // Walking the boundaries proves the bands are contiguous.
-      for (const v of [5000, 5001, 10_000, 10_001, 50_000, 50_001, 100_000, 100_001]) {
+      for (const v of [
+        5000, 5001, 10_000, 10_001, 50_000, 50_001, 100_000, 100_001,
+      ]) {
         expect(await getUnitPrice(v)).toBeGreaterThan(0);
       }
     });
   });
 
-  describe('the overlap invariant', () => {
-    it('rejects a second active band covering the same volume', async () => {
+  describe("the overlap invariant", () => {
+    it("rejects a second active band covering the same volume", async () => {
       // Without this, two bands could both match and the price would depend on
       // row order — the exact ambiguity a hand-rolled CASE ladder has.
       await expect(
@@ -135,7 +153,7 @@ describe('SMS pricing engine', () => {
       ).rejects.toThrow(/exclusion constraint|sms_tier_no_overlap/i);
     });
 
-    it('allows overlapping INACTIVE bands, which is how the proposal is stored', async () => {
+    it("allows overlapping INACTIVE bands, which is how the proposal is stored", async () => {
       await expect(
         rawQuery(
           `INSERT INTO sms_pricing_tiers (name, min_credits, max_credits, unit_price, is_active)
@@ -145,19 +163,19 @@ describe('SMS pricing engine', () => {
     });
   });
 
-  describe('provider cost and margin (§15)', () => {
-    it('reads the confirmed cost', async () => {
+  describe("provider cost and margin (§15)", () => {
+    it("reads the confirmed cost", async () => {
       expect(await getProviderCost()).toBe(0.35);
     });
 
-    it('computes margin against the price actually charged', async () => {
+    it("computes margin against the price actually charged", async () => {
       const m = await marginFor(0.9);
       expect(m).not.toBeNull();
       expect(m!.margin).toBeCloseTo(0.55, 4);
       expect(m!.marginPct).toBeCloseTo(61.1, 1);
     });
 
-    it('still clears margin at the proposed floor price', async () => {
+    it("still clears margin at the proposed floor price", async () => {
       // §19 warned not to assume 0.50 is sustainable. At a 0.35 cost it is —
       // 30% gross. Re-check this test if the provider's rate ever moves; the
       // bottom band is the first to go underwater.
@@ -166,7 +184,7 @@ describe('SMS pricing engine', () => {
       expect(m!.marginPct).toBeCloseTo(30, 1);
     });
 
-    it('reports unknown rather than inventing a cost', async () => {
+    it("reports unknown rather than inventing a cost", async () => {
       // Retire the cost by moving its whole validity window into the past.
       // Note effective_to alone cannot be backdated — sms_cost_window_sane
       // requires effective_to >= effective_from, which is the constraint
@@ -181,7 +199,7 @@ describe('SMS pricing engine', () => {
       expect(await marginFor(0.9)).toBeNull();
     });
 
-    it('keeps provider cost unreadable by tenants', async () => {
+    it("keeps provider cost unreadable by tenants", async () => {
       // RLS on with NO policy denies every tenant read outright. §15: provider
       // cost is never exposed to customers.
       const [rls] = await rawQuery<{ relrowsecurity: boolean }>(

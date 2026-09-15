@@ -5,12 +5,12 @@
  *   - Isolated: failures don't affect other jobs
  *   - Fast: Vercel Hobby functions time out at 10 s; keep handlers under 8 s
  */
-import type { Job } from './types';
-import { pool } from '@/lib/db';
-import { normalizePhone } from '@/lib/utils/phone';
+import type { Job } from "./types";
+import { pool } from "@/lib/db";
+import { normalizePhone } from "@/lib/utils/phone";
 
 export interface HandlerResult {
-  message:  string;
+  message: string;
   [key: string]: unknown;
 }
 
@@ -20,121 +20,121 @@ export interface HandlerResult {
  */
 export async function handleJob(job: Job): Promise<HandlerResult> {
   switch (job.type) {
-    case 'email_campaign_process':
+    case "email_campaign_process":
       return handleEmailCampaignProcess();
 
-    case 'email_campaign_launch':
+    case "email_campaign_launch":
       return handleEmailCampaignLaunch(job.payload);
 
-    case 'email_retry_failed':
+    case "email_retry_failed":
       return handleEmailRetryFailed();
 
-    case 'email_send':
+    case "email_send":
       return handleEmailSend(job.payload);
 
-    case 'email_campaign_drain':
+    case "email_campaign_drain":
       return handleEmailCampaignDrain();
 
-    case 'email_birthday':
+    case "email_birthday":
       return handleEmailBirthday();
 
-    case 'email_overdue_invoices':
+    case "email_overdue_invoices":
       return handleEmailOverdueInvoices();
 
-    case 'email_recurring_invoices':
+    case "email_recurring_invoices":
       return handleEmailRecurringInvoices();
 
-    case 'email_weekly_summary':
+    case "email_weekly_summary":
       return handleEmailWeeklySummary();
 
-    case 'email_member_statements':
+    case "email_member_statements":
       return handleEmailMemberStatements();
 
-    case 'mpesa_reconcile':
+    case "mpesa_reconcile":
       return handleMpesaReconcile();
 
-    case 'mpesa_replay_callbacks':
+    case "mpesa_replay_callbacks":
       return handleMpesaReplayCallbacks();
 
-    case 'mpesa_reconcile_charges':
+    case "mpesa_reconcile_charges":
       return handleMpesaReconcileCharges();
 
-    case 'mpesa_daily_report':
+    case "mpesa_daily_report":
       return handleMpesaDailyReport();
 
-    case 'mpesa_balance_snapshot':
+    case "mpesa_balance_snapshot":
       return handleMpesaBalanceSnapshot();
 
-    case 'outbox_dispatch':
+    case "outbox_dispatch":
       return handleOutboxDispatch();
 
-    case 'payment_orphan_monitor':
+    case "payment_orphan_monitor":
       return handlePaymentOrphanMonitor();
 
-    case 'disbursement_orphan_monitor':
+    case "disbursement_orphan_monitor":
       return handleDisbursementOrphanMonitor();
 
-    case 'payment_requests_expire':
+    case "payment_requests_expire":
       return handlePaymentRequestsExpire();
 
-    case 'accounting_balance_drift':
+    case "accounting_balance_drift":
       return handleAccountingBalanceDrift();
 
-    case 'gl_cash_reconciliation':
+    case "gl_cash_reconciliation":
       return handleGLCashReconciliation();
 
-    case 'journal_lines_partition_maintenance':
+    case "journal_lines_partition_maintenance":
       return handleJournalLinesPartitionMaintenance();
 
-    case 'governance_compute_metrics':
+    case "governance_compute_metrics":
       return handleGovernanceComputeMetrics(job.payload);
 
-    case 'cleanup_expired_tokens':
+    case "cleanup_expired_tokens":
       return handleCleanupExpiredTokens();
 
-    case 'notify_loan_due_alerts':
+    case "notify_loan_due_alerts":
       return handleLoanDueAlerts(job);
 
-    case 'notify_contribution_reminders':
+    case "notify_contribution_reminders":
       return handleContributionReminders(job);
 
-    case 'sms_birthday_reminders':
+    case "sms_birthday_reminders":
       return handleSmsBirthdayReminders(job);
 
-    case 'sms_bulk_send':
+    case "sms_bulk_send":
       return handleSmsBulkSend(job.payload, job.id);
 
-    case 'sms_retry_failed':
+    case "sms_retry_failed":
       return handleSmsRetryFailed();
 
-    case 'sms_process_schedules':
+    case "sms_process_schedules":
       return handleSmsProcessSchedules();
 
-    case 'sms_poll_dlr':
+    case "sms_poll_dlr":
       return handleSmsPollDlr();
 
-    case 'sms_trigger_fire':
+    case "sms_trigger_fire":
       return handleSmsTriggerFire(job.payload);
 
-    case 'sms_low_balance_alert':
+    case "sms_low_balance_alert":
       return handleSmsLowBalanceAlert(job.payload);
 
-    case 'sms_provider_health':
+    case "sms_provider_health":
       return handleSmsProviderHealth();
 
-    case 'sms_release_stale_reservations':
+    case "sms_release_stale_reservations":
       return handleSmsReleaseStaleReservations();
 
-    case 'sms_credit_reconciliation':
+    case "sms_credit_reconciliation":
       return handleSmsCreditReconciliation();
 
-    case 'sms_message_retention':
+    case "sms_message_retention":
       return handleSmsMessageRetention();
 
-    case 'sms_allowance_monthly_reset':
+    case "sms_allowance_monthly_reset":
       return handleSmsAllowanceMonthlyReset();
 
-    case 'organization_sms_allowance_grant':
+    case "organization_sms_allowance_grant":
       return handleOrganizationSmsAllowanceGrant();
 
     default: {
@@ -147,9 +147,10 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 // ── Email handlers ────────────────────────────────────────────
 
 async function handleEmailCampaignProcess(): Promise<HandlerResult> {
-  const { processDueSchedules } = await import('@/lib/services/scheduler.service');
+  const { processDueSchedules } =
+    await import("@/lib/services/scheduler.service");
   const result = await processDueSchedules();
-  return { message: 'Email campaigns processed', ...flattenResult(result) };
+  return { message: "Email campaigns processed", ...flattenResult(result) };
 }
 
 /**
@@ -159,19 +160,23 @@ async function handleEmailCampaignProcess(): Promise<HandlerResult> {
  * this job instead and return immediately; the loop runs here, off the
  * request path, with the job queue's own retry/backoff.
  */
-async function handleEmailCampaignLaunch(payload: Record<string, unknown>): Promise<HandlerResult> {
-  const campaignId = payload.campaignId ? String(payload.campaignId) : '';
-  if (!campaignId) return { message: 'Email campaign launch skipped: no campaignId' };
+async function handleEmailCampaignLaunch(
+  payload: Record<string, unknown>,
+): Promise<HandlerResult> {
+  const campaignId = payload.campaignId ? String(payload.campaignId) : "";
+  if (!campaignId)
+    return { message: "Email campaign launch skipped: no campaignId" };
 
-  const { launchCampaign } = await import('@/lib/services/campaign.service');
+  const { launchCampaign } = await import("@/lib/services/campaign.service");
   await launchCampaign(campaignId);
-  return { message: 'Email campaign launched', campaignId };
+  return { message: "Email campaign launched", campaignId };
 }
 
 async function handleEmailRetryFailed(): Promise<HandlerResult> {
-  const { retryFailedEmails } = await import('@/lib/services/scheduler.service');
+  const { retryFailedEmails } =
+    await import("@/lib/services/scheduler.service");
   const result = await retryFailedEmails();
-  return { message: 'Failed emails retried', ...flattenResult(result) };
+  return { message: "Failed emails retried", ...flattenResult(result) };
 }
 
 /**
@@ -180,22 +185,32 @@ async function handleEmailRetryFailed(): Promise<HandlerResult> {
  * Throwing on failure lets the processor's existing retry/backoff handle
  * it, the same guarantee the old queue's requeueWithBackoff/DLQ gave.
  */
-async function handleEmailSend(payload: Record<string, unknown>): Promise<HandlerResult> {
-  const { sendTemplatedEmail } = await import('@/lib/services/email.service');
-  const to = Array.isArray(payload.to) ? payload.to.map(String) : String(payload.to ?? '');
-  const templateKey = String(payload.templateKey ?? '');
+async function handleEmailSend(
+  payload: Record<string, unknown>,
+): Promise<HandlerResult> {
+  const { sendTemplatedEmail } = await import("@/lib/services/email.service");
+  const to = Array.isArray(payload.to)
+    ? payload.to.map(String)
+    : String(payload.to ?? "");
+  const templateKey = String(payload.templateKey ?? "");
 
   const result = await sendTemplatedEmail({
     templateKey,
     to,
-    vars:          (payload.vars ?? {}) as Record<string, string | number | boolean | null | undefined>,
-    groupId:       payload.groupId ? String(payload.groupId) : null,
-    userId:        payload.userId  ? String(payload.userId)  : undefined,
-    referenceId:   payload.referenceId   ? String(payload.referenceId)   : undefined,
-    referenceType: payload.referenceType ? String(payload.referenceType) : undefined,
+    vars: (payload.vars ?? {}) as Record<
+      string,
+      string | number | boolean | null | undefined
+    >,
+    groupId: payload.groupId ? String(payload.groupId) : null,
+    userId: payload.userId ? String(payload.userId) : undefined,
+    referenceId: payload.referenceId ? String(payload.referenceId) : undefined,
+    referenceType: payload.referenceType
+      ? String(payload.referenceType)
+      : undefined,
   });
 
-  if (!result.success) throw new Error(result.error ?? `Email send failed (${templateKey})`);
+  if (!result.success)
+    throw new Error(result.error ?? `Email send failed (${templateKey})`);
   return { message: `Email sent (${templateKey})`, provider: result.provider };
 }
 
@@ -206,39 +221,51 @@ async function handleEmailSend(payload: Record<string, unknown>): Promise<Handle
  * lib/jobs merge). See drainCampaignRecipients() for the claim query.
  */
 async function handleEmailCampaignDrain(): Promise<HandlerResult> {
-  const { drainCampaignRecipients } = await import('@/lib/services/campaign.service');
+  const { drainCampaignRecipients } =
+    await import("@/lib/services/campaign.service");
   const result = await drainCampaignRecipients();
-  return { message: `Email campaign drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`, ...result };
+  return {
+    message: `Email campaign drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`,
+    ...result,
+  };
 }
 
 async function handleEmailBirthday(): Promise<HandlerResult> {
-  const { sendBirthdayEmails } = await import('@/lib/services/member-email.service');
+  const { sendBirthdayEmails } =
+    await import("@/lib/services/member-email.service");
   await sendBirthdayEmails();
-  return { message: 'Birthday emails sent' };
+  return { message: "Birthday emails sent" };
 }
 
 async function handleEmailOverdueInvoices(): Promise<HandlerResult> {
-  const { sendOverdueInvoiceReminders } = await import('@/lib/services/billing-email.service');
+  const { sendOverdueInvoiceReminders } =
+    await import("@/lib/services/billing-email.service");
   await sendOverdueInvoiceReminders();
-  return { message: 'Overdue invoice reminders sent' };
+  return { message: "Overdue invoice reminders sent" };
 }
 
 async function handleEmailRecurringInvoices(): Promise<HandlerResult> {
-  const { processRecurringInvoices } = await import('@/lib/services/billing-email.service');
+  const { processRecurringInvoices } =
+    await import("@/lib/services/billing-email.service");
   await processRecurringInvoices();
-  return { message: 'Recurring invoices processed' };
+  return { message: "Recurring invoices processed" };
 }
 
 async function handleEmailWeeklySummary(): Promise<HandlerResult> {
-  const { sendWeeklySummaries } = await import('@/lib/services/report-email.service');
+  const { sendWeeklySummaries } =
+    await import("@/lib/services/report-email.service");
   await sendWeeklySummaries();
-  return { message: 'Weekly summaries sent' };
+  return { message: "Weekly summaries sent" };
 }
 
 async function handleEmailMemberStatements(): Promise<HandlerResult> {
-  const { sendAllGroupMemberStatements } = await import('@/lib/services/statement-email.service');
+  const { sendAllGroupMemberStatements } =
+    await import("@/lib/services/statement-email.service");
   const result = await sendAllGroupMemberStatements();
-  return { message: `Member statements sent (${result.sent} sent, ${result.skipped} skipped, ${result.groups} groups)`, ...result };
+  return {
+    message: `Member statements sent (${result.sent} sent, ${result.skipped} skipped, ${result.groups} groups)`,
+    ...result,
+  };
 }
 
 // ── M-Pesa handler ────────────────────────────────────────────
@@ -246,47 +273,60 @@ async function handleEmailMemberStatements(): Promise<HandlerResult> {
 async function handleMpesaReconcile(): Promise<HandlerResult> {
   // Idempotency: runReconciliation checks transaction IDs before acting.
   // Pass null/null for a global (cross-group) reconciliation pass.
-  const { runReconciliation } = await import('@/lib/services/mpesa.service');
+  const { runReconciliation } = await import("@/lib/services/mpesa.service");
   const result = await runReconciliation(null, null);
-  return { message: 'M-Pesa reconciliation complete', ...flattenResult(result) };
+  return {
+    message: "M-Pesa reconciliation complete",
+    ...flattenResult(result),
+  };
 }
 
 async function handleMpesaReplayCallbacks(): Promise<HandlerResult> {
-  const { replayUnprocessedCallbacks } = await import('@/lib/services/mpesa.service');
+  const { replayUnprocessedCallbacks } =
+    await import("@/lib/services/mpesa.service");
   const result = await replayUnprocessedCallbacks();
-  return { message: 'M-Pesa callback DLQ replay complete', ...flattenResult(result) };
+  return {
+    message: "M-Pesa callback DLQ replay complete",
+    ...flattenResult(result),
+  };
 }
 
 async function handleMpesaReconcileCharges(): Promise<HandlerResult> {
-  const { reconcileCharges } = await import('@/lib/services/mpesa.service');
+  const { reconcileCharges } = await import("@/lib/services/mpesa.service");
   const result = await reconcileCharges();
-  return { message: 'M-Pesa charge backfill complete', ...flattenResult(result) };
+  return {
+    message: "M-Pesa charge backfill complete",
+    ...flattenResult(result),
+  };
 }
 
 async function handleMpesaDailyReport(): Promise<HandlerResult> {
-  const { sendDailyMpesaReconReports } = await import('@/lib/services/mpesa-reports.service');
+  const { sendDailyMpesaReconReports } =
+    await import("@/lib/services/mpesa-reports.service");
   const result = await sendDailyMpesaReconReports();
-  return { message: 'M-Pesa daily report sent', ...flattenResult(result) };
+  return { message: "M-Pesa daily report sent", ...flattenResult(result) };
 }
 
 async function handleMpesaBalanceSnapshot(): Promise<HandlerResult> {
   // One Account Balance query returns every sub-account balance via the async
   // callback (handleBalanceResult persists it). Fired once daily per group that
   // has officers; here we trigger a single org-level query.
-  const { queryAccountBalance } = await import('@/lib/services/daraja.service');
+  const { queryAccountBalance } = await import("@/lib/services/daraja.service");
   await queryAccountBalance();
-  return { message: 'M-Pesa balance snapshot requested' };
+  return { message: "M-Pesa balance snapshot requested" };
 }
 
 async function handleOutboxDispatch(): Promise<HandlerResult> {
-  const { dispatchOutboxEvents } = await import('@/lib/services/outbox.service');
+  const { dispatchOutboxEvents } =
+    await import("@/lib/services/outbox.service");
   const result = await dispatchOutboxEvents();
-  return { message: 'Outbox dispatched', ...flattenResult(result) };
+  return { message: "Outbox dispatched", ...flattenResult(result) };
 }
 
 async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
-  const { findSpineOrphans } = await import('@/lib/services/outbox.service');
-  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  const { findSpineOrphans } = await import("@/lib/services/outbox.service");
+  const { raiseStaffAlert, clearStaffAlert } =
+    await import("@/lib/services/staff-alerts");
   const result = await findSpineOrphans();
 
   // findSpineOrphans' own comment calls its logger.error "the paging signal".
@@ -296,33 +336,35 @@ async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
   // needs a human to see, and it has been silent since it was written.
   let alerted = false;
   if (result.count === 0) {
-    await clearStaffAlert('payment_spine_orphans');
+    await clearStaffAlert("payment_spine_orphans");
   } else {
     alerted = await raiseStaffAlert({
-      key:     'payment_spine_orphans',
+      key: "payment_spine_orphans",
       subject: `${result.count} completed payment(s) never reached a ledger`,
       body:
-        'These payments are marked completed and were never allocated, so real money has '
-        + 'arrived and the books do not show it. This is not self-correcting: the allocation '
-        + 'engine will not revisit them, and nothing else will notice.',
+        "These payments are marked completed and were never allocated, so real money has " +
+        "arrived and the books do not show it. This is not self-correcting: the allocation " +
+        "engine will not revisit them, and nothing else will notice.",
       details: { count: result.count, samples: result.samples },
     });
   }
 
   return {
-    message: result.count === 0
-      ? 'Payment spine: no orphans'
-      : `Payment spine: ${result.count} ORPHANED payment(s) — `
-        + (alerted ? 'staff emailed' : 'already reported'),
+    message:
+      result.count === 0
+        ? "Payment spine: no orphans"
+        : `Payment spine: ${result.count} ORPHANED payment(s) — ` +
+          (alerted ? "staff emailed" : "already reported"),
     orphans: result.count,
     alerted,
   };
 }
 
 async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
-  const { expireDueRequests } = await import('@/lib/services/payment-requests.service');
+  const { expireDueRequests } =
+    await import("@/lib/services/payment-requests.service");
   const result = await expireDueRequests();
-  return { message: 'Payment requests expiry sweep complete', ...result };
+  return { message: "Payment requests expiry sweep complete", ...result };
 }
 
 /**
@@ -333,9 +375,12 @@ async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
  * by its own service; this handler aggregates the counts for the run record.
  */
 async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
-  const { findStuckDisbursements }  = await import('@/lib/services/disbursements.service');
-  const { findStuckSettlements }    = await import('@/lib/services/settlements.service');
-  const { findStuckVendorPayments } = await import('@/lib/services/vendor-payments.service');
+  const { findStuckDisbursements } =
+    await import("@/lib/services/disbursements.service");
+  const { findStuckSettlements } =
+    await import("@/lib/services/settlements.service");
+  const { findStuckVendorPayments } =
+    await import("@/lib/services/vendor-payments.service");
 
   const [disbursements, settlements, vendorPayments] = await Promise.all([
     findStuckDisbursements(),
@@ -347,42 +392,46 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
   // Money that left the platform and never confirmed. None of these three can
   // auto-resolve — Safaricom offers no query-by-conversation-ID without a
   // receipt — so the job's only job is making sure it is never silent.
-  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  const { raiseStaffAlert, clearStaffAlert } =
+    await import("@/lib/services/staff-alerts");
   let alerted = false;
   if (total === 0) {
-    await clearStaffAlert('stuck_outbound_payments');
+    await clearStaffAlert("stuck_outbound_payments");
   } else {
     alerted = await raiseStaffAlert({
-      key:     'stuck_outbound_payments',
+      key: "stuck_outbound_payments",
       subject: `${total} outbound payout(s) stuck with no confirmation`,
       body:
-        'Money was dispatched and never confirmed. None of these resolve themselves — '
-        + 'Safaricom cannot be queried by conversation ID without a receipt — so each has to be '
-        + 'checked against the Safaricom statement by hand.',
+        "Money was dispatched and never confirmed. None of these resolve themselves — " +
+        "Safaricom cannot be queried by conversation ID without a receipt — so each has to be " +
+        "checked against the Safaricom statement by hand.",
       details: {
-        disbursements:  disbursements.count,
-        settlements:    settlements.count,
+        disbursements: disbursements.count,
+        settlements: settlements.count,
         vendorPayments: vendorPayments.count,
       },
     });
   }
 
   return {
-    message: total === 0
-      ? 'Outbound payments: no stuck payouts'
-      : `Outbound payments: ${total} STUCK payout(s) — `
-        + (alerted ? 'staff emailed' : 'already reported'),
-    stuck:               total,
-    stuckDisbursements:  disbursements.count,
-    stuckSettlements:    settlements.count,
+    message:
+      total === 0
+        ? "Outbound payments: no stuck payouts"
+        : `Outbound payments: ${total} STUCK payout(s) — ` +
+          (alerted ? "staff emailed" : "already reported"),
+    stuck: total,
+    stuckDisbursements: disbursements.count,
+    stuckSettlements: settlements.count,
     stuckVendorPayments: vendorPayments.count,
     alerted,
   };
 }
 
 async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
-  const { detectBalanceDrift } = await import('@/lib/services/accounting.service');
-  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  const { detectBalanceDrift } =
+    await import("@/lib/services/accounting.service");
+  const { raiseStaffAlert, clearStaffAlert } =
+    await import("@/lib/services/staff-alerts");
   const result = await detectBalanceDrift();
 
   // A stored account balance disagreeing with the sum of its own journal lines
@@ -391,67 +440,74 @@ async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
   // true is a judgment about somebody's money.
   let alerted = false;
   if (result.driftsFound === 0) {
-    await clearStaffAlert('accounting_balance_drift');
+    await clearStaffAlert("accounting_balance_drift");
   } else {
     alerted = await raiseStaffAlert({
-      key:     'accounting_balance_drift',
+      key: "accounting_balance_drift",
       subject: `${result.driftsFound} account balance(s) disagree with their journal lines`,
       body:
-        'A stored balance and the sum of its own journal lines no longer agree, so the ledger '
-        + 'does not add up. Deciding which side is correct is a judgment about real money and '
-        + 'is deliberately left to a person.',
-      details: { accountsChecked: result.accountsChecked, driftsFound: result.driftsFound },
+        "A stored balance and the sum of its own journal lines no longer agree, so the ledger " +
+        "does not add up. Deciding which side is correct is a judgment about real money and " +
+        "is deliberately left to a person.",
+      details: {
+        accountsChecked: result.accountsChecked,
+        driftsFound: result.driftsFound,
+      },
     });
   }
 
   return {
-    message: result.driftsFound === 0
-      ? `Balance drift audit clean (${result.accountsChecked} accounts)`
-      : `Balance drift: ${result.driftsFound}/${result.accountsChecked} accounts disagree — `
-        + (alerted ? 'staff emailed' : 'already reported'),
+    message:
+      result.driftsFound === 0
+        ? `Balance drift audit clean (${result.accountsChecked} accounts)`
+        : `Balance drift: ${result.driftsFound}/${result.accountsChecked} accounts disagree — ` +
+          (alerted ? "staff emailed" : "already reported"),
     ...result,
     alerted,
   };
 }
 
 async function handleGLCashReconciliation(): Promise<HandlerResult> {
-  const { reconcileGLCashToMpesaBalance } = await import('@/lib/services/accounting.service');
+  const { reconcileGLCashToMpesaBalance } =
+    await import("@/lib/services/accounting.service");
   const result = await reconcileGLCashToMpesaBalance();
   const message = {
-    ok:              'GL cash reconciliation: matches the real M-Pesa balance',
-    mismatch:        `GL cash reconciliation: MISMATCH — GL ${result.glCashTotal} vs M-Pesa ${result.mpesaBalance} (diff ${result.difference}) — investigate`,
-    no_snapshot:     'GL cash reconciliation: no balance snapshot available yet',
-    stale_snapshot:  `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
+    ok: "GL cash reconciliation: matches the real M-Pesa balance",
+    mismatch: `GL cash reconciliation: MISMATCH — GL ${result.glCashTotal} vs M-Pesa ${result.mpesaBalance} (diff ${result.difference}) — investigate`,
+    no_snapshot: "GL cash reconciliation: no balance snapshot available yet",
+    stale_snapshot: `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
   }[result.status];
 
   // A mismatch means the books and the actual float disagree about how much
   // money exists. 'no_snapshot'/'stale_snapshot' are NOT alerted: those say
   // the check could not run, which is an operational gap rather than a
   // discrepancy, and alerting on them would train the reader to ignore this.
-  const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
+  const { raiseStaffAlert, clearStaffAlert } =
+    await import("@/lib/services/staff-alerts");
   let alerted = false;
-  if (result.status === 'mismatch') {
+  if (result.status === "mismatch") {
     alerted = await raiseStaffAlert({
-      key:     'gl_cash_mismatch',
-      subject: 'GL cash does not match the real M-Pesa balance',
+      key: "gl_cash_mismatch",
+      subject: "GL cash does not match the real M-Pesa balance",
       body:
-        'The general ledger and the actual M-Pesa float disagree about how much money exists. '
-        + 'One of them is wrong and only a person can decide which.',
+        "The general ledger and the actual M-Pesa float disagree about how much money exists. " +
+        "One of them is wrong and only a person can decide which.",
       details: {
         glCashTotal: result.glCashTotal,
         mpesaBalance: result.mpesaBalance,
         difference: result.difference,
       },
     });
-  } else if (result.status === 'ok') {
-    await clearStaffAlert('gl_cash_mismatch');
+  } else if (result.status === "ok") {
+    await clearStaffAlert("gl_cash_mismatch");
   }
 
   return { message, ...result, alerted };
 }
 
 async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> {
-  const { ensureJournalLinesPartitions } = await import('@/lib/services/journal-lines-partitions.service');
+  const { ensureJournalLinesPartitions } =
+    await import("@/lib/services/journal-lines-partitions.service");
   const result = await ensureJournalLinesPartitions();
   return {
     message: `journal_lines partitions ensured through 3 months ahead (${result.created.length} checked)`,
@@ -461,11 +517,17 @@ async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> 
 
 // ── Governance handler ────────────────────────────────────────
 
-async function handleGovernanceComputeMetrics(payload?: Record<string, unknown>): Promise<HandlerResult> {
-  const { computeGovernanceForAllGroups } = await import('@/lib/services/governance.service');
+async function handleGovernanceComputeMetrics(
+  payload?: Record<string, unknown>,
+): Promise<HandlerResult> {
+  const { computeGovernanceForAllGroups } =
+    await import("@/lib/services/governance.service");
   // asOf defaults to today; a payload override lets a manual/backfill run
   // target a specific period-end date.
-  const asOf = typeof payload?.asOf === 'string' ? payload.asOf : new Date().toISOString().slice(0, 10);
+  const asOf =
+    typeof payload?.asOf === "string"
+      ? payload.asOf
+      : new Date().toISOString().slice(0, 10);
   const result = await computeGovernanceForAllGroups(asOf);
   return {
     message: `governance metrics computed for ${result.succeeded}/${result.groups} groups (${result.alertsRaised} alerts raised, ${result.failed} failed)`,
@@ -479,14 +541,14 @@ async function handleCleanupExpiredTokens(): Promise<HandlerResult> {
   const { rowCount } = await pool.query(
     `DELETE FROM refresh_tokens WHERE expires_at < NOW()`,
   );
-  return { message: 'Expired refresh tokens removed', deleted: rowCount ?? 0 };
+  return { message: "Expired refresh tokens removed", deleted: rowCount ?? 0 };
 }
 
 // ── Notification handlers (E10.2) ─────────────────────────────
 
 async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
-  const { renderBuiltin, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
-  const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { renderBuiltin, TEMPLATE_KEYS } = await import("@/lib/sms/templates");
+  const { sendOnce } = await import("@/lib/services/reminder.service");
 
   // Discrete day-offset stages, not a rolling "within 3 days OR overdue"
   // window — reminder_dispatch_log dedupes per stage via sendOnce(), so a
@@ -496,22 +558,22 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   // the stage on the next run instead of skipping it silently.
   // The platform paybill, from its single home in lib/sms/templates.ts. This
   // was one of three identical copies of the same env chain.
-  const { platformPaybill } = await import('@/lib/sms/templates');
+  const { platformPaybill } = await import("@/lib/sms/templates");
   const paybill = platformPaybill();
 
   const { rows } = await pool.query<{
-    repayment_id:    string;
-    group_id:        string;
-    member_id:       string;
-    phone:           string;
-    first_name:      string;
-    total_due:       string;
+    repayment_id: string;
+    group_id: string;
+    member_id: string;
+    phone: string;
+    first_name: string;
+    total_due: string;
     closing_balance: string;
-    due_date:        string;
-    penalty_amount:  string;
-    days_until_due:  number;
-    reminder_stage:  string;
-    membership_no:   string;
+    due_date: string;
+    penalty_amount: string;
+    days_until_due: number;
+    reminder_stage: string;
+    membership_no: string;
   }>(
     `WITH candidates AS (
        SELECT lr.id AS repayment_id, lr.group_id, lr.member_id, m.phone, m.first_name,
@@ -550,10 +612,18 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   );
 
   if (rows.length === 0) {
-    return { message: 'Loan-due alerts: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+    return {
+      message: "Loan-due alerts: no candidates",
+      attempted: 0,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+    };
   }
 
-  let sent = 0, skipped = 0, failed = 0;
+  let sent = 0,
+    skipped = 0,
+    failed = 0;
   for (const r of rows) {
     const overdue = r.days_until_due < 0;
     // 'L' — loan repayment — the same product-suffix convention
@@ -563,46 +633,53 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
     const accountNumber = `${r.membership_no}L`;
     const body = overdue
       ? renderBuiltin(TEMPLATE_KEYS.LOAN_OVERDUE, {
-          first_name:     r.first_name,
-          amount:         r.total_due,
+          first_name: r.first_name,
+          amount: r.total_due,
           penalty_amount: r.penalty_amount,
           paybill,
           account_number: accountNumber,
         })
       : renderBuiltin(TEMPLATE_KEYS.LOAN_REPAYMENT_DUE, {
           first_name: r.first_name,
-          amount:     r.total_due,
-          due_date:   r.due_date,
-          balance:    r.closing_balance,
+          amount: r.total_due,
+          due_date: r.due_date,
+          balance: r.closing_balance,
           paybill,
           account_number: accountNumber,
         });
 
     const result = await sendOnce({
-      groupId:        r.group_id,
-      memberId:       r.member_id,
-      phone:          r.phone,
+      groupId: r.group_id,
+      memberId: r.member_id,
+      phone: r.phone,
       body,
-      referenceType:  'loan_repayment',
-      referenceId:    r.repayment_id,
-      reminderStage:  r.reminder_stage,
+      referenceType: "loan_repayment",
+      referenceId: r.repayment_id,
+      reminderStage: r.reminder_stage,
       jobExecutionId: job.id,
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
       // bundled allowance now exists, so this real send-path bills.
-      billingMode:    'billed',
+      billingMode: "billed",
     });
     if (result.sent) sent++;
     // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
     // resumable and the next run sends it. Counting it as failed would
     // report an outage that isn't one.
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
-             || result.status === 'cooldown') skipped++;
+    else if (
+      result.status === "already_sent" ||
+      result.status === "already_suppressed" ||
+      result.status === "cooldown"
+    )
+      skipped++;
     else failed++;
   }
 
   return {
     message: `Loan-due alerts processed (${rows.length} candidates)`,
-    attempted: rows.length, sent, skipped, failed,
+    attempted: rows.length,
+    sent,
+    skipped,
+    failed,
   };
 }
 
@@ -628,16 +705,16 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
  * new scope, not part of finishing the already-half-built feature.
  */
 async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
-  const { renderBuiltin, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
-  const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { renderBuiltin, TEMPLATE_KEYS } = await import("@/lib/sms/templates");
+  const { sendOnce } = await import("@/lib/services/reminder.service");
 
   const { rows } = await pool.query<{
     membership_id: string;
-    member_id:     string;
-    group_id:      string;
-    phone:         string;
-    first_name:    string;
-    group_name:    string;
+    member_id: string;
+    group_id: string;
+    phone: string;
+    first_name: string;
+    group_name: string;
   }>(
     // gm.id (the membership row), not m.id, is the reference_id — same
     // reasoning as handleContributionReminders: reminder_dispatch_log's
@@ -663,11 +740,19 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
   );
 
   if (rows.length === 0) {
-    return { message: 'Birthday SMS: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+    return {
+      message: "Birthday SMS: no candidates",
+      attempted: 0,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+    };
   }
 
   const currentYear = new Date().getUTCFullYear();
-  let sent = 0, skipped = 0, failed = 0;
+  let sent = 0,
+    skipped = 0,
+    failed = 0;
 
   for (const r of rows) {
     const body = renderBuiltin(TEMPLATE_KEYS.BIRTHDAY, {
@@ -676,34 +761,41 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
     });
 
     const result = await sendOnce({
-      groupId:        r.group_id,
-      memberId:       r.member_id,
-      phone:          r.phone,
+      groupId: r.group_id,
+      memberId: r.member_id,
+      phone: r.phone,
       body,
-      referenceType:  'birthday',
-      referenceId:    r.membership_id,
-      reminderStage:  `birthday:${currentYear}`,
+      referenceType: "birthday",
+      referenceId: r.membership_id,
+      reminderStage: `birthday:${currentYear}`,
       jobExecutionId: job.id,
-      billingMode:    'billed',
+      billingMode: "billed",
     });
     if (result.sent) sent++;
     // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
     // resumable and the next run sends it. Counting it as failed would
     // report an outage that isn't one.
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
-             || result.status === 'cooldown') skipped++;
+    else if (
+      result.status === "already_sent" ||
+      result.status === "already_suppressed" ||
+      result.status === "cooldown"
+    )
+      skipped++;
     else failed++;
   }
 
   return {
     message: `Birthday SMS processed (${rows.length} candidates)`,
-    attempted: rows.length, sent, skipped, failed,
+    attempted: rows.length,
+    sent,
+    skipped,
+    failed,
   };
 }
 
 async function handleContributionReminders(job: Job): Promise<HandlerResult> {
-  const { renderTemplate } = await import('@/lib/sms/templates');
-  const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { renderTemplate } = await import("@/lib/sms/templates");
+  const { sendOnce } = await import("@/lib/services/reminder.service");
 
   // Active members of active groups who recorded NO completed contribution
   // in the previous calendar month. NOT EXISTS keeps the planner using
@@ -714,13 +806,13 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   // period folded into reminder_stage so each month is a distinct claim.
   const { rows } = await pool.query<{
     membership_id: string;
-    group_id:      string;
-    member_id:     string;
-    phone:         string;
-    first_name:    string;
-    group_name:    string;
-    last_month:    string;
-    period_key:    string;
+    group_id: string;
+    member_id: string;
+    phone: string;
+    first_name: string;
+    group_name: string;
+    last_month: string;
+    period_key: string;
   }>(
     `SELECT gm.id AS membership_id,
             gm.group_id,
@@ -749,44 +841,59 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   );
 
   if (rows.length === 0) {
-    return { message: 'Contribution reminders: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+    return {
+      message: "Contribution reminders: no candidates",
+      attempted: 0,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+    };
   }
 
   const template =
-    'Dear {{first_name}}, our records show no contribution for {{group_name}} in {{last_month}}. ' +
-    'Kindly contribute when you can. Thank you.';
+    "Dear {{first_name}}, our records show no contribution for {{group_name}} in {{last_month}}. " +
+    "Kindly contribute when you can. Thank you.";
 
-  let sent = 0, skipped = 0, failed = 0;
+  let sent = 0,
+    skipped = 0,
+    failed = 0;
   for (const r of rows) {
     const result = await sendOnce({
-      groupId:        r.group_id,
-      memberId:       r.member_id,
-      phone:          r.phone,
-      body:           renderTemplate(template, {
+      groupId: r.group_id,
+      memberId: r.member_id,
+      phone: r.phone,
+      body: renderTemplate(template, {
         first_name: r.first_name,
         group_name: r.group_name,
         last_month: r.last_month,
       }),
-      referenceType:  'contribution_reminder',
-      referenceId:    r.membership_id,
-      reminderStage:  `missing_contribution:${r.period_key}`,
+      referenceType: "contribution_reminder",
+      referenceId: r.membership_id,
+      reminderStage: `missing_contribution:${r.period_key}`,
       jobExecutionId: job.id,
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
       // bundled allowance now exists, so this real send-path bills.
-      billingMode:    'billed',
+      billingMode: "billed",
     });
     if (result.sent) sent++;
     // 'cooldown' is a DEFERRAL, not a failure (G26): the row stays
     // resumable and the next run sends it. Counting it as failed would
     // report an outage that isn't one.
-    else if (result.status === 'already_sent' || result.status === 'already_suppressed'
-             || result.status === 'cooldown') skipped++;
+    else if (
+      result.status === "already_sent" ||
+      result.status === "already_suppressed" ||
+      result.status === "cooldown"
+    )
+      skipped++;
     else failed++;
   }
 
   return {
     message: `Contribution reminders processed (${rows.length} candidates)`,
-    attempted: rows.length, sent, skipped, failed,
+    attempted: rows.length,
+    sent,
+    skipped,
+    failed,
   };
 }
 
@@ -826,11 +933,21 @@ const QSTASH_CHUNK_SIZE = 50;
  * unchanged: one direct sendBulkCampaign call, in-process, exactly as
  * before this existed.
  */
-async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string): Promise<HandlerResult> {
-  const { smsService, resolveRecipientVars } = await import('@/lib/services/sms.service');
-  const phones = Array.isArray(payload.phones) ? (payload.phones as string[]) : [];
+async function handleSmsBulkSend(
+  payload: Record<string, unknown>,
+  jobId: string,
+): Promise<HandlerResult> {
+  const { smsService, resolveRecipientVars } =
+    await import("@/lib/services/sms.service");
+  const phones = Array.isArray(payload.phones)
+    ? (payload.phones as string[])
+    : [];
   if (!payload.groupId || phones.length === 0) {
-    return { message: 'SMS bulk send skipped: no recipients', sent: 0, failed: 0 };
+    return {
+      message: "SMS bulk send skipped: no recipients",
+      sent: 0,
+      failed: 0,
+    };
   }
 
   // Per-recipient template rendering happens HERE rather than at any of the
@@ -846,31 +963,44 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
   //
   // Skipped entirely for messages with no placeholder — the overwhelmingly
   // common case — so an ordinary campaign costs no extra queries.
-  const message = String(payload.message ?? '');
+  const message = String(payload.message ?? "");
   // `message` is passed so the resolver can see whether the body asks for a
   // balance; it runs the extra aggregates only if it does. previewBulkSend
   // passes it too, and both MUST — a preview that resolved balances against a
   // dispatch that did not (or the reverse) would render different text and so
   // quote a different segment count from the one billed.
-  const varsByPhone = message.includes('{{')
+  const varsByPhone = message.includes("{{")
     ? await resolveRecipientVars(String(payload.groupId), phones, message)
     : undefined;
 
   // An organization-funded campaign carries its payer through the queue, so a
   // job retried after a restart still bills the organization, not the group.
-  const payer = payload.fundedBy === 'organization' && payload.payerOrganizationId
-    ? { type: 'organization' as const, organizationId: String(payload.payerOrganizationId) }
+  const payer =
+    payload.fundedBy === "organization" && payload.payerOrganizationId
+      ? {
+          type: "organization" as const,
+          organizationId: String(payload.payerOrganizationId),
+        }
+      : undefined;
+
+  const campaignId = payload.campaignId
+    ? String(payload.campaignId)
     : undefined;
+  const senderId = payload.senderId ? String(payload.senderId) : undefined;
+  const timeToSend = payload.timeToSend
+    ? String(payload.timeToSend)
+    : undefined;
+  const referenceType = payload.referenceType
+    ? String(payload.referenceType)
+    : undefined;
+  const referenceId = payload.referenceId
+    ? String(payload.referenceId)
+    : undefined;
+  const sentBy = String(payload.sentBy ?? "");
+  const groupId = String(payload.groupId);
 
-  const campaignId    = payload.campaignId    ? String(payload.campaignId)    : undefined;
-  const senderId       = payload.senderId      ? String(payload.senderId)      : undefined;
-  const timeToSend     = payload.timeToSend    ? String(payload.timeToSend)    : undefined;
-  const referenceType  = payload.referenceType ? String(payload.referenceType) : undefined;
-  const referenceId    = payload.referenceId   ? String(payload.referenceId)   : undefined;
-  const sentBy         = String(payload.sentBy ?? '');
-  const groupId        = String(payload.groupId);
-
-  const { isQstashConfigured, publishSmsChunk } = await import('@/lib/queue/qstash');
+  const { isQstashConfigured, publishSmsChunk } =
+    await import("@/lib/queue/qstash");
 
   if (phones.length > QSTASH_CHUNK_THRESHOLD && isQstashConfigured()) {
     // Normalized up front: varsByPhone (resolveRecipientVars) is keyed by
@@ -880,34 +1010,59 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     // makes the varsByPhone.get(p) lookup below actually match.
     const normalizedPhones = phones.map(normalizePhone);
     const chunks: string[][] = [];
-    for (let i = 0; i < normalizedPhones.length; i += QSTASH_CHUNK_SIZE) chunks.push(normalizedPhones.slice(i, i + QSTASH_CHUNK_SIZE));
+    for (let i = 0; i < normalizedPhones.length; i += QSTASH_CHUNK_SIZE)
+      chunks.push(normalizedPhones.slice(i, i + QSTASH_CHUNK_SIZE));
 
     for (let i = 0; i < chunks.length; i++) {
       const chunkPhones = chunks[i];
       const chunkVars = varsByPhone
-        ? Object.fromEntries(chunkPhones.flatMap((p) => (varsByPhone.has(p) ? [[p, varsByPhone.get(p)!]] : [])))
+        ? Object.fromEntries(
+            chunkPhones.flatMap((p) =>
+              varsByPhone.has(p) ? [[p, varsByPhone.get(p)!]] : [],
+            ),
+          )
         : undefined;
 
       await publishSmsChunk({
-        jobId, chunkIndex: i, chunkCount: chunks.length,
-        groupId, campaignId, phones: chunkPhones, message,
-        senderId, timeToSend, referenceType, referenceId, sentBy,
+        jobId,
+        chunkIndex: i,
+        chunkCount: chunks.length,
+        groupId,
+        campaignId,
+        phones: chunkPhones,
+        message,
+        senderId,
+        timeToSend,
+        referenceType,
+        referenceId,
+        sentBy,
         totalRecipientCount: phones.length,
-        fundedBy:             payer?.type === 'organization' ? 'organization' : undefined,
-        payerOrganizationId:  payer?.type === 'organization' ? payer.organizationId : undefined,
+        fundedBy: payer?.type === "organization" ? "organization" : undefined,
+        payerOrganizationId:
+          payer?.type === "organization" ? payer.organizationId : undefined,
         varsByPhone: chunkVars,
       });
     }
 
     return {
       message: `SMS bulk send chunked (${chunks.length} chunks published, ${phones.length} recipients)`,
-      chunked: true, chunks: chunks.length, recipients: phones.length,
+      chunked: true,
+      chunks: chunks.length,
+      recipients: phones.length,
     };
   }
 
   const result = await smsService.sendBulkCampaign({
-    campaignId, phones, message, varsByPhone,
-    senderId, timeToSend, groupId, sentBy, referenceType, referenceId,
+    campaignId,
+    phones,
+    message,
+    varsByPhone,
+    senderId,
+    timeToSend,
+    groupId,
+    sentBy,
+    referenceType,
+    referenceId,
     payer,
     // SMS_MESSAGING_AUDIT_2026-08.md H3 — job_queue.id is stable across
     // retries of the same job (only `attempts` changes), so it's a safe
@@ -916,37 +1071,45 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     dispatchBatchId: jobId,
   });
 
-  return { message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
+  return {
+    message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`,
+    ...flattenResult(result),
+  };
 }
 
 async function handleSmsRetryFailed(): Promise<HandlerResult> {
-  const { smsService } = await import('@/lib/services/sms.service');
+  const { smsService } = await import("@/lib/services/sms.service");
   const result = await smsService.retryFailures();
-  return { message: `SMS failures retried (${result.resolved} resolved, ${result.failed} still failing)`, ...flattenResult(result) };
+  return {
+    message: `SMS failures retried (${result.resolved} resolved, ${result.failed} still failing)`,
+    ...flattenResult(result),
+  };
 }
 
 async function handleSmsProcessSchedules(): Promise<HandlerResult> {
-  const { processDueSmsSchedules, processDueScheduledCampaigns } = await import('@/lib/services/sms-scheduler.service');
+  const { processDueSmsSchedules, processDueScheduledCampaigns } =
+    await import("@/lib/services/sms-scheduler.service");
   const schedules = await processDueSmsSchedules();
   const campaigns = await processDueScheduledCampaigns();
   return {
-    message:          `SMS schedules processed (${schedules.processed} schedules, ${campaigns.processed} campaigns)`,
-    schedules:        schedules.processed,
+    message: `SMS schedules processed (${schedules.processed} schedules, ${campaigns.processed} campaigns)`,
+    schedules: schedules.processed,
     schedulesSkipped: schedules.skipped,
-    campaigns:        campaigns.processed,
+    campaigns: campaigns.processed,
   };
 }
 
 async function handleSmsPollDlr(): Promise<HandlerResult> {
-  const { smsService } = await import('@/lib/services/sms.service');
+  const { smsService } = await import("@/lib/services/sms.service");
   const result = await smsService.pollPendingDlrs();
   // Retired messages are named rather than left silent: "we stopped asking"
   // is a real event in the delivery record, and a count that quietly stops
   // growing looks identical to one that was never growing
   // (SMS-REAUDIT-2026-09-02 F5).
-  const retired = result.abandoned > 0
-    ? `, ${result.abandoned} retired as never-reportable`
-    : '';
+  const retired =
+    result.abandoned > 0
+      ? `, ${result.abandoned} retired as never-reportable`
+      : "";
   return {
     message: `DLR poll (${result.delivered} delivered, ${result.failed} failed, ${result.pending} pending of ${result.checked}${retired})`,
     ...flattenResult(result),
@@ -961,30 +1124,35 @@ async function handleSmsPollDlr(): Promise<HandlerResult> {
  * through notifyMember would make the warning unsendable exactly when it is
  * needed. Please do not "unify" this into the messaging pipeline.
  */
-async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promise<HandlerResult> {
-  const { withAdminDb } = await import('@/lib/db');
-  const { queueEmail }  = await import('@/lib/services/email.service');
+async function handleSmsLowBalanceAlert(
+  payload: Record<string, unknown>,
+): Promise<HandlerResult> {
+  const { withAdminDb } = await import("@/lib/db");
+  const { queueEmail } = await import("@/lib/services/email.service");
 
-  const payerType = String(payload.payerType ?? 'group');
-  const groupId   = payload.groupId ? String(payload.groupId) : null;
-  const orgId     = payload.organizationId ? String(payload.organizationId) : null;
+  const payerType = String(payload.payerType ?? "group");
+  const groupId = payload.groupId ? String(payload.groupId) : null;
+  const orgId = payload.organizationId ? String(payload.organizationId) : null;
 
-  const title = 'SMS credits exhausted';
-  const body  = 'Your group has run out of SMS credits, so automated reminders and notifications are not being sent. Top up to resume messaging.';
+  const title = "SMS credits exhausted";
+  const body =
+    "Your group has run out of SMS credits, so automated reminders and notifications are not being sent. Top up to resume messaging.";
 
   let recipients = 0;
 
-  if (payerType === 'group' && groupId) {
+  if (payerType === "group" && groupId) {
     // In-app rows for every active officer who can act on it.
     recipients = await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO notifications (group_id, member_id, type, title, body, reference_type)
+      db
+        .query(
+          `INSERT INTO notifications (group_id, member_id, type, title, body, reference_type)
          SELECT gm.group_id, gm.member_id, 'in_app', $2, $3, 'sms_low_balance'
          FROM group_members gm
          WHERE gm.group_id = $1 AND gm.is_active
            AND gm.role IN ('chairperson','treasurer')`,
-        [groupId, title, body],
-      ).then((r) => r.rowCount ?? 0),
+          [groupId, title, body],
+        )
+        .then((r) => r.rowCount ?? 0),
     );
 
     const { rows } = await withAdminDb((db) =>
@@ -999,14 +1167,16 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
     );
     for (const r of rows) {
       await queueEmail({
-        to:          r.email,
-        templateKey: 'sms_low_balance',
-        vars:        { title, body },
+        to: r.email,
+        templateKey: "sms_low_balance",
+        vars: { title, body },
         groupId,
-        referenceType: 'sms_low_balance',
-      }).catch(() => { /* best-effort */ });
+        referenceType: "sms_low_balance",
+      }).catch(() => {
+        /* best-effort */
+      });
     }
-  } else if (payerType === 'organization' && orgId) {
+  } else if (payerType === "organization" && orgId) {
     const { rows } = await withAdminDb((db) =>
       db.query<{ email: string }>(
         `SELECT m.email
@@ -1019,16 +1189,21 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
     );
     for (const r of rows) {
       await queueEmail({
-        to:            r.email,
-        templateKey:   'sms_low_balance',
-        vars:          { title, body },
-        referenceType: 'sms_low_balance',
-      }).catch(() => { /* best-effort */ });
+        to: r.email,
+        templateKey: "sms_low_balance",
+        vars: { title, body },
+        referenceType: "sms_low_balance",
+      }).catch(() => {
+        /* best-effort */
+      });
       recipients++;
     }
   }
 
-  return { message: `Low-balance alert raised (${recipients} recipient(s))`, recipients };
+  return {
+    message: `Low-balance alert raised (${recipients} recipient(s))`,
+    recipients,
+  };
 }
 
 /**
@@ -1038,26 +1213,27 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
  * job history without opening the database.
  */
 async function handleSmsProviderHealth(): Promise<HandlerResult> {
-  const { sampleProviderHealth } = await import('@/lib/services/sms-health.service');
+  const { sampleProviderHealth } =
+    await import("@/lib/services/sms-health.service");
   const s = await sampleProviderHealth();
 
   const message =
     s.state === null
       ? `SMS provider health: only ${s.total} message(s) in the window — no verdict`
-      : s.state === 'degraded'
-        ? `SMS provider DEGRADED: ${s.failed}/${s.total} failed${s.alerted ? ' — staff alerted' : ' — alert already active'}`
+      : s.state === "degraded"
+        ? `SMS provider DEGRADED: ${s.failed}/${s.total} failed${s.alerted ? " — staff alerted" : " — alert already active"}`
         : s.recovered
           ? `SMS provider recovered: ${s.failed}/${s.total} failed`
           : `SMS provider healthy: ${s.failed}/${s.total} failed`;
 
   return {
     message,
-    provider:    s.provider,
-    total:       s.total,
-    failed:      s.failed,
+    provider: s.provider,
+    total: s.total,
+    failed: s.failed,
     failureRate: Number(s.failureRate.toFixed(4)),
-    state:       s.state,
-    alerted:     s.alerted,
+    state: s.state,
+    alerted: s.alerted,
   };
 }
 
@@ -1075,8 +1251,9 @@ async function handleSmsProviderHealth(): Promise<HandlerResult> {
  * write fails. Only rows the provider never confirmed are returned.
  */
 async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
-  const { withAdminDb }        = await import('@/lib/db');
-  const { settleReservation }  = await import('@/lib/services/messaging-billing');
+  const { withAdminDb } = await import("@/lib/db");
+  const { settleReservation } =
+    await import("@/lib/services/messaging-billing");
 
   const { rows } = await withAdminDb((db) =>
     db.query<{ id: string; provider_msg_id: string | null; status: string }>(
@@ -1090,7 +1267,12 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
   );
 
   const consumeIds = rows
-    .filter((r) => r.provider_msg_id !== null || r.status === 'sent' || r.status === 'delivered')
+    .filter(
+      (r) =>
+        r.provider_msg_id !== null ||
+        r.status === "sent" ||
+        r.status === "delivered",
+    )
     .map((r) => r.id);
   // Set, not Array.includes: at the 500-row limit above that comparison was
   // 250k scans, and this is the path that runs precisely when something has
@@ -1098,13 +1280,13 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
   const consumeSet = new Set(consumeIds);
   const releaseIds = rows.filter((r) => !consumeSet.has(r.id)).map((r) => r.id);
 
-  await settleReservation(consumeIds, 'consume');
-  await settleReservation(releaseIds, 'release');
+  await settleReservation(consumeIds, "consume");
+  await settleReservation(releaseIds, "release");
 
   const drifted = await reportReservationDrift();
 
   return {
-    message:  `Stale reservations settled (${consumeIds.length} consumed, ${releaseIds.length} released)`,
+    message: `Stale reservations settled (${consumeIds.length} consumed, ${releaseIds.length} released)`,
     consumed: consumeIds.length,
     released: releaseIds.length,
     drifted,
@@ -1131,8 +1313,8 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
  * one transaction there), which would otherwise read as drift.
  */
 async function reportReservationDrift(): Promise<number> {
-  const { withAdminDb } = await import('@/lib/db');
-  const { logger }      = await import('@/lib/logger');
+  const { withAdminDb } = await import("@/lib/db");
+  const { logger } = await import("@/lib/logger");
 
   const { rows } = await withAdminDb((db) =>
     db.query<{ group_id: string; aggregate: string; ticketed: string }>(
@@ -1152,9 +1334,14 @@ async function reportReservationDrift(): Promise<number> {
   );
 
   for (const r of rows) {
-    logger.warn('[sms] reservation drift: earmark does not match its ticket rows', {
-      groupId: r.group_id, aggregate: r.aggregate, ticketed: r.ticketed,
-    });
+    logger.warn(
+      "[sms] reservation drift: earmark does not match its ticket rows",
+      {
+        groupId: r.group_id,
+        aggregate: r.aggregate,
+        ticketed: r.ticketed,
+      },
+    );
   }
   return rows.length;
 }
@@ -1164,9 +1351,13 @@ async function reportReservationDrift(): Promise<number> {
  * billing and audit record — and clears only the content.
  */
 async function handleSmsMessageRetention(): Promise<HandlerResult> {
-  const { redactExpiredMessageBodies } = await import('@/lib/services/messaging-billing');
+  const { redactExpiredMessageBodies } =
+    await import("@/lib/services/messaging-billing");
   const r = await redactExpiredMessageBodies();
-  return { message: `SMS retention: ${r.redacted} message body/bodies redacted`, ...r };
+  return {
+    message: `SMS retention: ${r.redacted} message body/bodies redacted`,
+    ...r,
+  };
 }
 
 /**
@@ -1174,7 +1365,8 @@ async function handleSmsMessageRetention(): Promise<HandlerResult> {
  * repairing automatically would be the wrong call.
  */
 async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
-  const { reconcileSmsCredits } = await import('@/lib/services/messaging-billing');
+  const { reconcileSmsCredits } =
+    await import("@/lib/services/messaging-billing");
   const r = await reconcileSmsCredits();
 
   // A repaired campaign is not drift that survived the run, so it must not
@@ -1185,9 +1377,10 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
   const outstandingCampaigns = r.driftedCampaigns - r.repairedCampaigns;
   const clean = r.driftedPayers === 0 && outstandingCampaigns === 0;
 
-  const repaired = r.repairedCampaigns > 0
-    ? ` — recomputed ${r.repairedCampaigns} campaign counter(s) from the message log`
-    : '';
+  const repaired =
+    r.repairedCampaigns > 0
+      ? ` — recomputed ${r.repairedCampaigns} campaign counter(s) from the message log`
+      : "";
 
   // Whether staff were emailed is part of the run record on purpose (F2):
   // "DRIFT — investigate" printed for six days while reaching nobody is
@@ -1197,7 +1390,7 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
     ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)${repaired}`
     : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
       `${outstandingCampaigns}/${r.campaignsChecked} campaigns need a human${repaired} — ` +
-      (r.alerted ? 'staff emailed' : 'already reported, staff not re-emailed');
+      (r.alerted ? "staff emailed" : "already reported, staff not re-emailed");
 
   return { message, ...r };
 }
@@ -1210,9 +1403,13 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
  * and its dedup history stay continuous.
  */
 async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
-  const { resetDueSmsAllowances } = await import('@/lib/services/messaging-billing');
+  const { resetDueSmsAllowances } =
+    await import("@/lib/services/messaging-billing");
   const result = await resetDueSmsAllowances();
-  return { message: `SMS allowance reset for ${result.groupsReset} group(s)`, ...result };
+  return {
+    message: `SMS allowance reset for ${result.groupsReset} group(s)`,
+    ...result,
+  };
 }
 
 /**
@@ -1221,9 +1418,13 @@ async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
  * 152's rationale). Same anniversary-anchored idempotency shape.
  */
 async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
-  const { grantDueOrganizationSmsAllowances } = await import('@/lib/services/organization-plan.service');
+  const { grantDueOrganizationSmsAllowances } =
+    await import("@/lib/services/organization-plan.service");
   const result = await grantDueOrganizationSmsAllowances();
-  return { message: `SMS allowance granted for ${result.organizationsGranted} organization(s)`, ...result };
+  return {
+    message: `SMS allowance granted for ${result.organizationsGranted} organization(s)`,
+    ...result,
+  };
 }
 
 /**
@@ -1231,13 +1432,19 @@ async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
  * re-queued after a transient failure. dispatchExecution() is a no-op once the
  * execution row leaves 'pending', so a duplicated job cannot double-send.
  */
-async function handleSmsTriggerFire(payload: Record<string, unknown>): Promise<HandlerResult> {
-  const executionId = payload.executionId ? String(payload.executionId) : '';
-  if (!executionId) return { message: 'SMS trigger fire skipped: no executionId' };
+async function handleSmsTriggerFire(
+  payload: Record<string, unknown>,
+): Promise<HandlerResult> {
+  const executionId = payload.executionId ? String(payload.executionId) : "";
+  if (!executionId)
+    return { message: "SMS trigger fire skipped: no executionId" };
 
-  const { dispatchExecution } = await import('@/lib/sms/trigger-engine');
+  const { dispatchExecution } = await import("@/lib/sms/trigger-engine");
   await dispatchExecution(executionId);
-  return { message: `SMS trigger execution ${executionId} dispatched`, executionId };
+  return {
+    message: `SMS trigger execution ${executionId} dispatched`,
+    executionId,
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -1249,6 +1456,6 @@ async function handleSmsTriggerFire(payload: Record<string, unknown>): Promise<H
 function flattenResult(value: unknown): Record<string, unknown> {
   if (value === null || value === undefined) return {};
   if (value instanceof Error) return { error: value.message };
-  if (typeof value === 'object') return value as Record<string, unknown>;
+  if (typeof value === "object") return value as Record<string, unknown>;
   return { result: value };
 }

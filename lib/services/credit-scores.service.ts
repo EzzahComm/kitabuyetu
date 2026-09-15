@@ -1,47 +1,52 @@
-import type { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import type { PoolClient } from "pg";
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError, ValidationError } from "@/lib/utils/errors";
 import type {
-  CreditScoreQueryInput, ScoreHistoryQueryInput, ReliabilityTier,
-} from '@/lib/validators/credit-scores.schema';
-import { getEffectiveTierThresholds, type TierThreshold } from './loan-policy.service';
+  CreditScoreQueryInput,
+  ScoreHistoryQueryInput,
+  ReliabilityTier,
+} from "@/lib/validators/credit-scores.schema";
+import {
+  getEffectiveTierThresholds,
+  type TierThreshold,
+} from "./loan-policy.service";
 
 // ─── Public types ────────────────────────────────────────────────────────
 
 export interface ComponentScore {
   /** 0–100 */
-  score:  number;
+  score: number;
   /** 0–1 (weight of this component in the composite) */
   weight: number;
   /** Underlying raw metrics that produced the score, for transparency. */
-  raw:    Record<string, unknown>;
+  raw: Record<string, unknown>;
 }
 
 export interface CreditScore {
-  id:                     string;
-  group_id:               string;
-  member_id:              string;
-  computed_at:            string;
-  computed_by:            string | null;
-  financial_score:        string;
-  social_score:           string;
-  overall_score:          string;
-  components:             Record<string, ComponentScore>;
-  reliability_tier:       ReliabilityTier;
+  id: string;
+  group_id: string;
+  member_id: string;
+  computed_at: string;
+  computed_by: string | null;
+  financial_score: string;
+  social_score: string;
+  overall_score: string;
+  components: Record<string, ComponentScore>;
+  reliability_tier: ReliabilityTier;
   loan_eligibility_limit: string;
-  notes:                  string | null;
+  notes: string | null;
 
   // Joined for list/detail views.
-  member_first_name?:     string;
-  member_last_name?:      string;
-  member_phone?:          string;
+  member_first_name?: string;
+  member_last_name?: string;
+  member_phone?: string;
 }
 
 export interface ScoreSummary {
-  totalMembers:   number;
-  scoredMembers:  number;
+  totalMembers: number;
+  scoredMembers: number;
   averageOverall: string;
-  byTier:         Record<ReliabilityTier, number>;
+  byTier: Record<ReliabilityTier, number>;
 }
 
 // ─── Scoring config — single source of truth for weights + tier thresholds ─
@@ -49,29 +54,29 @@ export interface ScoreSummary {
 // Financial-dimension weights (sum to 1.0). These define what fraction of the
 // financial_score each component contributes.
 const FINANCIAL_WEIGHTS = {
-  contribution_consistency: 0.30,
-  loan_repayment:           0.30,
-  savings_growth:           0.20,
-  share_ownership:          0.15,
-  dividend_participation:   0.05,
+  contribution_consistency: 0.3,
+  loan_repayment: 0.3,
+  savings_growth: 0.2,
+  share_ownership: 0.15,
+  dividend_participation: 0.05,
 } as const;
 
 // Social-dimension weights (sum to 1.0). E6.2 Part 1 ships 3 components;
 // peer endorsements + event participation queued for E6.3.
 const SOCIAL_WEIGHTS = {
-  meeting_attendance:     0.50,
-  welfare_participation:  0.25,
-  leadership_role:        0.25,
+  meeting_attendance: 0.5,
+  welfare_participation: 0.25,
+  leadership_role: 0.25,
 } as const;
 
 // Composite blend: overall = FINANCIAL_BLEND × financial + SOCIAL_BLEND × social.
 // Financial is weighted heavier because it has more signal density (5
 // components vs 3) and the underlying data is more reliable.
-const FINANCIAL_BLEND = 0.70;
-const SOCIAL_BLEND    = 0.30;
+const FINANCIAL_BLEND = 0.7;
+const SOCIAL_BLEND = 0.3;
 
 type FinancialKey = keyof typeof FINANCIAL_WEIGHTS;
-type SocialKey    = keyof typeof SOCIAL_WEIGHTS;
+type SocialKey = keyof typeof SOCIAL_WEIGHTS;
 type ComponentKey = FinancialKey | SocialKey;
 
 // Kept as a single map for compatibility with the existing service code that
@@ -83,23 +88,27 @@ const COMPONENT_WEIGHTS: Record<ComponentKey, number> = {
   ...SOCIAL_WEIGHTS,
 };
 
-
 // ─── Service ────────────────────────────────────────────────────────────
 
 export const creditScoresService = {
-
   /**
    * Compute and persist a score snapshot for one member. The append-only
    * design means each recompute creates a new row; the "current" score is
    * always the most recent row.
    */
-  async recomputeForMember(ctx: TenantContext, memberId: string): Promise<CreditScore> {
+  async recomputeForMember(
+    ctx: TenantContext,
+    memberId: string,
+  ): Promise<CreditScore> {
     return withTransaction(ctx, async (client) => {
       await assertGroupMembership(client, ctx.groupId, memberId);
 
-      const tierThresholds = await getEffectiveTierThresholds(client, { groupId: ctx.groupId, organizationId: ctx.organizationId });
+      const tierThresholds = await getEffectiveTierThresholds(client, {
+        groupId: ctx.groupId,
+        organizationId: ctx.organizationId,
+      });
       const components = await computeComponents(client, ctx.groupId, memberId);
-      const result     = synthesise(components, tierThresholds);
+      const result = synthesise(components, tierThresholds);
 
       const { rows } = await client.query<CreditScore>(
         `INSERT INTO credit_scores (
@@ -113,7 +122,9 @@ export const creditScoresService = {
          )
          RETURNING *`,
         [
-          ctx.groupId, memberId, ctx.userId,
+          ctx.groupId,
+          memberId,
+          ctx.userId,
           result.financialScore.toFixed(2),
           result.socialScore.toFixed(2),
           result.overallScore.toFixed(2),
@@ -122,10 +133,10 @@ export const creditScoresService = {
           result.loanEligibility.toFixed(2),
         ],
       );
-      await writeAuditLog(client, ctx, 'credit_score.compute', rows[0].id, {
+      await writeAuditLog(client, ctx, "credit_score.compute", rows[0].id, {
         member_id: memberId,
-        overall:   result.overallScore,
-        tier:      result.tier,
+        overall: result.overallScore,
+        tier: result.tier,
       });
       return rows[0];
     });
@@ -136,7 +147,12 @@ export const creditScoresService = {
    * Run inside one transaction so a half-finished sweep doesn't leave the
    * group with mixed-vintage snapshots.
    */
-  async recomputeAll(ctx: TenantContext): Promise<{ recomputed: number; failed: { memberId: string; reason: string }[] }> {
+  async recomputeAll(
+    ctx: TenantContext,
+  ): Promise<{
+    recomputed: number;
+    failed: { memberId: string; reason: string }[];
+  }> {
     return withTransaction(ctx, async (client) => {
       const { rows: members } = await client.query<{ member_id: string }>(
         `SELECT member_id FROM group_members
@@ -144,14 +160,21 @@ export const creditScoresService = {
         [ctx.groupId],
       );
 
-      const tierThresholds = await getEffectiveTierThresholds(client, { groupId: ctx.groupId, organizationId: ctx.organizationId });
+      const tierThresholds = await getEffectiveTierThresholds(client, {
+        groupId: ctx.groupId,
+        organizationId: ctx.organizationId,
+      });
       let recomputed = 0;
       const failed: { memberId: string; reason: string }[] = [];
 
       for (const m of members) {
         try {
-          const components = await computeComponents(client, ctx.groupId, m.member_id);
-          const result     = synthesise(components, tierThresholds);
+          const components = await computeComponents(
+            client,
+            ctx.groupId,
+            m.member_id,
+          );
+          const result = synthesise(components, tierThresholds);
           await client.query(
             `INSERT INTO credit_scores (
                group_id, member_id, computed_by,
@@ -159,7 +182,9 @@ export const creditScoresService = {
                components, reliability_tier, loan_eligibility_limit
              ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::credit_reliability_tier, $9)`,
             [
-              ctx.groupId, m.member_id, ctx.userId,
+              ctx.groupId,
+              m.member_id,
+              ctx.userId,
               result.financialScore.toFixed(2),
               result.socialScore.toFixed(2),
               result.overallScore.toFixed(2),
@@ -170,13 +195,23 @@ export const creditScoresService = {
           );
           recomputed++;
         } catch (err) {
-          failed.push({ memberId: m.member_id, reason: (err as Error).message });
+          failed.push({
+            memberId: m.member_id,
+            reason: (err as Error).message,
+          });
         }
       }
 
-      await writeAuditLog(client, ctx, 'credit_score.recompute_all', ctx.groupId, {
-        recomputed, failed: failed.length,
-      });
+      await writeAuditLog(
+        client,
+        ctx,
+        "credit_score.recompute_all",
+        ctx.groupId,
+        {
+          recomputed,
+          failed: failed.length,
+        },
+      );
       return { recomputed, failed };
     });
   },
@@ -185,13 +220,17 @@ export const creditScoresService = {
   async listLatest(ctx: TenantContext, params: CreditScoreQueryInput) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
-      const conds: string[] = ['cs.group_id = $1'];
-      const vals:  unknown[] = [ctx.groupId];
-      if (params.tier)     { conds.push(`cs.reliability_tier = $${vals.length + 1}`);   vals.push(params.tier); }
-      if (params.maxScore !== undefined) {
-        conds.push(`cs.overall_score <= $${vals.length + 1}`); vals.push(params.maxScore);
+      const conds: string[] = ["cs.group_id = $1"];
+      const vals: unknown[] = [ctx.groupId];
+      if (params.tier) {
+        conds.push(`cs.reliability_tier = $${vals.length + 1}`);
+        vals.push(params.tier);
       }
-      const where = conds.join(' AND ');
+      if (params.maxScore !== undefined) {
+        conds.push(`cs.overall_score <= $${vals.length + 1}`);
+        vals.push(params.maxScore);
+      }
+      const where = conds.join(" AND ");
 
       // DISTINCT ON (cs.member_id) keeps only the latest snapshot per member
       // — relies on the idx_credit_scores_member_latest index for performance.
@@ -225,14 +264,19 @@ export const creditScoresService = {
 
       const total = parseInt(cnt[0].count, 10);
       return {
-        items, total,
-        page: params.page, pageSize: params.limit,
+        items,
+        total,
+        page: params.page,
+        pageSize: params.limit,
         totalPages: Math.max(1, Math.ceil(total / params.limit)),
       };
     });
   },
 
-  async getLatestForMember(ctx: TenantContext, memberId: string): Promise<CreditScore> {
+  async getLatestForMember(
+    ctx: TenantContext,
+    memberId: string,
+  ): Promise<CreditScore> {
     return withDb(ctx, async (client) => {
       await assertGroupMembership(client, ctx.groupId, memberId);
       const { rows } = await client.query<CreditScore>(
@@ -248,13 +292,17 @@ export const creditScoresService = {
         [ctx.groupId, memberId],
       );
       if (!rows[0]) {
-        throw new NotFoundError('Credit score for member', memberId);
+        throw new NotFoundError("Credit score for member", memberId);
       }
       return rows[0];
     });
   },
 
-  async getHistoryForMember(ctx: TenantContext, memberId: string, params: ScoreHistoryQueryInput): Promise<CreditScore[]> {
+  async getHistoryForMember(
+    ctx: TenantContext,
+    memberId: string,
+    params: ScoreHistoryQueryInput,
+  ): Promise<CreditScore[]> {
     return withDb(ctx, async (client) => {
       await assertGroupMembership(client, ctx.groupId, memberId);
       const { rows } = await client.query<CreditScore>(
@@ -291,7 +339,11 @@ export const creditScoresService = {
       ]);
 
       const byTier: Record<ReliabilityTier, number> = {
-        excellent: 0, good: 0, fair: 0, poor: 0, high_risk: 0,
+        excellent: 0,
+        good: 0,
+        fair: 0,
+        poor: 0,
+        high_risk: 0,
       };
       let total = 0;
       for (const r of latestQ.rows) {
@@ -299,11 +351,11 @@ export const creditScoresService = {
         total += Number(r.overall_score);
       }
       const scoredCount = latestQ.rows.length;
-      const avg         = scoredCount > 0 ? total / scoredCount : 0;
+      const avg = scoredCount > 0 ? total / scoredCount : 0;
 
       return {
-        totalMembers:   parseInt(activeQ.rows[0].count, 10),
-        scoredMembers:  scoredCount,
+        totalMembers: parseInt(activeQ.rows[0].count, 10),
+        scoredMembers: scoredCount,
         averageOverall: avg.toFixed(2),
         byTier,
       };
@@ -314,10 +366,10 @@ export const creditScoresService = {
 // ─── Scoring engine ──────────────────────────────────────────────────────
 
 interface SynthesisResult {
-  financialScore:  number;
-  socialScore:     number;
-  overallScore:    number;
-  tier:            ReliabilityTier;
+  financialScore: number;
+  socialScore: number;
+  overallScore: number;
+  tier: ReliabilityTier;
   loanEligibility: number;
 }
 
@@ -325,8 +377,8 @@ interface SynthesisResult {
 // LoanPolicy proof) without needing to mock computeComponents' full chain
 // of sub-queries.
 export function synthesise(
-  components:      Record<ComponentKey, ComponentScore>,
-  tierThresholds:  TierThreshold[],
+  components: Record<ComponentKey, ComponentScore>,
+  tierThresholds: TierThreshold[],
 ): SynthesisResult {
   // Financial dimension = weighted sum of the financial components.
   let financial = 0;
@@ -346,28 +398,36 @@ export function synthesise(
 
   // Composite. Weighted blend of the two dimensions — financial heavier
   // because it has more signal density and more reliable underlying data.
-  const overall = clamp(financial * FINANCIAL_BLEND + social * SOCIAL_BLEND, 0, 100);
+  const overall = clamp(
+    financial * FINANCIAL_BLEND + social * SOCIAL_BLEND,
+    0,
+    100,
+  );
 
   const tierRow = tierThresholds.find((t) => overall >= t.min)!;
   // total_savings comes from the contribution_consistency raw payload so we
   // don't need a second DB query just to size the loan ceiling.
   const savings = Number(
-    (components.contribution_consistency.raw as { total_completed_amount?: number }).total_completed_amount ?? 0,
+    (
+      components.contribution_consistency.raw as {
+        total_completed_amount?: number;
+      }
+    ).total_completed_amount ?? 0,
   );
   const loanEligibility = round2(savings * tierRow.loanMultiplier);
 
   return {
-    financialScore:  round2(financial),
-    socialScore:     round2(social),
-    overallScore:    round2(overall),
-    tier:            tierRow.tier,
+    financialScore: round2(financial),
+    socialScore: round2(social),
+    overallScore: round2(overall),
+    tier: tierRow.tier,
     loanEligibility,
   };
 }
 
 async function computeComponents(
-  client:   PoolClient,
-  groupId:  string,
+  client: PoolClient,
+  groupId: string,
   memberId: string,
 ): Promise<Record<ComponentKey, ComponentScore>> {
   const [
@@ -392,13 +452,13 @@ async function computeComponents(
 
   return {
     contribution_consistency: contribution,
-    loan_repayment:           loan,
-    savings_growth:           savings,
-    share_ownership:          shareOwnership,
-    dividend_participation:   dividend,
-    meeting_attendance:       meetingAttendance,
-    welfare_participation:    welfareParticipation,
-    leadership_role:          leadership,
+    loan_repayment: loan,
+    savings_growth: savings,
+    share_ownership: shareOwnership,
+    dividend_participation: dividend,
+    meeting_attendance: meetingAttendance,
+    welfare_participation: welfareParticipation,
+    leadership_role: leadership,
   };
 }
 
@@ -407,11 +467,13 @@ async function computeComponents(
  * Also exports total_completed_amount for the loan-eligibility multiplier.
  */
 async function componentContributionConsistency(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{
     months_with_contribution: string;
-    total_completed_amount:   string;
+    total_completed_amount: string;
   }>(
     `SELECT
        COUNT(DISTINCT DATE_TRUNC('month', contribution_date))::text AS months_with_contribution,
@@ -429,9 +491,9 @@ async function componentContributionConsistency(
   const score = clamp((months / 12) * 100, 0, 100);
 
   return {
-    score:  round2(score),
+    score: round2(score),
     weight: COMPONENT_WEIGHTS.contribution_consistency,
-    raw:    {
+    raw: {
       months_with_contribution: months,
       months_window: 12,
       total_completed_amount: totalAmount,
@@ -446,12 +508,14 @@ async function componentContributionConsistency(
  * borrowed).
  */
 async function componentLoanRepayment(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const [{ rows: rep }, { rows: loanStatus }] = await Promise.all([
     client.query<{
-      on_time:  string;
-      total:    string;
+      on_time: string;
+      total: string;
       paid_late: string;
     }>(
       `SELECT
@@ -469,9 +533,9 @@ async function componentLoanRepayment(
       [groupId, memberId],
     ),
     client.query<{
-      defaulted:    string;
-      written_off:  string;
-      total_loans:  string;
+      defaulted: string;
+      written_off: string;
+      total_loans: string;
     }>(
       `SELECT
          COUNT(*) FILTER (WHERE status = 'defaulted')::text   AS defaulted,
@@ -483,10 +547,10 @@ async function componentLoanRepayment(
     ),
   ]);
 
-  const onTime    = parseInt(rep[0].on_time,    10);
-  const total     = parseInt(rep[0].total,      10);
-  const paidLate  = parseInt(rep[0].paid_late,  10);
-  const defaulted = parseInt(loanStatus[0].defaulted,    10);
+  const onTime = parseInt(rep[0].on_time, 10);
+  const total = parseInt(rep[0].total, 10);
+  const paidLate = parseInt(rep[0].paid_late, 10);
+  const defaulted = parseInt(loanStatus[0].defaulted, 10);
   const writtenOff = parseInt(loanStatus[0].written_off, 10);
   const totalLoans = parseInt(loanStatus[0].total_loans, 10);
 
@@ -507,15 +571,15 @@ async function componentLoanRepayment(
   }
 
   return {
-    score:  round2(clamp(score, 0, 100)),
+    score: round2(clamp(score, 0, 100)),
     weight: COMPONENT_WEIGHTS.loan_repayment,
-    raw:    {
+    raw: {
       repayments_on_time: onTime,
-      repayments_total:   total,
-      repayments_late:    paidLate,
-      loans_total:        totalLoans,
-      loans_defaulted:    defaulted,
-      loans_written_off:  writtenOff,
+      repayments_total: total,
+      repayments_late: paidLate,
+      loans_total: totalLoans,
+      loans_defaulted: defaulted,
+      loans_written_off: writtenOff,
     },
   };
 }
@@ -527,11 +591,13 @@ async function componentLoanRepayment(
  * member growing).
  */
 async function componentSavingsGrowth(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{
     recent_total: string;
-    prior_total:  string;
+    prior_total: string;
   }>(
     `SELECT
        COALESCE(SUM(amount) FILTER (
@@ -547,7 +613,7 @@ async function componentSavingsGrowth(
   );
 
   const recent = Number(rows[0].recent_total);
-  const prior  = Number(rows[0].prior_total);
+  const prior = Number(rows[0].prior_total);
 
   let score: number;
   let ratio: number | null = null;
@@ -563,12 +629,12 @@ async function componentSavingsGrowth(
   }
 
   return {
-    score:  round2(score),
+    score: round2(score),
     weight: COMPONENT_WEIGHTS.savings_growth,
-    raw:    {
+    raw: {
       recent_12mo_total: recent,
-      prior_12mo_total:  prior,
-      growth_ratio:      ratio,
+      prior_12mo_total: prior,
+      growth_ratio: ratio,
     },
   };
 }
@@ -580,7 +646,9 @@ async function componentSavingsGrowth(
  * round trip.
  */
 async function componentShareOwnership(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{
     member_shares: string;
@@ -606,9 +674,9 @@ async function componentShareOwnership(
     [groupId, memberId],
   );
 
-  const memberShares = parseInt(rows[0]?.member_shares ?? '0', 10);
-  const totalHolders = parseInt(rows[0]?.total_shareholders ?? '0', 10);
-  const pr           = rows[0]?.percent_rank ? Number(rows[0].percent_rank) : null;
+  const memberShares = parseInt(rows[0]?.member_shares ?? "0", 10);
+  const totalHolders = parseInt(rows[0]?.total_shareholders ?? "0", 10);
+  const pr = rows[0]?.percent_rank ? Number(rows[0].percent_rank) : null;
 
   let score: number;
   if (memberShares === 0) {
@@ -622,12 +690,12 @@ async function componentShareOwnership(
   }
 
   return {
-    score:  round2(clamp(score, 0, 100)),
+    score: round2(clamp(score, 0, 100)),
     weight: COMPONENT_WEIGHTS.share_ownership,
-    raw:    {
-      member_shares:      memberShares,
+    raw: {
+      member_shares: memberShares,
       total_shareholders: totalHolders,
-      percent_rank:       pr,
+      percent_rank: pr,
     },
   };
 }
@@ -639,7 +707,9 @@ async function componentShareOwnership(
  * member's behaviour.
  */
 async function componentDividendParticipation(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{
     count: string;
@@ -662,7 +732,7 @@ async function componentDividendParticipation(
   return {
     score,
     weight: COMPONENT_WEIGHTS.dividend_participation,
-    raw:    {
+    raw: {
       payouts_count: count,
       payouts_total: total,
     },
@@ -686,13 +756,15 @@ async function componentDividendParticipation(
  * something the group didn't host.
  */
 async function componentMeetingAttendance(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{
-    attended:        string;
-    absent:          string;
-    excused:         string;
-    relevant_total:  string;
+    attended: string;
+    absent: string;
+    excused: string;
+    relevant_total: string;
   }>(
     `SELECT
        COUNT(*) FILTER (WHERE ma.status IN ('present','late'))::text AS attended,
@@ -707,25 +779,25 @@ async function componentMeetingAttendance(
     [groupId, memberId],
   );
 
-  const attended    = parseInt(rows[0].attended,       10);
-  const absent      = parseInt(rows[0].absent,         10);
-  const excused     = parseInt(rows[0].excused,        10);
-  const relevant    = parseInt(rows[0].relevant_total, 10);
+  const attended = parseInt(rows[0].attended, 10);
+  const absent = parseInt(rows[0].absent, 10);
+  const excused = parseInt(rows[0].excused, 10);
+  const relevant = parseInt(rows[0].relevant_total, 10);
 
   const score =
     relevant === 0
-      ? 60                                          // no countable meetings → neutral
+      ? 60 // no countable meetings → neutral
       : clamp((attended / relevant) * 100, 0, 100);
 
   return {
-    score:  round2(score),
+    score: round2(score),
     weight: COMPONENT_WEIGHTS.meeting_attendance,
-    raw:    {
+    raw: {
       attended,
       absent,
       excused,
       relevant_meetings: relevant,
-      window_months:     12,
+      window_months: 12,
     },
   };
 }
@@ -736,7 +808,9 @@ async function componentMeetingAttendance(
  * varies a lot by group culture and individual circumstance.
  */
 async function componentWelfareParticipation(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{ count: string; total: string }>(
     `SELECT
@@ -756,10 +830,10 @@ async function componentWelfareParticipation(
   return {
     score,
     weight: COMPONENT_WEIGHTS.welfare_participation,
-    raw:    {
+    raw: {
       contributions_count: count,
       contributions_total: total,
-      window_months:       12,
+      window_months: 12,
     },
   };
 }
@@ -771,7 +845,9 @@ async function componentWelfareParticipation(
  * not earned alone — but holding a role demonstrates active engagement.
  */
 async function componentLeadershipRole(
-  client: PoolClient, groupId: string, memberId: string,
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
 ): Promise<ComponentScore> {
   const { rows } = await client.query<{ role: string }>(
     `SELECT role FROM group_members
@@ -780,16 +856,17 @@ async function componentLeadershipRole(
     [groupId, memberId],
   );
 
-  const role = rows[0]?.role ?? 'member';
-  const isOfficer = role === 'chairperson' || role === 'treasurer' || role === 'secretary';
+  const role = rows[0]?.role ?? "member";
+  const isOfficer =
+    role === "chairperson" || role === "treasurer" || role === "secretary";
   const score = isOfficer ? 100 : 50;
 
   return {
     score,
     weight: COMPONENT_WEIGHTS.leadership_role,
-    raw:    {
+    raw: {
       current_role: role,
-      is_officer:   isOfficer,
+      is_officer: isOfficer,
     },
   };
 }
@@ -803,7 +880,11 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-async function assertGroupMembership(client: PoolClient, groupId: string, memberId: string): Promise<void> {
+async function assertGroupMembership(
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
+): Promise<void> {
   const { rows } = await client.query<{ id: string }>(
     `SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2`,
     [groupId, memberId],
@@ -815,7 +896,7 @@ async function assertGroupMembership(client: PoolClient, groupId: string, member
 
 async function writeAuditLog(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   resourceId: string,
   payload: Record<string, unknown>,

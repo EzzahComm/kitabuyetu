@@ -3,22 +3,22 @@
  * out of mpesa.service.ts (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError } from '@/lib/utils/errors';
-import { assertActiveMembership } from './membership-guard';
-import { postContributionJournal } from './accounting.service';
-import { IS_SANDBOX, markSpineAllocated } from './mpesa-spine.service';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError } from "@/lib/utils/errors";
+import { assertActiveMembership } from "./membership-guard";
+import { postContributionJournal } from "./accounting.service";
+import { IS_SANDBOX, markSpineAllocated } from "./mpesa-spine.service";
 
 export interface UnroutedRow {
-  id:                 string;
-  receipt:            string;
-  phone:              string;
-  amount:             string;
-  bill_ref:           string | null;
-  reason:             string;
+  id: string;
+  receipt: string;
+  phone: string;
+  amount: string;
+  bill_ref: string | null;
+  reason: string;
   candidate_group_id: string | null;
-  resolved:           boolean;
-  created_at:         string;
+  resolved: boolean;
+  created_at: string;
 }
 
 /** Lists unresolved receipts awaiting manual allocation for the group. */
@@ -46,13 +46,17 @@ export async function listUnrouted(ctx: TenantContext): Promise<UnroutedRow[]> {
 export async function resolveUnrouted(
   ctx: TenantContext,
   id: string,
-  action: 'allocate' | 'dismiss',
+  action: "allocate" | "dismiss",
   opts: { memberId?: string; notes?: string },
 ): Promise<void> {
   return withTransaction(ctx, async (db) => {
     const { rows } = await db.query<{
-      id: string; receipt: string; phone: string; amount: string;
-      bill_ref: string | null; resolved: boolean;
+      id: string;
+      receipt: string;
+      phone: string;
+      amount: string;
+      bill_ref: string | null;
+      resolved: boolean;
     }>(
       `SELECT id, receipt, phone, amount, bill_ref, resolved
        FROM   mpesa_unrouted
@@ -62,26 +66,31 @@ export async function resolveUnrouted(
       [id, ctx.groupId],
     );
     const row = rows[0];
-    if (!row) throw new NotFoundError('Unrouted receipt', id);
+    if (!row) throw new NotFoundError("Unrouted receipt", id);
     if (row.resolved) return; // already handled
 
-    if (action === 'dismiss') {
+    if (action === "dismiss") {
       await db.query(
         `UPDATE mpesa_unrouted
          SET resolved=true, resolved_by=$2, resolved_at=NOW(),
              resolved_to_group_id=$3, resolution_notes=$4
          WHERE id=$1`,
-        [id, ctx.userId, ctx.groupId, opts.notes ?? 'Dismissed'],
+        [id, ctx.userId, ctx.groupId, opts.notes ?? "Dismissed"],
       );
       return;
     }
 
     // allocate → create contribution + journal
-    if (!opts.memberId) throw new NotFoundError('Member', 'required for allocate');
+    if (!opts.memberId)
+      throw new NotFoundError("Member", "required for allocate");
 
     // The allocation target must hold an active membership in the resolving
     // group — treasurers must not be able to park receipts on strangers (audit H-1).
-    const { membershipId } = await assertActiveMembership(db, ctx.groupId, opts.memberId);
+    const { membershipId } = await assertActiveMembership(
+      db,
+      ctx.groupId,
+      opts.memberId,
+    );
 
     const amount = parseFloat(row.amount);
     const { rows: contribRows } = await db.query<{ id: string }>(
@@ -92,17 +101,25 @@ export async function resolveUnrouted(
        ON CONFLICT (mpesa_receipt_number) DO NOTHING
        RETURNING id`,
       [
-        ctx.groupId, opts.memberId, membershipId, amount.toFixed(2), row.receipt,
-        `Manually routed from unrouted receipt (${row.bill_ref ?? 'no ref'})`,
+        ctx.groupId,
+        opts.memberId,
+        membershipId,
+        amount.toFixed(2),
+        row.receipt,
+        `Manually routed from unrouted receipt (${row.bill_ref ?? "no ref"})`,
         ctx.userId,
       ],
     );
     const contributionId = contribRows[0]?.id ?? null;
     if (contributionId) {
       await postContributionJournal(db, {
-        groupId: ctx.groupId, contributionId, amount,
-        entryDate: new Date().toISOString().slice(0, 10), reference: row.receipt,
-        createdBy: null, isTest: IS_SANDBOX,
+        groupId: ctx.groupId,
+        contributionId,
+        amount,
+        entryDate: new Date().toISOString().slice(0, 10),
+        reference: row.receipt,
+        createdBy: null,
+        isTest: IS_SANDBOX,
       });
 
       // Spine: link + flip unrouted → allocated, attributed to the treasurer.
@@ -113,8 +130,13 @@ export async function resolveUnrouted(
         [row.receipt, contributionId],
       );
       await markSpineAllocated(db, row.receipt, {
-        actor:  ctx.userId,
-        detail: { product: 'savings', contributionId, groupId: ctx.groupId, via: 'unrouted_resolution' },
+        actor: ctx.userId,
+        detail: {
+          product: "savings",
+          contributionId,
+          groupId: ctx.groupId,
+          via: "unrouted_resolution",
+        },
       });
     }
 
@@ -124,7 +146,13 @@ export async function resolveUnrouted(
            resolved_to_group_id=$3, resolved_to_contribution=$4,
            resolution_notes=$5
        WHERE id=$1`,
-      [id, ctx.userId, ctx.groupId, contributionId, opts.notes ?? 'Allocated to member'],
+      [
+        id,
+        ctx.userId,
+        ctx.groupId,
+        contributionId,
+        opts.notes ?? "Allocated to member",
+      ],
     );
   });
 }

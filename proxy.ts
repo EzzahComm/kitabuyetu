@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, type JWTPayload } from 'jose';
+import { NextRequest, NextResponse } from "next/server";
+import { jwtVerify, type JWTPayload } from "jose";
 
 // ─── Rate limiting (Upstash REST — Edge-compatible) ───────────────────────────
 // Fails open on any Redis error so downtime never blocks legitimate traffic.
@@ -25,19 +25,19 @@ import { jwtVerify, type JWTPayload } from 'jose';
 // entirely (each session only ever competes with its own requests), so the
 // budget was also raised — it's no longer being split across an unknown
 // number of strangers.
-const RL_LIMIT_IP   = 120; // requests per window, per IP (anonymous surfaces)
+const RL_LIMIT_IP = 120; // requests per window, per IP (anonymous surfaces)
 const RL_LIMIT_USER = 240; // requests per window, per authenticated user
-const RL_WINDOW     = 60;  // window in seconds, both buckets
+const RL_WINDOW = 60; // window in seconds, both buckets
 
 async function checkRateLimit(key: string, limit: number): Promise<boolean> {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return true;
 
   try {
-    const url        = new URL(redisUrl);
-    const token      = url.password;
-    const base       = `https://${url.hostname}`;
-    const redisKey   = `rl:api:${key}`;
+    const url = new URL(redisUrl);
+    const token = url.password;
+    const base = `https://${url.hostname}`;
+    const redisKey = `rl:api:${key}`;
 
     // INCR + EXPIRE NX in a single atomic pipeline call. EXPIRE NX only
     // sets the TTL when the key has no TTL yet — so subsequent hits within
@@ -46,19 +46,22 @@ async function checkRateLimit(key: string, limit: number): Promise<boolean> {
     // EXPIRE silently failed and the key lived forever without TTL,
     // permanently blocking the caller) is eliminated.
     const res = await fetch(`${base}/pipeline`, {
-      method:  'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify([
-        ['INCR',   redisKey],
-        ['EXPIRE', redisKey, String(RL_WINDOW), 'NX'],
+        ["INCR", redisKey],
+        ["EXPIRE", redisKey, String(RL_WINDOW), "NX"],
       ]),
     });
     if (!res.ok) return true;
 
-    const body = await res.json() as Array<{ result?: number; error?: string }>;
+    const body = (await res.json()) as Array<{
+      result?: number;
+      error?: string;
+    }>;
     const count = body[0]?.result ?? 0;
 
     return count <= limit;
@@ -70,7 +73,7 @@ async function checkRateLimit(key: string, limit: number): Promise<boolean> {
 // ─── JWT verification ──────────────────────────────────────────────────────────
 const rawSecret = process.env.JWT_SECRET;
 if (!rawSecret || rawSecret.length < 32) {
-  throw new Error('[proxy] JWT_SECRET must be set and at least 32 characters');
+  throw new Error("[proxy] JWT_SECRET must be set and at least 32 characters");
 }
 const ACCESS_SECRET = new TextEncoder().encode(rawSecret);
 
@@ -78,45 +81,45 @@ const ACCESS_SECRET = new TextEncoder().encode(rawSecret);
 // tokens issued by /auth/admin/login (backoffice) carry platformRole.
 // Legacy tokens without `aud` are treated as tenant for backward compat.
 interface KyJwtPayload extends JWTPayload {
-  sub:           string;
-  aud?:          'tenant' | 'backoffice' | string;
+  sub: string;
+  aud?: "tenant" | "backoffice" | string;
   // Tenant claims
-  groupId?:      string;
-  role?:         string;
+  groupId?: string;
+  role?: string;
   // Phase D Part 2 — lifecycle gate. Missing = legacy token, treat as 'active'.
-  groupStatus?:  string;
+  groupStatus?: string;
   // Active Membership Context + drift epochs (payment architecture §2.1/§2.5).
   // Missing on tokens issued before Phase 3.2.
-  membershipId?:   string;
-  membershipNo?:   string;
-  authVersion?:    number;
+  membershipId?: string;
+  membershipNo?: string;
+  authVersion?: number;
   sessionVersion?: number;
   // RBAC permission activation — resolved at issue time from
   // group_members.role_id -> roles.permissions. Missing on legacy tokens.
-  permissions?:    string[];
+  permissions?: string[];
   // Backoffice claims
   platformRole?: string;
-  organizationId?:        string;
+  organizationId?: string;
 }
 
 function unauthorized(message: string): NextResponse {
   return NextResponse.json(
-    { success: false, error: message, code: 'UNAUTHORIZED' },
+    { success: false, error: message, code: "UNAUTHORIZED" },
     { status: 401 },
   );
 }
 
 function forbidden(message: string): NextResponse {
   return NextResponse.json(
-    { success: false, error: message, code: 'FORBIDDEN' },
+    { success: false, error: message, code: "FORBIDDEN" },
     { status: 403 },
   );
 }
 
 function rateLimited(): NextResponse {
   return NextResponse.json(
-    { success: false, error: 'Too many requests', code: 'RATE_LIMITED' },
-    { status: 429, headers: { 'Retry-After': String(RL_WINDOW) } },
+    { success: false, error: "Too many requests", code: "RATE_LIMITED" },
+    { status: 429, headers: { "Retry-After": String(RL_WINDOW) } },
   );
 }
 
@@ -125,10 +128,18 @@ function rateLimited(): NextResponse {
 // so a client can never smuggle its own claims to a handler — belt-and-
 // suspenders even though the unauthenticated handlers don't read them.
 const CLAIM_HEADERS = [
-  'x-user-id', 'x-aud', 'x-group-id', 'x-role',
-  'x-group-status', 'x-organization-id', 'x-platform-role',
-  'x-membership-id', 'x-membership-no', 'x-auth-version', 'x-session-version',
-  'x-permissions',
+  "x-user-id",
+  "x-aud",
+  "x-group-id",
+  "x-role",
+  "x-group-status",
+  "x-organization-id",
+  "x-platform-role",
+  "x-membership-id",
+  "x-membership-no",
+  "x-auth-version",
+  "x-session-version",
+  "x-permissions",
 ] as const;
 
 function sanitizedHeaders(req: NextRequest): Headers {
@@ -142,22 +153,21 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
 
   const isMpesaCallback =
-    pathname.startsWith('/api/v1/mpesa/callback') ||
-    pathname.startsWith('/api/v1/mpesa/c2b') ||
-    pathname.startsWith('/api/v1/mpesa/b2c') ||
-    pathname.startsWith('/api/v1/mpesa/b2b') ||
-    pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths
+    pathname.startsWith("/api/v1/mpesa/callback") ||
+    pathname.startsWith("/api/v1/mpesa/c2b") ||
+    pathname.startsWith("/api/v1/mpesa/b2c") ||
+    pathname.startsWith("/api/v1/mpesa/b2b") ||
+    pathname.startsWith("/api/v1/daraja/"); // registration-safe C2B callback paths
 
-  const ip = (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '0.0.0.0'
-  );
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "0.0.0.0";
 
   // ── Audience matters only for /api/v1/* and /api/admin/* ───────────────
   // Everything else falls through (static, health, etc.).
-  const isTenantApi     = pathname.startsWith('/api/v1/');
-  const isBackofficeApi = pathname.startsWith('/api/admin/');
+  const isTenantApi = pathname.startsWith("/api/v1/");
+  const isBackofficeApi = pathname.startsWith("/api/admin/");
 
   // These tenant paths are intentionally unauthenticated.
   // Webhooks authenticate via signed payloads (HMAC-SHA256, svix, ECDSA),
@@ -167,8 +177,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // it used to live) because the rate-limit decision right below also needs
   // to know whether a request is ever going to carry a verified identity.
   const isWebhook =
-    pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
-    pathname.startsWith('/api/v1/email/webhooks/') ||   // email provider callbacks (Resend, SendGrid)
+    pathname.startsWith("/api/v1/webhooks/") || // generic webhooks (WhatsApp Meta)
+    pathname.startsWith("/api/v1/email/webhooks/") || // email provider callbacks (Resend, SendGrid)
     // QStash-triggered chunked SMS dispatch (closes SMS_MESSAGING_AUDIT_
     // 2026-08.md H3 — docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md
     // Phase 3 item 10). Same "signed payload, no JWT"
@@ -177,7 +187,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // a Bearer token. Scoped to this exact path, not the whole
     // /api/v1/workers/ tree — /api/v1/workers/cron keeps requiring a JWT
     // or WORKER_SECRET (see that route's own header comment) here.
-    pathname === '/api/v1/workers/sms-dispatch-chunk' ||
+    pathname === "/api/v1/workers/sms-dispatch-chunk" ||
     // Upstash Workflow disbursement watchdog (docs/messaging/
     // UNIFIED_MESSAGING_ARCHITECTURE.md §9, B2C_DISBURSEMENT_AUDIT.md C5).
     // Same signed-payload shape, but verified by serve() itself (from
@@ -185,49 +195,48 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // and unlike sms-dispatch-chunk, QStash re-POSTs this exact path once
     // per workflow step (not just once), so every one of those step
     // callbacks needs to clear this gate too, not just the initial trigger.
-    pathname === '/api/v1/workers/disbursement-watchdog';
+    pathname === "/api/v1/workers/disbursement-watchdog";
 
   // Endpoints reachable with no access token at all — a visitor who forgot
   // their password, or is completing an emailed/SMS'd proof-of-possession
   // flow, has no session by definition. Moved up here for the same reason
   // isWebhook was: the rate-limit decision below needs this list too.
   const PUBLIC_AUTH_PATHS = new Set([
-    '/api/v1/auth/login',
-    '/api/v1/auth/register',
-    '/api/v1/auth/refresh',   // verifies its own refresh token from the body
-    '/api/v1/auth/logout',    // ditto
-    '/api/v1/auth/admin/login',
-    '/api/v1/auth/admin/login/verify',
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/refresh", // verifies its own refresh token from the body
+    "/api/v1/auth/logout", // ditto
+    "/api/v1/auth/admin/login",
+    "/api/v1/auth/admin/login/verify",
     // §4A email-link verification — the token itself is the proof of
     // possession (its SHA-256 hash alone identifies the open verification
     // row), so this must stay reachable without an access token: the click
     // may happen on a different device/browser than the one that registered.
-    '/api/v1/auth/verify/email',
+    "/api/v1/auth/verify/email",
     // Multi-staff organizations, Phase 2 (migration 102) — the accept-invite
     // flow is a visitor with only an emailed link, no session yet. Same
     // token-is-the-proof shape as verify/email above.
-    '/api/v1/organization-invitations/lookup',
-    '/api/v1/organization-invitations/confirm-email',
-    '/api/v1/organization-invitations/verify-otp',
-    '/api/v1/organization-invitations/complete',
-    '/api/v1/organization-invitations/decline',
+    "/api/v1/organization-invitations/lookup",
+    "/api/v1/organization-invitations/confirm-email",
+    "/api/v1/organization-invitations/verify-otp",
+    "/api/v1/organization-invitations/complete",
+    "/api/v1/organization-invitations/decline",
     // Self-service forgot-password — a visitor who forgot their password has
     // no session by definition. Same OTP-is-the-proof shape as the flows above.
-    '/api/v1/auth/forgot-password/start',
-    '/api/v1/auth/forgot-password/reset',
+    "/api/v1/auth/forgot-password/start",
+    "/api/v1/auth/forgot-password/reset",
     // Staff/backoffice forgot-password (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
     // Phase 1) — same reasoning, email-link-is-the-proof instead of SMS OTP.
-    '/api/v1/auth/admin/forgot-password/start',
-    '/api/v1/auth/admin/forgot-password/reset',
+    "/api/v1/auth/admin/forgot-password/start",
+    "/api/v1/auth/admin/forgot-password/reset",
   ]);
 
   const isAnonymousApiPath =
     isWebhook ||
     !(isTenantApi || isBackofficeApi) || // e.g. /api/health — no session concept at all
-    (isTenantApi && (
-      PUBLIC_AUTH_PATHS.has(pathname) ||
-      pathname.startsWith('/api/v1/jurisdictions/') // public reference data (counties etc.)
-    ));
+    (isTenantApi &&
+      (PUBLIC_AUTH_PATHS.has(pathname) ||
+        pathname.startsWith("/api/v1/jurisdictions/"))); // public reference data (counties etc.)
 
   // Rate-limit every API route except M-Pesa callbacks (Safaricom retries on
   // non-200). Anonymous surfaces are keyed by IP — same protection this file
@@ -235,7 +244,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // single bad actor at one address would hammer. Everything else requires a
   // verified session and is rate-limited by that session further down,
   // *after* the JWT is verified — see RL_LIMIT_USER's comment above for why.
-  if (pathname.startsWith('/api/') && !isMpesaCallback && isAnonymousApiPath) {
+  if (pathname.startsWith("/api/") && !isMpesaCallback && isAnonymousApiPath) {
     const allowed = await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP);
     if (!allowed) return rateLimited();
   }
@@ -263,12 +272,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // PUBLIC_AUTH_PATHS are computed above now (the rate-limit check needs
   // them too); this just applies the same bypass to JWT verification.
   if (
-    isTenantApi && (
-      PUBLIC_AUTH_PATHS.has(pathname) ||
-      pathname.startsWith('/api/v1/jurisdictions/') || // public reference data (counties etc.)
+    isTenantApi &&
+    (PUBLIC_AUTH_PATHS.has(pathname) ||
+      pathname.startsWith("/api/v1/jurisdictions/") || // public reference data (counties etc.)
       isMpesaCallback ||
-      isWebhook
-    )
+      isWebhook)
   ) {
     return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
   }
@@ -284,26 +292,26 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // ever fires on requests that fail authentication, so it can't reintroduce
   // the shared-IP bottleneck for legitimate authenticated traffic — those
   // requests are gated solely by RL_LIMIT_USER, below.
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
     if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
-    return unauthorized('Missing or malformed Authorization header');
+    return unauthorized("Missing or malformed Authorization header");
   }
   const token = authHeader.slice(7);
 
   let payload: KyJwtPayload;
   try {
-    const verified = await jwtVerify(token, ACCESS_SECRET, {
-      algorithms: ['HS256'],
-    }) as { payload: KyJwtPayload };
+    const verified = (await jwtVerify(token, ACCESS_SECRET, {
+      algorithms: ["HS256"],
+    })) as { payload: KyJwtPayload };
     payload = verified.payload;
   } catch {
     if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
-    return unauthorized('Invalid or expired token');
+    return unauthorized("Invalid or expired token");
   }
 
   if (!payload.sub) {
-    return unauthorized('Incomplete token payload');
+    return unauthorized("Incomplete token payload");
   }
 
   // Rate-limit authenticated traffic by verified user, not shared IP — see
@@ -312,19 +320,26 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // can't be charged against a real user's budget, and verifying first means
   // a flood of garbage tokens costs a cheap in-memory HMAC check per request
   // rather than a Redis round trip.
-  const allowedUser = await checkRateLimit(`user:${payload.sub}`, RL_LIMIT_USER);
+  const allowedUser = await checkRateLimit(
+    `user:${payload.sub}`,
+    RL_LIMIT_USER,
+  );
   if (!allowedUser) return rateLimited();
 
   // Default to 'tenant' for legacy tokens that pre-date Phase 1.
-  const aud: 'tenant' | 'backoffice' =
-    payload.aud === 'backoffice' ? 'backoffice' : 'tenant';
+  const aud: "tenant" | "backoffice" =
+    payload.aud === "backoffice" ? "backoffice" : "tenant";
 
   // ── Enforce audience match per URL prefix ────────────────────────────
-  if (isBackofficeApi && aud !== 'backoffice') {
-    return forbidden('This route requires a backoffice session. Sign in at /admin-login.');
+  if (isBackofficeApi && aud !== "backoffice") {
+    return forbidden(
+      "This route requires a backoffice session. Sign in at /admin-login.",
+    );
   }
-  if (isTenantApi && aud !== 'tenant') {
-    return forbidden('This route requires a tenant session. Sign in at /login.');
+  if (isTenantApi && aud !== "tenant") {
+    return forbidden(
+      "This route requires a tenant session. Sign in at /login.",
+    );
   }
 
   // ── Stamp verified claims as request headers ─────────────────────────
@@ -332,27 +347,33 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // without re-verifying the JWT. Start from sanitized headers so only
   // proxy-stamped claims can ever reach a handler.
   const requestHeaders = sanitizedHeaders(req);
-  requestHeaders.set('x-user-id', payload.sub);
+  requestHeaders.set("x-user-id", payload.sub);
 
-  if (aud === 'tenant') {
-    requestHeaders.set('x-aud', 'tenant');
+  if (aud === "tenant") {
+    requestHeaders.set("x-aud", "tenant");
     if (!payload.groupId || !payload.role) {
-      return unauthorized('Incomplete tenant token payload');
+      return unauthorized("Incomplete tenant token payload");
     }
-    requestHeaders.set('x-group-id', payload.groupId);
-    requestHeaders.set('x-role',     payload.role);
-    const groupStatus = payload.groupStatus ?? 'active';
-    requestHeaders.set('x-group-status', groupStatus);
-    if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
+    requestHeaders.set("x-group-id", payload.groupId);
+    requestHeaders.set("x-role", payload.role);
+    const groupStatus = payload.groupStatus ?? "active";
+    requestHeaders.set("x-group-status", groupStatus);
+    if (payload.organizationId)
+      requestHeaders.set("x-organization-id", payload.organizationId);
     // Active Membership Context (§2.1) + epochs (§2.5) — absent on legacy tokens.
-    if (payload.membershipId)         requestHeaders.set('x-membership-id',   payload.membershipId);
-    if (payload.membershipNo)         requestHeaders.set('x-membership-no',   payload.membershipNo);
-    if (payload.authVersion != null)  requestHeaders.set('x-auth-version',    String(payload.authVersion));
-    if (payload.sessionVersion != null) requestHeaders.set('x-session-version', String(payload.sessionVersion));
+    if (payload.membershipId)
+      requestHeaders.set("x-membership-id", payload.membershipId);
+    if (payload.membershipNo)
+      requestHeaders.set("x-membership-no", payload.membershipNo);
+    if (payload.authVersion != null)
+      requestHeaders.set("x-auth-version", String(payload.authVersion));
+    if (payload.sessionVersion != null)
+      requestHeaders.set("x-session-version", String(payload.sessionVersion));
     // Comma-joined, not JSON: permission strings are always `[a-z_.]+` (never
     // contain commas), matching the existing plain-string header convention
     // above rather than paying JSON parse overhead per request.
-    if (payload.permissions?.length) requestHeaders.set('x-permissions', payload.permissions.join(','));
+    if (payload.permissions?.length)
+      requestHeaders.set("x-permissions", payload.permissions.join(","));
 
     // Phase D Part 2 — gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management
@@ -364,33 +385,35 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // above, so they never reach this check either) — meaning this allowlist
     // was entirely dead code and every pending_verification group was
     // permanently locked out with no way to ever complete verification.
-    if (groupStatus === 'pending_verification') {
+    if (groupStatus === "pending_verification") {
       const allowedPending =
-        pathname === '/api/v1/auth/verify/start' ||
-        pathname === '/api/v1/auth/verify/complete';
+        pathname === "/api/v1/auth/verify/start" ||
+        pathname === "/api/v1/auth/verify/complete";
       if (!allowedPending) {
         return NextResponse.json(
           {
             success: false,
-            error:   'Group not verified yet — complete verification at /verify-group',
-            code:    'PENDING_VERIFICATION',
+            error:
+              "Group not verified yet — complete verification at /verify-group",
+            code: "PENDING_VERIFICATION",
           },
           { status: 403 },
         );
       }
     }
   } else {
-    requestHeaders.set('x-aud', aud);
+    requestHeaders.set("x-aud", aud);
     if (!payload.platformRole) {
-      return unauthorized('Incomplete backoffice token payload');
+      return unauthorized("Incomplete backoffice token payload");
     }
-    requestHeaders.set('x-platform-role', payload.platformRole);
-    if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
+    requestHeaders.set("x-platform-role", payload.platformRole);
+    if (payload.organizationId)
+      requestHeaders.set("x-organization-id", payload.organizationId);
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ['/api/:path*'],
+  matcher: ["/api/:path*"],
 };

@@ -24,46 +24,60 @@
  * one group (cash corrections use the existing contribution edit flow;
  * cross-product corrections route through the unrouted queue).
  */
-import type { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '@/lib/utils/errors';
-import { assertActiveMembership } from './membership-guard';
+import type { PoolClient } from "pg";
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+  ForbiddenError,
+} from "@/lib/utils/errors";
+import { assertActiveMembership } from "./membership-guard";
 
 interface ReallocationRow {
-  id:                       string;
-  payment_id:               string;
-  from_group_id:            string;
-  from_member_id:           string | null;
-  from_domain_id:           string | null;
-  to_group_id:              string;
-  to_member_id:             string | null;
-  to_group_membership_id:   string | null;
-  reason:                   string;
-  initiated_by:             string;
-  status:                   string;
+  id: string;
+  payment_id: string;
+  from_group_id: string;
+  from_member_id: string | null;
+  from_domain_id: string | null;
+  to_group_id: string;
+  to_member_id: string | null;
+  to_group_membership_id: string | null;
+  reason: string;
+  initiated_by: string;
+  status: string;
 }
 
 export const reallocationsService = {
-
   /**
    * Open a correction for a contribution posted to the wrong member.
    * Executes immediately when the amount is at or below the group's
    * maker-checker threshold; otherwise parks in 'pending_approval'.
    */
   async initiate(
-    ctx:  TenantContext,
+    ctx: TenantContext,
     data: { contributionId: string; toMemberId: string; reason: string },
   ) {
     return withTransaction(ctx, async (client) => {
       // Target must hold an active membership in this group (§5/§6a).
-      const { membershipId: toMembershipId } =
-        await assertActiveMembership(client, ctx.groupId, data.toMemberId);
+      const { membershipId: toMembershipId } = await assertActiveMembership(
+        client,
+        ctx.groupId,
+        data.toMemberId,
+      );
 
       // Source contribution: completed, M-Pesa-linked, this group.
-      const { rows: [contrib] } = await client.query<{
-        id: string; group_id: string; member_id: string;
-        group_membership_id: string; amount: string; status: string;
-        payment_id: string | null; mpesa_receipt_number: string | null;
+      const {
+        rows: [contrib],
+      } = await client.query<{
+        id: string;
+        group_id: string;
+        member_id: string;
+        group_membership_id: string;
+        amount: string;
+        status: string;
+        payment_id: string | null;
+        mpesa_receipt_number: string | null;
         journal_entry_id: string | null;
       }>(
         `SELECT id, group_id, member_id, group_membership_id, amount, status,
@@ -73,37 +87,49 @@ export const reallocationsService = {
          FOR UPDATE`,
         [data.contributionId, ctx.groupId],
       );
-      if (!contrib) throw new NotFoundError('Contribution', data.contributionId);
-      if (contrib.status !== 'completed') {
-        throw new ValidationError(`Only completed contributions can be reallocated (status: ${contrib.status})`);
+      if (!contrib)
+        throw new NotFoundError("Contribution", data.contributionId);
+      if (contrib.status !== "completed") {
+        throw new ValidationError(
+          `Only completed contributions can be reallocated (status: ${contrib.status})`,
+        );
       }
       if (!contrib.payment_id) {
         throw new ValidationError(
-          'This contribution has no linked payment — correct cash/manual entries via the contribution edit flow',
+          "This contribution has no linked payment — correct cash/manual entries via the contribution edit flow",
         );
       }
       if (contrib.member_id === data.toMemberId) {
-        throw new ValidationError('The contribution already belongs to that member');
-      }
-
-      // Spine row must still be in 'allocated'.
-      const { rows: [payment] } = await client.query<{ id: string; allocation_status: string }>(
-        `SELECT id, allocation_status FROM payments WHERE id = $1 FOR UPDATE`,
-        [contrib.payment_id],
-      );
-      if (!payment || payment.allocation_status !== 'allocated') {
-        throw new ConflictError(
-          `Payment is not in an allocatable state (${payment?.allocation_status ?? 'missing'})`,
+        throw new ValidationError(
+          "The contribution already belongs to that member",
         );
       }
 
-      const { rows: [grp] } = await client.query<{ threshold: string }>(
+      // Spine row must still be in 'allocated'.
+      const {
+        rows: [payment],
+      } = await client.query<{ id: string; allocation_status: string }>(
+        `SELECT id, allocation_status FROM payments WHERE id = $1 FOR UPDATE`,
+        [contrib.payment_id],
+      );
+      if (!payment || payment.allocation_status !== "allocated") {
+        throw new ConflictError(
+          `Payment is not in an allocatable state (${payment?.allocation_status ?? "missing"})`,
+        );
+      }
+
+      const {
+        rows: [grp],
+      } = await client.query<{ threshold: string }>(
         `SELECT reallocation_approval_threshold AS threshold FROM groups WHERE id = $1`,
         [ctx.groupId],
       );
-      const needsApproval = parseFloat(contrib.amount) > parseFloat(grp.threshold);
+      const needsApproval =
+        parseFloat(contrib.amount) > parseFloat(grp.threshold);
 
-      const { rows: [realloc] } = await client.query<ReallocationRow>(
+      const {
+        rows: [realloc],
+      } = await client.query<ReallocationRow>(
         `INSERT INTO payment_reallocations
            (payment_id, from_group_id, from_member_id, from_product, from_domain_id,
             from_group_membership_id,
@@ -114,11 +140,16 @@ export const reallocationsService = {
                  'reallocation', $8, $9, $10)
          RETURNING *`,
         [
-          contrib.payment_id, ctx.groupId, contrib.member_id, contrib.id,
+          contrib.payment_id,
+          ctx.groupId,
+          contrib.member_id,
+          contrib.id,
           contrib.group_membership_id,
-          data.toMemberId, toMembershipId,
-          data.reason, ctx.userId,
-          needsApproval ? 'pending_approval' : 'executed',
+          data.toMemberId,
+          toMembershipId,
+          data.reason,
+          ctx.userId,
+          needsApproval ? "pending_approval" : "executed",
         ],
       );
 
@@ -133,18 +164,24 @@ export const reallocationsService = {
   /** Second-officer approval (maker-checker) — approver ≠ initiator. */
   async approve(ctx: TenantContext, id: string) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [realloc] } = await client.query<ReallocationRow>(
+      const {
+        rows: [realloc],
+      } = await client.query<ReallocationRow>(
         `SELECT * FROM payment_reallocations
          WHERE  id = $1 AND from_group_id = $2 AND status = 'pending_approval'
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!realloc) throw new NotFoundError('Pending reallocation', id);
+      if (!realloc) throw new NotFoundError("Pending reallocation", id);
       if (realloc.initiated_by === ctx.userId) {
-        throw new ForbiddenError('Maker-checker: the initiator cannot approve their own reallocation');
+        throw new ForbiddenError(
+          "Maker-checker: the initiator cannot approve their own reallocation",
+        );
       }
 
-      const { rows: [updated] } = await client.query<ReallocationRow>(
+      const {
+        rows: [updated],
+      } = await client.query<ReallocationRow>(
         `UPDATE payment_reallocations
          SET    status = 'executed', approved_by = $2, approved_at = NOW()
          WHERE  id = $1
@@ -159,29 +196,40 @@ export const reallocationsService = {
   /** Reject (or withdraw) a pending correction. */
   async reject(ctx: TenantContext, id: string, reason: string) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [updated] } = await client.query<ReallocationRow>(
+      const {
+        rows: [updated],
+      } = await client.query<ReallocationRow>(
         `UPDATE payment_reallocations
          SET    status = 'rejected', rejected_by = $2, rejected_at = NOW(), rejection_reason = $3
          WHERE  id = $1 AND from_group_id = $4 AND status = 'pending_approval'
          RETURNING *`,
         [id, ctx.userId, reason, ctx.groupId],
       );
-      if (!updated) throw new NotFoundError('Pending reallocation', id);
+      if (!updated) throw new NotFoundError("Pending reallocation", id);
       return updated;
     });
   },
 
-  async list(ctx: TenantContext, params: { page: number; limit: number; status?: string }) {
+  async list(
+    ctx: TenantContext,
+    params: { page: number; limit: number; status?: string },
+  ) {
     return withDb(ctx, async (client) => {
-      const conds: string[] = ['pr.from_group_id = $1'];
+      const conds: string[] = ["pr.from_group_id = $1"];
       const vals: unknown[] = [ctx.groupId];
       let i = 2;
-      if (params.status) { conds.push(`pr.status = $${i++}`); vals.push(params.status); }
-      const where  = conds.join(' AND ');
+      if (params.status) {
+        conds.push(`pr.status = $${i++}`);
+        vals.push(params.status);
+      }
+      const where = conds.join(" AND ");
       const offset = (params.page - 1) * params.limit;
 
-      const { rows: [{ count }] } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM payment_reallocations pr WHERE ${where}`, vals,
+      const {
+        rows: [{ count }],
+      } = await client.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM payment_reallocations pr WHERE ${where}`,
+        vals,
       );
       const { rows } = await client.query(
         `SELECT pr.*,
@@ -202,8 +250,11 @@ export const reallocationsService = {
         [...vals, params.limit, offset],
       );
       return {
-        items: rows, total: parseInt(count, 10), page: params.page,
-        pageSize: params.limit, totalPages: Math.ceil(parseInt(count, 10) / params.limit),
+        items: rows,
+        total: parseInt(count, 10),
+        page: params.page,
+        pageSize: params.limit,
+        totalPages: Math.ceil(parseInt(count, 10) / params.limit),
       };
     });
   },
@@ -215,16 +266,24 @@ export const reallocationsService = {
  * transaction; any failure rolls the whole correction back.
  */
 async function executeReallocation(
-  client:  PoolClient,
+  client: PoolClient,
   realloc: ReallocationRow,
   actorId: string,
 ): Promise<void> {
   // 1. Void the original row. The status latch makes double-execution
   //    impossible even if two approvals raced past the FOR UPDATE.
-  const { rows: [original] } = await client.query<{
-    id: string; group_id: string; member_id: string; group_membership_id: string;
-    amount: string; contribution_date: Date; payment_method: string | null;
-    mpesa_receipt_number: string | null; journal_entry_id: string | null;
+  const {
+    rows: [original],
+  } = await client.query<{
+    id: string;
+    group_id: string;
+    member_id: string;
+    group_membership_id: string;
+    amount: string;
+    contribution_date: Date;
+    payment_method: string | null;
+    mpesa_receipt_number: string | null;
+    journal_entry_id: string | null;
   }>(
     `UPDATE contributions
      SET    status = 'cancelled',
@@ -235,7 +294,9 @@ async function executeReallocation(
     [realloc.from_domain_id, realloc.id],
   );
   if (!original) {
-    throw new ConflictError('Original contribution is no longer in a reallocatable state');
+    throw new ConflictError(
+      "Original contribution is no longer in a reallocatable state",
+    );
   }
 
   // 2 + 4. Contra journal (swap debit/credit) and mirrored journal for the
@@ -243,42 +304,49 @@ async function executeReallocation(
   // allocations are reversed and re-posted exactly. Skipped when the
   // original was posted without a journal (missing chart) — parity.
   let contraJeId: string | null = null;
-  let newJeId:    string | null = null;
+  let newJeId: string | null = null;
   if (original.journal_entry_id) {
     contraJeId = await mirrorJournal(client, {
-      sourceJeId:   original.journal_entry_id,
-      groupId:      original.group_id,
-      description:  `Reallocation contra — ${realloc.id}`,
+      sourceJeId: original.journal_entry_id,
+      groupId: original.group_id,
+      description: `Reallocation contra — ${realloc.id}`,
       actorId,
-      memberId:     original.member_id,
+      memberId: original.member_id,
       membershipId: original.group_membership_id,
-      swap:         true,
+      swap: true,
     });
     newJeId = await mirrorJournal(client, {
-      sourceJeId:   original.journal_entry_id,
-      groupId:      original.group_id,
-      description:  `Reallocation repost — ${realloc.id}`,
+      sourceJeId: original.journal_entry_id,
+      groupId: original.group_id,
+      description: `Reallocation repost — ${realloc.id}`,
       actorId,
-      memberId:     realloc.to_member_id!,
+      memberId: realloc.to_member_id!,
       membershipId: realloc.to_group_membership_id!,
-      swap:         false,
+      swap: false,
     });
   }
 
   // 3. Corrected contribution. Receipt + payment_id remain on the voided
   //    original (their uniques are the exactly-once guarantee, §6c);
   //    to_domain_id below carries the payment → corrected-row linkage.
-  const { rows: [corrected] } = await client.query<{ id: string }>(
+  const {
+    rows: [corrected],
+  } = await client.query<{ id: string }>(
     `INSERT INTO contributions
        (group_id, member_id, group_membership_id, amount, contribution_date,
         status, payment_method, notes, recorded_by, journal_entry_id)
      VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7, $8, $9)
      RETURNING id`,
     [
-      original.group_id, realloc.to_member_id, realloc.to_group_membership_id,
-      original.amount, original.contribution_date, original.payment_method,
-      `Reallocated from receipt ${original.mpesa_receipt_number ?? 'n/a'} (reallocation ${realloc.id})`,
-      actorId, newJeId,
+      original.group_id,
+      realloc.to_member_id,
+      realloc.to_group_membership_id,
+      original.amount,
+      original.contribution_date,
+      original.payment_method,
+      `Reallocated from receipt ${original.mpesa_receipt_number ?? "n/a"} (reallocation ${realloc.id})`,
+      actorId,
+      newJeId,
     ],
   );
 
@@ -291,13 +359,17 @@ async function executeReallocation(
   await client.query(
     `INSERT INTO payment_events (payment_id, event, actor, detail)
      VALUES ($1, 'reallocated', $2, $3::jsonb)`,
-    [realloc.payment_id, actorId, JSON.stringify({
-      reallocationId: realloc.id,
-      fromMemberId:   realloc.from_member_id,
-      toMemberId:     realloc.to_member_id,
-      fromContributionId: original.id,
-      toContributionId:   corrected.id,
-    })],
+    [
+      realloc.payment_id,
+      actorId,
+      JSON.stringify({
+        reallocationId: realloc.id,
+        fromMemberId: realloc.from_member_id,
+        toMemberId: realloc.to_member_id,
+        fromContributionId: original.id,
+        toContributionId: corrected.id,
+      }),
+    ],
   );
   await client.query(
     `INSERT INTO event_outbox (event_type, aggregate_id, payload)
@@ -322,11 +394,18 @@ async function executeReallocation(
 async function mirrorJournal(
   client: PoolClient,
   args: {
-    sourceJeId: string; groupId: string; description: string; actorId: string;
-    memberId: string; membershipId: string; swap: boolean;
+    sourceJeId: string;
+    groupId: string;
+    description: string;
+    actorId: string;
+    memberId: string;
+    membershipId: string;
+    swap: boolean;
   },
 ): Promise<string> {
-  const { rows: [je] } = await client.query<{ id: string }>(
+  const {
+    rows: [je],
+  } = await client.query<{ id: string }>(
     `INSERT INTO journal_entries
        (group_id, entry_date, reference, description, status, created_by, posted_at,
         is_test, member_id, group_membership_id)
@@ -334,7 +413,13 @@ async function mirrorJournal(
             is_test, $4, $5
      FROM   journal_entries WHERE id = $1
      RETURNING id`,
-    [args.sourceJeId, args.description, args.actorId, args.memberId, args.membershipId],
+    [
+      args.sourceJeId,
+      args.description,
+      args.actorId,
+      args.memberId,
+      args.membershipId,
+    ],
   );
   // entry_date is the journal_lines partition key — supplied directly as
   // CURRENT_DATE, matching the new entry's own date above (this mirrored

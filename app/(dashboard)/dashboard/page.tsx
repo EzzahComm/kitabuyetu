@@ -1,38 +1,57 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import Link from "next/link";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Users, Heart, ArrowRight, AlertCircle, CheckCircle2,
-  Landmark, ReceiptText, UserX, Wallet, Smartphone, Plus,
-  PiggyBank, TrendingDown, CalendarClock, HandCoins, UserPlus,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { StatusPill } from '@/components/shared/status-pill';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
-import { Button } from '@/components/ui/button';
-import { QuickActions, type QuickAction } from '@/components/shared/quick-actions';
-import { useMembers } from '@/hooks/use-members';
-import { useContributions, useRemindNonContributors } from '@/hooks/use-contributions';
-import { useLoans } from '@/hooks/use-loans';
-import { useWelfareRequests, useWelfarePool } from '@/hooks/use-welfare';
-import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { useHasPermission } from '@/lib/auth/use-permission';
-import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/api/client';
-import { loansApi } from '@/lib/api/endpoints';
-import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
-import type { LoanRepayment } from '@/types/db.types';
+  Users,
+  Heart,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+  Landmark,
+  ReceiptText,
+  UserX,
+  Wallet,
+  Smartphone,
+  Plus,
+  PiggyBank,
+  TrendingDown,
+  CalendarClock,
+  HandCoins,
+  UserPlus,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { StatusPill } from "@/components/shared/status-pill";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatCard } from "@/components/shared/stat-card";
+import { Button } from "@/components/ui/button";
+import {
+  QuickActions,
+  type QuickAction,
+} from "@/components/shared/quick-actions";
+import { useMembers } from "@/hooks/use-members";
+import {
+  useContributions,
+  useRemindNonContributors,
+} from "@/hooks/use-contributions";
+import { useLoans } from "@/hooks/use-loans";
+import { useWelfareRequests, useWelfarePool } from "@/hooks/use-welfare";
+import { useAuth, isTenantUser } from "@/lib/auth/context";
+import { useHasPermission } from "@/lib/auth/use-permission";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api/client";
+import { loansApi } from "@/lib/api/endpoints";
+import { formatKES, formatDate, getErrorMessage } from "@/lib/utils";
+import { StkPromptDialog } from "@/components/mpesa/stk-prompt-dialog";
+import type { LoanRepayment } from "@/types/db.types";
 
 interface TaskRowProps {
   icon: React.ElementType;
-  tone: 'orange' | 'red' | 'blue' | 'amber';
+  tone: "orange" | "red" | "blue" | "amber";
   count: number;
   label: string;
   preview?: string[];
@@ -45,13 +64,51 @@ interface TaskRowProps {
 }
 
 const toneMap = {
-  orange: { border: 'border-orange-200', bg: 'bg-orange-50', icon: 'text-orange-600', text: 'text-orange-800', sub: 'text-orange-700', btn: 'border-orange-300' },
-  red:    { border: 'border-red-200',    bg: 'bg-red-50',    icon: 'text-red-600',    text: 'text-red-800',    sub: 'text-red-700',    btn: 'border-red-300' },
-  blue:   { border: 'border-blue-200',   bg: 'bg-blue-50',   icon: 'text-blue-600',   text: 'text-blue-800',   sub: 'text-blue-700',   btn: 'border-blue-300' },
-  amber:  { border: 'border-amber-200',  bg: 'bg-amber-50',  icon: 'text-amber-600',  text: 'text-amber-800',  sub: 'text-amber-700',  btn: 'border-amber-300' },
+  orange: {
+    border: "border-orange-200",
+    bg: "bg-orange-50",
+    icon: "text-orange-600",
+    text: "text-orange-800",
+    sub: "text-orange-700",
+    btn: "border-orange-300",
+  },
+  red: {
+    border: "border-red-200",
+    bg: "bg-red-50",
+    icon: "text-red-600",
+    text: "text-red-800",
+    sub: "text-red-700",
+    btn: "border-red-300",
+  },
+  blue: {
+    border: "border-blue-200",
+    bg: "bg-blue-50",
+    icon: "text-blue-600",
+    text: "text-blue-800",
+    sub: "text-blue-700",
+    btn: "border-blue-300",
+  },
+  amber: {
+    border: "border-amber-200",
+    bg: "bg-amber-50",
+    icon: "text-amber-600",
+    text: "text-amber-800",
+    sub: "text-amber-700",
+    btn: "border-amber-300",
+  },
 } as const;
 
-function TaskRow({ icon: Icon, tone, count, label, preview, href, cta, onAction, loading }: TaskRowProps) {
+function TaskRow({
+  icon: Icon,
+  tone,
+  count,
+  label,
+  preview,
+  href,
+  cta,
+  onAction,
+  loading,
+}: TaskRowProps) {
   const c = toneMap[tone];
   const button = (
     <Button
@@ -79,7 +136,9 @@ function TaskRow({ icon: Icon, tone, count, label, preview, href, cta, onAction,
       {preview && preview.length > 0 && (
         <div className="mt-2 space-y-0.5">
           {preview.slice(0, 3).map((p, i) => (
-            <p key={i} className={`text-xs ${c.sub} truncate`}>{p}</p>
+            <p key={i} className={`text-xs ${c.sub} truncate`}>
+              {p}
+            </p>
           ))}
         </div>
       )}
@@ -101,53 +160,111 @@ export default function DashboardPage() {
   // used to surface as a scary "data couldn't load" banner leaking a raw
   // permission string (e.g. "Missing permission 'mpesa.view'") for a
   // perfectly normal, permanent state that a retry will never fix.
-  const canViewMpesa         = useHasPermission('mpesa.view');
-  const canViewReports       = useHasPermission('reports.view');
-  const canViewContributions = useHasPermission('contributions.view');
-  const canViewWelfare       = useHasPermission('welfare.view');
+  const canViewMpesa = useHasPermission("mpesa.view");
+  const canViewReports = useHasPermission("reports.view");
+  const canViewContributions = useHasPermission("contributions.view");
+  const canViewWelfare = useHasPermission("welfare.view");
 
-  const { data: membersData, isLoading: loadingMembers, isError: errMembers, error: membersErr }             = useMembers({ page: 1, limit: 1 });
-  const { data: contributionsData, isLoading: loadingContribs, isError: errContribs, error: contribsErr }     = useContributions({ page: 1, limit: 5 });
-  const { data: pendingLoans, isLoading: loadingPendingLoans, isError: errPendingLoans, error: pendingLoansErr } = useLoans({ page: 1, limit: 5, status: 'pending' });
-  const { data: poolData, isLoading: loadingPool, isError: errPool, error: poolErr }                           = useWelfarePool({ enabled: canViewWelfare });
-  const { data: pendingWelfare, isLoading: loadingWelfare, isError: errWelfare, error: welfareErr }            = useWelfareRequests({ status: 'pending', limit: 5 }, { enabled: canViewWelfare });
+  const {
+    data: membersData,
+    isLoading: loadingMembers,
+    isError: errMembers,
+    error: membersErr,
+  } = useMembers({ page: 1, limit: 1 });
+  const {
+    data: contributionsData,
+    isLoading: loadingContribs,
+    isError: errContribs,
+    error: contribsErr,
+  } = useContributions({ page: 1, limit: 5 });
+  const {
+    data: pendingLoans,
+    isLoading: loadingPendingLoans,
+    isError: errPendingLoans,
+    error: pendingLoansErr,
+  } = useLoans({ page: 1, limit: 5, status: "pending" });
+  const {
+    data: poolData,
+    isLoading: loadingPool,
+    isError: errPool,
+    error: poolErr,
+  } = useWelfarePool({ enabled: canViewWelfare });
+  const {
+    data: pendingWelfare,
+    isLoading: loadingWelfare,
+    isError: errWelfare,
+    error: welfareErr,
+  } = useWelfareRequests(
+    { status: "pending", limit: 5 },
+    { enabled: canViewWelfare },
+  );
 
-  const { data: unrouted, isLoading: loadingUnrouted, isError: errUnrouted, error: unroutedErr } = useQuery<{ items: { id: string; amount?: string; phone?: string; receipt?: string }[] }>({
-    queryKey: ['dashboard', 'mpesa-unrouted'],
-    queryFn:  () => api.get('/mpesa/unrouted'),
+  const {
+    data: unrouted,
+    isLoading: loadingUnrouted,
+    isError: errUnrouted,
+    error: unroutedErr,
+  } = useQuery<{
+    items: { id: string; amount?: string; phone?: string; receipt?: string }[];
+  }>({
+    queryKey: ["dashboard", "mpesa-unrouted"],
+    queryFn: () => api.get("/mpesa/unrouted"),
     staleTime: 30_000,
-    enabled:  canViewMpesa,
+    enabled: canViewMpesa,
   });
 
-  const { data: nonContrib, isLoading: loadingNonContrib, isError: errNonContrib, error: nonContribErr } = useQuery<{ count: number; sample: { id: string; name: string }[] }>({
-    queryKey: ['dashboard', 'non-contributors'],
-    queryFn:  () => api.get('/contributions/non-contributors'),
+  const {
+    data: nonContrib,
+    isLoading: loadingNonContrib,
+    isError: errNonContrib,
+    error: nonContribErr,
+  } = useQuery<{ count: number; sample: { id: string; name: string }[] }>({
+    queryKey: ["dashboard", "non-contributors"],
+    queryFn: () => api.get("/contributions/non-contributors"),
     staleTime: 60_000,
-    enabled:  canViewContributions,
+    enabled: canViewContributions,
   });
 
-  const { data: trialBalance, isLoading: loadingTrialBalance, isError: errTrialBalance, error: trialBalanceErr } = useQuery<{ accountCode: string; netBalance: string }[]>({
-    queryKey: ['dashboard', 'trial-balance'],
-    queryFn:  () => api.get('/accounting/reports?type=trial_balance'),
+  const {
+    data: trialBalance,
+    isLoading: loadingTrialBalance,
+    isError: errTrialBalance,
+    error: trialBalanceErr,
+  } = useQuery<{ accountCode: string; netBalance: string }[]>({
+    queryKey: ["dashboard", "trial-balance"],
+    queryFn: () => api.get("/accounting/reports?type=trial_balance"),
     staleTime: 60_000,
-    enabled:  canViewReports,
+    enabled: canViewReports,
   });
 
   // Total Savings / Outstanding Loans / This Month's Contributions — all
   // three already computed by the executive-analytics endpoint (built for
   // /analytics), just not previously surfaced on the dashboard.
-  const { data: execSummary, isLoading: loadingExecSummary, isError: errExecSummary, error: execSummaryErr } = useQuery<{
-    contributions: { totalAmount: string; monthlyBuckets: { bucket: string; amount: string }[] };
+  const {
+    data: execSummary,
+    isLoading: loadingExecSummary,
+    isError: errExecSummary,
+    error: execSummaryErr,
+  } = useQuery<{
+    contributions: {
+      totalAmount: string;
+      monthlyBuckets: { bucket: string; amount: string }[];
+    };
     loans: { outstandingBalance: string };
   }>({
-    queryKey: ['dashboard', 'executive-summary'],
-    queryFn:  () => api.get('/analytics/executive?period=12mo'),
+    queryKey: ["dashboard", "executive-summary"],
+    queryFn: () => api.get("/analytics/executive?period=12mo"),
     staleTime: 60_000,
   });
 
-  const { data: upcomingRepayments, isLoading: loadingUpcoming, isError: errUpcoming, error: upcomingErr } = useQuery<(LoanRepayment & { member_name: string })[]>({
-    queryKey: ['dashboard', 'upcoming-repayments'],
-    queryFn:  () => loansApi.upcomingRepayments(5),
+  const {
+    data: upcomingRepayments,
+    isLoading: loadingUpcoming,
+    isError: errUpcoming,
+    error: upcomingErr,
+  } = useQuery<(LoanRepayment & { member_name: string })[]>({
+    queryKey: ["dashboard", "upcoming-repayments"],
+    queryFn: () => loansApi.upcomingRepayments(5),
     staleTime: 60_000,
   });
 
@@ -160,16 +277,32 @@ export default function DashboardPage() {
   // middle ground: a full-page skeleton until everything settles, then an
   // inline banner naming what failed rather than silently showing zeros.
   const dashboardQueries = [
-    { isLoading: loadingMembers,      isError: errMembers,      error: membersErr },
-    { isLoading: loadingContribs,     isError: errContribs,     error: contribsErr },
-    { isLoading: loadingPendingLoans, isError: errPendingLoans, error: pendingLoansErr },
-    { isLoading: loadingPool,         isError: errPool,         error: poolErr },
-    { isLoading: loadingWelfare,      isError: errWelfare,      error: welfareErr },
-    { isLoading: loadingUnrouted,     isError: errUnrouted,     error: unroutedErr },
-    { isLoading: loadingNonContrib,   isError: errNonContrib,   error: nonContribErr },
-    { isLoading: loadingTrialBalance, isError: errTrialBalance, error: trialBalanceErr },
-    { isLoading: loadingExecSummary,  isError: errExecSummary,  error: execSummaryErr },
-    { isLoading: loadingUpcoming,     isError: errUpcoming,     error: upcomingErr },
+    { isLoading: loadingMembers, isError: errMembers, error: membersErr },
+    { isLoading: loadingContribs, isError: errContribs, error: contribsErr },
+    {
+      isLoading: loadingPendingLoans,
+      isError: errPendingLoans,
+      error: pendingLoansErr,
+    },
+    { isLoading: loadingPool, isError: errPool, error: poolErr },
+    { isLoading: loadingWelfare, isError: errWelfare, error: welfareErr },
+    { isLoading: loadingUnrouted, isError: errUnrouted, error: unroutedErr },
+    {
+      isLoading: loadingNonContrib,
+      isError: errNonContrib,
+      error: nonContribErr,
+    },
+    {
+      isLoading: loadingTrialBalance,
+      isError: errTrialBalance,
+      error: trialBalanceErr,
+    },
+    {
+      isLoading: loadingExecSummary,
+      isError: errExecSummary,
+      error: execSummaryErr,
+    },
+    { isLoading: loadingUpcoming, isError: errUpcoming, error: upcomingErr },
   ];
   const isDashboardLoading = dashboardQueries.some((q) => q.isLoading);
   const erroredDashboardQueries = dashboardQueries.filter((q) => q.isError);
@@ -180,47 +313,80 @@ export default function DashboardPage() {
   // reach erroredDashboardQueries, so it gets its own calm, non-destructive
   // note instead of being lumped into the red "couldn't load" banner above.
   const hiddenSections = [
-    !canViewMpesa         && 'M-Pesa receipts',
-    !canViewWelfare       && 'welfare',
-    !canViewContributions && 'contribution follow-ups',
-    !canViewReports       && 'financial reports',
+    !canViewMpesa && "M-Pesa receipts",
+    !canViewWelfare && "welfare",
+    !canViewContributions && "contribution follow-ups",
+    !canViewReports && "financial reports",
   ].filter((s): s is string => Boolean(s));
 
-  const totalMembers       = membersData?.total ?? 0;
-  const recentContribs     = contributionsData?.items ?? [];
-  const pendingLoanList    = pendingLoans?.items ?? [];
+  const totalMembers = membersData?.total ?? 0;
+  const recentContribs = contributionsData?.items ?? [];
+  const pendingLoanList = pendingLoans?.items ?? [];
   const pendingWelfareList = pendingWelfare?.items ?? [];
-  const unroutedList       = unrouted?.items ?? [];
-  const welfareBalance     = poolData?.summary?.balance ?? 0;
+  const unroutedList = unrouted?.items ?? [];
+  const welfareBalance = poolData?.summary?.balance ?? 0;
 
   const cashBalance = Number(
-    (trialBalance ?? []).find((l) => l.accountCode === '1001')?.netBalance ?? 0,
+    (trialBalance ?? []).find((l) => l.accountCode === "1001")?.netBalance ?? 0,
   );
   // 4005 External Funding — capital received from partner organizations
   // (income-type, so the trial balance already presents it as a positive).
   const externalFunding = Number(
-    (trialBalance ?? []).find((l) => l.accountCode === '4005')?.netBalance ?? 0,
+    (trialBalance ?? []).find((l) => l.accountCode === "4005")?.netBalance ?? 0,
   );
 
   const taskCount =
-    unroutedList.length + pendingLoanList.length + pendingWelfareList.length + (nonContrib?.count ?? 0);
+    unroutedList.length +
+    pendingLoanList.length +
+    pendingWelfareList.length +
+    (nonContrib?.count ?? 0);
 
-  const totalSavings          = Number(execSummary?.contributions.totalAmount ?? 0);
-  const outstandingLoans      = Number(execSummary?.loans.outstandingBalance ?? 0);
+  const totalSavings = Number(execSummary?.contributions.totalAmount ?? 0);
+  const outstandingLoans = Number(execSummary?.loans.outstandingBalance ?? 0);
   // monthlyBuckets is ordered ASC over the trailing 12 months — the last
   // bucket is the current (possibly partial) calendar month.
-  const thisMonthContribs     = Number(
+  const thisMonthContribs = Number(
     execSummary?.contributions.monthlyBuckets.at(-1)?.amount ?? 0,
   );
   const upcomingRepaymentList = upcomingRepayments ?? [];
 
   const quickActions: QuickAction[] = [
-    { label: 'Record contribution', icon: ReceiptText, href: '/contributions', tint: 'bg-green-50 text-green-600' },
-    { label: 'Disburse loan',       icon: Landmark,     href: '/loans',        tint: 'bg-blue-50 text-blue-600' },
-    { label: 'Receive repayment',   icon: HandCoins,    href: '/loans',        tint: 'bg-blue-50 text-blue-600' },
-    { label: 'Send money',          icon: Smartphone,   onClick: () => setStkOpen(true), tint: 'bg-purple-50 text-purple-600' },
-    { label: 'Add member',          icon: UserPlus,     href: '/members',      tint: 'bg-amber-50 text-amber-600' },
-    { label: 'Record welfare',      icon: Heart,        href: '/welfare',      tint: 'bg-red-50 text-red-600' },
+    {
+      label: "Record contribution",
+      icon: ReceiptText,
+      href: "/contributions",
+      tint: "bg-green-50 text-green-600",
+    },
+    {
+      label: "Disburse loan",
+      icon: Landmark,
+      href: "/loans",
+      tint: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Receive repayment",
+      icon: HandCoins,
+      href: "/loans",
+      tint: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Send money",
+      icon: Smartphone,
+      onClick: () => setStkOpen(true),
+      tint: "bg-purple-50 text-purple-600",
+    },
+    {
+      label: "Add member",
+      icon: UserPlus,
+      href: "/members",
+      tint: "bg-amber-50 text-amber-600",
+    },
+    {
+      label: "Record welfare",
+      icon: Heart,
+      href: "/welfare",
+      tint: "bg-red-50 text-red-600",
+    },
   ];
 
   if (isDashboardLoading) {
@@ -230,7 +396,9 @@ export default function DashboardPage() {
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
         </div>
       </div>
     );
@@ -240,12 +408,16 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title={user ? `Welcome back, ${user.firstName}` : 'Dashboard'}
-        description={isTenantUser(user) ? user.groupName : 'Financial overview'}
+        title={user ? `Welcome back, ${user.firstName}` : "Dashboard"}
+        description={isTenantUser(user) ? user.groupName : "Financial overview"}
         actions={
           <>
             {/* Opens the in-dashboard STK Push flow — no page navigation. */}
-            <Button size="sm" className="gap-1.5 h-9" onClick={() => setStkOpen(true)}>
+            <Button
+              size="sm"
+              className="gap-1.5 h-9"
+              onClick={() => setStkOpen(true)}
+            >
               <Smartphone size={15} /> Request payment
             </Button>
             <Link href="/contributions">
@@ -262,7 +434,8 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Couldn&apos;t load dashboard data</AlertTitle>
           <AlertDescription>
-            Some dashboard data couldn&apos;t load — figures below may be incomplete. {getErrorMessage(erroredDashboardQueries[0].error)}
+            Some dashboard data couldn&apos;t load — figures below may be
+            incomplete. {getErrorMessage(erroredDashboardQueries[0].error)}
           </AlertDescription>
         </Alert>
       )}
@@ -272,7 +445,8 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4 text-muted-foreground" />
           <AlertTitle className="text-foreground">Limited access</AlertTitle>
           <AlertDescription>
-            Your role doesn&apos;t have access to {hiddenSections.join(', ')} — related figures aren&apos;t shown below.
+            Your role doesn&apos;t have access to {hiddenSections.join(", ")} —
+            related figures aren&apos;t shown below.
           </AlertDescription>
         </Alert>
       )}
@@ -288,10 +462,15 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertCircle size={16} className={taskCount > 0 ? 'text-orange-500' : 'text-green-500'} />
+            <AlertCircle
+              size={16}
+              className={taskCount > 0 ? "text-orange-500" : "text-green-500"}
+            />
             Needs you now
             {taskCount > 0 && (
-              <Badge variant="warning" className="ml-1">{taskCount}</Badge>
+              <Badge variant="warning" className="ml-1">
+                {taskCount}
+              </Badge>
             )}
           </CardTitle>
         </CardHeader>
@@ -299,7 +478,9 @@ export default function DashboardPage() {
           {taskCount === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2 text-center">
               <CheckCircle2 size={28} className="text-green-500" />
-              <p className="text-sm text-muted-foreground">All clear — nothing needs your attention</p>
+              <p className="text-sm text-muted-foreground">
+                All clear — nothing needs your attention
+              </p>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -308,10 +489,13 @@ export default function DashboardPage() {
                   icon={ReceiptText}
                   tone="amber"
                   count={unroutedList.length}
-                  label={`unrouted M-Pesa receipt${unroutedList.length !== 1 ? 's' : ''} to allocate`}
-                  preview={unroutedList.slice(0, 3).map(
-                    (u) => `${u.receipt ?? 'Receipt'} — ${formatKES(u.amount ?? 0)}${u.phone ? ` · ${u.phone}` : ''}`,
-                  )}
+                  label={`unrouted M-Pesa receipt${unroutedList.length !== 1 ? "s" : ""} to allocate`}
+                  preview={unroutedList
+                    .slice(0, 3)
+                    .map(
+                      (u) =>
+                        `${u.receipt ?? "Receipt"} — ${formatKES(u.amount ?? 0)}${u.phone ? ` · ${u.phone}` : ""}`,
+                    )}
                   href="/mpesa/unrouted"
                   cta="Resolve"
                 />
@@ -321,9 +505,10 @@ export default function DashboardPage() {
                   icon={Landmark}
                   tone="orange"
                   count={pendingLoanList.length}
-                  label={`loan${pendingLoanList.length !== 1 ? 's' : ''} awaiting approval`}
+                  label={`loan${pendingLoanList.length !== 1 ? "s" : ""} awaiting approval`}
                   preview={pendingLoanList.map(
-                    (l) => `${l.member_name} — ${formatKES(l.principal_amount)}`,
+                    (l) =>
+                      `${l.member_name} — ${formatKES(l.principal_amount)}`,
                   )}
                   href="/loans"
                   cta="Review"
@@ -334,9 +519,10 @@ export default function DashboardPage() {
                   icon={Heart}
                   tone="red"
                   count={pendingWelfareList.length}
-                  label={`welfare request${pendingWelfareList.length !== 1 ? 's' : ''} to review`}
+                  label={`welfare request${pendingWelfareList.length !== 1 ? "s" : ""} to review`}
                   preview={pendingWelfareList.map(
-                    (w) => `${w.member_name} — ${w.title} (${formatKES(w.amount_requested)})`,
+                    (w) =>
+                      `${w.member_name} — ${w.title} (${formatKES(w.amount_requested)})`,
                   )}
                   href="/welfare"
                   cta="Review"
@@ -351,15 +537,21 @@ export default function DashboardPage() {
                   preview={nonContrib!.sample.map((m) => m.name)}
                   cta="Remind"
                   loading={remindNonContributors.isPending}
-                  onAction={() => remindNonContributors.mutate(undefined, {
-                    onSuccess: (res) => toast({
-                      title: 'Reminders sent',
-                      description: `${res.sent} sent${res.skipped ? `, ${res.skipped} already reminded this month` : ''}${res.failed ? `, ${res.failed} failed` : ''}`,
-                    }),
-                    onError: (err) => toast({
-                      variant: 'destructive', title: 'Failed to send reminders', description: getErrorMessage(err),
-                    }),
-                  })}
+                  onAction={() =>
+                    remindNonContributors.mutate(undefined, {
+                      onSuccess: (res) =>
+                        toast({
+                          title: "Reminders sent",
+                          description: `${res.sent} sent${res.skipped ? `, ${res.skipped} already reminded this month` : ""}${res.failed ? `, ${res.failed} failed` : ""}`,
+                        }),
+                      onError: (err) =>
+                        toast({
+                          variant: "destructive",
+                          title: "Failed to send reminders",
+                          description: getErrorMessage(err),
+                        }),
+                    })
+                  }
                 />
               )}
             </div>
@@ -387,7 +579,7 @@ export default function DashboardPage() {
             <StatCard
               title="Welfare fund"
               value={formatKES(welfareBalance)}
-              description={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? 's' : ''}`}
+              description={`${pendingWelfareList.length} pending request${pendingWelfareList.length !== 1 ? "s" : ""}`}
               icon={Heart}
               className="transition-colors group-hover:border-primary/40"
             />
@@ -444,19 +636,29 @@ export default function DashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <CalendarClock size={16} className="text-muted-foreground" />
-            <CardTitle className="text-base">Upcoming Loan Repayments</CardTitle>
+            <CardTitle className="text-base">
+              Upcoming Loan Repayments
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent>
           {upcomingRepaymentList.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No repayments due</p>
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No repayments due
+            </p>
           ) : (
             <div className="space-y-3">
               {upcomingRepaymentList.map((r) => (
-                <div key={r.id} className="flex items-center justify-between text-sm">
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between text-sm"
+                >
                   <div>
                     <p className="font-medium">{r.member_name}</p>
-                    <p className="text-xs text-muted-foreground">Due {formatDate(r.due_date)} · Installment #{r.installment_number}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Due {formatDate(r.due_date)} · Installment #
+                      {r.installment_number}
+                    </p>
                   </div>
                   <p className="font-semibold">{formatKES(r.total_due)}</p>
                 </div>
@@ -480,17 +682,28 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {recentContribs.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No contributions yet</p>
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No contributions yet
+            </p>
           ) : (
             <div className="space-y-3">
               {recentContribs.map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between text-sm"
+                >
                   <div>
-                    <p className="font-medium">{c.member_name ?? c.member_id}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(c.created_at)}</p>
+                    <p className="font-medium">
+                      {c.member_name ?? c.member_id}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(c.created_at)}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-green-600">{formatKES(c.amount)}</p>
+                    <p className="font-semibold text-green-600">
+                      {formatKES(c.amount)}
+                    </p>
                     <StatusPill status={c.status} size="sm" />
                   </div>
                 </div>

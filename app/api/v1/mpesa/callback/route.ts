@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse, after } from 'next/server';
+﻿import { NextRequest, NextResponse, after } from "next/server";
 import {
   handleSTKCallback,
   logMpesaCallback,
@@ -6,13 +6,13 @@ import {
   markCallbackError,
   emitPaymentReceiptEvent,
   type StkCallbackBody,
-} from '@/lib/services/mpesa.service';
-import { billingService } from '@/lib/services/billing.service';
-import { isSafaricomIp } from '@/lib/services/daraja.service';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
+} from "@/lib/services/mpesa.service";
+import { billingService } from "@/lib/services/billing.service";
+import { isSafaricomIp } from "@/lib/services/daraja.service";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * STK Push callback from Safaricom.
@@ -29,10 +29,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // app itself initiated, and reconciliation/STK-Query as source of truth.
   // We log the caller IP so the allow-list can be re-tightened with real values.
   if (!isSafaricomIp(callerIp)) {
-    logger.warn('[mpesa/callback] caller IP not in Safaricom allow-list — processing anyway', { callerIp });
+    logger.warn(
+      "[mpesa/callback] caller IP not in Safaricom allow-list — processing anyway",
+      { callerIp },
+    );
   }
 
-  const rawBody  = await req.text();
+  const rawBody = await req.text();
 
   let body: StkCallbackBody;
   try {
@@ -46,21 +49,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // a non-200 makes Safaricom retry — previously we acked unconditionally and
   // a callback arriving during an outage was silently lost. The DLQ replay
   // job recovers processing failures from the audit row.
-  const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
+  const callbackId = await logMpesaCallback("stk_push", callerIp, rawBody);
   if (!callbackId && DURABLE_ACK) {
-    logger.error('[mpesa/callback] audit write failed — asking Safaricom to retry');
-    return NextResponse.json({ ResultCode: 1, ResultDesc: 'Retry' }, { status: 503 });
+    logger.error(
+      "[mpesa/callback] audit write failed — asking Safaricom to retry",
+    );
+    return NextResponse.json(
+      { ResultCode: 1, ResultDesc: "Retry" },
+      { status: 503 },
+    );
   }
 
   after(async () => {
     try {
       const result = await handleSTKCallback(body, callerIp);
       if (result.success && result.paymentId && result.amount) {
-        await processFulfillment(result.paymentId, result.amount, result.mpesaReceiptNumber);
+        await processFulfillment(
+          result.paymentId,
+          result.amount,
+          result.mpesaReceiptNumber,
+        );
       }
       if (callbackId) await markCallbackProcessed(callbackId);
     } catch (err) {
-      logger.error('[mpesa/callback] Processing error:', err);
+      logger.error("[mpesa/callback] Processing error:", err);
       if (callbackId) await markCallbackError(callbackId, String(err));
     }
   });
@@ -70,7 +82,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 // Config escape hatch: set MPESA_DURABLE_ACK=false to restore the legacy
 // unconditional 200-ack (e.g. while diagnosing audit-table issues).
-const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== 'false';
+const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== "false";
 
 async function processFulfillment(
   paymentId: string,
@@ -79,13 +91,21 @@ async function processFulfillment(
 ): Promise<void> {
   const payment = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      group_id: string; invoice_id: string | null; mpesa_phone: string | null;
-    }>('SELECT group_id, invoice_id, mpesa_phone FROM payments WHERE id=$1', [paymentId]);
+      group_id: string;
+      invoice_id: string | null;
+      mpesa_phone: string | null;
+    }>("SELECT group_id, invoice_id, mpesa_phone FROM payments WHERE id=$1", [
+      paymentId,
+    ]);
     return rows[0] ?? null;
   });
   if (!payment) return;
 
-  const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
+  const ctx = {
+    userId: "system",
+    groupId: payment.group_id,
+    role: "chairperson",
+  };
 
   // Credit SMS balance if this was an SMS top-up payment. The STK request's
   // purpose enum is authoritative — it's set explicitly at initiation and
@@ -109,7 +129,7 @@ async function processFulfillment(
       [paymentId],
     );
     const purpose = stkRows[0]?.purpose ?? null;
-    if (purpose !== null) return purpose === 'sms_topup';
+    if (purpose !== null) return purpose === "sms_topup";
 
     // Legacy fallback: no purpose recorded — infer from the invoice line.
     // Only reachable for rows predating the purpose column, which are also the
@@ -137,12 +157,12 @@ async function processFulfillment(
 
 function getCallerIp(req: NextRequest): string {
   return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '0.0.0.0'
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "0.0.0.0"
   );
 }
 
 function ack(): NextResponse {
-  return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+  return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
 }

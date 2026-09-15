@@ -16,15 +16,15 @@
  *       → processJobBatch()        (claims + executes up to 10 pending jobs)
  *         → exponential-backoff retry on failure
  */
-import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { enqueueTimeBasedJobs, processJobBatch } from '@/lib/jobs';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import { enqueueTimeBasedJobs, processJobBatch } from "@/lib/jobs";
+import { logger } from "@/lib/logger";
 
 // Force Node.js runtime — pg driver requires it (not Edge-compatible)
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 // Disable Next.js static optimisation — every call must be fresh
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 /**
  * Pinned, not inherited. processJobBatch enforces its own TIME_BUDGET_MS
  * (50s) and that budget is only safe if it is provably below the function's
@@ -42,8 +42,8 @@ export const maxDuration = 60;
  * Hashes both sides before comparing so length differences don't leak via timing.
  */
 function timingSafeEqual(a: string, b: string): boolean {
-  const ha = crypto.createHash('sha256').update(a).digest();
-  const hb = crypto.createHash('sha256').update(b).digest();
+  const ha = crypto.createHash("sha256").update(a).digest();
+  const hb = crypto.createHash("sha256").update(b).digest();
   return crypto.timingSafeEqual(ha, hb);
 }
 
@@ -51,15 +51,15 @@ function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false; // reject if not configured — fail closed
 
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) return false;
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) return false;
 
   return timingSafeEqual(authHeader.slice(7), secret);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!isAuthorised(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const started = Date.now();
@@ -72,9 +72,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const processed = await processJobBatch();
 
     return NextResponse.json({
-      ok:        true,
+      ok: true,
       timestamp: new Date().toISOString(),
-      duration:  `${Date.now() - started}ms`,
+      duration: `${Date.now() - started}ms`,
       enqueued,
       processed,
     });
@@ -83,9 +83,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // raw error message in the response body, contradicting this file's own
     // header comment ("Returns generic error messages to avoid information
     // leakage"). The full error is still logged server-side.
-    logger.error('[cron] Unhandled error:', err);
+    logger.error("[cron] Unhandled error:", err);
     return NextResponse.json(
-      { error: 'Internal error', timestamp: new Date().toISOString() },
+      { error: "Internal error", timestamp: new Date().toISOString() },
       { status: 500 },
     );
   }

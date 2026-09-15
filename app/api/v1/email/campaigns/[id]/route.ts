@@ -1,12 +1,12 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { enqueueJob } from '@/lib/jobs';
-import { ok } from '@/lib/utils/response';
-import { NotFoundError } from '@/lib/utils/errors';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withPermission } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { enqueueJob } from "@/lib/jobs";
+import { ok } from "@/lib/utils/response";
+import { NotFoundError } from "@/lib/utils/errors";
 
-const ActionSchema = z.object({ action: z.enum(['launch', 'cancel']) });
+const ActionSchema = z.object({ action: z.enum(["launch", "cancel"]) });
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,10 +23,13 @@ type Ctx = { params: Promise<{ id: string }> };
  * gate) — the `scoped` ternary below is untouched, it's visibility scope,
  * not the access gate.
  */
-export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
+export async function GET(
+  req: NextRequest,
+  { params }: Ctx,
+): Promise<Response> {
   const { id } = await params;
-  return withPermission(req, 'messaging.send', async (auth) => {
-    const scoped = auth.role !== 'super_admin';
+  return withPermission(req, "messaging.send", async (auth) => {
+    const scoped = auth.role !== "super_admin";
     const { rows } = await withAdminDb((db) =>
       db.query(
         scoped
@@ -35,7 +38,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
         scoped ? [id, auth.groupId] : [id],
       ),
     );
-    if (!rows.length) throw new NotFoundError('Campaign', id);
+    if (!rows.length) throw new NotFoundError("Campaign", id);
 
     const { rows: recipients } = await withAdminDb((db) =>
       db.query(
@@ -49,12 +52,15 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   });
 }
 
-export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
+export async function POST(
+  req: NextRequest,
+  { params }: Ctx,
+): Promise<Response> {
   const { id } = await params;
-  return withPermission(req, 'messaging.manage', async (auth) => {
+  return withPermission(req, "messaging.manage", async (auth) => {
     const { action } = ActionSchema.parse(await req.json());
 
-    const scoped = auth.role !== 'super_admin';
+    const scoped = auth.role !== "super_admin";
     const { rows: owned } = await withAdminDb((db) =>
       db.query(
         scoped
@@ -63,17 +69,21 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
         scoped ? [id, auth.groupId] : [id],
       ),
     );
-    if (!owned.length) throw new NotFoundError('Campaign', id);
+    if (!owned.length) throw new NotFoundError("Campaign", id);
 
-    if (action === 'launch') {
+    if (action === "launch") {
       // OPTIMIZATION_CLEANUP_AUDIT.md High #6 — hand off to the job queue
       // instead of running the per-recipient loop inline in this request.
       await enqueueJob(
-        'email_campaign_launch',
+        "email_campaign_launch",
         { campaignId: id },
-        { priority: 5, max_attempts: 3, dedup_key: `email_campaign_launch:${id}` },
+        {
+          priority: 5,
+          max_attempts: 3,
+          dedup_key: `email_campaign_launch:${id}`,
+        },
       );
-      return ok({ message: 'Campaign queued for launch' });
+      return ok({ message: "Campaign queued for launch" });
     }
 
     await withAdminDb((db) =>
@@ -82,6 +92,6 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
         [id],
       ),
     );
-    return ok({ message: 'Campaign cancelled' });
+    return ok({ message: "Campaign cancelled" });
   });
 }

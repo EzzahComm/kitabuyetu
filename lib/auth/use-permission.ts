@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Client-side counterpart to lib/auth/permissions.ts / organization-permissions.ts
@@ -12,9 +12,9 @@
  * authoritative check. A stale/forged client value can at worst show a
  * button that still 403s; it can never grant access the server wouldn't.
  */
-import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { hasPermission } from '@/lib/auth/permissions';
-import { hasOrganizationPermission } from '@/lib/auth/organization-permissions';
+import { useAuth, isTenantUser } from "@/lib/auth/context";
+import { hasPermission } from "@/lib/auth/permissions";
+import { hasOrganizationPermission } from "@/lib/auth/organization-permissions";
 
 /** Mirrors login/refresh's `effectiveRole` computation (server-side: role.ts
  *  routes' `member.platform_role === 'super_admin' ? 'super_admin' : chosen.group_role`)
@@ -23,7 +23,8 @@ import { hasOrganizationPermission } from '@/lib/auth/organization-permissions';
 export function useHasPermission(permission: string): boolean {
   const { user } = useAuth();
   if (!user || !isTenantUser(user)) return false;
-  const role = user.platformRole === 'super_admin' ? 'super_admin' : user.groupRole;
+  const role =
+    user.platformRole === "super_admin" ? "super_admin" : user.groupRole;
   return hasPermission({ role, permissions: user.permissions }, permission);
 }
 

@@ -1,12 +1,12 @@
-import type { ReactNode } from 'react';
-import { Container } from './primitives';
-import { SiteFooter } from './site-footer';
-import { SiteHeader } from './site-header';
+import type { ReactNode } from "react";
+import { Container } from "./primitives";
+import { SiteFooter } from "./site-footer";
+import { SiteHeader } from "./site-header";
 
 interface PageShellProps {
-  title:        string;
+  title: string;
   description?: string;
-  children:     ReactNode;
+  children: ReactNode;
 }
 
 /**

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * The SMS Centre's operational surfaces (SMS-REAUDIT-2026-09-02 F3/F6).
@@ -13,17 +13,24 @@
  * at all, which is what made T3-5's closure test ("a DSAR is answerable from
  * the UI") untrue despite the service layer being correct and tested.
  */
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlayCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { smsApi, type SmsFailure, type ReminderHistoryRow } from '@/lib/api/endpoints';
-import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
-import { ExpandableText } from '@/components/shared/expandable-text';
-import { useToast } from '@/hooks/use-toast';
-import { formatDate, getErrorMessage } from '@/lib/utils';
-import { StatusPill } from '@/components/shared/status-pill';
-import { SectionHeader } from '@/components/shared/dashboard-sections';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PlayCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  smsApi,
+  type SmsFailure,
+  type ReminderHistoryRow,
+} from "@/lib/api/endpoints";
+import {
+  PaginatedTable,
+  singlePage,
+} from "@/components/shared/paginated-table";
+import { ExpandableText } from "@/components/shared/expandable-text";
+import { useToast } from "@/hooks/use-toast";
+import { formatDate, getErrorMessage } from "@/lib/utils";
+import { StatusPill } from "@/components/shared/status-pill";
+import { SectionHeader } from "@/components/shared/dashboard-sections";
 
 // ─── Failed messages ─────────────────────────────────────────────────────────
 
@@ -46,28 +53,40 @@ export function FailuresTab() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['sms-failures', page],
-    queryFn:  () => smsApi.failures({ page, limit: 20 }),
+    queryKey: ["sms-failures", page],
+    queryFn: () => smsApi.failures({ page, limit: 20 }),
     staleTime: 30_000,
   });
 
   const retry = useMutation({
     mutationFn: (id: string) => smsApi.retryFailure(id),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['sms-failures'] });
-      qc.invalidateQueries({ queryKey: ['sms-logs'] });
+      qc.invalidateQueries({ queryKey: ["sms-failures"] });
+      qc.invalidateQueries({ queryKey: ["sms-logs"] });
       // A suppressed retry is a SUCCESS worth naming rather than hiding: it
       // means the recipient has since opted out, was correctly not messaged,
       // and was not charged.
-      if (res.status === 'suppressed') {
-        toast({ title: 'Not sent — recipient has opted out', description: 'Resolved, and nothing was charged.' });
-      } else if (res.status === 'resolved') {
-        toast({ title: 'Message delivered' });
+      if (res.status === "suppressed") {
+        toast({
+          title: "Not sent — recipient has opted out",
+          description: "Resolved, and nothing was charged.",
+        });
+      } else if (res.status === "resolved") {
+        toast({ title: "Message delivered" });
       } else {
-        toast({ variant: 'destructive', title: 'Still failing', description: 'The provider rejected it again.' });
+        toast({
+          variant: "destructive",
+          title: "Still failing",
+          description: "The provider rejected it again.",
+        });
       }
     },
-    onError: (e) => toast({ variant: 'destructive', title: 'Retry failed', description: getErrorMessage(e) }),
+    onError: (e) =>
+      toast({
+        variant: "destructive",
+        title: "Retry failed",
+        description: getErrorMessage(e),
+      }),
   });
 
   return (
@@ -87,35 +106,53 @@ export function FailuresTab() {
         emptyDescription="Messages that fail are retried automatically; anything still stuck appears here."
         columns={[
           {
-            key: 'phone', header: 'To',
+            key: "phone",
+            header: "To",
             render: (f) => <span className="font-mono text-xs">{f.phone}</span>,
           },
           {
-            key: 'message', header: 'Message', hideBelow: 'md', className: 'max-w-[220px]',
-            render: (f) => <ExpandableText className="text-muted-foreground text-xs">{f.message}</ExpandableText>,
+            key: "message",
+            header: "Message",
+            hideBelow: "md",
+            className: "max-w-[220px]",
+            render: (f) => (
+              <ExpandableText className="text-muted-foreground text-xs">
+                {f.message}
+              </ExpandableText>
+            ),
           },
           {
-            key: 'reason', header: 'Why it failed',
-            render: (f) => <span className="text-xs text-muted-foreground">{f.failure_reason ?? '—'}</span>,
-          },
-          {
-            key: 'attempts', header: 'Attempts', hideBelow: 'sm',
+            key: "reason",
+            header: "Why it failed",
             render: (f) => (
               <span className="text-xs text-muted-foreground">
-                {f.retry_count}/{f.max_retries}
-                {f.exhausted && <span className="ml-1 text-rose-600">· given up</span>}
+                {f.failure_reason ?? "—"}
               </span>
             ),
           },
           {
-            key: 'actions', header: '',
+            key: "attempts",
+            header: "Attempts",
+            hideBelow: "sm",
+            render: (f) => (
+              <span className="text-xs text-muted-foreground">
+                {f.retry_count}/{f.max_retries}
+                {f.exhausted && (
+                  <span className="ml-1 text-rose-600">· given up</span>
+                )}
+              </span>
+            ),
+          },
+          {
+            key: "actions",
+            header: "",
             // Emphasised for exhausted rows specifically: those are the ones
             // nothing else will ever move.
             render: (f) => (
               <Button
                 type="button"
                 size="sm"
-                variant={f.exhausted ? 'default' : 'ghost'}
+                variant={f.exhausted ? "default" : "ghost"}
                 className="text-xs"
                 disabled={retry.isPending}
                 onClick={() => retry.mutate(f.id)}
@@ -145,12 +182,17 @@ export function FailuresTab() {
  * answering a member who asks what you have been sending them.
  */
 export function ReminderHistoryTab() {
-  const [page, setPage]     = useState(1);
-  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['sms-reminder-history', page, status],
-    queryFn:  () => smsApi.reminderHistory({ page, limit: 20, ...(status ? { status } : {}) }),
+    queryKey: ["sms-reminder-history", page, status],
+    queryFn: () =>
+      smsApi.reminderHistory({
+        page,
+        limit: 20,
+        ...(status ? { status } : {}),
+      }),
     staleTime: 30_000,
   });
 
@@ -158,17 +200,26 @@ export function ReminderHistoryTab() {
     <div className="space-y-4">
       <SectionHeader
         title="Automation history"
-        subtitle={data ? `${data.total} reminder${data.total === 1 ? '' : 's'}` : undefined}
+        subtitle={
+          data
+            ? `${data.total} reminder${data.total === 1 ? "" : "s"}`
+            : undefined
+        }
         action={
           <select
             aria-label="Filter by outcome"
             className="text-xs border rounded-lg px-2.5 py-1.5"
             value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">All outcomes</option>
-            {['sent', 'suppressed', 'failed', 'pending'].map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {["sent", "suppressed", "failed", "pending"].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         }
@@ -184,31 +235,48 @@ export function ReminderHistoryTab() {
         emptyDescription="Loan and contribution reminders appear here once they run."
         columns={[
           {
-            key: 'member', header: 'Member',
-            render: (r) => <span className="text-xs">{r.member_name ?? '—'}</span>,
+            key: "member",
+            header: "Member",
+            render: (r) => (
+              <span className="text-xs">{r.member_name ?? "—"}</span>
+            ),
           },
           {
-            key: 'what', header: 'Reminder', hideBelow: 'sm',
+            key: "what",
+            header: "Reminder",
+            hideBelow: "sm",
             render: (r) => (
               <span className="text-xs text-muted-foreground">
-                {r.reference_type.replace(/_/g, ' ')} · {r.reminder_stage.replace(/_/g, ' ')}
+                {r.reference_type.replace(/_/g, " ")} ·{" "}
+                {r.reminder_stage.replace(/_/g, " ")}
               </span>
             ),
           },
           {
-            key: 'status', header: 'Outcome',
+            key: "status",
+            header: "Outcome",
             render: (r) => <StatusPill status={r.status} size="sm" />,
           },
           {
-            key: 'why', header: 'Detail', hideBelow: 'md',
+            key: "why",
+            header: "Detail",
+            hideBelow: "md",
             // For a suppressed row this carries the reason the member was NOT
             // contacted, which is the point of showing those rows at all.
-            render: (r) => <span className="text-xs text-muted-foreground">{r.reason ?? r.channel ?? '—'}</span>,
+            render: (r) => (
+              <span className="text-xs text-muted-foreground">
+                {r.reason ?? r.channel ?? "—"}
+              </span>
+            ),
           },
           {
-            key: 'when', header: 'When', hideBelow: 'sm',
+            key: "when",
+            header: "When",
+            hideBelow: "sm",
             render: (r) => (
-              <span className="text-xs text-muted-foreground">{formatDate(r.sent_at ?? r.created_at)}</span>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(r.sent_at ?? r.created_at)}
+              </span>
             ),
           },
         ]}

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Funding Portal — the self-service view for an Organization's own coordinator.
@@ -16,47 +16,74 @@
  *   - portfolio metrics aggregated ONLY over linked groups (RLS-enforced)
  */
 
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Wallet, Landmark, Users, TrendingUp, PiggyBank, ArrowDownToLine,
-  ArrowRightLeft, Plus, PauseCircle, PlayCircle, FolderKanban, ChevronRight,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
+  Wallet,
+  Landmark,
+  Users,
+  TrendingUp,
+  PiggyBank,
+  ArrowDownToLine,
+  ArrowRightLeft,
+  Plus,
+  PauseCircle,
+  PlayCircle,
+  FolderKanban,
+  ChevronRight,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
-import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
-import { useToast } from '@/hooks/use-toast';
-import { adminApi } from '@/lib/api/client';
-import { organizationApi } from '@/lib/api/endpoints';
-import { formatKES, formatDate } from '@/lib/utils';
-import type { OrganizationGroupSummary } from '@/types/api.types';
-import type { ProgramGroupLine } from '@/lib/services/organization-finance.service';
-import type { PaginatedResult } from '@/types/db.types';
-import type { SetApprovalPolicyInput } from '@/lib/validators/accounting.schema';
-import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
-import { INTEREST_METHODS, REPAYMENT_FREQUENCIES } from '@/lib/validators/organization.schema';
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatCard } from "@/components/shared/stat-card";
+import {
+  PaginatedTable,
+  singlePage,
+} from "@/components/shared/paginated-table";
+import { useToast } from "@/hooks/use-toast";
+import { adminApi } from "@/lib/api/client";
+import { organizationApi } from "@/lib/api/endpoints";
+import { formatKES, formatDate } from "@/lib/utils";
+import type { OrganizationGroupSummary } from "@/types/api.types";
+import type { ProgramGroupLine } from "@/lib/services/organization-finance.service";
+import type { PaginatedResult } from "@/types/db.types";
+import type { SetApprovalPolicyInput } from "@/lib/validators/accounting.schema";
+import type { EffectiveThreshold } from "@/lib/services/approval-policy.service";
+import {
+  INTEREST_METHODS,
+  REPAYMENT_FREQUENCIES,
+} from "@/lib/validators/organization.schema";
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
 interface DashboardPayload {
   /** null when unreadable — NEVER zero-filled (R10). */
   financial: {
-    walletBalance: string; committedFunds: string; totalDeposited: string;
-    totalDisbursed: string; totalReturned: string;
+    walletBalance: string;
+    committedFunds: string;
+    totalDeposited: string;
+    totalDisbursed: string;
+    totalReturned: string;
   } | null;
   /** null when unreadable — NEVER zero-filled (R10). */
   portfolio: {
-    linkedGroups: number; activeMembers: number; totalSavings: string;
-    loanPortfolio: string; activeLoans: number; loanRepayments: string;
+    linkedGroups: number;
+    activeMembers: number;
+    totalSavings: string;
+    loanPortfolio: string;
+    activeLoans: number;
+    loanRepayments: string;
     activePrograms?: number;
   } | null;
   programs: Program[] | null;
@@ -65,39 +92,65 @@ interface DashboardPayload {
 }
 
 interface Program {
-  id: string; name: string; program_type: string; budget: string;
-  disbursed_total: string; status: string; funding_source: string | null;
+  id: string;
+  name: string;
+  program_type: string;
+  budget: string;
+  disbursed_total: string;
+  status: string;
+  funding_source: string | null;
 }
 
 interface Disbursement {
-  id: string; group_name?: string; program_name?: string | null;
-  disbursement_type: string; amount: string; status: string;
-  reference: string; created_at: string;
+  id: string;
+  group_name?: string;
+  program_name?: string | null;
+  disbursement_type: string;
+  amount: string;
+  status: string;
+  reference: string;
+  created_at: string;
 }
 
 interface TrialBalanceLine {
-  accountCode: string; accountName: string; accountType: string; netBalance: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  netBalance: string;
 }
 
 interface ProgramBudgetLine {
-  id: string; name: string; programType: string; status: string;
-  budget: number; disbursed: number; reserved: number; remaining: number;
-  utilizationPct: number; expectedUtilizationPct: number | null;
-  variancePct: number | null; startsOn: string | null; endsOn: string | null;
+  id: string;
+  name: string;
+  programType: string;
+  status: string;
+  budget: number;
+  disbursed: number;
+  reserved: number;
+  remaining: number;
+  utilizationPct: number;
+  expectedUtilizationPct: number | null;
+  variancePct: number | null;
+  startsOn: string | null;
+  endsOn: string | null;
 }
 
 interface DonorSpendLine {
-  fundingSource: string; programCount: number;
-  totalBudget: number; totalDisbursed: number; totalReserved: number;
-  remaining: number; utilizationPct: number;
+  fundingSource: string;
+  programCount: number;
+  totalBudget: number;
+  totalDisbursed: number;
+  totalReserved: number;
+  remaining: number;
+  utilizationPct: number;
   programs: { id: string; name: string; budget: number; disbursed: number }[];
   byGroup: { groupId: string; groupName: string | null; amount: number }[];
 }
 
 const ORG_POLICY_LABELS: Record<string, string> = {
-  org_disbursement_threshold:   'Your own disbursement maker-checker',
-  group_disbursement_threshold: 'Default for linked groups’ disbursements',
-  journal_threshold:            'Default for linked groups’ manual journals',
+  org_disbursement_threshold: "Your own disbursement maker-checker",
+  group_disbursement_threshold: "Default for linked groups’ disbursements",
+  journal_threshold: "Default for linked groups’ manual journals",
 };
 
 // Value/label pairs mirrored from lib/validators/organization.schema.ts's
@@ -105,105 +158,150 @@ const ORG_POLICY_LABELS: Record<string, string> = {
 // create-program dialog couldn't offer two program types the enterprise
 // portal's own equivalent dialog and the server both already support).
 const PROGRAM_TYPES = [
-  ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
-  ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
-  ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
-  ['scholarship', 'Scholarship'], ['insurance', 'Insurance'], ['investment', 'Investment'],
+  ["grant", "Grant"],
+  ["revolving_fund", "Revolving Fund"],
+  ["loan_capital", "Loan Capital"],
+  ["matching_contribution", "Matching Contribution"],
+  ["seed_capital", "Seed Capital"],
+  ["emergency_support", "Emergency Support"],
+  ["operational_support", "Operational Support"],
+  ["scholarship", "Scholarship"],
+  ["insurance", "Insurance"],
+  ["investment", "Investment"],
 ] as const;
 
 const DISBURSEMENT_TYPES = [
-  ['grant', 'Grant'], ['revolving_fund', 'Revolving Fund'], ['loan_capital', 'Loan Capital'],
-  ['matching_contribution', 'Matching Contribution'], ['seed_capital', 'Seed Capital'],
-  ['emergency_support', 'Emergency Support'], ['operational_support', 'Operational Support'],
+  ["grant", "Grant"],
+  ["revolving_fund", "Revolving Fund"],
+  ["loan_capital", "Loan Capital"],
+  ["matching_contribution", "Matching Contribution"],
+  ["seed_capital", "Seed Capital"],
+  ["emergency_support", "Emergency Support"],
+  ["operational_support", "Operational Support"],
 ] as const;
 
-const INTEREST_METHOD_LABELS: Record<(typeof INTEREST_METHODS)[number], string> = {
-  flat: 'Flat', reducing_balance: 'Reducing balance',
+const INTEREST_METHOD_LABELS: Record<
+  (typeof INTEREST_METHODS)[number],
+  string
+> = {
+  flat: "Flat",
+  reducing_balance: "Reducing balance",
 };
-const REPAYMENT_FREQUENCY_LABELS: Record<(typeof REPAYMENT_FREQUENCIES)[number], string> = {
-  none: 'None', weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', bullet: 'Bullet (single payment)',
+const REPAYMENT_FREQUENCY_LABELS: Record<
+  (typeof REPAYMENT_FREQUENCIES)[number],
+  string
+> = {
+  none: "None",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  bullet: "Bullet (single payment)",
 };
 /** Standard convention, matching this file's own hardcoded choice — see
  *  ProgramDialog's comment for why the waterfall order isn't a user control. */
-const STANDARD_WATERFALL: { order: ('penalty' | 'interest' | 'principal')[] } = {
-  order: ['penalty', 'interest', 'principal'],
-};
+const STANDARD_WATERFALL: { order: ("penalty" | "interest" | "principal")[] } =
+  {
+    order: ["penalty", "interest", "principal"],
+  };
 
 export default function FundingPortalPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [depositOpen, setDepositOpen]   = useState(false);
-  const [programOpen, setProgramOpen]   = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [programOpen, setProgramOpen] = useState(false);
   const [disburseOpen, setDisburseOpen] = useState(false);
   const [viewProgramId, setViewProgramId] = useState<string | null>(null);
 
   const { data: dash, isLoading } = useQuery<DashboardPayload>({
-    queryKey: ['organization', 'dashboard'],
-    queryFn:  () => adminApi.get('/organization/dashboard'),
+    queryKey: ["organization", "dashboard"],
+    queryFn: () => adminApi.get("/organization/dashboard"),
     staleTime: 30_000,
     refetchInterval: 120_000,
   });
 
   const { data: healthResponse, isLoading: healthLoading } = useQuery({
-    queryKey: ['organization', 'health'],
-    queryFn:  organizationApi.health,
+    queryKey: ["organization", "health"],
+    queryFn: organizationApi.health,
     staleTime: 30_000,
   });
 
-  const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
-    queryKey: ['organization', 'groups'],
-    queryFn:  () => organizationApi.groups(),
+  const { data: groupsPage } = useQuery<
+    PaginatedResult<OrganizationGroupSummary>
+  >({
+    queryKey: ["organization", "groups"],
+    queryFn: () => organizationApi.groups(),
     staleTime: 60_000,
   });
   const groups = groupsPage?.items;
 
   const { data: disb } = useQuery<{ items: Disbursement[] }>({
-    queryKey: ['organization', 'disbursements'],
-    queryFn:  () => adminApi.get('/organization/disbursements?limit=10'),
+    queryKey: ["organization", "disbursements"],
+    queryFn: () => adminApi.get("/organization/disbursements?limit=10"),
     staleTime: 30_000,
   });
 
-  const { data: accounting, isError: accountingIsError, error: accountingError } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
-    queryKey: ['organization', 'accounting'],
-    queryFn:  () => adminApi.get('/organization/accounting'),
+  const {
+    data: accounting,
+    isError: accountingIsError,
+    error: accountingError,
+  } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
+    queryKey: ["organization", "accounting"],
+    queryFn: () => adminApi.get("/organization/accounting"),
     staleTime: 30_000,
   });
 
-  const { data: budgetReport, isError: budgetReportIsError, error: budgetReportError } = useQuery<{ items: ProgramBudgetLine[] }>({
-    queryKey: ['organization', 'budget-report'],
-    queryFn:  () => adminApi.get('/organization/programs?report=budget'),
+  const {
+    data: budgetReport,
+    isError: budgetReportIsError,
+    error: budgetReportError,
+  } = useQuery<{ items: ProgramBudgetLine[] }>({
+    queryKey: ["organization", "budget-report"],
+    queryFn: () => adminApi.get("/organization/programs?report=budget"),
     staleTime: 30_000,
   });
 
   const { data: donorReport } = useQuery<{ items: DonorSpendLine[] }>({
-    queryKey: ['organization', 'donor-report'],
-    queryFn:  () => adminApi.get('/organization/programs?report=donor'),
+    queryKey: ["organization", "donor-report"],
+    queryFn: () => adminApi.get("/organization/programs?report=donor"),
     staleTime: 30_000,
   });
 
-  const { data: policies, isLoading: loadingPolicies } = useQuery<EffectiveThreshold[]>({
-    queryKey: ['organization', 'policies'],
-    queryFn:  organizationApi.policies,
+  const { data: policies, isLoading: loadingPolicies } = useQuery<
+    EffectiveThreshold[]
+  >({
+    queryKey: ["organization", "policies"],
+    queryFn: organizationApi.policies,
     staleTime: 30_000,
   });
   const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
   const setPolicy = useMutation({
-    mutationFn: (body: SetApprovalPolicyInput) => organizationApi.setPolicy(body),
+    mutationFn: (body: SetApprovalPolicyInput) =>
+      organizationApi.setPolicy(body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization', 'policies'] });
-      toast({ title: 'Policy updated' });
+      qc.invalidateQueries({ queryKey: ["organization", "policies"] });
+      toast({ title: "Policy updated" });
     },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
+    onError: (e: Error) =>
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: e.message,
+      }),
   });
 
   const toggleProgram = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       adminApi.patch(`/organization/programs/${id}`, { status }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
-      toast({ title: 'Program updated' });
+      qc.invalidateQueries({ queryKey: ["organization"] });
+      toast({ title: "Program updated" });
     },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
+    onError: (e: Error) =>
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: e.message,
+      }),
   });
 
   const f = dash?.financial;
@@ -213,17 +311,23 @@ export default function FundingPortalPage() {
   // R10 — never render money we could not actually read. This page is where
   // disbursements get decided, so a wallet balance falling back to "KES 0"
   // would be the most costly possible place to show a confident wrong number.
-  const NA = '—';
-  const fMoney = (v: string | undefined) => (f && v !== undefined ? formatKES(parseFloat(v)) : NA);
-  const pMoney = (v: string | undefined, available: boolean = true) => (available && v !== undefined ? formatKES(parseFloat(v)) : NA);
-  const pCount = (v: number | undefined, available: boolean = true) => (available && v !== undefined ? v.toLocaleString() : NA);
-  const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
+  const NA = "—";
+  const fMoney = (v: string | undefined) =>
+    f && v !== undefined ? formatKES(parseFloat(v)) : NA;
+  const pMoney = (v: string | undefined, available: boolean = true) =>
+    available && v !== undefined ? formatKES(parseFloat(v)) : NA;
+  const pCount = (v: number | undefined, available: boolean = true) =>
+    available && v !== undefined ? v.toLocaleString() : NA;
+  const pct = (v: number | null | undefined) =>
+    v !== null && v !== undefined ? `${v}%` : NA;
   // A non-zero risk figure must not render identically to a healthy zero.
   // Tinted only when a number was actually read — a dash is not a warning.
   const riskTone = (v: number | undefined, severe = false) =>
     h && v !== undefined && v > 0
-      ? (severe ? 'text-red-600 dark:text-red-500' : 'text-amber-600 dark:text-amber-500')
-      : '';
+      ? severe
+        ? "text-red-600 dark:text-red-500"
+        : "text-amber-600 dark:text-amber-500"
+      : "";
   const linkedGroups = groups ?? [];
 
   return (
@@ -233,10 +337,19 @@ export default function FundingPortalPage() {
         description="Fund, monitor and support your linked groups"
         actions={
           <>
-            <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-9"
+              onClick={() => setDepositOpen(true)}
+            >
               <ArrowDownToLine size={15} /> Deposit
             </Button>
-            <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
+            <Button
+              size="sm"
+              className="gap-1.5 h-9"
+              onClick={() => setDisburseOpen(true)}
+            >
               <ArrowRightLeft size={15} /> Disburse funds
             </Button>
           </>
@@ -246,64 +359,136 @@ export default function FundingPortalPage() {
       {/* Financial position */}
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Wallet balance" value={fMoney(f?.walletBalance)}
-                    description={`${fMoney(f?.committedFunds)} committed`} icon={Wallet} />
-          <StatCard title="Total deposited" value={fMoney(f?.totalDeposited)} icon={ArrowDownToLine} />
-          <StatCard title="Total disbursed" value={fMoney(f?.totalDisbursed)}
-                    description={`${fMoney(f?.totalReturned)} returned`} icon={ArrowRightLeft} />
-          <StatCard title="Active programs" value={pCount(p?.activePrograms)} icon={FolderKanban} />
+          <StatCard
+            title="Wallet balance"
+            value={fMoney(f?.walletBalance)}
+            description={`${fMoney(f?.committedFunds)} committed`}
+            icon={Wallet}
+          />
+          <StatCard
+            title="Total deposited"
+            value={fMoney(f?.totalDeposited)}
+            icon={ArrowDownToLine}
+          />
+          <StatCard
+            title="Total disbursed"
+            value={fMoney(f?.totalDisbursed)}
+            description={`${fMoney(f?.totalReturned)} returned`}
+            icon={ArrowRightLeft}
+          />
+          <StatCard
+            title="Active programs"
+            value={pCount(p?.activePrograms)}
+            icon={FolderKanban}
+          />
         </div>
       )}
 
       {/* Portfolio */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Linked groups" value={pCount(p?.linkedGroups, !!p)} icon={Landmark} />
-        <StatCard title="Active members" value={pCount(p?.activeMembers, !!p)} icon={Users} />
-        <StatCard title="Savings mobilized" value={pMoney(p?.totalSavings, !!p)} icon={PiggyBank} />
-        <StatCard title="Loan portfolio" value={pMoney(p?.loanPortfolio, !!p)}
-                  description={`${pCount(p?.activeLoans, !!p)} active · ${pMoney(p?.loanRepayments, !!p)} repaid`} icon={TrendingUp} />
+        <StatCard
+          title="Linked groups"
+          value={pCount(p?.linkedGroups, !!p)}
+          icon={Landmark}
+        />
+        <StatCard
+          title="Active members"
+          value={pCount(p?.activeMembers, !!p)}
+          icon={Users}
+        />
+        <StatCard
+          title="Savings mobilized"
+          value={pMoney(p?.totalSavings, !!p)}
+          icon={PiggyBank}
+        />
+        <StatCard
+          title="Loan portfolio"
+          value={pMoney(p?.loanPortfolio, !!p)}
+          description={`${pCount(p?.activeLoans, !!p)} active · ${pMoney(p?.loanRepayments, !!p)} repaid`}
+          icon={TrendingUp}
+        />
       </div>
 
       {/* Portfolio health — risk indicators */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Portfolio health</CardTitle>
-          <p className="text-xs text-muted-foreground">Overdue loans, arrears, defaults, and membership movement</p>
+          <p className="text-xs text-muted-foreground">
+            Overdue loans, arrears, defaults, and membership movement
+          </p>
         </CardHeader>
         <CardContent>
           {healthLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Overdue loans</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>{pCount(h?.overdueLoans, !!h)}</p>
-                <p className="text-xs text-muted-foreground">{pct(h?.overdueLoanPct)} of active</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Overdue loans
+                </p>
+                <p
+                  className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}
+                >
+                  {pCount(h?.overdueLoans, !!h)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pct(h?.overdueLoanPct)} of active
+                </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Overdue outstanding</p>
-                <p className="text-2xl font-semibold tabular-nums">{pMoney(h?.overdueOutstanding, !!h)}</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Overdue outstanding
+                </p>
+                <p className="text-2xl font-semibold tabular-nums">
+                  {pMoney(h?.overdueOutstanding, !!h)}
+                </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Groups in arrears</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>{pCount(h?.groupsInArrears, !!h)}</p>
-                <p className="text-xs text-muted-foreground">{pct(h?.groupsInArrearsPct)} of linked</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Groups in arrears
+                </p>
+                <p
+                  className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}
+                >
+                  {pCount(h?.groupsInArrears, !!h)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pct(h?.groupsInArrearsPct)} of linked
+                </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Defaulted loans</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>{pCount(h?.defaultedLoans, !!h)}</p>
-                <p className="text-xs text-muted-foreground">{pMoney(h?.defaultedOutstanding, !!h)}</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Defaulted loans
+                </p>
+                <p
+                  className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}
+                >
+                  {pCount(h?.defaultedLoans, !!h)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pMoney(h?.defaultedOutstanding, !!h)}
+                </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Inactive members</p>
-                <p className="text-2xl font-semibold tabular-nums">{pCount(h?.inactiveMembers, !!h)}</p>
-                <p className="text-xs text-muted-foreground">{pCount(h?.newMembers30d, !!h)} new (30d)</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Inactive members
+                </p>
+                <p className="text-2xl font-semibold tabular-nums">
+                  {pCount(h?.inactiveMembers, !!h)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pCount(h?.newMembers30d, !!h)} new (30d)
+                </p>
               </div>
             </div>
           )}
@@ -316,7 +501,12 @@ export default function FundingPortalPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Funding programs</CardTitle>
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setProgramOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1"
+                onClick={() => setProgramOpen(true)}
+              >
                 <Plus size={13} /> New program
               </Button>
             </div>
@@ -331,45 +521,74 @@ export default function FundingPortalPage() {
                 {(dash?.programs ?? []).map((pr) => {
                   const spent = parseFloat(pr.disbursed_total);
                   const budget = parseFloat(pr.budget);
-                  const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+                  const pct =
+                    budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
                   return (
                     <div
                       key={pr.id}
-                      role="button" tabIndex={0}
+                      role="button"
+                      tabIndex={0}
                       className="rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50"
                       onClick={() => setViewProgramId(pr.id)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setViewProgramId(pr.id); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ")
+                          setViewProgramId(pr.id);
+                      }}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{pr.name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {pr.name}
+                          </p>
                           <p className="text-xs text-muted-foreground capitalize">
-                            {pr.program_type.replace(/_/g, ' ')}
-                            {pr.funding_source ? ` · ${pr.funding_source}` : ''}
+                            {pr.program_type.replace(/_/g, " ")}
+                            {pr.funding_source ? ` · ${pr.funding_source}` : ""}
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant={pr.status === 'active' ? 'success' : 'outline'} className="text-xs capitalize">
+                          <Badge
+                            variant={
+                              pr.status === "active" ? "success" : "outline"
+                            }
+                            className="text-xs capitalize"
+                          >
                             {pr.status}
                           </Badge>
                           <Button
-                            size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            title={pr.status === 'active' ? 'Pause program' : 'Reactivate program'}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            title={
+                              pr.status === "active"
+                                ? "Pause program"
+                                : "Reactivate program"
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleProgram.mutate({
                                 id: pr.id,
-                                status: pr.status === 'active' ? 'paused' : 'active',
+                                status:
+                                  pr.status === "active" ? "paused" : "active",
                               });
                             }}
                           >
-                            {pr.status === 'active' ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
+                            {pr.status === "active" ? (
+                              <PauseCircle size={15} />
+                            ) : (
+                              <PlayCircle size={15} />
+                            )}
                           </Button>
-                          <ChevronRight size={15} className="text-muted-foreground" />
+                          <ChevronRight
+                            size={15}
+                            className="text-muted-foreground"
+                          />
                         </div>
                       </div>
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded bg-muted">
-                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatKES(spent)} of {formatKES(budget)} disbursed
@@ -389,21 +608,33 @@ export default function FundingPortalPage() {
           </CardHeader>
           <CardContent>
             {(disb?.items ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No disbursements yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No disbursements yet.
+              </p>
             ) : (
               <div className="space-y-2.5">
                 {(disb?.items ?? []).map((d) => (
-                  <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{d.group_name ?? d.id}</p>
+                      <p className="font-medium truncate">
+                        {d.group_name ?? d.id}
+                      </p>
                       <p className="text-xs text-muted-foreground capitalize truncate">
-                        {d.disbursement_type.replace(/_/g, ' ')}
-                        {d.program_name ? ` · ${d.program_name}` : ''} · {formatDate(d.created_at)}
+                        {d.disbursement_type.replace(/_/g, " ")}
+                        {d.program_name ? ` · ${d.program_name}` : ""} ·{" "}
+                        {formatDate(d.created_at)}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-semibold">{formatKES(parseFloat(d.amount))}</p>
-                      <p className="text-[11px] font-mono text-muted-foreground">{d.reference}</p>
+                      <p className="font-semibold">
+                        {formatKES(parseFloat(d.amount))}
+                      </p>
+                      <p className="text-[11px] font-mono text-muted-foreground">
+                        {d.reference}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -424,17 +655,41 @@ export default function FundingPortalPage() {
         </CardHeader>
         <CardContent className="p-0">
           <PaginatedTable
-            data={singlePage((accounting?.trialBalance ?? []).map((line) => ({ ...line, id: line.accountCode })))}
+            data={singlePage(
+              (accounting?.trialBalance ?? []).map((line) => ({
+                ...line,
+                id: line.accountCode,
+              })),
+            )}
             isLoading={false}
             isError={accountingIsError}
             error={accountingError}
             onPageChange={() => {}}
             emptyMessage="No activity posted yet."
             columns={[
-              { key: 'accountCode', header: 'Code', className: 'font-mono text-xs text-muted-foreground', render: (line) => line.accountCode },
-              { key: 'accountName', header: 'Account', render: (line) => line.accountName },
-              { key: 'accountType', header: 'Type', className: 'text-xs text-muted-foreground capitalize', render: (line) => line.accountType },
-              { key: 'netBalance', header: 'Balance', className: 'text-right font-medium tabular-nums', render: (line) => formatKES(parseFloat(line.netBalance)) },
+              {
+                key: "accountCode",
+                header: "Code",
+                className: "font-mono text-xs text-muted-foreground",
+                render: (line) => line.accountCode,
+              },
+              {
+                key: "accountName",
+                header: "Account",
+                render: (line) => line.accountName,
+              },
+              {
+                key: "accountType",
+                header: "Type",
+                className: "text-xs text-muted-foreground capitalize",
+                render: (line) => line.accountType,
+              },
+              {
+                key: "netBalance",
+                header: "Balance",
+                className: "text-right font-medium tabular-nums",
+                render: (line) => formatKES(parseFloat(line.netBalance)),
+              },
             ]}
           />
         </CardContent>
@@ -460,30 +715,67 @@ export default function FundingPortalPage() {
             emptyMessage="No programs yet."
             columns={[
               {
-                key: 'name', header: 'Program', render: (line) => (
+                key: "name",
+                header: "Program",
+                render: (line) => (
                   <>
                     <p className="font-medium">{line.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {line.programType.replace(/_/g, ' ')} · {line.status}
+                      {line.programType.replace(/_/g, " ")} · {line.status}
                     </p>
                   </>
                 ),
               },
-              { key: 'budget', header: 'Budget', className: 'text-right tabular-nums', render: (line) => formatKES(line.budget) },
-              { key: 'disbursed', header: 'Disbursed', className: 'text-right tabular-nums', render: (line) => formatKES(line.disbursed) },
-              { key: 'reserved', header: 'Reserved', className: 'text-right tabular-nums', render: (line) => line.reserved > 0 ? formatKES(line.reserved) : '—' },
-              { key: 'remaining', header: 'Remaining', className: 'text-right tabular-nums', render: (line) => formatKES(line.remaining) },
-              { key: 'utilizationPct', header: 'Utilization', className: 'text-right tabular-nums font-medium', render: (line) => `${line.utilizationPct.toFixed(1)}%` },
               {
-                key: 'variancePct', header: 'Schedule variance', className: 'text-right tabular-nums', render: (line) => (
+                key: "budget",
+                header: "Budget",
+                className: "text-right tabular-nums",
+                render: (line) => formatKES(line.budget),
+              },
+              {
+                key: "disbursed",
+                header: "Disbursed",
+                className: "text-right tabular-nums",
+                render: (line) => formatKES(line.disbursed),
+              },
+              {
+                key: "reserved",
+                header: "Reserved",
+                className: "text-right tabular-nums",
+                render: (line) =>
+                  line.reserved > 0 ? formatKES(line.reserved) : "—",
+              },
+              {
+                key: "remaining",
+                header: "Remaining",
+                className: "text-right tabular-nums",
+                render: (line) => formatKES(line.remaining),
+              },
+              {
+                key: "utilizationPct",
+                header: "Utilization",
+                className: "text-right tabular-nums font-medium",
+                render: (line) => `${line.utilizationPct.toFixed(1)}%`,
+              },
+              {
+                key: "variancePct",
+                header: "Schedule variance",
+                className: "text-right tabular-nums",
+                render: (line) =>
                   line.variancePct === null ? (
                     <span className="text-muted-foreground">undated</span>
                   ) : (
-                    <span className={line.variancePct < -10 ? 'text-amber-600 dark:text-amber-500' : ''}>
-                      {line.variancePct >= 0 ? '+' : ''}{line.variancePct.toFixed(1)}%
+                    <span
+                      className={
+                        line.variancePct < -10
+                          ? "text-amber-600 dark:text-amber-500"
+                          : ""
+                      }
+                    >
+                      {line.variancePct >= 0 ? "+" : ""}
+                      {line.variancePct.toFixed(1)}%
                     </span>
-                  )
-                ),
+                  ),
               },
             ]}
           />
@@ -501,7 +793,9 @@ export default function FundingPortalPage() {
         </CardHeader>
         <CardContent>
           {(donorReport?.items ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No funding programs yet.</p>
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No funding programs yet.
+            </p>
           ) : (
             <div className="space-y-4">
               {(donorReport?.items ?? []).map((d) => (
@@ -510,7 +804,8 @@ export default function FundingPortalPage() {
                     <div>
                       <p className="font-medium">{d.fundingSource}</p>
                       <p className="text-xs text-muted-foreground">
-                        {d.programCount} program{d.programCount === 1 ? '' : 's'}
+                        {d.programCount} program
+                        {d.programCount === 1 ? "" : "s"}
                       </p>
                     </div>
                     <div className="flex gap-4 text-sm tabular-nums">
@@ -519,26 +814,41 @@ export default function FundingPortalPage() {
                         <p>{formatKES(d.totalBudget)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Disbursed</p>
+                        <p className="text-xs text-muted-foreground">
+                          Disbursed
+                        </p>
                         <p>{formatKES(d.totalDisbursed)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Remaining</p>
+                        <p className="text-xs text-muted-foreground">
+                          Remaining
+                        </p>
                         <p>{formatKES(d.remaining)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Utilization</p>
-                        <p className="font-medium">{d.utilizationPct.toFixed(1)}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          Utilization
+                        </p>
+                        <p className="font-medium">
+                          {d.utilizationPct.toFixed(1)}%
+                        </p>
                       </div>
                     </div>
                   </div>
                   {d.byGroup.length > 0 && (
                     <div className="mt-2.5 pt-2.5 border-t">
-                      <p className="text-xs text-muted-foreground mb-1.5">Settled spend by recipient group</p>
+                      <p className="text-xs text-muted-foreground mb-1.5">
+                        Settled spend by recipient group
+                      </p>
                       <div className="flex flex-wrap gap-1.5">
                         {d.byGroup.map((g) => (
-                          <Badge key={g.groupId} variant="secondary" className="font-normal">
-                            {g.groupName ?? 'Unknown group'} · {formatKES(g.amount)}
+                          <Badge
+                            key={g.groupId}
+                            variant="secondary"
+                            className="font-normal"
+                          >
+                            {g.groupName ?? "Unknown group"} ·{" "}
+                            {formatKES(g.amount)}
                           </Badge>
                         ))}
                       </div>
@@ -556,8 +866,8 @@ export default function FundingPortalPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Approval policies</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Your own disbursement threshold, plus the defaults you hand down
-            to linked groups — any group can still set its own override.
+            Your own disbursement threshold, plus the defaults you hand down to
+            linked groups — any group can still set its own override.
           </p>
         </CardHeader>
         <CardContent>
@@ -569,23 +879,53 @@ export default function FundingPortalPage() {
                 const editValue = policyEdits[p.key] ?? String(p.threshold);
                 const dirty = editValue !== String(p.threshold);
                 return (
-                  <div key={p.key} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                  <div
+                    key={p.key}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                  >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{ORG_POLICY_LABELS[p.key] ?? p.key}</p>
-                      <Badge variant={p.source === 'organization' ? 'success' : 'outline'} className="text-xs capitalize mt-1">
-                        {p.source === 'organization' ? 'Your override' : `Inherited — ${p.source}`}
+                      <p className="text-sm font-medium truncate">
+                        {ORG_POLICY_LABELS[p.key] ?? p.key}
+                      </p>
+                      <Badge
+                        variant={
+                          p.source === "organization" ? "success" : "outline"
+                        }
+                        className="text-xs capitalize mt-1"
+                      >
+                        {p.source === "organization"
+                          ? "Your override"
+                          : `Inherited — ${p.source}`}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Input
-                        type="number" min={0} className="h-8 w-32"
+                        type="number"
+                        min={0}
+                        className="h-8 w-32"
                         value={editValue}
-                        onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                        onChange={(e) =>
+                          setPolicyEdits((prev) => ({
+                            ...prev,
+                            [p.key]: e.target.value,
+                          }))
+                        }
                       />
                       <Button
-                        size="sm" variant="outline" className="h-8"
-                        disabled={!dirty || setPolicy.isPending || !(parseFloat(editValue) >= 0)}
-                        onClick={() => setPolicy.mutate({ key: p.key, threshold: parseFloat(editValue) })}
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        disabled={
+                          !dirty ||
+                          setPolicy.isPending ||
+                          !(parseFloat(editValue) >= 0)
+                        }
+                        onClick={() =>
+                          setPolicy.mutate({
+                            key: p.key,
+                            threshold: parseFloat(editValue),
+                          })
+                        }
                       >
                         Set
                       </Button>
@@ -606,7 +946,8 @@ export default function FundingPortalPage() {
         <CardContent>
           {linkedGroups.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              No groups linked yet. Group links are managed by the platform team.
+              No groups linked yet. Group links are managed by the platform
+              team.
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -614,9 +955,15 @@ export default function FundingPortalPage() {
                 <div key={g.groupId} className="rounded-lg border p-3">
                   <p className="font-medium text-sm truncate">{g.groupName}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {g.groupType && <Badge variant="outline" className="text-xs capitalize">{g.groupType}</Badge>}
+                    {g.groupType && (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {g.groupType}
+                      </Badge>
+                    )}
                     <span>{g.activeMemberCount ?? 0} members</span>
-                    <span>{formatKES(parseFloat(g.totalContributions ?? '0'))} saved</span>
+                    <span>
+                      {formatKES(parseFloat(g.totalContributions ?? "0"))} saved
+                    </span>
                   </div>
                 </div>
               ))}
@@ -627,12 +974,15 @@ export default function FundingPortalPage() {
 
       <DepositDialog open={depositOpen} onClose={() => setDepositOpen(false)} />
       <ProgramDialog open={programOpen} onClose={() => setProgramOpen(false)} />
-      <ProgramGroupsDialog programId={viewProgramId} onClose={() => setViewProgramId(null)} />
+      <ProgramGroupsDialog
+        programId={viewProgramId}
+        onClose={() => setViewProgramId(null)}
+      />
       <DisburseDialog
         open={disburseOpen}
         onClose={() => setDisburseOpen(false)}
         groups={linkedGroups}
-        programs={(dash?.programs ?? []).filter((pr) => pr.status === 'active')}
+        programs={(dash?.programs ?? []).filter((pr) => pr.status === "active")}
       />
     </div>
   );
@@ -640,47 +990,91 @@ export default function FundingPortalPage() {
 
 // ─── Deposit dialog ───────────────────────────────────────────────────────────
 
-function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function DepositDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [amount, setAmount] = useState('');
-  const [source, setSource] = useState('');
+  const [amount, setAmount] = useState("");
+  const [source, setSource] = useState("");
 
   const deposit = useMutation({
-    mutationFn: () => organizationApi.deposit({
-      amount: parseFloat(amount),
-      source: source || undefined,
-    }),
+    mutationFn: () =>
+      organizationApi.deposit({
+        amount: parseFloat(amount),
+        source: source || undefined,
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
-      toast({ title: 'Deposit recorded', description: 'Wallet balance updated.' });
-      setAmount(''); setSource('');
+      qc.invalidateQueries({ queryKey: ["organization"] });
+      toast({
+        title: "Deposit recorded",
+        description: "Wallet balance updated.",
+      });
+      setAmount("");
+      setSource("");
       onClose();
     },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Deposit failed', description: e.message }),
+    onError: (e: Error) =>
+      toast({
+        variant: "destructive",
+        title: "Deposit failed",
+        description: e.message,
+      }),
   });
 
   const ok = parseFloat(amount) > 0;
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Record a deposit</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Record a deposit</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Amount (KES)</Label>
-            <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1000000" />
+            <Input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="1000000"
+            />
           </div>
           <div className="space-y-1">
-            <Label>Funding source <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. World Bank FY26 tranche" />
+            <Label>
+              Funding source{" "}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <Input
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder="e.g. World Bank FY26 tranche"
+            />
           </div>
           <p className="text-xs text-muted-foreground">
-            Recorded on the organization ledger. Bank/M-Pesa settlement is reconciled separately.
+            Recorded on the organization ledger. Bank/M-Pesa settlement is
+            reconciled separately.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => deposit.mutate()} disabled={!ok || deposit.isPending}>Record deposit</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => deposit.mutate()}
+            disabled={!ok || deposit.isPending}
+          >
+            Record deposit
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -689,94 +1083,157 @@ function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
 // ─── New program dialog ───────────────────────────────────────────────────────
 
-function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ProgramDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [name, setName]     = useState('');
-  const [type, setType]     = useState<(typeof PROGRAM_TYPES)[number][0]>('grant');
-  const [budget, setBudget] = useState('');
-  const [source, setSource] = useState('');
+  const [name, setName] = useState("");
+  const [type, setType] = useState<(typeof PROGRAM_TYPES)[number][0]>("grant");
+  const [budget, setBudget] = useState("");
+  const [source, setSource] = useState("");
 
   // Financial-product terms (migration 116) — this dialog is the only place a
   // product gets created, and until now none of these had a form field at
   // all despite existing in the schema/validator since Phase 1.
-  const [repayable, setRepayable]           = useState(false);
-  const [interestMethod, setInterestMethod] = useState<(typeof INTEREST_METHODS)[number]>('flat');
-  const [interestRate, setInterestRate]     = useState('');
-  const [frequency, setFrequency]           = useState<(typeof REPAYMENT_FREQUENCIES)[number]>('monthly');
-  const [tenorMonths, setTenorMonths]       = useState('');
+  const [repayable, setRepayable] = useState(false);
+  const [interestMethod, setInterestMethod] =
+    useState<(typeof INTEREST_METHODS)[number]>("flat");
+  const [interestRate, setInterestRate] = useState("");
+  const [frequency, setFrequency] =
+    useState<(typeof REPAYMENT_FREQUENCIES)[number]>("monthly");
+  const [tenorMonths, setTenorMonths] = useState("");
   // Processing fee (migration 125) — independent of `repayable`, so its own
   // field, always visible.
-  const [feePct, setFeePct] = useState('');
+  const [feePct, setFeePct] = useState("");
 
   const create = useMutation({
-    mutationFn: () => organizationApi.createProgram({
-      name,
-      programType: type,
-      budget: parseFloat(budget),
-      fundingSource: source || undefined,
-      isRepayable: repayable,
-      ...(repayable ? {
-        interestMethod,
-        interestRateAnnual: parseFloat(interestRate),
-        repaymentFrequency: frequency,
-        tenorMonths: parseInt(tenorMonths, 10),
-        // Standard order, not exposed as a control — see STANDARD_WATERFALL.
-        repaymentWaterfall: STANDARD_WATERFALL,
-      } : {}),
-      processingFeePct: feePct ? parseFloat(feePct) : undefined,
-    }),
+    mutationFn: () =>
+      organizationApi.createProgram({
+        name,
+        programType: type,
+        budget: parseFloat(budget),
+        fundingSource: source || undefined,
+        isRepayable: repayable,
+        ...(repayable
+          ? {
+              interestMethod,
+              interestRateAnnual: parseFloat(interestRate),
+              repaymentFrequency: frequency,
+              tenorMonths: parseInt(tenorMonths, 10),
+              // Standard order, not exposed as a control — see STANDARD_WATERFALL.
+              repaymentWaterfall: STANDARD_WATERFALL,
+            }
+          : {}),
+        processingFeePct: feePct ? parseFloat(feePct) : undefined,
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
-      toast({ title: 'Program created' });
-      setName(''); setBudget(''); setSource(''); setType('grant');
-      setRepayable(false); setInterestMethod('flat'); setInterestRate('');
-      setFrequency('monthly'); setTenorMonths(''); setFeePct('');
+      qc.invalidateQueries({ queryKey: ["organization"] });
+      toast({ title: "Program created" });
+      setName("");
+      setBudget("");
+      setSource("");
+      setType("grant");
+      setRepayable(false);
+      setInterestMethod("flat");
+      setInterestRate("");
+      setFrequency("monthly");
+      setTenorMonths("");
+      setFeePct("");
       onClose();
     },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Create failed', description: e.message }),
+    onError: (e: Error) =>
+      toast({
+        variant: "destructive",
+        title: "Create failed",
+        description: e.message,
+      }),
   });
 
-  const ok = name.trim().length >= 3 && parseFloat(budget) > 0
-    && (!repayable || (parseFloat(interestRate) >= 0 && parseInt(tenorMonths, 10) > 0));
-  const monthlyEquivalent = parseFloat(interestRate) > 0 ? (parseFloat(interestRate) / 12).toFixed(2) : null;
+  const ok =
+    name.trim().length >= 3 &&
+    parseFloat(budget) > 0 &&
+    (!repayable ||
+      (parseFloat(interestRate) >= 0 && parseInt(tenorMonths, 10) > 0));
+  const monthlyEquivalent =
+    parseFloat(interestRate) > 0
+      ? (parseFloat(interestRate) / 12).toFixed(2)
+      : null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>New funding program</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>New funding program</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Program name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Women Empowerment Fund" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Women Empowerment Fund"
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Type</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={type} onChange={(e) => setType(e.target.value as (typeof PROGRAM_TYPES)[number][0])}
+                value={type}
+                onChange={(e) =>
+                  setType(e.target.value as (typeof PROGRAM_TYPES)[number][0])
+                }
               >
-                {PROGRAM_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {PROGRAM_TYPES.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">
               <Label>Budget (KES)</Label>
-              <Input type="number" min={1} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="5000000" />
+              <Input
+                type="number"
+                min={1}
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                placeholder="5000000"
+              />
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Funding source <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Donor / internal budget line" />
+            <Label>
+              Funding source{" "}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <Input
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder="Donor / internal budget line"
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
             <div>
               <p className="text-sm font-medium">Repayable</p>
-              <p className="text-xs text-muted-foreground">Groups owe this capital back, with interest</p>
+              <p className="text-xs text-muted-foreground">
+                Groups owe this capital back, with interest
+              </p>
             </div>
             <input
-              type="checkbox" checked={repayable}
+              type="checkbox"
+              checked={repayable}
               onChange={(e) => setRepayable(e.target.checked)}
               className="h-4 w-4"
             />
@@ -790,20 +1247,33 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={interestMethod}
-                    onChange={(e) => setInterestMethod(e.target.value as (typeof INTEREST_METHODS)[number])}
+                    onChange={(e) =>
+                      setInterestMethod(
+                        e.target.value as (typeof INTEREST_METHODS)[number],
+                      )
+                    }
                   >
-                    {INTEREST_METHODS.map((m) => <option key={m} value={m}>{INTEREST_METHOD_LABELS[m]}</option>)}
+                    {INTEREST_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {INTEREST_METHOD_LABELS[m]}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label>Interest rate — annual %</Label>
                   <Input
-                    type="number" min={0} step="0.01" value={interestRate}
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={interestRate}
                     onChange={(e) => setInterestRate(e.target.value)}
                     placeholder="120"
                   />
                   {monthlyEquivalent && (
-                    <p className="text-xs text-muted-foreground">≈ {monthlyEquivalent}% per month</p>
+                    <p className="text-xs text-muted-foreground">
+                      ≈ {monthlyEquivalent}% per month
+                    </p>
                   )}
                 </div>
               </div>
@@ -813,17 +1283,28 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={frequency}
-                    onChange={(e) => setFrequency(e.target.value as (typeof REPAYMENT_FREQUENCIES)[number])}
+                    onChange={(e) =>
+                      setFrequency(
+                        e.target
+                          .value as (typeof REPAYMENT_FREQUENCIES)[number],
+                      )
+                    }
                   >
-                    {REPAYMENT_FREQUENCIES.filter((f) => f !== 'none').map((f) => (
-                      <option key={f} value={f}>{REPAYMENT_FREQUENCY_LABELS[f]}</option>
-                    ))}
+                    {REPAYMENT_FREQUENCIES.filter((f) => f !== "none").map(
+                      (f) => (
+                        <option key={f} value={f}>
+                          {REPAYMENT_FREQUENCY_LABELS[f]}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label>Tenor (months)</Label>
                   <Input
-                    type="number" min={1} value={tenorMonths}
+                    type="number"
+                    min={1}
+                    value={tenorMonths}
                     onChange={(e) => setTenorMonths(e.target.value)}
                     placeholder="1"
                   />
@@ -833,22 +1314,37 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
           )}
 
           <div className="space-y-1">
-            <Label>Processing fee — % of allocated amount <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Label>
+              Processing fee — % of allocated amount{" "}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
             <Input
-              type="number" min={0} max={100} step="0.01" value={feePct}
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={feePct}
               onChange={(e) => setFeePct(e.target.value)}
               placeholder="3"
             />
             <p className="text-xs text-muted-foreground">
-              Retained by the organization, deducted from what actually leaves the wallet —
-              the group&apos;s principal is unaffected. Enter a grossed-up amount at
-              disbursement time if you need a specific net figure to reach the group.
+              Retained by the organization, deducted from what actually leaves
+              the wallet — the group&apos;s principal is unaffected. Enter a
+              grossed-up amount at disbursement time if you need a specific net
+              figure to reach the group.
             </p>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!ok || create.isPending}>Create program</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => create.mutate()}
+            disabled={!ok || create.isPending}
+          >
+            Create program
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -859,9 +1355,15 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
 // Programme tier of the portfolio drill-down (Org → Programme → Group →
 // Member) — see organization-finance.service.ts's listProgramGroups.
 
-function ProgramGroupsDialog({ programId, onClose }: { programId: string | null; onClose: () => void }) {
+function ProgramGroupsDialog({
+  programId,
+  onClose,
+}: {
+  programId: string | null;
+  onClose: () => void;
+}) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['organization', 'program-groups', programId],
+    queryKey: ["organization", "program-groups", programId],
     queryFn: () => organizationApi.programGroups(programId as string),
     enabled: !!programId,
     staleTime: 30_000,
@@ -870,32 +1372,44 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
   const program = data?.program;
   const groups: ProgramGroupLine[] = data?.groups ?? [];
   // R10 — a failed per-group breakdown is reported here, not rendered as "no groups".
-  const groupsIncomplete = !!data?.incomplete?.includes('groups');
+  const groupsIncomplete = !!data?.incomplete?.includes("groups");
 
   return (
-    <Dialog open={!!programId} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={!!programId}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{program ? program.name : 'Funded groups'}</DialogTitle>
+          <DialogTitle>{program ? program.name : "Funded groups"}</DialogTitle>
         </DialogHeader>
         {isLoading ? (
           <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
           </div>
         ) : isError ? (
-          <p className="text-sm text-destructive py-6 text-center">Could not load this program.</p>
+          <p className="text-sm text-destructive py-6 text-center">
+            Could not load this program.
+          </p>
         ) : (
           <div className="space-y-3">
             {program && (
               <p className="text-xs text-muted-foreground capitalize">
-                {program.program_type.replace(/_/g, ' ')}
-                {program.funding_source ? ` · ${program.funding_source}` : ''}
-                {' · '}{formatKES(parseFloat(program.disbursed_total))} of {formatKES(parseFloat(program.budget))} disbursed
+                {program.program_type.replace(/_/g, " ")}
+                {program.funding_source ? ` · ${program.funding_source}` : ""}
+                {" · "}
+                {formatKES(parseFloat(program.disbursed_total))} of{" "}
+                {formatKES(parseFloat(program.budget))} disbursed
               </p>
             )}
             {groupsIncomplete && (
               <p className="text-xs text-amber-600 dark:text-amber-500">
-                Could not read per-group figures for this program — showing what did load.
+                Could not read per-group figures for this program — showing what
+                did load.
               </p>
             )}
             {groups.length === 0 ? (
@@ -905,17 +1419,27 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {groups.map((g) => (
-                  <div key={g.group_id} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                  <div
+                    key={g.group_id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+                  >
                     <div className="min-w-0">
                       <p className="font-medium truncate">{g.group_name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {g.active_members} member{g.active_members === 1 ? '' : 's'}
-                        {' · '}{g.disbursement_count} disbursement{g.disbursement_count === 1 ? '' : 's'}
-                        {g.last_disbursed_at ? ` · last ${formatDate(g.last_disbursed_at)}` : ''}
+                        {g.active_members} member
+                        {g.active_members === 1 ? "" : "s"}
+                        {" · "}
+                        {g.disbursement_count} disbursement
+                        {g.disbursement_count === 1 ? "" : "s"}
+                        {g.last_disbursed_at
+                          ? ` · last ${formatDate(g.last_disbursed_at)}`
+                          : ""}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-semibold tabular-nums">{formatKES(parseFloat(g.disbursed))}</p>
+                      <p className="font-semibold tabular-nums">
+                        {formatKES(parseFloat(g.disbursed))}
+                      </p>
                       {parseFloat(g.reserved) > 0 && (
                         <p className="text-xs text-muted-foreground tabular-nums">
                           {formatKES(parseFloat(g.reserved))} reserved
@@ -929,7 +1453,9 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -938,50 +1464,79 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
 
 // ─── Disburse dialog ──────────────────────────────────────────────────────────
 
-function DisburseDialog({ open, onClose, groups, programs }: {
-  open: boolean; onClose: () => void;
+function DisburseDialog({
+  open,
+  onClose,
+  groups,
+  programs,
+}: {
+  open: boolean;
+  onClose: () => void;
   groups: { groupId: string; groupName: string }[];
   programs: Program[];
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [groupId, setGroupId]   = useState('');
-  const [amount, setAmount]     = useState('');
-  const [type, setType]         = useState<(typeof DISBURSEMENT_TYPES)[number][0]>('grant');
-  const [programId, setProgramId] = useState('');
-  const [notes, setNotes]       = useState('');
+  const [groupId, setGroupId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [type, setType] =
+    useState<(typeof DISBURSEMENT_TYPES)[number][0]>("grant");
+  const [programId, setProgramId] = useState("");
+  const [notes, setNotes] = useState("");
 
   const disburse = useMutation({
-    mutationFn: () => organizationApi.disburse({
-      groupId,
-      amount: parseFloat(amount),
-      disbursementType: type,
-      fundingProgramId: programId || undefined,
-      notes: notes || undefined,
-    }),
+    mutationFn: () =>
+      organizationApi.disburse({
+        groupId,
+        amount: parseFloat(amount),
+        disbursementType: type,
+        fundingProgramId: programId || undefined,
+        notes: notes || undefined,
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
-      toast({ title: 'Funds disbursed', description: 'Both ledgers updated.' });
-      setGroupId(''); setAmount(''); setNotes(''); setProgramId(''); setType('grant');
+      qc.invalidateQueries({ queryKey: ["organization"] });
+      toast({ title: "Funds disbursed", description: "Both ledgers updated." });
+      setGroupId("");
+      setAmount("");
+      setNotes("");
+      setProgramId("");
+      setType("grant");
       onClose();
     },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Disbursement failed', description: e.message }),
+    onError: (e: Error) =>
+      toast({
+        variant: "destructive",
+        title: "Disbursement failed",
+        description: e.message,
+      }),
   });
 
   const ok = !!groupId && parseFloat(amount) > 0;
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Disburse funds to a group</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Disburse funds to a group</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Group</Label>
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={groupId} onChange={(e) => setGroupId(e.target.value)}
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
             >
               <option value="">Select a linked group…</option>
-              {groups.map((g) => <option key={g.groupId} value={g.groupId}>{g.groupName}</option>)}
+              {groups.map((g) => (
+                <option key={g.groupId} value={g.groupId}>
+                  {g.groupName}
+                </option>
+              ))}
             </select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -989,38 +1544,76 @@ function DisburseDialog({ open, onClose, groups, programs }: {
               <Label>Type</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={type} onChange={(e) => setType(e.target.value as (typeof DISBURSEMENT_TYPES)[number][0])}
+                value={type}
+                onChange={(e) =>
+                  setType(
+                    e.target.value as (typeof DISBURSEMENT_TYPES)[number][0],
+                  )
+                }
               >
-                {DISBURSEMENT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {DISBURSEMENT_TYPES.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">
               <Label>Amount (KES)</Label>
-              <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="250000" />
+              <Input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="250000"
+              />
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Fund from program <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Label>
+              Fund from program{" "}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={programId} onChange={(e) => setProgramId(e.target.value)}
+              value={programId}
+              onChange={(e) => setProgramId(e.target.value)}
             >
               <option value="">Wallet (no program)</option>
-              {programs.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+              {programs.map((pr) => (
+                <option key={pr.id} value={pr.id}>
+                  {pr.name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Purpose / milestone" />
+            <Label>
+              Notes{" "}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Purpose / milestone"
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             Debits the organization wallet and posts a balanced journal entry
-            (Cash / External Funding) in the group&apos;s own books — atomically.
+            (Cash / External Funding) in the group&apos;s own books —
+            atomically.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => disburse.mutate()} disabled={!ok || disburse.isPending}>Disburse</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => disburse.mutate()}
+            disabled={!ok || disburse.isPending}
+          >
+            Disburse
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

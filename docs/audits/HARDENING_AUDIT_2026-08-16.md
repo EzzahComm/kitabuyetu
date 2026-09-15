@@ -52,7 +52,7 @@ accumulates `errors[]`, but that catch is long out of scope by then. The whole
 transaction aborts and the user gets an opaque failure rather than the row-level
 diagnostics the importer was built to give.
 
-**Fix direction.** Historical imported loans *were* funded from the group's own
+**Fix direction.** Historical imported loans _were_ funded from the group's own
 savings, so attribute them to the auto-provisioned `internal_savings` source in
 the same statement as the loan insert (a data-modifying CTE — two separate
 statements will not work if the caller is ever changed to commit per row).
@@ -72,7 +72,7 @@ IF NEW.status = 'disbursed' AND OLD.status IS DISTINCT FROM 'disbursed' THEN
   PERFORM public.generate_loan_schedule(NEW.id);
 ```
 
-It is **AFTER UPDATE only**, and additionally requires a transition *into*
+It is **AFTER UPDATE only**, and additionally requires a transition _into_
 `disbursed`. The importer does a single `INSERT` at status `active`, so the
 trigger never fires. Confirmed in the reproduction: `schedule rows generated: 0`.
 
@@ -107,10 +107,10 @@ that `loans.interest_rate` is a **monthly** rate; this function still divides by
 
 Measured on the same inputs as the live Reuben loan (130,000 @ 10.00 × 12):
 
-| Path | Interest | Total repayable |
-|---|---:|---:|
-| `generate_loan_schedule` (flat, post-148) | 156,000 | **286,000** |
-| `computeTotalRepayable` (importer) | 13,000 | **143,000** |
+| Path                                      | Interest | Total repayable |
+| ----------------------------------------- | -------: | --------------: |
+| `generate_loan_schedule` (flat, post-148) |  156,000 |     **286,000** |
+| `computeTotalRepayable` (importer)        |   13,000 |     **143,000** |
 
 **Interest understated 12×; total repayable understated 2×.** A group importing
 its loan book would see every balance at half its true value, with no error.
@@ -129,15 +129,15 @@ just reset the clock on the next drift.
 These were examined and are **not** problems — recorded so the next pass does
 not re-litigate them.
 
-| Area | Result |
-|---|---|
-| `SECURITY DEFINER` functions in `public` reachable by `anon`/`authenticated` | **none** — the PostgREST exposure class that hit twice (migrations 126, 127) is closed |
-| Public tables without RLS but granted to `anon`/`authenticated` | **none** |
-| Views reachable by `anon`/`authenticated` | all 6 are `security_invoker`, so RLS applies — the migration-141 mistake was not repeated |
-| RLS on `loans` / `loan_repayments` | enabled **and forced**, 3 policies each, keyed to `app_current_group_id()` which is NULL under PostgREST |
-| `generate_loan_schedule` ACL after 148/149 DDL | unchanged (`app_tenant`, `authenticated`, `service_role`); `CREATE OR REPLACE` preserves privileges |
-| Other duplicated interest/annualisation formulas in TS | only `import.service.ts:1196`; blast radius is one file |
-| Live loan data integrity | 4 loans, 0 without schedules, 0 unattributed |
+| Area                                                                         | Result                                                                                                   |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `SECURITY DEFINER` functions in `public` reachable by `anon`/`authenticated` | **none** — the PostgREST exposure class that hit twice (migrations 126, 127) is closed                   |
+| Public tables without RLS but granted to `anon`/`authenticated`              | **none**                                                                                                 |
+| Views reachable by `anon`/`authenticated`                                    | all 6 are `security_invoker`, so RLS applies — the migration-141 mistake was not repeated                |
+| RLS on `loans` / `loan_repayments`                                           | enabled **and forced**, 3 policies each, keyed to `app_current_group_id()` which is NULL under PostgREST |
+| `generate_loan_schedule` ACL after 148/149 DDL                               | unchanged (`app_tenant`, `authenticated`, `service_role`); `CREATE OR REPLACE` preserves privileges      |
+| Other duplicated interest/annualisation formulas in TS                       | only `import.service.ts:1196`; blast radius is one file                                                  |
+| Live loan data integrity                                                     | 4 loans, 0 without schedules, 0 unattributed                                                             |
 
 ---
 

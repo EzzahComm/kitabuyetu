@@ -1,5 +1,5 @@
-export const dynamic = 'force-dynamic';
-import { NextResponse } from 'next/server';
+export const dynamic = "force-dynamic";
+import { NextResponse } from "next/server";
 
 /**
  * C2B Validation URL — registration-safe path.
@@ -16,7 +16,7 @@ import { NextResponse } from 'next/server';
  * behaviour of the /mpesa/c2b?type=validation responder.
  */
 function accept(): NextResponse {
-  return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+  return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
 }
 
 export async function POST(): Promise<NextResponse> {

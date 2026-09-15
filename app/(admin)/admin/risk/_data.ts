@@ -4,4 +4,4 @@
  * (see lib/services/admin.service.ts → getRiskDashboardData).
  */
 
-export type Severity = 'critical' | 'high' | 'medium' | 'low';
+export type Severity = "critical" | "high" | "medium" | "low";

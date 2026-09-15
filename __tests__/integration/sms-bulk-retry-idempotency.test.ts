@@ -13,15 +13,15 @@
  * twice with the same dispatchBatchId/campaignId and the same phone list)
  * does none of that.
  */
-import { smsService } from '@/lib/services/sms.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { BulkSmsResult } from '@/lib/services/textsms.service';
+import { smsService } from "@/lib/services/sms.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { BulkSmsResult } from "@/lib/services/textsms.service";
 
 const mockSendBulkSmsChunked = jest.fn<Promise<BulkSmsResult>, [unknown]>();
 
-jest.mock('@/lib/services/textsms.service', () => ({
+jest.mock("@/lib/services/textsms.service", () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
   sendBulkSmsChunked: (...args: unknown[]) => mockSendBulkSmsChunked(args[0]),
@@ -29,7 +29,10 @@ jest.mock('@/lib/services/textsms.service', () => ({
   getProviderBalance: jest.fn(),
 }));
 
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+async function provisionBilling(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -47,41 +50,56 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
 function acceptedResponses(phones: string[]): BulkSmsResult {
   return {
     responses: phones.map((mobile, i) => ({
-      responseCode: 200, responseDescription: 'Success', mobile,
-      messageId: `msg-${i + 1}`, networkId: '1', success: true, clientSmsId: i + 1,
+      responseCode: 200,
+      responseDescription: "Success",
+      mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: "1",
+      success: true,
+      clientSmsId: i + 1,
     })),
-    sent: phones.length, failed: 0,
+    sent: phones.length,
+    failed: 0,
   };
 }
 
-describe('sms_bulk_send retry idempotency (H3)', () => {
+describe("sms_bulk_send retry idempotency (H3)", () => {
   beforeEach(() => {
     mockSendBulkSmsChunked.mockReset();
   });
 
-  it('an ad-hoc (no-campaign) retry with the same dispatchBatchId does not re-bill or re-dispatch', async () => {
+  it("an ad-hoc (no-campaign) retry with the same dispatchBatchId does not re-bill or re-dispatch", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const phones = ['254700000010', '254700000011'];
-    const jobId  = '11111111-1111-1111-1111-111111111111';
+    const phones = ["254700000010", "254700000011"];
+    const jobId = "11111111-1111-1111-1111-111111111111";
 
     mockSendBulkSmsChunked.mockResolvedValue(acceptedResponses(phones));
 
     const first = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test', dispatchBatchId: jobId,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: jobId,
     });
     expect(first.sent).toBe(2);
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
 
     const [afterFirst] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
 
     // The retry: identical payload, same job id (the real shape of a
     // resetStuckJobs reclaim, which re-runs handleSmsBulkSend(job.payload, job.id)).
     const second = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test', dispatchBatchId: jobId,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      dispatchBatchId: jobId,
     });
     expect(second.sent).toBe(0);
     expect(second.failed).toBe(0);
@@ -89,24 +107,26 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
 
     const [afterSecond] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
     // Not double-charged.
     expect(afterSecond.sms_credits).toBe(afterFirst.sms_credits);
 
     const logs = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
     // One row per recipient, not two.
     expect(Number(logs[0].n)).toBe(2);
   });
 
-  it('a partially-completed retry only dispatches the recipients not yet logged, and totals stay correct', async () => {
+  it("a partially-completed retry only dispatches the recipients not yet logged, and totals stay correct", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const phones = ['254700000012', '254700000013', '254700000014'];
-    const jobId  = '22222222-2222-2222-2222-222222222222';
+    const phones = ["254700000012", "254700000013", "254700000014"];
+    const jobId = "22222222-2222-2222-2222-222222222222";
 
     const [{ id: campaignId }] = await rawQuery<{ id: string }>(
       `INSERT INTO sms_campaigns (group_id, name, message, created_by)
@@ -117,19 +137,31 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     // Simulate an earlier attempt that only got through the first recipient
     // before "crashing" (the mock only ever returns one response for the
     // first call).
-    mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses([phones[0]]));
+    mockSendBulkSmsChunked.mockResolvedValueOnce(
+      acceptedResponses([phones[0]]),
+    );
     const first = await smsService.sendBulkCampaign({
-      groupId, phones: [phones[0]], message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: jobId,
+      groupId,
+      phones: [phones[0]],
+      message: "reminder",
+      sentBy: "test",
+      campaignId,
+      dispatchBatchId: jobId,
     });
     expect(first.sent).toBe(1);
 
     // The retry re-submits the FULL original list (the real shape of a
     // job-level retry — the job payload doesn't shrink between attempts).
-    mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses([phones[1], phones[2]]));
+    mockSendBulkSmsChunked.mockResolvedValueOnce(
+      acceptedResponses([phones[1], phones[2]]),
+    );
     const second = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: jobId,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      campaignId,
+      dispatchBatchId: jobId,
     });
     // Only the two NOT already logged were dispatched.
     expect(second.sent).toBe(2);
@@ -142,25 +174,31 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(2);
 
     const logs = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
     expect(Number(logs[0].n)).toBe(3); // one per recipient, not four
 
-    const [campaign] = await rawQuery<{ status: string; sent_count: number; failed_count: number }>(
-      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+    const [campaign] = await rawQuery<{
+      status: string;
+      sent_count: number;
+      failed_count: number;
+    }>(
+      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
     // Totals aggregate across BOTH calls, not just the second call's own batch.
-    expect(campaign.status).toBe('completed');
+    expect(campaign.status).toBe("completed");
     expect(campaign.sent_count).toBe(3);
     expect(campaign.failed_count).toBe(0);
   });
 
   it('a fully-deduped retry (everything already logged) finishes a campaign stuck at "sending"', async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const phones = ['254700000015', '254700000016'];
-    const jobId  = '33333333-3333-3333-3333-333333333333';
+    const phones = ["254700000015", "254700000016"];
+    const jobId = "33333333-3333-3333-3333-333333333333";
 
     const [{ id: campaignId }] = await rawQuery<{ id: string }>(
       `INSERT INTO sms_campaigns (group_id, name, message, created_by, status)
@@ -182,16 +220,21 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     }
 
     const retry = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: jobId,
+      groupId,
+      phones,
+      message: "reminder",
+      sentBy: "test",
+      campaignId,
+      dispatchBatchId: jobId,
     });
     expect(retry.sent).toBe(0);
     expect(mockSendBulkSmsChunked).not.toHaveBeenCalled();
 
     const [campaign] = await rawQuery<{ status: string; sent_count: number }>(
-      `SELECT status, sent_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+      `SELECT status, sent_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
-    expect(campaign.status).toBe('completed');
+    expect(campaign.status).toBe("completed");
     expect(campaign.sent_count).toBe(2);
   });
 });

@@ -11,30 +11,30 @@
  * (ADR-001: RLS is still decorative for application traffic pending the
  * app_tenant cutover — see docs/capital-layer/impact-report.md §D-D).
  */
-import type { PoolClient } from 'pg';
-import { withDb, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import type { PoolClient } from "pg";
+import { withDb, type TenantContext } from "@/lib/db";
+import { NotFoundError, ValidationError } from "@/lib/utils/errors";
 
 export type FundingSourceType =
-  | 'internal_savings'
-  | 'organization_allocation'
-  | 'external_grant'
-  | 'bank_loan'
-  | 'other';
+  | "internal_savings"
+  | "organization_allocation"
+  | "external_grant"
+  | "bank_loan"
+  | "other";
 
 export interface GroupFundingSource {
-  id:             string;
-  groupId:        string;
-  sourceType:     FundingSourceType;
-  allocationId:   string | null;
+  id: string;
+  groupId: string;
+  sourceType: FundingSourceType;
+  allocationId: string | null;
   organizationId: string | null;
   /** Organization's display name, present only for allocation-backed sources. */
   organizationName: string | null;
-  label:          string;
-  isRepayable:    boolean;
-  status:         'active' | 'closed';
-  openedAt:       Date;
-  closedAt:       Date | null;
+  label: string;
+  isRepayable: boolean;
+  status: "active" | "closed";
+  openedAt: Date;
+  closedAt: Date | null;
 }
 
 interface FundingSourceRow {
@@ -46,24 +46,24 @@ interface FundingSourceRow {
   organization_name: string | null;
   label: string;
   is_repayable: boolean;
-  status: 'active' | 'closed';
+  status: "active" | "closed";
   opened_at: Date;
   closed_at: Date | null;
 }
 
 function mapRow(r: FundingSourceRow): GroupFundingSource {
   return {
-    id:               r.id,
-    groupId:          r.group_id,
-    sourceType:       r.source_type,
-    allocationId:     r.allocation_id,
-    organizationId:   r.organization_id,
+    id: r.id,
+    groupId: r.group_id,
+    sourceType: r.source_type,
+    allocationId: r.allocation_id,
+    organizationId: r.organization_id,
     organizationName: r.organization_name,
-    label:            r.label,
-    isRepayable:      r.is_repayable,
-    status:           r.status,
-    openedAt:         r.opened_at,
-    closedAt:         r.closed_at,
+    label: r.label,
+    isRepayable: r.is_repayable,
+    status: r.status,
+    openedAt: r.opened_at,
+    closedAt: r.closed_at,
   };
 }
 
@@ -77,7 +77,9 @@ const SELECT_COLUMNS = `
  * All funding sources for the caller's group, internal savings first (it is the
  * default funding source for a member loan), then most recently opened.
  */
-export async function listForGroup(ctx: TenantContext): Promise<GroupFundingSource[]> {
+export async function listForGroup(
+  ctx: TenantContext,
+): Promise<GroupFundingSource[]> {
   return withDb(ctx, async (client) => {
     const { rows } = await client.query<FundingSourceRow>(
       `SELECT ${SELECT_COLUMNS}
@@ -101,7 +103,9 @@ export async function listForGroup(ctx: TenantContext): Promise<GroupFundingSour
  * explicit funding plan, which is what keeps existing loan behaviour unchanged
  * once loan_funding_splits lands (capital-layer-spec.md §4).
  */
-export async function getInternalSavingsSource(ctx: TenantContext): Promise<GroupFundingSource> {
+export async function getInternalSavingsSource(
+  ctx: TenantContext,
+): Promise<GroupFundingSource> {
   return withDb(ctx, async (client) => {
     const { rows } = await client.query<FundingSourceRow>(
       `SELECT ${SELECT_COLUMNS}
@@ -116,7 +120,7 @@ export async function getInternalSavingsSource(ctx: TenantContext): Promise<Grou
       // so reaching here means the trigger was dropped or the group was created
       // by a path that bypassed it — a real data-integrity fault, not a
       // not-found the caller should paper over.
-      throw new NotFoundError('Group has no internal savings funding source');
+      throw new NotFoundError("Group has no internal savings funding source");
     }
 
     return mapRow(rows[0]);
@@ -125,7 +129,7 @@ export async function getInternalSavingsSource(ctx: TenantContext): Promise<Grou
 
 export interface FundingSplit {
   fundingSourceId: string;
-  amount:          number;
+  amount: number;
 }
 
 /**
@@ -158,7 +162,7 @@ export async function resolveFundingPlan(
       // Guaranteed to exist by migration 115's trigger + backfill, so this
       // means the trigger was dropped or the group was created by a path that
       // bypassed it — a data-integrity fault, not a user error.
-      throw new NotFoundError('Group has no internal savings funding source');
+      throw new NotFoundError("Group has no internal savings funding source");
     }
     return [{ fundingSourceId: rows[0].id, amount: principal }];
   }
@@ -172,18 +176,26 @@ export async function resolveFundingPlan(
     );
   }
 
-  const { rows: valid } = await db.query<{ id: string; status: string; label: string }>(
+  const { rows: valid } = await db.query<{
+    id: string;
+    status: string;
+    label: string;
+  }>(
     `SELECT id, status, label FROM group_funding_sources
      WHERE group_id = $1 AND id = ANY($2::uuid[])`,
     [groupId, plan.map((p) => p.fundingSourceId)],
   );
 
   if (valid.length !== plan.length) {
-    throw new ValidationError('Funding plan references a source that does not belong to this group');
+    throw new ValidationError(
+      "Funding plan references a source that does not belong to this group",
+    );
   }
-  const closed = valid.find((s) => s.status !== 'active');
+  const closed = valid.find((s) => s.status !== "active");
   if (closed) {
-    throw new ValidationError(`Funding source "${closed.label}" is closed and cannot finance a new loan`);
+    throw new ValidationError(
+      `Funding source "${closed.label}" is closed and cannot finance a new loan`,
+    );
   }
 
   return plan;
@@ -191,11 +203,17 @@ export async function resolveFundingPlan(
 
 /** Reads back how a loan was funded — the attribution the capital layer rests on. */
 export async function getLoanFundingSplits(
-  ctx: TenantContext, loanId: string,
-): Promise<(FundingSplit & { label: string; sourceType: FundingSourceType })[]> {
+  ctx: TenantContext,
+  loanId: string,
+): Promise<
+  (FundingSplit & { label: string; sourceType: FundingSourceType })[]
+> {
   return withDb(ctx, async (client) => {
     const { rows } = await client.query<{
-      funding_source_id: string; amount: string; label: string; source_type: FundingSourceType;
+      funding_source_id: string;
+      amount: string;
+      label: string;
+      source_type: FundingSourceType;
     }>(
       `SELECT f.funding_source_id, f.amount, s.label, s.source_type
        FROM loan_funding_splits f
@@ -206,9 +224,9 @@ export async function getLoanFundingSplits(
     );
     return rows.map((r) => ({
       fundingSourceId: r.funding_source_id,
-      amount:          parseFloat(r.amount),
-      label:           r.label,
-      sourceType:      r.source_type,
+      amount: parseFloat(r.amount),
+      label: r.label,
+      sourceType: r.source_type,
     }));
   });
 }

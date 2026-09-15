@@ -22,11 +22,11 @@
  * process. Rotation requires a redeploy.
  */
 
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
-const IS_SANDBOX = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
+const IS_SANDBOX = (process.env.MPESA_ENV ?? "sandbox") !== "production";
 
 let _cachedCredential: string | null = null;
 let _resolutionError: Error | null = null;
@@ -84,10 +84,10 @@ function resolveCredential(): string {
   if (preEncrypted) {
     if (!looksLikeRealCredential(preEncrypted)) {
       throw new Error(
-        '[mpesa-credential] MPESA_B2C_SECURITY_CREDENTIAL is set but does not look ' +
-        'like a valid Safaricom credential (expected base64 RSA output, ~344+ chars). ' +
-        'Replace the placeholder with the encrypted blob from the Daraja portal, or ' +
-        'unset it and use MPESA_B2C_INITIATOR_PASSWORD + the public cert.',
+        "[mpesa-credential] MPESA_B2C_SECURITY_CREDENTIAL is set but does not look " +
+          "like a valid Safaricom credential (expected base64 RSA output, ~344+ chars). " +
+          "Replace the placeholder with the encrypted blob from the Daraja portal, or " +
+          "unset it and use MPESA_B2C_INITIATOR_PASSWORD + the public cert.",
       );
     }
     return preEncrypted;
@@ -96,11 +96,11 @@ function resolveCredential(): string {
   // 2. Plaintext password + cert → RSA encrypt at runtime
   const password = process.env.MPESA_B2C_INITIATOR_PASSWORD?.trim();
   if (!password) {
-    if (IS_SANDBOX) return '';
+    if (IS_SANDBOX) return "";
     throw new Error(
-      '[mpesa-credential] No SecurityCredential available. Set either ' +
-      'MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) or ' +
-      'MPESA_B2C_INITIATOR_PASSWORD (plaintext, requires cert).',
+      "[mpesa-credential] No SecurityCredential available. Set either " +
+        "MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) or " +
+        "MPESA_B2C_INITIATOR_PASSWORD (plaintext, requires cert).",
     );
   }
 
@@ -127,9 +127,9 @@ function loadCertificate(): string {
   // c. Convention: lib/certs/{sandbox,production}.cer
   const conventional = path.join(
     /* turbopackIgnore: true */ process.cwd(),
-    'lib',
-    'certs',
-    IS_SANDBOX ? 'sandbox.cer' : 'production.cer',
+    "lib",
+    "certs",
+    IS_SANDBOX ? "sandbox.cer" : "production.cer",
   );
   return readCertFile(conventional);
 }
@@ -137,12 +137,12 @@ function loadCertificate(): string {
 function readCertFile(filePath: string): string {
   let raw: string;
   try {
-    raw = fs.readFileSync(/* turbopackIgnore: true */ filePath, 'utf8');
+    raw = fs.readFileSync(/* turbopackIgnore: true */ filePath, "utf8");
   } catch (err) {
     throw new Error(
       `[mpesa-credential] Cannot read Safaricom public cert from ${filePath}. ` +
-      `Either place the cert there or set MPESA_PUBLIC_CERT_PEM / MPESA_PUBLIC_CERT_PATH. ` +
-      `Underlying error: ${(err as Error).message}`,
+        `Either place the cert there or set MPESA_PUBLIC_CERT_PEM / MPESA_PUBLIC_CERT_PATH. ` +
+        `Underlying error: ${(err as Error).message}`,
     );
   }
   return normaliseCertPem(raw);
@@ -155,11 +155,15 @@ function readCertFile(filePath: string): string {
  */
 function normaliseCertPem(input: string): string {
   const trimmed = input.trim();
-  if (trimmed.includes('-----BEGIN CERTIFICATE-----')) {
-    return trimmed.replace(/\r\n/g, '\n');
+  if (trimmed.includes("-----BEGIN CERTIFICATE-----")) {
+    return trimmed.replace(/\r\n/g, "\n");
   }
   // Bare base64 body — wrap with the standard PEM armor
-  const body = trimmed.replace(/\s+/g, '').match(/.{1,64}/g)?.join('\n') ?? '';
+  const body =
+    trimmed
+      .replace(/\s+/g, "")
+      .match(/.{1,64}/g)
+      ?.join("\n") ?? "";
   return `-----BEGIN CERTIFICATE-----\n${body}\n-----END CERTIFICATE-----\n`;
 }
 
@@ -167,7 +171,7 @@ function rsaEncrypt(plaintext: string, certPem: string): string {
   const publicKey = crypto.createPublicKey(certPem);
   const encrypted = crypto.publicEncrypt(
     { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
-    Buffer.from(plaintext, 'utf8'),
+    Buffer.from(plaintext, "utf8"),
   );
-  return encrypted.toString('base64');
+  return encrypted.toString("base64");
 }

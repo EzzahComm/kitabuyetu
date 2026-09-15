@@ -35,7 +35,8 @@ function dammInterim(digits: string): number {
   let interim = 0;
   for (const ch of digits) {
     const d = ch.charCodeAt(0) - 48;
-    if (d < 0 || d > 9) throw new Error(`dammInterim: non-digit input '${digits}'`);
+    if (d < 0 || d > 9)
+      throw new Error(`dammInterim: non-digit input '${digits}'`);
     interim = DAMM_TABLE[interim][d];
   }
   return interim;
@@ -55,7 +56,10 @@ export function dammCheckDigit(base: string): string {
 
 /** Strip spaces/dashes/underscores and uppercase — how members actually type. */
 export function normalizeAccountRef(input: string): string {
-  return input.trim().toUpperCase().replace(/[\s\-_./]+/g, '');
+  return input
+    .trim()
+    .toUpperCase()
+    .replace(/[\s\-_./]+/g, "");
 }
 
 /** True when the (normalised) input has membership-number SHAPE (may still fail the check digit). */
@@ -80,22 +84,23 @@ export function formatMembershipNo(no: string): string {
 /** Compose a full number from prefix + sequence (mirrors the DB allocator). */
 export function composeMembershipNo(prefix: string, seq: number): string {
   if (!/^[A-Z]{2}$/.test(prefix)) throw new Error(`invalid prefix '${prefix}'`);
-  if (!Number.isInteger(seq) || seq < 1 || seq > 99999) throw new Error(`sequence out of range: ${seq}`);
-  const base = `${prefix}${String(seq).padStart(5, '0')}`;
+  if (!Number.isInteger(seq) || seq < 1 || seq > 99999)
+    throw new Error(`sequence out of range: ${seq}`);
+  const base = `${prefix}${String(seq).padStart(5, "0")}`;
   return base + dammCheckDigit(base);
 }
 
 // ─── Product suffix hints (allocation engine tiers A1/A3) ────────────────────
 
 /** BG102534-L → loan repayment, -W → welfare, -S → shares. */
-export type ProductSuffix = 'L' | 'W' | 'S';
-const VALID_SUFFIXES: ReadonlySet<string> = new Set(['L', 'W', 'S']);
+export type ProductSuffix = "L" | "W" | "S";
+const VALID_SUFFIXES: ReadonlySet<string> = new Set(["L", "W", "S"]);
 
 export interface ParsedAccountRef {
   /** The 8-char membership-number candidate (normalised), suffix removed. */
-  account:       string;
+  account: string;
   /** Valid product suffix, when present. */
-  suffix:        ProductSuffix | null;
+  suffix: ProductSuffix | null;
   /** True when a 9th trailing letter exists but isn't a known suffix (A1: reject, never guess). */
   invalidSuffix: boolean;
 }
@@ -110,12 +115,22 @@ export interface ParsedAccountRef {
  * `account = <normalised input>` with no suffix — the caller's registry
  * lookup / legacy grammar handles it.
  */
-export function parseAccountRef(input: string | null | undefined): ParsedAccountRef {
-  const n = normalizeAccountRef(input ?? '');
-  if (n.length === 9 && MEMBERSHIP_NO_RE.test(n.slice(0, 8)) && /^[A-Z]$/.test(n[8])) {
+export function parseAccountRef(
+  input: string | null | undefined,
+): ParsedAccountRef {
+  const n = normalizeAccountRef(input ?? "");
+  if (
+    n.length === 9 &&
+    MEMBERSHIP_NO_RE.test(n.slice(0, 8)) &&
+    /^[A-Z]$/.test(n[8])
+  ) {
     const suffix = n[8];
     if (VALID_SUFFIXES.has(suffix)) {
-      return { account: n.slice(0, 8), suffix: suffix as ProductSuffix, invalidSuffix: false };
+      return {
+        account: n.slice(0, 8),
+        suffix: suffix as ProductSuffix,
+        invalidSuffix: false,
+      };
     }
     return { account: n.slice(0, 8), suffix: null, invalidSuffix: true };
   }

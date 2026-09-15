@@ -8,29 +8,29 @@
  * proxy.ts blocks every feature route for a pending_verification group, and
  * there was no route or page that could clear the status.
  */
-import crypto from 'crypto';
-import { withAdminDb } from '@/lib/db';
-import { sendTemplatedEmail } from './email.service';
-import { sendServiceSms } from './notifications.service';
-import { AppError } from '@/lib/utils/errors';
+import crypto from "crypto";
+import { withAdminDb } from "@/lib/db";
+import { sendTemplatedEmail } from "./email.service";
+import { sendServiceSms } from "./notifications.service";
+import { AppError } from "@/lib/utils/errors";
 
-export type VerificationChannel = 'email' | 'sms';
+export type VerificationChannel = "email" | "sms";
 
 interface GroupContactInfo {
-  groupId:    string;
-  groupName:  string;
-  groupCode:  string;
+  groupId: string;
+  groupName: string;
+  groupCode: string;
   memberName: string;
-  email:      string | null;
-  phone:      string;
+  email: string | null;
+  phone: string;
 }
 
 export function hashSecret(secret: string): string {
-  return crypto.createHash('sha256').update(secret).digest('hex');
+  return crypto.createHash("sha256").update(secret).digest("hex");
 }
 
 export function generateEmailToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString("hex");
 }
 
 export function generateOtp(): string {
@@ -38,7 +38,9 @@ export function generateOtp(): string {
 }
 
 function verifyUrlFor(token: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.vercel.app"
+  ).replace(/\/$/, "");
   return `${base}/verify-group/confirm?token=${token}`;
 }
 
@@ -53,28 +55,36 @@ export async function startGroupVerification(
   info: GroupContactInfo,
   channel: VerificationChannel,
 ): Promise<{ expiresAt: string }> {
-  const destination = channel === 'email' ? info.email : info.phone;
+  const destination = channel === "email" ? info.email : info.phone;
   if (!destination) {
-    throw new AppError('No email address on file for this group', 'NO_EMAIL_ON_FILE', 400);
+    throw new AppError(
+      "No email address on file for this group",
+      "NO_EMAIL_ON_FILE",
+      400,
+    );
   }
 
-  const secret     = channel === 'email' ? generateEmailToken() : generateOtp();
+  const secret = channel === "email" ? generateEmailToken() : generateOtp();
   const secretHash = hashSecret(secret);
 
   const { expires_at: expiresAt } = await withAdminDb(async (client) => {
-    const { rows } = await client.query<{ result: { id: string; expires_at: string } }>(
-      'SELECT start_registrant_verification($1, $2, $3, $4) AS result',
-      [info.groupId, channel, destination, secretHash],
-    );
+    const { rows } = await client.query<{
+      result: { id: string; expires_at: string };
+    }>("SELECT start_registrant_verification($1, $2, $3, $4) AS result", [
+      info.groupId,
+      channel,
+      destination,
+      secretHash,
+    ]);
     return rows[0].result;
   });
 
-  if (channel === 'email') {
+  if (channel === "email") {
     await sendTemplatedEmail({
-      templateKey: 'group_verification_link',
-      to:          destination,
+      templateKey: "group_verification_link",
+      to: destination,
       vars: {
-        name:      info.memberName,
+        name: info.memberName,
         groupName: info.groupName,
         groupCode: info.groupCode,
         verifyUrl: verifyUrlFor(secret),
@@ -89,15 +99,15 @@ export async function startGroupVerification(
     // accepted, with nothing in the response or the UI to say otherwise.
     // Surface it as a real error so the caller can tell the truth.
     const res = await sendServiceSms({
-      phone:   destination,
+      phone: destination,
       groupId: info.groupId,
-      notificationType: 'auth_group_verification',
+      notificationType: "auth_group_verification",
       body: `Your Kitabu Yetu verification code is ${secret}. It expires in 10 minutes. If you did not request this, ignore this SMS.`,
     });
     if (!res.sent) {
       throw new AppError(
-        'We could not send the code to your phone. Please try again, or use email verification.',
-        'OTP_SEND_FAILED',
+        "We could not send the code to your phone. Please try again, or use email verification.",
+        "OTP_SEND_FAILED",
         502,
       );
     }
@@ -107,19 +117,28 @@ export async function startGroupVerification(
 }
 
 /** Authenticated SMS-OTP completion path. Throws the RPC's raw PG error on failure (OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS) — callers map these to user-facing copy. */
-export async function completeGroupVerificationAuthed(groupId: string, code: string): Promise<void> {
+export async function completeGroupVerificationAuthed(
+  groupId: string,
+  code: string,
+): Promise<void> {
   const secretHash = hashSecret(code);
   await withAdminDb(async (client) => {
-    await client.query('SELECT complete_registrant_verification($1, $2, $3)', [groupId, 'sms', secretHash]);
+    await client.query("SELECT complete_registrant_verification($1, $2, $3)", [
+      groupId,
+      "sms",
+      secretHash,
+    ]);
   });
 }
 
 /** Public email-link completion path — the token itself is the proof, no auth required. Throws LINK_INVALID / LINK_EXPIRED on failure. */
-export async function completeGroupVerificationByToken(token: string): Promise<{ groupId: string }> {
+export async function completeGroupVerificationByToken(
+  token: string,
+): Promise<{ groupId: string }> {
   const secretHash = hashSecret(token);
   return withAdminDb(async (client) => {
     const { rows } = await client.query<{ result: { group_id: string } }>(
-      'SELECT complete_email_verification($1) AS result',
+      "SELECT complete_email_verification($1) AS result",
       [secretHash],
     );
     return { groupId: rows[0].result.group_id };

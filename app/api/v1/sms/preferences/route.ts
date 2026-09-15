@@ -1,10 +1,10 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { smsService } from '@/lib/services/sms.service';
-import { ok } from '@/lib/utils/response';
-import { NotFoundError } from '@/lib/utils/errors';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { smsService } from "@/lib/services/sms.service";
+import { ok } from "@/lib/utils/response";
+import { NotFoundError } from "@/lib/utils/errors";
 
 /**
  * Self-service SMS opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5). smsService.
@@ -18,9 +18,11 @@ import { NotFoundError } from '@/lib/utils/errors';
 
 async function callerPhone(memberId: string): Promise<string> {
   const { rows } = await withAdminDb((db) =>
-    db.query<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [memberId]),
+    db.query<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [
+      memberId,
+    ]),
   );
-  if (!rows[0]) throw new NotFoundError('Member', memberId);
+  if (!rows[0]) throw new NotFoundError("Member", memberId);
   return rows[0].phone;
 }
 

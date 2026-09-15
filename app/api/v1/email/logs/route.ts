@@ -1,15 +1,15 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
 
 const QuerySchema = z.object({
-  page:     z.coerce.number().int().min(1).default(1),
-  limit:    z.coerce.number().int().min(1).max(100).default(50),
-  status:   z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.string().optional(),
   category: z.string().optional(),
-  days:     z.coerce.number().int().min(1).default(30),
+  days: z.coerce.number().int().min(1).default(30),
 });
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -19,10 +19,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = [`created_at >= NOW() - ($1 || ' days')::interval`];
-    const params: unknown[]    = [days];
+    const conditions: string[] = [
+      `created_at >= NOW() - ($1 || ' days')::interval`,
+    ];
+    const params: unknown[] = [days];
 
-    if (auth.role !== 'super_admin') {
+    if (auth.role !== "super_admin") {
       params.push(auth.groupId);
       conditions.push(`group_id = $${params.length}`);
     }
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       conditions.push(`category = $${params.length}`);
     }
 
-    const where = conditions.map((c) => `(${c})`).join(' AND ');
+    const where = conditions.map((c) => `(${c})`).join(" AND ");
 
     const [{ rows }, { rows: countRows }] = await Promise.all([
       withAdminDb((db) =>
@@ -55,6 +57,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       ),
     ]);
 
-    return ok({ data: rows, meta: { total: Number(countRows[0].count), page, limit } });
+    return ok({
+      data: rows,
+      meta: { total: Number(countRows[0].count), page, limit },
+    });
   });
 }

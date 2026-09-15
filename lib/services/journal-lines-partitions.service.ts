@@ -27,33 +27,43 @@
  * not treat 094/095 as verified — see
  * docs/audits/PRODUCTION_SCHEMA_DRIFT_AUDIT.md (M2).
  */
-import { pool } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { pool } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 const MONTHS_AHEAD = 3;
 
 function monthPartitionName(monthStart: Date): string {
   const y = monthStart.getUTCFullYear();
-  const m = String(monthStart.getUTCMonth() + 1).padStart(2, '0');
+  const m = String(monthStart.getUTCMonth() + 1).padStart(2, "0");
   return `journal_lines_y${y}m${m}`;
 }
 
-async function ensurePartition(monthStart: Date, monthEnd: Date): Promise<string> {
+async function ensurePartition(
+  monthStart: Date,
+  monthEnd: Date,
+): Promise<string> {
   const name = monthPartitionName(monthStart);
   // Table/trigger names can't be bound as query parameters, so this goes
   // into the SQL string directly — name is fully computed from Date fields
   // above, never external input, but this guard is cheap insurance against
   // that changing under a future refactor.
   if (!/^journal_lines_y\d{4}m\d{2}$/.test(name)) {
-    throw new Error(`Refusing to create partition with unexpected name: ${name}`);
+    throw new Error(
+      `Refusing to create partition with unexpected name: ${name}`,
+    );
   }
   await pool.query(
     `CREATE TABLE IF NOT EXISTS ${name} PARTITION OF journal_lines FOR VALUES FROM ($1) TO ($2)`,
-    [monthStart.toISOString().slice(0, 10), monthEnd.toISOString().slice(0, 10)],
+    [
+      monthStart.toISOString().slice(0, 10),
+      monthEnd.toISOString().slice(0, 10),
+    ],
   );
   // CREATE CONSTRAINT TRIGGER has no IF NOT EXISTS form, so drop-then-create
   // (this repo's established idiom, e.g. migration 081) keeps this idempotent.
-  await pool.query(`DROP TRIGGER IF EXISTS trg_assert_posted_balance_deferred ON public.${name}`);
+  await pool.query(
+    `DROP TRIGGER IF EXISTS trg_assert_posted_balance_deferred ON public.${name}`,
+  );
   await pool.query(
     `CREATE CONSTRAINT TRIGGER trg_assert_posted_balance_deferred
        AFTER INSERT ON public.${name}
@@ -76,11 +86,13 @@ async function isJournalLinesPartitioned(): Promise<boolean> {
        JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relname = 'journal_lines'`,
   );
-  return rows[0]?.relkind === 'p';
+  return rows[0]?.relkind === "p";
 }
 
 export async function ensureJournalLinesPartitions(): Promise<{
-  created: string[]; defaultPartitionRowCount: number; skipped?: true;
+  created: string[];
+  defaultPartitionRowCount: number;
+  skipped?: true;
 }> {
   // Migrations 094/095 are unapplied in production (see the file header).
   // Without this guard the job's first-ever run — 1st of the month, 09:00
@@ -89,24 +101,30 @@ export async function ensureJournalLinesPartitions(): Promise<{
   // that is a deployment-state fact to surface, not an error to retry.
   if (!(await isJournalLinesPartitioned())) {
     logger.warn(
-      '[journal-lines-partitions] journal_lines is not a partitioned table — ' +
-      'migrations 094/095 are not applied. Skipping partition maintenance.',
+      "[journal-lines-partitions] journal_lines is not a partitioned table — " +
+        "migrations 094/095 are not applied. Skipping partition maintenance.",
     );
     return { created: [], defaultPartitionRowCount: 0, skipped: true };
   }
 
   const now = new Date();
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + MONTHS_AHEAD + 1, 1));
+  const end = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + MONTHS_AHEAD + 1, 1),
+  );
 
   const { rows } = await pool.query<{ min: string | null }>(
     `SELECT MIN(entry_date)::text AS min FROM journal_entries`,
   );
   const earliest = rows[0]?.min ? new Date(rows[0].min) : now;
-  let cursor = new Date(Date.UTC(earliest.getUTCFullYear(), earliest.getUTCMonth(), 1));
+  let cursor = new Date(
+    Date.UTC(earliest.getUTCFullYear(), earliest.getUTCMonth(), 1),
+  );
 
   const created: string[] = [];
   while (cursor < end) {
-    const monthEnd = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+    const monthEnd = new Date(
+      Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1),
+    );
     created.push(await ensurePartition(cursor, monthEnd));
     cursor = monthEnd;
   }
@@ -116,11 +134,14 @@ export async function ensureJournalLinesPartitions(): Promise<{
   const { rows: defaultRows } = await pool.query<{ count: string }>(
     `SELECT COUNT(*) AS count FROM journal_lines_default`,
   );
-  const defaultPartitionRowCount = parseInt(defaultRows[0]?.count ?? '0', 10);
+  const defaultPartitionRowCount = parseInt(defaultRows[0]?.count ?? "0", 10);
   if (defaultPartitionRowCount > 0) {
-    logger.warn('[journal-lines-partitions] journal_lines_default is non-empty — partition maintenance fell behind', {
-      rows: defaultPartitionRowCount,
-    });
+    logger.warn(
+      "[journal-lines-partitions] journal_lines_default is non-empty — partition maintenance fell behind",
+      {
+        rows: defaultPartitionRowCount,
+      },
+    );
   }
 
   return { created, defaultPartitionRowCount };

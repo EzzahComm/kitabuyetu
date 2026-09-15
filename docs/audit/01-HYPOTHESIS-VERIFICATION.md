@@ -18,7 +18,7 @@ Pass 0 (`docs/audit/00-INVENTORY.md`) was produced in a prior session against an
 
 ## A note on repository state during this pass
 
-Three unrelated production fixes (SMS credit top-up, a dashboard reminder button, and a retry-storm fix — none touching anything examined below) were shipped to `main` via PRs #48/#49/#50 in the same session, in response to live incidents the user reported mid-audit. `audit/production-readiness-2026-08` was deliberately **not** rebased onto them, so this pass's findings describe the codebase at the original Pass 0 fork point, consistent with Pass 0's own "commit HEAD on branch audit/production-readiness-2026-08" framing. None of the three PRs touch RLS, auth wrappers, organization scoping, or the reminder *engine* (one of them touches `lib/sms/trigger-engine.ts`'s error-handling, which H5 read the pre-fix version of — irrelevant to H5's architectural question).
+Three unrelated production fixes (SMS credit top-up, a dashboard reminder button, and a retry-storm fix — none touching anything examined below) were shipped to `main` via PRs #48/#49/#50 in the same session, in response to live incidents the user reported mid-audit. `audit/production-readiness-2026-08` was deliberately **not** rebased onto them, so this pass's findings describe the codebase at the original Pass 0 fork point, consistent with Pass 0's own "commit HEAD on branch audit/production-readiness-2026-08" framing. None of the three PRs touch RLS, auth wrappers, organization scoping, or the reminder _engine_ (one of them touches `lib/sms/trigger-engine.ts`'s error-handling, which H5 read the pre-fix version of — irrelevant to H5's architectural question).
 
 ---
 
@@ -28,7 +28,7 @@ Three unrelated production fixes (SMS credit top-up, a dashboard reminder button
 
 ### `(admin)` — confirmed functional mismatch, not a privilege-escalation gap
 
-`app/(admin)/layout.tsx:27` allows `ADMIN_ROLES = ['super_admin','support','organization_coordinator']` client-side, with a comment (`:19-21`) claiming the proxy "already validates this on `/api/admin/*`." **All 48 HTTP handlers across all 37 files under `app/api/admin/**/route.ts` call `withPlatformRole(req, 'super_admin', ...)` — a single hard-coded role, never the 3-role set** (exhaustive grep, spot-read of `users/[id]`, `members/[id]/role`, `groups/[id]`, `governance/*`, `organizations/**`, `policies/**`, `roles`). The 2 exceptions (`auth/my-organizations`, `auth/switch-org`) correctly use `withBackofficeAuth` (any backoffice role) since they're org-switcher utilities.
+`app/(admin)/layout.tsx:27` allows `ADMIN_ROLES = ['super_admin','support','organization_coordinator']` client-side, with a comment (`:19-21`) claiming the proxy "already validates this on `/api/admin/*`." **All 48 HTTP handlers across all 37 files under `app/api/admin/**/route.ts`call`withPlatformRole(req, 'super_admin', ...)`— a single hard-coded role, never the 3-role set** (exhaustive grep, spot-read of`users/[id]`, `members/[id]/role`, `groups/[id]`, `governance/\*`, `organizations/**`, `policies/**`, `roles`). The 2 exceptions (`auth/my-organizations`, `auth/switch-org`) correctly use `withBackofficeAuth` (any backoffice role) since they're org-switcher utilities.
 
 **Practical effect**: a `support` or `organization_coordinator` staff member can log into `/admin-login`, pass the proxy's audience check, and land on the `(admin)` shell — then get a 403 on every single data call the shell makes. This is over-restrictive (locks out roles the UI implies should work), not under-restrictive — no exploit path, but a real, confirmed discrepancy between the guard's own comment and actual enforcement.
 
@@ -51,6 +51,7 @@ One instance of client-side permission gating exists at all (`useHasPermission`,
 **[VERIFIED]** — no. `proxy.ts:299-318`'s reshaping sets `x-group-id` to the **empty string unconditionally** (never a real or client-influenced group id) and `x-organization-id` to `payload.organizationId` — a value read straight off the **verified JWT**, after `sanitizedHeaders()` (`proxy.ts:93-108`) has already stripped any client-sent copy of that header. So the reshaped token does not carry a spoofable `groupId`-equivalent at all; the only scope-bearing value is a claim the client cannot set.
 
 All 13 files under `app/api/v1/organization/**` were read. Every one scopes its SQL by `organization_id = <value derived from auth.organizationId>`. The 3 routes that DO accept a client-suppliable resource id (`reports?groupId=`, `programs/[id]`, `disbursements/[id]`) all use it only as a second, ANDed predicate:
+
 - `getGroupDetail` — `WHERE organization_id = ctx.organizationId AND group_id = $2` (org.service.ts:294-299) → `NotFoundError`, not another org's data, if the group isn't linked to this org.
 - `updateProgramStatus`/`getProgramForUpdate` — `WHERE id = $x AND organization_id = $y` (finance.service.ts:190-194, 914-920).
 - `approveDisbursement`/`rejectDisbursement` — `WHERE id = $x AND organization_id = $y ... FOR UPDATE` (finance.service.ts:1083-1116).
@@ -92,10 +93,12 @@ Live production queried directly (`pg_class`/`pg_policy`/`information_schema.rol
 Pass 0 flagged `invoice_sequences` as the one table with `rls_enabled: false` (Supabase's advisory tool marks this `critical`) but explicitly deferred exploitability to Pass 1, on the stated assumption that "this app doesn't appear to route through PostgREST/anon key for tenant data." **That assumption should not be relied on** — this project's own audit log records a closed, confirmed incident (2026-08-08, "PostgREST exposure incident") where self-registered Supabase Auth accounts (the `authenticated` role) reached SECURITY DEFINER RPCs and two other tables directly via PostgREST, independent of anything the Next.js app itself calls. Supabase's REST endpoint is live for this project regardless of whether the app's own code uses it.
 
 Grants confirmed via live query:
+
 ```sql
 SELECT grantee, privilege_type FROM information_schema.role_table_grants
 WHERE table_schema='public' AND table_name='invoice_sequences' AND grantee IN ('anon','authenticated');
 ```
+
 → both `anon` and `authenticated` hold exactly `REFERENCES, TRIGGER, TRUNCATE` — **no** `SELECT`/`INSERT`/`UPDATE`/`DELETE` (unlike every other table — `payments`, for contrast, grants the full `DELETE,INSERT,SELECT,UPDATE,REFERENCES,TRIGGER,TRUNCATE` set to both roles).
 
 **Correction (2026-08-09, same day, caught before any fix shipped)**: the original wording here called this "immediately exploitable" — that overstated it. **`TRUNCATE` is not reachable through Supabase's PostgREST API at all**: PostgREST's REST interface only ever issues `SELECT`/`INSERT`/`UPDATE`/`DELETE` (from GET/POST/PATCH/DELETE) — no verb maps to `TRUNCATE`, and there is no RPC path either: `grep -rn "TRUNCATE" **/*.sql` across the whole repo turns up exactly one file that ever executes it, `scripts/clear-tenant-data.sql`, a manual ops script run by hand via the SQL editor, never invoked by the app or exposed as a function. `REFERENCES`/`TRIGGER` are DDL-only privileges with the same non-reachability (PostgREST issues no DDL). So this specific grant is **dormant, not currently reachable by any known path** — the opposite of what "critical, immediately actionable" implied. Still worth revoking (it's an unnecessary privilege sitting on a public-facing role for zero benefit, and "not reachable today" is not the same guarantee as "can never become reachable" — e.g. if a future SECURITY INVOKER RPC ever touched this table), but as **hygiene, not urgency**. Re-ranked below accordingly. The genuinely open question this table still raises is unchanged: it has **zero RLS** by original design (`20260101000008_009_functions_triggers.sql:271`, "no user data, no group_id — RLS must stay off" — a deliberate, reasoned choice for a global, non-tenant sequence counter, not an oversight), so if `SELECT`/`INSERT`/`UPDATE`/`DELETE` were ever accidentally granted to `anon`/`authenticated` later, there would be nothing to stop it — worth a comment in the schema flagging that this table's safety depends entirely on the DML grants staying absent.
@@ -107,12 +110,14 @@ Every one of the 135 `public` tables (not a subset) grants the full `DELETE,INSE
 ### Resolved: is "RLS enabled but not forced" a meaningful bypass for either role the app actually uses?
 
 Pass 0 flagged 45 tables (now 57, of 135 — see table-count note below) as RLS-enabled-but-not-forced and explicitly left open "whether the table owner... is a meaningful bypass path." **Now resolved: no.**
+
 ```sql
 SELECT c.relrowsecurity, c.relforcerowsecurity, pg_get_userbyid(c.relowner), count(*)
 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
 WHERE n.nspname='public' AND c.relkind='r' GROUP BY 1,2,3;
 ```
-→ **all 135 tables, with no exception, are owned by `postgres`.** `FORCE ROW LEVEL SECURITY` only restricts the table *owner* — every non-owner role's policies apply regardless of the forced flag. `postgres` (the role `withAdminDb` connects as) carries `rolbypassrls = true`, so RLS — forced or not — never applies to it anyway, for a completely separate reason. `app_tenant` (the role `withDb` connects as, live in production since 2026-08-05) is confirmed **not** the table owner and **not** `rolbypassrls`, so ordinary (non-forced) RLS enforcement already applies to it in full. Neither role the application actually uses is affected by whether `FORCE` is set on any of these 57 tables. The forced/not-forced distinction only matters for a role that (a) owns the tables and (b) lacks `BYPASSRLS` — no such role exists in this schema today.
+
+→ **all 135 tables, with no exception, are owned by `postgres`.** `FORCE ROW LEVEL SECURITY` only restricts the table _owner_ — every non-owner role's policies apply regardless of the forced flag. `postgres` (the role `withAdminDb` connects as) carries `rolbypassrls = true`, so RLS — forced or not — never applies to it anyway, for a completely separate reason. `app_tenant` (the role `withDb` connects as, live in production since 2026-08-05) is confirmed **not** the table owner and **not** `rolbypassrls`, so ordinary (non-forced) RLS enforcement already applies to it in full. Neither role the application actually uses is affected by whether `FORCE` is set on any of these 57 tables. The forced/not-forced distinction only matters for a role that (a) owns the tables and (b) lacks `BYPASSRLS` — no such role exists in this schema today.
 
 ### Table count drifted 130 → 135 since Pass 0; migration file count unchanged at 146
 
@@ -121,6 +126,7 @@ Pass 0 (a few days prior) reported 130 tables from live introspection; this pass
 ### The 3 single-policy financial tables — predicates read
 
 Pass 0 flagged `payments`, `invoices`, `bill_manager_invoices` as carrying exactly one RLS policy each, "worth a closer read in Pass 1." Read via `pg_policies`:
+
 - `payments_all` / `invoices_all`: `(SELECT is_super_admin()) OR (group_id = (SELECT app_current_group_id()))`, `cmd: ALL`.
 - `rls_bill_manager_invoices_group`: `(group_id)::text = (SELECT current_setting('app.current_group_id', true))`, `cmd: ALL` — **no explicit `is_super_admin()` carve-out**, unlike the other two. Under the current role setup this is inert (super_admin's own queries still run through `postgres`, which bypasses RLS outright) — but if the `app_tenant`-only cutover is ever completed for `super_admin`-initiated requests too, a super_admin session on this one table specifically would be scoped by group like anyone else rather than seeing across groups, an inconsistency worth a one-line fix whenever that table is next touched, not urgent today.
 
@@ -137,20 +143,22 @@ Pass 0 could not verify this from source alone. `vercel env ls production` confi
 ```
 grep -c withAdminDb\( across *.ts, files_with_matches
 ```
+
 → 314 occurrences across 94 files, up from Pass 0's 309/91 — the +5/+3 delta is fully explained by this session's own 3 out-of-band SMS fixes (2 new route files each with a use, `lib/sms/trigger-engine.ts` unchanged in count). ADR-001's own Phase-3 estimate ("~130 of these call sites don't structurally need admin privilege") is a subset estimate, not a total-count claim — this delta doesn't contradict it. Phase 3 itself (migrating that subset to `withDb`) remains not started, unchanged from Pass 0.
 
 ---
 
 ## Checkpoint 1 summary
 
-| Hypothesis | Verdict |
-|---|---|
-| H7 | One confirmed functional mismatch — `(admin)`'s 3-role client guard vs. every route's `super_admin`-only gate. Over-restrictive, not exploitable. No gap found elsewhere. |
-| H3 | No cross-organization scoping gap. One functional (non-exploitable) rough edge in a fallback expression, noted for future cleanup. |
-| H5 | Confirmed single dispatch engine. Chama Reminder's only implemented piece is unmerged and, when merged, joins the same engine. |
-| H8 | **Critical, actionable now**: `invoice_sequences` — no RLS + TRUNCATE granted to `anon`/unauthenticated. Everything else in this bucket resolved as either closed (not-forced/ownership question), unchanged/re-verified (mpesa_b2c/b2b), newly confirmed (TENANT_DATABASE_URL in prod, missing in Preview), or explicitly scoped out to a future pass (per-table RLS predicate correctness across all 135 tables). |
+| Hypothesis | Verdict                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H7         | One confirmed functional mismatch — `(admin)`'s 3-role client guard vs. every route's `super_admin`-only gate. Over-restrictive, not exploitable. No gap found elsewhere.                                                                                                                                                                                                                                           |
+| H3         | No cross-organization scoping gap. One functional (non-exploitable) rough edge in a fallback expression, noted for future cleanup.                                                                                                                                                                                                                                                                                  |
+| H5         | Confirmed single dispatch engine. Chama Reminder's only implemented piece is unmerged and, when merged, joins the same engine.                                                                                                                                                                                                                                                                                      |
+| H8         | **Critical, actionable now**: `invoice_sequences` — no RLS + TRUNCATE granted to `anon`/unauthenticated. Everything else in this bucket resolved as either closed (not-forced/ownership question), unchanged/re-verified (mpesa_b2c/b2b), newly confirmed (TENANT_DATABASE_URL in prod, missing in Preview), or explicitly scoped out to a future pass (per-table RLS predicate correctness across all 135 tables). |
 
 ### What Pass 1 did not do
+
 - Did not read `USING`/`WITH CHECK` predicate text for all 135 tables — only the 3 single-policy financial tables plus the previously-flagged mpesa set. The blanket `anon`/`authenticated` GRANT finding above means this is no longer optional groundwork for a future pass; it's the thing standing between "GRANT is broad" and "GRANT is exploitable," table by table.
 - Did not complete H4 (orphan-table tracing) — still Pass 2 territory, per Pass 0's own scoping.
 - Did not resolve H1/H2/H6 — no surviving definition to investigate against.

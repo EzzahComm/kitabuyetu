@@ -9,43 +9,60 @@
  * behaviour unchanged — so if this invariant can be violated, that guarantee
  * silently breaks instead of failing loudly.
  */
-import { type TenantContext } from '@/lib/db';
-import { listForGroup, getInternalSavingsSource } from '@/lib/services/funding-sources.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { type TenantContext } from "@/lib/db";
+import {
+  listForGroup,
+  getInternalSavingsSource,
+} from "@/lib/services/funding-sources.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
-describe('group_funding_sources', () => {
+describe("group_funding_sources", () => {
   let groupAId: string, officerAId: string;
   let groupBId: string, officerBId: string;
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId: groupAId, officerId: officerAId } = await createTestGroup('chairperson'));
-    ({ groupId: groupBId, officerId: officerBId } = await createTestGroup('chairperson'));
+    ({ groupId: groupAId, officerId: officerAId } =
+      await createTestGroup("chairperson"));
+    ({ groupId: groupBId, officerId: officerBId } =
+      await createTestGroup("chairperson"));
   });
 
   afterAll(async () => {
     await resetDatabase();
   });
 
-  const ctxA = (): TenantContext => ({ userId: officerAId, groupId: groupAId, role: 'chairperson' });
-  const ctxB = (): TenantContext => ({ userId: officerBId, groupId: groupBId, role: 'chairperson' });
+  const ctxA = (): TenantContext => ({
+    userId: officerAId,
+    groupId: groupAId,
+    role: "chairperson",
+  });
+  const ctxB = (): TenantContext => ({
+    userId: officerBId,
+    groupId: groupBId,
+    role: "chairperson",
+  });
 
-  describe('auto-provisioning trigger', () => {
-    it('creates exactly one internal_savings source for a newly created group', async () => {
-      const rows = await rawQuery<{ source_type: string; label: string; is_repayable: boolean }>(
+  describe("auto-provisioning trigger", () => {
+    it("creates exactly one internal_savings source for a newly created group", async () => {
+      const rows = await rawQuery<{
+        source_type: string;
+        label: string;
+        is_repayable: boolean;
+      }>(
         `SELECT source_type, label, is_repayable
          FROM group_funding_sources WHERE group_id = $1`,
         [groupAId],
       );
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].source_type).toBe('internal_savings');
+      expect(rows[0].source_type).toBe("internal_savings");
       expect(rows[0].is_repayable).toBe(false);
     });
 
-    it('provisions independently for every group', async () => {
+    it("provisions independently for every group", async () => {
       const rows = await rawQuery<{ n: string }>(
         `SELECT count(*) AS n FROM group_funding_sources
          WHERE group_id = ANY($1) AND source_type = 'internal_savings'`,
@@ -54,7 +71,7 @@ describe('group_funding_sources', () => {
       expect(Number(rows[0].n)).toBe(2);
     });
 
-    it('leaves no group without an internal_savings source (the migration-level invariant)', async () => {
+    it("leaves no group without an internal_savings source (the migration-level invariant)", async () => {
       const rows = await rawQuery<{ n: string }>(
         `SELECT count(*) AS n FROM groups g
          WHERE NOT EXISTS (
@@ -65,7 +82,7 @@ describe('group_funding_sources', () => {
       expect(Number(rows[0].n)).toBe(0);
     });
 
-    it('runs as SECURITY DEFINER, so it still writes under a non-BYPASSRLS role', async () => {
+    it("runs as SECURITY DEFINER, so it still writes under a non-BYPASSRLS role", async () => {
       // Regression guard for the exact bug class this codebase already shipped
       // once: private.update_account_balance() was a plain trigger writing to an
       // RLS-guarded table, so it silently matched zero rows (fixed in migration
@@ -82,8 +99,8 @@ describe('group_funding_sources', () => {
     });
   });
 
-  describe('constraints', () => {
-    it('rejects a second internal_savings source for the same group', async () => {
+  describe("constraints", () => {
+    it("rejects a second internal_savings source for the same group", async () => {
       await expect(
         rawQuery(
           `INSERT INTO group_funding_sources (group_id, source_type, label)
@@ -93,7 +110,7 @@ describe('group_funding_sources', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects an internal_savings source marked repayable', async () => {
+    it("rejects an internal_savings source marked repayable", async () => {
       await expect(
         rawQuery(
           `INSERT INTO group_funding_sources (group_id, source_type, label, is_repayable)
@@ -103,7 +120,7 @@ describe('group_funding_sources', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects an organization_allocation source with no allocation or organization', async () => {
+    it("rejects an organization_allocation source with no allocation or organization", async () => {
       await expect(
         rawQuery(
           `INSERT INTO group_funding_sources (group_id, source_type, label)
@@ -113,7 +130,7 @@ describe('group_funding_sources', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects a non-allocation source that names an allocation', async () => {
+    it("rejects a non-allocation source that names an allocation", async () => {
       await expect(
         rawQuery(
           `INSERT INTO group_funding_sources (group_id, source_type, label, allocation_id)
@@ -123,7 +140,7 @@ describe('group_funding_sources', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects a closed source with no closed_at timestamp', async () => {
+    it("rejects a closed source with no closed_at timestamp", async () => {
       await expect(
         rawQuery(
           `INSERT INTO group_funding_sources (group_id, source_type, label, status)
@@ -133,7 +150,7 @@ describe('group_funding_sources', () => {
       ).rejects.toThrow();
     });
 
-    it('accepts a valid additional non-allocation source', async () => {
+    it("accepts a valid additional non-allocation source", async () => {
       const rows = await rawQuery<{ id: string }>(
         `INSERT INTO group_funding_sources (group_id, source_type, label, is_repayable)
          VALUES ($1, 'external_grant', 'County womens fund', false)
@@ -144,19 +161,19 @@ describe('group_funding_sources', () => {
     });
   });
 
-  describe('service layer', () => {
-    it('getInternalSavingsSource returns the group\'s own savings source', async () => {
+  describe("service layer", () => {
+    it("getInternalSavingsSource returns the group's own savings source", async () => {
       const source = await getInternalSavingsSource(ctxA());
 
-      expect(source.sourceType).toBe('internal_savings');
+      expect(source.sourceType).toBe("internal_savings");
       expect(source.groupId).toBe(groupAId);
       expect(source.isRepayable).toBe(false);
-      expect(source.status).toBe('active');
+      expect(source.status).toBe("active");
       expect(source.allocationId).toBeNull();
       expect(source.organizationId).toBeNull();
     });
 
-    it('resolves a different source per group', async () => {
+    it("resolves a different source per group", async () => {
       const a = await getInternalSavingsSource(ctxA());
       const b = await getInternalSavingsSource(ctxB());
 
@@ -165,23 +182,23 @@ describe('group_funding_sources', () => {
       expect(b.groupId).toBe(groupBId);
     });
 
-    it('listForGroup returns internal savings first', async () => {
+    it("listForGroup returns internal savings first", async () => {
       const sources = await listForGroup(ctxA());
 
       // Group A also has the external_grant added above.
       expect(sources.length).toBeGreaterThanOrEqual(2);
-      expect(sources[0].sourceType).toBe('internal_savings');
+      expect(sources[0].sourceType).toBe("internal_savings");
     });
 
-    it('listForGroup never leaks another group\'s sources', async () => {
+    it("listForGroup never leaks another group's sources", async () => {
       const sources = await listForGroup(ctxB());
 
       expect(sources.every((s) => s.groupId === groupBId)).toBe(true);
-      expect(sources.some((s) => s.label === 'County womens fund')).toBe(false);
+      expect(sources.some((s) => s.label === "County womens fund")).toBe(false);
     });
   });
 
-  describe('group deletion', () => {
+  describe("group deletion", () => {
     // A group cannot actually be hard-deleted in this schema — accounts.group_id
     // (among others) is a plain FK with no ON DELETE action, so `DELETE FROM
     // groups` raises. Groups are retired via status/archived_at instead. So the
@@ -191,7 +208,7 @@ describe('group_funding_sources', () => {
     //
     // (An earlier version of this test did DELETE FROM groups and was caught by
     // the real-Postgres CI job — worth keeping the reason recorded.)
-    it('declares ON DELETE CASCADE on its group_id foreign key', async () => {
+    it("declares ON DELETE CASCADE on its group_id foreign key", async () => {
       const rows = await rawQuery<{ delete_rule: string }>(
         `SELECT rc.delete_rule
          FROM information_schema.referential_constraints rc
@@ -207,11 +224,11 @@ describe('group_funding_sources', () => {
       );
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].delete_rule).toBe('CASCADE');
+      expect(rows[0].delete_rule).toBe("CASCADE");
     });
 
-    it('blocks hard-deleting a group (documents why the cascade is untestable end to end)', async () => {
-      const { groupId } = await createTestGroup('chairperson');
+    it("blocks hard-deleting a group (documents why the cascade is untestable end to end)", async () => {
+      const { groupId } = await createTestGroup("chairperson");
 
       await expect(
         rawQuery(`DELETE FROM groups WHERE id = $1`, [groupId]),

@@ -21,19 +21,19 @@
 export interface SplitRule {
   account_code: string;
   /** 0 < percentage <= 100 — exclusive with `fixed_amount`. */
-  percentage:   number | null;
+  percentage: number | null;
   /** > 0 in KES — exclusive with `percentage`. */
   fixed_amount: number | null;
   /** Lower priority applied first (ascending). Defaults to 100. */
-  priority:     number;
+  priority: number;
 }
 
 export interface Allocation {
-  account_code:  string;
+  account_code: string;
   /** Allocation in KES, rounded to 2dp (NUMERIC(15,2) compatible). */
-  amount:        number;
+  amount: number;
   /** Same value in cents — useful for journal posting without re-rounding. */
-  amount_cents:  number;
+  amount_cents: number;
 }
 
 /**
@@ -42,14 +42,14 @@ export interface Allocation {
  * e.g. '4001').
  */
 export function allocateSplit(
-  amountKes:          number,
-  rules:              readonly SplitRule[],
+  amountKes: number,
+  rules: readonly SplitRule[],
   defaultAccountCode: string,
 ): Allocation[] {
   if (amountKes <= 0) return [];
 
   const totalCents = Math.round(amountKes * 100);
-  const lines     = new Map<string, number>();
+  const lines = new Map<string, number>();
 
   // No rules → everything to the default account.
   if (rules.length === 0) {
@@ -58,8 +58,8 @@ export function allocateSplit(
   }
 
   const sorted = [...rules].sort((a, b) => a.priority - b.priority);
-  const fixed  = sorted.filter((r) => r.fixed_amount != null);
-  const pct    = sorted.filter((r) => r.percentage   != null);
+  const fixed = sorted.filter((r) => r.fixed_amount != null);
+  const pct = sorted.filter((r) => r.percentage != null);
 
   let remainder = totalCents;
 
@@ -67,7 +67,7 @@ export function allocateSplit(
   //    contribution is smaller than the requested fixed amount.
   for (const r of fixed) {
     if (remainder <= 0) break;
-    const wantCents  = Math.round((r.fixed_amount ?? 0) * 100);
+    const wantCents = Math.round((r.fixed_amount ?? 0) * 100);
     const allocCents = Math.min(wantCents, remainder);
     addLine(lines, r.account_code, allocCents);
     remainder -= allocCents;
@@ -86,11 +86,13 @@ export function allocateSplit(
       // If percentages sum to >100 (validator should prevent), scale down
       // so we never over-allocate.
       const scale = totalPct > 100 ? 100 / totalPct : 1;
-      const effectivePctFraction = pct.map((r) => (r.percentage! * scale) / 100);
+      const effectivePctFraction = pct.map(
+        (r) => (r.percentage! * scale) / 100,
+      );
 
-      const ideals    = effectivePctFraction.map((f) => f * remainder);
-      const floors    = ideals.map((i) => Math.floor(i));
-      const fracts    = ideals.map((i, idx) => i - floors[idx]);
+      const ideals = effectivePctFraction.map((f) => f * remainder);
+      const floors = ideals.map((i) => Math.floor(i));
+      const fracts = ideals.map((i, idx) => i - floors[idx]);
       const sumIdeals = ideals.reduce((a, b) => a + b, 0);
       const sumFloors = floors.reduce((a, b) => a + b, 0);
 
@@ -101,7 +103,12 @@ export function allocateSplit(
       // largest fractional remainder. Ties broken by priority (lower first).
       let roundingGap = Math.round(sumIdeals) - sumFloors;
       const order = pct
-        .map((r, i) => ({ idx: i, code: r.account_code, frac: fracts[i], priority: r.priority }))
+        .map((r, i) => ({
+          idx: i,
+          code: r.account_code,
+          frac: fracts[i],
+          priority: r.priority,
+        }))
         .sort((a, b) => b.frac - a.frac || a.priority - b.priority);
       for (const o of order) {
         if (roundingGap <= 0) break;
@@ -125,7 +132,11 @@ export function allocateSplit(
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
-function addLine(lines: Map<string, number>, code: string, cents: number): void {
+function addLine(
+  lines: Map<string, number>,
+  code: string,
+  cents: number,
+): void {
   if (cents <= 0) return;
   lines.set(code, (lines.get(code) ?? 0) + cents);
 }
@@ -134,6 +145,6 @@ function finalise(lines: Map<string, number>): Allocation[] {
   return Array.from(lines.entries()).map(([code, cents]) => ({
     account_code: code,
     amount_cents: cents,
-    amount:       cents / 100,
+    amount: cents / 100,
   }));
 }

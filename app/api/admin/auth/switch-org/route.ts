@@ -1,20 +1,25 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withBackofficeAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { signBackofficeAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';
-import { storeRefreshToken } from '@/lib/redis';
-import { ok, handleError, errorResponse } from '@/lib/utils/response';
-import type { AdminLoginResponse } from '@/types/api.types';
-import type { AdminPlatformRole } from '@/lib/auth/middleware';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withBackofficeAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import {
+  signBackofficeAccessToken,
+  signRefreshToken,
+  hashToken,
+  refreshTtlSeconds,
+} from "@/lib/auth/jwt";
+import { storeRefreshToken } from "@/lib/redis";
+import { ok, handleError, errorResponse } from "@/lib/utils/response";
+import type { AdminLoginResponse } from "@/types/api.types";
+import type { AdminPlatformRole } from "@/lib/auth/middleware";
 
 const Schema = z.object({ organizationId: z.string().uuid() });
 
 interface TargetRow {
-  first_name:    string;
-  last_name:     string;
-  email:         string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
   platform_role: string;
 }
 
@@ -37,7 +42,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     try {
       const input = Schema.parse(await req.json());
       if (input.organizationId === auth.organizationId) {
-        return errorResponse('You are already in this organization', 'SAME_ORG', 400);
+        return errorResponse(
+          "You are already in this organization",
+          "SAME_ORG",
+          400,
+        );
       }
 
       const target = await withAdminDb(async (client) => {
@@ -53,35 +62,51 @@ export async function POST(req: NextRequest): Promise<Response> {
       });
 
       if (!target) {
-        return errorResponse('You have no active membership in that organization.', 'NO_ACTIVE_ORG', 403);
+        return errorResponse(
+          "You have no active membership in that organization.",
+          "NO_ACTIVE_ORG",
+          403,
+        );
       }
 
       const accessToken = signBackofficeAccessToken({
-        sub:          auth.userId,
-        aud:          'backoffice',
+        sub: auth.userId,
+        aud: "backoffice",
         platformRole: target.platform_role as AdminPlatformRole,
         organizationId: input.organizationId,
       });
-      const { token: refreshToken } = signRefreshToken(auth.userId, 'backoffice');
+      const { token: refreshToken } = signRefreshToken(
+        auth.userId,
+        "backoffice",
+      );
       const rtHash = hashToken(refreshToken);
-      await storeRefreshToken(rtHash, auth.userId, refreshTtlSeconds('backoffice'));
+      await storeRefreshToken(
+        rtHash,
+        auth.userId,
+        refreshTtlSeconds("backoffice"),
+      );
       await withAdminDb((client) =>
         client.query(
           `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address)
            VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4)`,
-          [auth.userId, rtHash, refreshTtlSeconds('backoffice'), req.headers.get('x-forwarded-for') ?? null],
+          [
+            auth.userId,
+            rtHash,
+            refreshTtlSeconds("backoffice"),
+            req.headers.get("x-forwarded-for") ?? null,
+          ],
         ),
       );
 
       const response: AdminLoginResponse = {
         accessToken,
         refreshToken,
-        audience: 'backoffice',
+        audience: "backoffice",
         member: {
-          id:           auth.userId,
-          firstName:    target.first_name,
-          lastName:     target.last_name,
-          email:        target.email ?? '',
+          id: auth.userId,
+          firstName: target.first_name,
+          lastName: target.last_name,
+          email: target.email ?? "",
           platformRole: target.platform_role as AdminPlatformRole,
           organizationId: input.organizationId,
         },

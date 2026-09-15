@@ -14,12 +14,12 @@
  * verification (dry-run count must be zero on a healthy system), and the
  * production-readiness DR drill (checklist item 16).
  */
-import { withAdminDb } from '../lib/db';
+import { withAdminDb } from "../lib/db";
 
 interface RebuildCounts {
   membershipNos: number;
-  legacyCodes:   number;
-  invoices:      number;
+  legacyCodes: number;
+  invoices: number;
 }
 
 async function countMissing(): Promise<RebuildCounts> {
@@ -63,35 +63,37 @@ async function rebuild(): Promise<RebuildCounts> {
     );
     return {
       membershipNos: m.rowCount ?? 0,
-      legacyCodes:   l.rowCount ?? 0,
-      invoices:      i.rowCount ?? 0,
+      legacyCodes: l.rowCount ?? 0,
+      invoices: i.rowCount ?? 0,
     };
   });
 }
 
 async function main(): Promise<void> {
-  const commit = process.argv.includes('--commit');
+  const commit = process.argv.includes("--commit");
 
   const missing = await countMissing();
   const total = missing.membershipNos + missing.legacyCodes + missing.invoices;
-  console.log('payment_accounts — missing registry rows:');
+  console.log("payment_accounts — missing registry rows:");
   console.log(`  membership numbers : ${missing.membershipNos}`);
   console.log(`  legacy member codes: ${missing.legacyCodes}`);
   console.log(`  invoice numbers    : ${missing.invoices}`);
 
   if (total === 0) {
-    console.log('Registry is complete. Nothing to do.');
+    console.log("Registry is complete. Nothing to do.");
     return;
   }
   if (!commit) {
-    console.log(`\nDry run — ${total} rows would be inserted. Re-run with --commit to apply.`);
+    console.log(
+      `\nDry run — ${total} rows would be inserted. Re-run with --commit to apply.`,
+    );
     return;
   }
 
   const inserted = await rebuild();
   console.log(
     `\nInserted: ${inserted.membershipNos} membership numbers, ` +
-    `${inserted.legacyCodes} legacy codes, ${inserted.invoices} invoices.`,
+      `${inserted.legacyCodes} legacy codes, ${inserted.invoices} invoices.`,
   );
 
   const after = await countMissing();
@@ -99,14 +101,18 @@ async function main(): Promise<void> {
   if (remaining > 0) {
     // Identifier collision (e.g. a member_code equal to another row's key)
     // requires human review — report loudly rather than guessing.
-    console.error(`WARNING: ${remaining} rows still missing after rebuild — investigate identifier collisions.`);
+    console.error(
+      `WARNING: ${remaining} rows still missing after rebuild — investigate identifier collisions.`,
+    );
     process.exitCode = 1;
   } else {
-    console.log('Registry verified complete.');
+    console.log("Registry verified complete.");
   }
 }
 
-main().then(() => process.exit()).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

@@ -16,23 +16,57 @@
  */
 
 // ── Brand palette (single source: lib/ui/brand-palette.ts) ──────────────────
-export { brandGreen, brandNavy, brandOrange } from './brand-palette';
-import { brandGreen, brandNavy, brandOrange } from './brand-palette';
+export { brandGreen, brandNavy, brandOrange } from "./brand-palette";
+import { brandGreen, brandNavy, brandOrange } from "./brand-palette";
 
 // ── Semantic financial tones ─────────────────────────────────────────────────
 // Used by StatusPill, alerts, and charts. `fg`/`bg` are tuned for AA contrast
 // on light surfaces; `solid` is the chart/marker color.
-export type Tone = 'positive' | 'negative' | 'neutral' | 'warning' | 'info' | 'pending';
+export type Tone =
+  | "positive"
+  | "negative"
+  | "neutral"
+  | "warning"
+  | "info"
+  | "pending";
 
-export const tone: Record<Tone, { solid: string; fg: string; bg: string; border: string }> = {
-  positive: { solid: '#16A34A', fg: '#166534', bg: '#DCFCE7', border: '#BBF7D0' },
-  negative: { solid: '#DC2626', fg: '#991B1B', bg: '#FEE2E2', border: '#FECACA' },
-  warning:  { solid: '#D97706', fg: '#92400E', bg: '#FEF3C7', border: '#FDE68A' },
-  info:     { solid: '#0B3C88', fg: '#0A3477', bg: '#E7EEF8', border: '#C6D5ED' },
+export const tone: Record<
+  Tone,
+  { solid: string; fg: string; bg: string; border: string }
+> = {
+  positive: {
+    solid: "#16A34A",
+    fg: "#166534",
+    bg: "#DCFCE7",
+    border: "#BBF7D0",
+  },
+  negative: {
+    solid: "#DC2626",
+    fg: "#991B1B",
+    bg: "#FEE2E2",
+    border: "#FECACA",
+  },
+  warning: {
+    solid: "#D97706",
+    fg: "#92400E",
+    bg: "#FEF3C7",
+    border: "#FDE68A",
+  },
+  info: { solid: "#0B3C88", fg: "#0A3477", bg: "#E7EEF8", border: "#C6D5ED" },
   // Yellow — "awaiting / in progress". Warmer & distinct from amber `warning`;
   // matches the product's status language (pending contributions, KYC, etc.).
-  pending:  { solid: '#CA8A04', fg: '#854D0E', bg: '#FEF9C3', border: '#FEF08A' },
-  neutral:  { solid: '#64748B', fg: '#334155', bg: '#F1F5F9', border: '#E2E8F0' },
+  pending: {
+    solid: "#CA8A04",
+    fg: "#854D0E",
+    bg: "#FEF9C3",
+    border: "#FEF08A",
+  },
+  neutral: {
+    solid: "#64748B",
+    fg: "#334155",
+    bg: "#F1F5F9",
+    border: "#E2E8F0",
+  },
 };
 
 /**
@@ -42,31 +76,68 @@ export const tone: Record<Tone, { solid: string; fg: string; bg: string; border:
  */
 export const STATUS_TONE: Record<string, Tone> = {
   // money / payments
-  paid: 'positive', completed: 'positive', success: 'positive', settled: 'positive',
-  reconciled: 'positive', disbursed: 'positive', cleared: 'positive', received: 'positive',
-  confirmed: 'positive',
-  pending: 'pending', processing: 'pending', submitted: 'pending', queued: 'pending',
-  unrouted: 'warning', partial: 'warning', overdue: 'negative', defaulted: 'negative',
-  failed: 'negative', reversed: 'negative', cancelled: 'neutral', refunded: 'info',
+  paid: "positive",
+  completed: "positive",
+  success: "positive",
+  settled: "positive",
+  reconciled: "positive",
+  disbursed: "positive",
+  cleared: "positive",
+  received: "positive",
+  confirmed: "positive",
+  pending: "pending",
+  processing: "pending",
+  submitted: "pending",
+  queued: "pending",
+  unrouted: "warning",
+  partial: "warning",
+  overdue: "negative",
+  defaulted: "negative",
+  failed: "negative",
+  reversed: "negative",
+  cancelled: "neutral",
+  refunded: "info",
   // lifecycle / approvals
-  active: 'positive', approved: 'positive', verified: 'positive', published: 'positive',
-  draft: 'neutral', inactive: 'info', archived: 'neutral', closed: 'neutral',
-  review: 'pending', under_review: 'pending', awaiting_approval: 'pending',
-  rejected: 'negative', suspended: 'warning', blocked: 'negative', flagged: 'warning',
+  active: "positive",
+  approved: "positive",
+  verified: "positive",
+  published: "positive",
+  draft: "neutral",
+  inactive: "info",
+  archived: "neutral",
+  closed: "neutral",
+  review: "pending",
+  under_review: "pending",
+  awaiting_approval: "pending",
+  rejected: "negative",
+  suspended: "warning",
+  blocked: "negative",
+  flagged: "warning",
   // KYC / risk
-  unverified: 'warning', expired: 'negative', high_risk: 'negative', low_risk: 'positive',
+  unverified: "warning",
+  expired: "negative",
+  high_risk: "negative",
+  low_risk: "positive",
   // messaging / comms (SMS, email, WhatsApp)
-  sent: 'positive', delivered: 'positive', sending: 'pending', scheduled: 'info',
-  bounced: 'warning', undelivered: 'negative', dry_run: 'neutral',
-  opened: 'info', clicked: 'positive',
+  sent: "positive",
+  delivered: "positive",
+  sending: "pending",
+  scheduled: "info",
+  bounced: "warning",
+  undelivered: "negative",
+  dry_run: "neutral",
+  opened: "info",
+  clicked: "positive",
   // membership lifecycle
-  pending_verification: 'warning', blacklisted: 'negative', exited: 'neutral',
+  pending_verification: "warning",
+  blacklisted: "negative",
+  exited: "neutral",
 };
 
 export function statusTone(status: string | null | undefined): Tone {
-  if (!status) return 'neutral';
-  const key = status.toLowerCase().replace(/[\s-]+/g, '_');
-  return STATUS_TONE[key] ?? 'neutral';
+  if (!status) return "neutral";
+  const key = status.toLowerCase().replace(/[\s-]+/g, "_");
+  return STATUS_TONE[key] ?? "neutral";
 }
 
 // ── Chart palette ────────────────────────────────────────────────────────────
@@ -74,35 +145,56 @@ export function statusTone(status: string | null | undefined): Tone {
 // `chartPalette[i % chartPalette.length]` for categorical series.
 export const chartPalette = [
   brandGreen[500], // green
-  brandNavy[500],  // navy
-  '#0EA5E9',       // sky
-  brandOrange[500],// orange
-  '#7C3AED',       // violet
-  '#14B8A6',       // teal
-  '#EAB308',       // amber
-  '#EC4899',       // pink
+  brandNavy[500], // navy
+  "#0EA5E9", // sky
+  brandOrange[500], // orange
+  "#7C3AED", // violet
+  "#14B8A6", // teal
+  "#EAB308", // amber
+  "#EC4899", // pink
 ] as const;
 
 /** Shared Recharts axis/grid styling so every chart reads consistently. */
 export const chartTheme = {
-  grid: '#E2E8F0',
-  axis: '#94A3B8',
-  axisLabel: '#64748B',
+  grid: "#E2E8F0",
+  axis: "#94A3B8",
+  axisLabel: "#64748B",
   fontSize: 12,
 } as const;
 
 // ── Layout scales ────────────────────────────────────────────────────────────
 /** Spacing scale in px (Tailwind 4px base) — for JS-computed layouts. */
-export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32, '3xl': 48 } as const;
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  "2xl": 32,
+  "3xl": 48,
+} as const;
 
 /** Responsive breakpoints (mirror Tailwind defaults; mobile-first). */
-export const breakpoints = { sm: 640, md: 768, lg: 1024, xl: 1280, '2xl': 1536 } as const;
+export const breakpoints = {
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  "2xl": 1536,
+} as const;
 
 export const radius = { sm: 6, md: 8, lg: 10, full: 9999 } as const;
 
 /** z-index ladder — keep overlays predictable across portals. */
 export const zIndex = {
-  base: 0, dropdown: 40, sticky: 30, overlay: 50, modal: 50, toast: 60, tooltip: 70, commandPalette: 80,
+  base: 0,
+  dropdown: 40,
+  sticky: 30,
+  overlay: 50,
+  modal: 50,
+  toast: 60,
+  tooltip: 70,
+  commandPalette: 80,
 } as const;
 
 // ── Motion ───────────────────────────────────────────────────────────────────

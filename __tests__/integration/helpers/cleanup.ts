@@ -1,10 +1,10 @@
-import { readFileSync } from 'fs';
-import path from 'path';
-import { execScript } from './db';
+import { readFileSync } from "fs";
+import path from "path";
+import { execScript } from "./db";
 
 const CLEAR_TENANT_DATA_SQL = readFileSync(
-  path.join(process.cwd(), 'scripts', 'clear-tenant-data.sql'),
-  'utf-8',
+  path.join(process.cwd(), "scripts", "clear-tenant-data.sql"),
+  "utf-8",
 );
 
 /**
@@ -33,5 +33,7 @@ export async function resetDatabase(): Promise<void> {
   // One statement, not one per table: resetDatabase runs at the head of nearly
   // every test in this suite, and a second round trip is pure overhead against
   // Jest's 5s default budget.
-  await execScript('TRUNCATE TABLE public.organizations, public.job_queue CASCADE;');
+  await execScript(
+    "TRUNCATE TABLE public.organizations, public.job_queue CASCADE;",
+  );
 }

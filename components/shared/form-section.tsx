@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 /**
  * Standardized form field wrapper for Label + Input/Select/Textarea.
@@ -20,7 +20,7 @@ export function FormSection({
   className?: string;
 }) {
   return (
-    <div className={className || 'space-y-1.5'}>
+    <div className={className || "space-y-1.5"}>
       {label && (
         <label className="text-sm font-medium text-foreground">
           {label}
@@ -51,13 +51,13 @@ export function FormFieldGroup({
   className?: string;
 }) {
   const gridClass = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    1: "grid-cols-1",
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
   }[columns];
 
   return (
-    <div className={`grid gap-4 ${gridClass} ${className || ''}`}>
+    <div className={`grid gap-4 ${gridClass} ${className || ""}`}>
       {children}
     </div>
   );

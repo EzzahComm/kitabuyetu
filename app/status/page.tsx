@@ -1,14 +1,14 @@
-import type { Metadata } from 'next';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { PageShell } from '@/components/marketing/page-shell';
-import { pool } from '@/lib/db';
-import { redis } from '@/lib/redis';
-import { getAccessToken } from '@/lib/services/daraja.service';
+import type { Metadata } from "next";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { PageShell } from "@/components/marketing/page-shell";
+import { pool } from "@/lib/db";
+import { redis } from "@/lib/redis";
+import { getAccessToken } from "@/lib/services/daraja.service";
 
 export const metadata: Metadata = {
-  title: 'System status',
-  description: 'Current operational status of Kitabu Yetu services.',
+  title: "System status",
+  description: "Current operational status of Kitabu Yetu services.",
 };
 
 /**
@@ -39,43 +39,51 @@ export const metadata: Metadata = {
  */
 const CACHE_TTL_MS = 60_000;
 
-type CheckState = 'operational' | 'down';
-interface ServiceStatus { label: string; state: CheckState }
-interface StatusSnapshot { services: ServiceStatus[]; checkedAt: number }
+type CheckState = "operational" | "down";
+interface ServiceStatus {
+  label: string;
+  state: CheckState;
+}
+interface StatusSnapshot {
+  services: ServiceStatus[];
+  checkedAt: number;
+}
 
 let _cache: StatusSnapshot | null = null;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), ms),
+    ),
   ]);
 }
 
 async function checkDatabase(): Promise<CheckState> {
   try {
-    await withTimeout(pool.query('SELECT 1'), 4_000);
-    return 'operational';
+    await withTimeout(pool.query("SELECT 1"), 4_000);
+    return "operational";
   } catch {
-    return 'down';
+    return "down";
   }
 }
 
 async function checkRedis(): Promise<CheckState> {
   try {
     await withTimeout(redis.ping(), 4_000);
-    return 'operational';
+    return "operational";
   } catch {
-    return 'down';
+    return "down";
   }
 }
 
 async function checkMpesa(): Promise<CheckState> {
   try {
     await withTimeout(getAccessToken(), 4_000);
-    return 'operational';
+    return "operational";
   } catch {
-    return 'down';
+    return "down";
   }
 }
 
@@ -103,12 +111,13 @@ async function checkMpesa(): Promise<CheckState> {
  */
 async function checkSms(): Promise<CheckState> {
   try {
-    const { readProviderHealth } = await import('@/lib/services/sms-health.service');
+    const { readProviderHealth } =
+      await import("@/lib/services/sms-health.service");
     const health = await withTimeout(readProviderHealth(), 4_000);
-    return health?.state === 'degraded' ? 'down' : 'operational';
+    return health?.state === "degraded" ? "down" : "operational";
   } catch {
     // Reading the verdict failed — that says nothing about the provider.
-    return 'operational';
+    return "operational";
   }
 }
 
@@ -129,11 +138,17 @@ async function getStatus(): Promise<StatusSnapshot> {
   const snapshot: StatusSnapshot = {
     checkedAt: Date.now(),
     services: [
-      { label: 'Web application',                       state: 'operational' },
-      { label: 'M-Pesa collections (STK Push, PayBill)', state: mpesa },
-      { label: 'M-Pesa disbursements (B2C)',             state: mpesa },
-      { label: 'SMS notifications',                      state: sms },
-      { label: 'API',                                    state: db === 'operational' && cache === 'operational' ? 'operational' : 'down' },
+      { label: "Web application", state: "operational" },
+      { label: "M-Pesa collections (STK Push, PayBill)", state: mpesa },
+      { label: "M-Pesa disbursements (B2C)", state: mpesa },
+      { label: "SMS notifications", state: sms },
+      {
+        label: "API",
+        state:
+          db === "operational" && cache === "operational"
+            ? "operational"
+            : "down",
+      },
     ],
   };
   _cache = snapshot;
@@ -142,7 +157,7 @@ async function getStatus(): Promise<StatusSnapshot> {
 
 export default async function StatusPage() {
   const { services, checkedAt } = await getStatus();
-  const allOperational = services.every((s) => s.state === 'operational');
+  const allOperational = services.every((s) => s.state === "operational");
 
   return (
     <PageShell
@@ -167,7 +182,7 @@ export default async function StatusPage() {
             className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm"
           >
             <span className="text-slate-700">{service.label}</span>
-            {service.state === 'operational' ? (
+            {service.state === "operational" ? (
               <span className="flex items-center gap-1.5 font-medium text-green-700">
                 <span className="h-2 w-2 rounded-full bg-green-500" />
                 Operational
@@ -182,9 +197,10 @@ export default async function StatusPage() {
         ))}
       </ul>
       <p className="mt-8 text-sm text-slate-500">
-        Checked live against the database, cache and M-Pesa connectivity as of{' '}
-        {new Date(checkedAt).toUTCString()}. If something looks wrong on your end that
-        isn&apos;t reflected here, please <a href="/support">contact support</a>.
+        Checked live against the database, cache and M-Pesa connectivity as of{" "}
+        {new Date(checkedAt).toUTCString()}. If something looks wrong on your
+        end that isn&apos;t reflected here, please{" "}
+        <a href="/support">contact support</a>.
       </p>
     </PageShell>
   );

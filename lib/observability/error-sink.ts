@@ -28,7 +28,7 @@
  * outward this time. Never call this with unsanitized input.
  */
 
-type SentryModule = typeof import('@sentry/node');
+type SentryModule = typeof import("@sentry/node");
 
 /** null = not yet decided, false = deliberately disabled, module = live. */
 let resolved: SentryModule | false | null = null;
@@ -51,11 +51,12 @@ async function getSentry(): Promise<SentryModule | false> {
       return false;
     }
     try {
-      const Sentry = await import('@sentry/node');
+      const Sentry = await import("@sentry/node");
       Sentry.init({
         dsn,
-        environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
-        release:     process.env.VERCEL_GIT_COMMIT_SHA,
+        environment:
+          process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
+        release: process.env.VERCEL_GIT_COMMIT_SHA,
         // Errors only. Tracing samples every request and would spend the
         // quota on volume rather than on the thing this exists for.
         tracesSampleRate: 0,
@@ -84,7 +85,10 @@ async function getSentry(): Promise<SentryModule | false> {
  * Swallows everything. An error sink that can throw turns a logged problem
  * into an unlogged crash.
  */
-export function reportError(message: string, context: Record<string, unknown>): void {
+export function reportError(
+  message: string,
+  context: Record<string, unknown>,
+): void {
   // Cheap enough to sit on the error path: one env read when disabled.
   if (resolved === false) return;
   if (resolved === null && !process.env.SENTRY_DSN) {

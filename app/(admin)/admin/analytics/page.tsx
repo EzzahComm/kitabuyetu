@@ -1,29 +1,37 @@
-'use client';
+"use client";
 
-import dynamic from 'next/dynamic';
-import { Building2, TrendingUp, Heart, Landmark } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PageHeader } from '@/components/shared/page-header';
-import { useAdminAnalytics } from '@/hooks/use-admin';
-import { formatKES } from '@/lib/utils';
+import dynamic from "next/dynamic";
+import { Building2, TrendingUp, Heart, Landmark } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/page-header";
+import { useAdminAnalytics } from "@/hooks/use-admin";
+import { formatKES } from "@/lib/utils";
 
 // OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts (~90KB gzipped) is
 // code-split out of the initial bundle; it's only needed once data loads.
-const GrowthChart = dynamic(() => import('./_charts').then((m) => m.GrowthChart), {
-  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
-});
-const TopGroupsChart = dynamic(() => import('./_charts').then((m) => m.TopGroupsChart), {
-  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
-});
+const GrowthChart = dynamic(
+  () => import("./_charts").then((m) => m.GrowthChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-52 w-full" />,
+  },
+);
+const TopGroupsChart = dynamic(
+  () => import("./_charts").then((m) => m.TopGroupsChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-52 w-full" />,
+  },
+);
 
 export default function AnalyticsPage() {
   const { data, isLoading } = useAdminAnalytics();
 
-  const growth     = data?.growth     ?? [];
-  const topGroups  = data?.topGroups  ?? [];
+  const growth = data?.growth ?? [];
+  const topGroups = data?.topGroups ?? [];
   const loanHealth = data?.loanHealth ?? {};
-  const welfare    = data?.welfareStats ?? {};
+  const welfare = data?.welfareStats ?? {};
 
   return (
     <div className="space-y-6">
@@ -45,7 +53,9 @@ export default function AnalyticsPage() {
           {isLoading ? (
             <Skeleton className="h-52 w-full" />
           ) : growth.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-10">No growth data available</p>
+            <p className="text-sm text-muted-foreground text-center py-10">
+              No growth data available
+            </p>
           ) : (
             <GrowthChart data={growth} />
           )}
@@ -57,7 +67,8 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Landmark size={14} className="text-blue-500" /> Loan Portfolio Health
+              <Landmark size={14} className="text-blue-500" /> Loan Portfolio
+              Health
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -67,12 +78,29 @@ export default function AnalyticsPage() {
               <>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Active', value: loanHealth.active ?? 0, color: 'text-blue-600 bg-blue-50' },
-                    { label: 'Defaulted', value: loanHealth.defaulted ?? 0, color: 'text-red-600 bg-red-50' },
-                    { label: 'Completed', value: loanHealth.completed ?? 0, color: 'text-green-600 bg-green-50' },
+                    {
+                      label: "Active",
+                      value: loanHealth.active ?? 0,
+                      color: "text-blue-600 bg-blue-50",
+                    },
+                    {
+                      label: "Defaulted",
+                      value: loanHealth.defaulted ?? 0,
+                      color: "text-red-600 bg-red-50",
+                    },
+                    {
+                      label: "Completed",
+                      value: loanHealth.completed ?? 0,
+                      color: "text-green-600 bg-green-50",
+                    },
                   ].map(({ label, value, color }) => (
-                    <div key={label} className={`rounded-xl p-3 text-center ${color.split(' ')[1]}`}>
-                      <p className={`text-xl font-bold ${color.split(' ')[0]}`}>{parseInt(value).toLocaleString()}</p>
+                    <div
+                      key={label}
+                      className={`rounded-xl p-3 text-center ${color.split(" ")[1]}`}
+                    >
+                      <p className={`text-xl font-bold ${color.split(" ")[0]}`}>
+                        {parseInt(value).toLocaleString()}
+                      </p>
                       <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                     </div>
                   ))}
@@ -80,19 +108,32 @@ export default function AnalyticsPage() {
                 <div className="pt-2 border-t border-gray-100 space-y-1.5">
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Total Outstanding</span>
-                    <span className="font-semibold text-gray-900">{formatKES(loanHealth.total_outstanding ?? 0)}</span>
+                    <span className="font-semibold text-gray-900">
+                      {formatKES(loanHealth.total_outstanding ?? 0)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Avg Interest Rate</span>
-                    <span className="font-semibold text-gray-900">{parseFloat(loanHealth.avg_interest_rate ?? '0').toFixed(1)}%</span>
+                    <span className="font-semibold text-gray-900">
+                      {parseFloat(loanHealth.avg_interest_rate ?? "0").toFixed(
+                        1,
+                      )}
+                      %
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Default Rate</span>
-                    <span className={`font-semibold ${parseInt(loanHealth.defaulted ?? '0') > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {(parseInt(loanHealth.active ?? '1') > 0
-                        ? (parseInt(loanHealth.defaulted ?? '0') / (parseInt(loanHealth.active ?? '1') + parseInt(loanHealth.defaulted ?? '0'))) * 100
+                    <span
+                      className={`font-semibold ${parseInt(loanHealth.defaulted ?? "0") > 0 ? "text-red-600" : "text-green-600"}`}
+                    >
+                      {(parseInt(loanHealth.active ?? "1") > 0
+                        ? (parseInt(loanHealth.defaulted ?? "0") /
+                            (parseInt(loanHealth.active ?? "1") +
+                              parseInt(loanHealth.defaulted ?? "0"))) *
+                          100
                         : 0
-                      ).toFixed(1)}%
+                      ).toFixed(1)}
+                      %
                     </span>
                   </div>
                 </div>
@@ -115,13 +156,17 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-red-50 p-3 text-center">
                     <p className="text-xl font-bold text-red-600">
-                      {parseInt(welfare.total_requests ?? '0').toLocaleString()}
+                      {parseInt(welfare.total_requests ?? "0").toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">Total Requests</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Total Requests
+                    </p>
                   </div>
                   <div className="rounded-xl bg-amber-50 p-3 text-center">
                     <p className="text-xl font-bold text-amber-600">
-                      {parseInt(welfare.pending_requests ?? '0').toLocaleString()}
+                      {parseInt(
+                        welfare.pending_requests ?? "0",
+                      ).toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">Pending</p>
                   </div>
@@ -129,11 +174,15 @@ export default function AnalyticsPage() {
                 <div className="pt-2 border-t border-gray-100 space-y-1.5">
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Total Requested</span>
-                    <span className="font-semibold">{formatKES(welfare.total_requested ?? 0)}</span>
+                    <span className="font-semibold">
+                      {formatKES(welfare.total_requested ?? 0)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Total Disbursed</span>
-                    <span className="font-semibold text-green-600">{formatKES(welfare.total_disbursed ?? 0)}</span>
+                    <span className="font-semibold text-green-600">
+                      {formatKES(welfare.total_disbursed ?? 0)}
+                    </span>
                   </div>
                 </div>
               </>
@@ -154,7 +203,9 @@ export default function AnalyticsPage() {
           {isLoading ? (
             <Skeleton className="h-52 w-full" />
           ) : topGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No data available</p>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No data available
+            </p>
           ) : (
             <TopGroupsChart data={topGroups} />
           )}

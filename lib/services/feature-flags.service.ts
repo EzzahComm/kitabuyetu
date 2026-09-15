@@ -23,34 +23,43 @@
  * environment whose seeds predate the flag. A row that exists is honored
  * exactly.
  */
-import { createHash } from 'crypto';
-import type { PoolClient } from 'pg';
-import { withDb, type TenantContext } from '@/lib/db';
-import { ForbiddenError } from '@/lib/utils/errors';
+import { createHash } from "crypto";
+import type { PoolClient } from "pg";
+import { withDb, type TenantContext } from "@/lib/db";
+import { ForbiddenError } from "@/lib/utils/errors";
 
 // Ordinal only — must stay in step with the plan_type enum's own ordering
 // (migration 138 inserted `premium` BEFORE 'enterprise' for the same reason).
 // An unranked plan scores -1 via the lookups below, so a missing entry fails
 // closed rather than granting access.
-const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, premium: 2, enterprise: 3 };
+const PLAN_RANK: Record<string, number> = {
+  starter: 0,
+  growth: 1,
+  premium: 2,
+  enterprise: 3,
+};
 
 interface FlagRow {
-  enabled:     boolean;
+  enabled: boolean;
   rollout_pct: number;
-  applies_to:  'all' | 'plan' | 'group' | 'member';
-  conditions:  { min_plan?: string; group_ids?: string[]; member_ids?: string[] } | null;
+  applies_to: "all" | "plan" | "group" | "member";
+  conditions: {
+    min_plan?: string;
+    group_ids?: string[];
+    member_ids?: string[];
+  } | null;
 }
 
 /** Deterministic [0,100) bucket — same subject always lands in the same bucket for a given key. */
 function rolloutBucket(key: string, subjectId: string): number {
-  const digest = createHash('sha256').update(`${key}:${subjectId}`).digest();
+  const digest = createHash("sha256").update(`${key}:${subjectId}`).digest();
   return digest.readUInt32BE(0) % 100;
 }
 
 export async function isFeatureEnabled(
   client: PoolClient,
-  key:    string,
-  scope:  { groupId?: string | null; memberId?: string | null },
+  key: string,
+  scope: { groupId?: string | null; memberId?: string | null },
 ): Promise<boolean> {
   const { rows } = await client.query<FlagRow>(
     `SELECT enabled, rollout_pct, applies_to, conditions FROM feature_flags WHERE key = $1`,
@@ -64,9 +73,9 @@ export async function isFeatureEnabled(
   const conditions = flag.conditions ?? {};
 
   switch (flag.applies_to) {
-    case 'all':
+    case "all":
       break;
-    case 'plan': {
+    case "plan": {
       const minPlan = conditions.min_plan;
       if (minPlan !== undefined) {
         if (!(minPlan in PLAN_RANK) || !scope.groupId) return false;
@@ -85,17 +94,20 @@ export async function isFeatureEnabled(
            WHERE group_id = $1 AND status IN ('active', 'trial')`,
           [scope.groupId],
         );
-        const bestRank = subs.reduce((best, s) => Math.max(best, PLAN_RANK[s.plan_type] ?? -1), -1);
+        const bestRank = subs.reduce(
+          (best, s) => Math.max(best, PLAN_RANK[s.plan_type] ?? -1),
+          -1,
+        );
         if (bestRank < PLAN_RANK[minPlan]) return false;
       }
       break;
     }
-    case 'group': {
+    case "group": {
       const groupIds = conditions.group_ids ?? [];
       if (!scope.groupId || !groupIds.includes(scope.groupId)) return false;
       break;
     }
-    case 'member': {
+    case "member": {
       const memberIds = conditions.member_ids ?? [];
       if (!scope.memberId || !memberIds.includes(scope.memberId)) return false;
       break;
@@ -103,7 +115,7 @@ export async function isFeatureEnabled(
   }
 
   if (flag.rollout_pct >= 100) return true;
-  if (flag.rollout_pct <= 0)   return false;
+  if (flag.rollout_pct <= 0) return false;
   const subject = scope.groupId ?? scope.memberId;
   if (!subject) return false; // percentage rollout needs a stable subject
   return rolloutBucket(key, subject) < flag.rollout_pct;
@@ -119,10 +131,13 @@ export const featureFlagsService = {
    */
   async assertEnabled(ctx: TenantContext, key: string): Promise<void> {
     const enabled = await withDb(ctx, (client) =>
-      isFeatureEnabled(client, key, { groupId: ctx.groupId, memberId: ctx.userId }),
+      isFeatureEnabled(client, key, {
+        groupId: ctx.groupId,
+        memberId: ctx.userId,
+      }),
     );
     if (!enabled) {
-      throw new ForbiddenError('This feature is not enabled for your group');
+      throw new ForbiddenError("This feature is not enabled for your group");
     }
   },
 };

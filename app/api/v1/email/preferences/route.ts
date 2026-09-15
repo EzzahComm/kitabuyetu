@@ -1,21 +1,29 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
 
 const VALID_CATEGORIES = [
-  'financial_reports', 'loan_updates', 'contribution_updates',
-  'meeting_invitations', 'announcements', 'billing', 'birthday',
-  'weekly_summary', 'monthly_statement',
+  "financial_reports",
+  "loan_updates",
+  "contribution_updates",
+  "meeting_invitations",
+  "announcements",
+  "billing",
+  "birthday",
+  "weekly_summary",
+  "monthly_statement",
 ] as const;
 
-const PreferencesSchema = z.array(z.object({
-  category:  z.enum(VALID_CATEGORIES),
-  enabled:   z.boolean(),
-  frequency: z.string().optional(),
-  groupId:   z.string().optional(),
-}));
+const PreferencesSchema = z.array(
+  z.object({
+    category: z.enum(VALID_CATEGORIES),
+    enabled: z.boolean(),
+    frequency: z.string().optional(),
+    groupId: z.string().optional(),
+  }),
+);
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
@@ -30,10 +38,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
 
     // Merge with defaults (all enabled)
-    const existing = new Map(rows.map((r: { category: string }) => [r.category, r]));
-    const merged = VALID_CATEGORIES.map((cat) => existing.get(cat) ?? {
-      category: cat, enabled: true, frequency: 'immediate', group_id: null,
-    });
+    const existing = new Map(
+      rows.map((r: { category: string }) => [r.category, r]),
+    );
+    const merged = VALID_CATEGORIES.map(
+      (cat) =>
+        existing.get(cat) ?? {
+          category: cat,
+          enabled: true,
+          frequency: "immediate",
+          group_id: null,
+        },
+    );
 
     return ok(merged);
   });
@@ -55,7 +71,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
             pref.groupId ?? null,
             pref.category,
             pref.enabled,
-            pref.frequency ?? 'immediate',
+            pref.frequency ?? "immediate",
           ],
         ),
       ).catch(() =>
@@ -64,7 +80,12 @@ export async function PUT(req: NextRequest): Promise<Response> {
             `UPDATE email_preferences
              SET enabled=$1, frequency=$2, updated_at=NOW()
              WHERE member_id=$3 AND category=$4`,
-            [pref.enabled, pref.frequency ?? 'immediate', auth.userId, pref.category],
+            [
+              pref.enabled,
+              pref.frequency ?? "immediate",
+              auth.userId,
+              pref.category,
+            ],
           ),
         ),
       );

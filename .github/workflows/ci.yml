@@ -46,7 +46,7 @@ env:
   # class of bug migrations 168/169 had to fix in production). Jobs that skip the
   # full install kept passing, so the run looked partly green and the cause was
   # easy to misread. Keep this >= the highest `engines.node` in the dep tree.
-  NODE_VERSION: '22'
+  NODE_VERSION: "22"
 
   # ── App ────────────────────────────────────────────────────────────────────
   NODE_ENV: production
@@ -54,23 +54,23 @@ env:
 
   # ── Database (fake URI — Pool.connect() is lazy, no real connection made) ──
   DATABASE_URL: postgresql://postgres:ci_fake@db.ci.supabase.co:5432/postgres
-  DB_POOL_MAX: '3'
+  DB_POOL_MAX: "3"
 
   # ── Redis (fake — ioredis emits error events, never throws at import) ───────
   REDIS_URL: rediss://default:ci_fake@ci.upstash.io:6379
 
   # ── JWT / Encryption (32-char+ placeholders) ────────────────────────────────
-  JWT_SECRET:      ci_placeholder_secret_minimum_32_chars
-  ENCRYPTION_KEY:  ci_placeholder_enckey_minimum_32_chars
-  WORKER_SECRET:   ci_placeholder_worker_minimum_32_chars
-  CRON_SECRET:     ci_placeholder_cron__minimum_32_chars_
+  JWT_SECRET: ci_placeholder_secret_minimum_32_chars
+  ENCRYPTION_KEY: ci_placeholder_enckey_minimum_32_chars
+  WORKER_SECRET: ci_placeholder_worker_minimum_32_chars
+  CRON_SECRET: ci_placeholder_cron__minimum_32_chars_
 
   # ── M-Pesa ──────────────────────────────────────────────────────────────────
-  MPESA_ENV:               sandbox
-  MPESA_CONSUMER_KEY:      ci_fake
-  MPESA_CONSUMER_SECRET:   ci_fake
-  MPESA_SHORTCODE:         '174379'
-  MPESA_PASSKEY:           ci_fake
+  MPESA_ENV: sandbox
+  MPESA_CONSUMER_KEY: ci_fake
+  MPESA_CONSUMER_SECRET: ci_fake
+  MPESA_SHORTCODE: "174379"
+  MPESA_PASSKEY: ci_fake
   MPESA_CALLBACK_BASE_URL: https://kitabuyetu.vercel.app
 
   # ── SMS ─────────────────────────────────────────────────────────────────────
@@ -82,24 +82,23 @@ env:
   #
   # Matches lib/env.ts's TEXTSMS_SENDER_ID default and production. Was
   # "KitabuYetu" here, which is not the registered ID.
-  TEXTSMS_API_KEY:    ci_fake
-  TEXTSMS_SENDER_ID:  KITABU YETU
+  TEXTSMS_API_KEY: ci_fake
+  TEXTSMS_SENDER_ID: KITABU YETU
   TEXTSMS_PARTNER_ID: ci_fake
 
   # ── Email ───────────────────────────────────────────────────────────────────
   EMAIL_PROVIDER: resend
-  EMAIL_FROM:     noreply@kitabuyetu.vercel.app
-  EMAIL_DRY_RUN:  'true'
+  EMAIL_FROM: noreply@kitabuyetu.vercel.app
+  EMAIL_DRY_RUN: "true"
   RESEND_API_KEY: re_ci_fake
 
   # ── Policy defaults ─────────────────────────────────────────────────────────
-  CSV_MAX_ROWS:          '5000'
-  MAX_LOGIN_ATTEMPTS:    '5'
-  LOGIN_LOCKOUT_MINUTES: '30'
+  CSV_MAX_ROWS: "5000"
+  MAX_LOGIN_ATTEMPTS: "5"
+  LOGIN_LOCKOUT_MINUTES: "30"
 
 # ──────────────────────────────────────────────────────────────────────────────
 jobs:
-
   # ╔══════════════════════════════════════════════════════════════════════════╗
   # ║  1. QUALITY GATE — Lint · Type-check · Build                           ║
   # ╚══════════════════════════════════════════════════════════════════════════╝
@@ -525,7 +524,7 @@ jobs:
             --token=${{ secrets.VERCEL_TOKEN }} \
             --environment=production
         env:
-          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       # Deploy to production — Vercel reads env vars from the dashboard
@@ -551,7 +550,7 @@ jobs:
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to: $url"
         env:
-          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       # ── Smoke tests ─────────────────────────────────────────────────────────
@@ -636,4 +635,3 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "**Deployed at:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
-

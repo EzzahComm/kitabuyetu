@@ -1,5 +1,5 @@
-import { withAdminDb } from '@/lib/db';
-import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
+import { withAdminDb } from "@/lib/db";
+import { DEFAULT_SMS_PROVIDER } from "@/lib/sms/provider";
 
 /**
  * SMS margin and revenue reporting (spec §15). INTERNAL ONLY.
@@ -18,11 +18,11 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  */
 
 export interface MarginSummary {
-  creditsSold:  number;
-  revenue:      number;
+  creditsSold: number;
+  revenue: number;
   providerCost: number;
-  grossMargin:  number;
-  marginPct:    number | null;
+  grossMargin: number;
+  marginPct: number | null;
   /**
    * Credits sold in periods with no recorded provider cost. Their revenue is
    * still counted; their cost is not, so margin is UNDERSTATED by whatever
@@ -33,23 +33,23 @@ export interface MarginSummary {
 }
 
 export interface CustomerUsage {
-  groupId:     string;
-  groupCode:   string;
-  groupName:   string;
+  groupId: string;
+  groupCode: string;
+  groupName: string;
   creditsSold: number;
-  revenue:     number;
+  revenue: number;
   grossMargin: number;
   creditsConsumed: number;
 }
 
 export interface TierViability {
-  tierId:     string;
-  name:       string;
-  unitPrice:  number;
-  isActive:   boolean;
+  tierId: string;
+  name: string;
+  unitPrice: number;
+  isActive: boolean;
   providerCost: number | null;
-  margin:     number | null;
-  marginPct:  number | null;
+  margin: number | null;
+  marginPct: number | null;
   /** True when this band would sell at or below what the provider charges. */
   lossMaking: boolean;
 }
@@ -76,10 +76,16 @@ const COST_AT_SALE = `
   ) cost ON TRUE
 `;
 
-export async function getMarginSummary(from?: string, to?: string): Promise<MarginSummary> {
+export async function getMarginSummary(
+  from?: string,
+  to?: string,
+): Promise<MarginSummary> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      credits_sold: string; revenue: string; provider_cost: string; without_cost: string;
+      credits_sold: string;
+      revenue: string;
+      provider_cost: string;
+      without_cost: string;
     }>(
       `SELECT
          COALESCE(SUM(sc.credits_added), 0)                        AS credits_sold,
@@ -93,18 +99,18 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
       [from ?? null, to ?? null],
     );
 
-    const revenue      = Number(rows[0].revenue);
+    const revenue = Number(rows[0].revenue);
     const providerCost = Number(rows[0].provider_cost);
-    const grossMargin  = revenue - providerCost;
+    const grossMargin = revenue - providerCost;
 
     return {
-      creditsSold:        Number(rows[0].credits_sold),
+      creditsSold: Number(rows[0].credits_sold),
       revenue,
       providerCost,
       grossMargin,
       // Null rather than 0 on no revenue: a percentage of nothing is undefined,
       // and rendering 0% would read as "we lost everything".
-      marginPct:          revenue > 0 ? (grossMargin / revenue) * 100 : null,
+      marginPct: revenue > 0 ? (grossMargin / revenue) * 100 : null,
       creditsWithoutCost: Number(rows[0].without_cost),
     };
   });
@@ -154,8 +160,13 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
 export async function getTopCustomers(limit = 500): Promise<CustomerUsage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      group_id: string; group_code: string; group_name: string;
-      credits_sold: string; revenue: string; provider_cost: string; consumed: string;
+      group_id: string;
+      group_code: string;
+      group_name: string;
+      credits_sold: string;
+      revenue: string;
+      provider_cost: string;
+      consumed: string;
     }>(
       `SELECT g.id AS group_id, g.group_code, g.name AS group_name,
               COALESCE(SUM(sc.credits_added), 0)                  AS credits_sold,
@@ -172,24 +183,24 @@ export async function getTopCustomers(limit = 500): Promise<CustomerUsage[]> {
       [limit],
     );
     return rows.map((r) => ({
-      groupId:         r.group_id,
-      groupCode:       r.group_code,
-      groupName:       r.group_name,
-      creditsSold:     Number(r.credits_sold),
-      revenue:         Number(r.revenue),
-      grossMargin:     Number(r.revenue) - Number(r.provider_cost),
+      groupId: r.group_id,
+      groupCode: r.group_code,
+      groupName: r.group_name,
+      creditsSold: Number(r.credits_sold),
+      revenue: Number(r.revenue),
+      grossMargin: Number(r.revenue) - Number(r.provider_cost),
       creditsConsumed: Number(r.consumed),
     }));
   });
 }
 
 export interface OrganizationUsage {
-  organizationId:    string;
-  organizationName:  string;
+  organizationId: string;
+  organizationName: string;
   /** Message credits actually charged against this org's own wallet (payer_type='organization'). */
-  creditsConsumed:   number;
+  creditsConsumed: number;
   /** organization_billing_accounts.sms_credits — the pooled balance sends are gated on. */
-  currentBalance:    number;
+  currentBalance: number;
   /**
    * Real KES revenue from `organization_sms_credits` — the org-side mirror of
    * `sms_credits` (same shape: amount_paid, credits_added, rate_applied,
@@ -200,8 +211,8 @@ export interface OrganizationUsage {
    * if nonzero, was set by hand. This is 0 for every organization now; a
    * nonzero value here later is a true positive, not a bug.
    */
-  revenue:           number;
-  creditsPurchased:  number;
+  revenue: number;
+  creditsPurchased: number;
 }
 
 /**
@@ -217,8 +228,12 @@ export interface OrganizationUsage {
 export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      organization_id: string; organization_name: string;
-      balance: string; consumed: string; revenue: string; purchased: string;
+      organization_id: string;
+      organization_name: string;
+      balance: string;
+      consumed: string;
+      revenue: string;
+      purchased: string;
     }>(
       `SELECT o.id AS organization_id, o.name AS organization_name,
               COALESCE(oba.sms_credits, 0) AS balance,
@@ -233,11 +248,11 @@ export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
        ORDER BY consumed DESC, o.name ASC`,
     );
     return rows.map((r) => ({
-      organizationId:   r.organization_id,
+      organizationId: r.organization_id,
       organizationName: r.organization_name,
-      creditsConsumed:  Number(r.consumed),
-      currentBalance:   Number(r.balance),
-      revenue:          Number(r.revenue),
+      creditsConsumed: Number(r.consumed),
+      currentBalance: Number(r.balance),
+      revenue: Number(r.revenue),
       creditsPurchased: Number(r.purchased),
     }));
   });
@@ -253,7 +268,11 @@ export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
 export async function getTierViability(): Promise<TierViability[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; name: string; unit_price: string; is_active: boolean; unit_cost: string | null;
+      id: string;
+      name: string;
+      unit_price: string;
+      is_active: boolean;
+      unit_cost: string | null;
     }>(
       `SELECT t.id, t.name, t.unit_price, t.is_active,
               (SELECT pc.unit_cost FROM sms_provider_costs pc
@@ -264,19 +283,20 @@ export async function getTierViability(): Promise<TierViability[]> {
     );
     return rows.map((r) => {
       const price = Number(r.unit_price);
-      const cost  = r.unit_cost === null ? null : Number(r.unit_cost);
+      const cost = r.unit_cost === null ? null : Number(r.unit_cost);
       const margin = cost === null ? null : price - cost;
       return {
-        tierId:       r.id,
-        name:         r.name,
-        unitPrice:    price,
-        isActive:     r.is_active,
+        tierId: r.id,
+        name: r.name,
+        unitPrice: price,
+        isActive: r.is_active,
         providerCost: cost,
         margin,
-        marginPct:    margin === null || price <= 0 ? null : (margin / price) * 100,
+        marginPct:
+          margin === null || price <= 0 ? null : (margin / price) * 100,
         // Unknown cost is not "safe" — but it is not a proven loss either, so
         // this stays false and marginPct stays null to say "cannot tell".
-        lossMaking:   margin !== null && margin <= 0,
+        lossMaking: margin !== null && margin <= 0,
       };
     });
   });

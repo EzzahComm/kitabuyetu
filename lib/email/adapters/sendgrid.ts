@@ -1,12 +1,12 @@
-import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import type { IEmailAdapter, EmailPayload, EmailResult } from "./types";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 
 export class SendGridAdapter implements IEmailAdapter {
-  readonly name = 'sendgrid';
+  readonly name = "sendgrid";
 
   async send(payload: EmailPayload): Promise<EmailResult> {
-    const apiKey = process.env.SENDGRID_API_KEY ?? '';
+    const apiKey = process.env.SENDGRID_API_KEY ?? "";
     const from = payload.from ?? env.EMAIL_FROM;
     const toArr = Array.isArray(payload.to) ? payload.to : [payload.to];
 
@@ -22,7 +22,7 @@ export class SendGridAdapter implements IEmailAdapter {
             payload.groupId ?? null,
             payload.userId ?? null,
             payload.templateKey ?? null,
-            payload.category ?? 'transactional',
+            payload.category ?? "transactional",
             toArr[0],
             from,
             payload.subject,
@@ -37,13 +37,19 @@ export class SendGridAdapter implements IEmailAdapter {
     try {
       const body: Record<string, unknown> = {
         personalizations: [{ to: toArr.map((e) => ({ email: e })) }],
-        from: { email: from, name: process.env.EMAIL_FROM_NAME ?? 'Kitabu Yetu' },
+        from: {
+          email: from,
+          name: process.env.EMAIL_FROM_NAME ?? "Kitabu Yetu",
+        },
         subject: payload.subject,
-        content: [{ type: 'text/html', value: payload.html ?? '' }],
+        content: [{ type: "text/html", value: payload.html ?? "" }],
       };
 
       if (payload.text) {
-        (body.content as unknown[]).unshift({ type: 'text/plain', value: payload.text });
+        (body.content as unknown[]).unshift({
+          type: "text/plain",
+          value: payload.text,
+        });
       }
 
       if (payload.replyTo) {
@@ -52,25 +58,27 @@ export class SendGridAdapter implements IEmailAdapter {
 
       if (payload.cc) {
         const ccArr = Array.isArray(payload.cc) ? payload.cc : [payload.cc];
-        (body.personalizations as Record<string, unknown>[])[0].cc = ccArr.map((e) => ({ email: e }));
+        (body.personalizations as Record<string, unknown>[])[0].cc = ccArr.map(
+          (e) => ({ email: e }),
+        );
       }
 
       if (payload.attachments?.length) {
         body.attachments = payload.attachments.map((a) => ({
           filename: a.filename,
           content: Buffer.isBuffer(a.content)
-            ? a.content.toString('base64')
-            : Buffer.from(a.content as string).toString('base64'),
-          type: a.contentType ?? 'application/octet-stream',
-          disposition: 'attachment',
+            ? a.content.toString("base64")
+            : Buffer.from(a.content as string).toString("base64"),
+          type: a.contentType ?? "application/octet-stream",
+          disposition: "attachment",
         }));
       }
 
-      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
+      const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
       });
@@ -80,7 +88,7 @@ export class SendGridAdapter implements IEmailAdapter {
         throw new Error(`SendGrid ${res.status}: ${text}`);
       }
 
-      const messageId = res.headers.get('x-message-id') ?? undefined;
+      const messageId = res.headers.get("x-message-id") ?? undefined;
 
       if (logId) {
         await withAdminDb((db) =>

@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
-import { reportError } from './observability/error-sink';
+import { reportError } from "./observability/error-sink";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogEntry {
-  level:   LogLevel;
+  level: LogLevel;
   message: string;
-  ts:      string;
+  ts: string;
   [key: string]: unknown;
 }
 
@@ -17,7 +17,7 @@ interface LogEntry {
  * The cost is one env lookup per log line, immaterial next to console I/O.
  */
 function isProd(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 /**
@@ -31,7 +31,7 @@ function isProd(): boolean {
 const SECRET_KEY_RE =
   /api[-_]?key|authorization|auth[-_]?token|access[-_]?token|refresh[-_]?token|secret|password|passwd|passphrase|credential|cookie|session[-_]?id|partner[-_]?id|signing[-_]?key|private[-_]?key/i;
 
-const REDACTED = '[REDACTED]';
+const REDACTED = "[REDACTED]";
 
 /** Objects deeper than this are almost never useful in a log line. */
 const MAX_DEPTH = 6;
@@ -54,17 +54,21 @@ const MAX_DEPTH = 6;
  * `seen` breaks cycles — an Error's `config.request` graph is self-referential,
  * and JSON.stringify throws on that.
  */
-function sanitize(value: unknown, depth = 0, seen = new WeakSet<object>()): unknown {
+function sanitize(
+  value: unknown,
+  depth = 0,
+  seen = new WeakSet<object>(),
+): unknown {
   if (value instanceof Error) {
     // Deliberately a fixed shape: name/message/stack only. Never spread the
     // error's own enumerable properties — that is exactly where `config` lives.
     return { name: value.name, message: value.message, stack: value.stack };
   }
 
-  if (value === null || typeof value !== 'object') return value;
+  if (value === null || typeof value !== "object") return value;
 
-  if (seen.has(value)) return '[Circular]';
-  if (depth >= MAX_DEPTH) return '[Truncated]';
+  if (seen.has(value)) return "[Circular]";
+  if (depth >= MAX_DEPTH) return "[Truncated]";
   seen.add(value);
 
   if (Array.isArray(value)) {
@@ -84,8 +88,9 @@ function emit(level: LogLevel, args: unknown[]): void {
     const [first, ...rest] = args;
     const entry: LogEntry = {
       level,
-      ts:      new Date().toISOString(),
-      message: typeof first === 'string' ? first : JSON.stringify(sanitize(first)),
+      ts: new Date().toISOString(),
+      message:
+        typeof first === "string" ? first : JSON.stringify(sanitize(first)),
     };
     // Merge additional context objects into the log entry
     for (const extra of rest) {
@@ -93,14 +98,14 @@ function emit(level: LogLevel, args: unknown[]): void {
         // Same `entry.error` shape as before — anything parsing these logs
         // keeps working.
         entry.error = sanitize(extra);
-      } else if (extra !== null && typeof extra === 'object') {
+      } else if (extra !== null && typeof extra === "object") {
         Object.assign(entry, sanitize(extra) as Record<string, unknown>);
       } else if (extra !== undefined) {
         entry.detail = extra;
       }
     }
     // In production always write errors/warns; suppress debug in quiet mode
-    if (level === 'error') {
+    if (level === "error") {
       console.error(JSON.stringify(entry));
       // …and to the error sink, if one is configured
       // (SMS-REAUDIT-2026-09-02 F2 / T3-4 item 1). `entry` has already passed
@@ -110,9 +115,9 @@ function emit(level: LogLevel, args: unknown[]): void {
       // reopen that hole outward. Never move this above the sanitize step.
       const { message: sinkMessage, ...sinkContext } = entry;
       reportError(String(sinkMessage), sinkContext);
-    } else if (level === 'warn') {
+    } else if (level === "warn") {
       console.warn(JSON.stringify(entry));
-    } else if (level === 'info' || level === 'debug') {
+    } else if (level === "info" || level === "debug") {
       console.log(JSON.stringify(entry));
     }
   } else {
@@ -123,25 +128,25 @@ function emit(level: LogLevel, args: unknown[]): void {
     // debuggability is unchanged.
     const prefix = `[${level.toUpperCase()}]`;
     const safe = args.map((a) => sanitize(a));
-    if (level === 'error') {
+    if (level === "error") {
       console.error(prefix, ...safe);
       // Preview and CI report too: an environment that only reports in
       // production is one where the reporting itself is never exercised
       // before it matters. Sanitized on the same terms — `safe`, not `args`.
       const [head, ...tail] = safe;
-      reportError(
-        typeof head === 'string' ? head : JSON.stringify(head),
-        { detail: tail },
-      );
-    }
-    else if (level === 'warn')  console.warn(prefix, ...safe);
-    else                        console.log(prefix, ...safe);
+      reportError(typeof head === "string" ? head : JSON.stringify(head), {
+        detail: tail,
+      });
+    } else if (level === "warn") console.warn(prefix, ...safe);
+    else console.log(prefix, ...safe);
   }
 }
 
 export const logger = {
-  debug: (...args: unknown[]): void => { if (!isProd()) emit('debug', args); },
-  info:  (...args: unknown[]): void => emit('info',  args),
-  warn:  (...args: unknown[]): void => emit('warn',  args),
-  error: (...args: unknown[]): void => emit('error', args),
+  debug: (...args: unknown[]): void => {
+    if (!isProd()) emit("debug", args);
+  },
+  info: (...args: unknown[]): void => emit("info", args),
+  warn: (...args: unknown[]): void => emit("warn", args),
+  error: (...args: unknown[]): void => emit("error", args),
 };

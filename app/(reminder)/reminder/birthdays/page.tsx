@@ -1,60 +1,88 @@
-'use client';
+"use client";
 
-import { Cake } from 'lucide-react';
-import { PageHeader } from '@/components/shared/page-header';
-import { PaginatedTable, singlePage, type PaginatedTableColumn } from '@/components/shared/paginated-table';
-import { StatusPill } from '@/components/shared/status-pill';
-import { SectionHeader } from '@/components/shared/dashboard-sections';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useSmsSettings, useUpdateSmsSettings, useBirthdays } from '@/hooks/use-sms-settings';
-import { useToast } from '@/hooks/use-toast';
-import { formatDate, getErrorMessage } from '@/lib/utils';
-import type { UpcomingBirthday, BirthdayDispatch } from '@/lib/api/endpoints';
+import { Cake } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  PaginatedTable,
+  singlePage,
+  type PaginatedTableColumn,
+} from "@/components/shared/paginated-table";
+import { StatusPill } from "@/components/shared/status-pill";
+import { SectionHeader } from "@/components/shared/dashboard-sections";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  useSmsSettings,
+  useUpdateSmsSettings,
+  useBirthdays,
+} from "@/hooks/use-sms-settings";
+import { useToast } from "@/hooks/use-toast";
+import { formatDate, getErrorMessage } from "@/lib/utils";
+import type { UpcomingBirthday, BirthdayDispatch } from "@/lib/api/endpoints";
 
-const upcomingColumns: PaginatedTableColumn<UpcomingBirthday & { id: string }>[] = [
+const upcomingColumns: PaginatedTableColumn<
+  UpcomingBirthday & { id: string }
+>[] = [
   {
-    key: 'name',
-    header: 'Member',
-    render: (b) => <span className="font-medium text-foreground">{b.firstName} {b.lastName}</span>,
+    key: "name",
+    header: "Member",
+    render: (b) => (
+      <span className="font-medium text-foreground">
+        {b.firstName} {b.lastName}
+      </span>
+    ),
   },
-  { key: 'next', header: 'Birthday', render: (b) => formatDate(b.nextBirthday) },
   {
-    key: 'in',
-    header: 'In',
-    hideBelow: 'sm',
+    key: "next",
+    header: "Birthday",
+    render: (b) => formatDate(b.nextBirthday),
+  },
+  {
+    key: "in",
+    header: "In",
+    hideBelow: "sm",
     render: (b) => {
       const days = Math.round(
-        (new Date(b.nextBirthday).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000,
+        (new Date(b.nextBirthday).getTime() - new Date().setHours(0, 0, 0, 0)) /
+          86_400_000,
       );
-      return days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days} days`;
+      return days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days} days`;
     },
   },
 ];
 
 const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
   {
-    key: 'name',
-    header: 'Member',
-    render: (h) => <span className="font-medium text-foreground">{h.firstName} {h.lastName}</span>,
+    key: "name",
+    header: "Member",
+    render: (h) => (
+      <span className="font-medium text-foreground">
+        {h.firstName} {h.lastName}
+      </span>
+    ),
   },
   {
-    key: 'status',
-    header: 'Status',
+    key: "status",
+    header: "Status",
     render: (h) => <StatusPill status={h.status} size="sm" />,
   },
-  { key: 'channel', header: 'Channel', hideBelow: 'sm', render: (h) => h.channel ?? '—' },
   {
-    key: 'sent',
-    header: 'Sent',
-    hideBelow: 'md',
-    render: (h) => h.sentAt ? formatDate(h.sentAt) : formatDate(h.createdAt),
+    key: "channel",
+    header: "Channel",
+    hideBelow: "sm",
+    render: (h) => h.channel ?? "—",
   },
   {
-    key: 'reason',
-    header: 'Detail',
-    hideBelow: 'lg',
-    render: (h) => h.reason ?? '—',
+    key: "sent",
+    header: "Sent",
+    hideBelow: "md",
+    render: (h) => (h.sentAt ? formatDate(h.sentAt) : formatDate(h.createdAt)),
+  },
+  {
+    key: "reason",
+    header: "Detail",
+    hideBelow: "lg",
+    render: (h) => h.reason ?? "—",
   },
 ];
 
@@ -79,50 +107,63 @@ export default function ReminderBirthdaysPage() {
     updateSettings.mutate(
       { autoSendBirthday: !enabled },
       {
-        onSuccess: () => toast({
-          title: !enabled ? 'Birthday messages on' : 'Birthday messages off',
-          description: !enabled
-            ? 'Members will get a greeting on their birthday, once a year.'
-            : 'No birthday greetings will be sent.',
-        }),
-        onError: (err) => toast({
-          variant: 'destructive', title: 'Could not save', description: getErrorMessage(err),
-        }),
+        onSuccess: () =>
+          toast({
+            title: !enabled ? "Birthday messages on" : "Birthday messages off",
+            description: !enabled
+              ? "Members will get a greeting on their birthday, once a year."
+              : "No birthday greetings will be sent.",
+          }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Could not save",
+            description: getErrorMessage(err),
+          }),
       },
     );
   };
 
   // The API returns rows keyed by memberId; PaginatedTable needs `id`.
-  const upcoming = (birthdays?.upcoming ?? []).map((b) => ({ ...b, id: b.memberId }));
+  const upcoming = (birthdays?.upcoming ?? []).map((b) => ({
+    ...b,
+    id: b.memberId,
+  }));
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Birthdays" description="Send every member a greeting on their day, automatically" />
+      <PageHeader
+        title="Birthdays"
+        description="Send every member a greeting on their day, automatically"
+      />
 
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div>
             <p className="text-sm font-semibold text-foreground">
-              Automatic birthday messages {enabled ? 'are on' : 'are off'}
+              Automatic birthday messages {enabled ? "are on" : "are off"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Sent once a year per member, each morning, using your Birthday template.
-              Members without a date of birth are skipped.
+              Sent once a year per member, each morning, using your Birthday
+              template. Members without a date of birth are skipped.
             </p>
           </div>
           <Button
             onClick={toggle}
-            variant={enabled ? 'outline' : 'default'}
+            variant={enabled ? "outline" : "default"}
             loading={updateSettings.isPending}
             disabled={settingsLoading}
           >
-            {enabled ? 'Turn off' : 'Turn on'}
+            {enabled ? "Turn off" : "Turn on"}
           </Button>
         </CardContent>
       </Card>
 
       <div className="space-y-3">
-        <SectionHeader title="Coming up" subtitle="Birthdays in the next 30 days" />
+        <SectionHeader
+          title="Coming up"
+          subtitle="Birthdays in the next 30 days"
+        />
         <PaginatedTable
           data={singlePage(upcoming)}
           isLoading={isLoading}
@@ -137,7 +178,10 @@ export default function ReminderBirthdaysPage() {
       </div>
 
       <div className="space-y-3">
-        <SectionHeader title="Already sent" subtitle="What the daily job dispatched" />
+        <SectionHeader
+          title="Already sent"
+          subtitle="What the daily job dispatched"
+        />
         <PaginatedTable
           data={singlePage(birthdays?.history)}
           isLoading={isLoading}

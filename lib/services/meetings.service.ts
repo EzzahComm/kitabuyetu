@@ -1,59 +1,70 @@
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError } from '@/lib/utils/errors';
-import { z } from 'zod';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError } from "@/lib/utils/errors";
+import { z } from "zod";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 export const CreateMeetingSchema = z.object({
-  title:           z.string().min(3).max(255),
-  meetingType:     z.enum(['regular','special','agm','emergency','committee','training']).default('regular'),
-  scheduledAt:     z.string().datetime(),
-  venue:           z.string().optional(),
-  isVirtual:       z.boolean().default(false),
-  meetingLink:     z.string().url().optional(),
-  agenda:          z.array(z.string()).default([]),
-  quorumRequired:  z.coerce.number().int().positive().optional(),
-  chairedBy:       z.string().uuid().optional(),
-  secretaryId:     z.string().uuid().optional(),
-  notes:           z.string().optional(),
+  title: z.string().min(3).max(255),
+  meetingType: z
+    .enum(["regular", "special", "agm", "emergency", "committee", "training"])
+    .default("regular"),
+  scheduledAt: z.string().datetime(),
+  venue: z.string().optional(),
+  isVirtual: z.boolean().default(false),
+  meetingLink: z.string().url().optional(),
+  agenda: z.array(z.string()).default([]),
+  quorumRequired: z.coerce.number().int().positive().optional(),
+  chairedBy: z.string().uuid().optional(),
+  secretaryId: z.string().uuid().optional(),
+  notes: z.string().optional(),
 });
 
 export const UpdateMeetingSchema = z.object({
-  title:          z.string().min(3).max(255).optional(),
-  status:         z.enum(['scheduled','in_progress','completed','cancelled','postponed']).optional(),
-  scheduledAt:    z.string().datetime().optional(),
-  venue:          z.string().optional(),
-  isVirtual:      z.boolean().optional(),
-  meetingLink:    z.string().url().optional().nullable(),
-  agenda:         z.array(z.string()).optional(),
-  minutes:        z.string().optional(),
+  title: z.string().min(3).max(255).optional(),
+  status: z
+    .enum(["scheduled", "in_progress", "completed", "cancelled", "postponed"])
+    .optional(),
+  scheduledAt: z.string().datetime().optional(),
+  venue: z.string().optional(),
+  isVirtual: z.boolean().optional(),
+  meetingLink: z.string().url().optional().nullable(),
+  agenda: z.array(z.string()).optional(),
+  minutes: z.string().optional(),
   quorumAchieved: z.coerce.number().int().positive().optional(),
-  chairedBy:      z.string().uuid().optional().nullable(),
-  secretaryId:    z.string().uuid().optional().nullable(),
-  notes:          z.string().optional(),
-  endedAt:        z.string().datetime().optional(),
+  chairedBy: z.string().uuid().optional().nullable(),
+  secretaryId: z.string().uuid().optional().nullable(),
+  notes: z.string().optional(),
+  endedAt: z.string().datetime().optional(),
 });
 
 export const RecordAttendanceSchema = z.object({
-  attendance: z.array(z.object({
-    memberId:     z.string().uuid(),
-    status:       z.enum(['present','absent','excused','late']),
-    excuseReason: z.string().optional(),
-    fineAmount:   z.coerce.number().min(0).default(0),
-  })),
+  attendance: z.array(
+    z.object({
+      memberId: z.string().uuid(),
+      status: z.enum(["present", "absent", "excused", "late"]),
+      excuseReason: z.string().optional(),
+      fineAmount: z.coerce.number().min(0).default(0),
+    }),
+  ),
 });
 
 export const AddResolutionSchema = z.object({
-  resolutionText:          z.string().min(10),
-  proposedBy:              z.string().uuid().optional(),
-  secondedBy:              z.string().uuid().optional(),
-  votesFor:                z.coerce.number().int().min(0).default(0),
-  votesAgainst:            z.coerce.number().int().min(0).default(0),
-  votesAbstain:            z.coerce.number().int().min(0).default(0),
-  status:                  z.enum(['carried','defeated','tabled','deferred']).default('carried'),
-  implementationDeadline:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  responsibleParty:        z.string().uuid().optional(),
-  notes:                   z.string().optional(),
+  resolutionText: z.string().min(10),
+  proposedBy: z.string().uuid().optional(),
+  secondedBy: z.string().uuid().optional(),
+  votesFor: z.coerce.number().int().min(0).default(0),
+  votesAgainst: z.coerce.number().int().min(0).default(0),
+  votesAbstain: z.coerce.number().int().min(0).default(0),
+  status: z
+    .enum(["carried", "defeated", "tabled", "deferred"])
+    .default("carried"),
+  implementationDeadline: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  responsibleParty: z.string().uuid().optional(),
+  notes: z.string().optional(),
 });
 
 /**
@@ -62,42 +73,51 @@ export const AddResolutionSchema = z.object({
  * server-side rather than trusted from the client.
  */
 export const UpdateResolutionSchema = z.object({
-  implemented:            z.boolean().optional(),
-  status:                 z.enum(['carried','defeated','tabled','deferred']).optional(),
-  implementationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  responsibleParty:       z.string().uuid().nullable().optional(),
-  notes:                  z.string().optional(),
+  implemented: z.boolean().optional(),
+  status: z.enum(["carried", "defeated", "tabled", "deferred"]).optional(),
+  implementationDeadline: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  responsibleParty: z.string().uuid().nullable().optional(),
+  notes: z.string().optional(),
 });
 
 export const MeetingQuerySchema = z.object({
-  page:   z.coerce.number().int().positive().default(1),
-  limit:  z.coerce.number().int().positive().max(100).default(20),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.string().optional(),
-  type:   z.string().optional(),
+  type: z.string().optional(),
 });
 
-export type CreateMeetingInput    = z.infer<typeof CreateMeetingSchema>;
-export type UpdateMeetingInput    = z.infer<typeof UpdateMeetingSchema>;
+export type CreateMeetingInput = z.infer<typeof CreateMeetingSchema>;
+export type UpdateMeetingInput = z.infer<typeof UpdateMeetingSchema>;
 export type RecordAttendanceInput = z.infer<typeof RecordAttendanceSchema>;
-export type AddResolutionInput    = z.infer<typeof AddResolutionSchema>;
+export type AddResolutionInput = z.infer<typeof AddResolutionSchema>;
 export type UpdateResolutionInput = z.infer<typeof UpdateResolutionSchema>;
-export type MeetingQueryInput     = z.infer<typeof MeetingQuerySchema>;
+export type MeetingQueryInput = z.infer<typeof MeetingQuerySchema>;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export const meetingsService = {
-
   async list(ctx: TenantContext, params: MeetingQueryInput) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
-      const conditions: string[] = ['m.group_id = $1'];
+      const conditions: string[] = ["m.group_id = $1"];
       const args: unknown[] = [ctx.groupId];
       let p = 2;
 
-      if (params.status) { conditions.push(`m.status = $${p++}`); args.push(params.status); }
-      if (params.type)   { conditions.push(`m.meeting_type = $${p++}`); args.push(params.type); }
+      if (params.status) {
+        conditions.push(`m.status = $${p++}`);
+        args.push(params.status);
+      }
+      if (params.type) {
+        conditions.push(`m.meeting_type = $${p++}`);
+        args.push(params.type);
+      }
 
-      const where = conditions.join(' AND ');
+      const where = conditions.join(" AND ");
 
       const { rows: items } = await client.query(
         `SELECT m.*,
@@ -113,16 +133,26 @@ export const meetingsService = {
          LIMIT  $${p++} OFFSET $${p++}`,
         [...args, params.limit, offset],
       );
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*) FROM meetings m WHERE ${where}`, args,
+      const {
+        rows: [{ count }],
+      } = await client.query(
+        `SELECT COUNT(*) FROM meetings m WHERE ${where}`,
+        args,
       );
-      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page };
+      return {
+        items,
+        total: Number(count),
+        totalPages: Math.ceil(Number(count) / params.limit),
+        page: params.page,
+      };
     });
   },
 
   async getById(ctx: TenantContext, id: string) {
     return withDb(ctx, async (client) => {
-      const { rows: [meeting] } = await client.query(
+      const {
+        rows: [meeting],
+      } = await client.query(
         `SELECT m.*,
                 cb.first_name || ' ' || cb.last_name AS created_by_name,
                 ch.first_name || ' ' || ch.last_name AS chaired_by_name,
@@ -134,7 +164,7 @@ export const meetingsService = {
          WHERE  m.id = $1 AND m.group_id = $2`,
         [id, ctx.groupId],
       );
-      if (!meeting) throw new NotFoundError('Meeting', id);
+      if (!meeting) throw new NotFoundError("Meeting", id);
 
       const { rows: attendance } = await client.query(
         `SELECT ma.*, m.first_name || ' ' || m.last_name AS member_name, m.phone AS member_phone
@@ -166,11 +196,21 @@ export const meetingsService = {
             notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13)
          RETURNING *`,
-        [ctx.groupId, data.title, data.meetingType, data.scheduledAt,
-         data.venue ?? null, data.isVirtual, data.meetingLink ?? null,
-         JSON.stringify(data.agenda), data.quorumRequired ?? null,
-         data.chairedBy ?? null, data.secretaryId ?? null,
-         data.notes ?? null, ctx.userId],
+        [
+          ctx.groupId,
+          data.title,
+          data.meetingType,
+          data.scheduledAt,
+          data.venue ?? null,
+          data.isVirtual,
+          data.meetingLink ?? null,
+          JSON.stringify(data.agenda),
+          data.quorumRequired ?? null,
+          data.chairedBy ?? null,
+          data.secretaryId ?? null,
+          data.notes ?? null,
+          ctx.userId,
+        ],
       );
       return rows[0];
     });
@@ -178,21 +218,31 @@ export const meetingsService = {
 
   async update(ctx: TenantContext, id: string, data: UpdateMeetingInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [meeting] } = await client.query(
-        'SELECT * FROM meetings WHERE id=$1 AND group_id=$2', [id, ctx.groupId],
+      const {
+        rows: [meeting],
+      } = await client.query(
+        "SELECT * FROM meetings WHERE id=$1 AND group_id=$2",
+        [id, ctx.groupId],
       );
-      if (!meeting) throw new NotFoundError('Meeting', id);
+      if (!meeting) throw new NotFoundError("Meeting", id);
 
-      const updates: string[] = ['updated_at=now()'];
+      const updates: string[] = ["updated_at=now()"];
       const args: unknown[] = [];
       let p = 1;
 
       const fields: Record<string, unknown> = {
-        title: data.title, status: data.status, scheduled_at: data.scheduledAt,
-        venue: data.venue, is_virtual: data.isVirtual, meeting_link: data.meetingLink,
-        minutes: data.minutes, quorum_achieved: data.quorumAchieved,
-        chaired_by: data.chairedBy, secretary_id: data.secretaryId,
-        notes: data.notes, ended_at: data.endedAt,
+        title: data.title,
+        status: data.status,
+        scheduled_at: data.scheduledAt,
+        venue: data.venue,
+        is_virtual: data.isVirtual,
+        meeting_link: data.meetingLink,
+        minutes: data.minutes,
+        quorum_achieved: data.quorumAchieved,
+        chaired_by: data.chairedBy,
+        secretary_id: data.secretaryId,
+        notes: data.notes,
+        ended_at: data.endedAt,
       };
 
       for (const [col, val] of Object.entries(fields)) {
@@ -208,19 +258,26 @@ export const meetingsService = {
 
       args.push(id, ctx.groupId);
       const { rows } = await client.query(
-        `UPDATE meetings SET ${updates.join(',')} WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
+        `UPDATE meetings SET ${updates.join(",")} WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
         args,
       );
       return rows[0];
     });
   },
 
-  async recordAttendance(ctx: TenantContext, meetingId: string, data: RecordAttendanceInput) {
+  async recordAttendance(
+    ctx: TenantContext,
+    meetingId: string,
+    data: RecordAttendanceInput,
+  ) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [meeting] } = await client.query(
-        'SELECT * FROM meetings WHERE id=$1 AND group_id=$2', [meetingId, ctx.groupId],
+      const {
+        rows: [meeting],
+      } = await client.query(
+        "SELECT * FROM meetings WHERE id=$1 AND group_id=$2",
+        [meetingId, ctx.groupId],
       );
-      if (!meeting) throw new NotFoundError('Meeting', meetingId);
+      if (!meeting) throw new NotFoundError("Meeting", meetingId);
 
       for (const a of data.attendance) {
         await client.query(
@@ -228,34 +285,55 @@ export const meetingsService = {
            VALUES ($1,$2,$3,$4,$5,$6,$7)
            ON CONFLICT (meeting_id, member_id)
            DO UPDATE SET status=$4, excuse_reason=$5, fine_amount=$6, marked_by=$7, marked_at=now()`,
-          [meetingId, ctx.groupId, a.memberId, a.status,
-           a.excuseReason ?? null, a.fineAmount, ctx.userId],
+          [
+            meetingId,
+            ctx.groupId,
+            a.memberId,
+            a.status,
+            a.excuseReason ?? null,
+            a.fineAmount,
+            ctx.userId,
+          ],
         );
       }
 
-      const { rows: [{ present }] } = await client.query(
+      const {
+        rows: [{ present }],
+      } = await client.query(
         `SELECT COUNT(*) FILTER (WHERE status='present') AS present
          FROM meeting_attendance WHERE meeting_id=$1`,
         [meetingId],
       );
       await client.query(
-        'UPDATE meetings SET quorum_achieved=$1, updated_at=now() WHERE id=$2',
+        "UPDATE meetings SET quorum_achieved=$1, updated_at=now() WHERE id=$2",
         [Number(present), meetingId],
       );
 
-      return { recorded: data.attendance.length, presentCount: Number(present) };
+      return {
+        recorded: data.attendance.length,
+        presentCount: Number(present),
+      };
     });
   },
 
-  async addResolution(ctx: TenantContext, meetingId: string, data: AddResolutionInput) {
+  async addResolution(
+    ctx: TenantContext,
+    meetingId: string,
+    data: AddResolutionInput,
+  ) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [meeting] } = await client.query(
-        'SELECT * FROM meetings WHERE id=$1 AND group_id=$2', [meetingId, ctx.groupId],
+      const {
+        rows: [meeting],
+      } = await client.query(
+        "SELECT * FROM meetings WHERE id=$1 AND group_id=$2",
+        [meetingId, ctx.groupId],
       );
-      if (!meeting) throw new NotFoundError('Meeting', meetingId);
+      if (!meeting) throw new NotFoundError("Meeting", meetingId);
 
-      const { rows: [{ max_order }] } = await client.query(
-        'SELECT COALESCE(MAX(sort_order),0) AS max_order FROM meeting_resolutions WHERE meeting_id=$1',
+      const {
+        rows: [{ max_order }],
+      } = await client.query(
+        "SELECT COALESCE(MAX(sort_order),0) AS max_order FROM meeting_resolutions WHERE meeting_id=$1",
         [meetingId],
       );
 
@@ -265,11 +343,21 @@ export const meetingsService = {
             votes_for, votes_against, votes_abstain, status,
             implementation_deadline, responsible_party, notes)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-        [meetingId, ctx.groupId, Number(max_order) + 1, data.resolutionText,
-         data.proposedBy ?? null, data.secondedBy ?? null,
-         data.votesFor, data.votesAgainst, data.votesAbstain, data.status,
-         data.implementationDeadline ?? null, data.responsibleParty ?? null,
-         data.notes ?? null],
+        [
+          meetingId,
+          ctx.groupId,
+          Number(max_order) + 1,
+          data.resolutionText,
+          data.proposedBy ?? null,
+          data.secondedBy ?? null,
+          data.votesFor,
+          data.votesAgainst,
+          data.votesAbstain,
+          data.status,
+          data.implementationDeadline ?? null,
+          data.responsibleParty ?? null,
+          data.notes ?? null,
+        ],
       );
       return rows[0];
     });
@@ -296,11 +384,13 @@ export const meetingsService = {
     return withTransaction(ctx, async (client) => {
       // Scoped by meeting AND group: a resolution id from another tenant, or
       // from a different meeting, must not be reachable through this route.
-      const { rows: [existing] } = await client.query(
-        'SELECT * FROM meeting_resolutions WHERE id=$1 AND meeting_id=$2 AND group_id=$3',
+      const {
+        rows: [existing],
+      } = await client.query(
+        "SELECT * FROM meeting_resolutions WHERE id=$1 AND meeting_id=$2 AND group_id=$3",
         [resolutionId, meetingId, ctx.groupId],
       );
-      if (!existing) throw new NotFoundError('Resolution', resolutionId);
+      if (!existing) throw new NotFoundError("Resolution", resolutionId);
 
       const updates: string[] = [];
       const args: unknown[] = [];
@@ -309,9 +399,14 @@ export const meetingsService = {
       if (data.implemented !== undefined) {
         updates.push(`implemented=$${p++}`);
         args.push(data.implemented);
-        updates.push(data.implemented ? 'implemented_at=now()' : 'implemented_at=NULL');
+        updates.push(
+          data.implemented ? "implemented_at=now()" : "implemented_at=NULL",
+        );
       }
-      if (data.status !== undefined) { updates.push(`status=$${p++}`); args.push(data.status); }
+      if (data.status !== undefined) {
+        updates.push(`status=$${p++}`);
+        args.push(data.status);
+      }
       if (data.implementationDeadline !== undefined) {
         updates.push(`implementation_deadline=$${p++}`);
         args.push(data.implementationDeadline);
@@ -320,13 +415,16 @@ export const meetingsService = {
         updates.push(`responsible_party=$${p++}`);
         args.push(data.responsibleParty);
       }
-      if (data.notes !== undefined) { updates.push(`notes=$${p++}`); args.push(data.notes); }
+      if (data.notes !== undefined) {
+        updates.push(`notes=$${p++}`);
+        args.push(data.notes);
+      }
 
       if (updates.length === 0) return existing;
 
       args.push(resolutionId, ctx.groupId);
       const { rows } = await client.query(
-        `UPDATE meeting_resolutions SET ${updates.join(',')}
+        `UPDATE meeting_resolutions SET ${updates.join(",")}
          WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
         args,
       );
@@ -336,7 +434,9 @@ export const meetingsService = {
 
   async getStats(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
-      const { rows: [s] } = await client.query(
+      const {
+        rows: [s],
+      } = await client.query(
         `SELECT
            COUNT(*)                                              AS total_meetings,
            COUNT(*) FILTER (WHERE status='completed')           AS completed,
@@ -346,7 +446,9 @@ export const meetingsService = {
          FROM meetings WHERE group_id=$1`,
         [ctx.groupId],
       );
-      const { rows: [r] } = await client.query(
+      const {
+        rows: [r],
+      } = await client.query(
         `SELECT COUNT(*) AS total_resolutions,
                 COUNT(*) FILTER (WHERE implemented=true) AS implemented
          FROM meeting_resolutions mr
@@ -355,11 +457,11 @@ export const meetingsService = {
         [ctx.groupId],
       );
       return {
-        totalMeetings:      Number(s.total_meetings),
-        completedMeetings:  Number(s.completed),
-        upcomingMeetings:   Number(s.upcoming),
-        avgAttendancePct:   Math.round(Number(s.avg_attendance_pct)),
-        totalResolutions:   Number(r.total_resolutions),
+        totalMeetings: Number(s.total_meetings),
+        completedMeetings: Number(s.completed),
+        upcomingMeetings: Number(s.upcoming),
+        avgAttendancePct: Math.round(Number(s.avg_attendance_pct)),
+        totalResolutions: Number(r.total_resolutions),
         implementedResolutions: Number(r.implemented),
       };
     });

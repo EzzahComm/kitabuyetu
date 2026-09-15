@@ -1,12 +1,12 @@
-import { Resend } from 'resend';
-import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import { Resend } from "resend";
+import type { IEmailAdapter, EmailPayload, EmailResult } from "./types";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class ResendAdapter implements IEmailAdapter {
-  readonly name = 'resend';
+  readonly name = "resend";
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     const from = payload.from ?? env.EMAIL_FROM;
@@ -23,8 +23,8 @@ export class ResendAdapter implements IEmailAdapter {
      * recipient + template prevent different users/events from
      * accidentally sharing the same key.
      */
-    const recipient = toArr[0]?.trim().toLowerCase() ?? 'unknown';
-    const template = payload.templateKey ?? 'generic';
+    const recipient = toArr[0]?.trim().toLowerCase() ?? "unknown";
+    const template = payload.templateKey ?? "generic";
     const reference =
       payload.referenceType && payload.referenceId
         ? `${payload.referenceType}:${payload.referenceId}`
@@ -88,7 +88,7 @@ export class ResendAdapter implements IEmailAdapter {
             payload.groupId ?? null,
             payload.userId ?? null,
             payload.templateKey ?? null,
-            payload.category ?? 'transactional',
+            payload.category ?? "transactional",
             toArr[0],
             from,
             payload.subject,
@@ -108,7 +108,7 @@ export class ResendAdapter implements IEmailAdapter {
         filename: a.filename,
         content: Buffer.isBuffer(a.content)
           ? a.content
-          : Buffer.from(a.content as string, 'base64'),
+          : Buffer.from(a.content as string, "base64"),
       }));
 
       const { data, error } = await resend.emails.send(

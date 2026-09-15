@@ -10,21 +10,21 @@
 
 The proposal asks for three things: **(a)** a dedicated domain/subdomain split (`kitabuyetu.com` / `app.kitabuyetu.com` or `portal.kitabuyetu.com` / `admin.kitabuyetu.com`), **(b)** a fully separate `/enterprise/*` auth surface (login, register, forgot-password, reset-password, verify-email, two-factor, select-organization as distinct pages), and **(c)** a pre-auth "Continue as: Organization / Group Member / Staff" chooser screen.
 
-**None of the three currently exist as proposed.** But the underlying capability gap is smaller than the proposal implies, because two of its seven auth pages are already solved — just architecturally differently (inline phases in one component, not separate routes). The two *genuinely missing* capabilities are real gaps worth fixing regardless of whether the domain-split proposal is adopted: **staff/org password reset does not exist at all**, and **organization self-registration does not exist at all** (every organization is created by a `super_admin` through the backoffice — there is no "Create Organization" flow for a prospect to sign up).
+**None of the three currently exist as proposed.** But the underlying capability gap is smaller than the proposal implies, because two of its seven auth pages are already solved — just architecturally differently (inline phases in one component, not separate routes). The two _genuinely missing_ capabilities are real gaps worth fixing regardless of whether the domain-split proposal is adopted: **staff/org password reset does not exist at all**, and **organization self-registration does not exist at all** (every organization is created by a `super_admin` through the backoffice — there is no "Create Organization" flow for a prospect to sign up).
 
-Also load-bearing: `/enterprise` is not a free namespace. It is already a real, live, authenticated URL prefix — the org-staff portal itself (`/enterprise`, `/enterprise/branches`, `/enterprise/api-keys`). Routing a *login* page to `/enterprise/login` would sit one level below the portal's own root (`/enterprise`), which today redirects unauthenticated visitors to `/admin-login` — i.e. the proposal's login URL would need to coexist with, not replace, that redirect target.
+Also load-bearing: `/enterprise` is not a free namespace. It is already a real, live, authenticated URL prefix — the org-staff portal itself (`/enterprise`, `/enterprise/branches`, `/enterprise/api-keys`). Routing a _login_ page to `/enterprise/login` would sit one level below the portal's own root (`/enterprise`), which today redirects unauthenticated visitors to `/admin-login` — i.e. the proposal's login URL would need to coexist with, not replace, that redirect target.
 
-| Proposal ask | Current state | Verdict |
-|---|---|---|
-| `kitabuyetu.com` custom domain | Only `kitabuyetu.vercel.app` is live; `.env`'s `NEXT_PUBLIC_APP_URL` points to a discontinued `ezzahcomm.co.ke` subdomain | **Not provisioned** |
-| Subdomain split (`app.`/`portal.`/`admin.`) | Zero hostname-based routing anywhere in the codebase; `proxy.ts` only inspects path prefixes | **Not implemented, non-trivial lift** |
-| `/enterprise/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | None exist. `/enterprise/*` is the authenticated portal, not an auth area | **Missing** |
-| `/enterprise/two-factor` | TOTP MFA exists, but as an inline phase of `/admin-login`, not a route | **Functionally present, architecturally different** |
-| `/enterprise/select-organization` | Exists, but as an inline phase of `/admin-login` (`chooseOrg`), not a route | **Functionally present, architecturally different** |
-| Organization self-registration ("Create Organization") | Does not exist anywhere. Only `super_admin` can create an organization (`POST /api/admin/organizations`) | **Missing — real gap** |
-| Staff/org forgot-password | Does not exist. The only password-reset flow (`/forgot-password`, SMS-OTP) is member/group-only | **Missing — real gap** |
-| Dedicated `admin.kitabuyetu.com` for super admin | Lives at `/admin/*` on the same domain, same login page as org staff | **Not implemented** |
-| Pre-auth "Continue as: Org / Member / Staff" chooser | Doesn't exist. `/login` and `/admin-login` are two separate pages that cross-link each other; org-vs-staff resolution happens *after* password entry, not before | **Missing, and a real design fork — see §6** |
+| Proposal ask                                                                             | Current state                                                                                                                                                    | Verdict                                             |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `kitabuyetu.com` custom domain                                                           | Only `kitabuyetu.vercel.app` is live; `.env`'s `NEXT_PUBLIC_APP_URL` points to a discontinued `ezzahcomm.co.ke` subdomain                                        | **Not provisioned**                                 |
+| Subdomain split (`app.`/`portal.`/`admin.`)                                              | Zero hostname-based routing anywhere in the codebase; `proxy.ts` only inspects path prefixes                                                                     | **Not implemented, non-trivial lift**               |
+| `/enterprise/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | None exist. `/enterprise/*` is the authenticated portal, not an auth area                                                                                        | **Missing**                                         |
+| `/enterprise/two-factor`                                                                 | TOTP MFA exists, but as an inline phase of `/admin-login`, not a route                                                                                           | **Functionally present, architecturally different** |
+| `/enterprise/select-organization`                                                        | Exists, but as an inline phase of `/admin-login` (`chooseOrg`), not a route                                                                                      | **Functionally present, architecturally different** |
+| Organization self-registration ("Create Organization")                                   | Does not exist anywhere. Only `super_admin` can create an organization (`POST /api/admin/organizations`)                                                         | **Missing — real gap**                              |
+| Staff/org forgot-password                                                                | Does not exist. The only password-reset flow (`/forgot-password`, SMS-OTP) is member/group-only                                                                  | **Missing — real gap**                              |
+| Dedicated `admin.kitabuyetu.com` for super admin                                         | Lives at `/admin/*` on the same domain, same login page as org staff                                                                                             | **Not implemented**                                 |
+| Pre-auth "Continue as: Org / Member / Staff" chooser                                     | Doesn't exist. `/login` and `/admin-login` are two separate pages that cross-link each other; org-vs-staff resolution happens _after_ password entry, not before | **Missing, and a real design fork — see §6**        |
 
 ---
 
@@ -42,13 +42,13 @@ Also load-bearing: `/enterprise` is not a free namespace. It is already a real, 
 
 ## 3. Public / marketing URLs
 
-| Proposal URL | Current equivalent | Notes |
-|---|---|---|
-| `kitabuyetu.com` | `/` (`app/page.tsx`) | main landing page, live |
-| `kitabuyetu.com/enterprise` | `/enterprise` | **but this is the authenticated portal root, not a marketing page** — `app/(enterprise)/layout.tsx` gates it behind `useAuth()` + role check (`organization_coordinator`/`super_admin`), redirecting unauthenticated visitors to `/admin-login` |
-| `kitabuyetu.com/enterprise/pricing` | `/pricing` (top-level, unauthenticated) | exists, but **not nested under `/enterprise`** |
-| `kitabuyetu.com/enterprise/contact` | `/contact` (top-level, unauthenticated) | exists, not nested |
-| `kitabuyetu.com/enterprise/demo` | — | **does not exist**. No "request demo" or "contact sales" content anywhere in `app/` (confirmed via grep for both phrases) |
+| Proposal URL                        | Current equivalent                      | Notes                                                                                                                                                                                                                                           |
+| ----------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kitabuyetu.com`                    | `/` (`app/page.tsx`)                    | main landing page, live                                                                                                                                                                                                                         |
+| `kitabuyetu.com/enterprise`         | `/enterprise`                           | **but this is the authenticated portal root, not a marketing page** — `app/(enterprise)/layout.tsx` gates it behind `useAuth()` + role check (`organization_coordinator`/`super_admin`), redirecting unauthenticated visitors to `/admin-login` |
+| `kitabuyetu.com/enterprise/pricing` | `/pricing` (top-level, unauthenticated) | exists, but **not nested under `/enterprise`**                                                                                                                                                                                                  |
+| `kitabuyetu.com/enterprise/contact` | `/contact` (top-level, unauthenticated) | exists, not nested                                                                                                                                                                                                                              |
+| `kitabuyetu.com/enterprise/demo`    | —                                       | **does not exist**. No "request demo" or "contact sales" content anywhere in `app/` (confirmed via grep for both phrases)                                                                                                                       |
 
 Other public pages that do exist and aren't in the proposal's list at all: `/about`, `/status`, `/support`, `/docs` — all built on a shared `components/landing/marketing-page-shell.tsx`.
 
@@ -58,14 +58,14 @@ Other public pages that do exist and aren't in the proposal's list at all: `/abo
 
 Actual pages under `app/(auth)/` (route group is invisible in the URL):
 
-| URL | File | Purpose |
-|---|---|---|
-| `/login` | `app/(auth)/login/page.tsx` | member/group login (phone or email + password), inline "choose group" step |
-| `/admin-login` | `app/(auth)/admin-login/page.tsx` | **combined** super-admin + org-staff login, inline TOTP enroll/verify + "choose organization" steps |
-| `/register` | `app/(auth)/register/page.tsx` | self-service **group** registration (`register_group()` RPC) — not organization registration |
-| `/forgot-password` | `app/(auth)/forgot-password/page.tsx` | member-only, phone + SMS OTP (`ForgotPasswordStartSchema`/`ResetPasswordSchema`) |
-| `/verify-group`, `/verify-group/confirm` | `app/(auth)/verify-group/*` | verifies a newly-registered **group**, not a generic "verify email" |
-| `/accept-org-invite/[token]` | `app/(auth)/accept-org-invite/[token]/page.tsx` | invited org staff accept an invitation (email link or phone OTP) |
+| URL                                      | File                                            | Purpose                                                                                             |
+| ---------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `/login`                                 | `app/(auth)/login/page.tsx`                     | member/group login (phone or email + password), inline "choose group" step                          |
+| `/admin-login`                           | `app/(auth)/admin-login/page.tsx`               | **combined** super-admin + org-staff login, inline TOTP enroll/verify + "choose organization" steps |
+| `/register`                              | `app/(auth)/register/page.tsx`                  | self-service **group** registration (`register_group()` RPC) — not organization registration        |
+| `/forgot-password`                       | `app/(auth)/forgot-password/page.tsx`           | member-only, phone + SMS OTP (`ForgotPasswordStartSchema`/`ResetPasswordSchema`)                    |
+| `/verify-group`, `/verify-group/confirm` | `app/(auth)/verify-group/*`                     | verifies a newly-registered **group**, not a generic "verify email"                                 |
+| `/accept-org-invite/[token]`             | `app/(auth)/accept-org-invite/[token]/page.tsx` | invited org staff accept an invitation (email link or phone OTP)                                    |
 
 Proposal's 7-page list (`/enterprise/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`, `/two-factor`, `/select-organization`) maps as:
 
@@ -87,10 +87,10 @@ Proposal lists 12 routes under the org portal: `/dashboard /groups /members /fun
 
 **Actual state — only 3 real pages exist:**
 
-| URL | File | Data |
-|---|---|---|
-| `/enterprise` | `app/(enterprise)/enterprise/page.tsx` | **real** — `api.get('/organization/dashboard')`, `organizationApi.groups()`; charts with no backend rendered as an explicit `ComingSoon` panel |
-| `/enterprise/branches` | `app/(enterprise)/enterprise/branches/page.tsx` | **real** |
+| URL                    | File                                            | Data                                                                                                                                              |
+| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/enterprise`          | `app/(enterprise)/enterprise/page.tsx`          | **real** — `api.get('/organization/dashboard')`, `organizationApi.groups()`; charts with no backend rendered as an explicit `ComingSoon` panel    |
+| `/enterprise/branches` | `app/(enterprise)/enterprise/branches/page.tsx` | **real**                                                                                                                                          |
 | `/enterprise/api-keys` | `app/(enterprise)/enterprise/api-keys/page.tsx` | **mock** — explicitly commented `// Intentionally still mock — no API key issuance / webhook delivery backend`, imports seed data from `_data.ts` |
 
 Everything else in the proposal's list — `groups`, `members`, `funding`, `loans`, `contributions`, `welfare`, `programs`, `field-officers`, `reports`, `settings`, `billing` — **has no folder or page anywhere under `(enterprise)`**. The sidebar (`app/(enterprise)/layout.tsx`, lines 33-57) does list `reports`, `members`, `disbursements`, `branding`, `audit` as nav items, but marks them `soon: true` and renders them disabled with a "Soon" pill — they are IA placeholders, not routes. `field-officers` specifically doesn't exist anywhere in the app, matching an earlier audit's finding that `field_officer` isn't a real role in any DB enum or table — only ever named as a hypothetical future item in `B2B_ENTERPRISE_AUDIT.md`.
@@ -109,7 +109,7 @@ Proposal wants a fully separate `admin.kitabuyetu.com` with `/login /dashboard /
 
 ## 7. The real design fork: pre-auth identification vs. post-auth resolution
 
-The proposal's "Continue as: 🏢 Organization / 👥 Group Member / ⚙️ Staff" screen asks the visitor to self-identify **before** entering credentials. The current app does the opposite: `/login` and `/admin-login` are two separately-linked pages (each cross-links the other — "Back to member login" / "Member accounts log in at /login"), and *within* `/admin-login`, staff-vs-organization resolution happens **after** password + MFA, driven by real backend data (`organization_members` membership count), not user self-report.
+The proposal's "Continue as: 🏢 Organization / 👥 Group Member / ⚙️ Staff" screen asks the visitor to self-identify **before** entering credentials. The current app does the opposite: `/login` and `/admin-login` are two separately-linked pages (each cross-links the other — "Back to member login" / "Member accounts log in at /login"), and _within_ `/admin-login`, staff-vs-organization resolution happens **after** password + MFA, driven by real backend data (`organization_members` membership count), not user self-report.
 
 This is worth flagging as a genuine architectural choice, not just a missing feature, because the proposal's model and the current model have different failure modes:
 
@@ -194,13 +194,13 @@ Phase 0 decision #1 came back "stay staff-gated." This phase does not proceed �
 
 Backend readiness checked per page before committing to any build order:
 
-| Page | Readiness |
-|---|---|
-| `disbursements` | **Ready** — `organization_ledger` + `settleOrgDisbursement()` already live (powers `/enterprise`'s dashboard). Mostly a list/table view over existing data. |
-| `reports` | **Partial, and a false lead corrected mid-check**: `/api/v1/organization/reports` (already live) is not the donor/program report assumed — it's `getGroupDetail`, a per-group lookup, unrelated. The real donor-spend/program-budget reports (`organization-finance.service.ts`, built during the earlier accounting-audit series) live under `/organization/programs?report=donor` and aren't wired to any `(enterprise)` page yet. |
-| `members` | **Partial** — org-scoped *staff* members already exist (`organization-members.service.ts`, from the multi-staff-organizations work), but this nav item means *customer* members across the org's branches — a new cross-group query, not built. |
-| `audit` | **Partial** — `audit_logs` exists platform-wide but is indexed by `group_id`, not `organization_id` — no direct org-scoped query exists; needs a new aggregation joining through the org's linked groups. |
-| `branding` (white-label) | **Not started** — zero schema on `organizations` (the only `logo_url`/color columns anywhere are on `groups`, for per-group email branding — a different, already-solved problem). Also a genuine product-scope question, not just an engineering gap. |
+| Page                     | Readiness                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `disbursements`          | **Ready** — `organization_ledger` + `settleOrgDisbursement()` already live (powers `/enterprise`'s dashboard). Mostly a list/table view over existing data.                                                                                                                                                                                                                                                                          |
+| `reports`                | **Partial, and a false lead corrected mid-check**: `/api/v1/organization/reports` (already live) is not the donor/program report assumed — it's `getGroupDetail`, a per-group lookup, unrelated. The real donor-spend/program-budget reports (`organization-finance.service.ts`, built during the earlier accounting-audit series) live under `/organization/programs?report=donor` and aren't wired to any `(enterprise)` page yet. |
+| `members`                | **Partial** — org-scoped _staff_ members already exist (`organization-members.service.ts`, from the multi-staff-organizations work), but this nav item means _customer_ members across the org's branches — a new cross-group query, not built.                                                                                                                                                                                      |
+| `audit`                  | **Partial** — `audit_logs` exists platform-wide but is indexed by `group_id`, not `organization_id` — no direct org-scoped query exists; needs a new aggregation joining through the org's linked groups.                                                                                                                                                                                                                            |
+| `branding` (white-label) | **Not started** — zero schema on `organizations` (the only `logo_url`/color columns anywhere are on `groups`, for per-group email branding — a different, already-solved problem). Also a genuine product-scope question, not just an engineering gap.                                                                                                                                                                               |
 
 Decisions (AskUserQuestion, 2026-08-02): **branding scope = logo + brand color only** (mirrors the existing per-group email-branding pattern, scoped to organizations; explicitly deferred: custom domain, which ties into the Phase 5 domain question). **Sequencing = ready-first**: disbursements → reports → members → audit → branding, each shipped as its own PR-sized unit rather than one large batch, since unlike the earlier design-system sweeps (mechanical, parallelizable across files with no shared state) these 5 pages have genuinely different backend shapes and risk profiles.
 
@@ -231,14 +231,14 @@ Phase 0 decision #2 came back "stay single-domain." This phase does not proceed 
 
 All 5 phases closed out in one session:
 
-| Phase | Outcome |
-|---|---|
-| 0 — Decisions | Decided: stay staff-gated, stay single-domain |
-| 1 — Staff/org password reset | **Shipped** |
-| 2 — Auth wayfinding | **Shipped** (scope corrected: one link, not a new page) |
-| 3 — Organization self-registration | **Declined** |
+| Phase                                   | Outcome                                                                      |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| 0 — Decisions                           | Decided: stay staff-gated, stay single-domain                                |
+| 1 — Staff/org password reset            | **Shipped**                                                                  |
+| 2 — Auth wayfinding                     | **Shipped** (scope corrected: one link, not a new page)                      |
+| 3 — Organization self-registration      | **Declined**                                                                 |
 | 4 — Missing `(enterprise)` portal pages | **Shipped**, all 5 (scope corrected: 5 real nav items, not the proposal's 9) |
-| 5 — Domain/subdomain split | **Declined** |
+| 5 — Domain/subdomain split              | **Declined**                                                                 |
 
 Net effect versus the original pasted proposal: the two-factor and organization-selection steps it asked for already existed (inline in `/admin-login`, not separate routes); the domain split and organization self-registration it assumed were both explicitly declined after review; the two real gaps it surfaced (staff password reset, missing portal pages) are now closed. Two build-time corrections (Phase 2's redundant chooser, Phase 4's proposal-vs-actual-IA mismatch) were caught and fixed before shipping rather than after.
 

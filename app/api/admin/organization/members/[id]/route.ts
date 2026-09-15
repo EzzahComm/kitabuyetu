@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withOrganizationAccess } from '@/lib/auth/middleware';
-import { organizationService } from '@/lib/services/organization.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withOrganizationAccess } from "@/lib/auth/middleware";
+import { organizationService } from "@/lib/services/organization.service";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/admin/organization/members/:id?groupId=… — one member's detail,
@@ -21,17 +21,30 @@ import { ok } from '@/lib/utils/response';
 
 // Both ids reach `WHERE … = $1` against uuid columns, so a malformed value
 // would surface as a Postgres cast error (500) instead of a client error (R14).
-const ParamsSchema = z.object({ id: z.string().uuid('Invalid member id') });
-const QuerySchema  = z.object({ groupId: z.string().uuid('groupId must be a valid uuid') });
+const ParamsSchema = z.object({ id: z.string().uuid("Invalid member id") });
+const QuerySchema = z.object({
+  groupId: z.string().uuid("groupId must be a valid uuid"),
+});
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withOrganizationAccess(req, 'organization.members.view', async (auth) => {
-    const { id } = ParamsSchema.parse(await params);
-    const { groupId } = QuerySchema.parse({ groupId: req.nextUrl.searchParams.get('groupId') });
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    return ok(await organizationService.getMemberDetail(ctx, groupId, id));
-  });
+  return withOrganizationAccess(
+    req,
+    "organization.members.view",
+    async (auth) => {
+      const { id } = ParamsSchema.parse(await params);
+      const { groupId } = QuerySchema.parse({
+        groupId: req.nextUrl.searchParams.get("groupId"),
+      });
+      const ctx = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
+      return ok(await organizationService.getMemberDetail(ctx, groupId, id));
+    },
+  );
 }

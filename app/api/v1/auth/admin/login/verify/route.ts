@@ -24,54 +24,70 @@
  * before retrying. We re-fetch the member by id (challenge.sub) rather
  * than trusting any free-form input from the request body.
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { NextRequest } from 'next/server';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import { NextRequest } from "next/server";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 import {
-  signBackofficeAccessToken, signRefreshToken,
-  hashToken, refreshTtlSeconds,
+  signBackofficeAccessToken,
+  signRefreshToken,
+  hashToken,
+  refreshTtlSeconds,
   verifyMfaChallenge,
-} from '@/lib/auth/jwt';
+} from "@/lib/auth/jwt";
 import {
-  encryptSecret, verifyTotp, verifyTotpRaw,
-  hashRecoveryCodes, verifyAndConsumeRecoveryCode,
-} from '@/lib/auth/mfa';
+  encryptSecret,
+  verifyTotp,
+  verifyTotpRaw,
+  hashRecoveryCodes,
+  verifyAndConsumeRecoveryCode,
+} from "@/lib/auth/mfa";
 import {
-  storeRefreshToken, incrementLoginAttempts, lockAccount, isAccountLocked,
-} from '@/lib/redis';
-import { AdminLoginMfaVerifySchema } from '@/lib/validators/auth.schema';
-import { ok, handleError, errorResponse } from '@/lib/utils/response';
-import type { AdminLoginResponse, NeedsOrgSelection } from '@/types/api.types';
+  storeRefreshToken,
+  incrementLoginAttempts,
+  lockAccount,
+  isAccountLocked,
+} from "@/lib/redis";
+import { AdminLoginMfaVerifySchema } from "@/lib/validators/auth.schema";
+import { ok, handleError, errorResponse } from "@/lib/utils/response";
+import type { AdminLoginResponse, NeedsOrgSelection } from "@/types/api.types";
 
 // OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
 // identical comment; this used to disagree with the validated schema default.
-const MAX_ATTEMPTS    = env.MAX_LOGIN_ATTEMPTS;
+const MAX_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
 const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 
-const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
+const PLATFORM_ROLES = [
+  "super_admin",
+  "support",
+  "organization_coordinator",
+] as const;
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 
 interface MemberRow {
-  id:            string;
-  first_name:    string;
-  last_name:     string;
-  email:         string | null;
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
   platform_role: string;
-  is_active:     boolean;
+  is_active: boolean;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
   try {
-    const body  = await req.json();
+    const body = await req.json();
     const input = AdminLoginMfaVerifySchema.parse(body);
 
     let challenge: ReturnType<typeof verifyMfaChallenge>;
     try {
       challenge = verifyMfaChallenge(input.challenge);
     } catch {
-      return errorResponse('Sign-in session expired. Start again.', 'MFA_CHALLENGE_EXPIRED', 401);
+      return errorResponse(
+        "Sign-in session expired. Start again.",
+        "MFA_CHALLENGE_EXPIRED",
+        401,
+      );
     }
 
     // Same lockout namespace as step 1 — re-derive from email below.
@@ -87,9 +103,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         [memberId],
       );
       const member = rows[0];
-      if (!member
-          || !member.is_active
-          || !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)) {
+      if (
+        !member ||
+        !member.is_active ||
+        !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)
+      ) {
         return null;
       }
       // organization_coordinator scope — resolved via organization_members
@@ -98,9 +116,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       // staff at more than one organization (multi-staff organizations),
       // so this can return 0, 1, or many rows.
       let organizationId: string | undefined;
-      let orgChoices: NeedsOrgSelection['organizations'] | undefined;
-      if (member.platform_role === 'organization_coordinator') {
-        const { rows: orgs } = await client.query<{ id: string; name: string; org_role: 'lead' | 'staff' }>(
+      let orgChoices: NeedsOrgSelection["organizations"] | undefined;
+      if (member.platform_role === "organization_coordinator") {
+        const { rows: orgs } = await client.query<{
+          id: string;
+          name: string;
+          org_role: "lead" | "staff";
+        }>(
           `SELECT o.id, o.name, om.org_role
              FROM organization_members om
              JOIN organizations o ON o.id = om.organization_id
@@ -117,7 +139,9 @@ export async function POST(req: NextRequest): Promise<Response> {
           organizationId = chosen.id;
         } else {
           orgChoices = orgs.map((o) => ({
-            organizationId: o.id, organizationName: o.name, orgRole: o.org_role,
+            organizationId: o.id,
+            organizationName: o.name,
+            orgRole: o.org_role,
           }));
         }
       }
@@ -125,32 +149,46 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     if (!memberLookup) {
-      return errorResponse('Sign-in session is no longer valid.', 'MFA_CHALLENGE_INVALID', 401);
+      return errorResponse(
+        "Sign-in session is no longer valid.",
+        "MFA_CHALLENGE_INVALID",
+        401,
+      );
     }
     const { member, organizationId, orgChoices } = memberLookup;
     if (orgChoices) {
-      return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
+      return ok<NeedsOrgSelection>({
+        needsOrgSelection: true,
+        organizations: orgChoices,
+      });
     }
-    const lockKey = `admin:${(member.email ?? '').toLowerCase()}`;
+    const lockKey = `admin:${(member.email ?? "").toLowerCase()}`;
 
     if (await isAccountLocked(lockKey)) {
       return errorResponse(
         `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`,
-        'ACCOUNT_LOCKED', 429,
+        "ACCOUNT_LOCKED",
+        429,
       );
     }
 
     // ── Branch on challenge type ───────────────────────────────────────
-    if (challenge.kind === 'enrollment') {
+    if (challenge.kind === "enrollment") {
       if (!challenge.secret) {
-        return errorResponse('Malformed enrollment challenge.', 'MFA_CHALLENGE_INVALID', 400);
+        return errorResponse(
+          "Malformed enrollment challenge.",
+          "MFA_CHALLENGE_INVALID",
+          400,
+        );
       }
       if (!verifyTotpRaw(input.code, challenge.secret)) {
         const attempts = await incrementLoginAttempts(lockKey);
-        if (attempts >= MAX_ATTEMPTS) await lockAccount(lockKey, LOCKOUT_MINUTES);
+        if (attempts >= MAX_ATTEMPTS)
+          await lockAccount(lockKey, LOCKOUT_MINUTES);
         return errorResponse(
-          'Invalid code. Make sure the time on your phone is in sync and try again.',
-          'MFA_INVALID_CODE', 401,
+          "Invalid code. Make sure the time on your phone is in sync and try again.",
+          "MFA_INVALID_CODE",
+          401,
         );
       }
 
@@ -179,12 +217,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       // The codes presented at step 1 are hashed here so a future verify
       // attempt can match them. We send the codes through the body of
       // this request (UI passes them along).
-      const recoveryCodes = Array.isArray((body as Record<string, unknown>).recoveryCodes)
-        ? ((body as Record<string, unknown>).recoveryCodes as string[]).filter((c): c is string => typeof c === 'string')
+      const recoveryCodes = Array.isArray(
+        (body as Record<string, unknown>).recoveryCodes,
+      )
+        ? ((body as Record<string, unknown>).recoveryCodes as string[]).filter(
+            (c): c is string => typeof c === "string",
+          )
         : [];
-      const recoveryHashes = recoveryCodes.length > 0
-        ? await hashRecoveryCodes(recoveryCodes)
-        : [];
+      const recoveryHashes =
+        recoveryCodes.length > 0 ? await hashRecoveryCodes(recoveryCodes) : [];
 
       await withAdminDb(async (client) => {
         await client.query(
@@ -204,7 +245,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // ── challenge.kind === 'verify' ────────────────────────────────────
     const stored = await withAdminDb(async (client) => {
-      const { rows } = await client.query<{ secret_encrypted: string; recovery_hashes: string[] }>(
+      const { rows } = await client.query<{
+        secret_encrypted: string;
+        recovery_hashes: string[];
+      }>(
         `SELECT secret_encrypted, recovery_hashes
            FROM member_mfa_secrets WHERE member_id = $1`,
         [member.id],
@@ -214,14 +258,21 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!stored) {
       // Edge case: member dropped out of enrollment between step 1 and 2.
       // Force them to restart so the flow re-issues an enrollment challenge.
-      return errorResponse('Authenticator not enrolled. Start the sign-in flow again.', 'MFA_NOT_ENROLLED', 401);
+      return errorResponse(
+        "Authenticator not enrolled. Start the sign-in flow again.",
+        "MFA_NOT_ENROLLED",
+        401,
+      );
     }
 
     // Try TOTP first (the common path), then fall back to recovery code.
     let recoveryConsumed: { remaining: string[] } | null = null;
     let ok2fa = verifyTotp(input.code, stored.secret_encrypted);
     if (!ok2fa) {
-      const recovery = await verifyAndConsumeRecoveryCode(input.code, stored.recovery_hashes);
+      const recovery = await verifyAndConsumeRecoveryCode(
+        input.code,
+        stored.recovery_hashes,
+      );
       if (recovery) {
         ok2fa = true;
         recoveryConsumed = { remaining: recovery.remainingHashes };
@@ -232,8 +283,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       const attempts = await incrementLoginAttempts(lockKey);
       if (attempts >= MAX_ATTEMPTS) await lockAccount(lockKey, LOCKOUT_MINUTES);
       return errorResponse(
-        'Invalid code. Try the latest code from your authenticator or use a recovery code.',
-        'MFA_INVALID_CODE', 401,
+        "Invalid code. Try the latest code from your authenticator or use a recovery code.",
+        "MFA_INVALID_CODE",
+        401,
       );
     }
 
@@ -263,38 +315,46 @@ export async function POST(req: NextRequest): Promise<Response> {
 // ── Shared: mint backoffice tokens + persist refresh token ──────────────
 
 async function issueBackofficeTokens(
-  req:     NextRequest,
-  member:  MemberRow,
-  organizationId:   string | undefined,
+  req: NextRequest,
+  member: MemberRow,
+  organizationId: string | undefined,
 ): Promise<Response> {
   const accessToken = signBackofficeAccessToken({
-    sub:          member.id,
-    aud:          'backoffice',
+    sub: member.id,
+    aud: "backoffice",
     platformRole: member.platform_role as AdminPlatformRole,
     organizationId,
   });
-  const { token: refreshToken } = signRefreshToken(member.id, 'backoffice');
+  const { token: refreshToken } = signRefreshToken(member.id, "backoffice");
   const rtHash = hashToken(refreshToken);
-  await storeRefreshToken(rtHash, member.id, refreshTtlSeconds('backoffice'));
+  await storeRefreshToken(rtHash, member.id, refreshTtlSeconds("backoffice"));
 
   await withAdminDb(async (client) => {
     await client.query(
       `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address)
        VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4)`,
-      [member.id, rtHash, refreshTtlSeconds('backoffice'), req.headers.get('x-forwarded-for') ?? null],
+      [
+        member.id,
+        rtHash,
+        refreshTtlSeconds("backoffice"),
+        req.headers.get("x-forwarded-for") ?? null,
+      ],
     );
-    await client.query('UPDATE members SET last_login_at = NOW() WHERE id = $1', [member.id]);
+    await client.query(
+      "UPDATE members SET last_login_at = NOW() WHERE id = $1",
+      [member.id],
+    );
   });
 
   const response: AdminLoginResponse = {
     accessToken,
     refreshToken,
-    audience: 'backoffice',
+    audience: "backoffice",
     member: {
-      id:           member.id,
-      firstName:    member.first_name,
-      lastName:     member.last_name,
-      email:        member.email ?? '',
+      id: member.id,
+      firstName: member.first_name,
+      lastName: member.last_name,
+      email: member.email ?? "",
       platformRole: member.platform_role as AdminPlatformRole,
       organizationId,
     },

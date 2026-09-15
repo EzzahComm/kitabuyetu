@@ -1,16 +1,21 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import {
-  Bell, Menu, ChevronDown,
-  CircleCheck, CircleAlert, Activity,
-  LogOut, Settings,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/lib/auth/context';
-import { authApi } from '@/lib/api/endpoints';
-import { openCommandPalette } from '@/components/admin/command-palette';
-import { SearchTrigger } from '@/components/shared/search-trigger';
+  Bell,
+  Menu,
+  ChevronDown,
+  CircleCheck,
+  CircleAlert,
+  Activity,
+  LogOut,
+  Settings,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/context";
+import { authApi } from "@/lib/api/endpoints";
+import { openCommandPalette } from "@/components/admin/command-palette";
+import { SearchTrigger } from "@/components/shared/search-trigger";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +23,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
-const STATUS = { label: 'All systems operational', ok: true };
+const STATUS = { label: "All systems operational", ok: true };
 
 interface AdminTopbarProps {
   onMenuClick: () => void;
@@ -31,7 +36,9 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const { user, logout, refreshToken } = useAuth();
 
   const handleLogout = async () => {
-    try { await authApi.logout(refreshToken ?? undefined); } catch {}
+    try {
+      await authApi.logout(refreshToken ?? undefined);
+    } catch {}
     logout();
   };
 
@@ -55,16 +62,19 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
 
       <div className="flex items-center gap-2 ml-auto">
         {/* System status pill */}
-        <div className={cn(
-          'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
-          STATUS.ok
-            ? 'bg-green-50 text-green-700 border-green-200'
-            : 'bg-red-50 text-red-700 border-red-200',
-        )}>
-          {STATUS.ok
-            ? <CircleCheck size={12} className="text-green-500" />
-            : <CircleAlert size={12} className="text-red-500" />
-          }
+        <div
+          className={cn(
+            "hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+            STATUS.ok
+              ? "bg-green-50 text-green-700 border-green-200"
+              : "bg-red-50 text-red-700 border-red-200",
+          )}
+        >
+          {STATUS.ok ? (
+            <CircleCheck size={12} className="text-green-500" />
+          ) : (
+            <CircleAlert size={12} className="text-red-500" />
+          )}
           {STATUS.label}
         </div>
 
@@ -80,7 +90,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
         {/* Activity */}
         <button
           type="button"
-          onClick={() => router.push('/admin/audit-logs')}
+          onClick={() => router.push("/admin/audit-logs")}
           className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
           title="Activity logs"
         >
@@ -96,7 +106,8 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
             >
               <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-[11px] font-bold text-white">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  {user?.firstName?.[0]}
+                  {user?.lastName?.[0]}
                 </span>
               </div>
               <div className="hidden sm:block text-left">
@@ -104,23 +115,31 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
                   {user?.firstName} {user?.lastName}
                 </p>
                 <p className="text-[10px] text-blue-600 font-medium capitalize leading-none mt-0.5">
-                  {user?.platformRole?.replace('_', ' ')}
+                  {user?.platformRole?.replace("_", " ")}
                 </p>
               </div>
-              <ChevronDown size={13} className="text-gray-400 hidden sm:block" />
+              <ChevronDown
+                size={13}
+                className="text-gray-400 hidden sm:block"
+              />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel className="text-xs text-gray-500">Signed in as</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-gray-500">
+              Signed in as
+            </DropdownMenuLabel>
             <DropdownMenuLabel className="text-sm font-semibold text-gray-900 pt-0">
               {user?.firstName} {user?.lastName}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/admin/settings')}>
+            <DropdownMenuItem onClick={() => router.push("/admin/settings")}>
               <Settings size={14} className="mr-2" /> Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-red-600 focus:text-red-600"
+            >
               <LogOut size={14} className="mr-2" /> Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

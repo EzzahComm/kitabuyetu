@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 /**
  * POST /api/v1/mpesa/airtime              — Buy airtime for a phone (chairperson+)
  * POST /api/v1/mpesa/airtime?type=result  — Safaricom result callback (no JWT)
@@ -7,33 +7,40 @@ export const dynamic = 'force-dynamic';
  * The underlying Daraja airtime product is operator-provisioned; the call is
  * gated behind MPESA_AIRTIME_COMMAND_ID and returns 501 until configured.
  */
-import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
-import { withPermission } from '@/lib/auth/middleware';
-import { initiateAirtime, handleAirtimeResult } from '@/lib/services/mpesa.service';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
-import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse, after } from "next/server";
+import { z } from "zod";
+import { withPermission } from "@/lib/auth/middleware";
+import {
+  initiateAirtime,
+  handleAirtimeResult,
+} from "@/lib/services/mpesa.service";
+import { isValidKenyanPhone } from "@/lib/utils/phone";
+import { ok, handleError } from "@/lib/utils/response";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 const AirtimeSchema = z.object({
-  phone:   z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  amount:  z.number().int().positive(),
+  phone: z.string().refine(isValidKenyanPhone, "Invalid Kenyan phone number"),
+  amount: z.number().int().positive(),
   remarks: z.string().max(100).optional(),
 });
 
 function callerIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
 }
-const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const type = req.nextUrl.searchParams.get("type");
+  const ip = callerIp(req);
 
-  if (type === 'result' || type === 'timeout') {
+  if (type === "result" || type === "timeout") {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -46,28 +53,31 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     after(async () => {
-      try { await handleAirtimeResult(body, ip); }
-      catch (err) { logger.error('[airtime result]', err); }
+      try {
+        await handleAirtimeResult(body, ip);
+      } catch (err) {
+        logger.error("[airtime result]", err);
+      }
     });
     return ack();
   }
 
   // Authenticated airtime purchase (chairperson or above)
-  return withPermission(req, 'payments.disburse', async (auth) => {
+  return withPermission(req, "payments.disburse", async (auth) => {
     try {
       const input = AirtimeSchema.parse(await req.json());
-      const res   = await initiateAirtime({
-        phone:       input.phone,
-        amount:      input.amount,
-        remarks:     input.remarks,
-        groupId:     auth.groupId,
+      const res = await initiateAirtime({
+        phone: input.phone,
+        amount: input.amount,
+        remarks: input.remarks,
+        groupId: auth.groupId,
         initiatedBy: auth.userId,
       });
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseDescription:      res.responseDescription,
-        message:                  'Airtime purchase initiated. Monitor the result callback.',
+        responseDescription: res.responseDescription,
+        message: "Airtime purchase initiated. Monitor the result callback.",
       });
     } catch (err) {
       return handleError(err);

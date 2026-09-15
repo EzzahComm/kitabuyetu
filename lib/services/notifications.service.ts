@@ -35,31 +35,34 @@
  * the claim as 'pending' with attempts never incremented. The whole body is
  * therefore wrapped; every failure becomes a NotifyOutcome.
  */
-import { pool } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { sendText, isWhatsAppConfigured } from '@/lib/integrations/whatsapp-client';
-import { sendSingleSms, activeSmsProvider } from '@/lib/sms/provider';
-import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
-import { segmentsOf } from '@/lib/sms/segments';
+import { pool } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import {
+  sendText,
+  isWhatsAppConfigured,
+} from "@/lib/integrations/whatsapp-client";
+import { sendSingleSms, activeSmsProvider } from "@/lib/sms/provider";
+import { normalizePhone, isValidKenyanPhone } from "@/lib/utils/phone";
+import { segmentsOf } from "@/lib/sms/segments";
 import {
   reserveCredits,
   settleReservation,
   releaseUnticketedReservation,
   raiseLowBalanceAlert,
   type ReservationTarget,
-} from './messaging-billing';
+} from "./messaging-billing";
 
 /** Who pays for a notification's SMS leg. See the billing note above. */
-export type NotifyBillingMode = 'unbilled' | 'billed' | 'platform';
+export type NotifyBillingMode = "unbilled" | "billed" | "platform";
 
 export interface NotifyRecipient {
-  groupId:  string;
+  groupId: string;
   memberId: string;
-  phone:    string;
-  body:     string;
+  phone: string;
+  body: string;
   /** Free-form linkage so the audit rows can be traced back to the event. */
   referenceType?: string;
-  referenceId?:   string;
+  referenceId?: string;
   /** Shown in the (member) portal's in-app notifications list. Falls back to a
    *  referenceType-derived label when omitted, so existing call sites don't
    *  need to change. */
@@ -75,14 +78,14 @@ export interface NotifyRecipient {
 }
 
 const DEFAULT_TITLE_BY_REFERENCE: Record<string, string> = {
-  loan_repayment:        'Loan reminder',
-  contribution_reminder: 'Contribution reminder',
-  stk_fallback:          'Payment issue',
+  loan_repayment: "Loan reminder",
+  contribution_reminder: "Contribution reminder",
+  stk_fallback: "Payment issue",
 };
 
 function deriveTitle(rcpt: NotifyRecipient): string {
   if (rcpt.title) return rcpt.title;
-  return DEFAULT_TITLE_BY_REFERENCE[rcpt.referenceType ?? ''] ?? 'Notification';
+  return DEFAULT_TITLE_BY_REFERENCE[rcpt.referenceType ?? ""] ?? "Notification";
 }
 
 /**
@@ -99,16 +102,26 @@ async function writeInAppNotification(rcpt: NotifyRecipient): Promise<void> {
     await pool.query(
       `INSERT INTO notifications (group_id, member_id, type, title, body, reference_type, reference_id)
        VALUES ($1, $2, 'in_app', $3, $4, $5, $6)`,
-      [rcpt.groupId, rcpt.memberId, deriveTitle(rcpt), rcpt.body, rcpt.referenceType ?? null, rcpt.referenceId ?? null],
+      [
+        rcpt.groupId,
+        rcpt.memberId,
+        deriveTitle(rcpt),
+        rcpt.body,
+        rcpt.referenceType ?? null,
+        rcpt.referenceId ?? null,
+      ],
     );
   } catch (err) {
-    logger.error('[notifications] failed to write in-app notification row', err);
+    logger.error(
+      "[notifications] failed to write in-app notification row",
+      err,
+    );
   }
 }
 
 export interface NotifyOutcome {
-  channel: 'whatsapp' | 'sms' | 'none';
-  status:  'sent' | 'dry_run' | 'failed' | 'suppressed';
+  channel: "whatsapp" | "sms" | "none";
+  status: "sent" | "dry_run" | "failed" | "suppressed";
   detail?: string;
 }
 
@@ -118,15 +131,22 @@ export interface NotifyOutcome {
  * (smsService.send / sendBulkCampaign) so automated cron reminders honour
  * the same consent signal — they previously bypassed it entirely.
  */
-async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
+async function isPhoneOptedOut(
+  groupId: string,
+  phone: string,
+): Promise<boolean> {
   try {
     const { rows } = await pool.query<{ n: number }>(
-      `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, phone],
+      `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
+      [groupId, phone],
     );
     return rows.length > 0;
   } catch (err) {
     // Fail closed: if we can't confirm consent, don't send.
-    logger.error('[notifications] opt-out lookup failed; suppressing', { groupId, err });
+    logger.error("[notifications] opt-out lookup failed; suppressing", {
+      groupId,
+      err,
+    });
     return true;
   }
 }
@@ -136,7 +156,9 @@ async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean>
  * to SMS on failure. Always writes an audit row for whichever channel was
  * actually attempted (or both if the WA attempt failed and we fell over).
  */
-export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome> {
+export async function notifyMember(
+  rcpt: NotifyRecipient,
+): Promise<NotifyOutcome> {
   // Outer guard: this function must never throw (see the file header). Before
   // Phase 2a it could — sendText() below sat outside any try/catch, so a
   // throwing WhatsApp client escaped to callers that don't guard, stranding
@@ -146,19 +168,24 @@ export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome
     return await notifyMemberInner(rcpt);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    logger.error('[notifications] notifyMember escaped', { memberId: rcpt.memberId, detail });
-    return { channel: 'none', status: 'failed', detail };
+    logger.error("[notifications] notifyMember escaped", {
+      memberId: rcpt.memberId,
+      detail,
+    });
+    return { channel: "none", status: "failed", detail };
   }
 }
 
-async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> {
+async function notifyMemberInner(
+  rcpt: NotifyRecipient,
+): Promise<NotifyOutcome> {
   // In-app copy is independent of SMS/WhatsApp deliverability (invalid
   // phone, opt-out, provider outage) — a member should still see it in the
   // portal even if every external channel fails or is skipped.
   await writeInAppNotification(rcpt);
 
   if (!isValidKenyanPhone(rcpt.phone)) {
-    return { channel: 'none', status: 'failed', detail: 'invalid phone' };
+    return { channel: "none", status: "failed", detail: "invalid phone" };
   }
   const phone = normalizePhone(rcpt.phone);
 
@@ -168,7 +195,11 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
   // 'suppressed' and not counted against the failure tally. It runs BEFORE
   // any reservation, so a suppressed send costs nothing.
   if (await isPhoneOptedOut(rcpt.groupId, phone)) {
-    return { channel: 'none', status: 'suppressed', detail: 'recipient opted out' };
+    return {
+      channel: "none",
+      status: "suppressed",
+      detail: "recipient opted out",
+    };
   }
 
   // ── WhatsApp attempt ─────────────────────────────────────────────────
@@ -178,30 +209,40 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
   if (isWhatsAppConfigured()) {
     try {
       const wa = await sendText({ to: phone, body: rcpt.body });
-      if (wa.status === 'sent') {
-        await writeWhatsAppLog(rcpt, phone, 'sent', wa.waMessageId);
-        return { channel: 'whatsapp', status: 'sent' };
+      if (wa.status === "sent") {
+        await writeWhatsAppLog(rcpt, phone, "sent", wa.waMessageId);
+        return { channel: "whatsapp", status: "sent" };
       }
       await writeWhatsAppLog(
         rcpt,
         phone,
-        'failed',
+        "failed",
         undefined,
-        wa.status === 'failed' ? wa.errorCode    : undefined,
-        wa.status === 'failed' ? wa.errorMessage : undefined,
+        wa.status === "failed" ? wa.errorCode : undefined,
+        wa.status === "failed" ? wa.errorMessage : undefined,
       );
-      logger.warn('[notifications] WA failed, falling back to SMS', { memberId: rcpt.memberId, detail: wa });
+      logger.warn("[notifications] WA failed, falling back to SMS", {
+        memberId: rcpt.memberId,
+        detail: wa,
+      });
     } catch (err) {
       // A throwing WA client must degrade to SMS, not abort the send.
-      logger.warn('[notifications] WA threw, falling back to SMS', {
+      logger.warn("[notifications] WA threw, falling back to SMS", {
         memberId: rcpt.memberId,
-        detail:   err instanceof Error ? err.message : String(err),
+        detail: err instanceof Error ? err.message : String(err),
       });
     }
   } else {
     // WA unconfigured: write a dry_run audit row so ops sees the message
     // is being routed to SMS, not silently swallowed.
-    await writeWhatsAppLog(rcpt, phone, 'dry_run', undefined, 'NOT_CONFIGURED', 'WhatsApp credentials not set');
+    await writeWhatsAppLog(
+      rcpt,
+      phone,
+      "dry_run",
+      undefined,
+      "NOT_CONFIGURED",
+      "WhatsApp credentials not set",
+    );
   }
 
   return sendSmsLeg(rcpt, phone);
@@ -220,23 +261,26 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
  *     one case a finally cannot cover — the process dying outright — is the
  *     reason sms_release_stale_reservations exists.
  */
-async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyOutcome> {
-  const mode   = rcpt.billingMode ?? 'unbilled';
+async function sendSmsLeg(
+  rcpt: NotifyRecipient,
+  phone: string,
+): Promise<NotifyOutcome> {
+  const mode = rcpt.billingMode ?? "unbilled";
   const target = billingTarget(rcpt, mode);
 
   let reservedCredits = 0;
-  let fromAllowance   = 0;
+  let fromAllowance = 0;
   // Kept separately from reservedCredits (their sum) so an earmark can be
   // handed back on the exact two axes reserve_sms_credits moved.
-  let reservedFromPaid   = 0;
+  let reservedFromPaid = 0;
   let reservedFromBundle = 0;
-  if (mode === 'billed') {
+  if (mode === "billed") {
     // Reserve SEGMENTS, not a flat 1 — a long reminder is billed by the
     // provider as several (SMS-AUDIT-v3 G5).
     const segs = segmentsOf(rcpt.body);
     const reservation = await reserveCredits(pool, target, segs);
     if (!reservation.ok) {
-      if (reservation.reason === 'insufficient_credits') {
+      if (reservation.reason === "insufficient_credits") {
         void raiseLowBalanceAlert(target);
       }
       // An operator halt and a daily cap are the reservation failures that are
@@ -246,13 +290,20 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
       // which would mean every reminder that came due during a halt is lost
       // for good once the halt lifts. 'failed' is resumable, so the next tick
       // after the switch flips back picks it up.
-      if (reservation.reason === 'dispatch_halted' || reservation.reason === 'daily_limit_reached') {
-        return { channel: 'sms', status: 'failed', detail: reservation.reason };
+      if (
+        reservation.reason === "dispatch_halted" ||
+        reservation.reason === "daily_limit_reached"
+      ) {
+        return { channel: "sms", status: "failed", detail: reservation.reason };
       }
       // Terminal suppression, not a failure: reminder_dispatch_log treats
       // 'failed' as retryable, so reporting this as failed would re-attempt
       // the same unaffordable send on every cron tick forever.
-      return { channel: 'sms', status: 'suppressed', detail: reservation.reason };
+      return {
+        channel: "sms",
+        status: "suppressed",
+        detail: reservation.reason,
+      };
     }
     // Migration 144: credits are MESSAGE COUNTS, so this is fromPaid +
     // fromAllowance, not `total`. `total` is the notional MONEY cost
@@ -260,16 +311,23 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     // settle computes paid = credits_reserved - credits_from_allowance, so a
     // 0.90 reserved against a 1 allowance gave -0.10 and GREW the balance on
     // consume. The unit mismatch this migration closes had a second head.
-    reservedCredits    = reservation.fromPaid + reservation.fromAllowance;
-    reservedFromPaid   = reservation.fromPaid;
+    reservedCredits = reservation.fromPaid + reservation.fromAllowance;
+    reservedFromPaid = reservation.fromPaid;
     reservedFromBundle = reservation.fromAllowanceCount;
     // Phase 2b (migration 124): this is always a single-message reservation
     // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
     // full reservedCredits.
-    fromAllowance   = reservation.fromAllowance;
+    fromAllowance = reservation.fromAllowance;
   }
 
-  const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance, segmentsOf(rcpt.body));
+  const logId = await insertSmsLog(
+    rcpt,
+    phone,
+    mode,
+    reservedCredits,
+    fromAllowance,
+    segmentsOf(rcpt.body),
+  );
 
   // No ticket row means the finally-block below can never settle, and the
   // stale-reservation sweeper cannot find it either — it scans sms_usage_logs.
@@ -280,39 +338,55 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   // The send still proceeds: delivering a reminder matters more than auditing
   // it, which is the original and deliberate choice here. Only the money is
   // corrected.
-  if (mode === 'billed' && !logId) {
-    await releaseUnticketedReservation(target, reservedFromPaid, reservedFromBundle);
+  if (mode === "billed" && !logId) {
+    await releaseUnticketedReservation(
+      target,
+      reservedFromPaid,
+      reservedFromBundle,
+    );
   }
 
-  let settleAs: 'consume' | 'release' = 'release';
+  let settleAs: "consume" | "release" = "release";
 
   try {
     const sms = await sendSingleSms({ mobile: phone, message: rcpt.body });
-    const ok  = sms.success;
-    settleAs  = ok ? 'consume' : 'release';
+    const ok = sms.success;
+    settleAs = ok ? "consume" : "release";
 
-    await finaliseSmsLog(logId, ok ? 'sent' : 'failed', sms.messageId, sms.networkId,
-                         ok ? null : sms.responseDescription);
+    await finaliseSmsLog(
+      logId,
+      ok ? "sent" : "failed",
+      sms.messageId,
+      sms.networkId,
+      ok ? null : sms.responseDescription,
+    );
 
     return ok
-      ? { channel: 'sms', status: 'sent' }
-      : { channel: 'sms', status: 'failed', detail: sms.responseDescription };
+      ? { channel: "sms", status: "sent" }
+      : { channel: "sms", status: "failed", detail: sms.responseDescription };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    await finaliseSmsLog(logId, 'failed', null, null, detail);
-    return { channel: 'sms', status: 'failed', detail };
+    await finaliseSmsLog(logId, "failed", null, null, detail);
+    return { channel: "sms", status: "failed", detail };
   } finally {
-    if (mode === 'billed' && logId) {
+    if (mode === "billed" && logId) {
       await settleReservation([logId], settleAs);
     }
   }
 }
 
-function billingTarget(rcpt: NotifyRecipient, mode: NotifyBillingMode): ReservationTarget {
-  if (mode === 'platform') return { payerType: 'platform', groupId: null };
+function billingTarget(
+  rcpt: NotifyRecipient,
+  mode: NotifyBillingMode,
+): ReservationTarget {
+  if (mode === "platform") return { payerType: "platform", groupId: null };
   return rcpt.payerOrganizationId
-    ? { payerType: 'organization', groupId: rcpt.groupId, organizationId: rcpt.payerOrganizationId }
-    : { payerType: 'group', groupId: rcpt.groupId };
+    ? {
+        payerType: "organization",
+        groupId: rcpt.groupId,
+        organizationId: rcpt.payerOrganizationId,
+      }
+    : { payerType: "group", groupId: rcpt.groupId };
 }
 
 /**
@@ -323,20 +397,20 @@ function billingTarget(rcpt: NotifyRecipient, mode: NotifyBillingMode): Reservat
  * cap concurrency with a small worker pool here.
  */
 export async function notifyMany(rcpts: NotifyRecipient[]): Promise<{
-  attempted:  number;
-  whatsapp:   number;
-  sms:        number;
-  failed:     number;
+  attempted: number;
+  whatsapp: number;
+  sms: number;
+  failed: number;
   suppressed: number;
 }> {
   const tally = { attempted: 0, whatsapp: 0, sms: 0, failed: 0, suppressed: 0 };
   for (const r of rcpts) {
     tally.attempted += 1;
     const out = await notifyMember(r);
-    if (out.status === 'sent') {
-      if (out.channel === 'whatsapp') tally.whatsapp += 1;
-      else if (out.channel === 'sms') tally.sms += 1;
-    } else if (out.status === 'suppressed') {
+    if (out.status === "sent") {
+      if (out.channel === "whatsapp") tally.whatsapp += 1;
+      else if (out.channel === "sms") tally.sms += 1;
+    } else if (out.status === "suppressed") {
       tally.suppressed += 1;
     } else {
       tally.failed += 1;
@@ -348,11 +422,11 @@ export async function notifyMany(rcpts: NotifyRecipient[]): Promise<{
 // ── Audit-log writers ─────────────────────────────────────────────────
 
 async function writeWhatsAppLog(
-  rcpt:      NotifyRecipient,
-  toPhone:   string,
-  status:    'sent' | 'failed' | 'dry_run',
+  rcpt: NotifyRecipient,
+  toPhone: string,
+  status: "sent" | "failed" | "dry_run",
   waMessageId?: string,
-  errorCode?:   string,
+  errorCode?: string,
   errorMessage?: string,
 ): Promise<void> {
   try {
@@ -370,13 +444,18 @@ async function writeWhatsAppLog(
          CASE WHEN $5 = 'failed'              THEN NOW() ELSE NULL END
        )`,
       [
-        rcpt.groupId, rcpt.memberId, toPhone,
-        rcpt.body, status, waMessageId ?? null,
-        errorCode ?? null, errorMessage ?? null,
+        rcpt.groupId,
+        rcpt.memberId,
+        toPhone,
+        rcpt.body,
+        status,
+        waMessageId ?? null,
+        errorCode ?? null,
+        errorMessage ?? null,
       ],
     );
   } catch (err) {
-    logger.error('[notifications] failed to write WA audit row', err);
+    logger.error("[notifications] failed to write WA audit row", err);
   }
 }
 
@@ -394,16 +473,19 @@ async function writeWhatsAppLog(
  * The caller now compensates explicitly via releaseUnticketedReservation.
  */
 async function insertSmsLog(
-  rcpt:    NotifyRecipient,
+  rcpt: NotifyRecipient,
   toPhone: string,
-  mode:    NotifyBillingMode,
+  mode: NotifyBillingMode,
   reserved: number,
   fromAllowance: number = 0,
   segments: number = 1,
 ): Promise<string | null> {
-  const isPlatform = mode === 'platform';
-  const payerType  = isPlatform ? 'platform'
-                   : rcpt.payerOrganizationId ? 'organization' : 'group';
+  const isPlatform = mode === "platform";
+  const payerType = isPlatform
+    ? "platform"
+    : rcpt.payerOrganizationId
+      ? "organization"
+      : "group";
   try {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO sms_usage_logs (
@@ -428,7 +510,7 @@ async function insertSmsLog(
         rcpt.body,
         reserved.toFixed(4),
         fromAllowance.toFixed(4),
-        mode === 'billed' ? 'reserved' : 'none',
+        mode === "billed" ? "reserved" : "none",
         rcpt.notificationType ?? rcpt.referenceType ?? null,
         rcpt.correlationId ?? null,
         rcpt.referenceType ?? null,
@@ -443,15 +525,15 @@ async function insertSmsLog(
     );
     return rows[0]?.id ?? null;
   } catch (err) {
-    logger.error('[notifications] failed to write SMS audit row', err);
+    logger.error("[notifications] failed to write SMS audit row", err);
     return null;
   }
 }
 
 /** Stamp the provider's verdict onto a row written by insertSmsLog. */
 async function finaliseSmsLog(
-  logId:   string | null,
-  status:  'sent' | 'failed',
+  logId: string | null,
+  status: "sent" | "failed",
   providerMsgId?: string | null,
   networkId?: string | null,
   failedReason?: string | null,
@@ -467,10 +549,16 @@ async function finaliseSmsLog(
            sent_at         = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END,
            updated_at      = NOW()
        WHERE id = $1`,
-      [logId, status, providerMsgId || null, networkId || null, failedReason ?? null],
+      [
+        logId,
+        status,
+        providerMsgId || null,
+        networkId || null,
+        failedReason ?? null,
+      ],
     );
   } catch (err) {
-    logger.error('[notifications] failed to finalise SMS audit row', err);
+    logger.error("[notifications] failed to finalise SMS audit row", err);
   }
 }
 
@@ -497,39 +585,49 @@ async function finaliseSmsLog(
  * call was unreachable for unknown numbers.
  */
 export async function sendServiceSms(input: {
-  phone:   string;
-  body:    string;
+  phone: string;
+  body: string;
   notificationType: string;
-  groupId?:  string | null;
+  groupId?: string | null;
   memberId?: string | null;
   correlationId?: string | null;
 }): Promise<{ sent: boolean; detail?: string }> {
   if (!isValidKenyanPhone(input.phone)) {
-    return { sent: false, detail: 'invalid phone' };
+    return { sent: false, detail: "invalid phone" };
   }
   const phone = normalizePhone(input.phone);
 
   const rcpt: NotifyRecipient = {
-    groupId:  input.groupId ?? '',
-    memberId: input.memberId ?? '',
+    groupId: input.groupId ?? "",
+    memberId: input.memberId ?? "",
     phone,
-    body:     input.body,
+    body: input.body,
     notificationType: input.notificationType,
-    correlationId:    input.correlationId ?? null,
-    referenceType:    input.notificationType,
+    correlationId: input.correlationId ?? null,
+    referenceType: input.notificationType,
   };
 
-  const logId = await insertSmsLog(rcpt, phone, 'platform', 0);
+  const logId = await insertSmsLog(rcpt, phone, "platform", 0);
 
   try {
     const sms = await sendSingleSms({ mobile: phone, message: input.body });
-    await finaliseSmsLog(logId, sms.success ? 'sent' : 'failed', sms.messageId, sms.networkId,
-                         sms.success ? null : sms.responseDescription);
-    return sms.success ? { sent: true } : { sent: false, detail: sms.responseDescription };
+    await finaliseSmsLog(
+      logId,
+      sms.success ? "sent" : "failed",
+      sms.messageId,
+      sms.networkId,
+      sms.success ? null : sms.responseDescription,
+    );
+    return sms.success
+      ? { sent: true }
+      : { sent: false, detail: sms.responseDescription };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    logger.error('[notifications] service SMS failed', { notificationType: input.notificationType, detail });
-    await finaliseSmsLog(logId, 'failed', null, null, detail);
+    logger.error("[notifications] service SMS failed", {
+      notificationType: input.notificationType,
+      detail,
+    });
+    await finaliseSmsLog(logId, "failed", null, null, detail);
     return { sent: false, detail };
   }
 }

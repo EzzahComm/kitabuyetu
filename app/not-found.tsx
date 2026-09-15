@@ -1,8 +1,8 @@
-import Link from 'next/link';
-import { FileQuestion } from 'lucide-react';
-import { BrandLogo } from '@/components/branding/BrandLogo';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Button } from '@/components/ui/button';
+import Link from "next/link";
+import { FileQuestion } from "lucide-react";
+import { BrandLogo } from "@/components/branding/BrandLogo";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 
 /**
  * Global 404 — Next.js renders this for any route that matches no page
@@ -13,7 +13,13 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 p-4">
       <div className="w-full max-w-md text-center">
-        <BrandLogo size={72} href="/" priority alt="Kitabu Yetu" className="justify-center mb-6" />
+        <BrandLogo
+          size={72}
+          href="/"
+          priority
+          alt="Kitabu Yetu"
+          className="justify-center mb-6"
+        />
         <div className="rounded-2xl border bg-background p-8 shadow-sm">
           <EmptyState
             icon={FileQuestion}

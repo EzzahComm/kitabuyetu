@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import * as React from 'react';
+import * as React from "react";
 
 export function useDebouncedValue<T>(value: T, delayMs = 250): T {
   const [debounced, setDebounced] = React.useState(value);

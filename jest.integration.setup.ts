@@ -1,4 +1,4 @@
-import { resetCircuit } from '@/lib/sms/circuit-breaker';
+import { resetCircuit } from "@/lib/sms/circuit-breaker";
 
 // Same reasoning as jest.setup.ts's identical hook (see there for the full
 // explanation) — the circuit breaker's module-level state is shared across

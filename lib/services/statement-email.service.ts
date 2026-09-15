@@ -7,14 +7,16 @@
  * the same 'monthly_statement' email_preferences category the template's own
  * footer already promises ("Manage email preferences in your member settings").
  */
-import { createElement } from 'react';
-import { withAdminDb } from '@/lib/db';
-import { sendReactEmail } from '@/lib/email/react/send';
-import AccountStatement, { type StatementTxn } from '@/emails/account-statement';
-import { formatDate } from '@/lib/utils';
-import { computeMemberFinancialSnapshot } from './member-balances.service';
+import { createElement } from "react";
+import { withAdminDb } from "@/lib/db";
+import { sendReactEmail } from "@/lib/email/react/send";
+import AccountStatement, {
+  type StatementTxn,
+} from "@/emails/account-statement";
+import { formatDate } from "@/lib/utils";
+import { computeMemberFinancialSnapshot } from "./member-balances.service";
 
-const STATEMENT_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app'}/me/passbook`;
+const STATEMENT_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.vercel.app"}/me/passbook`;
 
 interface MemberStatementRow {
   id: string;
@@ -50,11 +52,19 @@ export async function sendMemberStatements(
 
   if (members.length === 0) return { sent: 0, skipped: 0 };
 
-  const snapshots = await withAdminDb((db) => computeMemberFinancialSnapshot(db, groupId));
+  const snapshots = await withAdminDb((db) =>
+    computeMemberFinancialSnapshot(db, groupId),
+  );
   const snapshotByMember = new Map(snapshots.map((s) => [s.memberId, s]));
 
   const { rows: txns } = await withAdminDb((db) =>
-    db.query<{ member_id: string; txn_date: string; label: string; amount: string; direction: 'in' | 'out' }>(
+    db.query<{
+      member_id: string;
+      txn_date: string;
+      label: string;
+      amount: string;
+      direction: "in" | "out";
+    }>(
       `SELECT member_id, contribution_date::text AS txn_date, 'Contribution' AS label,
               amount::text AS amount, 'in' AS direction
        FROM contributions
@@ -74,15 +84,25 @@ export async function sendMemberStatements(
   const txnsByMember = new Map<string, StatementTxn[]>();
   for (const t of txns) {
     const list = txnsByMember.get(t.member_id) ?? [];
-    list.push({ date: formatDate(t.txn_date), label: t.label, amount: parseFloat(t.amount), direction: t.direction });
+    list.push({
+      date: formatDate(t.txn_date),
+      label: t.label,
+      amount: parseFloat(t.amount),
+      direction: t.direction,
+    });
     txnsByMember.set(t.member_id, list);
   }
 
   let sent = 0;
   let skipped = 0;
   for (const m of members) {
-    const snapshot = snapshotByMember.get(m.id) ??
-      { memberId: m.id, savings: 0, loanBalance: 0, shares: 0, contributedThisPeriod: 0 };
+    const snapshot = snapshotByMember.get(m.id) ?? {
+      memberId: m.id,
+      savings: 0,
+      loanBalance: 0,
+      shares: 0,
+      contributedThisPeriod: 0,
+    };
     const result = await sendReactEmail({
       to: m.email,
       subject: `Your ${period} statement — ${m.group_name}`,
@@ -99,27 +119,43 @@ export async function sendMemberStatements(
       }),
       groupId,
       userId: m.id,
-      templateKey: 'account_statement',
-      category: 'monthly_statement',
-      referenceType: 'member',
-    }).then(() => true).catch(() => false);
+      templateKey: "account_statement",
+      category: "monthly_statement",
+      referenceType: "member",
+    })
+      .then(() => true)
+      .catch(() => false);
 
-    if (result) sent++; else skipped++;
+    if (result) sent++;
+    else skipped++;
   }
   return { sent, skipped };
 }
 
 /** Fans out `sendMemberStatements` to every active group — the monthly cron entry point. */
-export async function sendAllGroupMemberStatements(): Promise<{ groups: number; sent: number; skipped: number }> {
+export async function sendAllGroupMemberStatements(): Promise<{
+  groups: number;
+  sent: number;
+  skipped: number;
+}> {
   const { rows: groups } = await withAdminDb((db) =>
-    db.query<{ id: string }>(`SELECT id FROM groups WHERE is_active = true`, []),
+    db.query<{ id: string }>(
+      `SELECT id FROM groups WHERE is_active = true`,
+      [],
+    ),
   );
 
-  const period = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+  const period = new Date().toLocaleDateString("en-KE", {
+    month: "long",
+    year: "numeric",
+  });
   let sent = 0;
   let skipped = 0;
   for (const group of groups) {
-    const result = await sendMemberStatements(group.id, period).catch(() => ({ sent: 0, skipped: 0 }));
+    const result = await sendMemberStatements(group.id, period).catch(() => ({
+      sent: 0,
+      skipped: 0,
+    }));
     sent += result.sent;
     skipped += result.skipped;
   }

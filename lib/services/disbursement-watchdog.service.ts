@@ -25,17 +25,23 @@
  * reservation) — it only makes the status explicit and findable instead of
  * silently stuck.
  */
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import type { DisbursementWatchdogKind } from '@/lib/queue/qstash';
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import type { DisbursementWatchdogKind } from "@/lib/queue/qstash";
 
 // Table/in-flight-status pair per kind. Keyed by the closed
 // DisbursementWatchdogKind union (never user input) — safe to interpolate
 // the table name directly, there is no fourth value this can ever be.
-const SPINE_BY_KIND: Record<DisbursementWatchdogKind, { table: string; inProgressStatus: string }> = {
-  disbursement:   { table: 'disbursement_requests', inProgressStatus: 'dispatched' },
-  settlement:     { table: 'settlement_requests',   inProgressStatus: 'processing' },
-  vendor_payment: { table: 'vendor_payments',       inProgressStatus: 'processing' },
+const SPINE_BY_KIND: Record<
+  DisbursementWatchdogKind,
+  { table: string; inProgressStatus: string }
+> = {
+  disbursement: {
+    table: "disbursement_requests",
+    inProgressStatus: "dispatched",
+  },
+  settlement: { table: "settlement_requests", inProgressStatus: "processing" },
+  vendor_payment: { table: "vendor_payments", inProgressStatus: "processing" },
 };
 
 export interface WatchdogTimeoutResult {
@@ -54,13 +60,17 @@ export interface WatchdogTimeoutResult {
  * simply matches zero rows and `resolved` comes back false.
  */
 export async function resolveWatchdogTimeout(
-  kind:  DisbursementWatchdogKind,
+  kind: DisbursementWatchdogKind,
   rowId: string,
 ): Promise<WatchdogTimeoutResult> {
   const { table, inProgressStatus } = SPINE_BY_KIND[kind];
 
   return withAdminDb(async (db) => {
-    const { rows } = await db.query<{ id: string; group_id: string; amount: string }>(
+    const { rows } = await db.query<{
+      id: string;
+      group_id: string;
+      amount: string;
+    }>(
       `UPDATE ${table}
        SET    status = 'timed_out',
               failure_reason = 'Watchdog timeout: no Daraja result callback received within the wait window'
@@ -74,9 +84,15 @@ export async function resolveWatchdogTimeout(
       // Same shape/fields as findStuckDisbursements' existing paging signal
       // (disbursements.service.ts) — deliberately not a new alert channel;
       // see the messaging architecture doc §9 for why.
-      logger.error(`[disbursement-watchdog] ${kind} timed out waiting for a Daraja result callback`, {
-        kind, id: row.id, groupId: row.group_id, amount: row.amount,
-      });
+      logger.error(
+        `[disbursement-watchdog] ${kind} timed out waiting for a Daraja result callback`,
+        {
+          kind,
+          id: row.id,
+          groupId: row.group_id,
+          amount: row.amount,
+        },
+      );
     }
 
     return { resolved: Boolean(row) };

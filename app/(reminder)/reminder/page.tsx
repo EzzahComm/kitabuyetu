@@ -1,25 +1,28 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Cake, Send, Users2, MessageSquare, AlertTriangle } from 'lucide-react';
-import { PageHeader } from '@/components/shared/page-header';
-import { SummaryStatsGrid, SectionHeader } from '@/components/shared/dashboard-sections';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { useMembers } from '@/hooks/use-members';
-import { useSmsCreditBalance } from '@/hooks/use-billing';
-import { useBirthdays, useSmsSettings } from '@/hooks/use-sms-settings';
-import { formatDate } from '@/lib/utils';
+import Link from "next/link";
+import { Cake, Send, Users2, MessageSquare, AlertTriangle } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  SummaryStatsGrid,
+  SectionHeader,
+} from "@/components/shared/dashboard-sections";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useMembers } from "@/hooks/use-members";
+import { useSmsCreditBalance } from "@/hooks/use-billing";
+import { useBirthdays, useSmsSettings } from "@/hooks/use-sms-settings";
+import { formatDate } from "@/lib/utils";
 
 /** How many of the upcoming birthdays to surface here before deferring to the full page. */
 const PREVIEW_COUNT = 5;
 
 export default function ReminderDashboardPage() {
-  const { data: members }     = useMembers({ page: 1, limit: 1 });
-  const { data: smsBalance }  = useSmsCreditBalance();
-  const { data: birthdays }   = useBirthdays();
-  const { data: settings }    = useSmsSettings();
+  const { data: members } = useMembers({ page: 1, limit: 1 });
+  const { data: smsBalance } = useSmsCreditBalance();
+  const { data: birthdays } = useBirthdays();
+  const { data: settings } = useSmsSettings();
 
   const credits = smsBalance ? Math.floor(Number(smsBalance.credits)) : null;
   const upcoming = birthdays?.upcoming ?? [];
@@ -29,31 +32,37 @@ export default function ReminderDashboardPage() {
   // not to interpret a trend line.
   const stats = [
     {
-      label: 'Members',
-      value: members?.total ?? '—',
-      tone:  'text-foreground',
+      label: "Members",
+      value: members?.total ?? "—",
+      tone: "text-foreground",
     },
     {
-      label: 'SMS credits',
-      value: credits ?? '—',
+      label: "SMS credits",
+      value: credits ?? "—",
       // The only number that stops the product working when it hits zero.
-      tone:  credits != null && credits < 50 ? 'text-amber-600' : 'text-foreground',
+      tone:
+        credits != null && credits < 50 ? "text-amber-600" : "text-foreground",
     },
     {
-      label: 'Birthdays (30d)',
+      label: "Birthdays (30d)",
       value: upcoming.length,
-      tone:  'text-foreground',
+      tone: "text-foreground",
     },
     {
-      label: 'Auto-greetings',
-      value: settings?.autoSendBirthday ? 'On' : 'Off',
-      tone:  settings?.autoSendBirthday ? 'text-emerald-600' : 'text-muted-foreground',
+      label: "Auto-greetings",
+      value: settings?.autoSendBirthday ? "On" : "Off",
+      tone: settings?.autoSendBirthday
+        ? "text-emerald-600"
+        : "text-muted-foreground",
     },
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" description="Remind. Inform. Celebrate. Mobilize." />
+      <PageHeader
+        title="Dashboard"
+        description="Remind. Inform. Celebrate. Mobilize."
+      />
 
       <SummaryStatsGrid items={stats} />
 
@@ -62,7 +71,9 @@ export default function ReminderDashboardPage() {
           <AlertTriangle size={14} />
           <AlertTitle>Low SMS credits</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>You have {credits} credits left. Messages stop sending at zero.</span>
+            <span>
+              You have {credits} credits left. Messages stop sending at zero.
+            </span>
             <Button asChild size="sm">
               <Link href="/reminder/usage">Top up</Link>
             </Button>
@@ -73,7 +84,10 @@ export default function ReminderDashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="space-y-3 py-5">
-            <SectionHeader title="Coming up" subtitle="Birthdays in the next 30 days" />
+            <SectionHeader
+              title="Coming up"
+              subtitle="Birthdays in the next 30 days"
+            />
             {upcoming.length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">
                 No birthdays in the next 30 days.
@@ -81,15 +95,25 @@ export default function ReminderDashboardPage() {
             ) : (
               <ul className="divide-y">
                 {upcoming.slice(0, PREVIEW_COUNT).map((b) => (
-                  <li key={b.memberId} className="flex items-center justify-between py-2 text-sm">
-                    <span className="font-medium text-foreground">{b.firstName} {b.lastName}</span>
-                    <span className="text-muted-foreground">{formatDate(b.nextBirthday)}</span>
+                  <li
+                    key={b.memberId}
+                    className="flex items-center justify-between py-2 text-sm"
+                  >
+                    <span className="font-medium text-foreground">
+                      {b.firstName} {b.lastName}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {formatDate(b.nextBirthday)}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
             {upcoming.length > PREVIEW_COUNT && (
-              <Link href="/reminder/birthdays" className="text-sm font-medium text-brand-600 hover:underline">
+              <Link
+                href="/reminder/birthdays"
+                className="text-sm font-medium text-brand-600 hover:underline"
+              >
                 See all {upcoming.length} →
               </Link>
             )}
@@ -101,16 +125,24 @@ export default function ReminderDashboardPage() {
             <SectionHeader title="Quick actions" />
             <div className="grid gap-2">
               <Button asChild variant="outline" className="justify-start">
-                <Link href="/reminder/messages"><Send size={15} className="mr-2" /> Send a message</Link>
+                <Link href="/reminder/messages">
+                  <Send size={15} className="mr-2" /> Send a message
+                </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start">
-                <Link href="/reminder/campaigns"><MessageSquare size={15} className="mr-2" /> Start a campaign</Link>
+                <Link href="/reminder/campaigns">
+                  <MessageSquare size={15} className="mr-2" /> Start a campaign
+                </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start">
-                <Link href="/reminder/members"><Users2 size={15} className="mr-2" /> Manage members</Link>
+                <Link href="/reminder/members">
+                  <Users2 size={15} className="mr-2" /> Manage members
+                </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start">
-                <Link href="/reminder/birthdays"><Cake size={15} className="mr-2" /> Birthday settings</Link>
+                <Link href="/reminder/birthdays">
+                  <Cake size={15} className="mr-2" /> Birthday settings
+                </Link>
               </Button>
             </div>
           </CardContent>

@@ -10,20 +10,30 @@
  * triggering to stay hermetic. The cross-tenant and maker-checker `approve`
  * cases both 404/403 before dispatch is ever reached, so those are safe.
  */
-import { POST } from '@/app/api/v1/mpesa/disbursements/[id]/route';
-import { authHeaders, buildRequest } from './helpers/request';
-import { createTestGroup, addGroupOfficer, createTestDisbursement } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
+import { POST } from "@/app/api/v1/mpesa/disbursements/[id]/route";
+import { authHeaders, buildRequest } from "./helpers/request";
+import {
+  createTestGroup,
+  addGroupOfficer,
+  createTestDisbursement,
+} from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
 
-describe('mpesa disbursements tenant isolation', () => {
+describe("mpesa disbursements tenant isolation", () => {
   let groupAId: string, treasurerAId: string;
   let groupBId: string, initiatorBId: string, secondOfficerBId: string;
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId: groupAId, officerId: treasurerAId } = await createTestGroup('treasurer'));
-    ({ groupId: groupBId, officerId: initiatorBId } = await createTestGroup('treasurer'));
-    secondOfficerBId = await addGroupOfficer(groupBId, initiatorBId, 'treasurer');
+    ({ groupId: groupAId, officerId: treasurerAId } =
+      await createTestGroup("treasurer"));
+    ({ groupId: groupBId, officerId: initiatorBId } =
+      await createTestGroup("treasurer"));
+    secondOfficerBId = await addGroupOfficer(
+      groupBId,
+      initiatorBId,
+      "treasurer",
+    );
   });
 
   afterAll(async () => {
@@ -35,9 +45,14 @@ describe('mpesa disbursements tenant isolation', () => {
 
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
-        method: 'POST',
-        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer', permissions: ['payouts.manage'] }),
-        body: { action: 'approve' },
+        method: "POST",
+        headers: authHeaders({
+          userId: treasurerAId,
+          groupId: groupAId,
+          role: "treasurer",
+          permissions: ["payouts.manage"],
+        }),
+        body: { action: "approve" },
       }),
       { params: Promise.resolve({ id }) },
     );
@@ -50,9 +65,14 @@ describe('mpesa disbursements tenant isolation', () => {
 
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
-        method: 'POST',
-        headers: authHeaders({ userId: treasurerAId, groupId: groupAId, role: 'treasurer', permissions: ['payouts.manage'] }),
-        body: { action: 'reject', reason: 'not my group' },
+        method: "POST",
+        headers: authHeaders({
+          userId: treasurerAId,
+          groupId: groupAId,
+          role: "treasurer",
+          permissions: ["payouts.manage"],
+        }),
+        body: { action: "reject", reason: "not my group" },
       }),
       { params: Promise.resolve({ id }) },
     );
@@ -65,9 +85,14 @@ describe('mpesa disbursements tenant isolation', () => {
 
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
-        method: 'POST',
-        headers: authHeaders({ userId: secondOfficerBId, groupId: groupBId, role: 'treasurer', permissions: ['payouts.manage'] }),
-        body: { action: 'reject', reason: 'test rejection' },
+        method: "POST",
+        headers: authHeaders({
+          userId: secondOfficerBId,
+          groupId: groupBId,
+          role: "treasurer",
+          permissions: ["payouts.manage"],
+        }),
+        body: { action: "reject", reason: "test rejection" },
       }),
       { params: Promise.resolve({ id }) },
     );
@@ -75,14 +100,19 @@ describe('mpesa disbursements tenant isolation', () => {
     expect(res.status).toBe(200);
   });
 
-  it('rejects maker-checker violation: the initiator cannot approve their own disbursement', async () => {
+  it("rejects maker-checker violation: the initiator cannot approve their own disbursement", async () => {
     const { id } = await createTestDisbursement(groupBId, initiatorBId);
 
     const res = await POST(
       buildRequest(`/api/v1/mpesa/disbursements/${id}`, {
-        method: 'POST',
-        headers: authHeaders({ userId: initiatorBId, groupId: groupBId, role: 'treasurer', permissions: ['payouts.manage'] }),
-        body: { action: 'approve' },
+        method: "POST",
+        headers: authHeaders({
+          userId: initiatorBId,
+          groupId: groupBId,
+          role: "treasurer",
+          permissions: ["payouts.manage"],
+        }),
+        body: { action: "approve" },
       }),
       { params: Promise.resolve({ id }) },
     );

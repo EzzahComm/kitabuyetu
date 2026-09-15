@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth, withPermission } from '@/lib/auth/middleware';
-import { savingsPolicyService } from '@/lib/services/savings-policy.service';
-import { SetSavingsLimitsSchema } from '@/lib/validators/contribution.schema';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth, withPermission } from "@/lib/auth/middleware";
+import { savingsPolicyService } from "@/lib/services/savings-policy.service";
+import { SetSavingsLimitsSchema } from "@/lib/validators/contribution.schema";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/contributions/policy — this group's effective savings limits
@@ -16,14 +16,24 @@ import { ok } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     return ok(await savingsPolicyService.getGroupLimits(ctx));
   });
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'treasury.manage', async (auth) => {
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+  return withPermission(req, "treasury.manage", async (auth) => {
+    const ctx = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const input = SetSavingsLimitsSchema.parse(await req.json());
     await savingsPolicyService.setGroupLimitsOverride(ctx, input);
     return ok(await savingsPolicyService.getGroupLimits(ctx));

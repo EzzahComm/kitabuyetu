@@ -17,30 +17,30 @@
 
 /** Primary green — built around the logo's vibrant #3CB043 leaf/people mark. */
 export const brandGreen = {
-  50:  '#EAF7EC', // light accent
-  100: '#D2EFD7',
-  200: '#A8DFB1',
-  300: '#7CCC89',
-  400: '#56BC65',
-  500: '#3CB043', // ← canonical brand green
-  600: '#2F9335',
-  700: '#287629',
-  800: '#1F5C22',
-  900: '#143F18',
+  50: "#EAF7EC", // light accent
+  100: "#D2EFD7",
+  200: "#A8DFB1",
+  300: "#7CCC89",
+  400: "#56BC65",
+  500: "#3CB043", // ← canonical brand green
+  600: "#2F9335",
+  700: "#287629",
+  800: "#1F5C22",
+  900: "#143F18",
 } as const;
 
 /** Primary navy — built around the logo's deep #0B3C88 book/wordmark. */
 export const brandNavy = {
-  50:  '#E7EEF8',
-  100: '#C6D5ED',
-  200: '#94B0DC',
-  300: '#5F88C7',
-  400: '#316AB0',
-  500: '#0B3C88', // ← canonical brand navy
-  600: '#0A3477',
-  700: '#082B62',
-  800: '#06214C',
-  900: '#04162F',
+  50: "#E7EEF8",
+  100: "#C6D5ED",
+  200: "#94B0DC",
+  300: "#5F88C7",
+  400: "#316AB0",
+  500: "#0B3C88", // ← canonical brand navy
+  600: "#0A3477",
+  700: "#082B62",
+  800: "#06214C",
+  900: "#04162F",
 } as const;
 
 /**
@@ -56,12 +56,12 @@ export const brandNavy = {
  * since nothing references them.)
  */
 export const brandOrange = {
-  50:  '#FFF4ED',
-  100: '#FFE6D5',
-  300: '#FDA572',
-  500: '#F97316',
-  600: '#EA580C',
-  700: '#C2410C',
+  50: "#FFF4ED",
+  100: "#FFE6D5",
+  300: "#FDA572",
+  500: "#F97316",
+  600: "#EA580C",
+  700: "#C2410C",
 } as const;
 
 /**
@@ -77,10 +77,10 @@ export const brandOrange = {
  * token's JOB (the marketing ground) has not changed, only its value.
  */
 export const brandPaper = {
-  DEFAULT: '#FFFFFF',
-  deep:    '#F8FAFC',
+  DEFAULT: "#FFFFFF",
+  deep: "#F8FAFC",
 } as const;
 
 /** Convenience aliases for the spec's named neutral/accent tokens. */
 export const brandAccent = brandGreen[50];
-export const brandNeutral = '#F8FAFC';
+export const brandNeutral = "#F8FAFC";

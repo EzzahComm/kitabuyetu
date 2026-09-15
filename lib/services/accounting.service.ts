@@ -1,44 +1,64 @@
-import { PoolClient } from 'pg';
-import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
-import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
-import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
-import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges } from '@/types/api.types';
-import { loadActiveSplitRules } from './contribution-splits.service';
-import { allocateSplit } from '@/lib/utils/split-allocator';
-import { getEffectiveThreshold } from './approval-policy.service';
+import { PoolClient } from "pg";
+import {
+  withDb,
+  withTransaction,
+  withAdminDb,
+  type TenantContext,
+} from "@/lib/db";
+import { logger } from "@/lib/logger";
+import {
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from "@/lib/utils/errors";
+import type { Account, JournalEntry, JournalLine } from "@/types/db.types";
+import type {
+  CreateAccountInput,
+  UpdateAccountInput,
+  CreateJournalInput,
+  VoidJournalInput,
+} from "@/lib/validators/accounting.schema";
+import type {
+  TrialBalanceLine,
+  ProfitAndLoss,
+  BalanceSheet,
+  CashFlowStatement,
+  EquityChanges,
+} from "@/types/api.types";
+import { loadActiveSplitRules } from "./contribution-splits.service";
+import { allocateSplit } from "@/lib/utils/split-allocator";
+import { getEffectiveThreshold } from "./approval-policy.service";
 
 // Standard chart of accounts seeded for every new group. Exported so the
 // posting-template engine can validate platform-wide templates against the
 // codes every group is guaranteed to have.
 export const DEFAULT_ACCOUNTS = [
-  { code: '1001', name: 'Cash and M-Pesa',          type: 'asset' },
-  { code: '1002', name: 'Bank Account',              type: 'asset' },
-  { code: '1101', name: 'Loans Receivable',          type: 'asset' },
-  { code: '1201', name: 'Fixed Assets',              type: 'asset' },
-  { code: '2001', name: 'Accounts Payable',          type: 'liability' },
-  { code: '2101', name: 'Member Savings',            type: 'liability' },
-  { code: '2102', name: 'Welfare Fund',               type: 'liability' },
-  { code: '2103', name: 'Dividends Payable',          type: 'liability' },
-  { code: '2104', name: 'Withholding Tax Payable',    type: 'liability' },
-  { code: '3001', name: 'Member Equity',             type: 'equity' },
-  { code: '3101', name: 'Retained Surplus',          type: 'equity' },
-  { code: '4001', name: 'Member Contributions',      type: 'income' },
-  { code: '4002', name: 'Interest Income — Loans',   type: 'income' },
-  { code: '4003', name: 'Registration Fees',         type: 'income' },
-  { code: '4004', name: 'Other Income',              type: 'income' },
-  { code: '4005', name: 'External Funding',          type: 'income' },
-  { code: '5001', name: 'Administrative Expenses',   type: 'expense' },
-  { code: '5002', name: 'SMS Expenses',              type: 'expense' },
-  { code: '5003', name: 'Platform Subscription',     type: 'expense' },
-  { code: '5004', name: 'Loan Write-offs',           type: 'expense' },
+  { code: "1001", name: "Cash and M-Pesa", type: "asset" },
+  { code: "1002", name: "Bank Account", type: "asset" },
+  { code: "1101", name: "Loans Receivable", type: "asset" },
+  { code: "1201", name: "Fixed Assets", type: "asset" },
+  { code: "2001", name: "Accounts Payable", type: "liability" },
+  { code: "2101", name: "Member Savings", type: "liability" },
+  { code: "2102", name: "Welfare Fund", type: "liability" },
+  { code: "2103", name: "Dividends Payable", type: "liability" },
+  { code: "2104", name: "Withholding Tax Payable", type: "liability" },
+  { code: "3001", name: "Member Equity", type: "equity" },
+  { code: "3101", name: "Retained Surplus", type: "equity" },
+  { code: "4001", name: "Member Contributions", type: "income" },
+  { code: "4002", name: "Interest Income — Loans", type: "income" },
+  { code: "4003", name: "Registration Fees", type: "income" },
+  { code: "4004", name: "Other Income", type: "income" },
+  { code: "4005", name: "External Funding", type: "income" },
+  { code: "5001", name: "Administrative Expenses", type: "expense" },
+  { code: "5002", name: "SMS Expenses", type: "expense" },
+  { code: "5003", name: "Platform Subscription", type: "expense" },
+  { code: "5004", name: "Loan Write-offs", type: "expense" },
 ];
 
 export interface SystemJournalLine {
   accountCode: string;
-  debit?:      number;
-  credit?:     number;
+  debit?: number;
+  credit?: number;
 }
 
 /**
@@ -63,13 +83,15 @@ export interface SystemJournalLine {
  * the same reason.
  */
 export async function postSystemJournal(
-  client:      PoolClient,
-  groupId:     string,
-  userId:      string | null,
+  client: PoolClient,
+  groupId: string,
+  userId: string | null,
   description: string,
-  lines:       SystemJournalLine[],
+  lines: SystemJournalLine[],
   opts?: {
-    reference?: string; memberId?: string; groupMembershipId?: string;
+    reference?: string;
+    memberId?: string;
+    groupMembershipId?: string;
     /** Defaults to CURRENT_DATE. Pass the source transaction's own date when it has one (e.g. a contribution's contribution_date). */
     entryDate?: string;
     /** Tags the entry so sandbox activity never mixes into production reports. Defaults to false. */
@@ -77,15 +99,23 @@ export async function postSystemJournal(
   },
 ): Promise<string | null> {
   const codes = [...new Set(lines.map((l) => l.accountCode))];
-  const { rows: accts } = await client.query<{ id: string; account_code: string }>(
+  const { rows: accts } = await client.query<{
+    id: string;
+    account_code: string;
+  }>(
     `SELECT id, account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
     [groupId, codes],
   );
   const byCode = new Map(accts.map((a) => [a.account_code, a.id]));
   if (byCode.size !== codes.length) {
-    logger.warn('[accounting] postSystemJournal: missing chart-of-accounts row(s), skipping posting', {
-      groupId, description, missing: codes.filter((c) => !byCode.has(c)),
-    });
+    logger.warn(
+      "[accounting] postSystemJournal: missing chart-of-accounts row(s), skipping posting",
+      {
+        groupId,
+        description,
+        missing: codes.filter((c) => !byCode.has(c)),
+      },
+    );
     return null;
   }
 
@@ -94,9 +124,15 @@ export async function postSystemJournal(
        (group_id, entry_date, reference, description, status, created_by, member_id, group_membership_id, is_test, posted_via)
      VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, 'posted', $5, $6, $7, $8, $9) RETURNING id`,
     [
-      groupId, opts?.entryDate ?? null, opts?.reference ?? null, description, userId,
-      opts?.memberId ?? null, opts?.groupMembershipId ?? null,
-      opts?.isTest ?? false, userId ? 'user' : 'system',
+      groupId,
+      opts?.entryDate ?? null,
+      opts?.reference ?? null,
+      description,
+      userId,
+      opts?.memberId ?? null,
+      opts?.groupMembershipId ?? null,
+      opts?.isTest ?? false,
+      userId ? "user" : "system",
     ],
   );
   const jeId = je[0].id;
@@ -110,7 +146,14 @@ export async function postSystemJournal(
       // journal_entries row above (same transaction, same resolved date).
       `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
        VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE))`,
-      [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2), opts?.entryDate ?? null],
+      [
+        groupId,
+        jeId,
+        byCode.get(line.accountCode),
+        (line.debit ?? 0).toFixed(2),
+        (line.credit ?? 0).toFixed(2),
+        opts?.entryDate ?? null,
+      ],
     );
   }
 
@@ -137,18 +180,25 @@ export async function postSystemJournal(
 export async function postContributionJournal(
   client: PoolClient,
   args: {
-    groupId: string; contributionId: string; amount: number; entryDate: string | Date;
-    reference?: string | null; createdBy: string | null; isTest?: boolean;
+    groupId: string;
+    contributionId: string;
+    amount: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<string | null> {
-  const cashCode      = '1001';
-  const defaultIncome = '4001';
+  const cashCode = "1001";
+  const defaultIncome = "4001";
 
-  const rules       = await loadActiveSplitRules(client, args.groupId);
+  const rules = await loadActiveSplitRules(client, args.groupId);
   const allocations = allocateSplit(args.amount, rules, defaultIncome);
   if (allocations.length === 0) return null; // amount <= 0 guard
 
-  const neededCodes = Array.from(new Set([cashCode, ...allocations.map((a) => a.account_code)]));
+  const neededCodes = Array.from(
+    new Set([cashCode, ...allocations.map((a) => a.account_code)]),
+  );
   const { rows: accts } = await client.query<{ code: string; id: string }>(
     `SELECT account_code AS code, id FROM accounts WHERE group_id = $1 AND is_active = true AND account_code = ANY($2)`,
     [args.groupId, neededCodes],
@@ -157,7 +207,10 @@ export async function postContributionJournal(
 
   const cashId = idByCode.get(cashCode);
   if (!cashId) {
-    logger.warn('[accounting] skipped contribution journal — missing cash account 1001', { groupId: args.groupId });
+    logger.warn(
+      "[accounting] skipped contribution journal — missing cash account 1001",
+      { groupId: args.groupId },
+    );
     return null;
   }
 
@@ -166,12 +219,19 @@ export async function postContributionJournal(
   for (const alloc of allocations) {
     const targetId = idByCode.get(alloc.account_code) ?? defaultId;
     if (!targetId) {
-      logger.warn('[accounting] skipped contribution journal — split target + default both missing', {
-        groupId: args.groupId, code: alloc.account_code,
-      });
+      logger.warn(
+        "[accounting] skipped contribution journal — split target + default both missing",
+        {
+          groupId: args.groupId,
+          code: alloc.account_code,
+        },
+      );
       return null;
     }
-    creditByAccountId.set(targetId, (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents);
+    creditByAccountId.set(
+      targetId,
+      (creditByAccountId.get(targetId) ?? 0) + alloc.amount_cents,
+    );
   }
 
   // Ledger attribution (§6e): member + membership from the source document.
@@ -183,9 +243,13 @@ export async function postContributionJournal(
      FROM   contributions c WHERE c.id = $8
      RETURNING id`,
     [
-      args.groupId, args.entryDate, args.reference ?? null,
+      args.groupId,
+      args.entryDate,
+      args.reference ?? null,
       `Contribution — ${args.contributionId}`,
-      args.createdBy, args.isTest ?? false, args.createdBy ? 'user' : 'system',
+      args.createdBy,
+      args.isTest ?? false,
+      args.createdBy ? "user" : "system",
       args.contributionId,
     ],
   );
@@ -207,13 +271,16 @@ export async function postContributionJournal(
     );
   }
 
-  await client.query(`UPDATE contributions SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.contributionId]);
+  await client.query(
+    `UPDATE contributions SET journal_entry_id = $1 WHERE id = $2`,
+    [jeId, args.contributionId],
+  );
   return jeId;
 }
 
 async function writeJournalAuditLog(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   journalEntryId: string,
   payload: Record<string, unknown>,
@@ -226,7 +293,6 @@ async function writeJournalAuditLog(
 }
 
 export const accountingService = {
-
   async seedDefaultAccounts(ctx: TenantContext): Promise<void> {
     return withTransaction(ctx, async (client) => {
       await accountingService.seedDefaultAccountsInTx(client, ctx.groupId);
@@ -235,7 +301,10 @@ export const accountingService = {
 
   // Same as seedDefaultAccounts but participates in a caller-supplied transaction.
   // Used by the registration endpoint to keep onboarding atomic.
-  async seedDefaultAccountsInTx(client: PoolClient, groupId: string): Promise<void> {
+  async seedDefaultAccountsInTx(
+    client: PoolClient,
+    groupId: string,
+  ): Promise<void> {
     for (const acct of DEFAULT_ACCOUNTS) {
       await client.query(
         `INSERT INTO accounts (group_id, account_code, name, type, is_system)
@@ -256,42 +325,74 @@ export const accountingService = {
     });
   },
 
-  async createAccount(ctx: TenantContext, data: CreateAccountInput): Promise<Account> {
+  async createAccount(
+    ctx: TenantContext,
+    data: CreateAccountInput,
+  ): Promise<Account> {
     return withTransaction(ctx, async (client) => {
       const { rows } = await client.query<Account>(
         `INSERT INTO accounts (group_id, account_code, name, type, parent_id, description)
          VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [ctx.groupId, data.accountCode, data.name, data.type, data.parentId ?? null, data.description ?? null],
+        [
+          ctx.groupId,
+          data.accountCode,
+          data.name,
+          data.type,
+          data.parentId ?? null,
+          data.description ?? null,
+        ],
       );
       return rows[0];
     });
   },
 
-  async updateAccount(ctx: TenantContext, id: string, data: UpdateAccountInput): Promise<Account> {
+  async updateAccount(
+    ctx: TenantContext,
+    id: string,
+    data: UpdateAccountInput,
+  ): Promise<Account> {
     return withTransaction(ctx, async (client) => {
       const sets: string[] = [];
       const vals: unknown[] = [];
-      let   idx = 1;
-      if (data.name        !== undefined) { sets.push(`name = $${idx++}`);       vals.push(data.name); }
-      if (data.description !== undefined) { sets.push(`description = $${idx++}`); vals.push(data.description); }
-      if (data.isActive    !== undefined) { sets.push(`is_active = $${idx++}`);  vals.push(data.isActive); }
-      if (!sets.length) throw new ValidationError('No fields to update');
+      let idx = 1;
+      if (data.name !== undefined) {
+        sets.push(`name = $${idx++}`);
+        vals.push(data.name);
+      }
+      if (data.description !== undefined) {
+        sets.push(`description = $${idx++}`);
+        vals.push(data.description);
+      }
+      if (data.isActive !== undefined) {
+        sets.push(`is_active = $${idx++}`);
+        vals.push(data.isActive);
+      }
+      if (!sets.length) throw new ValidationError("No fields to update");
       vals.push(id, ctx.groupId);
       const { rows } = await client.query<Account>(
-        `UPDATE accounts SET ${sets.join(',')} WHERE id = $${idx} AND group_id = $${idx+1} AND is_system = false RETURNING *`,
+        `UPDATE accounts SET ${sets.join(",")} WHERE id = $${idx} AND group_id = $${idx + 1} AND is_system = false RETURNING *`,
         vals,
       );
-      if (!rows[0]) throw new NotFoundError('Account', id);
+      if (!rows[0]) throw new NotFoundError("Account", id);
       return rows[0];
     });
   },
 
-  async createJournalEntry(ctx: TenantContext, data: CreateJournalInput): Promise<JournalEntry & { lines: JournalLine[] }> {
+  async createJournalEntry(
+    ctx: TenantContext,
+    data: CreateJournalInput,
+  ): Promise<JournalEntry & { lines: JournalLine[] }> {
     return withTransaction(ctx, async (client) => {
       const { rows: jeRows } = await client.query<JournalEntry>(
         `INSERT INTO journal_entries (group_id, entry_date, reference, description, created_by)
          VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [ctx.groupId, data.entryDate, data.reference ?? null, data.description, ctx.userId],
+        [
+          ctx.groupId,
+          data.entryDate,
+          data.reference ?? null,
+          data.description,
+          ctx.userId,
+        ],
       );
       const je = jeRows[0];
 
@@ -303,37 +404,54 @@ export const accountingService = {
           // already bound to the parent journal_entries row above.
           `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description, entry_date)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-          [ctx.groupId, je.id, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2), line.description ?? null, data.entryDate],
+          [
+            ctx.groupId,
+            je.id,
+            line.accountId,
+            line.debit.toFixed(2),
+            line.credit.toFixed(2),
+            line.description ?? null,
+            data.entryDate,
+          ],
         );
         lineRows.push(rows[0]);
       }
-      await writeJournalAuditLog(client, ctx, 'journal.created', je.id, {
-        entryDate: data.entryDate, reference: data.reference ?? null, description: data.description,
+      await writeJournalAuditLog(client, ctx, "journal.created", je.id, {
+        entryDate: data.entryDate,
+        reference: data.reference ?? null,
+        description: data.description,
         lineCount: lineRows.length,
       });
       return { ...je, lines: lineRows };
     });
   },
 
-  async postJournalEntry(ctx: TenantContext, id: string): Promise<JournalEntry> {
+  async postJournalEntry(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<JournalEntry> {
     return withTransaction(ctx, async (client) => {
       const { rows: draftRows } = await client.query<JournalEntry>(
         `SELECT * FROM journal_entries WHERE id = $1 AND group_id = $2 AND status = 'draft' FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!draftRows[0]) throw new NotFoundError('Draft journal entry', id);
+      if (!draftRows[0]) throw new NotFoundError("Draft journal entry", id);
 
       // Maker-checker (ACCOUNTING_ARCHITECTURE_AUDIT.md §15): above the
       // group's threshold, the poster must differ from the creator. The DB
       // trigger (migration 081) is the authoritative backstop; this check
       // exists to surface a clean error instead of a raw constraint failure.
       if (draftRows[0].created_by === ctx.userId) {
-        const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId: ctx.groupId });
+        const threshold = await getEffectiveThreshold(
+          client,
+          "journal_threshold",
+          { groupId: ctx.groupId },
+        );
         const { rows: lineRows } = await client.query<{ total: string }>(
           `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
           [id],
         );
-        const total = parseFloat(lineRows[0]?.total ?? '0');
+        const total = parseFloat(lineRows[0]?.total ?? "0");
         if (total > threshold) {
           throw new ForbiddenError(
             `Maker-checker: entries above KES ${threshold.toFixed(2)} must be posted by someone other than the creator`,
@@ -348,29 +466,39 @@ export const accountingService = {
          RETURNING *`,
         [ctx.userId, id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Draft journal entry', id);
-      await writeJournalAuditLog(client, ctx, 'journal.posted', id, { createdBy: draftRows[0].created_by });
+      if (!rows[0]) throw new NotFoundError("Draft journal entry", id);
+      await writeJournalAuditLog(client, ctx, "journal.posted", id, {
+        createdBy: draftRows[0].created_by,
+      });
       return rows[0];
     });
   },
 
-  async voidJournalEntry(ctx: TenantContext, id: string, data: VoidJournalInput): Promise<JournalEntry> {
+  async voidJournalEntry(
+    ctx: TenantContext,
+    id: string,
+    data: VoidJournalInput,
+  ): Promise<JournalEntry> {
     return withTransaction(ctx, async (client) => {
       const { rows: postedRows } = await client.query<JournalEntry>(
         `SELECT * FROM journal_entries WHERE id = $1 AND group_id = $2 AND status = 'posted' FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!postedRows[0]) throw new NotFoundError('Posted journal entry', id);
+      if (!postedRows[0]) throw new NotFoundError("Posted journal entry", id);
 
       // Maker-checker: above the group's threshold, the voider must differ
       // from the poster — same reasoning and DB backstop as posting above.
       if (postedRows[0].posted_by === ctx.userId) {
-        const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId: ctx.groupId });
+        const threshold = await getEffectiveThreshold(
+          client,
+          "journal_threshold",
+          { groupId: ctx.groupId },
+        );
         const { rows: lineRows } = await client.query<{ total: string }>(
           `SELECT COALESCE(SUM(debit), 0)::text AS total FROM journal_lines WHERE journal_entry_id = $1`,
           [id],
         );
-        const total = parseFloat(lineRows[0]?.total ?? '0');
+        const total = parseFloat(lineRows[0]?.total ?? "0");
         if (total > threshold) {
           throw new ForbiddenError(
             `Maker-checker: entries above KES ${threshold.toFixed(2)} must be voided by someone other than the poster`,
@@ -385,8 +513,11 @@ export const accountingService = {
          RETURNING *`,
         [ctx.userId, data.reason, id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Posted journal entry', id);
-      await writeJournalAuditLog(client, ctx, 'journal.voided', id, { reason: data.reason, postedBy: postedRows[0].posted_by });
+      if (!rows[0]) throw new NotFoundError("Posted journal entry", id);
+      await writeJournalAuditLog(client, ctx, "journal.voided", id, {
+        reason: data.reason,
+        postedBy: postedRows[0].posted_by,
+      });
       return rows[0];
     });
   },
@@ -418,10 +549,17 @@ export const accountingService = {
     });
   },
 
-  async getProfitAndLoss(ctx: TenantContext, from: string, to: string): Promise<ProfitAndLoss> {
+  async getProfitAndLoss(
+    ctx: TenantContext,
+    from: string,
+    to: string,
+  ): Promise<ProfitAndLoss> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<{
-        account_code: string; account_name: string; type: string; total: string;
+        account_code: string;
+        account_name: string;
+        type: string;
+        total: string;
       }>(
         `SELECT
            a.account_code,
@@ -458,22 +596,41 @@ export const accountingService = {
         [ctx.groupId, from, to],
       );
 
-      const income   = rows.filter(r => r.type === 'income').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
-      const expenses = rows.filter(r => r.type === 'expense').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
-      const totalIncome   = income.reduce((s, r)   => s + parseFloat(r.amount), 0);
-      const totalExpenses = expenses.reduce((s, r) => s + parseFloat(r.amount), 0);
+      const income = rows
+        .filter((r) => r.type === "income")
+        .map((r) => ({
+          accountCode: r.account_code,
+          accountName: r.account_name,
+          amount: r.total,
+        }));
+      const expenses = rows
+        .filter((r) => r.type === "expense")
+        .map((r) => ({
+          accountCode: r.account_code,
+          accountName: r.account_name,
+          amount: r.total,
+        }));
+      const totalIncome = income.reduce((s, r) => s + parseFloat(r.amount), 0);
+      const totalExpenses = expenses.reduce(
+        (s, r) => s + parseFloat(r.amount),
+        0,
+      );
 
       return {
         period: { from, to },
-        income, expenses,
-        totalIncome:   totalIncome.toFixed(2),
+        income,
+        expenses,
+        totalIncome: totalIncome.toFixed(2),
         totalExpenses: totalExpenses.toFixed(2),
-        netProfit:     (totalIncome - totalExpenses).toFixed(2),
+        netProfit: (totalIncome - totalExpenses).toFixed(2),
       };
     });
   },
 
-  async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
+  async getBalanceSheet(
+    ctx: TenantContext,
+    asOf: string,
+  ): Promise<BalanceSheet> {
     return withDb(ctx, async (client) => {
       // Computed from journal_lines as of the requested date — NOT the
       // denormalized accounts.balance column, which is always the *current*
@@ -482,7 +639,10 @@ export const accountingService = {
       // uses: assets (debit-normal) are positive as-is; liabilities/equity
       // (credit-normal) are negated for display.
       const { rows } = await client.query<{
-        account_code: string; account_name: string; type: string; balance: string;
+        account_code: string;
+        account_name: string;
+        type: string;
+        balance: string;
       }>(
         `SELECT
            a.account_code,
@@ -502,17 +662,31 @@ export const accountingService = {
         [ctx.groupId, asOf],
       );
 
-      const toLine = (r: typeof rows[0]) => ({ accountCode: r.account_code, accountName: r.account_name, balance: r.balance });
-      const assets      = rows.filter(r => r.type === 'asset').map(toLine);
-      const liabilities = rows.filter(r => r.type === 'liability').map(toLine);
-      const equity      = rows.filter(r => r.type === 'equity').map(toLine);
+      const toLine = (r: (typeof rows)[0]) => ({
+        accountCode: r.account_code,
+        accountName: r.account_name,
+        balance: r.balance,
+      });
+      const assets = rows.filter((r) => r.type === "asset").map(toLine);
+      const liabilities = rows
+        .filter((r) => r.type === "liability")
+        .map(toLine);
+      const equity = rows.filter((r) => r.type === "equity").map(toLine);
 
       return {
         asOf,
-        assets, liabilities, equity,
-        totalAssets:      assets.reduce((s, r)      => s + parseFloat(r.balance), 0).toFixed(2),
-        totalLiabilities: liabilities.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
-        totalEquity:      equity.reduce((s, r)       => s + parseFloat(r.balance), 0).toFixed(2),
+        assets,
+        liabilities,
+        equity,
+        totalAssets: assets
+          .reduce((s, r) => s + parseFloat(r.balance), 0)
+          .toFixed(2),
+        totalLiabilities: liabilities
+          .reduce((s, r) => s + parseFloat(r.balance), 0)
+          .toFixed(2),
+        totalEquity: equity
+          .reduce((s, r) => s + parseFloat(r.balance), 0)
+          .toFixed(2),
       };
     });
   },
@@ -535,12 +709,19 @@ export const accountingService = {
    *  - investing: all other asset counter-accounts (fixed assets, investments).
    *  - financing: equity accounts (share capital) and 2103 Dividends Payable.
    */
-  async getCashFlowStatement(ctx: TenantContext, from: string, to: string): Promise<CashFlowStatement> {
+  async getCashFlowStatement(
+    ctx: TenantContext,
+    from: string,
+    to: string,
+  ): Promise<CashFlowStatement> {
     return withDb(ctx, async (client) => {
-      const CASH_CODES = ['1001', '1002'];
+      const CASH_CODES = ["1001", "1002"];
 
       const { rows: movements } = await client.query<{
-        account_code: string; account_name: string; type: string; cash_impact: string;
+        account_code: string;
+        account_name: string;
+        type: string;
+        cash_impact: string;
       }>(
         `SELECT a.account_code, a.name AS account_name, a.type,
                 SUM(jl.credit - jl.debit)::text AS cash_impact
@@ -565,7 +746,10 @@ export const accountingService = {
         [ctx.groupId, from, to, CASH_CODES],
       );
 
-      const { rows: cashBal } = await client.query<{ opening: string; closing: string }>(
+      const { rows: cashBal } = await client.query<{
+        opening: string;
+        closing: string;
+      }>(
         `SELECT
            COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <  $2), 0)::text AS opening,
            COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <= $3), 0)::text AS closing
@@ -577,36 +761,52 @@ export const accountingService = {
         [ctx.groupId, from, to, CASH_CODES],
       );
 
-      const sectionOf = (r: { account_code: string; type: string }): 'operating' | 'investing' | 'financing' => {
-        if (r.type === 'equity' || r.account_code === '2103') return 'financing';
-        if (r.type === 'asset' && r.account_code !== '1101')  return 'investing';
-        return 'operating';
+      const sectionOf = (r: {
+        account_code: string;
+        type: string;
+      }): "operating" | "investing" | "financing" => {
+        if (r.type === "equity" || r.account_code === "2103")
+          return "financing";
+        if (r.type === "asset" && r.account_code !== "1101") return "investing";
+        return "operating";
       };
 
-      const toLine = (r: typeof movements[0]) =>
-        ({ accountCode: r.account_code, accountName: r.account_name, amount: r.cash_impact });
-      const operating = movements.filter((r) => sectionOf(r) === 'operating').map(toLine);
-      const investing = movements.filter((r) => sectionOf(r) === 'investing').map(toLine);
-      const financing = movements.filter((r) => sectionOf(r) === 'financing').map(toLine);
+      const toLine = (r: (typeof movements)[0]) => ({
+        accountCode: r.account_code,
+        accountName: r.account_name,
+        amount: r.cash_impact,
+      });
+      const operating = movements
+        .filter((r) => sectionOf(r) === "operating")
+        .map(toLine);
+      const investing = movements
+        .filter((r) => sectionOf(r) === "investing")
+        .map(toLine);
+      const financing = movements
+        .filter((r) => sectionOf(r) === "financing")
+        .map(toLine);
 
-      const sum = (lines: { amount: string }[]) => lines.reduce((s, l) => s + parseFloat(l.amount), 0);
+      const sum = (lines: { amount: string }[]) =>
+        lines.reduce((s, l) => s + parseFloat(l.amount), 0);
       const netOperating = sum(operating);
       const netInvesting = sum(investing);
       const netFinancing = sum(financing);
-      const netChange    = netOperating + netInvesting + netFinancing;
-      const openingCash  = parseFloat(cashBal[0].opening);
-      const closingCash  = parseFloat(cashBal[0].closing);
+      const netChange = netOperating + netInvesting + netFinancing;
+      const openingCash = parseFloat(cashBal[0].opening);
+      const closingCash = parseFloat(cashBal[0].closing);
 
       return {
         period: { from, to },
-        operating, investing, financing,
+        operating,
+        investing,
+        financing,
         netOperating: netOperating.toFixed(2),
         netInvesting: netInvesting.toFixed(2),
         netFinancing: netFinancing.toFixed(2),
-        netChange:    netChange.toFixed(2),
-        openingCash:  openingCash.toFixed(2),
-        closingCash:  closingCash.toFixed(2),
-        reconciles:   Math.abs(openingCash + netChange - closingCash) < 0.01,
+        netChange: netChange.toFixed(2),
+        openingCash: openingCash.toFixed(2),
+        closingCash: closingCash.toFixed(2),
+        reconciles: Math.abs(openingCash + netChange - closingCash) < 0.01,
       };
     });
   },
@@ -618,11 +818,18 @@ export const accountingService = {
    * it lives in income/expense accounts until a closing entry moves it into
    * Retained Surplus, and this platform has no automated year-end close.
    */
-  async getEquityChanges(ctx: TenantContext, from: string, to: string): Promise<EquityChanges> {
+  async getEquityChanges(
+    ctx: TenantContext,
+    from: string,
+    to: string,
+  ): Promise<EquityChanges> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<{
-        account_code: string; account_name: string;
-        opening: string; increases: string; decreases: string;
+        account_code: string;
+        account_name: string;
+        opening: string;
+        increases: string;
+        decreases: string;
       }>(
         `SELECT a.account_code, a.name AS account_name,
            -COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date < $2), 0)::text AS opening,
@@ -652,10 +859,16 @@ export const accountingService = {
       );
 
       const lines = rows.map((r) => {
-        const closing = parseFloat(r.opening) + parseFloat(r.increases) - parseFloat(r.decreases);
+        const closing =
+          parseFloat(r.opening) +
+          parseFloat(r.increases) -
+          parseFloat(r.decreases);
         return {
-          accountCode: r.account_code, accountName: r.account_name,
-          opening: r.opening, increases: r.increases, decreases: r.decreases,
+          accountCode: r.account_code,
+          accountName: r.account_name,
+          opening: r.opening,
+          increases: r.increases,
+          decreases: r.decreases,
           closing: closing.toFixed(2),
         };
       });
@@ -663,9 +876,13 @@ export const accountingService = {
       return {
         period: { from, to },
         lines,
-        totalOpening: lines.reduce((s, l) => s + parseFloat(l.opening), 0).toFixed(2),
-        totalClosing: lines.reduce((s, l) => s + parseFloat(l.closing), 0).toFixed(2),
-        periodNetProfit: parseFloat(pnl[0]?.net ?? '0').toFixed(2),
+        totalOpening: lines
+          .reduce((s, l) => s + parseFloat(l.opening), 0)
+          .toFixed(2),
+        totalClosing: lines
+          .reduce((s, l) => s + parseFloat(l.closing), 0)
+          .toFixed(2),
+        periodNetProfit: parseFloat(pnl[0]?.net ?? "0").toFixed(2),
       };
     });
   },
@@ -675,16 +892,16 @@ export const accountingService = {
 
 export interface BalanceDriftResult {
   accountsChecked: number;
-  driftsFound:     number;
+  driftsFound: number;
 }
 
 interface DriftRow {
-  account_id:   string;
-  group_id:     string;
+  account_id: string;
+  group_id: string;
   account_code: string;
-  name:         string;
-  stored:       string;
-  computed:     string;
+  name: string;
+  stored: string;
+  computed: string;
 }
 
 /**
@@ -702,7 +919,7 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
     const { rows: countRows } = await db.query<{ n: string }>(
       `SELECT COUNT(*) AS n FROM accounts WHERE is_active = true`,
     );
-    const accountsChecked = parseInt(countRows[0]?.n ?? '0', 10);
+    const accountsChecked = parseInt(countRows[0]?.n ?? "0", 10);
 
     const { rows: drifts } = await db.query<DriftRow>(
       `SELECT a.id AS account_id, a.group_id, a.account_code, a.name,
@@ -718,12 +935,12 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
     );
 
     for (const d of drifts) {
-      logger.error('[accounting] balance drift detected', {
-        groupId:     d.group_id,
+      logger.error("[accounting] balance drift detected", {
+        groupId: d.group_id,
         accountCode: d.account_code,
-        account:     d.name,
-        stored:      d.stored,
-        computed:    d.computed,
+        account: d.name,
+        stored: d.stored,
+        computed: d.computed,
       });
     }
 
@@ -742,11 +959,11 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
 // ─── GL-to-real-cash reconciliation (platform-wide scheduled job) ───────────
 
 export interface GLCashReconciliationResult {
-  status:        'ok' | 'mismatch' | 'no_snapshot' | 'stale_snapshot';
-  glCashTotal?:  string;
+  status: "ok" | "mismatch" | "no_snapshot" | "stale_snapshot";
+  glCashTotal?: string;
   mpesaBalance?: string;
-  difference?:   string;
-  snapshotAge?:  string;
+  difference?: string;
+  snapshotAge?: string;
 }
 
 const GL_CASH_RECONCILE_TOLERANCE = 1; // KES — allows for sub-shilling rounding only
@@ -782,40 +999,60 @@ const GL_CASH_SNAPSHOT_MAX_AGE_HOURS = 36;
  */
 export async function reconcileGLCashToMpesaBalance(): Promise<GLCashReconciliationResult> {
   return withAdminDb(async (db) => {
-    const { rows: snapRows } = await db.query<{ raw_response: unknown; completed_at: string }>(
+    const { rows: snapRows } = await db.query<{
+      raw_response: unknown;
+      completed_at: string;
+    }>(
       `SELECT raw_response, completed_at FROM mpesa_transactions
        WHERE transaction_type = 'balance_query' AND status = 'completed'
        ORDER BY completed_at DESC LIMIT 1`,
     );
     if (!snapRows[0]) {
-      logger.warn('[accounting] GL-to-cash reconciliation: no balance snapshot exists yet');
-      return { status: 'no_snapshot' };
+      logger.warn(
+        "[accounting] GL-to-cash reconciliation: no balance snapshot exists yet",
+      );
+      return { status: "no_snapshot" };
     }
 
-    const ageHours = (Date.now() - new Date(snapRows[0].completed_at).getTime()) / 3_600_000;
+    const ageHours =
+      (Date.now() - new Date(snapRows[0].completed_at).getTime()) / 3_600_000;
     if (ageHours > GL_CASH_SNAPSHOT_MAX_AGE_HOURS) {
-      logger.warn('[accounting] GL-to-cash reconciliation: latest balance snapshot is stale', {
-        ageHours: ageHours.toFixed(1),
-      });
-      return { status: 'stale_snapshot', snapshotAge: `${ageHours.toFixed(1)}h` };
+      logger.warn(
+        "[accounting] GL-to-cash reconciliation: latest balance snapshot is stale",
+        {
+          ageHours: ageHours.toFixed(1),
+        },
+      );
+      return {
+        status: "stale_snapshot",
+        snapshotAge: `${ageHours.toFixed(1)}h`,
+      };
     }
 
     type ResultParam = { Key: string; Value: string | number };
-    type BalResult = { Result?: { ResultParameters?: { ResultParameter?: ResultParam[] } } };
-    const params = (snapRows[0].raw_response as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
-    const get = (k: string) => Number(params.find((p) => p.Key === k)?.Value ?? 0);
-    const mpesaBalance = get('WorkingAccountAvailableFunds') + get('UtilityAccountAvailableFunds');
+    type BalResult = {
+      Result?: { ResultParameters?: { ResultParameter?: ResultParam[] } };
+    };
+    const params =
+      (snapRows[0].raw_response as BalResult).Result?.ResultParameters
+        ?.ResultParameter ?? [];
+    const get = (k: string) =>
+      Number(params.find((p) => p.Key === k)?.Value ?? 0);
+    const mpesaBalance =
+      get("WorkingAccountAvailableFunds") + get("UtilityAccountAvailableFunds");
 
     const { rows: glRows } = await db.query<{ total: string }>(
       `SELECT COALESCE(SUM(balance), 0)::text AS total FROM accounts
        WHERE account_code = '1001' AND is_active = true`,
     );
-    const glCashTotal = parseFloat(glRows[0]?.total ?? '0');
-    const difference  = mpesaBalance - glCashTotal;
+    const glCashTotal = parseFloat(glRows[0]?.total ?? "0");
+    const difference = mpesaBalance - glCashTotal;
 
     if (Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE) {
-      logger.error('[accounting] GL-to-cash mismatch detected', {
-        glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2),
+      logger.error("[accounting] GL-to-cash mismatch detected", {
+        glCashTotal: glCashTotal.toFixed(2),
+        mpesaBalance: mpesaBalance.toFixed(2),
+        difference: difference.toFixed(2),
       });
     }
 
@@ -826,15 +1063,20 @@ export async function reconcileGLCashToMpesaBalance(): Promise<GLCashReconciliat
        VALUES (NULL, NULL, 'completed', 'gl_cash_mismatch', 1, $1, 0, $2, NOW())`,
       [
         Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 1 : 0,
-        JSON.stringify({ glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2) }),
+        JSON.stringify({
+          glCashTotal: glCashTotal.toFixed(2),
+          mpesaBalance: mpesaBalance.toFixed(2),
+          difference: difference.toFixed(2),
+        }),
       ],
     );
 
     return {
-      status:       Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 'mismatch' : 'ok',
-      glCashTotal:  glCashTotal.toFixed(2),
+      status:
+        Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? "mismatch" : "ok",
+      glCashTotal: glCashTotal.toFixed(2),
       mpesaBalance: mpesaBalance.toFixed(2),
-      difference:   difference.toFixed(2),
+      difference: difference.toFixed(2),
     };
   });
 }

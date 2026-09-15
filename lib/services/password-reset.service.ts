@@ -11,17 +11,17 @@
  * resetPasswordWithOtp() uses the same generic error message whether the
  * phone doesn't exist, the OTP is wrong, or the OTP expired.
  */
-import bcrypt from 'bcryptjs';
-import { withAdminDb } from '@/lib/db';
-import { normalizePhone } from '@/lib/utils/phone';
-import { ValidationError } from '@/lib/utils/errors';
-import { hashSecret, generateOtp } from './group-verification.service';
-import { sendServiceSms } from './notifications.service';
-import { BCRYPT_ROUNDS } from './members.service';
+import bcrypt from "bcryptjs";
+import { withAdminDb } from "@/lib/db";
+import { normalizePhone } from "@/lib/utils/phone";
+import { ValidationError } from "@/lib/utils/errors";
+import { hashSecret, generateOtp } from "./group-verification.service";
+import { sendServiceSms } from "./notifications.service";
+import { BCRYPT_ROUNDS } from "./members.service";
 
 const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
-const GENERIC_ERROR = 'Invalid or expired code';
+const GENERIC_ERROR = "Invalid or expired code";
 
 /** Always resolves without error, whether or not the phone is registered — never reveals account existence. */
 export async function startPasswordReset(phone: string): Promise<void> {
@@ -54,21 +54,28 @@ export async function startPasswordReset(phone: string): Promise<void> {
   // contradicting this function's own "always resolves without error" contract
   // and leaking account existence.
   await sendServiceSms({
-    phone:    normalized,
+    phone: normalized,
     memberId: member.id,
-    notificationType: 'auth_password_reset',
+    notificationType: "auth_password_reset",
     body: `Your Kitabu Yetu password reset code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, ignore this SMS.`,
   });
 }
 
 /** Verifies the OTP and sets a new password in one step. Bumps session_version to invalidate any existing sessions. */
-export async function resetPasswordWithOtp(phone: string, otp: string, newPassword: string): Promise<void> {
+export async function resetPasswordWithOtp(
+  phone: string,
+  otp: string,
+  newPassword: string,
+): Promise<void> {
   const normalized = normalizePhone(phone);
   const otpHash = hashSecret(otp.trim());
 
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; reset_otp_hash: string | null; reset_otp_expires_at: Date | null; reset_otp_attempts: number;
+      id: string;
+      reset_otp_hash: string | null;
+      reset_otp_expires_at: Date | null;
+      reset_otp_attempts: number;
     }>(
       `SELECT id, reset_otp_hash, reset_otp_expires_at, reset_otp_attempts
        FROM public.members WHERE phone = $1 AND is_active = true`,
@@ -78,8 +85,10 @@ export async function resetPasswordWithOtp(phone: string, otp: string, newPasswo
     if (!member || !member.reset_otp_hash || !member.reset_otp_expires_at) {
       throw new ValidationError(GENERIC_ERROR);
     }
-    if (member.reset_otp_expires_at < new Date()) throw new ValidationError(GENERIC_ERROR);
-    if (member.reset_otp_attempts >= MAX_OTP_ATTEMPTS) throw new ValidationError(GENERIC_ERROR);
+    if (member.reset_otp_expires_at < new Date())
+      throw new ValidationError(GENERIC_ERROR);
+    if (member.reset_otp_attempts >= MAX_OTP_ATTEMPTS)
+      throw new ValidationError(GENERIC_ERROR);
 
     if (member.reset_otp_hash !== otpHash) {
       await db.query(

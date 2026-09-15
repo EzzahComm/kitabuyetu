@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
 
 /**
  * Birthday automation, read-only.
@@ -23,7 +23,7 @@ import { ok } from '@/lib/utils/response';
 const UPCOMING_DAYS = 30;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.view', async (auth) => {
+  return withPermission(req, "messaging.view", async (auth) => {
     const { upcoming, history } = await withAdminDb(async (db) => {
       const [up, hist] = await Promise.all([
         db.query(

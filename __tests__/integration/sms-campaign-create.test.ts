@@ -19,11 +19,11 @@
  * permissions/sms-email-messaging.test.ts only exercises DELETE — which is
  * exactly how a 100%-failure bug shipped unnoticed.
  */
-import { POST as smsCampaignPost } from '@/app/api/v1/sms/campaign/route';
-import { authHeaders, buildRequest } from './helpers/request';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { POST as smsCampaignPost } from "@/app/api/v1/sms/campaign/route";
+import { authHeaders, buildRequest } from "./helpers/request";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
 async function permissionsFor(role: string): Promise<string[]> {
   const [row] = await rawQuery<{ permissions: string[] }>(
@@ -33,15 +33,16 @@ async function permissionsFor(role: string): Promise<string[]> {
   return row.permissions;
 }
 
-describe('POST /api/v1/sms/campaign', () => {
+describe("POST /api/v1/sms/campaign", () => {
   let groupId: string, officerId: string, chairpersonPerms: string[];
 
   beforeAll(async () => {
     await resetDatabase();
-    const { groupId: gId, officerId: oId } = await createTestGroup('chairperson');
+    const { groupId: gId, officerId: oId } =
+      await createTestGroup("chairperson");
     groupId = gId;
     officerId = oId;
-    chairpersonPerms = await permissionsFor('chairperson');
+    chairpersonPerms = await permissionsFor("chairperson");
   });
 
   afterAll(async () => {
@@ -54,34 +55,54 @@ describe('POST /api/v1/sms/campaign', () => {
   // this sandbox nor CI has real egress to it, so it fails open, but not
   // instantly — same shape as feedback_no_network_on_the_auth_hot_path,
   // just not worth widening that fix's scope for on this hotfix.
-  it('creates an immediate campaign (no scheduledAt) as draft — was a 500 on every call', async () => {
-    const res = await smsCampaignPost(buildRequest('/api/v1/sms/campaign', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: { name: 'Immediate campaign', message: 'Meeting tomorrow.', recipientType: 'all_members' },
-    }));
+  it("creates an immediate campaign (no scheduledAt) as draft — was a 500 on every call", async () => {
+    const res = await smsCampaignPost(
+      buildRequest("/api/v1/sms/campaign", {
+        method: "POST",
+        headers: authHeaders({
+          userId: officerId,
+          groupId,
+          role: "chairperson",
+          permissions: chairpersonPerms,
+        }),
+        body: {
+          name: "Immediate campaign",
+          message: "Meeting tomorrow.",
+          recipientType: "all_members",
+        },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.data.status).toBe('draft');
+    expect(body.data.status).toBe("draft");
     expect(body.data.scheduled_at).toBeNull();
   }, 20_000);
 
-  it('creates a scheduled campaign as scheduled, not sent immediately', async () => {
+  it("creates a scheduled campaign as scheduled, not sent immediately", async () => {
     const scheduledAt = new Date(Date.now() + 86_400_000).toISOString();
 
-    const res = await smsCampaignPost(buildRequest('/api/v1/sms/campaign', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: {
-        name: 'Scheduled campaign', message: 'Happy new year!',
-        recipientType: 'all_members', scheduledAt,
-      },
-    }));
+    const res = await smsCampaignPost(
+      buildRequest("/api/v1/sms/campaign", {
+        method: "POST",
+        headers: authHeaders({
+          userId: officerId,
+          groupId,
+          role: "chairperson",
+          permissions: chairpersonPerms,
+        }),
+        body: {
+          name: "Scheduled campaign",
+          message: "Happy new year!",
+          recipientType: "all_members",
+          scheduledAt,
+        },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.data.status).toBe('scheduled');
+    expect(body.data.status).toBe("scheduled");
     expect(new Date(body.data.scheduled_at).toISOString()).toBe(scheduledAt);
   }, 20_000);
 });

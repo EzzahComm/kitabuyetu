@@ -8,11 +8,11 @@
  * place for it to drift out of sync. This class exists only so sms/provider.ts
  * can hold TextSMS behind the same interface a second provider would use.
  */
-import * as textsms from '@/lib/services/textsms.service';
-import type { ISmsAdapter, SingleSmsInput, BulkSmsItem } from './types';
+import * as textsms from "@/lib/services/textsms.service";
+import type { ISmsAdapter, SingleSmsInput, BulkSmsItem } from "./types";
 
 export class TextSmsAdapter implements ISmsAdapter {
-  readonly name = 'textsms';
+  readonly name = "textsms";
 
   sendSingle(input: SingleSmsInput) {
     return textsms.sendSingleSms(input);

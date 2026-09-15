@@ -1,9 +1,9 @@
-import { NextRequest } from 'next/server';
-import { withPlatformRole } from '@/lib/auth/middleware';
-import { ok, badRequest } from '@/lib/utils/response';
-import { listAssignableRoles } from '@/lib/services/member-roles.service';
+import { NextRequest } from "next/server";
+import { withPlatformRole } from "@/lib/auth/middleware";
+import { ok, badRequest } from "@/lib/utils/response";
+import { listAssignableRoles } from "@/lib/services/member-roles.service";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/roles?groupId=<uuid>
@@ -11,9 +11,9 @@ export const dynamic = 'force-dynamic';
  * group's custom roles). Super-admin only.
  */
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, ['super_admin', 'support'], async () => {
-    const groupId = new URL(req.url).searchParams.get('groupId');
-    if (!groupId) return badRequest('groupId is required');
+  return withPlatformRole(req, ["super_admin", "support"], async () => {
+    const groupId = new URL(req.url).searchParams.get("groupId");
+    if (!groupId) return badRequest("groupId is required");
     const roles = await listAssignableRoles(groupId);
     return ok({ items: roles });
   });

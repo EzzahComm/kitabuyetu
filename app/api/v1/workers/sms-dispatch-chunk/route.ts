@@ -20,31 +20,33 @@
  * set at publish time) — sendBulkCampaign's own dispatchBatchId dedup
  * (keyed per-chunk, not per-campaign) makes a retried chunk safe to re-run.
  */
-import { NextRequest, NextResponse } from 'next/server';
-import { Receiver } from '@upstash/qstash';
-import { env } from '@/lib/env';
-import { logger } from '@/lib/logger';
-import { deriveUuid, isUuid } from '@/lib/utils/uuid';
-import type { SmsDispatchChunkPayload } from '@/lib/queue/qstash';
+import { NextRequest, NextResponse } from "next/server";
+import { Receiver } from "@upstash/qstash";
+import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { deriveUuid, isUuid } from "@/lib/utils/uuid";
+import type { SmsDispatchChunkPayload } from "@/lib/queue/qstash";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function isValidPayload(v: unknown): v is SmsDispatchChunkPayload {
-  if (!v || typeof v !== 'object') return false;
+  if (!v || typeof v !== "object") return false;
   const p = v as Record<string, unknown>;
   return (
     // jobId must be a real uuid, not merely a string: it is the namespace the
     // per-chunk dispatch key is derived from below, and deriveUuid throws on
     // anything else. Rejecting here returns 400 (QStash gives up) rather than
     // letting it surface as a 500 that QStash would retry to exhaustion.
-    typeof p.jobId === 'string' && isUuid(p.jobId) &&
-    typeof p.chunkIndex === 'number' &&
-    typeof p.groupId === 'string' &&
-    typeof p.sentBy === 'string' &&
-    typeof p.message === 'string' &&
-    Array.isArray(p.phones) && p.phones.every((x) => typeof x === 'string') &&
-    typeof p.totalRecipientCount === 'number'
+    typeof p.jobId === "string" &&
+    isUuid(p.jobId) &&
+    typeof p.chunkIndex === "number" &&
+    typeof p.groupId === "string" &&
+    typeof p.sentBy === "string" &&
+    typeof p.message === "string" &&
+    Array.isArray(p.phones) &&
+    p.phones.every((x) => typeof x === "string") &&
+    typeof p.totalRecipientCount === "number"
   );
 }
 
@@ -53,61 +55,86 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // JSON parsing (a re-serialized body would not byte-match what QStash
   // signed).
   const rawBody = await req.text();
-  const signature = req.headers.get('upstash-signature') ?? '';
+  const signature = req.headers.get("upstash-signature") ?? "";
 
   if (!env.QSTASH_CURRENT_SIGNING_KEY || !env.QSTASH_NEXT_SIGNING_KEY) {
     // Route reachable but QStash not provisioned in this environment —
     // fail closed rather than silently accepting an unverifiable request.
-    logger.error('[sms-dispatch-chunk] QStash signing keys not configured');
-    return NextResponse.json({ success: false, error: 'Not configured' }, { status: 503 });
+    logger.error("[sms-dispatch-chunk] QStash signing keys not configured");
+    return NextResponse.json(
+      { success: false, error: "Not configured" },
+      { status: 503 },
+    );
   }
 
   try {
     const receiver = new Receiver({
       currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
-      nextSigningKey:    env.QSTASH_NEXT_SIGNING_KEY,
+      nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY,
     });
-    const ok = await receiver.verify({ signature, body: rawBody, url: req.url });
+    const ok = await receiver.verify({
+      signature,
+      body: rawBody,
+      url: req.url,
+    });
     if (!ok) {
-      return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Invalid signature" },
+        { status: 401 },
+      );
     }
   } catch (err) {
-    logger.warn('[sms-dispatch-chunk] Signature verification failed', { err: String(err) });
-    return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 });
+    logger.warn("[sms-dispatch-chunk] Signature verification failed", {
+      err: String(err),
+    });
+    return NextResponse.json(
+      { success: false, error: "Invalid signature" },
+      { status: 401 },
+    );
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ success: false, error: 'Malformed JSON body' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Malformed JSON body" },
+      { status: 400 },
+    );
   }
 
   if (!isValidPayload(payload)) {
-    return NextResponse.json({ success: false, error: 'Invalid chunk payload' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid chunk payload" },
+      { status: 400 },
+    );
   }
 
   try {
-    const { smsService } = await import('@/lib/services/sms.service');
+    const { smsService } = await import("@/lib/services/sms.service");
 
     const varsByPhone = payload.varsByPhone
       ? new Map(Object.entries(payload.varsByPhone))
       : undefined;
-    const payer = payload.fundedBy === 'organization' && payload.payerOrganizationId
-      ? { type: 'organization' as const, organizationId: payload.payerOrganizationId }
-      : undefined;
+    const payer =
+      payload.fundedBy === "organization" && payload.payerOrganizationId
+        ? {
+            type: "organization" as const,
+            organizationId: payload.payerOrganizationId,
+          }
+        : undefined;
 
     const result = await smsService.sendBulkCampaign({
-      campaignId:    payload.campaignId,
-      phones:        payload.phones,
-      message:       payload.message,
+      campaignId: payload.campaignId,
+      phones: payload.phones,
+      message: payload.message,
       varsByPhone,
-      senderId:      payload.senderId,
-      timeToSend:    payload.timeToSend,
-      groupId:       payload.groupId,
-      sentBy:        payload.sentBy,
+      senderId: payload.senderId,
+      timeToSend: payload.timeToSend,
+      groupId: payload.groupId,
+      sentBy: payload.sentBy,
       referenceType: payload.referenceType,
-      referenceId:   payload.referenceId,
+      referenceId: payload.referenceId,
       payer,
       totalRecipientCount: payload.totalRecipientCount,
       // Stable per-CHUNK key, distinct from the parent job's own id, so a
@@ -125,16 +152,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      jobId:      payload.jobId,
+      jobId: payload.jobId,
       chunkIndex: payload.chunkIndex,
       chunkCount: payload.chunkCount,
-      sent:       result.sent,
-      failed:     result.failed,
+      sent: result.sent,
+      failed: result.failed,
     });
   } catch (err) {
-    logger.error('[sms-dispatch-chunk] Dispatch error:', err);
+    logger.error("[sms-dispatch-chunk] Dispatch error:", err);
     // 500 so QStash retries — mirrors /api/cron's fail-safe: the error is
     // logged in full server-side, never echoed to the caller.
-    return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Internal error" },
+      { status: 500 },
+    );
   }
 }

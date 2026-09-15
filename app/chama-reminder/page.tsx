@@ -53,7 +53,11 @@ export default function ChamaReminderPage() {
               Chama Reminder
             </p>
             <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl lg:text-6xl">
-              Keep the group moving <em className="font-normal italic text-brand-600">between meetings</em>.
+              Keep the group moving{" "}
+              <em className="font-normal italic text-brand-600">
+                between meetings
+              </em>
+              .
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-brand-blue-900/65">
               Contribution reminders, meeting notices, payment confirmations and
@@ -81,7 +85,8 @@ export default function ChamaReminderPage() {
           preTitle="Features"
           title="Everything for group communication"
         >
-          Member management and SMS messaging, without the accounting complexity.
+          Member management and SMS messaging, without the accounting
+          complexity.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -92,7 +97,9 @@ export default function ChamaReminderPage() {
                 className="rounded-lg border border-brand-blue-900/10 bg-paper-deep p-6"
               >
                 <div className="flex items-start gap-4">
-                  <div className="mt-0.5 shrink-0 text-brand-600">{feature.icon}</div>
+                  <div className="mt-0.5 shrink-0 text-brand-600">
+                    {feature.icon}
+                  </div>
                   <div>
                     <h3 className="mb-2 text-xl font-semibold text-brand-blue-900">
                       {feature.title}
@@ -115,8 +122,9 @@ export default function ChamaReminderPage() {
               Start with messaging, grow to full accounting
             </h2>
             <p className="mb-8 text-lg leading-relaxed text-brand-blue-900/65">
-              Chama Reminder is perfect for groups that only need to reach members.
-              Upgrade to Bookkeeper whenever your group is ready — everything comes with you.
+              Chama Reminder is perfect for groups that only need to reach
+              members. Upgrade to Bookkeeper whenever your group is ready —
+              everything comes with you.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-2">
               <div className="text-left">
@@ -176,11 +184,15 @@ export default function ChamaReminderPage() {
                     {plan.price}
                   </p>
                   {plan.period && (
-                    <p className="mt-1 text-sm text-brand-blue-900/55">{plan.period}</p>
+                    <p className="mt-1 text-sm text-brand-blue-900/55">
+                      {plan.period}
+                    </p>
                   )}
                 </div>
 
-                <p className="mb-6 text-sm text-brand-blue-900/65">{plan.sms}</p>
+                <p className="mb-6 text-sm text-brand-blue-900/65">
+                  {plan.sms}
+                </p>
 
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
@@ -213,7 +225,10 @@ export default function ChamaReminderPage() {
           </div>
           <p className="mt-6 text-center text-sm text-brand-blue-900/55">
             Every plan is paid and bought self-service by M-Pesa. See{" "}
-            <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
+            <Link
+              href="/pricing"
+              className="font-medium text-brand-700 hover:underline"
+            >
               full pricing
             </Link>{" "}
             for both products side by side.

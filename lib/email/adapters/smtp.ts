@@ -1,13 +1,13 @@
-import nodemailer from 'nodemailer';
-import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import nodemailer from "nodemailer";
+import type { IEmailAdapter, EmailPayload, EmailResult } from "./types";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 
 function createTransport() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === 'true',
+    secure: process.env.SMTP_SECURE === "true",
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD,
@@ -16,7 +16,7 @@ function createTransport() {
 }
 
 export class SmtpAdapter implements IEmailAdapter {
-  readonly name = 'smtp';
+  readonly name = "smtp";
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     const from = payload.from ?? env.EMAIL_FROM;
@@ -35,7 +35,7 @@ export class SmtpAdapter implements IEmailAdapter {
             payload.groupId ?? null,
             payload.userId ?? null,
             payload.templateKey ?? null,
-            payload.category ?? 'transactional',
+            payload.category ?? "transactional",
             toArr[0],
             from,
             payload.subject,
@@ -54,7 +54,7 @@ export class SmtpAdapter implements IEmailAdapter {
 
       const info = await transport.sendMail({
         from,
-        to: toArr.join(', '),
+        to: toArr.join(", "),
         subject: payload.subject,
         html: payload.html,
         text: payload.text,
