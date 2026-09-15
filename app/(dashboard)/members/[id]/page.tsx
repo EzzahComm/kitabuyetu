@@ -124,8 +124,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const m = member;
   const contributions = contribData?.items ?? [];
   const loans         = loanData?.items ?? [];
-  const totalContributed = contributions.reduce((sum, c) =>
-    sum + parseFloat(c.amount ?? '0'), 0);
+  // Server-computed lifetime totals (members.service.ts's getById), not a
+  // reduction over the 10-row contributions/loans page fetched above for
+  // the activity lists further down this page — the page-size reduction
+  // silently understated once a member passed 11 contributions
+  // (docs/audits/optimization-2026-09).
+  const totalContributed = parseFloat(m.total_contributed ?? '0');
+  const activeLoansCount = m.active_loans_count ?? 0;
   const currentStatus: string = m.group_status ?? (m.is_active ? 'active' : 'inactive');
 
   const fullName = [m.first_name, m.middle_name, m.last_name].filter(Boolean).join(' ');
@@ -197,10 +202,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       {/* Quick stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Contributed" value={formatKES(totalContributed)} />
-        <StatCard
-          title="Active Loans"
-          value={loans.filter((l) => l.status === 'active' || l.status === 'disbursed').length}
-        />
+        <StatCard title="Active Loans" value={activeLoansCount} />
         <StatCard title="Next of kin" value={kinRows.length} />
         {/* Not a plain StatCard: the tier is a colored StatusPill living inside
             the value area, which StatCard's string|number `value` can't host.

@@ -99,23 +99,23 @@ export const meetingsService = {
 
       const where = conditions.join(' AND ');
 
-      const { rows: items } = await client.query(
-        `SELECT m.*,
-                cb.first_name || ' ' || cb.last_name AS created_by_name,
-                ch.first_name || ' ' || ch.last_name AS chaired_by_name,
-                (SELECT COUNT(*) FROM meeting_attendance ma WHERE ma.meeting_id=m.id AND ma.status='present') AS attendees_present,
-                (SELECT COUNT(*) FROM meeting_resolutions mr WHERE mr.meeting_id=m.id) AS resolution_count
-         FROM   meetings m
-         JOIN   members cb ON cb.id = m.created_by
-         LEFT JOIN members ch ON ch.id = m.chaired_by
-         WHERE  ${where}
-         ORDER  BY m.scheduled_at DESC
-         LIMIT  $${p++} OFFSET $${p++}`,
-        [...args, params.limit, offset],
-      );
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*) FROM meetings m WHERE ${where}`, args,
-      );
+      const [{ rows: items }, { rows: [{ count }] }] = await Promise.all([
+        client.query(
+          `SELECT m.*,
+                  cb.first_name || ' ' || cb.last_name AS created_by_name,
+                  ch.first_name || ' ' || ch.last_name AS chaired_by_name,
+                  (SELECT COUNT(*) FROM meeting_attendance ma WHERE ma.meeting_id=m.id AND ma.status='present') AS attendees_present,
+                  (SELECT COUNT(*) FROM meeting_resolutions mr WHERE mr.meeting_id=m.id) AS resolution_count
+           FROM   meetings m
+           JOIN   members cb ON cb.id = m.created_by
+           LEFT JOIN members ch ON ch.id = m.chaired_by
+           WHERE  ${where}
+           ORDER  BY m.scheduled_at DESC
+           LIMIT  $${p++} OFFSET $${p++}`,
+          [...args, params.limit, offset],
+        ),
+        client.query(`SELECT COUNT(*) FROM meetings m WHERE ${where}`, args),
+      ]);
       return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page };
     });
   },

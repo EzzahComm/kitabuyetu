@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { accountingService } from '@/lib/services/accounting.service';
-import { CreateJournalSchema, VoidJournalSchema } from '@/lib/validators/accounting.schema';
+import { CreateJournalSchema, VoidJournalSchema, JournalQuerySchema } from '@/lib/validators/accounting.schema';
 import { ok, created } from '@/lib/utils/response';
 import type { JournalEntry } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -10,10 +10,8 @@ import type { PaginatedResult } from '@/types/db.types';
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
     const { searchParams } = req.nextUrl;
-    const page   = parseInt(searchParams.get('page')  ?? '1',  10);
-    const limit  = parseInt(searchParams.get('limit') ?? '20', 10);
-    const status = searchParams.get('status') ?? undefined;
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const { page, limit, status } = JournalQuerySchema.parse(Object.fromEntries(searchParams));
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     const { withDb } = await import('@/lib/db');
     const result = await withDb(ctx, async (client) => {
