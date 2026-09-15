@@ -147,9 +147,7 @@ export const creditScoresService = {
    * Run inside one transaction so a half-finished sweep doesn't leave the
    * group with mixed-vintage snapshots.
    */
-  async recomputeAll(
-    ctx: TenantContext,
-  ): Promise<{
+  async recomputeAll(ctx: TenantContext): Promise<{
     recomputed: number;
     failed: { memberId: string; reason: string }[];
   }> {

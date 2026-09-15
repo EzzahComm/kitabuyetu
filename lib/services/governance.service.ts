@@ -571,9 +571,7 @@ export async function computeGroupGovernanceSnapshot(
  * shape (a plain JS loop over groups, each iteration's DB work in its own
  * withAdminDb call), not a single big transaction with a loop inside it.
  */
-export async function computeGovernanceForAllGroups(
-  asOf: string,
-): Promise<{
+export async function computeGovernanceForAllGroups(asOf: string): Promise<{
   groups: number;
   succeeded: number;
   failed: number;

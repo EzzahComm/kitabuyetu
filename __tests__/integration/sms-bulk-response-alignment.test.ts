@@ -46,9 +46,7 @@ async function provisionBilling(
   );
 }
 
-async function logsFor(
-  groupId: string,
-): Promise<
+async function logsFor(groupId: string): Promise<
   {
     recipient_phone: string;
     status: string;

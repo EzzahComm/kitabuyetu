@@ -302,7 +302,10 @@ export async function readProviderHealth(
       .query<{
         state: "healthy" | "degraded";
         last_checked_at: Date | null;
-      }>(`SELECT state, last_checked_at FROM sms_provider_health_state WHERE provider = $1`, [provider])
+      }>(
+        `SELECT state, last_checked_at FROM sms_provider_health_state WHERE provider = $1`,
+        [provider],
+      )
       .then((r) => r.rows),
   );
   return row ? { state: row.state, checkedAt: row.last_checked_at } : null;

@@ -109,9 +109,7 @@ export const contributionsService = {
   // vice versa) via reminder_dispatch_log's UNIQUE constraint, suppressing a
   // real reminder neither action actually sent. Idempotent per (member,
   // month) regardless — clicking twice in the same month only sends once.
-  async remindNonContributors(
-    ctx: TenantContext,
-  ): Promise<{
+  async remindNonContributors(ctx: TenantContext): Promise<{
     attempted: number;
     sent: number;
     skipped: number;

@@ -1319,9 +1319,7 @@ export const smsService = {
    * for a time limit. At 15 per tick the platform could only ever check ~4,320
    * messages a day, which is below its own send rate.
    */
-  async pollPendingDlrs(
-    limit = 100,
-  ): Promise<{
+  async pollPendingDlrs(limit = 100): Promise<{
     checked: number;
     delivered: number;
     failed: number;
@@ -1475,9 +1473,7 @@ export const smsService = {
    * minutes so the drain rate is unaffected in practice. The per-iteration
    * budget check below is the real bound; the limit just keeps the query small.
    */
-  async retryFailures(
-    limit = 25,
-  ): Promise<{
+  async retryFailures(limit = 25): Promise<{
     retried: number;
     resolved: number;
     failed: number;

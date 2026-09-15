@@ -146,15 +146,13 @@ export default function ContributionsPage() {
             type="button"
             className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
             onClick={() =>
-              api
-                .openBlob(`/contributions/${row.id}/receipt`)
-                .catch((e) =>
-                  toast({
-                    variant: "destructive",
-                    title: "Receipt failed",
-                    description: getErrorMessage(e),
-                  }),
-                )
+              api.openBlob(`/contributions/${row.id}/receipt`).catch((e) =>
+                toast({
+                  variant: "destructive",
+                  title: "Receipt failed",
+                  description: getErrorMessage(e),
+                }),
+              )
             }
           >
             <FileText size={13} /> Receipt
