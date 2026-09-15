@@ -105,10 +105,23 @@ export const investmentsService = {
 
   async getById(ctx: TenantContext, id: string) {
     return withDb(ctx, async (client) => {
+      // total_returns/total_expenses mirror list()'s own correlated
+      // subqueries above — the detail page used to re-reduce inv.returns/
+      // inv.expenses client-side for the same numbers list() already
+      // computes in SQL (docs/audits/optimization-2026-09); getById never
+      // selected these fields even though the shared TypeScript type
+      // declares them as always present, so the fix is on this query, not
+      // just the page that reads it.
       const { rows: [inv] } = await client.query(
         `SELECT i.*,
                 cb.first_name || ' ' || cb.last_name AS created_by_name,
-                ab.first_name || ' ' || ab.last_name AS approved_by_name
+                ab.first_name || ' ' || ab.last_name AS approved_by_name,
+                COALESCE((
+                  SELECT SUM(amount) FROM investment_returns WHERE investment_id = i.id
+                ), 0) AS total_returns,
+                COALESCE((
+                  SELECT SUM(amount) FROM investment_expenses WHERE investment_id = i.id
+                ), 0) AS total_expenses
          FROM   investments i
          JOIN   members cb ON cb.id = i.created_by
          LEFT JOIN members ab ON ab.id = i.approved_by
@@ -117,28 +130,27 @@ export const investmentsService = {
       );
       if (!inv) throw new NotFoundError('Investment', id);
 
-      const { rows: returns } = await client.query(
-        `SELECT ir.*, m.first_name || ' ' || m.last_name AS recorded_by_name
-         FROM investment_returns ir
-         JOIN members m ON m.id = ir.recorded_by
-         WHERE ir.investment_id = $1 ORDER BY ir.return_date DESC`,
-        [id],
-      );
-      const { rows: expenses } = await client.query(
-        `SELECT ie.*, m.first_name || ' ' || m.last_name AS recorded_by_name
-         FROM investment_expenses ie
-         JOIN members m ON m.id = ie.recorded_by
-         WHERE ie.investment_id = $1 ORDER BY ie.expense_date DESC`,
-        [id],
-      );
-      const { rows: shares } = await client.query(
-        `SELECT mis.*, m.first_name || ' ' || m.last_name AS member_name
-         FROM member_investment_shares mis
-         JOIN members m ON m.id = mis.member_id
-         WHERE mis.investment_id = $1 ORDER BY mis.amount_contributed DESC`,
-        [id],
-      );
-      return { ...inv, returns, expenses, shares };
+      // returns/expenses only need `id`, not each other's result — no
+      // reason to await them sequentially. member_investment_shares is
+      // dropped entirely: zero writers anywhere in the product (confirmed
+      // by grep), so this query has provably never returned a row.
+      const [{ rows: returns }, { rows: expenses }] = await Promise.all([
+        client.query(
+          `SELECT ir.*, m.first_name || ' ' || m.last_name AS recorded_by_name
+           FROM investment_returns ir
+           JOIN members m ON m.id = ir.recorded_by
+           WHERE ir.investment_id = $1 ORDER BY ir.return_date DESC`,
+          [id],
+        ),
+        client.query(
+          `SELECT ie.*, m.first_name || ' ' || m.last_name AS recorded_by_name
+           FROM investment_expenses ie
+           JOIN members m ON m.id = ie.recorded_by
+           WHERE ie.investment_id = $1 ORDER BY ie.expense_date DESC`,
+          [id],
+        ),
+      ]);
+      return { ...inv, returns, expenses };
     });
   },
 

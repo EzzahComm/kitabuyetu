@@ -34,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   useInvestment, useUpdateInvestment, useRecordInvestmentReturn,
   useRecordInvestmentExpense,
-  type InvestmentReturnRow, type InvestmentExpenseRow, type InvestmentShareRow,
+  type InvestmentReturnRow, type InvestmentExpenseRow,
 } from '@/hooks/use-investments';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
@@ -181,10 +181,13 @@ export default function InvestmentDetailPage() {
 
   const returns   = inv.returns ?? [];
   const expenses  = inv.expenses ?? [];
-  const shares    = inv.shares ?? [];
   const revalued  = inv.current_value !== null;
-  const totalReturns  = returns.reduce((sum, r) => sum + Number(r.amount), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  // Server-computed (investments.service.ts's getById), matching list()'s
+  // own correlated subqueries, rather than re-reducing the returns/expenses
+  // arrays above for the same numbers list() already computes in SQL
+  // (docs/audits/optimization-2026-09).
+  const totalReturns  = Number(inv.total_returns ?? 0);
+  const totalExpenses = Number(inv.total_expenses ?? 0);
   const netReturn     = totalReturns - totalExpenses;
   // Carried at cost until someone records a revaluation, which is exactly how
   // the portfolio summary values it.
@@ -242,17 +245,6 @@ export default function InvestmentDetailPage() {
     {
       key: 'recorded_by_name', header: 'Recorded by',
       render: (e: InvestmentExpenseRow) => <span className="text-xs">{e.recorded_by_name}</span>,
-    },
-  ];
-
-  const shareColumns = [
-    {
-      key: 'member_name', header: 'Member',
-      render: (s: InvestmentShareRow) => <span className="text-sm font-medium">{s.member_name}</span>,
-    },
-    {
-      key: 'amount_contributed', header: 'Contributed',
-      render: (s: InvestmentShareRow) => <span className="text-sm font-semibold">{formatKES(s.amount_contributed)}</span>,
     },
   ];
 
@@ -443,24 +435,6 @@ export default function InvestmentDetailPage() {
           />
         </CardContent>
       </Card>
-
-      {/* member_investment_shares has no writer anywhere in the product, so
-          this section stays hidden rather than showing an empty table that
-          implies per-member stakes are being tracked. */}
-      {shares.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Member contributions</CardTitle></CardHeader>
-          <CardContent>
-            <PaginatedTable
-              data={singlePage(shares)}
-              isLoading={false}
-              onPageChange={() => {}}
-              columns={shareColumns}
-              emptyMessage="None"
-            />
-          </CardContent>
-        </Card>
-      )}
 
       <ConfirmDialog
         open={approveOpen}

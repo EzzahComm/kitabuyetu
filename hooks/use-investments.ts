@@ -56,27 +56,16 @@ export interface InvestmentExpenseRow {
   created_at:       string;
 }
 
-/**
- * A member's contribution to one investment. `member_investment_shares` has no
- * writer anywhere in the product, so this is always empty today — the detail
- * page renders the section only when rows actually exist rather than showing
- * an empty table that implies a feature.
+/** What GET /investments/:id returns — the row plus its children.
+ * No `shares` field: member_investment_shares had zero writers anywhere in
+ * the product (confirmed by grep) and getById's query dropped the dead
+ * query entirely rather than keep fetching rows that could never exist
+ * (docs/audits/optimization-2026-09).
  */
-export interface InvestmentShareRow {
-  id:                 string;
-  investment_id:      string;
-  member_id:          string;
-  member_name:        string;
-  shares:             string | null;
-  amount_contributed: string;
-}
-
-/** What GET /investments/:id returns — the row plus its children. */
 export type InvestmentDetail = InvestmentRow & {
   approved_by_name: string | null;
   returns:          InvestmentReturnRow[];
   expenses:         InvestmentExpenseRow[];
-  shares:           InvestmentShareRow[];
 };
 
 export type InvestmentSummary = Awaited<ReturnType<typeof investmentsService.getSummary>>;

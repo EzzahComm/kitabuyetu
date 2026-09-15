@@ -13,6 +13,16 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
+// getCashFlowStatement/getEquityChanges are now wrapped in cached()
+// (docs/audits/optimization-2026-09) — passthrough so these tests keep
+// exercising the real query-building logic without needing a live Redis
+// connection, matching organization-finance-donor-report.test.ts's
+// established pattern.
+jest.mock('@/lib/redis', () => ({
+  cached: (_key: string, _ttl: number, fn: () => unknown) => fn(),
+  keys: { cache: (name: string, scope: string) => `cache:${name}:${scope}` },
+}));
+
 const mockQuery  = jest.fn();
 const mockClient = { query: mockQuery };
 

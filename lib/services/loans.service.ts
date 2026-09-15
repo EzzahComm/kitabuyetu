@@ -26,19 +26,20 @@ export const loansService = {
       if (to)       { conditions.push(`l.created_at::date <= $${idx++}`);  values.push(to); }
 
       const where = conditions.join(' AND ');
-      const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM loans l WHERE ${where}`, values,
-      );
+      const [{ rows: countRows }, { rows }] = await Promise.all([
+        client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM loans l WHERE ${where}`, values,
+        ),
+        client.query<Loan & { member_name: string }>(
+          `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name
+           FROM loans l JOIN members m ON m.id = l.member_id
+           WHERE ${where}
+           ORDER BY l.created_at ${sortDir === 'asc' ? 'ASC' : 'DESC'}
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...values, limit, offset],
+        ),
+      ]);
       const total = parseInt(countRows[0].count, 10);
-
-      const { rows } = await client.query<Loan & { member_name: string }>(
-        `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name
-         FROM loans l JOIN members m ON m.id = l.member_id
-         WHERE ${where}
-         ORDER BY l.created_at ${sortDir === 'asc' ? 'ASC' : 'DESC'}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...values, limit, offset],
-      );
       return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
     });
   },

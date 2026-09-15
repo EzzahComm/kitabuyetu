@@ -51,7 +51,11 @@ export default function LoansPage() {
   const { toast }         = useToast();
 
   const { data, isLoading, isError, error } = useLoans({ page, pageSize: 20, status: status === 'all' ? undefined : status });
-  const { data: membersData } = useMembers({ pageSize: 200 });
+  // pageSize is not a param the members API accepts (silently dropped by
+  // zod's non-strict parse, leaving `limit` at its default of 20) — matches
+  // the working contributions/page.tsx precedent (docs/audits/
+  // optimization-2026-09).
+  const { data: membersData } = useMembers({ limit: 100, status: 'active' });
   const { data: loanPolicy } = useLoanPolicy();
   const applyLoan = useApplyLoan();
 

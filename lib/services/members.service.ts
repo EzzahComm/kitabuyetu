@@ -162,25 +162,26 @@ export const membersService = {
       const orderCol = validSortColumns[sortBy] ?? 'm.first_name';
       const orderDir = sortDir === 'desc' ? 'DESC' : 'ASC';
 
-      const countResult = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count
-         FROM group_members gm
-         JOIN members m ON m.id = gm.member_id
-         WHERE gm.group_id = $1 ${where}`,
-        values,
-      );
+      const [countResult, rows] = await Promise.all([
+        client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count
+           FROM group_members gm
+           JOIN members m ON m.id = gm.member_id
+           WHERE gm.group_id = $1 ${where}`,
+          values,
+        ),
+        client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
+          `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
+                  gm.membership_no
+           FROM group_members gm
+           JOIN members m ON m.id = gm.member_id
+           WHERE gm.group_id = $1 ${where}
+           ORDER BY ${orderCol} ${orderDir}
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...values, limit, offset],
+        ),
+      ]);
       const total = parseInt(countResult.rows[0].count, 10);
-
-      const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
-        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
-                gm.membership_no
-         FROM group_members gm
-         JOIN members m ON m.id = gm.member_id
-         WHERE gm.group_id = $1 ${where}
-         ORDER BY ${orderCol} ${orderDir}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...values, limit, offset],
-      );
 
       const data = rows.rows.map((m) => stripSecrets(applyMemberMask(m, ctx.role) as typeof m));
 
@@ -188,17 +189,37 @@ export const membersService = {
     });
   },
 
-  async getById(ctx: TenantContext, memberId: string): Promise<SafeMember & { group_role: string; group_status: string; joined_at: Date }> {
+  async getById(ctx: TenantContext, memberId: string): Promise<
+    SafeMember & { group_role: string; group_status: string; joined_at: Date; total_contributed: string; active_loans_count: number }
+  > {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
-        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at
+      // total_contributed/active_loans_count are computed here (correlated
+      // subqueries, same shared connection as the member row) rather than
+      // reduced client-side over the profile page's own 10-row contributions/
+      // loans pages — a lifetime SUM/count over a paginated slice silently
+      // understates once a member passes 11 contributions
+      // (docs/audits/optimization-2026-09).
+      const { rows } = await client.query<Member & {
+        group_role: string; group_status: string; joined_at: Date;
+        total_contributed: string; active_loans_count: string;
+      }>(
+        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
+                COALESCE((
+                  SELECT SUM(c.amount) FROM contributions c
+                  WHERE c.member_id = m.id AND c.group_id = $2 AND c.status = 'completed'
+                ), 0) AS total_contributed,
+                (
+                  SELECT COUNT(*) FROM loans l
+                  WHERE l.member_id = m.id AND l.group_id = $2 AND l.status IN ('active', 'disbursed')
+                ) AS active_loans_count
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $2
          WHERE m.id = $1`,
         [memberId, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      const safe = stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      return { ...safe, active_loans_count: Number(safe.active_loans_count) };
     });
   },
 

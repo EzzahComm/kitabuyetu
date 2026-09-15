@@ -50,18 +50,24 @@ export default function AccountingPage() {
   const from = `${now.getFullYear()}-01-01`;
   const to   = `${now.getFullYear()}-12-31`;
 
-  const { data: accounts, isLoading: loadingAccounts, isError: errorAccounts, error: accountsError } = useAccounts();
-  const { data: trialBalance, isLoading: loadingTB, isError: errorTB, error: tbError }   = useTrialBalance();
+  // Each hook fires only when its own tab is actually open — previously all
+  // 9 fired unconditionally on every /accounting load, 13 SQL statements
+  // across 9 withDb() calls regardless of which of 8 tabs was visible
+  // (docs/audits/optimization-2026-09).
+  // Also needed on the 'policies' tab: PostingTemplatesCard (rendered
+  // inside it, line ~512) takes the full chart of accounts as a prop.
+  const { data: accounts, isLoading: loadingAccounts, isError: errorAccounts, error: accountsError } = useAccounts({ enabled: tab === 'accounts' || tab === 'policies' });
+  const { data: trialBalance, isLoading: loadingTB, isError: errorTB, error: tbError }   = useTrialBalance({ enabled: tab === 'trial' });
   const [journalPage, setJournalPage] = useState(1);
-  const { data: journals, isLoading: loadingJournals, isError: errorJournals, error: journalsError } = useJournals({ page: journalPage, pageSize: 20 });
-  const { data: pnl, isLoading: loadingPnl, isError: errorPnl, error: pnlError }           = useProfitAndLoss(from, to);
+  const { data: journals, isLoading: loadingJournals, isError: errorJournals, error: journalsError } = useJournals({ page: journalPage, pageSize: 20 }, { enabled: tab === 'journals' });
+  const { data: pnl, isLoading: loadingPnl, isError: errorPnl, error: pnlError }           = useProfitAndLoss(from, to, { enabled: tab === 'pnl' });
   const asOfToday = now.toISOString().split('T')[0];
-  const { data: balanceSheet, isLoading: loadingBS, isError: errorBS, error: bsError }   = useBalanceSheet(asOfToday);
-  const { data: cashFlow, isLoading: loadingCF, isError: errorCF, error: cfError }       = useCashFlow(from, to);
-  const { data: equityChanges }                        = useEquityChanges(from, to);
+  const { data: balanceSheet, isLoading: loadingBS, isError: errorBS, error: bsError }   = useBalanceSheet(asOfToday, { enabled: tab === 'balance' });
+  const { data: cashFlow, isLoading: loadingCF, isError: errorCF, error: cfError }       = useCashFlow(from, to, { enabled: tab === 'cashflow' });
+  const { data: equityChanges }                        = useEquityChanges(from, to, { enabled: tab === 'balance' });
   const createJournal = useCreateJournal();
 
-  const { data: fiscalPeriods, isLoading: loadingFP, isError: errorFP, error: fpError } = useFiscalPeriods();
+  const { data: fiscalPeriods, isLoading: loadingFP, isError: errorFP, error: fpError } = useFiscalPeriods({ enabled: tab === 'periods' });
   const closePeriod  = useClosePeriod();
   const reopenPeriod = useReopenPeriod();
   const [closeOpen, setCloseOpen]   = useState(false);
@@ -70,7 +76,7 @@ export default function AccountingPage() {
   const [reopenTarget, setReopenTarget] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState('');
 
-  const { data: policies, isLoading: loadingPolicies, isError: errorPolicies, error: policiesError } = useApprovalPolicies();
+  const { data: policies, isLoading: loadingPolicies, isError: errorPolicies, error: policiesError } = useApprovalPolicies({ enabled: tab === 'policies' });
   const setPolicy = useSetApprovalPolicy();
   const [policyEdits, setPolicyEdits] = useState<Record<string, string>>({});
 

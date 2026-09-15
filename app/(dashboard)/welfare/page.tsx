@@ -65,7 +65,11 @@ export default function WelfarePage() {
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
   });
   const { data: poolData }    = useWelfarePool();
-  const { data: membersData } = useMembers({ pageSize: 200 });
+  // pageSize is not a param the members API accepts (silently dropped by
+  // zod's non-strict parse, leaving `limit` at its default of 20) — matches
+  // the working contributions/page.tsx precedent (docs/audits/
+  // optimization-2026-09).
+  const { data: membersData } = useMembers({ limit: 100, status: 'active' });
 
   const createReq = useCreateWelfareRequest();
   const recordPool = useRecordWelfarePoolContribution();

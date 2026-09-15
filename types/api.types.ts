@@ -216,6 +216,13 @@ export interface GroupMemberRow {
   joined_at:         string;
   /** Present on list rows only (joined from group_members). */
   membership_no?:    string | null;
+  /**
+   * Present on getById (detail) rows only — server-computed lifetime
+   * aggregates, not a reduction over any paginated page
+   * (docs/audits/optimization-2026-09).
+   */
+  total_contributed?:  string;
+  active_loans_count?: number;
 }
 
 // ------------------------------------------------------------------
