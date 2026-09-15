@@ -22,9 +22,11 @@
 # EXECUTIVE SUMMARY
 
 ## What
+
 Kitabu Yetu is a multi-tenant SaaS fintech platform for Kenyan community organizations. Positioning: **"Build Vibrant Communities."**
 
 **Orchestration:** Optimize.ps1 (v3.0.1) runs five engines per phase:
+
 - **Discovery** → Inventory code (routes, components, services)
 - **Safety** → Create checkpoint + backup before changes
 - **Protection** → Classify files (SAFE/CAUTION/PROTECTED)
@@ -82,14 +84,16 @@ Result: Phase marked PASSED (safe to next) or ROLLED_BACK (engineer fixes, re-ru
 ## 3.2 Discovery Engine
 
 **What it does:**
+
 - Scans repository for all TypeScript/JavaScript/route files
 - Excludes: node_modules, .git, .next, dist, build, .optimize, .turbo, coverage
 - Catalogs: routes (page.tsx), components, hooks, services, API routes, migrations
 - Detects: UI libraries (shadcn, Flowbite, Tabler, @kitabu/ui)
 - Detects: package manager (npm, pnpm, yarn)
-- Detects: environment files (.env*)
+- Detects: environment files (.env\*)
 
 **Output:** `.optimize/reports/phase{N}-discovery.json`
+
 ```json
 {
   "routes": ["/app/page.tsx", "/app/bookkeeper/page.tsx", ...],
@@ -111,18 +115,21 @@ Result: Phase marked PASSED (safe to next) or ROLLED_BACK (engineer fixes, re-ru
 ## 3.3 Safety Engine
 
 **What it does:**
+
 1. **Git checkpoint:** Creates annotated tag `optimize-checkpoint-phase{N}-{timestamp}`
 2. **Filesystem backup:** Zips entire working tree (excludes excluded dirs) → `.optimize/backups/phase{N}-{timestamp}.zip`
-3. **Manifest snapshots:** Copies critical files (package.json, tsconfig.json, tailwind.config.*, .env.example, routes.txt) → `.optimize/backups/phase{N}-manifests/`
+3. **Manifest snapshots:** Copies critical files (package.json, tsconfig.json, tailwind.config.\*, .env.example, routes.txt) → `.optimize/backups/phase{N}-manifests/`
 
 **Before proceeding:** Ensures git working tree is clean (or uses -Force)
 
 **Why three layers:**
+
 - Git tag: fast rollback if git is available
 - Filesystem backup: recovery if git history corrupted
 - Manifest snapshots: fast diffing before/after validation
 
 **Rollback mechanism (automatic on validation failure):**
+
 ```
 IF Validation Engine detects failure:
   1. git reset --hard <checkpoint-tag>
@@ -136,6 +143,7 @@ Result: Zero code changes if validation fails
 ## 3.4 Protection Engine
 
 **What it does:**
+
 - Classifies every discovered file as SAFE, CAUTION, or PROTECTED
 - Determines which files are eligible for auto-modification
 
@@ -146,14 +154,14 @@ PROTECTED (R1-R9.5 territory, NEVER auto-modified):
   *ledger*, *payment*, *daraja*, *mpesa*, *m-pesa*, *callback*
   */auth/*, *auth.*, *authoriz*, *rls*, *row-level-security*
   *policies.sql*, *migrations*, *tenant*, *billing*, *reconcil*, *idempot*
-  
+
   Example: /app/api/ledger/route.ts → PROTECTED
   Script: Reported, never touched (even with -Apply -Force)
 
 CAUTION (risky, auto-modified ONLY if -Apply -Force):
   *hooks*, *api*client*, *route.ts, *route.tsx*, *middleware*
   *auth-ui*, *config*, *env*, .env files
-  
+
   Example: /app/middleware.ts → CAUTION
   Script: Reported only (dry-run), or modified if -Apply -Force
 
@@ -161,12 +169,13 @@ SAFE (always auto-safe):
   */components/ui/*, *presentation*, *styles*, *.css, *.scss
   */layouts*, */navigation*, */app/(public)*, */app/(marketing)*
   *public-site*, *flowbite*, *shadcn*, *kitabu-ui*, *@kitabu/ui*
-  
+
   Example: /app/components/ui/Button.tsx → SAFE
   Script: Always eligible for auto-fix (if -Apply set)
 ```
 
 **Output:** `.optimize/reports/phase{N}-classification.json`
+
 ```json
 {
   "SAFE": ["/app/components/ui/Button.tsx", "/app/layouts/RootLayout.tsx"],
@@ -178,6 +187,7 @@ SAFE (always auto-safe):
 ## 3.5 Optimization Engine
 
 **What it does:**
+
 1. Scans SAFE + (CAUTION if -Force) files for hard-coded violations
 2. Detects: hard-coded colors (#EF4444, rgb(...), rgba(...))
 3. Detects: hard-coded spacing (style={{ padding: 16px }})
@@ -186,23 +196,27 @@ SAFE (always auto-safe):
 6. (Manual) Engineer: maps violations to @kitabu/ui tokens
 
 **Hard-coded color detection:**
+
 ```
 Regex: #(?:[0-9a-fA-F]{3}){1,2}\b|rgb\(|rgba\(
 Matches: #EF4444, #fff, rgb(100, 50, 200), rgba(...)
 ```
 
 **Hard-coded spacing detection:**
+
 ```
 Regex: \bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px
 Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 ```
 
 **Why not auto-rewrite colors/spacing:**
+
 - Multiple formats (#hex, rgb, hsl) → semantic ambiguity
 - Impossible to safely map px values to Tailwind scale without engineer input
 - Script reports; engineer maps to token
 
 **Output:** `.optimize/reports/phase{N}-optimization.json`
+
 ```json
 [
   {
@@ -221,6 +235,7 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 ```
 
 **Auto-fixes applied (if -Apply):**
+
 - `npx eslint --fix` (formatting, unused vars, import organization)
 - `npx prettier --write` (code formatting)
 - Token substitution (only hardcoded colors → variables, manual semantic review)
@@ -228,6 +243,7 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 ## 3.6 Validation Engine
 
 **What it does:**
+
 1. Runs TypeScript compiler (tsc --noEmit)
 2. Runs ESLint (npx eslint . --ext .ts,.tsx,.js,.jsx)
 3. Runs unit/integration tests (npm test --ci)
@@ -237,6 +253,7 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 **All must PASS for phase to exit PASSED**
 
 **Output:** `.optimize/reports/phase{N}-validation.json`
+
 ```json
 {
   "TypeScript (tsc --noEmit)": {
@@ -263,11 +280,16 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 **State file:** `.optimize/state.json`
 
 **Structure:**
+
 ```json
 {
   "engineVersion": "3.0.1",
   "phases": {
-    "0": { "status": "PASSED", "detail": "Checkpoint: optimize-checkpoint-phase0-20260914-140000", "updatedAt": "2026-09-14T14:00:00Z" },
+    "0": {
+      "status": "PASSED",
+      "detail": "Checkpoint: optimize-checkpoint-phase0-20260914-140000",
+      "updatedAt": "2026-09-14T14:00:00Z"
+    },
     "1": { "status": "PENDING", "detail": "", "updatedAt": "..." },
     "2": { "status": "PENDING", "detail": "", "updatedAt": "..." }
   },
@@ -276,6 +298,7 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 ```
 
 **Phase statuses:**
+
 - `PENDING` — not yet run
 - `RUNNING` — currently executing
 - `PASSED` — validation passed, safe to proceed to next phase
@@ -283,6 +306,7 @@ Matches: style={{ margin: 16px }}, style={{ padding: 24px }}
 - `ROLLED_BACK` — rolled back after failure
 
 **Core rule enforced mechanically:**
+
 ```
 Assert-PreviousPhasePassed:
   IF current phase is NOT "0"
@@ -310,6 +334,7 @@ coverage        — test coverage reports (auto-generated)
 ```
 
 **Impact:**
+
 - Backup size: 10–50 MB (source only), not 500+ MB (with node_modules)
 - Scan time: ~30 seconds (depends on repo size), not 5+ minutes
 - No build artifacts in classification reports
@@ -325,17 +350,19 @@ coverage        — test coverage reports (auto-generated)
 function ConvertTo-NormalizedRelativePath {
   # Input: full path (any separator, any OS)
   # Output: "/app/components/Button.tsx" (always forward-slash, leading /)
-  
+
   # Converts: "C:\repo\app\components\Button.tsx" → "/app/components/Button.tsx"
   # Converts: "/home/user/repo/app/components/Button.tsx" → "/app/components/Button.tsx"
 }
 ```
 
 **Why both functions:**
+
 - `ConvertTo-NormalizedRelativePath` — converts full path to normalized relative
 - `Test-ExcludedPath` — checks if any segment is in excluded dirs list
 
 **All classification patterns use forward slashes:**
+
 ```
 PROTECTED: '*ledger*', '*payment*', '*/auth/*'  # forward slashes only
 CAUTION:   '*hooks*', '*api*client*', '*route.ts'
@@ -349,6 +376,7 @@ SAFE:      '*/components/ui/*', '*presentation*'
 **Mode 1: Dry-Run (no -Apply flag)**
 
 All five engines run, zero code changes:
+
 ```
 Discovery     ✓ Inventory created
 Safety        ✓ Checkpoint + backup created
@@ -361,6 +389,7 @@ Result: Full audit + reports + checkpoint, zero code changes
 ```
 
 **Invocation:**
+
 ```powershell
 ./Optimize.ps1 -Phase 0
 # Dry-run: reports on violations, doesn't fix them
@@ -369,6 +398,7 @@ Result: Full audit + reports + checkpoint, zero code changes
 **Mode 2: Apply Mode (-Apply flag)**
 
 All five engines run, safe fixes applied:
+
 ```
 Discovery     ✓ Inventory created
 Safety        ✓ Checkpoint + backup created
@@ -382,6 +412,7 @@ If Validation FAILS:     Automatic rollback, phase marked ROLLED_BACK
 ```
 
 **Invocation:**
+
 ```powershell
 ./Optimize.ps1 -Phase 0 -Apply
 # Apply fixes to SAFE files only, validate, rollback if needed
@@ -390,6 +421,7 @@ If Validation FAILS:     Automatic rollback, phase marked ROLLED_BACK
 **Mode 3: Force CAUTION (-Apply -Force flags)**
 
 Enables auto-fix on CAUTION files too (risky):
+
 ```
 Default: Only SAFE files are auto-fixed
 -Force:  SAFE + CAUTION files are auto-fixed (with -Apply)
@@ -397,6 +429,7 @@ NEVER:   PROTECTED files are auto-fixed (no flag combo changes this)
 ```
 
 **Invocation:**
+
 ```powershell
 ./Optimize.ps1 -Phase 0 -Apply -Force
 # WARNING: This enables auto-fix on auth/config/middleware code
@@ -410,6 +443,7 @@ NEVER:   PROTECTED files are auto-fixed (no flag combo changes this)
 ## Week 1: Preparation & Content Audit
 
 ### Day 1–2: Content Preservation + Optimize.ps1 Setup
+
 ```
 TASK: Backup existing marketing content + initialize Optimize.ps1
 - [ ] Export all 15 current pages (screenshot + HTML)
@@ -424,6 +458,7 @@ GATE: Backup verified, Optimize.ps1 ready, git clean
 ```
 
 ### Day 3–5: Design System Setup
+
 ```
 TASK: Create shared design system foundation
 - [ ] Create @kitabu/ui package (monorepo structure)
@@ -435,6 +470,7 @@ GATE: @kitabu/ui compiles, tokens match Figma
 ```
 
 ### Day 5–7: Image Sourcing + Optimize.ps1 Dry-Run
+
 ```
 TASK: Source Phase 0 images + validate repo structure
 - [ ] Search Unsplash (queries: "African VSLA", "women savings")
@@ -453,6 +489,7 @@ GATE: 50+ free images, Optimize.ps1 reports generated, state.json shows PENDING
 ## Weeks 2–4: Design System Build + Optimize.ps1 Apply
 
 ### Days 8–14: Token Extraction & Component Library
+
 ```
 TASK: Build primitive component library
 - [ ] Extract all tokens to Tailwind config
@@ -467,6 +504,7 @@ GATE: All primitives built, phase0-optimization.json reviewed, violations mapped
 ```
 
 ### Days 15–21: Public Site Integration
+
 ```
 TASK: Integrate Flowbite, build public pages
 - [ ] Set up Flowbite in Next.js
@@ -482,6 +520,7 @@ GATE: All 15 pages render, state shows "0": "PASSED"
 ```
 
 ### Days 22–28: Image Optimization & Exit Gates
+
 ```
 TASK: Optimize images, verify exit gates
 - [ ] Resize, compress, optimize all images (<150KB)
@@ -508,17 +547,17 @@ GATE: All images <150KB, alt text verified, all 40+ gates passed, state.json sho
 
 [Section 5 from previous version, updated]
 
-| Risk | Failure Mode | Prevention | Owner | Verification |
-|---|---|---|---|---|
-| **Content Loss** | Marketing copy deleted | Week 1 backup, markdown export, GitHub branch | Content | Word-count audit |
-| **Phase Skip** | Phase N started before N-1 passed | Optimize.ps1 state gating (Assert-PreviousPhasePassed) | Ops | state.json verified |
-| **Checkpoint Failure** | Git dirty tree, backup fails | -Force flag or clean working tree first | Engineer | Safety Engine logs |
-| **Validation Failure** | Build fails but code not rolled back | Automatic rollback (Optimize.ps1) | Script | phase{N}-validation.json checked |
-| **Rollback Failure** | Cannot restore to checkpoint | 3-layer backup (git + zip + manifests) | Script | Filesystem backup verified |
-| **Mobile UX Broken** | 320px device unusable | R19–R23 rules, test xs/md/lg | Frontend | Screenshot comparison |
-| **Design Fragmentation** | Button styles inconsistent | @kitabu/ui single source, ESLint enforces | Design | phase{N}-optimization.json checked |
-| **Image Delays** | Phase 0 blocked | Unsplash search Week 1, Shutterstock Week 2 | Design | Sourcing spreadsheet |
-| **DPA Non-Compliance** | Daraja blocked, fines | Legal review mandatory | Legal | Sign-off document |
+| Risk                     | Failure Mode                         | Prevention                                             | Owner    | Verification                       |
+| ------------------------ | ------------------------------------ | ------------------------------------------------------ | -------- | ---------------------------------- |
+| **Content Loss**         | Marketing copy deleted               | Week 1 backup, markdown export, GitHub branch          | Content  | Word-count audit                   |
+| **Phase Skip**           | Phase N started before N-1 passed    | Optimize.ps1 state gating (Assert-PreviousPhasePassed) | Ops      | state.json verified                |
+| **Checkpoint Failure**   | Git dirty tree, backup fails         | -Force flag or clean working tree first                | Engineer | Safety Engine logs                 |
+| **Validation Failure**   | Build fails but code not rolled back | Automatic rollback (Optimize.ps1)                      | Script   | phase{N}-validation.json checked   |
+| **Rollback Failure**     | Cannot restore to checkpoint         | 3-layer backup (git + zip + manifests)                 | Script   | Filesystem backup verified         |
+| **Mobile UX Broken**     | 320px device unusable                | R19–R23 rules, test xs/md/lg                           | Frontend | Screenshot comparison              |
+| **Design Fragmentation** | Button styles inconsistent           | @kitabu/ui single source, ESLint enforces              | Design   | phase{N}-optimization.json checked |
+| **Image Delays**         | Phase 0 blocked                      | Unsplash search Week 1, Shutterstock Week 2            | Design   | Sourcing spreadsheet               |
+| **DPA Non-Compliance**   | Daraja blocked, fines                | Legal review mandatory                                 | Legal    | Sign-off document                  |
 
 ---
 
@@ -529,6 +568,7 @@ GATE: All images <150KB, alt text verified, all 40+ gates passed, state.json sho
 Every component tested against R19–R23 + hard-coded value checks:
 
 **Before commit:**
+
 1. Designer: verify responsive (xs/md/lg)
 2. Run: ./Optimize.ps1 -Phase {N} (dry-run: check for hard-coded violations)
 3. Review: phase{N}-optimization.json
@@ -616,31 +656,35 @@ All gates MUST be signed off before Phase 1 starts.
 
 ```javascript
 // Read current state
-const fs = require('fs');
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
+const fs = require("fs");
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
 
 // Check previous phase passed (or phase 0)
 const currentPhase = 0; // or whatever phase you're running
 if (currentPhase > 0) {
   const prevPhase = (currentPhase - 1).toString();
-  if (!state.phases[prevPhase] || state.phases[prevPhase].status !== 'PASSED') {
-    console.error(`GATE BLOCKED: Phase ${prevPhase} is ${state.phases[prevPhase]?.status || 'PENDING'}`);
+  if (!state.phases[prevPhase] || state.phases[prevPhase].status !== "PASSED") {
+    console.error(
+      `GATE BLOCKED: Phase ${prevPhase} is ${state.phases[prevPhase]?.status || "PENDING"}`,
+    );
     process.exit(1);
   }
 }
 
 // Verify git working tree is clean
-const { execSync } = require('child_process');
-const gitStatus = execSync('git status --porcelain').toString();
+const { execSync } = require("child_process");
+const gitStatus = execSync("git status --porcelain").toString();
 if (gitStatus.trim()) {
-  console.warn('Working tree is dirty. Commit changes before running Optimize.ps1.');
-  console.warn('Or run with -Force flag to auto-commit WIP.');
+  console.warn(
+    "Working tree is dirty. Commit changes before running Optimize.ps1.",
+  );
+  console.warn("Or run with -Force flag to auto-commit WIP.");
   // Either commit or pass -Force to Optimize.ps1
 }
 
 // Verify npm packages installed
-if (!fs.existsSync('node_modules')) {
-  console.error('node_modules not found. Run npm install first.');
+if (!fs.existsSync("node_modules")) {
+  console.error("node_modules not found. Run npm install first.");
   process.exit(1);
 }
 ```
@@ -648,43 +692,49 @@ if (!fs.existsSync('node_modules')) {
 ## 10.2 Invoke Optimize.ps1 (Three modes)
 
 **Mode 1: Dry-run (audit only, no changes)**
+
 ```javascript
 // Run full audit, generate reports, create checkpoint, zero code changes
-const { spawn } = require('child_process');
-const ps1 = spawn('pwsh', ['-Command', './Optimize.ps1 -Phase 0']);
-ps1.on('exit', (code) => {
+const { spawn } = require("child_process");
+const ps1 = spawn("pwsh", ["-Command", "./Optimize.ps1 -Phase 0"]);
+ps1.on("exit", (code) => {
   if (code === 0) {
-    console.log('Phase 0 audit complete. Review phase0-*.json reports.');
+    console.log("Phase 0 audit complete. Review phase0-*.json reports.");
   } else {
-    console.error('Phase 0 audit failed.');
+    console.error("Phase 0 audit failed.");
     process.exit(code);
   }
 });
 ```
 
 **Mode 2: Apply (audit + fixes + validate)**
+
 ```javascript
 // Discover → Safety → Protection → Optimization (apply fixes) → Validation
-const ps1 = spawn('pwsh', ['-Command', './Optimize.ps1 -Phase 0 -Apply']);
-ps1.on('exit', (code) => {
+const ps1 = spawn("pwsh", ["-Command", "./Optimize.ps1 -Phase 0 -Apply"]);
+ps1.on("exit", (code) => {
   if (code === 0) {
-    console.log('Phase 0 passed validation. Proceeding to phase 1.');
+    console.log("Phase 0 passed validation. Proceeding to phase 1.");
   } else {
-    console.warn('Phase 0 failed validation. Rolled back automatically.');
+    console.warn("Phase 0 failed validation. Rolled back automatically.");
     // Read phase0-validation.json to see why
   }
 });
 ```
 
 **Mode 3: Force CAUTION files (-Apply -Force)**
+
 ```javascript
 // Apply fixes to SAFE + CAUTION files (auth/config/middleware code)
-const ps1 = spawn('pwsh', ['-Command', './Optimize.ps1 -Phase 0 -Apply -Force']);
-ps1.on('exit', (code) => {
+const ps1 = spawn("pwsh", [
+  "-Command",
+  "./Optimize.ps1 -Phase 0 -Apply -Force",
+]);
+ps1.on("exit", (code) => {
   if (code === 0) {
-    console.log('Phase 0 passed (CAUTION files modified).');
+    console.log("Phase 0 passed (CAUTION files modified).");
   } else {
-    console.warn('Phase 0 failed. Rolled back automatically.');
+    console.warn("Phase 0 failed. Rolled back automatically.");
   }
 });
 ```
@@ -693,39 +743,54 @@ ps1.on('exit', (code) => {
 
 ```javascript
 // Read state to determine phase result
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-const phase0Status = state.phases['0'].status;
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+const phase0Status = state.phases["0"].status;
 
-if (phase0Status === 'PASSED') {
-  console.log('✅ Phase 0 PASSED. Safe to proceed to Phase 1.');
-  
+if (phase0Status === "PASSED") {
+  console.log("✅ Phase 0 PASSED. Safe to proceed to Phase 1.");
+
   // Read discovery to understand what was found
-  const discovery = JSON.parse(fs.readFileSync('.optimize/reports/phase0-discovery.json', 'utf8'));
-  console.log(`Routes: ${discovery.routes.length}, Components: ${discovery.components.length}`);
-  
+  const discovery = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-discovery.json", "utf8"),
+  );
+  console.log(
+    `Routes: ${discovery.routes.length}, Components: ${discovery.components.length}`,
+  );
+
   // Read classification to verify no PROTECTED files in Phase 0
-  const classified = JSON.parse(fs.readFileSync('.optimize/reports/phase0-classification.json', 'utf8'));
-  console.log(`PROTECTED files: ${classified.PROTECTED.length} (expected 0 for Phase 0)`);
-  
+  const classified = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-classification.json", "utf8"),
+  );
+  console.log(
+    `PROTECTED files: ${classified.PROTECTED.length} (expected 0 for Phase 0)`,
+  );
+
   // Read optimization to see hard-coded violations (manual fix needed)
-  const violations = JSON.parse(fs.readFileSync('.optimize/reports/phase0-optimization.json', 'utf8'));
-  violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
-  
-} else if (phase0Status === 'ROLLED_BACK') {
-  console.log('❌ Phase 0 failed and was rolled back.');
-  
+  const violations = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-optimization.json", "utf8"),
+  );
+  violations.forEach((v) => console.log(`${v.file}:${v.line} - ${v.type}`));
+} else if (phase0Status === "ROLLED_BACK") {
+  console.log("❌ Phase 0 failed and was rolled back.");
+
   // Read validation to see why it failed
-  const validation = JSON.parse(fs.readFileSync('.optimize/reports/phase0-validation.json', 'utf8'));
+  const validation = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-validation.json", "utf8"),
+  );
   Object.entries(validation).forEach(([check, result]) => {
     if (!result.passed) {
       console.error(`FAILED: ${check}`);
       console.error(result.output.slice(0, 500)); // first 500 chars
     }
   });
-  
-  console.log('Fix the issues above, then re-run: ./Optimize.ps1 -Phase 0 -Apply');
+
+  console.log(
+    "Fix the issues above, then re-run: ./Optimize.ps1 -Phase 0 -Apply",
+  );
 } else {
-  console.warn(`Phase 0 status: ${phase0Status} (expected PASSED or ROLLED_BACK)`);
+  console.warn(
+    `Phase 0 status: ${phase0Status} (expected PASSED or ROLLED_BACK)`,
+  );
 }
 ```
 
@@ -734,12 +799,12 @@ if (phase0Status === 'PASSED') {
 ```javascript
 // Determine which phase to run next
 function getNextPhase() {
-  const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-  
+  const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+
   for (let i = 0; i <= 12; i++) {
     const phaseId = i.toString();
-    const phaseStatus = state.phases[phaseId]?.status || 'PENDING';
-    if (phaseStatus !== 'PASSED') {
+    const phaseStatus = state.phases[phaseId]?.status || "PENDING";
+    if (phaseStatus !== "PASSED") {
       return phaseId; // first non-PASSED phase
     }
   }
@@ -747,7 +812,7 @@ function getNextPhase() {
 }
 
 // Or just invoke Optimize.ps1 with -Phase Next
-const ps1 = spawn('pwsh', ['-Command', './Optimize.ps1 -Phase Next']);
+const ps1 = spawn("pwsh", ["-Command", "./Optimize.ps1 -Phase Next"]);
 ```
 
 ## 10.5 Example: Full CI/CD workflow
@@ -761,29 +826,29 @@ on: workflow_dispatch
 
 jobs:
   run-phase:
-    runs-on: windows-latest  # or ubuntu-latest (PowerShell 7 cross-platform)
+    runs-on: windows-latest # or ubuntu-latest (PowerShell 7 cross-platform)
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up PowerShell 7+
         run: |
           $PSVersionTable.PSVersion
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-      
+          node-version: "18"
+
       - name: Install dependencies
         run: npm install
-      
+
       - name: Check phase status
         run: ./Optimize.ps1 -Phase Status
-      
+
       - name: Run next phase (dry-run first)
         run: ./Optimize.ps1 -Phase Next
         # Reads state.json, finds next PENDING phase, runs dry-run
-      
+
       - name: Review reports
         if: success()
         run: |
@@ -791,12 +856,12 @@ jobs:
           Get-Content .optimize/reports/phase*-discovery.json | ConvertFrom-Json
           Write-Output "Violations:"
           Get-Content .optimize/reports/phase*-optimization.json | ConvertFrom-Json
-      
+
       - name: Apply fixes (if approved)
         if: success()
         run: ./Optimize.ps1 -Phase Next -Apply
         # If dry-run passed, apply fixes, validate, auto-rollback if needed
-      
+
       - name: Check final state
         run: ./Optimize.ps1 -Phase Status
         # Print all phase statuses
@@ -807,6 +872,7 @@ jobs:
 ## FINAL SUMMARY
 
 **Optimize.ps1 (v3.0.1) is production-ready and integrates seamlessly with:**
+
 - ✅ Five-engine architecture (discovery → safety → protection → optimization → validation)
 - ✅ Automatic phase gating (previous phase must be PASSED)
 - ✅ Automatic rollback (zero manual recovery on validation failure)
@@ -820,6 +886,6 @@ jobs:
 
 ---
 
-*Document prepared: September 14, 2026*
-*Consolidated + PowerShell Optimize.ps1 Integration*
-*Ready for production execution — minimal failure points, optimized outcomes*
+_Document prepared: September 14, 2026_
+_Consolidated + PowerShell Optimize.ps1 Integration_
+_Ready for production execution — minimal failure points, optimized outcomes_

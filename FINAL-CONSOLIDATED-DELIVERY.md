@@ -23,14 +23,14 @@
 
 ```javascript
 // Read state to check previous phase status
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-if (previousPhaseStatus !== 'PASSED') {
-  console.error('GATE BLOCKED: Previous phase not PASSED');
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+if (previousPhaseStatus !== "PASSED") {
+  console.error("GATE BLOCKED: Previous phase not PASSED");
   process.exit(1);
 }
 
 // Verify git working tree is clean
-const gitStatus = execSync('git status --porcelain').toString();
+const gitStatus = execSync("git status --porcelain").toString();
 if (gitStatus.trim()) {
   // Either commit changes or add -Force to Optimize.ps1
 }
@@ -48,16 +48,24 @@ if (gitStatus.trim()) {
 
 ```javascript
 // Read discovery to understand what was found
-const discovery = JSON.parse(fs.readFileSync('.optimize/reports/phase0-discovery.json', 'utf8'));
+const discovery = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-discovery.json", "utf8"),
+);
 console.log(`Routes: ${discovery.routes.length}`);
 
 // Read classification to see file safety
-const classified = JSON.parse(fs.readFileSync('.optimize/reports/phase0-classification.json', 'utf8'));
-console.log(`PROTECTED: ${classified.PROTECTED.length}, CAUTION: ${classified.CAUTION.length}, SAFE: ${classified.SAFE.length}`);
+const classified = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-classification.json", "utf8"),
+);
+console.log(
+  `PROTECTED: ${classified.PROTECTED.length}, CAUTION: ${classified.CAUTION.length}, SAFE: ${classified.SAFE.length}`,
+);
 
 // Read optimization to find hard-coded violations
-const violations = JSON.parse(fs.readFileSync('.optimize/reports/phase0-optimization.json', 'utf8'));
-violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
+const violations = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-optimization.json", "utf8"),
+);
+violations.forEach((v) => console.log(`${v.file}:${v.line} - ${v.type}`));
 ```
 
 **4. Apply Fixes (if approved)**
@@ -74,12 +82,14 @@ violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
 
 ```javascript
 // Check final state
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-if (state.phases['0'].status === 'PASSED') {
-  console.log('✅ Phase 0 PASSED. Safe to proceed to Phase 1.');
-} else if (state.phases['0'].status === 'ROLLED_BACK') {
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+if (state.phases["0"].status === "PASSED") {
+  console.log("✅ Phase 0 PASSED. Safe to proceed to Phase 1.");
+} else if (state.phases["0"].status === "ROLLED_BACK") {
   // Read validation to see why
-  const validation = JSON.parse(fs.readFileSync('.optimize/reports/phase0-validation.json', 'utf8'));
+  const validation = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-validation.json", "utf8"),
+  );
   // Fix issues, re-run: ./Optimize.ps1 -Phase 0 -Apply
 }
 ```
@@ -120,16 +130,19 @@ git commit -m "Fix ESLint error in phase 2"
 ### File Classification & Auto-Modification
 
 **PROTECTED files (R1-R9.5 territory):**
+
 - Examples: ledger, payment, auth, RLS policies
 - Behavior: Reported, never touched (even with -Apply -Force)
 - Engineer: Must manually review + edit
 
 **CAUTION files (risky to auto-fix):**
+
 - Examples: middleware, auth UI, config, environment
 - Behavior: Reported (dry-run), or modified if -Apply -Force
 - Risk: Without -Force, no changes; with -Force, proceed with caution
 
 **SAFE files (always safe to auto-fix):**
+
 - Examples: UI components, layouts, presentation, styling
 - Behavior: Always eligible for auto-fix (whenever -Apply set)
 - Risk: Minimal (these are not business logic)
@@ -139,16 +152,19 @@ git commit -m "Fix ESLint error in phase 2"
 Optimization Engine scans for design-system violations:
 
 **Hard-coded colors detected:**
+
 ```
 #EF4444, #fff, rgb(100, 50, 200), rgba(...)
 ```
 
 **Hard-coded spacing detected:**
+
 ```
 style={{ padding: 16px }}, style={{ margin: 24px }}
 ```
 
 **Why not auto-rewritten:**
+
 - Colors have multiple formats (#hex, rgb, hsl) → semantic ambiguity
 - Spacing values can't be safely mapped to Tailwind scale without engineer input
 - Script reports violations in `phase{N}-optimization.json`
@@ -191,8 +207,8 @@ Each report is JSON (machine-readable for Claude Code / CI/CD automation).
 
 ---
 
-*See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
+_See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
 [POWERSHELL-SCRIPT-ANALYSIS.md](POWERSHELL-SCRIPT-ANALYSIS.md),
 [ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md](ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md),
 [DELIVERY-SUMMARY.md](DELIVERY-SUMMARY.md),
-[DOCUMENTATION-INDEX.md](DOCUMENTATION-INDEX.md).*
+[DOCUMENTATION-INDEX.md](DOCUMENTATION-INDEX.md)._

@@ -13,12 +13,14 @@
 ### Understanding the Five Engines
 
 **For engineers who want to understand how the script works:**
+
 1. Read **ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md** §3.1-3.10
    - Covers all five engines in detail
    - Explains state management, phase gating, classification
    - Describes automatic rollback mechanism
 
 **For developers integrating with Claude Code:**
+
 1. Read **ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md** §10 (Claude Code Integration)
    - Pre-phase setup code (JavaScript/Node.js)
    - How to invoke Optimize.ps1 as subprocess
@@ -84,11 +86,11 @@
 
 → ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md §3.4 (Protection Engine)
 
-| Level | Examples | Auto-fix Behavior |
-|---|---|---|
-| **PROTECTED** | ledger, payment, auth, RLS, migrations | Never (requires manual review) |
-| **CAUTION** | middleware, config, routes, hooks | Only with -Apply -Force |
-| **SAFE** | components/ui, layouts, styles, Flowbite | Whenever -Apply is set |
+| Level         | Examples                                 | Auto-fix Behavior              |
+| ------------- | ---------------------------------------- | ------------------------------ |
+| **PROTECTED** | ledger, payment, auth, RLS, migrations   | Never (requires manual review) |
+| **CAUTION**   | middleware, config, routes, hooks        | Only with -Apply -Force        |
+| **SAFE**      | components/ui, layouts, styles, Flowbite | Whenever -Apply is set         |
 
 ### Automatic Rollback
 
@@ -97,6 +99,7 @@
 → FINAL-CONSOLIDATED-DELIVERY.md "Failure Scenario (Automatic Recovery)"
 
 If Validation Engine detects failure:
+
 1. `git reset --hard <checkpoint-tag>` (instant rollback)
 2. Phase status set to ROLLED_BACK
 3. Validation report written to `phase{N}-validation.json`
@@ -114,6 +117,7 @@ If Validation Engine detects failure:
 - Hard-coded spacing: `style={{ padding: 16px }}`
 
 **Why these are flagged:**
+
 - Violates R16–R18 (design system single source of truth)
 - Require manual token migration (script reports, engineer maps)
 
@@ -124,6 +128,7 @@ If Validation Engine detects failure:
 → ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md §3.7 (State Management & Phase Gating)
 
 Optimize.ps1 enforces this mechanically:
+
 - Phase N cannot run unless Phase N-1 status = PASSED
 - Read `.optimize/state.json` to check phase status
 - Use `./Optimize.ps1 -Phase Status` to view all phases
@@ -142,8 +147,8 @@ All three layers created automatically before any changes made.
 
 ---
 
-*See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
+_See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
 [POWERSHELL-SCRIPT-ANALYSIS.md](POWERSHELL-SCRIPT-ANALYSIS.md),
 [ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md](ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md),
 [DELIVERY-SUMMARY.md](DELIVERY-SUMMARY.md),
-[FINAL-CONSOLIDATED-DELIVERY.md](FINAL-CONSOLIDATED-DELIVERY.md).*
+[FINAL-CONSOLIDATED-DELIVERY.md](FINAL-CONSOLIDATED-DELIVERY.md)._

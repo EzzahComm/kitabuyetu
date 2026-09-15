@@ -24,12 +24,14 @@ Validation Engine     → TypeScript, ESLint, unit tests, production build
 ```
 
 **New context for documentation:**
+
 - NOT sequential OR operations → each phase runs ALL five engines
 - Discovery outputs file inventory → passed to Protection → passed to Optimization
 - Safety creates checkpoint BEFORE any changes → Validation determines rollback
 - Automatic rollback if Validation fails (no manual recovery needed)
 
 **Impact on ULTIMATE-CONSOLIDATED-PROMPT.md:**
+
 - Add §7.1: "Engine Orchestration" explaining five-engine flow
 - Add diagram showing all five engines running per phase
 - Clarify that "dry-run mode" uses all five engines but Optimization only reports
@@ -39,6 +41,7 @@ Validation Engine     → TypeScript, ESLint, unit tests, production build
 **State file location:** `.optimize/state.json`
 
 **State structure:**
+
 ```json
 {
   "engineVersion": "3.0.1",
@@ -52,6 +55,7 @@ Validation Engine     → TypeScript, ESLint, unit tests, production build
 ```
 
 **Phase statuses:**
+
 - `PENDING` — has not been run
 - `RUNNING` — currently executing
 - `PASSED` — completed validation, safe to proceed to next phase
@@ -59,14 +63,16 @@ Validation Engine     → TypeScript, ESLint, unit tests, production build
 - `ROLLED_BACK` — rolled back after failure
 
 **Core rule enforced mechanically:**
+
 ```
-Assert-PreviousPhasePassed: 
+Assert-PreviousPhasePassed:
   IF current phase is NOT "0"
-    THEN previous phase must be "PASSED" 
+    THEN previous phase must be "PASSED"
     ELSE throw "GATE BLOCKED"
 ```
 
 **Impact on documentation:**
+
 - Add §2 to ULTIMATE: "State Management & Phase Gating"
 - Clarify that Optimize.ps1 is the single source of truth for phase status
 - Add Claude Code integration: how to read state.json before invoking Optimize.ps1
@@ -88,10 +94,11 @@ Assert-PreviousPhasePassed:
 
 3. **Manifest + route snapshots**
    - Location: `.optimize/backups/phase{N}-manifests/`
-   - Files: package.json, tsconfig.json, tailwind.config.*, next.config.*, .env.example, routes-snapshot.txt
+   - Files: package.json, tsconfig.json, tailwind.config._, next.config._, .env.example, routes-snapshot.txt
    - Purpose: fast diffing in validation phase (can compare before/after without inspecting entire backup)
 
 **Rollback mechanism:**
+
 ```
 IF Validation FAILS
   THEN Invoke-Rollback:
@@ -102,10 +109,12 @@ IF Validation FAILS
 ```
 
 **New in spec:**
+
 - Added belt-and-suspenders: each backup is verified by comparing manifest snapshots
 - Explicit rollback means data loss prevention is enforced, not optional
 
 **Impact on documentation:**
+
 - Add §5.1: "Backup Strategy" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Add diagram: how checkpoint works (before/after)
 - Clarify: "This script cannot corrupt your code; if validation fails, it rewinds automatically"
@@ -134,6 +143,7 @@ SAFE (safe to auto-modify):
 ```
 
 **Matching logic:**
+
 1. All paths are normalized to forward-slashes (cross-platform)
 2. All paths stored as repo-relative (leading '/')
 3. Patterns use PowerShell `-like` operator (supports wildcards)
@@ -141,12 +151,14 @@ SAFE (safe to auto-modify):
 5. Default: unknown files are CAUTION (conservative posture)
 
 **Key innovation:**
+
 - Bug fix #1: Every recursive scan excludes excluded dirs (node_modules, .git, etc.)
 - Bug fix #2: Every path is normalized to `/path/to/file` (forward slash) before classification
   - Ensures -like patterns work the same on Windows and non-Windows PowerShell
   - Stores relative paths consistently in reports
 
 **Impact on documentation:**
+
 - Add §4: "File Classification" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Add table: PROTECTED/CAUTION/SAFE patterns with examples
 - Add: "This classification prevents auto-modification of money/auth code"
@@ -167,6 +179,7 @@ $HardCodedSpacingRegex = '\bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px'
 ```
 
 **Detection flow:**
+
 1. Scan all .tsx/.ts/.js/.jsx/.css files in SAFE + (CAUTION if -Force) targets
 2. For each line: test regex patterns
 3. Log violations (file, line number, matched text, type)
@@ -174,11 +187,13 @@ $HardCodedSpacingRegex = '\bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px'
 5. Manual token migration required (NOT auto-rewritten, semantic risk)
 
 **Why not auto-rewrite hard-coded values:**
+
 - Colors: multiple representation formats (#hex vs rgb vs hsl) → semantic ambiguity
 - Spacing: can't safely map px values to Tailwind scale without domain knowledge
 - Script reports violations; engineer maps to @kitabu/ui tokens
 
 **Impact on documentation:**
+
 - Add §6.2: "Hard-Coded Value Detection" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Clarify: "Script reports design-token violations; you fix them"
 - Add: "Use phase{N}-optimization.json to find violations"
@@ -187,6 +202,7 @@ $HardCodedSpacingRegex = '\bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px'
 ### 6. **Cross-Platform Path Normalization** (Bug fixes #1 & #2)
 
 **Problem solved:**
+
 - Windows PowerShell gives backslash paths: `C:\repo\app\components\Button.tsx`
 - Non-Windows PowerShell gives forward-slash paths: `/home/user/repo/app/components/Button.tsx`
 - Patterns written with wildcards need consistent separator
@@ -197,7 +213,7 @@ $HardCodedSpacingRegex = '\bstyle=\{\{[^}]*(margin|padding)[^}]*:\s*[0-9]+px'
 function ConvertTo-NormalizedRelativePath {
   # Input: full path (any separator)
   # Output: "/app/components/Button.tsx" (always forward-slash, leading /)
-  
+
   # Strips repo prefix
   # Converts all backslashes to forward slashes
   # Ensures leading /
@@ -212,11 +228,13 @@ function Test-ExcludedPath {
 ```
 
 **Every recursive scan now:**
+
 1. Excludes node_modules, .git, .next, dist, build, .optimize, .turbo, coverage
 2. Normalizes output to `/path/to/file` before storing/classifying
 3. Patterns in PROTECTED/CAUTION/SAFE lists use forward-slash-only notation
 
 **Impact on documentation:**
+
 - Add §3: "Excluded Directories" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - List all 8 excluded dirs + explain why each is excluded
 - Add: "Build artifacts never appear in reports/backups/classification"
@@ -237,6 +255,7 @@ coverage        — test coverage reports (auto-generated)
 ```
 
 **Implementation:**
+
 - `$Script:ExcludedDirNames` array in script
 - `Test-ExcludedPath` function checks if any path segment is in that array
 - Called BEFORE every recursive Get-ChildItem scan
@@ -244,6 +263,7 @@ coverage        — test coverage reports (auto-generated)
 - Called BEFORE every classification
 
 **Impact on documentation:**
+
 - Add to ULTIMATE: "These directories are systematically excluded from all engines"
 - Clarify: "Backup size is 10-50MB (source only), not 500MB+ (with node_modules)"
 
@@ -252,6 +272,7 @@ coverage        — test coverage reports (auto-generated)
 **Two modes of operation:**
 
 **Mode 1: Dry-Run (default, no -Apply)**
+
 ```
 ALL FIVE ENGINES RUN:
   Discovery     ✓ Inventory created
@@ -264,6 +285,7 @@ Result: Full audit + report + checkpoint, zero code changes
 ```
 
 **Mode 2: Apply Mode (-Apply)**
+
 ```
 ALL FIVE ENGINES RUN:
   Discovery     ✓ Inventory created
@@ -278,12 +300,14 @@ If Validation FAILS:   Automatic rollback to checkpoint, phase marked ROLLED_BAC
 ```
 
 **-Force flag behavior:**
+
 - Default: only SAFE files are auto-modified
 - With -Force: CAUTION files also eligible for auto-modification
 - PROTECTED files: NEVER auto-modified, even with -Force
   - Exception: requires manual review + git checkout/edit/commit by engineer
 
 **Impact on documentation:**
+
 - Add §2.1: "Dry-Run vs Apply Mode" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Add table showing what happens in each mode
 - Add: "Dry-run is safe: creates checkpoint but makes no changes"
@@ -302,11 +326,13 @@ If Validation FAILS:   Automatic rollback to checkpoint, phase marked ROLLED_BAC
 ```
 
 **If ALL pass:**
+
 - Phase marked PASSED in state.json
 - Phase can transition to next phase
 - Report written with "PASSED" status
 
 **If ANY fail:**
+
 - Phase marked FAILED in state.json
 - AUTOMATIC ROLLBACK triggered:
   1. `git reset --hard <checkpoint-tag>`
@@ -316,6 +342,7 @@ If Validation FAILS:   Automatic rollback to checkpoint, phase marked ROLLED_BAC
 - Engineer reads failure report, fixes issues, re-runs phase
 
 **Impact on documentation:**
+
 - Add §7.2: "Validation Gate & Rollback" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Add flowchart: Optimization → Validation → (PASS → next) or (FAIL → rollback)
 - Add: "Script never leaves phase in broken state"
@@ -332,25 +359,35 @@ phase{N}-validation.json      → TypeScript/ESLint/test/build results
 ```
 
 **Usage by Claude Code:**
+
 ```javascript
 // Read state to determine what phase to run
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-const phaseStatus = state.phases['0'].status;
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+const phaseStatus = state.phases["0"].status;
 
 // Read discovery to understand what was found
-const discovery = JSON.parse(fs.readFileSync('.optimize/reports/phase0-discovery.json', 'utf8'));
-console.log(`Routes: ${discovery.routes.length}, Components: ${discovery.components.length}`);
+const discovery = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-discovery.json", "utf8"),
+);
+console.log(
+  `Routes: ${discovery.routes.length}, Components: ${discovery.components.length}`,
+);
 
 // Read classification to see file safety
-const classified = JSON.parse(fs.readFileSync('.optimize/reports/phase0-classification.json', 'utf8'));
+const classified = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-classification.json", "utf8"),
+);
 console.log(`PROTECTED files: ${classified.PROTECTED.length}`);
 
 // Read optimization to see violations
-const violations = JSON.parse(fs.readFileSync('.optimize/reports/phase0-optimization.json', 'utf8'));
-violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
+const violations = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-optimization.json", "utf8"),
+);
+violations.forEach((v) => console.log(`${v.file}:${v.line} - ${v.type}`));
 ```
 
 **Impact on documentation:**
+
 - Add §8: "Reports & Claude Code Integration" in ULTIMATE-CONSOLIDATED-PROMPT.md
 - Add JSON schema for each report type
 - Add Claude Code example: reading reports
@@ -449,7 +486,7 @@ violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
 
 **Add new section: "PowerShell Script Integration"**
 
-```
+````
 # PowerShell Script Integration
 
 The Optimize.ps1 script (v3.0.1) implements five engines:
@@ -487,13 +524,15 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
 
 # Run next pending phase
 ./Optimize.ps1 -Phase Next
-```
+````
 
 **Claude Code integration:**
+
 - Read state.json to determine phase status
-- Read phase{N}-reports/*.json to understand violations
+- Read phase{N}-reports/\*.json to understand violations
 - Invoke Optimize.ps1 as subprocess
 - Parse returned exit code + reports
+
 ```
 
 ### **3. FINAL-CONSOLIDATED-DELIVERY.md** (Execution guide)
@@ -501,6 +540,7 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
 **Add new section: "Optimize.ps1 Orchestration"**
 
 ```
+
 # Optimize.ps1 Orchestration (PowerShell v7+)
 
 **Script location:** `$RepoPath/Optimize.ps1`
@@ -515,9 +555,11 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
    - Commit any uncommitted changes (or use -Force)
 
 2. **Run phase** (Optimize.ps1):
+
    ```powershell
    ./Optimize.ps1 -Phase 0 -Apply
    ```
+
    - Safety: checkpoint created
    - Discovery: inventory generated
    - Protection: files classified
@@ -532,6 +574,7 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
    - If ROLLED_BACK: read phase{N}-validation.json, fix issues, re-run
 
 **Failure scenario (automatic recovery):**
+
 ```
 1. Engineer runs: ./Optimize.ps1 -Phase 2 -Apply
 2. Optimization engine applies fixes
@@ -542,6 +585,7 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
 ```
 
 **No manual recovery needed — script is fail-safe.**
+
 ```
 
 ### **4. DOCUMENTATION-INDEX.md** (File navigation)
@@ -549,9 +593,11 @@ The Optimize.ps1 script (v3.0.1) implements five engines:
 **Add new entries:**
 
 ```
+
 ## Optimize.ps1 Specification
 
 If you want to understand:
+
 - How the five engines work → ULTIMATE-CONSOLIDATED-PROMPT.md §2.1-2.10
 - File classification (SAFE/CAUTION/PROTECTED) → ULTIMATE-CONSOLIDATED-PROMPT.md §2.4
 - Backup + rollback → ULTIMATE-CONSOLIDATED-PROMPT.md §2.3
@@ -559,10 +605,12 @@ If you want to understand:
 - Reports + JSON schemas → ULTIMATE-CONSOLIDATED-PROMPT.md §2.10
 
 If you want to:
+
 - Run Optimize.ps1 → FINAL-CONSOLIDATED-DELIVERY.md "Optimize.ps1 Orchestration"
 - Read state.json → DELIVERY-SUMMARY.md "PowerShell Script Integration"
 - Interpret phase{N}-reports → ULTIMATE-CONSOLIDATED-PROMPT.md §2.10
 - Recover from a rolled-back phase → FINAL-CONSOLIDATED-DELIVERY.md failure scenario
+
 ```
 
 ---
@@ -645,3 +693,4 @@ If you want to:
 **Status:** ✅ Analysis complete. Ready for documentation updates.
 
 **Recommendation:** Proceed with updating all four files per checklist above.
+```

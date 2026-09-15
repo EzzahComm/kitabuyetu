@@ -3,6 +3,7 @@
 ## 📋 How to use this document
 
 This document contains **copy-paste sections** to integrate into three existing files:
+
 1. DELIVERY-SUMMARY.md
 2. FINAL-CONSOLIDATED-DELIVERY.md
 3. DOCUMENTATION-INDEX.md
@@ -22,23 +23,19 @@ Each section is marked with the **target file name** and **insertion point**.
 
 ## PowerShell Script Integration (Optimize.ps1 v3.0.1)
 
-The Kitabu Yetu optimization process is orchestrated by **Optimize.ps1** — an autonomous 
+The Kitabu Yetu optimization process is orchestrated by **Optimize.ps1** — an autonomous
 five-engine PowerShell script that ensures zero-downtime phase progression.
 
 ### Five Engines
 
 1. **Discovery Engine** — Inventories routes, components, services, migrations
    - Output: `phase{N}-discovery.json`
-   
 2. **Safety Engine** — Creates git checkpoint + filesystem backup + manifest snapshots
    - Output: checkpoint tag, backup zip, manifest snapshots
-   
 3. **Protection Engine** — Classifies files as SAFE/CAUTION/PROTECTED
    - Output: `phase{N}-classification.json`
-   
 4. **Optimization Engine** — Finds hard-coded colors/spacing, applies safe fixes
    - Output: `phase{N}-optimization.json`
-   
 5. **Validation Engine** — TypeScript, ESLint, tests, production build
    - Output: `phase{N}-validation.json`
 
@@ -51,20 +48,24 @@ Each phase has a status: `PENDING` | `RUNNING` | `PASSED` | `FAILED` | `ROLLED_B
 **Core rule:** Phase N cannot start unless phase N-1 is PASSED. (Optimize.ps1 enforces this mechanically.)
 
 ### File Classification
+```
 
-```
 PROTECTED (R1-R9.5 territory):
-  - *ledger*, *payment*, *daraja*, *auth*, *rls*, *policies.sql*
-  - NEVER auto-modified, even with -Apply -Force
-  
+
+- _ledger_, _payment_, _daraja_, _auth_, _rls_, _policies.sql_
+- NEVER auto-modified, even with -Apply -Force
+
 CAUTION (risky to auto-fix):
-  - *hooks*, *middleware*, *route.ts*, *config*, *env*
-  - Auto-modified only if -Apply -Force both set
-  
+
+- _hooks_, _middleware_, _route.ts_, _config_, _env_
+- Auto-modified only if -Apply -Force both set
+
 SAFE (always safe to auto-fix):
-  - */components/ui/*, *presentation*, *styles*, *flowbite*, *shadcn*
-  - Auto-modified whenever -Apply is set
-```
+
+- _/components/ui/_, _presentation_, _styles_, _flowbite_, _shadcn_
+- Auto-modified whenever -Apply is set
+
+````
 
 ### Invocation
 
@@ -83,11 +84,12 @@ SAFE (always safe to auto-fix):
 
 # Run next pending phase
 ./Optimize.ps1 -Phase Next
-```
+````
 
 ### Automatic Rollback
 
 If validation fails, Optimize.ps1 automatically:
+
 1. Rolls back to checkpoint: `git reset --hard <tag>`
 2. Marks phase as ROLLED_BACK
 3. Writes failure report to `phase{N}-validation.json`
@@ -96,7 +98,8 @@ If validation fails, Optimize.ps1 automatically:
 Zero manual recovery needed — code is restored to pre-phase state instantly.
 
 ---
-```
+
+````
 
 ---
 
@@ -133,7 +136,7 @@ const gitStatus = execSync('git status --porcelain').toString();
 if (gitStatus.trim()) {
   // Either commit changes or add -Force to Optimize.ps1
 }
-```
+````
 
 **2. Dry-Run (Optimize.ps1)**
 
@@ -147,16 +150,24 @@ if (gitStatus.trim()) {
 
 ```javascript
 // Read discovery to understand what was found
-const discovery = JSON.parse(fs.readFileSync('.optimize/reports/phase0-discovery.json', 'utf8'));
+const discovery = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-discovery.json", "utf8"),
+);
 console.log(`Routes: ${discovery.routes.length}`);
 
 // Read classification to see file safety
-const classified = JSON.parse(fs.readFileSync('.optimize/reports/phase0-classification.json', 'utf8'));
-console.log(`PROTECTED: ${classified.PROTECTED.length}, CAUTION: ${classified.CAUTION.length}, SAFE: ${classified.SAFE.length}`);
+const classified = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-classification.json", "utf8"),
+);
+console.log(
+  `PROTECTED: ${classified.PROTECTED.length}, CAUTION: ${classified.CAUTION.length}, SAFE: ${classified.SAFE.length}`,
+);
 
 // Read optimization to find hard-coded violations
-const violations = JSON.parse(fs.readFileSync('.optimize/reports/phase0-optimization.json', 'utf8'));
-violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
+const violations = JSON.parse(
+  fs.readFileSync(".optimize/reports/phase0-optimization.json", "utf8"),
+);
+violations.forEach((v) => console.log(`${v.file}:${v.line} - ${v.type}`));
 ```
 
 **4. Apply Fixes (if approved)**
@@ -173,12 +184,14 @@ violations.forEach(v => console.log(`${v.file}:${v.line} - ${v.type}`));
 
 ```javascript
 // Check final state
-const state = JSON.parse(fs.readFileSync('.optimize/state.json', 'utf8'));
-if (state.phases['0'].status === 'PASSED') {
-  console.log('✅ Phase 0 PASSED. Safe to proceed to Phase 1.');
-} else if (state.phases['0'].status === 'ROLLED_BACK') {
+const state = JSON.parse(fs.readFileSync(".optimize/state.json", "utf8"));
+if (state.phases["0"].status === "PASSED") {
+  console.log("✅ Phase 0 PASSED. Safe to proceed to Phase 1.");
+} else if (state.phases["0"].status === "ROLLED_BACK") {
   // Read validation to see why
-  const validation = JSON.parse(fs.readFileSync('.optimize/reports/phase0-validation.json', 'utf8'));
+  const validation = JSON.parse(
+    fs.readFileSync(".optimize/reports/phase0-validation.json", "utf8"),
+  );
   // Fix issues, re-run: ./Optimize.ps1 -Phase 0 -Apply
 }
 ```
@@ -219,16 +232,19 @@ git commit -m "Fix ESLint error in phase 2"
 ### File Classification & Auto-Modification
 
 **PROTECTED files (R1-R9.5 territory):**
+
 - Examples: ledger, payment, auth, RLS policies
 - Behavior: Reported, never touched (even with -Apply -Force)
 - Engineer: Must manually review + edit
 
 **CAUTION files (risky to auto-fix):**
+
 - Examples: middleware, auth UI, config, environment
 - Behavior: Reported (dry-run), or modified if -Apply -Force
 - Risk: Without -Force, no changes; with -Force, proceed with caution
 
 **SAFE files (always safe to auto-fix):**
+
 - Examples: UI components, layouts, presentation, styling
 - Behavior: Always eligible for auto-fix (whenever -Apply set)
 - Risk: Minimal (these are not business logic)
@@ -238,16 +254,19 @@ git commit -m "Fix ESLint error in phase 2"
 Optimization Engine scans for design-system violations:
 
 **Hard-coded colors detected:**
+
 ```
 #EF4444, #fff, rgb(100, 50, 200), rgba(...)
 ```
 
 **Hard-coded spacing detected:**
+
 ```
 style={{ padding: 16px }}, style={{ margin: 24px }}
 ```
 
 **Why not auto-rewritten:**
+
 - Colors have multiple formats (#hex, rgb, hsl) → semantic ambiguity
 - Spacing values can't be safely mapped to Tailwind scale without engineer input
 - Script reports violations in `phase{N}-optimization.json`
@@ -289,7 +308,8 @@ style={{ padding: 16px }}, style={{ margin: 24px }}
 Each report is JSON (machine-readable for Claude Code / CI/CD automation).
 
 ---
-```
+
+````
 
 ---
 
@@ -339,7 +359,7 @@ Each report is JSON (machine-readable for Claude Code / CI/CD automation).
 
 # Run next pending phase
 ./Optimize.ps1 -Phase Next
-```
+````
 
 **For detailed invocation guidance:**
 → FINAL-CONSOLIDATED-DELIVERY.md "Optimize.ps1 Orchestration"
@@ -379,11 +399,11 @@ Each report is JSON (machine-readable for Claude Code / CI/CD automation).
 
 → ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md §3.4 (Protection Engine)
 
-| Level | Examples | Auto-fix Behavior |
-|---|---|---|
-| **PROTECTED** | ledger, payment, auth, RLS, migrations | Never (requires manual review) |
-| **CAUTION** | middleware, config, routes, hooks | Only with -Apply -Force |
-| **SAFE** | components/ui, layouts, styles, Flowbite | Whenever -Apply is set |
+| Level         | Examples                                 | Auto-fix Behavior              |
+| ------------- | ---------------------------------------- | ------------------------------ |
+| **PROTECTED** | ledger, payment, auth, RLS, migrations   | Never (requires manual review) |
+| **CAUTION**   | middleware, config, routes, hooks        | Only with -Apply -Force        |
+| **SAFE**      | components/ui, layouts, styles, Flowbite | Whenever -Apply is set         |
 
 ### Automatic Rollback
 
@@ -392,6 +412,7 @@ Each report is JSON (machine-readable for Claude Code / CI/CD automation).
 → FINAL-CONSOLIDATED-DELIVERY.md "Failure Scenario (Automatic Recovery)"
 
 If Validation Engine detects failure:
+
 1. `git reset --hard <checkpoint-tag>` (instant rollback)
 2. Phase status set to ROLLED_BACK
 3. Validation report written to `phase{N}-validation.json`
@@ -409,6 +430,7 @@ If Validation Engine detects failure:
 - Hard-coded spacing: `style={{ padding: 16px }}`
 
 **Why these are flagged:**
+
 - Violates R16–R18 (design system single source of truth)
 - Require manual token migration (script reports, engineer maps)
 
@@ -419,6 +441,7 @@ If Validation Engine detects failure:
 → ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md §3.7 (State Management & Phase Gating)
 
 Optimize.ps1 enforces this mechanically:
+
 - Phase N cannot run unless Phase N-1 status = PASSED
 - Read `.optimize/state.json` to check phase status
 - Use `./Optimize.ps1 -Phase Status` to view all phases
@@ -436,6 +459,7 @@ Optimize.ps1 enforces this mechanically:
 All three layers created automatically before any changes made.
 
 ---
+
 ```
 
 ---
@@ -476,3 +500,4 @@ All three layers created automatically before any changes made.
 ---
 
 **Status:** ✅ Integration patches ready. Can be applied immediately.
+```

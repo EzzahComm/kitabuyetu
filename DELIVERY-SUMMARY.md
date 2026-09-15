@@ -75,6 +75,7 @@ SAFE (always safe to auto-fix):
 ### Automatic Rollback
 
 If validation fails, Optimize.ps1 automatically:
+
 1. Rolls back to checkpoint: `git reset --hard <tag>`
 2. Marks phase as ROLLED_BACK
 3. Writes failure report to `phase{N}-validation.json`
@@ -84,8 +85,8 @@ Zero manual recovery needed — code is restored to pre-phase state instantly.
 
 ---
 
-*See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
+_See also: [POWERSHELL-SCAN-COMPLETE.md](POWERSHELL-SCAN-COMPLETE.md),
 [POWERSHELL-SCRIPT-ANALYSIS.md](POWERSHELL-SCRIPT-ANALYSIS.md),
 [ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md](ULTIMATE-CONSOLIDATED-PROMPT-WITH-POWERSHELL.md),
 [FINAL-CONSOLIDATED-DELIVERY.md](FINAL-CONSOLIDATED-DELIVERY.md),
-[DOCUMENTATION-INDEX.md](DOCUMENTATION-INDEX.md).*
+[DOCUMENTATION-INDEX.md](DOCUMENTATION-INDEX.md)._
