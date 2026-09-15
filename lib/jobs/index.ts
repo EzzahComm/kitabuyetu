@@ -16,6 +16,7 @@ export type {
 
 import { insertJob } from "./db";
 import type { JobType } from "./types";
+import { withAdminDb } from "@/lib/db";
 
 /**
  * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
@@ -241,7 +242,12 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 06:00 EAT — recurring invoices ──────────────────────
-  if (hour === 6) {
+  // Gated on a due schedule actually existing — invoicing has never
+  // produced an invoice in this deployment (docs/audits/optimization-2026-09
+  // dead-weight finding #12), so this job has been running to completion
+  // against zero rows every day. The WHERE clause mirrors
+  // processRecurringInvoices' own query exactly.
+  if (hour === 6 && (await hasDueInvoiceSchedule())) {
     queued.email_recurring_invoices = await safe(
       "email_recurring_invoices",
       {},
@@ -284,7 +290,9 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
-  if (hour === 9) {
+  // Gated the same way as the recurring-invoice job above — mirrors
+  // sendOverdueInvoiceReminders' own WHERE clause exactly.
+  if (hour === 9 && (await hasOverdueInvoice())) {
     queued.email_overdue_invoices = await safe(
       "email_overdue_invoices",
       {},
@@ -489,22 +497,6 @@ export async function enqueueTimeBasedJobs(): Promise<
     );
   }
 
-  // ── 1st of month 09:00 EAT — journal_lines partition maintenance ──
-  // Ensures monthly partitions exist 3 months ahead (ACCOUNTING_ARCHITECTURE_
-  // AUDIT.md §17/§19, migrations 094/095). A distinct hour from the 08:00
-  // and 10:00 buckets so nothing competes within the same tick.
-  if (date === 1 && hour === 9) {
-    const monthStr = dateStr.slice(0, 7); // YYYY-MM
-    queued.journal_lines_partition_maintenance = await safe(
-      "journal_lines_partition_maintenance",
-      {},
-      {
-        priority: 4,
-        dedup_key: `journal_lines_partition_maintenance:${monthStr}`,
-      },
-    );
-  }
-
   // ── 1st of month 10:00 EAT — per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
@@ -546,6 +538,41 @@ async function safe(
   opts?: Parameters<typeof insertJob>[2],
 ): Promise<string | null> {
   return insertJob(type, payload, opts).catch(() => null);
+}
+
+/**
+ * Existence checks for the two invoicing jobs — invoicing has never
+ * produced a row in this deployment, so these jobs used to enqueue
+ * unconditionally and run to completion against nothing every day
+ * (docs/audits/optimization-2026-09 dead-weight finding #12). Fail open
+ * (enqueue) on a DB error so a transient failure here never silently
+ * disables real invoice reminders once invoicing does go live.
+ */
+async function hasOverdueInvoice(): Promise<boolean> {
+  return withAdminDb(async (db) => {
+    const { rows } = await db.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM invoices
+         WHERE status = 'pending'
+           AND paid_amount < total_amount
+           AND due_date < CURRENT_DATE
+           AND (overdue_notice_level < 3 OR overdue_notice_level IS NULL)
+       ) AS due`,
+    );
+    return rows[0]?.due === true;
+  }).catch(() => true);
+}
+
+async function hasDueInvoiceSchedule(): Promise<boolean> {
+  return withAdminDb(async (db) => {
+    const { rows } = await db.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM invoice_schedules
+         WHERE is_active = true AND next_run_at <= NOW()
+       ) AS due`,
+    );
+    return rows[0]?.due === true;
+  }).catch(() => true);
 }
 
 // ── Date helpers ──────────────────────────────────────────────

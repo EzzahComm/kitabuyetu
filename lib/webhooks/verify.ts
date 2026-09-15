@@ -6,7 +6,7 @@
  * bytes, not whitespace-normalised JSON) and return a boolean.
  *
  * Implementations are dependency-free (Node `crypto` only) so they run in
- * the App Router runtime without bundling svix / sendgrid SDKs.
+ * the App Router runtime without bundling svix.
  */
 import crypto from 'crypto';
 
@@ -94,59 +94,4 @@ export function verifySvixSignature(
     }
   }
   return { ok: false, reason: 'no matching v1 signature' };
-}
-
-// =============================================================================
-// SendGrid Event Webhook — ECDSA over SHA-256 (P-256 / secp256r1)
-// =============================================================================
-//
-// Headers SendGrid sends:
-//   X-Twilio-Email-Event-Webhook-Signature   — base64 DER-encoded ECDSA sig
-//   X-Twilio-Email-Event-Webhook-Timestamp   — unix seconds
-//
-// Signed payload = `${timestamp}${raw-body}`  (concatenated, no separator)
-// Public key     = ECDSA P-256, provided by SendGrid in the dashboard.
-//                  Accepts either the bare base64 the dashboard shows OR
-//                  a full PEM block (-----BEGIN PUBLIC KEY----- ...).
-
-export interface SendGridVerifyResult {
-  ok:     boolean;
-  reason?: string;
-}
-
-export function verifySendGridSignature(
-  rawBody: string,
-  headers: {
-    signature?: string | null;
-    timestamp?: string | null;
-  },
-  publicKey: string,
-): SendGridVerifyResult {
-  const { signature, timestamp } = headers;
-  if (!signature || !timestamp) {
-    return { ok: false, reason: 'missing X-Twilio-Email-Event-Webhook-* headers' };
-  }
-
-  // Normalise the public key. The dashboard hands you a base64 blob; PEM
-  // wrap it if it doesn't already have the BEGIN/END markers.
-  const pemKey = publicKey.includes('BEGIN PUBLIC KEY')
-    ? publicKey
-    : `-----BEGIN PUBLIC KEY-----\n${publicKey.trim()}\n-----END PUBLIC KEY-----`;
-
-  let sigBuf: Buffer;
-  try {
-    sigBuf = Buffer.from(signature, 'base64');
-  } catch {
-    return { ok: false, reason: 'signature is not valid base64' };
-  }
-
-  try {
-    const verifier = crypto.createVerify('SHA256');
-    verifier.update(timestamp + rawBody, 'utf8');
-    verifier.end();
-    const ok = verifier.verify(pemKey, sigBuf);
-    return ok ? { ok: true } : { ok: false, reason: 'signature mismatch' };
-  } catch (err) {
-    return { ok: false, reason: `verify error: ${(err as Error).message}` };
-  }
 }
