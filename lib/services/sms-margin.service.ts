@@ -1,4 +1,5 @@
 import { withAdminDb } from '@/lib/db';
+import type { PoolClient } from 'pg';
 import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
@@ -76,38 +77,50 @@ const COST_AT_SALE = `
   ) cost ON TRUE
 `;
 
+/**
+ * Query logic factored out of getMarginSummary so GET /api/admin/sms-margin
+ * can share ONE withAdminDb connection across all four reads below instead
+ * of each opening its own — that route's Promise.all of 4 independent
+ * withAdminDb calls self-queued against DB_POOL_MAX=3, confirmed live: a 4th
+ * concurrent admin request blocked ~2.5s waiting for a connection
+ * (docs/audits/optimization-2026-09). getMarginSummary itself is
+ * unchanged — still self-contained for its own callers (tests, any future
+ * standalone use).
+ */
+async function queryMarginSummary(db: PoolClient, from?: string, to?: string): Promise<MarginSummary> {
+  const { rows } = await db.query<{
+    credits_sold: string; revenue: string; provider_cost: string; without_cost: string;
+  }>(
+    `SELECT
+       COALESCE(SUM(sc.credits_added), 0)                        AS credits_sold,
+       COALESCE(SUM(sc.amount_paid), 0)                          AS revenue,
+       COALESCE(SUM(sc.credits_added * cost.unit_cost), 0)       AS provider_cost,
+       COALESCE(SUM(sc.credits_added) FILTER (WHERE cost.unit_cost IS NULL), 0) AS without_cost
+     FROM sms_credits sc
+     ${COST_AT_SALE}
+     WHERE ($1::date IS NULL OR sc.created_at::date >= $1::date)
+       AND ($2::date IS NULL OR sc.created_at::date <= $2::date)`,
+    [from ?? null, to ?? null],
+  );
+
+  const revenue      = Number(rows[0].revenue);
+  const providerCost = Number(rows[0].provider_cost);
+  const grossMargin  = revenue - providerCost;
+
+  return {
+    creditsSold:        Number(rows[0].credits_sold),
+    revenue,
+    providerCost,
+    grossMargin,
+    // Null rather than 0 on no revenue: a percentage of nothing is undefined,
+    // and rendering 0% would read as "we lost everything".
+    marginPct:          revenue > 0 ? (grossMargin / revenue) * 100 : null,
+    creditsWithoutCost: Number(rows[0].without_cost),
+  };
+}
+
 export async function getMarginSummary(from?: string, to?: string): Promise<MarginSummary> {
-  return withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      credits_sold: string; revenue: string; provider_cost: string; without_cost: string;
-    }>(
-      `SELECT
-         COALESCE(SUM(sc.credits_added), 0)                        AS credits_sold,
-         COALESCE(SUM(sc.amount_paid), 0)                          AS revenue,
-         COALESCE(SUM(sc.credits_added * cost.unit_cost), 0)       AS provider_cost,
-         COALESCE(SUM(sc.credits_added) FILTER (WHERE cost.unit_cost IS NULL), 0) AS without_cost
-       FROM sms_credits sc
-       ${COST_AT_SALE}
-       WHERE ($1::date IS NULL OR sc.created_at::date >= $1::date)
-         AND ($2::date IS NULL OR sc.created_at::date <= $2::date)`,
-      [from ?? null, to ?? null],
-    );
-
-    const revenue      = Number(rows[0].revenue);
-    const providerCost = Number(rows[0].provider_cost);
-    const grossMargin  = revenue - providerCost;
-
-    return {
-      creditsSold:        Number(rows[0].credits_sold),
-      revenue,
-      providerCost,
-      grossMargin,
-      // Null rather than 0 on no revenue: a percentage of nothing is undefined,
-      // and rendering 0% would read as "we lost everything".
-      marginPct:          revenue > 0 ? (grossMargin / revenue) * 100 : null,
-      creditsWithoutCost: Number(rows[0].without_cost),
-    };
-  });
+  return withAdminDb((db) => queryMarginSummary(db, from, to));
 }
 
 /*
@@ -151,36 +164,38 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
  * real scale (5 production groups); raised well above the old default of 20
  * so this doesn't quietly start truncating again as the platform grows.
  */
+async function queryTopCustomers(db: PoolClient, limit = 500): Promise<CustomerUsage[]> {
+  const { rows } = await db.query<{
+    group_id: string; group_code: string; group_name: string;
+    credits_sold: string; revenue: string; provider_cost: string; consumed: string;
+  }>(
+    `SELECT g.id AS group_id, g.group_code, g.name AS group_name,
+            COALESCE(SUM(sc.credits_added), 0)                  AS credits_sold,
+            COALESCE(SUM(sc.amount_paid), 0)                    AS revenue,
+            COALESCE(SUM(sc.credits_added * cost.unit_cost), 0) AS provider_cost,
+            COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
+                       WHERE l.group_id = g.id AND l.billing_state = 'consumed'), 0) AS consumed
+     FROM groups g
+     LEFT JOIN sms_credits sc ON sc.group_id = g.id
+     ${COST_AT_SALE}
+     GROUP BY g.id, g.group_code, g.name
+     ORDER BY SUM(sc.amount_paid) DESC NULLS LAST, g.name ASC
+     LIMIT $1`,
+    [limit],
+  );
+  return rows.map((r) => ({
+    groupId:         r.group_id,
+    groupCode:       r.group_code,
+    groupName:       r.group_name,
+    creditsSold:     Number(r.credits_sold),
+    revenue:         Number(r.revenue),
+    grossMargin:     Number(r.revenue) - Number(r.provider_cost),
+    creditsConsumed: Number(r.consumed),
+  }));
+}
+
 export async function getTopCustomers(limit = 500): Promise<CustomerUsage[]> {
-  return withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      group_id: string; group_code: string; group_name: string;
-      credits_sold: string; revenue: string; provider_cost: string; consumed: string;
-    }>(
-      `SELECT g.id AS group_id, g.group_code, g.name AS group_name,
-              COALESCE(SUM(sc.credits_added), 0)                  AS credits_sold,
-              COALESCE(SUM(sc.amount_paid), 0)                    AS revenue,
-              COALESCE(SUM(sc.credits_added * cost.unit_cost), 0) AS provider_cost,
-              COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
-                         WHERE l.group_id = g.id AND l.billing_state = 'consumed'), 0) AS consumed
-       FROM groups g
-       LEFT JOIN sms_credits sc ON sc.group_id = g.id
-       ${COST_AT_SALE}
-       GROUP BY g.id, g.group_code, g.name
-       ORDER BY SUM(sc.amount_paid) DESC NULLS LAST, g.name ASC
-       LIMIT $1`,
-      [limit],
-    );
-    return rows.map((r) => ({
-      groupId:         r.group_id,
-      groupCode:       r.group_code,
-      groupName:       r.group_name,
-      creditsSold:     Number(r.credits_sold),
-      revenue:         Number(r.revenue),
-      grossMargin:     Number(r.revenue) - Number(r.provider_cost),
-      creditsConsumed: Number(r.consumed),
-    }));
-  });
+  return withAdminDb((db) => queryTopCustomers(db, limit));
 }
 
 export interface OrganizationUsage {
@@ -214,33 +229,35 @@ export interface OrganizationUsage {
  * has never touched SMS is itself information (no accidental "it's not
  * showing so I assume it's fine" reading).
  */
+async function queryOrganizationUsage(db: PoolClient): Promise<OrganizationUsage[]> {
+  const { rows } = await db.query<{
+    organization_id: string; organization_name: string;
+    balance: string; consumed: string; revenue: string; purchased: string;
+  }>(
+    `SELECT o.id AS organization_id, o.name AS organization_name,
+            COALESCE(oba.sms_credits, 0) AS balance,
+            COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
+                       WHERE l.payer_organization_id = o.id AND l.billing_state = 'consumed'), 0) AS consumed,
+            COALESCE((SELECT SUM(osc.amount_paid)   FROM organization_sms_credits osc
+                       WHERE osc.organization_id = o.id), 0) AS revenue,
+            COALESCE((SELECT SUM(osc.credits_added) FROM organization_sms_credits osc
+                       WHERE osc.organization_id = o.id), 0) AS purchased
+     FROM organizations o
+     LEFT JOIN organization_billing_accounts oba ON oba.organization_id = o.id
+     ORDER BY consumed DESC, o.name ASC`,
+  );
+  return rows.map((r) => ({
+    organizationId:   r.organization_id,
+    organizationName: r.organization_name,
+    creditsConsumed:  Number(r.consumed),
+    currentBalance:   Number(r.balance),
+    revenue:          Number(r.revenue),
+    creditsPurchased: Number(r.purchased),
+  }));
+}
+
 export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
-  return withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      organization_id: string; organization_name: string;
-      balance: string; consumed: string; revenue: string; purchased: string;
-    }>(
-      `SELECT o.id AS organization_id, o.name AS organization_name,
-              COALESCE(oba.sms_credits, 0) AS balance,
-              COALESCE((SELECT SUM(l.credits_deducted) FROM sms_usage_logs l
-                         WHERE l.payer_organization_id = o.id AND l.billing_state = 'consumed'), 0) AS consumed,
-              COALESCE((SELECT SUM(osc.amount_paid)   FROM organization_sms_credits osc
-                         WHERE osc.organization_id = o.id), 0) AS revenue,
-              COALESCE((SELECT SUM(osc.credits_added) FROM organization_sms_credits osc
-                         WHERE osc.organization_id = o.id), 0) AS purchased
-       FROM organizations o
-       LEFT JOIN organization_billing_accounts oba ON oba.organization_id = o.id
-       ORDER BY consumed DESC, o.name ASC`,
-    );
-    return rows.map((r) => ({
-      organizationId:   r.organization_id,
-      organizationName: r.organization_name,
-      creditsConsumed:  Number(r.consumed),
-      currentBalance:   Number(r.balance),
-      revenue:          Number(r.revenue),
-      creditsPurchased: Number(r.purchased),
-    }));
-  });
+  return withAdminDb((db) => queryOrganizationUsage(db));
 }
 
 /**
@@ -250,35 +267,55 @@ export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
  * Evaluates INACTIVE bands too: the point is to know whether a proposed band
  * is viable BEFORE switching to it, not to discover it afterwards.
  */
+async function queryTierViability(db: PoolClient): Promise<TierViability[]> {
+  const { rows } = await db.query<{
+    id: string; name: string; unit_price: string; is_active: boolean; unit_cost: string | null;
+  }>(
+    `SELECT t.id, t.name, t.unit_price, t.is_active,
+            (SELECT pc.unit_cost FROM sms_provider_costs pc
+              WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}' AND pc.effective_to IS NULL
+              ORDER BY pc.effective_from DESC LIMIT 1) AS unit_cost
+     FROM sms_pricing_tiers t
+     ORDER BY t.display_order, t.min_credits`,
+  );
+  return rows.map((r) => {
+    const price = Number(r.unit_price);
+    const cost  = r.unit_cost === null ? null : Number(r.unit_cost);
+    const margin = cost === null ? null : price - cost;
+    return {
+      tierId:       r.id,
+      name:         r.name,
+      unitPrice:    price,
+      isActive:     r.is_active,
+      providerCost: cost,
+      margin,
+      marginPct:    margin === null || price <= 0 ? null : (margin / price) * 100,
+      // Unknown cost is not "safe" — but it is not a proven loss either, so
+      // this stays false and marginPct stays null to say "cannot tell".
+      lossMaking:   margin !== null && margin <= 0,
+    };
+  });
+}
+
 export async function getTierViability(): Promise<TierViability[]> {
+  return withAdminDb((db) => queryTierViability(db));
+}
+
+/**
+ * The full sms-margin report in ONE withAdminDb connection — see
+ * queryMarginSummary's header comment for why. The one live caller,
+ * GET /api/admin/sms-margin, used to Promise.all the four public getters
+ * above, each opening its own pool connection.
+ */
+export async function getFullMarginReport(from?: string, to?: string, topCustomersLimit = 500) {
   return withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      id: string; name: string; unit_price: string; is_active: boolean; unit_cost: string | null;
-    }>(
-      `SELECT t.id, t.name, t.unit_price, t.is_active,
-              (SELECT pc.unit_cost FROM sms_provider_costs pc
-                WHERE pc.provider = '${DEFAULT_SMS_PROVIDER}' AND pc.effective_to IS NULL
-                ORDER BY pc.effective_from DESC LIMIT 1) AS unit_cost
-       FROM sms_pricing_tiers t
-       ORDER BY t.display_order, t.min_credits`,
-    );
-    return rows.map((r) => {
-      const price = Number(r.unit_price);
-      const cost  = r.unit_cost === null ? null : Number(r.unit_cost);
-      const margin = cost === null ? null : price - cost;
-      return {
-        tierId:       r.id,
-        name:         r.name,
-        unitPrice:    price,
-        isActive:     r.is_active,
-        providerCost: cost,
-        margin,
-        marginPct:    margin === null || price <= 0 ? null : (margin / price) * 100,
-        // Unknown cost is not "safe" — but it is not a proven loss either, so
-        // this stays false and marginPct stays null to say "cannot tell".
-        lossMaking:   margin !== null && margin <= 0,
-      };
-    });
+    const [summary, topCustomers, tiers, byOrganization] = await Promise.all([
+      queryMarginSummary(db, from, to),
+      queryTopCustomers(db, topCustomersLimit),
+      queryTierViability(db),
+      queryOrganizationUsage(db),
+    ]);
+    return { summary, topCustomers, tiers, byOrganization };
   });
 }
 
@@ -287,4 +324,5 @@ export const smsMarginService = {
   getTopCustomers,
   getTierViability,
   getOrganizationUsage,
+  getFullMarginReport,
 };

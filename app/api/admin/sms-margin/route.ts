@@ -23,12 +23,14 @@ export function GET(req: NextRequest) {
     // have to be built before a package breakdown means anything. No UI ever
     // rendered it, and this is /api/admin/*, outside the /api/v1/* key-stability
     // guarantee.
-    const [summary, topCustomers, tiers, byOrganization] = await Promise.all([
-      smsMarginService.getMarginSummary(p.get('from') ?? undefined, p.get('to') ?? undefined),
-      smsMarginService.getTopCustomers(),
-      smsMarginService.getTierViability(),
-      smsMarginService.getOrganizationUsage(),
-    ]);
-    return ok({ summary, topCustomers, tiers, byOrganization });
+    // One shared withAdminDb connection for all four reads, not four
+    // independent ones: DB_POOL_MAX=3, and four concurrent withAdminDb calls
+    // here reliably self-queued a 4th request behind the cap, confirmed live
+    // (docs/audits/optimization-2026-09).
+    const report = await smsMarginService.getFullMarginReport(
+      p.get('from') ?? undefined,
+      p.get('to') ?? undefined,
+    );
+    return ok(report);
   });
 }

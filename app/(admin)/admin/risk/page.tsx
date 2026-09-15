@@ -63,6 +63,11 @@ export default function RiskDashboardPage() {
 
   const alerts = data?.alerts ?? [];
   const kyc = data?.kyc ?? [];
+  // kyc.length is the unfiltered fetched-groups array (currently capped at
+  // 12, no status filter) — data.summary.pendingKyc is the real, already-
+  // computed count of groups actually pending KYC. Once the platform exceeds
+  // 12 groups the two permanently diverge (docs/audits/optimization-2026-09).
+  const pendingKyc = data?.summary.pendingKyc ?? 0;
 
   const openAlerts = alerts.filter((a) => a.status === 'open').length;
   const flaggedVolume = alerts.reduce((sum, a) => sum + a.amount, 0);
@@ -85,7 +90,7 @@ export default function RiskDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Open fraud alerts" value={isLoading ? '—' : openAlerts} description={isLoading ? 'Loading…' : `${alerts.length} in feed`} icon={AlertTriangle} accent="red" />
         <StatCard title="Flagged volume" value={isLoading ? '—' : formatKES(flaggedVolume)} description={isLoading ? 'Loading…' : 'Under review'} icon={Banknote} accent="orange" />
-        <StatCard title="KYC pending" value={isLoading ? '—' : kyc.length} description={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`} icon={UserCheck} accent="blue" />
+        <StatCard title="KYC pending" value={isLoading ? '—' : pendingKyc} description={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`} icon={UserCheck} accent="blue" />
         <StatCard title="Platform risk" value={isLoading ? '—' : data?.summary.platformRisk ?? 'Moderate'} description={isLoading ? 'Loading…' : 'Composite signal'} icon={ShieldCheck} accent="green" />
       </div>
 
