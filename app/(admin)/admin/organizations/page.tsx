@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   Search, Landmark, MoreHorizontal, PlusCircle,
   PlayCircle, XCircle, ArrowUpRight, BarChart3,
@@ -91,6 +92,7 @@ export default function OrganizationsPage() {
 
   const [page,   setPage]   = useState(1);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [type,   setType]   = useState('');
   const [status, setStatus] = useState('');
 
@@ -100,7 +102,7 @@ export default function OrganizationsPage() {
   const [custom, setCustom] = useState({ ...EMPTY_CUSTOM });
   const [confirm, setConfirm] = useState<{ id: string; name: string; action: 'activate' | 'deactivate' } | null>(null);
 
-  const { data, isLoading, isError, error } = useAdminOrganizations({ page, limit: 25, search, type, status });
+  const { data, isLoading, isError, error } = useAdminOrganizations({ page, limit: 25, search: debouncedSearch, type, status });
   const createOrg    = useCreateOrganization();
   const updateStatus = useUpdateOrganizationStatus();
 

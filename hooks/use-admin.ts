@@ -221,6 +221,19 @@ export function useAdminGroups(params: {
   });
 }
 
+/**
+ * id + name only, for filter dropdowns/pickers — see listGroupOptions.
+ * Long staleTime: this list changes only when a group is created, far
+ * slower than any poll interval a picker needs.
+ */
+export function useAdminGroupOptions() {
+  return useQuery({
+    queryKey: ['admin', 'groups', 'options'],
+    queryFn:  () => adminFetch<{ id: string; name: string }[]>('/api/admin/groups/options'),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useAdminGroup(id: string) {
   return useQuery({
     queryKey: ['admin', 'groups', id],

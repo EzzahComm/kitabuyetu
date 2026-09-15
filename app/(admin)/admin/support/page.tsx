@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   Search, Plus,
   Clock, CheckCircle2, AlertTriangle,
@@ -67,6 +68,7 @@ export default function SupportPage() {
   const { toast } = useToast();
   const [page,       setPage]       = useState(1);
   const [search,     setSearch]     = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [status,     setStatus]     = useState('');
   const [priority,   setPriority]   = useState('');
   const [resolveId,  setResolveId]  = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function SupportPage() {
     subject: '', description: '', category: 'general', priority: 'normal',
   });
 
-  const { data, isLoading, isError, error } = useAdminTickets({ page, limit: 20, status, priority, search });
+  const { data, isLoading, isError, error } = useAdminTickets({ page, limit: 20, status, priority, search: debouncedSearch });
   const updateTicket = useUpdateTicket();
   const createTicket = useCreateTicket();
 
@@ -84,9 +86,13 @@ export default function SupportPage() {
   const total        = data?.total ?? 0;
   const totalPages   = Math.ceil(total / 20);
 
-  const openCount       = items.filter((t) => t.status === 'open').length;
-  const inProgressCount = items.filter((t) => t.status === 'in_progress').length;
-  const slaBreached     = items.filter((t) => t.sla_breach_at && new Date(t.sla_breach_at) < new Date() && !['resolved','closed'].includes(t.status)).length;
+  // Queue-wide (matching the current filters), computed server-side — not a
+  // JS filter over just this page's 20 rows, which silently diverged from
+  // these numbers past the first page or under any filter
+  // (docs/audits/optimization-2026-09).
+  const openCount       = data?.summary.open ?? 0;
+  const inProgressCount = data?.summary.inProgress ?? 0;
+  const slaBreached     = data?.summary.slaBreached ?? 0;
 
   const handleResolve = async () => {
     if (!resolveId) return;

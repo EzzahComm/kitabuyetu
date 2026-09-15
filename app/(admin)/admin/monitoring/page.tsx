@@ -43,8 +43,15 @@ export default function MonitoringPage() {
   const { data, isLoading, error } = useQuery<MonitoringDashboardPayload>({
     queryKey: ['admin', 'monitoring-dashboard'],
     queryFn: () => adminFetch<MonitoringDashboardPayload>('/api/admin/dashboard?widget=monitoring_dashboard'),
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    // Server cache TTL for this widget is 20s (admin.service.ts
+    // getMonitoringDashboardData) — deliberately short because this page is
+    // the one place freshness, not caching, is the real intent. A 120s poll
+    // against a 20s TTL meant every scheduled refetch was already a
+    // guaranteed cache miss (docs/audits/optimization-2026-09); lowered the
+    // poll to match the TTL's actual freshness window instead of raising the
+    // TTL, which would have made monitoring data stale for 2+ minutes.
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 
   const services = data?.services ?? [];
