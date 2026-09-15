@@ -28,6 +28,7 @@ export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<Em
     opts.groupId ?? null,
     opts.locale ?? 'en',
     fallbackTpl?.body,
+    fallbackTpl?.subject,
   ).catch(async () => {
     // If no DB template AND no inline fallback, build a minimal email
     const branding = await loadBranding(opts.groupId ?? null);
