@@ -153,6 +153,16 @@ DROP INDEX IF EXISTS public.idx_cycles_group;
 -- thresholds fix this for the tables carrying real production traffic
 -- relative to their tiny size (top 20 by live seq_scan among tables with
 -- 1-500 rows, confirmed live immediately before writing this migration).
+--
+-- relkind='r' guard: journal_lines is a PLAIN table in live prod (confirmed:
+-- pg_class.relkind='r'), but migrations 094+095 make it a PARTITIONED table
+-- in a fresh build (094 creates journal_lines_partitioned, 095 renames it to
+-- journal_lines) — another prod/fresh-build drift case, same class as
+-- migration 173's. Storage parameters can only be set on a partitioned
+-- table's leaf partitions, never the partitioned table itself, so this
+-- excludes relkind<>'r' rather than guessing at partition names; correct
+-- regardless of which shape journal_lines has in a given environment, since
+-- a partitioned table holds zero rows of its own to tune anyway.
 DO $$
 DECLARE
   t text;
@@ -166,7 +176,7 @@ BEGIN
     'welfare_pool_contributions'
   ]
   LOOP
-    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = t AND relnamespace = 'public'::regnamespace) THEN
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = t AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
       EXECUTE format(
         'ALTER TABLE public.%I SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_vacuum_threshold = 25, autovacuum_analyze_scale_factor = 0.01, autovacuum_analyze_threshold = 10)',
         t
