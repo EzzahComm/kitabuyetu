@@ -29,6 +29,15 @@ regexes = [
   # began failing on every branch again. A commit-pinned allowlist cannot
   # survive a squash merge; pin the value instead.
   '''bcf03d15-9d45-4c69-ad45-5458a726817c''',
+
+  # b2cIdempotencyKey — the same 'Idempotency-Key' header identifier this
+  # file's `commits` list below already allowlists once (commit d719b41).
+  # That commit-pinned entry stopped matching the moment ANY later commit
+  # reformatted the same line (PR #160's Phase 0 prettier pass shifted it to
+  # a different line number in its own diff, giving it a brand new
+  # commit+line fingerprint gitleaks had never seen). Same lesson as the
+  # CAPITAL POINT UUID above, generalized: pin the value, not a commit.
+  '''b2cIdempotencyKey''',
 ]
 # generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the
 # loan disbursement dialog (app/(dashboard)/loans/[id]/page.tsx:238). The
