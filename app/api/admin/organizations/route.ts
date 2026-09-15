@@ -7,15 +7,17 @@ import {
 } from '@/lib/services/admin-organizations.service';
 import { assignOrganizationPlan } from '@/lib/services/organization-plan.service';
 import { logger } from '@/lib/logger';
+import { parsePagination } from '@/lib/utils/pagination';
 
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const p    = new URL(req.url).searchParams;
+    const { page, limit } = parsePagination(p, { defaultLimit: 20 });
     const data = await listOrganizations({
-      page:   parseInt(p.get('page')  ?? '1',  10),
-      limit:  parseInt(p.get('limit') ?? '20', 10),
+      page,
+      limit,
       search: p.get('search') ?? undefined,
       type:   p.get('type')   ?? undefined,
       status: p.get('status') ?? undefined,

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest } from '@/lib/utils/response';
 import { listSupportTickets, createSupportTicket } from '@/lib/services/admin.service';
+import { parsePagination } from '@/lib/utils/pagination';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +10,10 @@ export const dynamic = 'force-dynamic';
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const p  = new URL(req.url).searchParams;
+    const { page, limit } = parsePagination(p, { defaultLimit: 20 });
     const data = await listSupportTickets({
-      page:     parseInt(p.get('page')  ?? '1',  10),
-      limit:    parseInt(p.get('limit') ?? '20', 10),
+      page,
+      limit,
       status:   p.get('status')   ?? undefined,
       priority: p.get('priority') ?? undefined,
       search:   p.get('search')   ?? undefined,

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { useAuditLogs, useAdminGroups } from '@/hooks/use-admin';
+import { useAuditLogs, useAdminGroupOptions } from '@/hooks/use-admin';
 import { formatDate } from '@/lib/utils';
 
 interface AuditLogRow {
@@ -30,18 +31,19 @@ const ACTION_STYLE: Record<string, string> = {
 export default function AuditLogsPage() {
   const [page,    setPage]    = useState(1);
   const [search,  setSearch]  = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [action,  setAction]  = useState('');
   const [groupId, setGroupId] = useState('');
   const [from,    setFrom]    = useState('');
   const [to,      setTo]      = useState('');
 
-  const { data, isLoading, isError, error } = useAuditLogs({ page, limit: 50, action, groupId, search, from, to });
+  const { data, isLoading, isError, error } = useAuditLogs({ page, limit: 50, action, groupId, search: debouncedSearch, from, to });
   // Backend already supports groupId filtering (app/api/admin/audit-logs/route.ts
   // → listAuditLogs) — this dropdown was the only missing piece
-  // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). 200 is plenty for a filter dropdown;
-  // this page doesn't need every group, just enough to find one by name.
-  const { data: groupsData } = useAdminGroups({ limit: 200 });
-  const groupOptions: { id: string; name: string }[] = groupsData?.items ?? [];
+  // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). id+name only — this picker never
+  // reads any of listGroups' per-row aggregates (docs/audits/optimization-2026-09).
+  const { data: groupOptionsData } = useAdminGroupOptions();
+  const groupOptions: { id: string; name: string }[] = groupOptionsData ?? [];
 
   const items: AuditLogRow[] = data?.items ?? [];
   const total        = data?.total ?? 0;

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   Search, Building2, MoreHorizontal,
   CheckCircle2, PauseCircle, PlayCircle, XCircle,
@@ -80,6 +81,7 @@ export default function GroupsPage() {
 
   const [page,     setPage]     = useState(1);
   const [search,   setSearch]   = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [status,   setStatus]   = useState('');
   const [plan,     setPlan]     = useState('');
   // Which product the Plan column describes and the plan filter applies to.
@@ -92,7 +94,7 @@ export default function GroupsPage() {
   } | null>(null);
   const [reason,   setReason]   = useState('');
 
-  const { data, isLoading, isError, error } = useAdminGroups({ page, limit: 25, search, status, plan, product });
+  const { data, isLoading, isError, error } = useAdminGroups({ page, limit: 25, search: debouncedSearch, status, plan, product });
   const updateStatus = useUpdateGroupStatus();
 
   const items: AdminGroupRow[] = data?.items ?? [];

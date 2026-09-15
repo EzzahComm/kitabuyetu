@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Search, Wallet, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,7 @@ export default function MpesaUnroutedPage() {
   const { toast } = useToast();
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [target, setTarget] = useState<UnroutedRow | null>(null);
   const [action, setAction] = useState<Action>('allocate');
   const [groupSearch, setGroupSearch] = useState('');
@@ -76,7 +78,7 @@ export default function MpesaUnroutedPage() {
   const [planType, setPlanType] = useState<PlanType>('starter');
   const [cycle, setCycle]       = useState<BillingCycle>('monthly');
 
-  const { data, isLoading, isError, error } = useAdminUnroutedPayments({ page, limit: 20, search });
+  const { data, isLoading, isError, error } = useAdminUnroutedPayments({ page, limit: 20, search: debouncedSearch });
   const resolve = useResolveUnroutedPayment();
 
   const { data: groupResults } = useAdminGroups({ search: groupSearch, limit: 8 });
@@ -85,7 +87,10 @@ export default function MpesaUnroutedPage() {
   const items: UnroutedRow[] = data?.items ?? [];
   const total      = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
-  const totalAmount = items.reduce((sum, r) => sum + Number(r.amount), 0);
+  // Server-computed over the whole filtered queue, not just this page — a
+  // page-only reduce here silently understated the true unreconciled amount
+  // once the backlog exceeded one page (docs/audits/optimization-2026-09).
+  const totalAmount = data?.totalValue ?? 0;
 
   const openResolve = (row: UnroutedRow) => {
     setTarget(row);
