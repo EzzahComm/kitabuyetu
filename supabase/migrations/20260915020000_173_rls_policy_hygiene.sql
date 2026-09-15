@@ -20,6 +20,19 @@
 --     (finder's own recommendation: defer, bundle with the OR-shape fix).
 --   - 80 unused group_id-leading indexes (finder's own recommendation: fix
 --     the policies first, re-measure idx_scan, only then consider dropping).
+--   - platform_notifications' full undocumented schema drift, discovered
+--     while writing this migration: live prod's columns (id, title, body,
+--     type, target, is_active, show_banner, starts_at, expires_at,
+--     created_by, created_at, updated_at) and policy names
+--     (platform_notifications_read/write) don't match migration 025's
+--     original CREATE TABLE (id, type, title, message, target, active,
+--     expires_at, created_by, created_at) or its original policy names
+--     ("read_active_notifications"/"super_admin_notifications") at all —
+--     same class of gap as migrations 129/130's "recover_*" migrations,
+--     not a policy-cost fix. This migration's platform_notifications
+--     section below is guarded (checks pg_policies before ALTER POLICY)
+--     so it applies against live prod's actual shape and no-ops safely on
+--     a fresh build; it does not reconstruct the missing history.
 -- =============================================================================
 
 -- ── 1. email_logs.provider_message_id has no index ─────────────────────────
@@ -49,9 +62,12 @@ ALTER POLICY rls_sms_balances_admin ON public.sms_provider_balances
 
 -- meeting_attendance / meeting_resolutions: the SELECT policy's qual is
 -- BYTE-IDENTICAL to the FOR ALL policy's qual, which already covers SELECT.
--- Pure duplication — drop the redundant SELECT-only policy.
-DROP POLICY attendance_read ON public.meeting_attendance;
-DROP POLICY resolutions_read ON public.meeting_resolutions;
+-- Pure duplication — drop the redundant SELECT-only policy. IF EXISTS
+-- because these two are the undocumented-drift case migration 122's own
+-- header comment flags (live production has this policy; no migration
+-- ever created it, so a fresh build/CI replay never has it to drop).
+DROP POLICY IF EXISTS attendance_read ON public.meeting_attendance;
+DROP POLICY IF EXISTS resolutions_read ON public.meeting_resolutions;
 
 -- organization_subscriptions: organization_subscriptions_admin_write (FOR
 -- ALL, is_super_admin() both sides) double-evaluates alongside
@@ -91,10 +107,40 @@ CREATE POLICY feature_flags_delete ON public.feature_flags
 -- equivalent to is_active=true OR (super_admin, from write) — same result,
 -- one fewer branch evaluated on every read. Also wrapped write's
 -- current_setting() for the same InitPlan-hoisting reason as item 2 above.
-ALTER POLICY platform_notifications_read ON public.platform_notifications
-  USING (is_active = true);
-ALTER POLICY platform_notifications_write ON public.platform_notifications
-  USING ((SELECT current_setting('app.current_role', true)) = 'super_admin');
+--
+-- Guarded rather than a bare ALTER POLICY: this table has drifted from its
+-- migration history far beyond a policy rename (live prod columns are id,
+-- title, body, type, target, is_active, show_banner, starts_at, expires_at,
+-- created_by, created_at, updated_at — migration 025 only ever created id,
+-- type, title, message, target, active, expires_at, created_by, created_at,
+-- and its original policy names were "super_admin_notifications"/
+-- "read_active_notifications", not these). Matches migration 122's own
+-- documented deferral of this exact table. Postgres's ALTER POLICY has no
+-- IF EXISTS clause, so the guard is a DO block. This block is a no-op
+-- against a fresh CI build (policy names don't match, condition is
+-- false) — reconstructing the full live column/policy history for a fresh
+-- build is its own dedicated recovery migration (same class as 129/130),
+-- not this one. Already live and verified correct in production.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'platform_notifications'
+      AND policyname = 'platform_notifications_read'
+  ) THEN
+    ALTER POLICY platform_notifications_read ON public.platform_notifications
+      USING (is_active = true);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'platform_notifications'
+      AND policyname = 'platform_notifications_write'
+  ) THEN
+    ALTER POLICY platform_notifications_write ON public.platform_notifications
+      USING ((SELECT current_setting('app.current_role', true)) = 'super_admin');
+  END IF;
+END $$;
 
 -- ── 4. Drop SET search_path from the 5 RLS helper functions ────────────────
 -- All five are LANGUAGE SQL, STABLE, SECURITY INVOKER, with no unqualified
