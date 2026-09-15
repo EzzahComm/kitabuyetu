@@ -37,6 +37,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { useToast } from '@/hooks/use-toast';
 import { adminApi } from '@/lib/api/client';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { ProgramGroupLine } from '@/lib/services/organization-finance.service';
@@ -138,51 +139,54 @@ export default function FundingPortalPage() {
   const [viewProgramId, setViewProgramId] = useState<string | null>(null);
 
   const { data: dash, isLoading } = useQuery<DashboardPayload>({
-    queryKey: ['organization', 'dashboard'],
+    queryKey: enterpriseKeys.dashboard(),
     queryFn:  () => adminApi.get('/organization/dashboard'),
     staleTime: 30_000,
     refetchInterval: 120_000,
   });
 
   const { data: healthResponse, isLoading: healthLoading } = useQuery({
-    queryKey: ['organization', 'health'],
+    queryKey: enterpriseKeys.health(),
     queryFn:  organizationApi.health,
     staleTime: 30_000,
   });
 
   const { data: groupsPage } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
-    queryKey: ['organization', 'groups'],
+    queryKey: enterpriseKeys.groups(),
     queryFn:  () => organizationApi.groups(),
     staleTime: 60_000,
   });
   const groups = groupsPage?.items;
 
+  // { limit: 10 } — a small "recent disbursements" preview, not the
+  // Disbursements page's paginated { page, limit: 20 } list; keeping the
+  // real params in the key keeps the two from cache-colliding.
   const { data: disb } = useQuery<{ items: Disbursement[] }>({
-    queryKey: ['organization', 'disbursements'],
+    queryKey: enterpriseKeys.disbursements({ limit: 10 }),
     queryFn:  () => adminApi.get('/organization/disbursements?limit=10'),
     staleTime: 30_000,
   });
 
   const { data: accounting, isError: accountingIsError, error: accountingError } = useQuery<{ trialBalance: TrialBalanceLine[] }>({
-    queryKey: ['organization', 'accounting'],
+    queryKey: enterpriseKeys.accounting(),
     queryFn:  () => adminApi.get('/organization/accounting'),
     staleTime: 30_000,
   });
 
   const { data: budgetReport, isError: budgetReportIsError, error: budgetReportError } = useQuery<{ items: ProgramBudgetLine[] }>({
-    queryKey: ['organization', 'budget-report'],
+    queryKey: enterpriseKeys.reportsBudget(),
     queryFn:  () => adminApi.get('/organization/programs?report=budget'),
     staleTime: 30_000,
   });
 
   const { data: donorReport } = useQuery<{ items: DonorSpendLine[] }>({
-    queryKey: ['organization', 'donor-report'],
+    queryKey: enterpriseKeys.reportsDonor(),
     queryFn:  () => adminApi.get('/organization/programs?report=donor'),
     staleTime: 30_000,
   });
 
   const { data: policies, isLoading: loadingPolicies } = useQuery<EffectiveThreshold[]>({
-    queryKey: ['organization', 'policies'],
+    queryKey: enterpriseKeys.policies(),
     queryFn:  organizationApi.policies,
     staleTime: 30_000,
   });
@@ -190,7 +194,7 @@ export default function FundingPortalPage() {
   const setPolicy = useMutation({
     mutationFn: (body: SetApprovalPolicyInput) => organizationApi.setPolicy(body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization', 'policies'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.policies() });
       toast({ title: 'Policy updated' });
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
@@ -200,7 +204,7 @@ export default function FundingPortalPage() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       adminApi.patch(`/organization/programs/${id}`, { status }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
       toast({ title: 'Program updated' });
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Update failed', description: e.message }),
@@ -652,7 +656,7 @@ function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }
       source: source || undefined,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
       toast({ title: 'Deposit recorded', description: 'Wallet balance updated.' });
       setAmount(''); setSource('');
       onClose();
@@ -727,7 +731,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
       processingFeePct: feePct ? parseFloat(feePct) : undefined,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
       toast({ title: 'Program created' });
       setName(''); setBudget(''); setSource(''); setType('grant');
       setRepayable(false); setInterestMethod('flat'); setInterestRate('');
@@ -861,7 +865,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
 function ProgramGroupsDialog({ programId, onClose }: { programId: string | null; onClose: () => void }) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['organization', 'program-groups', programId],
+    queryKey: enterpriseKeys.programGroups(programId as string),
     queryFn: () => organizationApi.programGroups(programId as string),
     enabled: !!programId,
     staleTime: 30_000,
@@ -960,7 +964,7 @@ function DisburseDialog({ open, onClose, groups, programs }: {
       notes: notes || undefined,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['organization'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
       toast({ title: 'Funds disbursed', description: 'Both ledgers updated.' });
       setGroupId(''); setAmount(''); setNotes(''); setProgramId(''); setType('grant');
       onClose();
