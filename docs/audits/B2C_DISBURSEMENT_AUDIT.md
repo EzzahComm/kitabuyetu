@@ -49,9 +49,9 @@ Serverless, callback-driven, single shared float.
 
 - **Boundaries.** Daraja I/O is cleanly isolated in `daraja.service.ts`; domain effects live in
   `mpesa.service.ts`. Good separation — but **no orchestration layer** sequences
-  *reserve → send → confirm → settle*, so state can diverge between "money sent" and "books updated".
+  _reserve → send → confirm → settle_, so state can diverge between "money sent" and "books updated".
 - **Queueing.** Daraja's own async queue (Queue/Result URLs) is used, but there is **no internal
-  outbox or job for outbound payments**. `event_outbox` and DLQ replay exist for *inbound* C2B/STK only.
+  outbox or job for outbound payments**. `event_outbox` and DLQ replay exist for _inbound_ C2B/STK only.
 - **Idempotency.** Strong at the callback layer (unique `originator_conversation_id`,
   `mpesa_receipt_number`, `FOR UPDATE`). **Absent at initiation** — the send has no idempotency key.
 - **Failure recovery.** Inbound STK has a reconciliation job that fires `STK Query` on stuck rows.
@@ -69,23 +69,23 @@ Serverless, callback-driven, single shared float.
 
 Legend: ✅ implemented & sound · ⚠️ present but weak · ❌ missing control on the real-money path
 
-| Stage | State | Detail |
-| --- | --- | --- |
-| Initiate | ✅ | Treasurer POST, role + `assertAuthFresh` epoch check |
-| Balance / float check | ❌ | None before Daraja call |
-| Limits | ❌ | No per-txn / daily / monthly / velocity |
-| Approval | ❌ | No maker-checker |
-| Reserve funds | ❌ | No hold / earmark |
-| Daraja call | ✅ | OAuth cache, retry/backoff, E.164, integer shillings |
-| Persist | ✅ | `mpesa_b2c_transactions`, unique conversation IDs |
-| Callback auth | ⚠️ | IP advisory-only, no URL token/HMAC |
-| Ledger post | ✅ | Balanced double-entry — **but only on success callback** |
-| Notify | ❌ | No recipient / initiator alert |
-| Reconcile (outbound) | ❌ | No Transaction Status sweep |
-| Reversal | ⚠️ | Manual, not linked to lifecycle |
-| Audit | ✅ | Raw callback + `failed_payment_logs` |
-| DLQ / monitor | ❌ | None for outbound |
-| Reporting | ❌ | No outbound B2C reports |
+| Stage                 | State | Detail                                                   |
+| --------------------- | ----- | -------------------------------------------------------- |
+| Initiate              | ✅    | Treasurer POST, role + `assertAuthFresh` epoch check     |
+| Balance / float check | ❌    | None before Daraja call                                  |
+| Limits                | ❌    | No per-txn / daily / monthly / velocity                  |
+| Approval              | ❌    | No maker-checker                                         |
+| Reserve funds         | ❌    | No hold / earmark                                        |
+| Daraja call           | ✅    | OAuth cache, retry/backoff, E.164, integer shillings     |
+| Persist               | ✅    | `mpesa_b2c_transactions`, unique conversation IDs        |
+| Callback auth         | ⚠️    | IP advisory-only, no URL token/HMAC                      |
+| Ledger post           | ✅    | Balanced double-entry — **but only on success callback** |
+| Notify                | ❌    | No recipient / initiator alert                           |
+| Reconcile (outbound)  | ❌    | No Transaction Status sweep                              |
+| Reversal              | ⚠️    | Manual, not linked to lifecycle                          |
+| Audit                 | ✅    | Raw callback + `failed_payment_logs`                     |
+| DLQ / monitor         | ❌    | None for outbound                                        |
+| Reporting             | ❌    | No outbound B2C reports                                  |
 
 ---
 
@@ -110,47 +110,53 @@ Legend: ✅ implemented & sound · ⚠️ present but weak · ❌ missing contro
 ## 5. Critical Gaps (go-live blockers)
 
 ### C1 — No balance or float check before payout · Critical · Major refactor
+
 `initiateB2C()` calls Daraja before reading any balance. Neither the platform M-Pesa float, the
 group's cash account (1001), nor any wallet is consulted. Books can be driven negative and the
 shared float overdrawn.
-*Evidence:* `mpesa.service.ts` `initiateB2C` — no balance `SELECT` precedes `_b2c()`.
+_Evidence:_ `mpesa.service.ts` `initiateB2C` — no balance `SELECT` precedes `_b2c()`.
 
 ### C2 — No initiation idempotency → double disbursement · Critical · Medium
+
 The payout POST carries **no idempotency key** (the STK-push route uses `withIdempotencyKey`; B2C
 does not). A double-click, browser retry, or network re-send fires a second real payment — each
 attempt mints a fresh `OriginatorConversationID`, so callback-layer uniqueness gives no protection.
 The same `loanId` can also be paid by both `loans.disburse` (manual) and the B2C path.
-*Evidence:* `app/api/v1/mpesa/b2c/route.ts` POST initiate branch — no idempotency guard.
+_Evidence:_ `app/api/v1/mpesa/b2c/route.ts` POST initiate branch — no idempotency guard.
 
 ### C3 — No maker-checker on outbound money · Critical · Large
+
 A single `treasurer` initiates and completes a payout with no second approval. Payment
 reallocations gained maker-checker in an earlier phase; disbursements — a larger loss vector — did
 not. No approval table, threshold, or dual control exists for B2C.
-*Evidence:* `withRole(req, 'treasurer', …)` is the only gate.
+_Evidence:_ `withRole(req, 'treasurer', …)` is the only gate.
 
 ### C4 — Money path decoupled from wallet & budget controls · Critical · Major refactor
+
 Wallet debit, insufficient-funds rejection, funding-program budget ceiling, and group-link
 eligibility all live in `organizationFinanceService.disburse()`, which posts ledger entries but
 **never calls Daraja**. The real B2C payout bypasses all of them. The two paths must become one.
-*Evidence:* `organization-finance.service.ts` `disburse()` enforces balance + budget but issues no
+_Evidence:_ `organization-finance.service.ts` `disburse()` enforces balance + budget but issues no
 M-Pesa request.
 
 ### C5 — No outbound reconciliation for stuck payments · Critical · Large
+
 `runReconciliation()` only queries stale **STK** requests. A B2C row whose result callback is
 dropped or delayed stays `initiated` indefinitely with no automated `Transaction Status Query` to
 determine whether the money left. The true state of a real payment can remain permanently unknown.
-*Evidence:* `runReconciliation()` selects from `mpesa_stk_requests` only; no B2C reconciliation job.
+_Evidence:_ `runReconciliation()` selects from `mpesa_stk_requests` only; no B2C reconciliation job.
 
 ---
 
 ## 6. Security Findings
 
 ### H1 — Callback authenticity is advisory only · High · Medium
+
 The Result/Timeout URLs carry no unguessable path token or HMAC. `assertSafaricomIp()` only **logs
 a warning** on a non-Safaricom IP — it never rejects ("processing anyway"). Integrity leans on
 matching a server-generated `OriginatorConversationID` + receipt uniqueness, which blocks blind
 replay but not a crafted callback for a known conversation ID.
-*Evidence:* `daraja.service.ts` `assertSafaricomIp`; B2C `ResultURL` has no secret token.
+_Evidence:_ `daraja.service.ts` `assertSafaricomIp`; B2C `ResultURL` has no secret token.
 
 **Strong points:** outbound money POST behind role + `assertAuthFresh` epoch re-check; Daraja
 secrets in env; `SecurityCredential` encrypted; proxy strips client-supplied claim headers.
@@ -163,7 +169,7 @@ not evidenced in code.
 
 ## 7. Financial Integrity Findings
 
-- **Post-hoc ledger (High).** The journal is written only inside the *success* callback. If the
+- **Post-hoc ledger (High).** The journal is written only inside the _success_ callback. If the
   callback is dropped (C5), the money can be gone with no ledger entry — a true off-book payment.
 - **No reservation / committed balance (High).** `organization_wallets.committed_balance` exists but
   the payout path never reserves into it. Concurrent payouts can each pass a (non-existent) balance
@@ -199,14 +205,14 @@ callback origin unverified (H1); no circuit-breaker distinct from the generic 3-
 
 ## 10. Approval Workflow Findings
 
-| Capability | State | Note |
-| --- | --- | --- |
-| Single approval | Partial | Treasurer role gates initiation; it is also the execution |
-| Maker-checker | **Absent** | No second approver on B2C |
-| Threshold / tiered approval | **Absent** | No amount-based escalation |
-| Approval expiry / revocation | **Absent** | No approval object exists |
-| Loan approve → disburse | Present | Exists for loans, but B2C payout is not bound to it (F11) |
-| Reallocation maker-checker | Present | Proof the pattern is already in the codebase — reuse it |
+| Capability                   | State      | Note                                                      |
+| ---------------------------- | ---------- | --------------------------------------------------------- |
+| Single approval              | Partial    | Treasurer role gates initiation; it is also the execution |
+| Maker-checker                | **Absent** | No second approver on B2C                                 |
+| Threshold / tiered approval  | **Absent** | No amount-based escalation                                |
+| Approval expiry / revocation | **Absent** | No approval object exists                                 |
+| Loan approve → disburse      | Present    | Exists for loans, but B2C payout is not bound to it (F11) |
+| Reallocation maker-checker   | Present    | Proof the pattern is already in the codebase — reuse it   |
 
 ---
 
@@ -248,14 +254,14 @@ balance snapshot, structured logging.
 
 ## 14. Compliance Assessment
 
-| Area | Status | Gap |
-| --- | --- | --- |
-| Dual control (CBK DFS) | **Fail** | No maker-checker on payouts |
-| Transaction limits (AML) | **Fail** | No ceilings or velocity monitoring |
-| Recipient KYC | Weak | Arbitrary phone; no identity binding on payee |
-| Audit retention | Unclear | Raw callbacks stored; retention/immutability not stated |
-| Data protection (DPA 2019) | Partial | PII in raw logs; consent & minimisation not evidenced |
-| Reconciliation of client funds | **Fail** | No outbound float reconciliation |
+| Area                           | Status   | Gap                                                     |
+| ------------------------------ | -------- | ------------------------------------------------------- |
+| Dual control (CBK DFS)         | **Fail** | No maker-checker on payouts                             |
+| Transaction limits (AML)       | **Fail** | No ceilings or velocity monitoring                      |
+| Recipient KYC                  | Weak     | Arbitrary phone; no identity binding on payee           |
+| Audit retention                | Unclear  | Raw callbacks stored; retention/immutability not stated |
+| Data protection (DPA 2019)     | Partial  | PII in raw logs; consent & minimisation not evidenced   |
+| Reconciliation of client funds | **Fail** | No outbound float reconciliation                        |
 
 ---
 
@@ -273,6 +279,7 @@ balance snapshot, structured logging.
 ## 16. Prioritised Hardening Roadmap
 
 ### First 30 days — go-live blockers ("make the payout safe")
+
 1. Unify Path A + Path B: reserve funds and check balance **before** calling Daraja (C1, C4).
 2. Idempotency key on the payout POST; bind loan payouts to `status='approved'` (C2, F11).
 3. Maker-checker + amount threshold for B2C, reusing the reallocation pattern (C3).
@@ -280,6 +287,7 @@ balance snapshot, structured logging.
 5. Reject non-Safaricom callbacks via a signed Result-URL token (H1).
 
 ### Days 31–60 — controls & limits ("contain the blast radius")
+
 6. Per-transaction / daily / monthly / velocity limits at member, group, and org tiers (F6).
 7. Recipient eligibility: membership, frozen/blacklist, KYC binding (F7).
 8. Per-group float segregation or a gated shared-float ledger (F9).
@@ -287,6 +295,7 @@ balance snapshot, structured logging.
 10. Full B2C state machine incl. `timed_out`, `reversed`, `reconciled` (F12).
 
 ### Days 61–90 — scale & assurance ("operate & prove it")
+
 11. Outbound DLQ + stuck-payout monitor + float-low alerting (F13).
 12. Daily three-way float reconciliation vs Safaricom statement (§11).
 13. Fraud scoring on payouts; auto-reversal tooling wired to lifecycle (F14, F16).
@@ -323,38 +332,38 @@ REQUEST (validated · limit-checked · eligibility-checked)
 
 ## 18. Risk Matrix (Likelihood × Impact)
 
-| Likelihood ↓ / Impact → | Moderate | Major | Severe |
-| --- | --- | --- | --- |
-| **Likely** | — | H1 | **C1, C2** |
-| **Possible** | F18 | F6, F10 | **C3, C4, C5** |
-| **Rare** | F19, F20 | F13, F15, F17 | F7, F9, F11, F12 |
+| Likelihood ↓ / Impact → | Moderate | Major         | Severe           |
+| ----------------------- | -------- | ------------- | ---------------- |
+| **Likely**              | —        | H1            | **C1, C2**       |
+| **Possible**            | F18      | F6, F10       | **C3, C4, C5**   |
+| **Rare**                | F19, F20 | F13, F15, F17 | F7, F9, F11, F12 |
 
 ---
 
 ## 19. Implementation Backlog
 
-| ID | Task | Sev | Effort | Risk if unresolved |
-| --- | --- | --- | --- | --- |
-| C1 | Reserve + balance-check before Daraja call | Critical | Major | Overdrawn float; off-book payments |
-| C2 | Idempotency key on payout initiation | Critical | Medium | Duplicate real payments |
-| C3 | Maker-checker + threshold for B2C | Critical | Large | Insider / single-actor fraud |
-| C4 | Unify money path with wallet/budget controls | Critical | Major | All controls bypassed |
-| C5 | Outbound status-query reconciliation job | Critical | Large | Unknown payment state; manual loss |
-| H1 | Signed Result-URL token; reject bad callbacks | High | Medium | Forged callback flips payment state |
-| F6 | Tiered disbursement limits + velocity | High | Large | Rapid drain; AML failure |
-| F7 | Recipient eligibility / KYC / blacklist | High | Medium | Payout to non-member / bad actor |
-| F9 | Per-tenant float segregation | High | Large | Cross-group fund spend |
-| F10 | Disbursement notifications | High | Small | Silent failures; disputes |
-| F11 | Gate loan payout on approval status | High | Small | Payout on rejected/paid loan |
-| F12 | Full B2C state machine | Medium | Medium | Ambiguous terminal states |
-| F13 | Outbound DLQ + stuck-payout monitor | Medium | Medium | Slow incident detection |
-| F14 | Reversal wired to lifecycle | Medium | Medium | Manual, error-prone refunds |
-| F15 | PII retention / DPA minimisation | Medium | Medium | Regulatory exposure |
-| F16 | Payout fraud scoring | Medium | Large | Undetected abuse patterns |
-| F17 | Certificate / credential rotation | Medium | Small | Outage on cert expiry |
-| F18 | Distinct timeout-callback handling | Low | Small | Misclassified timeouts |
-| F19 | Surface silent remarks/occasion truncation | Low | Small | Confusing statements |
-| F20 | Outbound B2C reporting surface | Low | Medium | No operator visibility |
+| ID  | Task                                          | Sev      | Effort | Risk if unresolved                  |
+| --- | --------------------------------------------- | -------- | ------ | ----------------------------------- |
+| C1  | Reserve + balance-check before Daraja call    | Critical | Major  | Overdrawn float; off-book payments  |
+| C2  | Idempotency key on payout initiation          | Critical | Medium | Duplicate real payments             |
+| C3  | Maker-checker + threshold for B2C             | Critical | Large  | Insider / single-actor fraud        |
+| C4  | Unify money path with wallet/budget controls  | Critical | Major  | All controls bypassed               |
+| C5  | Outbound status-query reconciliation job      | Critical | Large  | Unknown payment state; manual loss  |
+| H1  | Signed Result-URL token; reject bad callbacks | High     | Medium | Forged callback flips payment state |
+| F6  | Tiered disbursement limits + velocity         | High     | Large  | Rapid drain; AML failure            |
+| F7  | Recipient eligibility / KYC / blacklist       | High     | Medium | Payout to non-member / bad actor    |
+| F9  | Per-tenant float segregation                  | High     | Large  | Cross-group fund spend              |
+| F10 | Disbursement notifications                    | High     | Small  | Silent failures; disputes           |
+| F11 | Gate loan payout on approval status           | High     | Small  | Payout on rejected/paid loan        |
+| F12 | Full B2C state machine                        | Medium   | Medium | Ambiguous terminal states           |
+| F13 | Outbound DLQ + stuck-payout monitor           | Medium   | Medium | Slow incident detection             |
+| F14 | Reversal wired to lifecycle                   | Medium   | Medium | Manual, error-prone refunds         |
+| F15 | PII retention / DPA minimisation              | Medium   | Medium | Regulatory exposure                 |
+| F16 | Payout fraud scoring                          | Medium   | Large  | Undetected abuse patterns           |
+| F17 | Certificate / credential rotation             | Medium   | Small  | Outage on cert expiry               |
+| F18 | Distinct timeout-callback handling            | Low      | Small  | Misclassified timeouts              |
+| F19 | Surface silent remarks/occasion truncation    | Low      | Small  | Confusing statements                |
+| F20 | Outbound B2C reporting surface                | Low      | Medium | No operator visibility              |
 
 ---
 
@@ -382,4 +391,4 @@ segregation, capable of the nationwide multi-tenant volume the platform is aimin
 
 ---
 
-*Source-grounded audit. No code was modified to produce this report.*
+_Source-grounded audit. No code was modified to produce this report._

@@ -6,10 +6,11 @@
 > **Phase 2a correction to §2 and §4.** Research during implementation found **five** send paths, not two: three OTP paths (`password-reset.service.ts`, `group-verification.service.ts`, `organization-members.service.ts`) called the provider directly with no billing, no consent check and **no log row at all**. They now write platform-funded rows via `sendServiceSms`.
 >
 > Two further corrections worth carrying forward:
+>
 > - **`notifyMember` already threw.** `sendText` sat outside any try/catch, so a WhatsApp client throw escaped to callers that don't guard. The "never throws" contract was aspirational; Phase 2a made it real, because a reservation now sits downstream of it.
 > - **The two entry points could not merge into one function.** `/sms/send` needs `InsufficientSmsCreditsError` → 402 and the trigger engine catches to drive `retryOrFail`, while `notifyMember`'s callers need it never to throw. Convergence is at the **primitive** layer (`lib/services/messaging-billing.ts`) with two thin contracts over it — one place bills, one place writes the ledger.
-**Source:** A pasted architectural vision for SMS as a first-class platform service, adopted and reconciled against the actual codebase.
-**Companion:** [`docs/audits/SMS_MESSAGING_AUDIT_2026-08.md`](../audits/SMS_MESSAGING_AUDIT_2026-08.md) (score 38/100, three Critical defects proven in production).
+>   **Source:** A pasted architectural vision for SMS as a first-class platform service, adopted and reconciled against the actual codebase.
+>   **Companion:** [`docs/audits/SMS_MESSAGING_AUDIT_2026-08.md`](../audits/SMS_MESSAGING_AUDIT_2026-08.md) (score 38/100, three Critical defects proven in production).
 
 ---
 
@@ -17,7 +18,7 @@
 
 **The vision is right and is adopted.** SMS is both mission-critical and a monetization engine here, and the audit proved the current state cannot support either: the billed path throws invalid SQL on every call, and the path that works bills nothing.
 
-**But most of what the proposal asks to build already exists.** This repo has a designed event bus, a durable job queue, a template system, a provider adapter, an organization-payer model, and plan-aware SMS rates. The proposal reads as greenfield because the existing pieces are *unwired*, not absent — the trigger engine has 15 event types defined and only M-Pesa emits into it.
+**But most of what the proposal asks to build already exists.** This repo has a designed event bus, a durable job queue, a template system, a provider adapter, an organization-payer model, and plan-aware SMS rates. The proposal reads as greenfield because the existing pieces are _unwired_, not absent — the trigger engine has 15 event types defined and only M-Pesa emits into it.
 
 Rebuilding them would discard working, tested code and repeat the mistake this audit series has now made several times (the capital-layer spec duplicated four live subsystems; the RBAC spec's "proposed" roles were already the live ones). **This plan adopts the proposal's semantics and rejects its greenfield framing.**
 
@@ -27,20 +28,20 @@ The real work is: **unify the two entry points, make billing correct and reversi
 
 ## 2. Reality check — every proposal section against the codebase
 
-| Proposal asks for | What actually exists | Verdict |
-|---|---|---|
-| Central orchestrator; "no feature should ever call the provider directly" | Only `textsms.service.ts` touches the provider. Both stacks already route through it. | **Already true at the provider layer.** The dual-stack problem is one level up, at billing/orchestration. |
-| Event-driven: modules publish, notification service listens | `lib/sms/trigger-engine.ts` + `sms_trigger_rules`/`sms_trigger_executions`; 15-event catalog (`lib/sms/events.ts:14-36`); group→org→platform specificity (`:81`); conditions DSL with depth/node budgets; `ON CONFLICT (rule_id, event_id)` idempotency (`:147-164`) | **Built, and well-built.** Only ~3 emit sites wired, all M-Pesa (`mpesa-b2c.service.ts:226`, `mpesa-spine.service.ts:173`, outbox). |
-| Queue everything; never synchronous | `lib/jobs/` (db, processor, handlers, types) with `sms_bulk_send`, `sms_trigger_fire`, `sms_poll_dlr`, `sms_process_schedules`, `sms_retry_failed`; retries, dedup keys, `FOR UPDATE SKIP LOCKED` | **Built.** But "never synchronous" conflicts with OTP latency and with a deliberate prior fix — see §7 Decision A. |
-| Versioned templates | `sms_templates` (template_key, body, variables, category, `is_system`, `group_id NULL` = platform default); resolved at send in 3 places | **Built, not versioned.** No version column. |
-| Provider adapter normalizing `"200"` vs `200` | `textsms.service.ts` already returns an internal `SmsResponse` contract (`:68-73`) | **Built, buggy.** C2 is a coercion defect *inside* the existing adapter (`:143`), not a missing layer. |
-| Org billing models: central vs per-group | `sms_usage_logs.payer_type` (`group`\|`organization`) + `payer_organization_id`, `organization_billing_accounts`, `organization_sms_credits`, `debit_organization_sms_credits()` SECURITY DEFINER with access re-check | **Built** for 2 of the 3 models. "NGO sponsors first 1,000, then group pays" is genuinely new. |
-| Plans with SMS rates | `subscriptions.plan_type`, `monthly_fee`, `sms_rate`, `max_members`; `feature-flags.service.ts` already tiers `starter < growth < enterprise` | **Built.** No *bundled/included* SMS allowance and no monthly reset cycle. |
-| SMS ledger with full attribution | `sms_usage_logs` already carries provider_msg_id, network_id, provider, payer_type, payer_organization_id, credits_deducted, status, reference_type/id, campaign_id, created/sent/delivered timestamps | **~70% built.** Missing: `member_id`, `notification_type`, `correlation_id`, reserved-vs-consumed split, `retry_count`, template version. |
-| Multi-level rate limiting | `checkRateLimit` (`lib/redis/index.ts:171`) exists; used exactly once, in `mpesa/c2b/route.ts:96` | **Primitive exists, unapplied to SMS.** |
-| Omnichannel (SMS/WhatsApp/email/push) — proposed as a *later* phase | `notifyMember` already does WhatsApp → SMS fallback **plus** an in-app notification row (`notifications.service.ts:104-158`) | **Already ahead of the proposal's own phasing.** |
-| Secure the DLR callback: verify provider origin, signature/IP allowlist | **There is no inbound DLR callback.** DLR is outbound *polling* (`sms_poll_dlr` → `pollPendingDlrs`, `sms.service.ts:531-580`) | **Describes a component that does not exist.** See §3. |
-| Credit reservation: reserve → send → finalize/release | Debit-then-send. No refund path anywhere in the codebase. | **Genuinely missing.** Core of Phase 2. |
+| Proposal asks for                                                         | What actually exists                                                                                                                                                                                                                                                 | Verdict                                                                                                                                   |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Central orchestrator; "no feature should ever call the provider directly" | Only `textsms.service.ts` touches the provider. Both stacks already route through it.                                                                                                                                                                                | **Already true at the provider layer.** The dual-stack problem is one level up, at billing/orchestration.                                 |
+| Event-driven: modules publish, notification service listens               | `lib/sms/trigger-engine.ts` + `sms_trigger_rules`/`sms_trigger_executions`; 15-event catalog (`lib/sms/events.ts:14-36`); group→org→platform specificity (`:81`); conditions DSL with depth/node budgets; `ON CONFLICT (rule_id, event_id)` idempotency (`:147-164`) | **Built, and well-built.** Only ~3 emit sites wired, all M-Pesa (`mpesa-b2c.service.ts:226`, `mpesa-spine.service.ts:173`, outbox).       |
+| Queue everything; never synchronous                                       | `lib/jobs/` (db, processor, handlers, types) with `sms_bulk_send`, `sms_trigger_fire`, `sms_poll_dlr`, `sms_process_schedules`, `sms_retry_failed`; retries, dedup keys, `FOR UPDATE SKIP LOCKED`                                                                    | **Built.** But "never synchronous" conflicts with OTP latency and with a deliberate prior fix — see §7 Decision A.                        |
+| Versioned templates                                                       | `sms_templates` (template_key, body, variables, category, `is_system`, `group_id NULL` = platform default); resolved at send in 3 places                                                                                                                             | **Built, not versioned.** No version column.                                                                                              |
+| Provider adapter normalizing `"200"` vs `200`                             | `textsms.service.ts` already returns an internal `SmsResponse` contract (`:68-73`)                                                                                                                                                                                   | **Built, buggy.** C2 is a coercion defect _inside_ the existing adapter (`:143`), not a missing layer.                                    |
+| Org billing models: central vs per-group                                  | `sms_usage_logs.payer_type` (`group`\|`organization`) + `payer_organization_id`, `organization_billing_accounts`, `organization_sms_credits`, `debit_organization_sms_credits()` SECURITY DEFINER with access re-check                                               | **Built** for 2 of the 3 models. "NGO sponsors first 1,000, then group pays" is genuinely new.                                            |
+| Plans with SMS rates                                                      | `subscriptions.plan_type`, `monthly_fee`, `sms_rate`, `max_members`; `feature-flags.service.ts` already tiers `starter < growth < enterprise`                                                                                                                        | **Built.** No _bundled/included_ SMS allowance and no monthly reset cycle.                                                                |
+| SMS ledger with full attribution                                          | `sms_usage_logs` already carries provider_msg_id, network_id, provider, payer_type, payer_organization_id, credits_deducted, status, reference_type/id, campaign_id, created/sent/delivered timestamps                                                               | **~70% built.** Missing: `member_id`, `notification_type`, `correlation_id`, reserved-vs-consumed split, `retry_count`, template version. |
+| Multi-level rate limiting                                                 | `checkRateLimit` (`lib/redis/index.ts:171`) exists; used exactly once, in `mpesa/c2b/route.ts:96`                                                                                                                                                                    | **Primitive exists, unapplied to SMS.**                                                                                                   |
+| Omnichannel (SMS/WhatsApp/email/push) — proposed as a _later_ phase       | `notifyMember` already does WhatsApp → SMS fallback **plus** an in-app notification row (`notifications.service.ts:104-158`)                                                                                                                                         | **Already ahead of the proposal's own phasing.**                                                                                          |
+| Secure the DLR callback: verify provider origin, signature/IP allowlist   | **There is no inbound DLR callback.** DLR is outbound _polling_ (`sms_poll_dlr` → `pollPendingDlrs`, `sms.service.ts:531-580`)                                                                                                                                       | **Describes a component that does not exist.** See §3.                                                                                    |
+| Credit reservation: reserve → send → finalize/release                     | Debit-then-send. No refund path anywhere in the codebase.                                                                                                                                                                                                            | **Genuinely missing.** Core of Phase 2.                                                                                                   |
 
 ---
 
@@ -48,7 +49,7 @@ The real work is: **unify the two entry points, make billing correct and reversi
 
 The proposal treats C3 as a callback-authentication problem — "verify the callback originates from the configured SMS provider," add signatures or an IP allowlist. **Implementing that would not fix C3, and would leave the vulnerability open.**
 
-There is no inbound provider callback in this system. C3 is a **missing tenant scope on an authenticated internal GET**: `app/api/v1/sms/dlr/route.ts:8-14` passes a caller-supplied `messageId` to `getDlr`, which UPDATEs `sms_usage_logs` with no `group_id` predicate. The caller is an authenticated officer of *some* group, not a spoofed provider. Provider-origin verification is the wrong control for the wrong threat model.
+There is no inbound provider callback in this system. C3 is a **missing tenant scope on an authenticated internal GET**: `app/api/v1/sms/dlr/route.ts:8-14` passes a caller-supplied `messageId` to `getDlr`, which UPDATEs `sms_usage_logs` with no `group_id` predicate. The caller is an authenticated officer of _some_ group, not a spoofed provider. Provider-origin verification is the wrong control for the wrong threat model.
 
 **The fix is to scope the query to `auth.groupId`** (and to match on an internal id rather than the provider's, which is the proposal's own good instinct, correctly applied).
 
@@ -90,7 +91,7 @@ This is the single most important design call in this plan, and it inverts the o
 
 So: **move billing into `notifyMember`; demote `smsService.send` to an internal dispatch primitive.** Porting one working capability into the richer path is far less risky than porting four into the broken one.
 
-`sendBulkCampaign` stays separate as the fan-out path — it batches and chunks, which per-recipient `notifyMember` should not do — but it must call the *same* billing and ledger primitives rather than its own copy. Extracting those primitives is what prevents the dual stack from silently reforming.
+`sendBulkCampaign` stays separate as the fan-out path — it batches and chunks, which per-recipient `notifyMember` should not do — but it must call the _same_ billing and ledger primitives rather than its own copy. Extracting those primitives is what prevents the dual stack from silently reforming.
 
 ---
 
@@ -124,6 +125,7 @@ The architectural core. Requires Decision B (§7).
 10. **H3** — per-recipient checkpointing in `handleSmsBulkSend`; fix `resetStuckJobs` (`lib/jobs/db.ts:41-51`) to increment `attempts` so retries are bounded.
 
     > **Shipped 2026-08-11, out of sequence, ahead of Phase 2b/4/5.** `resetStuckJobs`'s bound (max_attempts) shipped earlier, per H3's own "partially fixed" note in the audit. The remaining re-billing-on-retry half is now closed differently than originally scoped: rather than a per-recipient checkpoint inside one long-running job, campaigns above 100 recipients split into 50-recipient chunks published to QStash (`lib/queue/qstash.ts`), each delivered as its own independent, retried call to `/api/v1/workers/sms-dispatch-chunk`. The idempotency key `sendBulkCampaign` needed (this item's own text: "a dispatch-level idempotency key, and `/sms/bulk` has no candidate today") is now `${jobId}:chunk:${chunkIndex}` — stable across both a QStash-level retry of one chunk and a job_queue-level retry of the whole publish loop. `sendBulkCampaign`'s `sms_campaigns.recipient_count`/`.status` writes were also fixed to aggregate across calls via `totalRecipientCount` (see `syncCampaignCompletion` in `sms.service.ts`) rather than assume one call is the whole campaign — required for chunking to report completion correctly, and covered by `__tests__/integration/sms-bulk-chunk-completion.test.ts`.
+
 11. **H6** — align chunked bulk responses on `clientSmsId` instead of array position.
 12. **M1** — platform-default rules pass `'system'` as `userId` → uuid cast failure (`trigger-engine.ts:227`). Currently masked by C1; it will surface the moment C1 is fixed. **Fix in Phase 1 or 3, not later.**
 13. **M5** — build a real opt-out write path. `smsService.optOut` has zero callers and `sms_group_settings` has 0 production rows, so members currently cannot opt out. Compliance-relevant.
@@ -133,6 +135,7 @@ The architectural core. Requires Decision B (§7).
 This is the proposal's largest ask by volume and its **cheapest**, because the bus exists. Each message type is: add an event constant, add an `emitBusinessEvent` call at the state change, seed a trigger rule + template. No new infrastructure.
 
 Sequence by value:
+
 - **Identity & security** (OTP, password reset, new-device alerts) — partially built already (SMS OTP reset shipped in PR #10). **Subject to Decision A: OTP cannot go through a cron-tick queue.**
 - **Loans** (5 of 6 events already in the catalog — wiring only)
 - **Savings/contributions** (3 already in the catalog)
@@ -222,12 +225,12 @@ for already exists, just not via QStash:
   200-ack, `after()` runs processing in the background, and a failure marks the audit row for DLQ
   replay instead of losing the event.
 - **Per-installment loan-reminder schedule with immutable per-stage job IDs** (`loan-due:
-  {installment_id}:D-3`, `:D-1`, `:D0`, `:D+3`) to stop a member being notified once per day —
+{installment_id}:D-3`, `:D-1`, `:D0`, `:D+3`) to stop a member being notified once per day —
   **checked against `handleLoanDueAlerts` (`lib/jobs/handlers.ts:374`) and already solved**, by a
-  different mechanism than the proposal assumed. `reminder_stage` is computed as a *discrete*
+  different mechanism than the proposal assumed. `reminder_stage` is computed as a _discrete_
   CASE (`due_3_days` / `due_today` / `overdue_3_days` / `overdue_7_days` / `overdue_14_days`), not
   a rolling "within N days" window, and `sendOnce()` dedupes per `(reference_type, reference_id,
-  reminder_stage)` — so a daily cron scanning the same pending installment for days only ever
+reminder_stage)` — so a daily cron scanning the same pending installment for days only ever
   fires each stage once, with no pre-scheduling needed at loan-creation time. **No change made
   here** — pre-scheduling every stage as a separate job at creation time would be strictly worse:
   it can't adapt when a loan is restructured, repaid early, or its due date changes, where the

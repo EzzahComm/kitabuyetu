@@ -11,46 +11,54 @@
  * account is re-derived via lock_group_cash_account() at each step instead
  * of being stored once.
  */
-import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
-import { logger } from '@/lib/logger';
-import { recordApproval } from './settlement-approvals.service';
-import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
+import {
+  withDb,
+  withTransaction,
+  withAdminDb,
+  type TenantContext,
+} from "@/lib/db";
+import { NotFoundError, ValidationError } from "@/lib/utils/errors";
+import { logger } from "@/lib/logger";
+import { recordApproval } from "./settlement-approvals.service";
+import { triggerDisbursementWatchdog } from "@/lib/queue/qstash";
 
 export interface InitiateSettlementInput {
-  bankAccountId:  string;
-  amount:         number;
+  bankAccountId: string;
+  amount: number;
   idempotencyKey: string;
-  notes?:         string;
+  notes?: string;
 }
 
 export interface SettlementRow {
-  id:                        string;
-  group_id:                  string;
-  bank_account_id:           string;
-  amount:                    string;
-  status:                    string;
-  requested_by:              string | null;
-  requested_at:              Date;
+  id: string;
+  group_id: string;
+  bank_account_id: string;
+  amount: string;
+  status: string;
+  requested_by: string | null;
+  requested_at: Date;
   originator_conversation_id: string | null;
-  journal_entry_id:          string | null;
-  platform_fee:              string | null;
-  completed_at:              Date | null;
-  failure_reason:            string | null;
-  notes:                     string | null;
-  idempotency_key:           string | null;
+  journal_entry_id: string | null;
+  platform_fee: string | null;
+  completed_at: Date | null;
+  failure_reason: string | null;
+  notes: string | null;
+  idempotency_key: string | null;
   /** Reconciliation tag only — see the write site for why. Migration 134. */
-  source_account:            string | null;
+  source_account: string | null;
   /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
-  reconciled_at:             Date | null;
+  reconciled_at: Date | null;
 }
 
 export const settlementsService = {
-
-  async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<SettlementRow> {
-    if (!(input.amount > 0)) throw new ValidationError('Amount must be positive');
+  async initiate(
+    ctx: TenantContext,
+    input: InitiateSettlementInput,
+  ): Promise<SettlementRow> {
+    if (!(input.amount > 0))
+      throw new ValidationError("Amount must be positive");
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
-      throw new ValidationError('A valid idempotency key is required');
+      throw new ValidationError("A valid idempotency key is required");
     }
 
     return withTransaction(ctx, async (db) => {
@@ -64,24 +72,37 @@ export const settlementsService = {
         `SELECT id, status FROM group_bank_accounts WHERE id = $1 AND group_id = $2`,
         [input.bankAccountId, ctx.groupId],
       );
-      if (!bankRows[0]) throw new NotFoundError('Bank account', input.bankAccountId);
-      if (bankRows[0].status !== 'active') {
-        throw new ValidationError(`Bank account is not active (status: ${bankRows[0].status})`);
+      if (!bankRows[0])
+        throw new NotFoundError("Bank account", input.bankAccountId);
+      if (bankRows[0].status !== "active") {
+        throw new ValidationError(
+          `Bank account is not active (status: ${bankRows[0].status})`,
+        );
       }
 
-      const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`,
-        [ctx.groupId],
-      );
+      const { rows: acctRows } = await db.query<{
+        id: string;
+        balance: string;
+        reserved_amount: string;
+      }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId]);
       if (!acctRows[0]) {
-        throw new ValidationError('Group has no active Cash/M-Pesa account (1001) to settle from');
+        throw new ValidationError(
+          "Group has no active Cash/M-Pesa account (1001) to settle from",
+        );
       }
-      const available = parseFloat(acctRows[0].balance) - parseFloat(acctRows[0].reserved_amount);
+      const available =
+        parseFloat(acctRows[0].balance) -
+        parseFloat(acctRows[0].reserved_amount);
       if (input.amount > available) {
-        throw new ValidationError(`Insufficient available balance (KES ${available.toFixed(2)} available)`);
+        throw new ValidationError(
+          `Insufficient available balance (KES ${available.toFixed(2)} available)`,
+        );
       }
 
-      await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, input.amount.toFixed(2)]);
+      await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [
+        acctRows[0].id,
+        input.amount.toFixed(2),
+      ]);
 
       // Reconciliation tag only, same pattern as mpesa-b2c.service.ts's own
       // sub-account tagging — it records which of our own M-Pesa sub-accounts
@@ -101,7 +122,15 @@ export const settlementsService = {
            (group_id, bank_account_id, amount, status, requested_by, idempotency_key, notes, source_account)
          VALUES ($1,$2,$3,'pending_approval',$4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, input.bankAccountId, input.amount.toFixed(2), ctx.userId, input.idempotencyKey, input.notes ?? null, sourceAccount],
+        [
+          ctx.groupId,
+          input.bankAccountId,
+          input.amount.toFixed(2),
+          ctx.userId,
+          input.idempotencyKey,
+          input.notes ?? null,
+          sourceAccount,
+        ],
       );
       return inserted[0];
     });
@@ -116,11 +145,13 @@ export const settlementsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending settlement', id);
+      if (!rows[0]) throw new NotFoundError("Pending settlement", id);
 
       await recordApproval(db, ctx, {
-        subjectType: 'settlement', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'approved',
+        subjectType: "settlement",
+        subjectId: id,
+        initiatedBy: rows[0].requested_by ?? "",
+        decision: "approved",
       });
 
       const { rows: updated } = await db.query<SettlementRow>(
@@ -134,7 +165,11 @@ export const settlementsService = {
     return this.getById(ctx, row.id);
   },
 
-  async reject(ctx: TenantContext, id: string, reason: string): Promise<SettlementRow> {
+  async reject(
+    ctx: TenantContext,
+    id: string,
+    reason: string,
+  ): Promise<SettlementRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<SettlementRow>(
         `SELECT * FROM settlement_requests
@@ -142,21 +177,25 @@ export const settlementsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending settlement', id);
+      if (!rows[0]) throw new NotFoundError("Pending settlement", id);
 
       await recordApproval(db, ctx, {
-        subjectType: 'settlement', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'rejected', reason,
+        subjectType: "settlement",
+        subjectId: id,
+        initiatedBy: rows[0].requested_by ?? "",
+        decision: "rejected",
+        reason,
       });
 
       const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId],
+        `SELECT * FROM lock_group_cash_account($1, '1001')`,
+        [ctx.groupId],
       );
       if (acctRows[0]) {
-        await db.query(
-          `SELECT adjust_account_reserved_amount($1, $2)`,
-          [acctRows[0].id, `-${rows[0].amount}`],
-        );
+        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [
+          acctRows[0].id,
+          `-${rows[0].amount}`,
+        ]);
       }
 
       const { rows: updated } = await db.query<SettlementRow>(
@@ -175,12 +214,14 @@ export const settlementsService = {
         `SELECT * FROM settlement_requests WHERE id = $1 AND group_id = $2`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Settlement', id);
+      if (!rows[0]) throw new NotFoundError("Settlement", id);
       return rows[0];
     });
   },
 
-  async list(ctx: TenantContext): Promise<(SettlementRow & { bank_name: string })[]> {
+  async list(
+    ctx: TenantContext,
+  ): Promise<(SettlementRow & { bank_name: string })[]> {
     return withDb(ctx, async (db) => {
       const { rows } = await db.query<SettlementRow & { bank_name: string }>(
         `SELECT sr.*, ba.bank_name
@@ -204,10 +245,20 @@ export const settlementsService = {
  */
 export async function findStuckSettlements(): Promise<{
   count: number;
-  samples: { id: string; groupId: string; amount: string; ageMinutes: number }[];
+  samples: {
+    id: string;
+    groupId: string;
+    amount: string;
+    ageMinutes: number;
+  }[];
 }> {
   return withAdminDb(async (db) => {
-    const { rows } = await db.query<{ id: string; group_id: string; amount: string; age_minutes: number }>(
+    const { rows } = await db.query<{
+      id: string;
+      group_id: string;
+      amount: string;
+      age_minutes: number;
+    }>(
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - requested_at)) / 60 AS age_minutes
        FROM   settlement_requests
@@ -218,12 +269,19 @@ export async function findStuckSettlements(): Promise<{
        LIMIT  20`,
     );
     const samples = rows.map((r) => ({
-      id: r.id, groupId: r.group_id, amount: r.amount, ageMinutes: Math.round(Number(r.age_minutes)),
+      id: r.id,
+      groupId: r.group_id,
+      amount: r.amount,
+      ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[settlements] stuck B2B sweeps — no result callback received', {
-        count: samples.length, samples: samples.slice(0, 5),
-      });
+      logger.error(
+        "[settlements] stuck B2B sweeps — no result callback received",
+        {
+          count: samples.length,
+          samples: samples.slice(0, 5),
+        },
+      );
     }
     return { count: samples.length, samples };
   });
@@ -237,8 +295,12 @@ export async function findStuckSettlements(): Promise<{
 async function dispatchSettlement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; bank_account_id: string;
-      bank_shortcode: string; bank_account_number: string;
+      id: string;
+      group_id: string;
+      amount: string;
+      bank_account_id: string;
+      bank_shortcode: string;
+      bank_account_number: string;
     }>(
       `UPDATE settlement_requests sr
        SET    status = 'processing'
@@ -253,14 +315,14 @@ async function dispatchSettlement(id: string): Promise<void> {
   if (!claimed) return;
 
   try {
-    const { initiateB2B } = await import('./daraja.service');
+    const { initiateB2B } = await import("./daraja.service");
     const res = await initiateB2B({
-      amount:             parseFloat(claimed.amount),
-      receiverShortcode:  claimed.bank_shortcode,
-      receiverIdentifier: '4',
-      commandId:          'BusinessPayBill',
-      accountReference:   claimed.bank_account_number.slice(0, 20),
-      remarks:            'Group settlement sweep',
+      amount: parseFloat(claimed.amount),
+      receiverShortcode: claimed.bank_shortcode,
+      receiverIdentifier: "4",
+      commandId: "BusinessPayBill",
+      accountReference: claimed.bank_account_number.slice(0, 20),
+      remarks: "Group settlement sweep",
     });
     await withAdminDb((db) =>
       db.query(
@@ -271,17 +333,28 @@ async function dispatchSettlement(id: string): Promise<void> {
     // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to B2B —
     // see disbursements.service.ts's dispatchDisbursement for the identical
     // pattern). Never blocks/fails a dispatch that already succeeded.
-    await triggerDisbursementWatchdog({ kind: 'settlement', rowId: claimed.id });
-  } catch (err) {
-    logger.error('[settlements] dispatch failed before Daraja accepted the request', {
-      settlementId: id, err: String(err),
+    await triggerDisbursementWatchdog({
+      kind: "settlement",
+      rowId: claimed.id,
     });
+  } catch (err) {
+    logger.error(
+      "[settlements] dispatch failed before Daraja accepted the request",
+      {
+        settlementId: id,
+        err: String(err),
+      },
+    );
     await withAdminDb(async (db) => {
       const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [claimed.group_id],
+        `SELECT * FROM lock_group_cash_account($1, '1001')`,
+        [claimed.group_id],
       );
       if (acctRows[0]) {
-        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${claimed.amount}`]);
+        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [
+          acctRows[0].id,
+          `-${claimed.amount}`,
+        ]);
       }
       await db.query(
         `UPDATE settlement_requests

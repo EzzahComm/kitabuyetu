@@ -1,5 +1,11 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 /**
  * Standardized page section wrapper combining Card + consistent spacing.
@@ -23,11 +29,7 @@ export function PageSection({
   const isCardLayout = title || description || action;
 
   if (!isCardLayout) {
-    return (
-      <div className={`space-y-3 ${className || ''}`}>
-        {children}
-      </div>
-    );
+    return <div className={`space-y-3 ${className || ""}`}>{children}</div>;
   }
 
   return (
@@ -55,22 +57,24 @@ export function PageSection({
  */
 export function FormActions({
   children,
-  align = 'right',
+  align = "right",
   className,
 }: {
   children: React.ReactNode;
-  align?: 'left' | 'right' | 'center' | 'between';
+  align?: "left" | "right" | "center" | "between";
   className?: string;
 }) {
   const alignClass = {
-    left: 'justify-start',
-    right: 'justify-end',
-    center: 'justify-center',
-    between: 'justify-between',
+    left: "justify-start",
+    right: "justify-end",
+    center: "justify-center",
+    between: "justify-between",
   }[align];
 
   return (
-    <div className={`flex gap-3 ${alignClass} pt-6 border-t ${className || ''}`}>
+    <div
+      className={`flex gap-3 ${alignClass} pt-6 border-t ${className || ""}`}
+    >
       {children}
     </div>
   );

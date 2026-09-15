@@ -1,17 +1,36 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  IconLayoutDashboard, IconUsers, IconCreditCard, IconBuildingBank, IconBook,
-  IconMessage, IconChartBar, IconSettings,
-  IconReceipt, IconMail, IconHeart, IconTrendingUp, IconCalendar, IconVault,
-  IconCoins, IconGauge, IconUpload, IconDeviceMobile, IconWallet, IconDots,
-} from '@tabler/icons-react';
-import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { BrandLogo } from '@/components/branding/BrandLogo';
-import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
-import { GroupSwitcher } from './group-switcher';
+  IconLayoutDashboard,
+  IconUsers,
+  IconCreditCard,
+  IconBuildingBank,
+  IconBook,
+  IconMessage,
+  IconChartBar,
+  IconSettings,
+  IconReceipt,
+  IconMail,
+  IconHeart,
+  IconTrendingUp,
+  IconCalendar,
+  IconVault,
+  IconCoins,
+  IconGauge,
+  IconUpload,
+  IconDeviceMobile,
+  IconWallet,
+  IconDots,
+} from "@tabler/icons-react";
+import { useAuth, isTenantUser } from "@/lib/auth/context";
+import { BrandLogo } from "@/components/branding/BrandLogo";
+import {
+  PortalSidebar,
+  type PortalNavSection,
+} from "@/components/shared/portal-sidebar";
+import { GroupSwitcher } from "./group-switcher";
 
 // "Simple First" primary nav (SIMPLIFICATION_AND_RBAC_AUDIT.md §3): 7 primary
 // items max, with Finance and More as collapsible groups (portal-sidebar.tsx's
@@ -21,35 +40,39 @@ const NAV: PortalNavSection[] = [
   {
     title: null,
     items: [
-      { href: '/dashboard',     label: 'Dashboard',     icon: IconLayoutDashboard },
-      { href: '/members',       label: 'Members',       icon: IconUsers },
-      { href: '/contributions', label: 'Contributions', icon: IconCreditCard },
-      { href: '/loans',         label: 'Loans',          icon: IconBuildingBank },
+      { href: "/dashboard", label: "Dashboard", icon: IconLayoutDashboard },
+      { href: "/members", label: "Members", icon: IconUsers },
+      { href: "/contributions", label: "Contributions", icon: IconCreditCard },
+      { href: "/loans", label: "Loans", icon: IconBuildingBank },
       {
-        href: '#', label: 'Finance', icon: IconWallet,
+        href: "#",
+        label: "Finance",
+        icon: IconWallet,
         children: [
-          { href: '/mpesa',      label: 'M-Pesa',     icon: IconDeviceMobile },
-          { href: '/treasury',   label: 'Treasury',   icon: IconVault },
-          { href: '/welfare',    label: 'Welfare',    icon: IconHeart },
-          { href: '/shares',     label: 'Shares',     icon: IconCoins },
-          { href: '/dividends',  label: 'Dividends',  icon: IconReceipt },
-          { href: '/accounting', label: 'Accounting', icon: IconBook },
+          { href: "/mpesa", label: "M-Pesa", icon: IconDeviceMobile },
+          { href: "/treasury", label: "Treasury", icon: IconVault },
+          { href: "/welfare", label: "Welfare", icon: IconHeart },
+          { href: "/shares", label: "Shares", icon: IconCoins },
+          { href: "/dividends", label: "Dividends", icon: IconReceipt },
+          { href: "/accounting", label: "Accounting", icon: IconBook },
         ],
       },
-      { href: '/reports', label: 'Reports', icon: IconChartBar },
+      { href: "/reports", label: "Reports", icon: IconChartBar },
       {
-        href: '#', label: 'More', icon: IconDots,
+        href: "#",
+        label: "More",
+        icon: IconDots,
         children: [
-          { href: '/meetings',      label: 'Meetings',      icon: IconCalendar },
-          { href: '/sms',           label: 'SMS',           icon: IconMessage },
-          { href: '/whatsapp',      label: 'WhatsApp',      icon: IconMessage },
-          { href: '/email',         label: 'Email',         icon: IconMail },
-          { href: '/investments',   label: 'Investments',   icon: IconTrendingUp },
-          { href: '/credit-scores', label: 'Credit scores', icon: IconGauge },
-          { href: '/analytics',     label: 'Analytics',     icon: IconChartBar },
-          { href: '/data-import',   label: 'Data import',   icon: IconUpload },
-          { href: '/billing',       label: 'Billing',       icon: IconReceipt },
-          { href: '/settings',      label: 'Settings',      icon: IconSettings },
+          { href: "/meetings", label: "Meetings", icon: IconCalendar },
+          { href: "/sms", label: "SMS", icon: IconMessage },
+          { href: "/whatsapp", label: "WhatsApp", icon: IconMessage },
+          { href: "/email", label: "Email", icon: IconMail },
+          { href: "/investments", label: "Investments", icon: IconTrendingUp },
+          { href: "/credit-scores", label: "Credit scores", icon: IconGauge },
+          { href: "/analytics", label: "Analytics", icon: IconChartBar },
+          { href: "/data-import", label: "Data import", icon: IconUpload },
+          { href: "/billing", label: "Billing", icon: IconReceipt },
+          { href: "/settings", label: "Settings", icon: IconSettings },
         ],
       },
     ],
@@ -65,7 +88,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   // The Funding Portal used to be appended here as an "Ecosystem" section for
   // organization_coordinator. It has moved to the Organizations (enterprise)
@@ -83,7 +107,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       sections={sections}
       isActive={isActive}
       logo={() => (
-        <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 min-w-0"
+          aria-label="Kitabu Yetu dashboard"
+        >
           {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
           <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
             <BrandLogo size={28} alt="Kitabu Yetu" />

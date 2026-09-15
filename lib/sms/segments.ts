@@ -19,9 +19,10 @@
  * Order is not significant; membership is.
  */
 const GSM7_BASIC = new Set(
-  ('@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?' +
-   '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà')
-    .split(''),
+  (
+    "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?" +
+    "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+  ).split(""),
 );
 
 /**
@@ -29,7 +30,7 @@ const GSM7_BASIC = new Set(
  * TWO septets: an 0x1B escape followed by the character. A message of 80 '€'
  * signs is therefore 160 septets — a full single segment, not half of one.
  */
-const GSM7_EXTENDED = new Set(['^', '{', '}', '\\', '[', ']', '~', '|', '€']);
+const GSM7_EXTENDED = new Set(["^", "{", "}", "\\", "[", "]", "~", "|", "€"]);
 
 /** Single-segment capacity, in septets (GSM-7) or UTF-16 code units (UCS-2). */
 const GSM7_SINGLE = 160;
@@ -42,7 +43,7 @@ const UCS2_SINGLE = 70;
 const GSM7_CONCAT = 153;
 const UCS2_CONCAT = 67;
 
-export type SmsEncoding = 'gsm7' | 'ucs2';
+export type SmsEncoding = "gsm7" | "ucs2";
 
 export interface SegmentInfo {
   encoding: SmsEncoding;
@@ -80,13 +81,13 @@ function gsm7Units(text: string): number {
  * `characters` and `units` legitimately differ.
  */
 export function countSegments(body: string): SegmentInfo {
-  const text = body ?? '';
+  const text = body ?? "";
   const characters = [...text].length;
 
   if (isGsm7(text)) {
     const units = gsm7Units(text);
     return {
-      encoding: 'gsm7',
+      encoding: "gsm7",
       units,
       characters,
       segments: units <= GSM7_SINGLE ? 1 : Math.ceil(units / GSM7_CONCAT),
@@ -97,7 +98,7 @@ export function countSegments(body: string): SegmentInfo {
   // measures — a surrogate pair correctly costs 2.
   const units = text.length;
   return {
-    encoding: 'ucs2',
+    encoding: "ucs2",
     units,
     characters,
     segments: units <= UCS2_SINGLE ? 1 : Math.ceil(units / UCS2_CONCAT),

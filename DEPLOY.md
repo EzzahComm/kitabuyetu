@@ -2,14 +2,14 @@
 
 ## Stack
 
-| Service | Provider |
-|---------|---------|
-| Frontend + API | Vercel (serverless) |
-| Database (PostgreSQL + RLS) | Supabase |
-| Redis (sessions, rate-limit, M-Pesa cache) | Upstash |
-| Email | Resend |
-| SMS | TextSMS (textsms.co.ke) |
-| Payments | Safaricom Daraja (M-Pesa) |
+| Service                                    | Provider                  |
+| ------------------------------------------ | ------------------------- |
+| Frontend + API                             | Vercel (serverless)       |
+| Database (PostgreSQL + RLS)                | Supabase                  |
+| Redis (sessions, rate-limit, M-Pesa cache) | Upstash                   |
+| Email                                      | Resend                    |
+| SMS                                        | TextSMS (textsms.co.ke)   |
+| Payments                                   | Safaricom Daraja (M-Pesa) |
 
 ---
 
@@ -107,25 +107,25 @@ Add every variable from `.env.example` in:
 
 Required variables:
 
-| Variable | Where to get |
-|----------|-------------|
-| `DATABASE_URL` | Supabase → Settings → Database → URI, "Session pooler" tab (port 5432, `aws-0-<region>.pooler.supabase.com` host — see 1b above) |
-| `TENANT_DATABASE_URL` | Optional. Same host/pooler as `DATABASE_URL`, connecting as the least-privileged `app_tenant` role instead of `postgres` — see `scripts/ops/create-app-tenant-role.sql`. Unset = falls back to `DATABASE_URL`. |
-| `REDIS_URL` | Upstash console → ioredis URL |
-| `JWT_SECRET` | `openssl rand -hex 32` |
-| `ENCRYPTION_KEY` | `openssl rand -hex 32` |
-| `WORKER_SECRET` | `openssl rand -hex 32` |
-| `CRON_SECRET` | `openssl rand -hex 32` (you choose — same value goes into Supabase pg_cron SQL) |
-| `MPESA_CONSUMER_KEY` | Safaricom Daraja portal |
-| `MPESA_CONSUMER_SECRET` | Safaricom Daraja portal |
-| `MPESA_SHORTCODE` | Safaricom Daraja portal |
-| `MPESA_PASSKEY` | Safaricom Daraja portal |
-| `MPESA_CALLBACK_BASE_URL` | `https://kitabuyetu.vercel.app` (no trailing slash, callback paths derived) |
-| `TEXTSMS_API_KEY` | TextSMS Kenya dashboard |
-| `TEXTSMS_PARTNER_ID` | TextSMS Kenya dashboard |
-| `RESEND_API_KEY` | Resend dashboard |
-| `EMAIL_FROM` | Verified sender address in Resend |
-| `NEXT_PUBLIC_APP_URL` | Your Vercel deployment URL |
+| Variable                  | Where to get                                                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | Supabase → Settings → Database → URI, "Session pooler" tab (port 5432, `aws-0-<region>.pooler.supabase.com` host — see 1b above)                                                                               |
+| `TENANT_DATABASE_URL`     | Optional. Same host/pooler as `DATABASE_URL`, connecting as the least-privileged `app_tenant` role instead of `postgres` — see `scripts/ops/create-app-tenant-role.sql`. Unset = falls back to `DATABASE_URL`. |
+| `REDIS_URL`               | Upstash console → ioredis URL                                                                                                                                                                                  |
+| `JWT_SECRET`              | `openssl rand -hex 32`                                                                                                                                                                                         |
+| `ENCRYPTION_KEY`          | `openssl rand -hex 32`                                                                                                                                                                                         |
+| `WORKER_SECRET`           | `openssl rand -hex 32`                                                                                                                                                                                         |
+| `CRON_SECRET`             | `openssl rand -hex 32` (you choose — same value goes into Supabase pg_cron SQL)                                                                                                                                |
+| `MPESA_CONSUMER_KEY`      | Safaricom Daraja portal                                                                                                                                                                                        |
+| `MPESA_CONSUMER_SECRET`   | Safaricom Daraja portal                                                                                                                                                                                        |
+| `MPESA_SHORTCODE`         | Safaricom Daraja portal                                                                                                                                                                                        |
+| `MPESA_PASSKEY`           | Safaricom Daraja portal                                                                                                                                                                                        |
+| `MPESA_CALLBACK_BASE_URL` | `https://kitabuyetu.vercel.app` (no trailing slash, callback paths derived)                                                                                                                                    |
+| `TEXTSMS_API_KEY`         | TextSMS Kenya dashboard                                                                                                                                                                                        |
+| `TEXTSMS_PARTNER_ID`      | TextSMS Kenya dashboard                                                                                                                                                                                        |
+| `RESEND_API_KEY`          | Resend dashboard                                                                                                                                                                                               |
+| `EMAIL_FROM`              | Verified sender address in Resend                                                                                                                                                                              |
+| `NEXT_PUBLIC_APP_URL`     | Your Vercel deployment URL                                                                                                                                                                                     |
 
 ### 4d. Deploy
 
@@ -254,7 +254,7 @@ SELECT cron.alter_job(
 - [ ] Ensure `MPESA_CALLBACK_BASE_URL` is your production Vercel URL (HTTPS, no trailing slash)
 - [ ] Register callback URL (one-time): `POST /api/v1/mpesa/register-urls` with your Bearer token
 - [ ] Vercel deployment IPs are dynamic — do NOT whitelist Vercel IPs at Safaricom.  
-      Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).
+       Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).
 
 ---
 

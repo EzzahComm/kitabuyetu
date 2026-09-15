@@ -15,8 +15,8 @@
  * These assert the sweep now counts the timeout as an attempt and retires a job
  * that exhausts them, rather than releasing it again.
  */
-import { resetStuckJobs } from '@/lib/jobs/db';
-import { rawQuery } from './helpers/db';
+import { resetStuckJobs } from "@/lib/jobs/db";
+import { rawQuery } from "./helpers/db";
 
 /** Insert a job already stuck in 'processing' past the sweep threshold. */
 async function stuckJob(attempts: number, maxAttempts = 5): Promise<string> {
@@ -30,18 +30,20 @@ async function stuckJob(attempts: number, maxAttempts = 5): Promise<string> {
 }
 
 async function readJob(id: string) {
-  const [row] = await rawQuery<{ status: string; attempts: number; last_error: string | null }>(
-    `SELECT status, attempts, last_error FROM job_queue WHERE id=$1`, [id],
-  );
+  const [row] = await rawQuery<{
+    status: string;
+    attempts: number;
+    last_error: string | null;
+  }>(`SELECT status, attempts, last_error FROM job_queue WHERE id=$1`, [id]);
   return row;
 }
 
-describe('stuck-job sweep bounds the retry loop (H3)', () => {
+describe("stuck-job sweep bounds the retry loop (H3)", () => {
   afterEach(async () => {
     await rawQuery(`DELETE FROM job_queue WHERE type='sms_bulk_send'`);
   });
 
-  it('counts the timeout as an attempt when releasing a job', async () => {
+  it("counts the timeout as an attempt when releasing a job", async () => {
     const id = await stuckJob(0);
 
     const result = await resetStuckJobs(6);
@@ -50,13 +52,13 @@ describe('stuck-job sweep bounds the retry loop (H3)', () => {
     expect(result.failed).toBe(0);
 
     const job = await readJob(id);
-    expect(job.status).toBe('pending');
+    expect(job.status).toBe("pending");
     // Before the fix this stayed at 0 forever, which is what made the loop unbounded.
     expect(job.attempts).toBe(1);
     expect(job.last_error).toMatch(/timed out/i);
   });
 
-  it('fails a job that exhausts max_attempts instead of releasing it again', async () => {
+  it("fails a job that exhausts max_attempts instead of releasing it again", async () => {
     const id = await stuckJob(4, 5);
 
     const result = await resetStuckJobs(6);
@@ -65,11 +67,11 @@ describe('stuck-job sweep bounds the retry loop (H3)', () => {
     expect(result.released).toBe(0);
 
     const job = await readJob(id);
-    expect(job.status).toBe('failed');
+    expect(job.status).toBe("failed");
     expect(job.attempts).toBe(5);
   });
 
-  it('terminates rather than looping when swept repeatedly', async () => {
+  it("terminates rather than looping when swept repeatedly", async () => {
     const id = await stuckJob(0, 3);
 
     // Simulate three consecutive ticks that each find the job still stuck.
@@ -83,16 +85,18 @@ describe('stuck-job sweep bounds the retry loop (H3)', () => {
     // timestamp always satisfies. (The other cases here backdate via INSERT,
     // which has no such trigger.)
     for (let i = 0; i < 3; i++) {
-      await rawQuery(`UPDATE job_queue SET status='processing' WHERE id=$1`, [id]);
+      await rawQuery(`UPDATE job_queue SET status='processing' WHERE id=$1`, [
+        id,
+      ]);
       await resetStuckJobs(0);
     }
 
     const job = await readJob(id);
-    expect(job.status).toBe('failed');
+    expect(job.status).toBe("failed");
     expect(job.attempts).toBe(3);
   });
 
-  it('leaves jobs inside the threshold alone', async () => {
+  it("leaves jobs inside the threshold alone", async () => {
     const [row] = await rawQuery<{ id: string }>(
       `INSERT INTO job_queue (type, payload, status, attempts, max_attempts, updated_at)
        VALUES ('sms_bulk_send', '{}'::jsonb, 'processing', 0, 5, NOW())
@@ -104,7 +108,7 @@ describe('stuck-job sweep bounds the retry loop (H3)', () => {
     expect(result.released).toBe(0);
     expect(result.failed).toBe(0);
     const job = await readJob(row.id);
-    expect(job.status).toBe('processing');
+    expect(job.status).toBe("processing");
     expect(job.attempts).toBe(0);
   });
 });

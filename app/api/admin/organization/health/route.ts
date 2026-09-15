@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withOrganizationAccess } from '@/lib/auth/middleware';
-import { organizationHealthService } from '@/lib/services/organization-health.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withOrganizationAccess } from "@/lib/auth/middleware";
+import { organizationHealthService } from "@/lib/services/organization-health.service";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/admin/organization/health — portfolio risk indicators: loans past
@@ -22,9 +22,18 @@ import { ok } from '@/lib/utils/response';
  * risk.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withOrganizationAccess(req, 'organization.dashboard.view', async (auth) => {
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    const health = await organizationHealthService.getPortfolioHealth(ctx);
-    return ok({ health, incomplete: health ? [] : ['health'] });
-  });
+  return withOrganizationAccess(
+    req,
+    "organization.dashboard.view",
+    async (auth) => {
+      const ctx = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
+      const health = await organizationHealthService.getPortfolioHealth(ctx);
+      return ok({ health, incomplete: health ? [] : ["health"] });
+    },
+  );
 }

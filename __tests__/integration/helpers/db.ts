@@ -1,10 +1,9 @@
-import { pool, withAdminDb } from '@/lib/db';
+import { pool, withAdminDb } from "@/lib/db";
 
 /** Fixture-only raw query — bypasses tenant context on purpose (test setup). */
-export async function rawQuery<T extends Record<string, unknown> = Record<string, unknown>>(
-  sql: string,
-  params?: unknown[],
-): Promise<T[]> {
+export async function rawQuery<
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(sql: string, params?: unknown[]): Promise<T[]> {
   return withAdminDb(async (client) => {
     const { rows } = await client.query<T>(sql, params);
     return rows;
@@ -27,7 +26,7 @@ export async function execScript(sql: string): Promise<void> {
     // on it (even from an unrelated test file) fails with "current
     // transaction is aborted" instead of the real error. ROLLBACK is a
     // no-op if there's no open transaction, so this is always safe.
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query("ROLLBACK").catch(() => {});
     throw err;
   } finally {
     client.release();

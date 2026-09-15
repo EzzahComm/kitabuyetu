@@ -11,9 +11,9 @@
  * human-readable messages.
  */
 
-import axios from 'axios';
-import { normalizePhone } from '@/lib/utils/phone';
-import { env } from '@/lib/env';
+import axios from "axios";
+import { normalizePhone } from "@/lib/utils/phone";
+import { env } from "@/lib/env";
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 //
@@ -26,29 +26,29 @@ import { env } from '@/lib/env';
 // ('KITABU YETU', the registered sender ID) also replaces the second,
 // drifted default ('KITABU') that lived here.
 
-const BASE_URL   = env.TEXTSMS_BASE_URL.replace(/\/$/, '');
-const API_KEY    = env.TEXTSMS_API_KEY;
+const BASE_URL = env.TEXTSMS_BASE_URL.replace(/\/$/, "");
+const API_KEY = env.TEXTSMS_API_KEY;
 const PARTNER_ID = env.TEXTSMS_PARTNER_ID;
-const SENDER_ID  = env.TEXTSMS_SENDER_ID;
+const SENDER_ID = env.TEXTSMS_SENDER_ID;
 
 // ─── Response codes ───────────────────────────────────────────────────────────
 
 export const SMS_CODES: Record<number, string> = {
-  200:  'Success',
-  1001: 'Invalid Sender ID',
-  1002: 'Network Not Allowed',
-  1003: 'Invalid Mobile Number',
-  1004: 'Low Bulk Credits',
-  1005: 'System Error',
-  1006: 'Invalid Credentials',
-  1007: 'System Error',
-  1008: 'No Delivery Report',
-  1009: 'Unsupported Data Type',
-  1010: 'Unsupported Request Type',
-  4090: 'Internal Error',
-  4091: 'No Partner ID Set',
-  4092: 'No API Key Provided',
-  4093: 'Details Not Found',
+  200: "Success",
+  1001: "Invalid Sender ID",
+  1002: "Network Not Allowed",
+  1003: "Invalid Mobile Number",
+  1004: "Low Bulk Credits",
+  1005: "System Error",
+  1006: "Invalid Credentials",
+  1007: "System Error",
+  1008: "No Delivery Report",
+  1009: "Unsupported Data Type",
+  1010: "Unsupported Request Type",
+  4090: "Internal Error",
+  4091: "No Partner ID Set",
+  4092: "No API Key Provided",
+  4093: "Details Not Found",
 };
 
 function codeDescription(code: number): string {
@@ -99,7 +99,7 @@ function toResponseCode(raw: unknown): number {
  * follow-up note in SMS_MESSAGING_AUDIT_2026-08.md for capturing one).
  */
 function extractResponseCode(row: Partial<ProviderResponseRow>): number {
-  const raw = row['response-code'] ?? row['respose-code'] ?? SYSTEM_ERROR;
+  const raw = row["response-code"] ?? row["respose-code"] ?? SYSTEM_ERROR;
   return toResponseCode(raw);
 }
 
@@ -112,12 +112,12 @@ function extractResponseCode(row: Partial<ProviderResponseRow>): number {
  * isn't fully confirmed yet.
  */
 interface ProviderResponseRow {
-  'response-code'?:       number | string;
-  'respose-code'?:        number | string;
-  'response-description': string;
-  mobile:                 string;
-  messageid:              string | number;
-  networkid:              string | number;
+  "response-code"?: number | string;
+  "respose-code"?: number | string;
+  "response-description": string;
+  mobile: string;
+  messageid: string | number;
+  networkid: string | number;
   /**
    * Echoed back from the request's own `clientsmsid` (SMS_MESSAGING_AUDIT_2026-08.md
    * H6). Optional in the type because we cannot be certain every response row
@@ -135,26 +135,26 @@ export class TextSmsError extends Error {
     public readonly phone?: string,
   ) {
     super(message);
-    this.name = 'TextSmsError';
+    this.name = "TextSmsError";
   }
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface SingleSmsInput {
-  mobile:       string;
-  message:      string;
-  senderId?:    string;
-  timeToSend?:  string;  // "YYYY-MM-DD HH:mm" — omit for immediate
+  mobile: string;
+  message: string;
+  senderId?: string;
+  timeToSend?: string; // "YYYY-MM-DD HH:mm" — omit for immediate
 }
 
 export interface SmsResponse {
-  responseCode:        number;
+  responseCode: number;
   responseDescription: string;
-  mobile:              string;
-  messageId:           string;
-  networkId:           string;
-  success:             boolean;
+  mobile: string;
+  messageId: string;
+  networkId: string;
+  success: boolean;
   /**
    * Parsed from the response row's own clientsmsid when present (H6) — lets a
    * caller align this response back to the exact request item it answers,
@@ -165,27 +165,27 @@ export interface SmsResponse {
 }
 
 export interface BulkSmsItem {
-  mobile:      string;
-  message:     string;
+  mobile: string;
+  message: string;
   clientSmsId?: number;
-  senderId?:   string;
+  senderId?: string;
   timeToSend?: string;
 }
 
 export interface BulkSmsResult {
   responses: SmsResponse[];
-  sent:      number;
-  failed:    number;
+  sent: number;
+  failed: number;
 }
 
 export interface DlrResult {
-  messageId:    string;
+  messageId: string;
   /**
    * The provider's HUMAN-READABLE verdict ('DeliveredToTerminal',
    * 'Scheduled', 'Rejected', …) — NOT the numeric `delivery-status`. See
    * getDeliveryReport() for why that distinction is the whole ballgame.
    */
-  status:       string;
+  status: string;
   /**
    * The numeric `delivery-status` field, kept for diagnostics only.
    *
@@ -194,74 +194,82 @@ export interface DlrResult {
    * so it carries no outcome information at all. NaN when the provider
    * omitted it or sent something unparseable.
    */
-  statusCode:   number;
-  phone:        string;
-  networkId:    string;
+  statusCode: number;
+  phone: string;
+  networkId: string;
   deliveredAt?: string;
-  raw:          Record<string, unknown>;
+  raw: Record<string, unknown>;
 }
 
 export interface BalanceResult {
-  balance:     number;
-  currency:    string;
-  raw:         Record<string, unknown>;
+  balance: number;
+  currency: string;
+  raw: Record<string, unknown>;
 }
 
 // ─── Single SMS ───────────────────────────────────────────────────────────────
 
-export async function sendSingleSms(input: SingleSmsInput): Promise<SmsResponse> {
+export async function sendSingleSms(
+  input: SingleSmsInput,
+): Promise<SmsResponse> {
   const phone = normalizePhone(input.mobile);
 
   const payload: Record<string, unknown> = {
-    apikey:    API_KEY,
+    apikey: API_KEY,
     partnerID: PARTNER_ID,
-    message:   input.message,
+    message: input.message,
     shortcode: input.senderId ?? SENDER_ID,
-    mobile:    phone,
-    pass_type: 'plain',  // required on the POST sendsms body, per the TextSMS spec
+    mobile: phone,
+    pass_type: "plain", // required on the POST sendsms body, per the TextSMS spec
   };
   if (input.timeToSend) payload.timeToSend = input.timeToSend;
 
   const { data } = await axios.post<{
     responses: ProviderResponseRow[];
   }>(`${BASE_URL}/api/services/sendsms/`, payload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
     timeout: 20_000,
   });
 
-  const r    = data.responses?.[0];
+  const r = data.responses?.[0];
   const code = r ? extractResponseCode(r) : SYSTEM_ERROR;
 
   return {
-    responseCode:        code,
-    responseDescription: r?.['response-description'] ?? codeDescription(code),
-    mobile:              String(r?.mobile ?? phone),
-    messageId:           String(r?.messageid ?? ''),
-    networkId:           String(r?.networkid ?? ''),
-    success:             code === SUCCESS_CODE,
+    responseCode: code,
+    responseDescription: r?.["response-description"] ?? codeDescription(code),
+    mobile: String(r?.mobile ?? phone),
+    messageId: String(r?.messageid ?? ""),
+    networkId: String(r?.networkid ?? ""),
+    success: code === SUCCESS_CODE,
   };
 }
 
 // ─── Bulk SMS ─────────────────────────────────────────────────────────────────
 
-export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> {
+export async function sendBulkSms(
+  items: BulkSmsItem[],
+): Promise<BulkSmsResult> {
   const smslist = items.map((item, idx) => ({
-    partnerID:   PARTNER_ID,
-    apikey:      API_KEY,
-    pass_type:   'plain',
+    partnerID: PARTNER_ID,
+    apikey: API_KEY,
+    pass_type: "plain",
     clientsmsid: item.clientSmsId ?? Date.now() + idx,
-    mobile:      normalizePhone(item.mobile),
-    message:     item.message,
-    shortcode:   item.senderId ?? SENDER_ID,
+    mobile: normalizePhone(item.mobile),
+    message: item.message,
+    shortcode: item.senderId ?? SENDER_ID,
     ...(item.timeToSend ? { timeToSend: item.timeToSend } : {}),
   }));
 
   const { data } = await axios.post<{
     responses: ProviderResponseRow[];
-  }>(`${BASE_URL}/api/services/sendbulk/`, { count: smslist.length, smslist }, {
-    headers: { 'Content-Type': 'application/json' },
-    timeout: 60_000,
-  });
+  }>(
+    `${BASE_URL}/api/services/sendbulk/`,
+    { count: smslist.length, smslist },
+    {
+      headers: { "Content-Type": "application/json" },
+      timeout: 60_000,
+    },
+  );
 
   const responses: SmsResponse[] = (data.responses ?? []).map((r) => {
     const code = extractResponseCode(r);
@@ -270,19 +278,19 @@ export async function sendBulkSms(items: BulkSmsItem[]): Promise<BulkSmsResult> 
     // let an absent field silently become the number 0.
     const clientIdNum = r.clientsmsid != null ? Number(r.clientsmsid) : NaN;
     return {
-      responseCode:        code,
-      responseDescription: r['response-description'] ?? codeDescription(code),
-      mobile:              String(r.mobile ?? ''),
-      messageId:           String(r.messageid ?? ''),
-      networkId:           String(r.networkid ?? ''),
-      success:             code === SUCCESS_CODE,
-      clientSmsId:         Number.isFinite(clientIdNum) ? clientIdNum : undefined,
+      responseCode: code,
+      responseDescription: r["response-description"] ?? codeDescription(code),
+      mobile: String(r.mobile ?? ""),
+      messageId: String(r.messageid ?? ""),
+      networkId: String(r.networkid ?? ""),
+      success: code === SUCCESS_CODE,
+      clientSmsId: Number.isFinite(clientIdNum) ? clientIdNum : undefined,
     };
   });
 
   return {
     responses,
-    sent:   responses.filter((r) => r.success).length,
+    sent: responses.filter((r) => r.success).length,
     failed: responses.filter((r) => !r.success).length,
   };
 }
@@ -320,7 +328,7 @@ export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
   const { data } = await axios.get<Record<string, unknown>>(
     `${BASE_URL}/api/services/getdlr/`,
     {
-      params:  { apikey: API_KEY, partnerID: PARTNER_ID, messageID: messageId },
+      params: { apikey: API_KEY, partnerID: PARTNER_ID, messageID: messageId },
       timeout: 15_000,
       validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
     },
@@ -356,37 +364,41 @@ export async function getDeliveryReport(messageId: string): Promise<DlrResult> {
   // no-report case, where it is the only description on offer.
   const NO_DLR = 1009;
   const description =
-    data['delivery-description']
-    ?? data.status
-    ?? (Number(data['response-code']) === NO_DLR ? data['response-description'] : undefined)
-    ?? 'unknown';
+    data["delivery-description"] ??
+    data.status ??
+    (Number(data["response-code"]) === NO_DLR
+      ? data["response-description"]
+      : undefined) ??
+    "unknown";
 
   return {
     messageId,
-    phone:       String(data.mobile ?? ''),
-    status:      String(description),
+    phone: String(data.mobile ?? ""),
+    status: String(description),
     // Plain Number(), not toResponseCode(): that helper fails CLOSED to
     // SYSTEM_ERROR (1005) because a send response we cannot read must not
     // count as success. Here the field is diagnostic only and never drives a
     // decision, so an absent/unparseable value should read as NaN ("we don't
     // know") rather than as the specific claim "the provider said 1005".
-    statusCode:  Number(data['delivery-status'] ?? NaN),
-    networkId:   String(data.networkid ?? data['delivery-networkid'] ?? ''),
-    deliveredAt: data['delivery-time'] ? String(data['delivery-time']) : undefined,
-    raw:         data,
+    statusCode: Number(data["delivery-status"] ?? NaN),
+    networkId: String(data.networkid ?? data["delivery-networkid"] ?? ""),
+    deliveredAt: data["delivery-time"]
+      ? String(data["delivery-time"])
+      : undefined,
+    raw: data,
   };
 }
 
 // ─── Account Balance ──────────────────────────────────────────────────────────
 
 export async function getProviderBalance(): Promise<BalanceResult> {
-  const { data } = await axios.get<{ balance?: string | number; [key: string]: unknown }>(
-    `${BASE_URL}/api/services/getbalance/`,
-    {
-      params:  { apikey: API_KEY, partnerID: PARTNER_ID },
-      timeout: 15_000,
-    },
-  );
+  const { data } = await axios.get<{
+    balance?: string | number;
+    [key: string]: unknown;
+  }>(`${BASE_URL}/api/services/getbalance/`, {
+    params: { apikey: API_KEY, partnerID: PARTNER_ID },
+    timeout: 15_000,
+  });
 
   // An error body ({"response-code":1006,"response-description":"Invalid
   // credentials"}) carries no `balance` field, and `?? '0'` turned that into a
@@ -399,17 +411,20 @@ export async function getProviderBalance(): Promise<BalanceResult> {
   const code = extractResponseCode(data as Partial<ProviderResponseRow>);
   if (data.balance == null || code !== SUCCESS_CODE) {
     throw new TextSmsError(
-      String(data['response-description'] ?? codeDescription(code)),
+      String(data["response-description"] ?? codeDescription(code)),
       code,
     );
   }
 
   const balance = parseFloat(String(data.balance));
   if (!Number.isFinite(balance)) {
-    throw new TextSmsError(`Unparseable balance: ${String(data.balance)}`, SYSTEM_ERROR);
+    throw new TextSmsError(
+      `Unparseable balance: ${String(data.balance)}`,
+      SYSTEM_ERROR,
+    );
   }
 
-  return { balance, currency: 'KES', raw: data };
+  return { balance, currency: "KES", raw: data };
 }
 
 // ─── Batch helper — chunks items to avoid payload limits ─────────────────────
@@ -424,15 +439,19 @@ const CHUNK_SIZE = 100;
  * a synthesized failure must not be the one thing that falls back to
  * positional matching.
  */
-function synthesizeChunkFailure(item: BulkSmsItem, idx: number, detail: string): SmsResponse {
+function synthesizeChunkFailure(
+  item: BulkSmsItem,
+  idx: number,
+  detail: string,
+): SmsResponse {
   return {
-    responseCode:        SYSTEM_ERROR,
+    responseCode: SYSTEM_ERROR,
     responseDescription: detail,
-    mobile:              item.mobile,
-    messageId:           '',
-    networkId:           '',
-    success:             false,
-    clientSmsId:         item.clientSmsId ?? idx,
+    mobile: item.mobile,
+    messageId: "",
+    networkId: "",
+    success: false,
+    clientSmsId: item.clientSmsId ?? idx,
   };
 }
 
@@ -453,7 +472,9 @@ function synthesizeChunkFailure(item: BulkSmsItem, idx: number, detail: string):
  * existing per-row settle logic then does the right thing with both halves,
  * because a synthesized failure is shaped exactly like a provider rejection.
  */
-export async function sendBulkSmsChunked(items: BulkSmsItem[]): Promise<BulkSmsResult> {
+export async function sendBulkSmsChunked(
+  items: BulkSmsItem[],
+): Promise<BulkSmsResult> {
   const all: SmsResponse[] = [];
   const chunkErrors: string[] = [];
 
@@ -466,7 +487,9 @@ export async function sendBulkSmsChunked(items: BulkSmsItem[]): Promise<BulkSmsR
       const detail = err instanceof Error ? err.message : String(err);
       chunkErrors.push(detail);
       // Only THIS chunk is lost. Earlier chunks keep their real responses.
-      chunk.forEach((item, j) => all.push(synthesizeChunkFailure(item, i + j, detail)));
+      chunk.forEach((item, j) =>
+        all.push(synthesizeChunkFailure(item, i + j, detail)),
+      );
     }
     // Respect rate limits — 500ms between chunks
     if (i + CHUNK_SIZE < items.length) {
@@ -483,7 +506,7 @@ export async function sendBulkSmsChunked(items: BulkSmsItem[]): Promise<BulkSmsR
 
   return {
     responses: all,
-    sent:      all.filter((r) => r.success).length,
-    failed:    all.filter((r) => !r.success).length,
+    sent: all.filter((r) => r.success).length,
+    failed: all.filter((r) => !r.success).length,
   };
 }

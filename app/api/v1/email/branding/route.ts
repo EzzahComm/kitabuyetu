@@ -1,17 +1,17 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth, withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth, withPermission } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
 
 const BrandingSchema = z.object({
-  senderName:    z.string().min(1).optional(),
-  senderEmail:   z.string().email().optional(),
-  replyToEmail:  z.string().email().optional(),
-  logoUrl:       z.string().optional(),
-  primaryColor:  z.string().optional(),
-  footerText:    z.string().optional(),
-  websiteUrl:    z.string().optional(),
+  senderName: z.string().min(1).optional(),
+  senderEmail: z.string().email().optional(),
+  replyToEmail: z.string().email().optional(),
+  logoUrl: z.string().optional(),
+  primaryColor: z.string().optional(),
+  footerText: z.string().optional(),
+  websiteUrl: z.string().optional(),
 });
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.manage', async (auth) => {
+  return withPermission(req, "messaging.manage", async (auth) => {
     const body = BrandingSchema.parse(await req.json());
 
     await withAdminDb((db) =>

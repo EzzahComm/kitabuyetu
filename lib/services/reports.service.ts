@@ -1,8 +1,7 @@
-import { withDb, type TenantContext } from '@/lib/db';
-import { accountingService } from './accounting.service';
+import { withDb, type TenantContext } from "@/lib/db";
+import { accountingService } from "./accounting.service";
 
 export const reportsService = {
-
   async contributionSummary(ctx: TenantContext, from: string, to: string) {
     return withDb(ctx, async (client) => {
       const { rows: totals } = await client.query(

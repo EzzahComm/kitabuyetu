@@ -1,12 +1,21 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Building2, ArrowLeft } from 'lucide-react';
+import Link from "next/link";
+import { Building2, ArrowLeft } from "lucide-react";
 import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from '@/components/ui/card';
-import { useBackofficeLogin } from '@/hooks/use-backoffice-login';
-import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/auth/backoffice-login-forms';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useBackofficeLogin } from "@/hooks/use-backoffice-login";
+import {
+  PasswordForm,
+  EnrollForm,
+  VerifyForm,
+  OrgChooser,
+} from "@/components/auth/backoffice-login-forms";
 
 /**
  * Organization staff sign-in — split out from /admin-login
@@ -29,15 +38,24 @@ import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/a
  */
 export default function EnterpriseLoginPage() {
   const {
-    phase, submitting, pwdForm, codeForm,
-    onSubmitPassword, onSubmitCode, onPickOrg, backToPassword,
-  } = useBackofficeLogin('organization', '/enterprise');
+    phase,
+    submitting,
+    pwdForm,
+    codeForm,
+    onSubmitPassword,
+    onSubmitCode,
+    onPickOrg,
+    backToPassword,
+  } = useBackofficeLogin("organization", "/enterprise");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-brand-50 px-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-between text-sm text-brand-blue-900/60">
-          <Link href="/login" className="inline-flex items-center gap-1 hover:text-brand-blue-900">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1 hover:text-brand-blue-900"
+          >
             <ArrowLeft className="h-4 w-4" /> Back to member login
           </Link>
           <span className="font-mono text-xs">enterprise</span>
@@ -48,62 +66,98 @@ export default function EnterpriseLoginPage() {
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-brand-600" />
               <CardTitle className="text-brand-blue-900">
-                {phase.kind === 'password'   && 'Enterprise sign-in'}
-                {phase.kind === 'enroll'     && 'Set up two-factor authentication'}
-                {phase.kind === 'verify'     && 'Enter your authenticator code'}
-                {phase.kind === 'chooseOrg'  && 'Choose an organization'}
+                {phase.kind === "password" && "Enterprise sign-in"}
+                {phase.kind === "enroll" && "Set up two-factor authentication"}
+                {phase.kind === "verify" && "Enter your authenticator code"}
+                {phase.kind === "chooseOrg" && "Choose an organization"}
               </CardTitle>
             </div>
             <CardDescription className="text-brand-blue-900/60">
-              {phase.kind === 'password' && (
-                <>For SACCOs, NGOs, and federation staff. Member accounts log in at{' '}
-                  <Link href="/login" className="text-brand-blue-900 underline-offset-2 hover:underline">/login</Link>,
-                  {' '}Kitabu Yetu staff at{' '}
-                  <Link href="/admin-login" className="text-brand-blue-900 underline-offset-2 hover:underline">/admin-login</Link>.
+              {phase.kind === "password" && (
+                <>
+                  For SACCOs, NGOs, and federation staff. Member accounts log in
+                  at{" "}
+                  <Link
+                    href="/login"
+                    className="text-brand-blue-900 underline-offset-2 hover:underline"
+                  >
+                    /login
+                  </Link>
+                  , Kitabu Yetu staff at{" "}
+                  <Link
+                    href="/admin-login"
+                    className="text-brand-blue-900 underline-offset-2 hover:underline"
+                  >
+                    /admin-login
+                  </Link>
+                  .
                 </>
               )}
-              {phase.kind === 'enroll' && (
-                <>Scan the QR with Authy, Google Authenticator, or 1Password. Then enter the 6-digit code to finish enrolling.</>
+              {phase.kind === "enroll" && (
+                <>
+                  Scan the QR with Authy, Google Authenticator, or 1Password.
+                  Then enter the 6-digit code to finish enrolling.
+                </>
               )}
-              {phase.kind === 'verify' && (
-                <>Open your authenticator app and enter the current 6-digit code. Or use one of your recovery codes (10 hex characters).</>
+              {phase.kind === "verify" && (
+                <>
+                  Open your authenticator app and enter the current 6-digit
+                  code. Or use one of your recovery codes (10 hex characters).
+                </>
               )}
-              {phase.kind === 'chooseOrg' && (
-                <>You&apos;re staff at more than one organization. Pick the one you want to sign into.</>
+              {phase.kind === "chooseOrg" && (
+                <>
+                  You&apos;re staff at more than one organization. Pick the one
+                  you want to sign into.
+                </>
               )}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {phase.kind === 'password' && (
+            {phase.kind === "password" && (
               <PasswordForm
-                variant="light" form={pwdForm} submitting={submitting} onSubmit={onSubmitPassword}
+                variant="light"
+                form={pwdForm}
+                submitting={submitting}
+                onSubmit={onSubmitPassword}
                 forgotPasswordHref="/admin-login/forgot-password"
               />
             )}
-            {phase.kind === 'enroll' && (
+            {phase.kind === "enroll" && (
               <EnrollForm
-                variant="light" data={phase.data} form={codeForm} submitting={submitting}
-                onSubmit={onSubmitCode} onBack={backToPassword}
+                variant="light"
+                data={phase.data}
+                form={codeForm}
+                submitting={submitting}
+                onSubmit={onSubmitCode}
+                onBack={backToPassword}
               />
             )}
-            {phase.kind === 'verify' && (
+            {phase.kind === "verify" && (
               <VerifyForm
-                variant="light" form={codeForm} submitting={submitting}
-                onSubmit={onSubmitCode} onBack={backToPassword}
+                variant="light"
+                form={codeForm}
+                submitting={submitting}
+                onSubmit={onSubmitCode}
+                onBack={backToPassword}
               />
             )}
-            {phase.kind === 'chooseOrg' && (
+            {phase.kind === "chooseOrg" && (
               <OrgChooser
-                variant="light" organizations={phase.organizations} submitting={submitting}
-                onPick={onPickOrg} onBack={backToPassword}
+                variant="light"
+                organizations={phase.organizations}
+                submitting={submitting}
+                onPick={onPickOrg}
+                onBack={backToPassword}
               />
             )}
           </CardContent>
         </Card>
 
         <p className="text-center text-xs text-brand-blue-900/40">
-          Activity in this portal is logged. Unauthorised access is prosecutable.
+          Activity in this portal is logged. Unauthorised access is
+          prosecutable.
         </p>
       </div>
     </div>

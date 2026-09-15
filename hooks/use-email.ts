@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
 
 export interface EmailLog {
   id: string;
@@ -74,16 +74,25 @@ export interface EmailPreference {
 
 // ─── Email Logs ───────────────────────────────────────────────────────────────
 
-export function useEmailLogs(params?: { status?: string; category?: string; days?: number; page?: number }) {
+export function useEmailLogs(params?: {
+  status?: string;
+  category?: string;
+  days?: number;
+  page?: number;
+}) {
   const qs = new URLSearchParams();
-  if (params?.status)   qs.set('status',   params.status);
-  if (params?.category) qs.set('category', params.category);
-  if (params?.days)     qs.set('days',     String(params.days));
-  if (params?.page)     qs.set('page',     String(params.page));
+  if (params?.status) qs.set("status", params.status);
+  if (params?.category) qs.set("category", params.category);
+  if (params?.days) qs.set("days", String(params.days));
+  if (params?.page) qs.set("page", String(params.page));
 
   return useQuery({
-    queryKey: ['email-logs', params],
-    queryFn: () => api.get<{ data: EmailLog[]; meta: { total: number; page: number; limit: number } }>(`/email/logs?${qs}`),
+    queryKey: ["email-logs", params],
+    queryFn: () =>
+      api.get<{
+        data: EmailLog[];
+        meta: { total: number; page: number; limit: number };
+      }>(`/email/logs?${qs}`),
   });
 }
 
@@ -91,7 +100,7 @@ export function useEmailLogs(params?: { status?: string; category?: string; days
 
 export function useEmailAnalytics(days = 30) {
   return useQuery({
-    queryKey: ['email-analytics', days],
+    queryKey: ["email-analytics", days],
     queryFn: () => api.get<EmailAnalytics>(`/email/analytics?days=${days}`),
     staleTime: 60_000,
   });
@@ -101,26 +110,39 @@ export function useEmailAnalytics(days = 30) {
 
 export function useEmailTemplates() {
   return useQuery({
-    queryKey: ['email-templates'],
-    queryFn: () => api.get<EmailTemplate[]>('/email/templates'),
+    queryKey: ["email-templates"],
+    queryFn: () => api.get<EmailTemplate[]>("/email/templates"),
   });
 }
 
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { templateKey: string; name: string; subject: string; body: string; locale?: string }) =>
-      api.post<{ id: string }>('/email/templates', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-templates'] }),
+    mutationFn: (body: {
+      templateKey: string;
+      name: string;
+      subject: string;
+      body: string;
+      locale?: string;
+    }) => api.post<{ id: string }>("/email/templates", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
   });
 }
 
 export function useUpdateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; subject?: string; body?: string; isActive?: boolean }) =>
-      api.put<{ id: string }>(`/email/templates/${id}`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-templates'] }),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      name?: string;
+      subject?: string;
+      body?: string;
+      isActive?: boolean;
+    }) => api.put<{ id: string }>(`/email/templates/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
   });
 }
 
@@ -128,26 +150,33 @@ export function useUpdateTemplate() {
 
 export function useEmailCampaigns() {
   return useQuery({
-    queryKey: ['email-campaigns'],
-    queryFn: () => api.get<EmailCampaign[]>('/email/campaigns'),
+    queryKey: ["email-campaigns"],
+    queryFn: () => api.get<EmailCampaign[]>("/email/campaigns"),
   });
 }
 
 export function useCreateCampaign() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; subject: string; templateKey?: string; htmlBody?: string; recipientFilter?: unknown; scheduledAt?: string; launch?: boolean }) =>
-      api.post<{ id: string }>('/email/campaigns', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-campaigns'] }),
+    mutationFn: (body: {
+      name: string;
+      subject: string;
+      templateKey?: string;
+      htmlBody?: string;
+      recipientFilter?: unknown;
+      scheduledAt?: string;
+      launch?: boolean;
+    }) => api.post<{ id: string }>("/email/campaigns", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-campaigns"] }),
   });
 }
 
 export function useCampaignAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'launch' | 'cancel' }) =>
+    mutationFn: ({ id, action }: { id: string; action: "launch" | "cancel" }) =>
       api.post<void>(`/email/campaigns/${id}`, { action }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-campaigns'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-campaigns"] }),
   });
 }
 
@@ -155,8 +184,8 @@ export function useCampaignAction() {
 
 export function useEmailSchedules() {
   return useQuery({
-    queryKey: ['email-schedules'],
-    queryFn: () => api.get<EmailSchedule[]>('/email/schedules'),
+    queryKey: ["email-schedules"],
+    queryFn: () => api.get<EmailSchedule[]>("/email/schedules"),
   });
 }
 
@@ -164,16 +193,17 @@ export function useEmailSchedules() {
 
 export function useEmailPreferences() {
   return useQuery({
-    queryKey: ['email-preferences'],
-    queryFn: () => api.get<EmailPreference[]>('/email/preferences'),
+    queryKey: ["email-preferences"],
+    queryFn: () => api.get<EmailPreference[]>("/email/preferences"),
   });
 }
 
 export function useUpdatePreferences() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: EmailPreference[]) => api.put<void>('/email/preferences', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-preferences'] }),
+    mutationFn: (body: EmailPreference[]) =>
+      api.put<void>("/email/preferences", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-preferences"] }),
   });
 }
 
@@ -191,15 +221,16 @@ export interface EmailBranding {
 
 export function useEmailBranding() {
   return useQuery({
-    queryKey: ['email-branding'],
-    queryFn: () => api.get<EmailBranding | null>('/email/branding'),
+    queryKey: ["email-branding"],
+    queryFn: () => api.get<EmailBranding | null>("/email/branding"),
   });
 }
 
 export function useUpdateBranding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Partial<EmailBranding>) => api.put<void>('/email/branding', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-branding'] }),
+    mutationFn: (body: Partial<EmailBranding>) =>
+      api.put<void>("/email/branding", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-branding"] }),
   });
 }

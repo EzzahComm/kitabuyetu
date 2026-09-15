@@ -26,23 +26,25 @@
  *   - refresh_tokens    — audit trail only; stamped so the table doesn't claim
  *                         tokens are live when Redis has dropped them.
  */
-import { revokeAllRefreshTokens } from '../lib/redis';
-import { withAdminDb } from '../lib/db';
+import { revokeAllRefreshTokens } from "../lib/redis";
+import { withAdminDb } from "../lib/db";
 
 async function main(): Promise<void> {
-  const commit = process.argv.includes('--commit');
+  const commit = process.argv.includes("--commit");
 
   const live = await withAdminDb((db) =>
-    db.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM refresh_tokens
+    db
+      .query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM refresh_tokens
        WHERE revoked_at IS NULL AND expires_at > NOW()`,
-    ).then((r) => parseInt(r.rows[0].count, 10)),
+      )
+      .then((r) => parseInt(r.rows[0].count, 10)),
   );
 
   if (!commit) {
     console.log(`[dry-run] ${live} unrevoked, unexpired refresh_tokens rows.`);
-    console.log('[dry-run] Redis ky:rt:* keys would be scanned and deleted.');
-    console.log('[dry-run] Re-run with --commit to apply.');
+    console.log("[dry-run] Redis ky:rt:* keys would be scanned and deleted.");
+    console.log("[dry-run] Re-run with --commit to apply.");
     return;
   }
 
@@ -51,19 +53,25 @@ async function main(): Promise<void> {
   const purged = await revokeAllRefreshTokens();
 
   const stamped = await withAdminDb((db) =>
-    db.query(
-      `UPDATE refresh_tokens SET revoked_at = NOW()
+    db
+      .query(
+        `UPDATE refresh_tokens SET revoked_at = NOW()
        WHERE revoked_at IS NULL AND expires_at > NOW()`,
-    ).then((r) => r.rowCount ?? 0),
+      )
+      .then((r) => r.rowCount ?? 0),
   );
 
-  console.log(`Revoked ${purged} Redis refresh tokens; stamped ${stamped} refresh_tokens rows.`);
-  console.log('Access tokens remain valid until they expire (JWT_ACCESS_EXPIRES_IN).');
+  console.log(
+    `Revoked ${purged} Redis refresh tokens; stamped ${stamped} refresh_tokens rows.`,
+  );
+  console.log(
+    "Access tokens remain valid until they expire (JWT_ACCESS_EXPIRES_IN).",
+  );
 }
 
 main()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error('invalidate-refresh-tokens failed:', err);
+    console.error("invalidate-refresh-tokens failed:", err);
     process.exit(1);
   });

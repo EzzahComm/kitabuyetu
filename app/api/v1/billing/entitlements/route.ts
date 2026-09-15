@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { ok } from '@/lib/utils/response';
-import type { SubscriptionProduct } from '@/types/enums';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import { ok } from "@/lib/utils/response";
+import type { SubscriptionProduct } from "@/types/enums";
 
 /**
  * What this group is entitled to, and what it signed up for.
@@ -44,8 +44,8 @@ export async function GET(req: NextRequest): Promise<Response> {
         ),
       ]);
       return {
-        products:      subs.rows.map((r) => r.product),
-        signupProduct: group.rows[0]?.signup_product ?? 'kitabu_yetu',
+        products: subs.rows.map((r) => r.product),
+        signupProduct: group.rows[0]?.signup_product ?? "kitabu_yetu",
       };
     });
 

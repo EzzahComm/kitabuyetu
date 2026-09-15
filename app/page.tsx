@@ -200,4 +200,3 @@ const ecosystem = {
     href: "/ecosystem",
   },
 };
-

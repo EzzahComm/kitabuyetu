@@ -22,8 +22,8 @@
  * should have called — rather than reimplementing the rate/credit maths, so a
  * backfilled row is indistinguishable from one credited normally.
  */
-import { withAdminDb } from '../lib/db';
-import { billingService } from '../lib/services/billing.service';
+import { withAdminDb } from "../lib/db";
+import { billingService } from "../lib/services/billing.service";
 
 interface UncreditedTopup {
   payment_id: string;
@@ -53,11 +53,11 @@ async function findUncredited(): Promise<UncreditedTopup[]> {
 }
 
 async function main() {
-  const apply = process.argv.includes('--apply');
+  const apply = process.argv.includes("--apply");
 
   const pending = await findUncredited();
   if (pending.length === 0) {
-    console.log('No uncredited SMS top-ups found — nothing to do.');
+    console.log("No uncredited SMS top-ups found — nothing to do.");
     return;
   }
 
@@ -65,20 +65,22 @@ async function main() {
   for (const t of pending) {
     console.log(
       `  payment=${t.payment_id} group=${t.group_id} ` +
-      `KES ${t.amount} receipt=${t.mpesa_receipt_number ?? '(none)'} paid=${t.payment_date}`,
+        `KES ${t.amount} receipt=${t.mpesa_receipt_number ?? "(none)"} paid=${t.payment_date}`,
     );
   }
 
   if (!apply) {
-    console.log('\nDry run — re-run with --apply to credit these.');
+    console.log("\nDry run — re-run with --apply to credit these.");
     return;
   }
 
   for (const t of pending) {
     // Same ctx shape the callback route uses for this call.
-    const ctx = { userId: 'system', groupId: t.group_id, role: 'chairperson' };
+    const ctx = { userId: "system", groupId: t.group_id, role: "chairperson" };
     await billingService.addSmsCredits(ctx, Number(t.amount), t.payment_id);
-    console.log(`Credited KES ${t.amount} to group ${t.group_id} (payment ${t.payment_id})`);
+    console.log(
+      `Credited KES ${t.amount} to group ${t.group_id} (payment ${t.payment_id})`,
+    );
   }
 
   const remaining = await findUncredited();
@@ -87,7 +89,9 @@ async function main() {
   );
 }
 
-main().then(() => process.exit(0)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

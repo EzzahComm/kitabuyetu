@@ -1,9 +1,9 @@
-import { NextRequest } from 'next/server';
-import { proxy } from '@/proxy';
-import { signAccessToken, signBackofficeAccessToken } from '@/lib/auth/jwt';
+import { NextRequest } from "next/server";
+import { proxy } from "@/proxy";
+import { signAccessToken, signBackofficeAccessToken } from "@/lib/auth/jwt";
 
 function bearerReq(path: string, token: string): NextRequest {
-  return new NextRequest(new URL(path, 'http://localhost'), {
+  return new NextRequest(new URL(path, "http://localhost"), {
     headers: { authorization: `Bearer ${token}` },
   });
 }
@@ -41,7 +41,8 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  if (ORIGINAL_REDIS_URL !== undefined) process.env.REDIS_URL = ORIGINAL_REDIS_URL;
+  if (ORIGINAL_REDIS_URL !== undefined)
+    process.env.REDIS_URL = ORIGINAL_REDIS_URL;
 });
 
 /**
@@ -59,43 +60,66 @@ afterAll(() => {
  * asserting the mechanics of a workaround is not the same as asserting the
  * outcome it exists to produce.
  */
-describe('proxy: organization API audience', () => {
-  it('lets an organization_coordinator backoffice token reach /api/admin/organization/* as backoffice', async () => {
+describe("proxy: organization API audience", () => {
+  it("lets an organization_coordinator backoffice token reach /api/admin/organization/* as backoffice", async () => {
     const token = signBackofficeAccessToken({
-      sub: 'coordinator-1', aud: 'backoffice', platformRole: 'organization_coordinator', organizationId: 'org-1',
+      sub: "coordinator-1",
+      aud: "backoffice",
+      platformRole: "organization_coordinator",
+      organizationId: "org-1",
     });
-    const res = await proxy(bearerReq('/api/admin/organization/profile', token));
+    const res = await proxy(
+      bearerReq("/api/admin/organization/profile", token),
+    );
 
     expect(res.status).not.toBe(403);
     // Stamped as what it really is — no more pretending a backoffice token is
     // a tenant one, and no empty-string group sentinel.
-    expect(downstreamHeader(res, 'x-aud')).toBe('backoffice');
-    expect(downstreamHeader(res, 'x-platform-role')).toBe('organization_coordinator');
-    expect(downstreamHeader(res, 'x-organization-id')).toBe('org-1');
+    expect(downstreamHeader(res, "x-aud")).toBe("backoffice");
+    expect(downstreamHeader(res, "x-platform-role")).toBe(
+      "organization_coordinator",
+    );
+    expect(downstreamHeader(res, "x-organization-id")).toBe("org-1");
   });
 
-  it('lets super_admin reach the organization tree too', async () => {
-    const token = signBackofficeAccessToken({ sub: 'admin-1', aud: 'backoffice', platformRole: 'super_admin' });
-    const res = await proxy(bearerReq('/api/admin/organization/dashboard', token));
+  it("lets super_admin reach the organization tree too", async () => {
+    const token = signBackofficeAccessToken({
+      sub: "admin-1",
+      aud: "backoffice",
+      platformRole: "super_admin",
+    });
+    const res = await proxy(
+      bearerReq("/api/admin/organization/dashboard", token),
+    );
 
     expect(res.status).not.toBe(403);
-    expect(downstreamHeader(res, 'x-platform-role')).toBe('super_admin');
+    expect(downstreamHeader(res, "x-platform-role")).toBe("super_admin");
   });
 
-  it('rejects a backoffice token on /api/v1/* — the carve-out is gone', async () => {
+  it("rejects a backoffice token on /api/v1/* — the carve-out is gone", async () => {
     const token = signBackofficeAccessToken({
-      sub: 'coordinator-1', aud: 'backoffice', platformRole: 'organization_coordinator', organizationId: 'org-1',
+      sub: "coordinator-1",
+      aud: "backoffice",
+      platformRole: "organization_coordinator",
+      organizationId: "org-1",
     });
     // The old carve-out path specifically: it must no longer be special.
-    expect((await proxy(bearerReq('/api/v1/organization/profile', token))).status).toBe(403);
-    expect((await proxy(bearerReq('/api/v1/loans', token))).status).toBe(403);
+    expect(
+      (await proxy(bearerReq("/api/v1/organization/profile", token))).status,
+    ).toBe(403);
+    expect((await proxy(bearerReq("/api/v1/loans", token))).status).toBe(403);
   });
 
-  it('rejects a TENANT token on the organization tree — it is not a group-scoped surface', async () => {
+  it("rejects a TENANT token on the organization tree — it is not a group-scoped surface", async () => {
     const token = signAccessToken({
-      sub: 'member-1', groupId: 'group-1', role: 'organization_coordinator', organizationId: 'org-1',
+      sub: "member-1",
+      groupId: "group-1",
+      role: "organization_coordinator",
+      organizationId: "org-1",
     });
-    const res = await proxy(bearerReq('/api/admin/organization/profile', token));
+    const res = await proxy(
+      bearerReq("/api/admin/organization/profile", token),
+    );
 
     expect(res.status).toBe(403);
   });

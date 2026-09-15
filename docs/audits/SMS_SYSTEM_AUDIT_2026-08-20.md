@@ -12,11 +12,11 @@
 
 The brief asked not to assume where the code or database does not provide evidence. Every finding below is tagged:
 
-| Tag | Meaning |
-|---|---|
-| **[VERIFIED]** | Reproduced against the live production database, the live provider API, or executed code |
-| **[INFERRED]** | Follows logically from code that was read, but the specific failure was not reproduced |
-| **[NEEDS INVESTIGATION]** | Evidence is suggestive but incomplete; the open question is stated explicitly |
+| Tag                       | Meaning                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| **[VERIFIED]**            | Reproduced against the live production database, the live provider API, or executed code |
+| **[INFERRED]**            | Follows logically from code that was read, but the specific failure was not reproduced   |
+| **[NEEDS INVESTIGATION]** | Evidence is suggestive but incomplete; the open question is stated explicitly            |
 
 ---
 
@@ -38,24 +38,24 @@ Separately, **two SMS background job types have been starved for 4–8 days** de
 
 **Headline priorities**
 
-| # | Action | Severity | Effort | Status |
-|---|---|---|---|---|
-| 1 | Fix DLR field misread (`delivery-status` → `delivery-description`) | Critical | ~1 hour | **SHIPPED** (PR #110) |
-| 2 | Alert on delivery-rate collapse and provider queue stalls | Critical | ~1 day | Open — next |
-| 3 | Resolve the TextSMS dispatch stall (provider escalation) | Critical | External | Open — with provider |
-| 4 | Fix job-queue starvation properly | High | ~2 days | **Partly shipped** (PR #110) |
-| 5 | Implement STOP/opt-out inbound handling (compliance) | High | ~2 days | Open |
+| #   | Action                                                             | Severity | Effort   | Status                       |
+| --- | ------------------------------------------------------------------ | -------- | -------- | ---------------------------- |
+| 1   | Fix DLR field misread (`delivery-status` → `delivery-description`) | Critical | ~1 hour  | **SHIPPED** (PR #110)        |
+| 2   | Alert on delivery-rate collapse and provider queue stalls          | Critical | ~1 day   | Open — next                  |
+| 3   | Resolve the TextSMS dispatch stall (provider escalation)           | Critical | External | Open — with provider         |
+| 4   | Fix job-queue starvation properly                                  | High     | ~2 days  | **Partly shipped** (PR #110) |
+| 5   | Implement STOP/opt-out inbound handling (compliance)               | High     | ~2 days  | Open                         |
 
 ### Implementation status (updated 2026-08-20, post-audit)
 
-| Finding | Outcome |
-|---|---|
-| **C1** DLR field misread | **Fixed**, PR #110, with 11 regression tests pinning real provider payloads |
-| **H2** job-sweep backlog | **Partly fixed**, PR #110 — constant dedup keys stop unbounded growth; 4,254 redundant rows purged; all four SMS types now at exactly 1 pending. Dedicated lanes / age escalation still open, and may prove unnecessary now that rotation has one row per type to reach rather than thousands |
-| **H4** 53% failure rate | **Closed** — entirely historical, see below |
-| **M1** low-balance never re-arms | **Fixed**, PR #110 |
-| **C2** provider stall | Open, external |
-| **C3** alerting | Open — now unblocked, since delivery status is finally readable |
+| Finding                          | Outcome                                                                                                                                                                                                                                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C1** DLR field misread         | **Fixed**, PR #110, with 11 regression tests pinning real provider payloads                                                                                                                                                                                                                   |
+| **H2** job-sweep backlog         | **Partly fixed**, PR #110 — constant dedup keys stop unbounded growth; 4,254 redundant rows purged; all four SMS types now at exactly 1 pending. Dedicated lanes / age escalation still open, and may prove unnecessary now that rotation has one row per type to reach rather than thousands |
+| **H4** 53% failure rate          | **Closed** — entirely historical, see below                                                                                                                                                                                                                                                   |
+| **M1** low-balance never re-arms | **Fixed**, PR #110                                                                                                                                                                                                                                                                            |
+| **C2** provider stall            | Open, external                                                                                                                                                                                                                                                                                |
+| **C3** alerting                  | Open — now unblocked, since delivery status is finally readable                                                                                                                                                                                                                               |
 
 **Newly surfaced during implementation:** the `email_*` sweeps carry the identical H2 defect — `email_retry_failed` (885), `email_campaign_drain` (852), `email_campaign_process` (845) = **2,582 pending rows** competing for the same tick budget the SMS jobs need. Deliberately not changed blind; they were outside this audit's scope. **This should be the next H2 action.**
 
@@ -131,7 +131,7 @@ Worth stating explicitly, because the findings below are all problems:
 - **Reservation over debit-then-refund.** Retries are safe by construction rather than by remembering to refund. The reasoning is documented in `messaging-billing.ts`'s header and it is correct.
 - **`clientSmsId` alignment** instead of positional matching across chunked sends — a subtle bug class, already closed.
 - **Payer is stated, never inferred.** A group can be overseen by several organizations, so `payer_type`/`payer_organization_id` are recorded per row. Correct modelling.
-- **`getDlr` scope is opt-in** (`{groupId}` vs `{system:true}`), with the ownership check *before* the provider call. This is the right shape and closes a real cross-tenant hole.
+- **`getDlr` scope is opt-in** (`{groupId}` vs `{system:true}`), with the ownership check _before_ the provider call. This is the right shape and closes a real cross-tenant hole.
 - **Index coverage on `sms_usage_logs` is genuinely good** — 11 indexes including partial indexes on `billing_state='reserved'`, `provider_msg_id IS NOT NULL`, and `correlation_id IS NOT NULL`. No missing-index findings.
 - **Rate limiting exists on all three send surfaces** and is scoped per group (the budget being protected), fail-open by design.
 - **Allowance reset derives the anniversary from `started_at` every run**, so it cannot drift and is idempotent at any cadence.
@@ -170,9 +170,10 @@ Live provider payloads captured during this audit:
 "Rejected"            -> failed
 ```
 
-The `SMS_CODES` map in the same file (`200: Success, 1001: Invalid Sender ID, …`) documents *send* response codes and has no bearing on the DLR endpoint. There is no numeric-status mapping table anywhere in the codebase, which is consistent with `delivery-status` never having been understood.
+The `SMS_CODES` map in the same file (`200: Success, 1001: Invalid Sender ID, …`) documents _send_ response codes and has no bearing on the DLR endpoint. There is no numeric-status mapping table anywhere in the codebase, which is consistent with `delivery-status` never having been understood.
 
 **Risk / impact.**
+
 - Delivery confirmation is a **product feature that has never worked once**. `sms_campaigns.delivered_count` is permanently 0.
 - **Genuinely failed messages are never detected** via DLR, so they are never routed into `sms_failures` and never retried. The customer was charged.
 - `pollPendingDlrs` re-polls the same messages for a full 7 days because they never reach a terminal state — wasted provider calls and wasted job-queue budget, which is a contributing cause of **C4**.
@@ -203,20 +204,21 @@ Then **backfill**: re-poll the 151 `sent` rows within the provider's retention w
 
 **Current problem.** Every message submitted since ~2026-08-19 14:19 UTC sits at `Scheduled` in the provider's queue with `delivery-time: null`, indefinitely. [VERIFIED — live provider DLR queries]
 
-| Provider msg id | Sent | Provider verdict |
-|---|---|---|
-| `818620215` | 08-19 09:09 UTC | **DeliveredToTerminal** |
-| `819270384` | 08-19 14:19 UTC | **Scheduled** |
-| `821169663` | 08-20 13:56 UTC | **Scheduled** |
-| `821262633` | 08-20 15:00 UTC | **Scheduled** |
-| `821287131` | 08-20 ~15:2x UTC | **Scheduled** (new account) |
-| `821288758` | 08-20 ~15:3x UTC | **Scheduled** (new account) |
+| Provider msg id | Sent             | Provider verdict            |
+| --------------- | ---------------- | --------------------------- |
+| `818620215`     | 08-19 09:09 UTC  | **DeliveredToTerminal**     |
+| `819270384`     | 08-19 14:19 UTC  | **Scheduled**               |
+| `821169663`     | 08-20 13:56 UTC  | **Scheduled**               |
+| `821262633`     | 08-20 15:00 UTC  | **Scheduled**               |
+| `821287131`     | 08-20 ~15:2x UTC | **Scheduled** (new account) |
+| `821288758`     | 08-20 ~15:3x UTC | **Scheduled** (new account) |
 
 **Root cause.** Provider-side, and **not** account-specific. Ruled out by direct test:
+
 - Not credit — account `14643` holds KES 437.00; the outage began with a healthy balance.
 - Not sender ID — production is correctly `KITABU YETU` (11 chars, at the alphanumeric limit but valid).
 - Not credentials — `getbalance` returns `200`.
-- **Not the account** — switching to partner `16532` and sending two fresh live tests produced the *same* `Scheduled` stall, one with KES 5 credit and one with KES 104.
+- **Not the account** — switching to partner `16532` and sending two fresh live tests produced the _same_ `Scheduled` stall, one with KES 5 credit and one with KES 104.
 - **Provider bills for undelivered messages** — balance moved 104.00 → 103.00 across the test sends.
 
 Two independent partner IDs, both accepting with `response-code 200`, both queueing forever ⇒ platform-side at TextSMS.
@@ -224,7 +226,8 @@ Two independent partner IDs, both accepting with `response-code 200`, both queue
 **Risk / impact.** Total outage of every SMS-dependent flow for **>24 hours and ongoing**: registration OTPs (users cannot complete signup at all), payment confirmations, contribution nudges, loan notices. Direct revenue impact via blocked signups; trust impact via members chasing payments that were in fact confirmed. Money is being spent on messages that are never delivered.
 
 **Recommended solution.**
-1. **Escalate to TextSMS** with the evidence above. The precise question: *why are messages accepted with `response-code 200` sitting at `delivery-description: Scheduled` and never dispatched to Safaricom, across partner IDs 14643 and 16532, since 19 Aug?*
+
+1. **Escalate to TextSMS** with the evidence above. The precise question: _why are messages accepted with `response-code 200` sitting at `delivery-description: Scheduled` and never dispatched to Safaricom, across partner IDs 14643 and 16532, since 19 Aug?_
 2. **Do not top up further** until the queue is confirmed moving — the test proved credit is consumed without delivery.
 3. Build **C3** so the next occurrence pages within minutes.
 4. **Medium-term: add a second provider.** This incident is unmitigable today because TextSMS is a hard single point of failure (see H1).
@@ -237,16 +240,16 @@ Two independent partner IDs, both accepting with `response-code 200`, both queue
 
 **Current problem.** A complete, billed, multi-day SMS outage reached the business through **a user complaining that a signup code never arrived**. No alert fired. [VERIFIED]
 
-**Root cause.** There is no monitoring on SMS outcomes at all. `sms_provider_balances` is the closest thing to a health signal, and until this audit it recorded provider *errors* as a confident `KES 0.00` (fixed in PR #108). There is no check on delivery rate, no check on queue age, no alert on provider response codes.
+**Root cause.** There is no monitoring on SMS outcomes at all. `sms_provider_balances` is the closest thing to a health signal, and until this audit it recorded provider _errors_ as a confident `KES 0.00` (fixed in PR #108). There is no check on delivery rate, no check on queue age, no alert on provider response codes.
 
-**Risk / impact.** Any future provider incident is again invisible until a customer reports it. For a product whose core mechanism (Chama Reminder) *is* SMS, undetected delivery failure is close to a total product outage.
+**Risk / impact.** Any future provider incident is again invisible until a customer reports it. For a product whose core mechanism (Chama Reminder) _is_ SMS, undetected delivery failure is close to a total product outage.
 
 **Recommended solution.** Three alerts, in priority order:
 
-| Alert | Condition | Why |
-|---|---|---|
-| **Delivery-rate collapse** | `delivered / sent < 80%` over trailing 1h, min 20 messages | Catches C2 directly |
-| **Provider queue stall** | any message `sent_at < now() - 30 min` still non-terminal | Catches C2 even at low volume |
+| Alert                      | Condition                                                     | Why                                |
+| -------------------------- | ------------------------------------------------------------- | ---------------------------------- |
+| **Delivery-rate collapse** | `delivered / sent < 80%` over trailing 1h, min 20 messages    | Catches C2 directly                |
+| **Provider queue stall**   | any message `sent_at < now() - 30 min` still non-terminal     | Catches C2 even at low volume      |
 | **Provider balance floor** | `credit < 500` (now that it throws instead of reporting 0.00) | Prevents credit-exhaustion outages |
 
 Add `sms_health_check` as a job type; route to email + in-app for `super_admin`, never SMS (the same reasoning that governs `raiseLowBalanceAlert`).
@@ -292,23 +295,24 @@ Sequencing matters — the DLR abstraction should land only after C1, so the int
 
 **Current problem.** [VERIFIED — live `job_queue` counts]
 
-| Job type | Pending | Oldest due | Last completed |
-|---|---|---|---|
+| Job type                         | Pending   | Oldest due       | Last completed       |
+| -------------------------------- | --------- | ---------------- | -------------------- |
 | `sms_release_stale_reservations` | **2,258** | 2026-08-12 20:20 | **2026-08-12 20:15** |
-| `sms_poll_dlr` | **1,100** | 2026-08-16 20:50 | **2026-08-16 20:45** |
-| `sms_process_schedules` | **841** | 2026-08-17 18:25 | 2026-08-17 18:20 |
-| `sms_retry_failed` | 35 | 2026-08-20 13:35 | 2026-08-20 13:30 ✓ |
+| `sms_poll_dlr`                   | **1,100** | 2026-08-16 20:50 | **2026-08-16 20:45** |
+| `sms_process_schedules`          | **841**   | 2026-08-17 18:25 | 2026-08-17 18:20     |
+| `sms_retry_failed`               | 35        | 2026-08-20 13:35 | 2026-08-20 13:30 ✓   |
 
 `sms_release_stale_reservations` has not completed a single job in **8 days**. `sms_poll_dlr` in **4 days**. Both are enqueued every 5 minutes, so the backlog grows ~288 rows/day each, unbounded.
 
 **Root cause.** Job-queue starvation, addressed by three successive fixes (#103 per-type caps, #104 round-robin, #106 tick rotation) — **none of which resolved it for these two types**. The queue drains by priority (`idx_job_queue_pick` orders `priority DESC, run_at`), and these are priorities 3–4, the lowest. Higher-priority work fills the per-tick budget before rotation reaches them. This audit confirms the concern already recorded after #106 deployed: the two worst-stuck types showed no progress.
 
 **Risk / impact.**
+
 - **Stale reservations are never swept.** No rows are currently stuck in `billing_state='reserved'` [VERIFIED], so no live money is trapped — but that is a function of low volume, not of the sweeper working. At scale this becomes trapped customer credit.
 - DLR polling is dead, compounding C1.
 - **The backlog itself is now a performance problem** — 4,000+ pending rows scanned every tick.
 
-**[NEEDS INVESTIGATION]** `sms_delivery_reports.queried_at` shows a poll at **2026-08-20 15:35**, while `sms_poll_dlr` last *completed* on 08-16. Something polled DLRs outside the job's completion accounting. Candidates: the manual `/api/v1/sms/dlr` route, or jobs executing without their queue row being marked complete. If the latter, job-completion accounting is itself unreliable and the backlog numbers understate the problem. **Resolve this before designing the fix.**
+**[NEEDS INVESTIGATION]** `sms_delivery_reports.queried_at` shows a poll at **2026-08-20 15:35**, while `sms_poll_dlr` last _completed_ on 08-16. Something polled DLRs outside the job's completion accounting. Candidates: the manual `/api/v1/sms/dlr` route, or jobs executing without their queue row being marked complete. If the latter, job-completion accounting is itself unreliable and the backlog numbers understate the problem. **Resolve this before designing the fix.**
 
 **Recommended solution.** Stop tuning the shared queue. Give starvation-prone maintenance jobs **guaranteed capacity** rather than a fair share:
 
@@ -329,12 +333,14 @@ Sequencing matters — the DLR abstraction should land only after C1, so the int
 **Risk / impact.** Kenya's **Data Protection Act 2019** requires a clear mechanism to withdraw consent, and CAK consumer-protection guidance expects opt-out on unsolicited messaging. Members receiving campaign SMS today have **no self-service way to stop them**. This is a regulatory and reputational exposure, not merely a feature gap — and it grows with every campaign sent.
 
 Two secondary gaps in the same area:
+
 - **Opt-out is per-group, not per-platform.** A member in three groups must opt out three times. `opt_out_phones` is a `text[]` on `sms_group_settings`.
 - **No opt-out footer.** Campaign messages carry no "Reply STOP to opt out" text, so even a working handler would be undiscoverable.
 
 **Recommended solution.**
+
 1. Add `POST /api/v1/webhooks/sms/inbound`, signature-verified, parsing `STOP`/`SITISHA`/`ACHA` (English + Swahili) case-insensitively.
-2. Promote opt-out to a first-class table — `sms_opt_outs (phone, group_id NULLABLE, scope, opted_out_at, source)` — where `group_id IS NULL` means platform-wide. The current `text[]` does not scale and cannot record *when* or *how* consent was withdrawn, which is precisely what a regulator asks for.
+2. Promote opt-out to a first-class table — `sms_opt_outs (phone, group_id NULLABLE, scope, opted_out_at, source)` — where `group_id IS NULL` means platform-wide. The current `text[]` does not scale and cannot record _when_ or _how_ consent was withdrawn, which is precisely what a regulator asks for.
 3. Append an opt-out footer to `campaign` and marketing-class messages. **Not** to transactional or OTP messages — those are service messages, and the footer costs a second segment.
 4. Keep the existing `sendServiceSms` consent exemption for OTPs; that is correct and defensible.
 
@@ -348,30 +354,30 @@ Two secondary gaps in the same area:
 
 **Investigated same day. The rate is entirely historical.** [VERIFIED]
 
-| `failed_reason` | Count | First | Last |
-|---|---|---|---|
-| `Request failed with status code 422` | 99 | 2026-07-01 | 2026-08-07 |
-| `Request failed with status code 401` | 54 | 2026-05-29 | 2026-06-01 |
-| `Success` | 11 | 2026-08-08 | 2026-08-10 |
-| `Request failed with status code 500` | 8 | 2026-06-01 | 2026-06-01 |
+| `failed_reason`                       | Count | First      | Last       |
+| ------------------------------------- | ----- | ---------- | ---------- |
+| `Request failed with status code 422` | 99    | 2026-07-01 | 2026-08-07 |
+| `Request failed with status code 401` | 54    | 2026-05-29 | 2026-06-01 |
+| `Success`                             | 11    | 2026-08-08 | 2026-08-10 |
+| `Request failed with status code 500` | 8     | 2026-06-01 | 2026-06-01 |
 
-Every bucket maps to an already-fixed defect: the 401s to the pre-credential era, the 422s to the broken billed send path, and the 11 `"Success"` rows to the response-code parsing bug (a *reporting* failure, not a delivery one).
+Every bucket maps to an already-fixed defect: the 401s to the pre-credential era, the 422s to the broken billed send path, and the 11 `"Success"` rows to the response-code parsing bug (a _reporting_ failure, not a delivery one).
 
 The weekly trend confirms it:
 
-| Week | Failed | OK |
-|---|---|---|
-| 2026-07-27 | 15 | 0 |
-| 2026-08-03 | 11 | 0 |
-| 2026-08-10 | 3 | 22 |
-| **2026-08-17** | **0** | **17** |
+| Week           | Failed | OK     |
+| -------------- | ------ | ------ |
+| 2026-07-27     | 15     | 0      |
+| 2026-08-03     | 11     | 0      |
+| 2026-08-10     | 3      | 22     |
+| **2026-08-17** | **0**  | **17** |
 
 **No SMS has failed at the provider since 2026-08-10.**
 
 **Conclusion — no action required, but two lessons stand:**
 
 1. **Never report lifetime failure rate as a health metric.** It is a legacy artefact; any dashboard showing it will look alarming and mean nothing. Report over a trailing window.
-2. **C2's stall does not appear as `failed` at all.** Those messages are recorded `sent` and sit at the provider. This is exactly why C3's alerting must key on *delivery rate and message age*, not on failure count — a failure-rate alert would have stayed green throughout the outage.
+2. **C2's stall does not appear as `failed` at all.** Those messages are recorded `sent` and sit at the provider. This is exactly why C3's alerting must key on _delivery rate and message age_, not on failure count — a failure-rate alert would have stayed green throughout the outage.
 
 **Priority: closed.**
 
@@ -395,7 +401,7 @@ The weekly trend confirms it:
 
 8 rows hold `billing_state='released'` **and** `status='sent'` — accepted by the provider but with credits returned. [VERIFIED] All dated 2026-08-16 14:43, which is **before** PR #93 (`4a085cc`, merged 2026-08-16 22:13) fixed retry billing.
 
-So the *code* bug is fixed. What was never done is the **backfill** — these 8 remain unbilled, and no reconciliation job would detect them.
+So the _code_ bug is fixed. What was never done is the **backfill** — these 8 remain unbilled, and no reconciliation job would detect them.
 
 **Fix.** Add a reconciliation query to the (currently unused) `vw_sms_credit_reconciliation` view surfacing `billing_state='released' AND status IN ('sent','delivered')` as an anomaly class, and settle the 8 historical rows. **Priority: P2.**
 
@@ -443,14 +449,14 @@ The credit balance is the real backstop, and `checkRateLimit` is fail-open by de
 
 ## 4. Quick wins (ship this week)
 
-| # | Change | Effort | Impact |
-|---|---|---|---|
-| 1 | **C1** — read `delivery-description` | 1h | Restores delivery tracking entirely |
-| 2 | **H2(3)** — purge job backlog, fix dedup keys | 2h | Removes 4,000-row scan per tick |
-| 3 | **M1** — call `clearLowBalanceFlag` on top-up | 30m | Alerts re-arm |
-| 4 | **H4** — run the `failed_reason` distribution | 2h | Unblocks cost work |
-| 5 | **M2** — settle the 8 unbilled rows | 1h | Revenue recovery + anomaly class |
-| 6 | Backfill DLRs for the 151 `sent` rows | 2h | Recovers real history (after #1) |
+| #   | Change                                        | Effort | Impact                              |
+| --- | --------------------------------------------- | ------ | ----------------------------------- |
+| 1   | **C1** — read `delivery-description`          | 1h     | Restores delivery tracking entirely |
+| 2   | **H2(3)** — purge job backlog, fix dedup keys | 2h     | Removes 4,000-row scan per tick     |
+| 3   | **M1** — call `clearLowBalanceFlag` on top-up | 30m    | Alerts re-arm                       |
+| 4   | **H4** — run the `failed_reason` distribution | 2h     | Unblocks cost work                  |
+| 5   | **M2** — settle the 8 unbilled rows           | 1h     | Revenue recovery + anomaly class    |
+| 6   | Backfill DLRs for the 151 `sent` rows         | 2h     | Recovers real history (after #1)    |
 
 **Total ≈ 1.5 days for a disproportionate share of the value in this document.**
 
@@ -497,12 +503,12 @@ Key shifts:
 
 **Current volume: 323 messages, 4 groups sending.** The system is nowhere near its limits, so most scaling concerns are latent rather than active.
 
-| Volume | Expected behaviour |
-|---|---|
-| **Today (10²)** | Fine. Indexes ample. |
-| **10³–10⁴/mo** | Job-queue starvation (H2) becomes materially damaging; stale reservations start trapping real customer credit. |
-| **10⁵/mo** | `sendBulkCampaign`'s **row-at-a-time INSERT loop** becomes the bottleneck — one round trip per recipient inside a transaction. A 5,000-recipient campaign is 5,000 sequential inserts. Must become a single multi-row `INSERT … SELECT unnest()`. [VERIFIED — code read, `sms.service.ts:576-600`] |
-| **10⁶/mo** | Requires the outbox architecture, table partitioning, and multi-provider routing. |
+| Volume          | Expected behaviour                                                                                                                                                                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Today (10²)** | Fine. Indexes ample.                                                                                                                                                                                                                                                                               |
+| **10³–10⁴/mo**  | Job-queue starvation (H2) becomes materially damaging; stale reservations start trapping real customer credit.                                                                                                                                                                                     |
+| **10⁵/mo**      | `sendBulkCampaign`'s **row-at-a-time INSERT loop** becomes the bottleneck — one round trip per recipient inside a transaction. A 5,000-recipient campaign is 5,000 sequential inserts. Must become a single multi-row `INSERT … SELECT unnest()`. [VERIFIED — code read, `sms.service.ts:576-600`] |
+| **10⁶/mo**      | Requires the outbox architecture, table partitioning, and multi-provider routing.                                                                                                                                                                                                                  |
 
 **The one change that matters before scale:** the per-recipient INSERT loop. It is invisible today and will be the first hard wall.
 
@@ -510,15 +516,15 @@ Key shifts:
 
 ## 8. Error handling & reliability
 
-| Class | Example | Current handling | Recommended |
-|---|---|---|---|
-| **Transient provider** | timeout, 5xx | Caught in `sendBulkCampaign`; rows → `failed`, `sms_failures` @ 5 min | Correct. Add jittered exponential backoff |
-| **Permanent provider** | 1003 Invalid Mobile | Retried like any failure | **Do not retry.** Classify by response code; mark terminal |
-| **Provider stall** | C2 — accepted, never dispatched | **None — invisible** | C3 alerting |
-| **Credential** | 1006 | Surfaces as generic failure | Distinct alert — never retried, always operator action |
-| **Billing** | insufficient credits | `bumpRetry` without consuming an attempt | Correct |
-| **Application** | unmatched `clientSmsId` | Treated as rejection, released | Correct, but should log |
-| **User input** | malformed phone | `isValidKenyanPhone` pre-check | Correct |
+| Class                  | Example                         | Current handling                                                      | Recommended                                                |
+| ---------------------- | ------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Transient provider** | timeout, 5xx                    | Caught in `sendBulkCampaign`; rows → `failed`, `sms_failures` @ 5 min | Correct. Add jittered exponential backoff                  |
+| **Permanent provider** | 1003 Invalid Mobile             | Retried like any failure                                              | **Do not retry.** Classify by response code; mark terminal |
+| **Provider stall**     | C2 — accepted, never dispatched | **None — invisible**                                                  | C3 alerting                                                |
+| **Credential**         | 1006                            | Surfaces as generic failure                                           | Distinct alert — never retried, always operator action     |
+| **Billing**            | insufficient credits            | `bumpRetry` without consuming an attempt                              | Correct                                                    |
+| **Application**        | unmatched `clientSmsId`         | Treated as rejection, released                                        | Correct, but should log                                    |
+| **User input**         | malformed phone                 | `isValidKenyanPhone` pre-check                                        | Correct                                                    |
 
 **The systemic weakness is not retry logic — it is that failures are silent.** `sendServiceSms` never throws; `settleReservation` swallows errors; `insertSmsLog` returns null on failure and proceeds. Each is individually defensible (documented reasoning, sweeper backstops) but together they mean the SMS path degrades quietly by design. **C3's alerting is the correct compensating control** — do not unpick the swallowing, add observability above it.
 
@@ -527,6 +533,7 @@ Key shifts:
 ## 9. Security & compliance
 
 **Verified sound:**
+
 - All 15 `sms_*` tables have RLS enabled; `sms_usage_logs` carries 4 policies.
 - All three send surfaces enforce `withPermission('messaging.send')` + rate limiting.
 - `getDlr` requires explicit scope, ownership checked before the provider call.
@@ -534,6 +541,7 @@ Key shifts:
 - Credentials read through validated `env` (fails fast at cold start), now `.trim()`-normalised (PR #109).
 
 **Gaps:**
+
 - **H3** — no STOP handling (Data Protection Act 2019 exposure). Highest compliance risk.
 - **M5** — rate limits bound requests, not recipients.
 - **M4** — `sms_provider_costs` RLS with no policies.
@@ -546,30 +554,30 @@ Key shifts:
 
 **Current spend is small** (~KES 130 in credits, 323 messages), so these are structural rather than urgent.
 
-| Opportunity | Mechanism | Est. saving |
-|---|---|---|
-| **Stop paying for undelivered messages** | C2 resolution + C3 alerting | Currently **100% of spend is waste** |
-| **Segment-aware billing (L2)** | Bill `segments × rate`; today a 2-segment message is billed as 1 | Recovers real under-billing |
-| **Don't retry permanent failures** | Classify response codes; 1003 is never worth a retry | Proportional to H4's true rate |
-| **Message-length linting** | Warn at campaign compose when >160 chars | Prevents accidental 2× cost |
-| **Dedup at the outbox** | UNIQUE `idempotency_key` | Eliminates duplicate-send class entirely |
+| Opportunity                              | Mechanism                                                        | Est. saving                              |
+| ---------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
+| **Stop paying for undelivered messages** | C2 resolution + C3 alerting                                      | Currently **100% of spend is waste**     |
+| **Segment-aware billing (L2)**           | Bill `segments × rate`; today a 2-segment message is billed as 1 | Recovers real under-billing              |
+| **Don't retry permanent failures**       | Classify response codes; 1003 is never worth a retry             | Proportional to H4's true rate           |
+| **Message-length linting**               | Warn at campaign compose when >160 chars                         | Prevents accidental 2× cost              |
+| **Dedup at the outbox**                  | UNIQUE `idempotency_key`                                         | Eliminates duplicate-send class entirely |
 
-**The single largest cost lever is C1 + C3.** Without delivery visibility there is no way to know what share of spend is wasted — and C2 demonstrates the answer can be *all of it*.
+**The single largest cost lever is C1 + C3.** Without delivery visibility there is no way to know what share of spend is wasted — and C2 demonstrates the answer can be _all of it_.
 
 ---
 
 ## 11. Monitoring & alerting (recommended)
 
-| Metric | Threshold | Severity | Channel |
-|---|---|---|---|
-| Delivery rate (1h) | < 80% | **Critical** | email + in-app |
-| Messages non-terminal > 30 min | any | **Critical** | email + in-app |
-| Provider balance | < 500 | High | email |
-| Provider error rate | > 5% / 15 min | High | email |
-| Job backlog by type | > 100 pending | High | email |
-| Oldest pending job age | > 60 min | High | email |
-| Stale reservations | any > 30 min | Medium | dashboard |
-| `released` + `sent` anomalies | any | Medium | dashboard |
+| Metric                         | Threshold     | Severity     | Channel        |
+| ------------------------------ | ------------- | ------------ | -------------- |
+| Delivery rate (1h)             | < 80%         | **Critical** | email + in-app |
+| Messages non-terminal > 30 min | any           | **Critical** | email + in-app |
+| Provider balance               | < 500         | High         | email          |
+| Provider error rate            | > 5% / 15 min | High         | email          |
+| Job backlog by type            | > 100 pending | High         | email          |
+| Oldest pending job age         | > 60 min      | High         | email          |
+| Stale reservations             | any > 30 min  | Medium       | dashboard      |
+| `released` + `sent` anomalies  | any           | Medium       | dashboard      |
 
 **Never route SMS alerts over SMS** — the existing `raiseLowBalanceAlert` reasoning applies with more force here.
 
@@ -591,20 +599,21 @@ Key shifts:
 
 ## 13. Migration & refactoring risks
 
-| Change | Risk | Mitigation |
-|---|---|---|
-| **C1 DLR fix** | Low | Pure read-path change. Messages can only move `pending → delivered/failed`; existing guards already prevent downgrading a `delivered` row |
-| **DLR backfill** | Low–Med | Could mark old messages `failed` and trigger retries of stale content. **Suppress retry creation during backfill** |
-| **H2 job purge** | Medium | Deleting pending rows loses queued work. These are idempotent sweeps re-enqueued every 5 min — safe, but purge by `type` explicitly, never blanket |
-| **H3 opt-out migration** | Medium | Migrating `text[]` → table must not lose entries. Dual-read during transition |
-| **L2 segment billing** | **High** | Changes what customers are charged. Requires comms, and should apply forward-only — never retroactively |
-| **H1 provider abstraction** | Medium | Broad refactor of the send path. Land behind a flag, default to TextSMS, shadow-test the secondary |
+| Change                      | Risk     | Mitigation                                                                                                                                         |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C1 DLR fix**              | Low      | Pure read-path change. Messages can only move `pending → delivered/failed`; existing guards already prevent downgrading a `delivered` row          |
+| **DLR backfill**            | Low–Med  | Could mark old messages `failed` and trigger retries of stale content. **Suppress retry creation during backfill**                                 |
+| **H2 job purge**            | Medium   | Deleting pending rows loses queued work. These are idempotent sweeps re-enqueued every 5 min — safe, but purge by `type` explicitly, never blanket |
+| **H3 opt-out migration**    | Medium   | Migrating `text[]` → table must not lose entries. Dual-read during transition                                                                      |
+| **L2 segment billing**      | **High** | Changes what customers are charged. Requires comms, and should apply forward-only — never retroactively                                            |
+| **H1 provider abstraction** | Medium   | Broad refactor of the send path. Land behind a flag, default to TextSMS, shadow-test the secondary                                                 |
 
 ---
 
 ## 14. Prioritized roadmap
 
 **Week 1 — restore sight**
+
 1. C1 — DLR field fix `[P0, 1h]`
 2. Backfill DLRs for 151 `sent` rows `[P0, 2h]`
 3. C3 — delivery-rate + queue-stall alerts `[P0, 1d]`
@@ -612,23 +621,11 @@ Key shifts:
 5. H4 — `failed_reason` distribution `[P1, 2h]`
 6. M1, M2 `[P2, 1.5h]`
 
-**Week 2–3 — stop the bleeding**
-7. C2 — TextSMS escalation `[P0, external]`
-8. H2 — dedicated lanes + age escalation `[P1, 2d]`
-9. M3 — audit `sendServiceSms` call sites `[P2, 4h]`
-10. Testing gaps 1–3, 5 `[P1, 1d]`
+**Week 2–3 — stop the bleeding** 7. C2 — TextSMS escalation `[P0, external]` 8. H2 — dedicated lanes + age escalation `[P1, 2d]` 9. M3 — audit `sendServiceSms` call sites `[P2, 4h]` 10. Testing gaps 1–3, 5 `[P1, 1d]`
 
-**Week 4–6 — resilience & compliance**
-11. H1 — provider abstraction + failover `[P1, 1w]`
-12. H3 — consent subsystem `[P1, 2d]`
-13. M4, M5, L1 `[P2, 1d]`
+**Week 4–6 — resilience & compliance** 11. H1 — provider abstraction + failover `[P1, 1w]` 12. H3 — consent subsystem `[P1, 2d]` 13. M4, M5, L1 `[P2, 1d]`
 
-**Quarter — scale**
-14. Segment-aware billing (L2)
-15. Bulk INSERT rewrite (§7)
-16. Outbox architecture (§6)
-17. Message retention policy (§9)
-18. `sms.service.ts` split (L3)
+**Quarter — scale** 14. Segment-aware billing (L2) 15. Bulk INSERT rewrite (§7) 16. Outbox architecture (§6) 17. Message retention policy (§9) 18. `sms.service.ts` split (L3)
 
 ---
 
@@ -645,19 +642,19 @@ Key shifts:
 
 ## Appendix A — Verification method
 
-| Claim | How verified |
-|---|---|
-| 0 delivered messages | `SELECT count(*) … status='delivered'` → 0 |
-| DLR misclassification | Executed `classifyDlrStatus` against live payloads |
+| Claim                           | How verified                                           |
+| ------------------------------- | ------------------------------------------------------ |
+| 0 delivered messages            | `SELECT count(*) … status='delivered'` → 0             |
+| DLR misclassification           | Executed `classifyDlrStatus` against live payloads     |
 | Provider stall + cutover window | Live `getdlr/` calls, 14 message ids, prod credentials |
-| Two-account failure | Live sends on partner 16532, both stalled |
-| Billing without delivery | Provider balance 104.00 → 103.00 across test sends |
-| Job starvation | `job_queue` grouped by type/status |
-| No stuck reservations | `sms_usage_logs` grouped by `billing_state` |
-| RLS coverage | `pg_class.relrowsecurity` + `pg_policies` |
-| Index coverage | `pg_indexes` |
-| No inbound webhook | Filesystem search of `app/api` |
-| PR #93 vs unbilled rows | `git log` timestamp vs row `reserved_at` |
+| Two-account failure             | Live sends on partner 16532, both stalled              |
+| Billing without delivery        | Provider balance 104.00 → 103.00 across test sends     |
+| Job starvation                  | `job_queue` grouped by type/status                     |
+| No stuck reservations           | `sms_usage_logs` grouped by `billing_state`            |
+| RLS coverage                    | `pg_class.relrowsecurity` + `pg_policies`              |
+| Index coverage                  | `pg_indexes`                                           |
+| No inbound webhook              | Filesystem search of `app/api`                         |
+| PR #93 vs unbilled rows         | `git log` timestamp vs row `reserved_at`               |
 
 ## Appendix B — Provider payload reference
 

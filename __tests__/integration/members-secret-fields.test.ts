@@ -11,18 +11,22 @@
  * non-null values — a check that can't tell "stripped" from "was never
  * there" proves nothing.
  */
-import { membersService } from '@/lib/services/members.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { TenantContext } from '@/lib/db';
-import { MemberQuerySchema } from '@/lib/validators/member.schema';
+import { membersService } from "@/lib/services/members.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { TenantContext } from "@/lib/db";
+import { MemberQuerySchema } from "@/lib/validators/member.schema";
 
 const SENSITIVE_FIELDS = [
-  'password_hash', 'reset_otp_hash', 'reset_otp_expires_at', 'reset_otp_attempts', 'session_version',
+  "password_hash",
+  "reset_otp_hash",
+  "reset_otp_expires_at",
+  "reset_otp_attempts",
+  "session_version",
 ];
 
-describe('members.service — sensitive fields never leave the service', () => {
+describe("members.service — sensitive fields never leave the service", () => {
   let groupId: string, officerId: string;
   // An ordinary member's context — the attacker's own role in the finding.
   // Sensitive-field stripping is unconditional in stripSecrets, unlike
@@ -34,8 +38,10 @@ describe('members.service — sensitive fields never leave the service', () => {
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId, officerId } = await createTestGroup('treasurer', { subscribed: true }));
-    attackerCtx = { userId: officerId, groupId, role: 'member' };
+    ({ groupId, officerId } = await createTestGroup("treasurer", {
+      subscribed: true,
+    }));
+    attackerCtx = { userId: officerId, groupId, role: "member" };
 
     // Simulate an in-flight password reset + a bumped session epoch, so the
     // row genuinely carries every sensitive field non-null — the exact state
@@ -55,7 +61,7 @@ describe('members.service — sensitive fields never leave the service', () => {
     await resetDatabase();
   });
 
-  it('getById never returns password_hash, reset_otp_*, or session_version', async () => {
+  it("getById never returns password_hash, reset_otp_*, or session_version", async () => {
     const member = await membersService.getById(attackerCtx, officerId);
 
     for (const field of SENSITIVE_FIELDS) {
@@ -67,8 +73,11 @@ describe('members.service — sensitive fields never leave the service', () => {
     expect(member.first_name).toBeTruthy();
   });
 
-  it('list() never returns password_hash, reset_otp_*, or session_version', async () => {
-    const { items } = await membersService.list(attackerCtx, MemberQuerySchema.parse({}));
+  it("list() never returns password_hash, reset_otp_*, or session_version", async () => {
+    const { items } = await membersService.list(
+      attackerCtx,
+      MemberQuerySchema.parse({}),
+    );
 
     expect(items.length).toBeGreaterThan(0);
     const officerRow = items.find((m) => m.id === officerId);

@@ -16,7 +16,7 @@
  * sibling chunks don't dedupe each other away). A random id would satisfy
  * neither.
  */
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /** RFC 4122 canonical form: 8-4-4-4-12 lowercase hex. */
 const UUID_RE =
@@ -42,11 +42,11 @@ export function deriveUuid(namespace: string, name: string): string {
     throw new Error(`deriveUuid: namespace must be a UUID, got "${namespace}"`);
   }
 
-  const nsBytes = Buffer.from(namespace.replace(/-/g, ''), 'hex');
+  const nsBytes = Buffer.from(namespace.replace(/-/g, ""), "hex");
   const digest = crypto
-    .createHash('sha1')
+    .createHash("sha1")
     .update(nsBytes)
-    .update(name, 'utf8')
+    .update(name, "utf8")
     .digest();
 
   // Take the first 16 bytes, then stamp version (5) and RFC 4122 variant.
@@ -54,12 +54,12 @@ export function deriveUuid(namespace: string, name: string): string {
   bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5, high nibble of byte 6
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10x, high bits of byte 8
 
-  const hex = bytes.toString('hex');
+  const hex = bytes.toString("hex");
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),
     hex.slice(12, 16),
     hex.slice(16, 20),
     hex.slice(20, 32),
-  ].join('-');
+  ].join("-");
 }

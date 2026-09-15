@@ -1,22 +1,34 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useBillingPlans, useUpgradePlan } from '@/hooks/use-billing';
-import { useStkCheckout } from '@/hooks/use-stk-checkout';
-import { useToast } from '@/hooks/use-toast';
-import { cn, getErrorMessage } from '@/lib/utils';
-import { MpesaPayDialog } from './mpesa-pay-dialog';
-import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
+import { useState } from "react";
+import { Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  PLAN_COPY, BILLING_CYCLES, BILLING_CYCLE_MONTHS, BILLING_CYCLE_LABELS,
-  type PlanType, type SubscriptionProduct, type BillingCycle,
-} from '@/types/enums';
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useBillingPlans, useUpgradePlan } from "@/hooks/use-billing";
+import { useStkCheckout } from "@/hooks/use-stk-checkout";
+import { useToast } from "@/hooks/use-toast";
+import { cn, getErrorMessage } from "@/lib/utils";
+import { MpesaPayDialog } from "./mpesa-pay-dialog";
+import type { UpgradePlanInput } from "@/lib/validators/billing.schema";
+import {
+  PLAN_COPY,
+  BILLING_CYCLES,
+  BILLING_CYCLE_MONTHS,
+  BILLING_CYCLE_LABELS,
+  type PlanType,
+  type SubscriptionProduct,
+  type BillingCycle,
+} from "@/types/enums";
 
-type PurchasablePlan = UpgradePlanInput['planType'];
+type PurchasablePlan = UpgradePlanInput["planType"];
 
 // PLAN_COPY (display bullets, no prices — those come from GET /billing/plans,
 // which reads PLAN_MONTHLY_FEES) now lives in types/enums.ts so the public
@@ -25,8 +37,8 @@ type PurchasablePlan = UpgradePlanInput['planType'];
 // the full rationale — this used to be a private const here.
 
 const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
-  kitabu_yetu:    'SUBSCRIPT',
-  chama_reminder: 'REMINDER',
+  kitabu_yetu: "SUBSCRIPT",
+  chama_reminder: "REMINDER",
 };
 
 /**
@@ -50,13 +62,13 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     billingData?.plans.find((p) => p.plan === type)?.monthlyFee ?? null;
 
   /** Enterprise is negotiated — it is never sold through the self-serve STK flow. */
-  const isNegotiated = (type: PlanType) => type === 'enterprise';
+  const isNegotiated = (type: PlanType) => type === "enterprise";
 
   // null, not a 'starter' fallback: since migration 139 a group can genuinely
   // hold no plan, and defaulting the display to starter told a locked group it
   // was on the very plan it has not paid for — while marking that card
   // "Current plan" and disabling the button that would let it pay.
-  const current         = billingData?.current;
+  const current = billingData?.current;
   const currentPlanType = current?.planType ?? null;
 
   // Narrower than PlanType on purpose: enterprise is displayed but negotiated,
@@ -66,14 +78,23 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
 
   // One cycle applies to whichever plan gets bought — there is no per-card
   // cycle, matching how PLAN_MONTHLY_FEES prices a plan once, not per cadence.
-  const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const cycleMonths = BILLING_CYCLE_MONTHS[cycle];
 
   const checkout = useStkCheckout(() => {
     if (!pendingPlan) return;
     upgradePlan.mutate(pendingPlan, {
-      onSuccess: () => toast({ title: 'Plan activated!', description: `Now on the ${pendingPlan} plan` }),
-      onError:   (err) => toast({ variant: 'destructive', title: 'Activation failed', description: getErrorMessage(err) }),
+      onSuccess: () =>
+        toast({
+          title: "Plan activated!",
+          description: `Now on the ${pendingPlan} plan`,
+        }),
+      onError: (err) =>
+        toast({
+          variant: "destructive",
+          title: "Activation failed",
+          description: getErrorMessage(err),
+        }),
     });
   });
 
@@ -96,20 +117,23 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     // against exactly that, and a monthly-only amount would fail the check
     // for anything but a monthly purchase.
     checkout.start({
-      amount:           price * cycleMonths,
+      amount: price * cycleMonths,
       accountReference: PRODUCT_REFERENCE[product],
-      description:      `${planCopy.find((p) => p.type === planType)!.label} plan`.slice(0, 20),
-      purpose:          'subscription' as const,
-      planType:         purchasable,
+      description:
+        `${planCopy.find((p) => p.type === planType)!.label} plan`.slice(0, 20),
+      purpose: "subscription" as const,
+      planType: purchasable,
       product,
-      billingCycle:     cycle,
+      billingCycle: cycle,
     });
   };
 
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium text-muted-foreground">Bill me</span>
+        <span className="text-sm font-medium text-muted-foreground">
+          Bill me
+        </span>
         <div className="inline-flex rounded-md border border-input p-0.5">
           {BILLING_CYCLES.map((c) => (
             <button
@@ -117,41 +141,49 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
               type="button"
               onClick={() => setCycle(c)}
               className={cn(
-                'rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors',
-                cycle === c ? 'bg-brand-500 text-white' : 'text-muted-foreground hover:bg-muted',
+                "rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors",
+                cycle === c
+                  ? "bg-brand-500 text-white"
+                  : "text-muted-foreground hover:bg-muted",
               )}
             >
               {BILLING_CYCLE_LABELS[c]}
             </button>
           ))}
         </div>
-        {cycle !== 'monthly' && (
+        {cycle !== "monthly" && (
           <span className="text-xs text-muted-foreground">
-            Charged once for all {BILLING_CYCLE_MONTHS[cycle]} months — same per-month rate as monthly, no discount.
+            Charged once for all {BILLING_CYCLE_MONTHS[cycle]} months — same
+            per-month rate as monthly, no discount.
           </span>
         )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {planCopy.map((plan) => {
-          const isCurrent  = plan.type === currentPlanType;
-          const price      = priceOf(plan.type);
+          const isCurrent = plan.type === currentPlanType;
+          const price = priceOf(plan.type);
           const negotiated = isNegotiated(plan.type);
           return (
-            <Card key={plan.type} className={cn('relative', isCurrent && 'ring-2 ring-brand-500')}>
+            <Card
+              key={plan.type}
+              className={cn("relative", isCurrent && "ring-2 ring-brand-500")}
+            >
               {isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-brand-500 text-white">Current plan</Badge>
+                  <Badge className="bg-brand-500 text-white">
+                    Current plan
+                  </Badge>
                 </div>
               )}
               <CardHeader>
                 <CardTitle>{plan.label}</CardTitle>
                 <CardDescription>
                   {negotiated
-                    ? 'Custom pricing'
+                    ? "Custom pricing"
                     : price == null
-                      ? '—'
-                      : cycle === 'monthly'
+                      ? "—"
+                      : cycle === "monthly"
                         ? `KES ${price.toLocaleString()} / month`
                         : `KES ${(price * cycleMonths).toLocaleString()} / ${BILLING_CYCLE_LABELS[cycle].toLowerCase()} (KES ${price.toLocaleString()}/mo)`}
                 </CardDescription>
@@ -160,7 +192,8 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
                 <ul className="space-y-2">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm">
-                      <Check size={14} className="text-brand-500 shrink-0"/> {f}
+                      <Check size={14} className="text-brand-500 shrink-0" />{" "}
+                      {f}
                     </li>
                   ))}
                 </ul>
@@ -168,11 +201,17 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
               <CardFooter>
                 <Button
                   className="w-full"
-                  variant={isCurrent || negotiated ? 'outline' : 'default'}
-                  disabled={isCurrent || isLoading || negotiated || price == null}
+                  variant={isCurrent || negotiated ? "outline" : "default"}
+                  disabled={
+                    isCurrent || isLoading || negotiated || price == null
+                  }
                   onClick={() => handleSelectPlan(plan.type)}
                 >
-                  {isCurrent ? 'Current plan' : negotiated ? 'Contact sales' : 'Pay via M-Pesa'}
+                  {isCurrent
+                    ? "Current plan"
+                    : negotiated
+                      ? "Contact sales"
+                      : "Pay via M-Pesa"}
                 </Button>
               </CardFooter>
             </Card>
@@ -188,11 +227,12 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
 /** The current plan line the page header shows above the grid. */
 export function useCurrentPlanSummary(product: SubscriptionProduct): string {
   const { data } = useBillingPlans(product);
-  const current  = data?.current;
-  if (!current?.planType) return 'No active plan — choose one below to restore access.';
+  const current = data?.current;
+  if (!current?.planType)
+    return "No active plan — choose one below to restore access.";
   const label = `${current.planType.charAt(0).toUpperCase()}${current.planType.slice(1)}`;
   const expiry = current.expiresAt
     ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}`
-    : '';
+    : "";
   return `Current plan: ${label}${expiry}`;
 }

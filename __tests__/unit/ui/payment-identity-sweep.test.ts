@@ -11,24 +11,30 @@
  * screens and API internals are deliberately out of scope — member_code is
  * allowed there.
  */
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
-const ROOT = path.resolve(__dirname, '../../..');
+const ROOT = path.resolve(__dirname, "../../..");
 
 // Member-facing payment surfaces. Extend this list as new surfaces are built
 // (membership cards, statements, QR screens…).
-const SWEPT_DIRS = [
-  'components/pdf',
-  'emails',
-];
+const SWEPT_DIRS = ["components/pdf", "emails"];
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
-  { pattern: /member_?code/i, why: 'member_code is internal/regulatory — show the Membership Number instead' },
+  {
+    pattern: /member_?code/i,
+    why: "member_code is internal/regulatory — show the Membership Number instead",
+  },
   // Snake_case only: camelCase `mpesaRef` legitimately names the M-Pesa
   // RECEIPT number in email props; the dropped column was `mpesa_ref`.
-  { pattern: /mpesa_ref\b/, why: 'mpesa_ref was dropped in migration 056 — the Membership Number replaced it' },
-  { pattern: /KYT-(CONTR|LOAN|WELF|SHARE|SUB)/, why: 'legacy KYT refs must not be printed on new surfaces — show the Membership Number' },
+  {
+    pattern: /mpesa_ref\b/,
+    why: "mpesa_ref was dropped in migration 056 — the Membership Number replaced it",
+  },
+  {
+    pattern: /KYT-(CONTR|LOAN|WELF|SHARE|SUB)/,
+    why: "legacy KYT refs must not be printed on new surfaces — show the Membership Number",
+  },
 ];
 
 function collectFiles(dir: string): string[] {
@@ -37,23 +43,24 @@ function collectFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
     const p = path.join(abs, entry.name);
-    if (entry.isDirectory()) out.push(...collectFiles(path.join(dir, entry.name)));
+    if (entry.isDirectory())
+      out.push(...collectFiles(path.join(dir, entry.name)));
     else if (/\.(tsx?|jsx?)$/.test(entry.name)) out.push(p);
   }
   return out;
 }
 
-describe('member-facing payment surfaces use only the Membership Number', () => {
+describe("member-facing payment surfaces use only the Membership Number", () => {
   const files = SWEPT_DIRS.flatMap(collectFiles);
 
-  it('finds surfaces to sweep (guard against silent path drift)', () => {
+  it("finds surfaces to sweep (guard against silent path drift)", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
   it.each(files.map((f) => [path.relative(ROOT, f), f] as const))(
-    '%s carries no internal payment identifiers',
+    "%s carries no internal payment identifiers",
     (_rel, file) => {
-      const src = fs.readFileSync(file, 'utf8');
+      const src = fs.readFileSync(file, "utf8");
       for (const { pattern, why } of FORBIDDEN) {
         const match = src.match(pattern);
         if (match) {
@@ -65,16 +72,18 @@ describe('member-facing payment surfaces use only the Membership Number', () => 
     },
   );
 
-  it('the contribution receipt shows the Membership Number', () => {
+  it("the contribution receipt shows the Membership Number", () => {
     const receipt = fs.readFileSync(
-      path.join(ROOT, 'components/pdf/contribution-receipt.tsx'), 'utf8',
+      path.join(ROOT, "components/pdf/contribution-receipt.tsx"),
+      "utf8",
     );
     expect(receipt).toMatch(/membershipNo/);
   });
 
-  it('the share certificate shows the Membership Number', () => {
+  it("the share certificate shows the Membership Number", () => {
     const cert = fs.readFileSync(
-      path.join(ROOT, 'components/pdf/share-certificate.tsx'), 'utf8',
+      path.join(ROOT, "components/pdf/share-certificate.tsx"),
+      "utf8",
     );
     expect(cert).toMatch(/membershipNo/);
   });

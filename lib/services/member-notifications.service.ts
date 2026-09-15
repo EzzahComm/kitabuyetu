@@ -5,29 +5,41 @@
  * different job) — that file's notifyMember() is what now also writes the
  * rows this file reads.
  */
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import type { PaginatedResult } from '@/types/db.types';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import type { PaginatedResult } from "@/types/db.types";
 
 export interface MemberNotification {
-  id:            string;
-  type:          string;
-  title:         string;
-  body:          string;
-  isRead:        boolean;
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
   referenceType: string | null;
-  referenceId:   string | null;
-  createdAt:     Date;
+  referenceId: string | null;
+  createdAt: Date;
 }
 
 interface NotificationRow {
-  id: string; type: string; title: string; body: string; is_read: boolean;
-  reference_type: string | null; reference_id: string | null; created_at: Date;
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  reference_type: string | null;
+  reference_id: string | null;
+  created_at: Date;
 }
 
 function mapRow(r: NotificationRow): MemberNotification {
   return {
-    id: r.id, type: r.type, title: r.title, body: r.body, isRead: r.is_read,
-    referenceType: r.reference_type, referenceId: r.reference_id, createdAt: r.created_at,
+    id: r.id,
+    type: r.type,
+    title: r.title,
+    body: r.body,
+    isRead: r.is_read,
+    referenceType: r.reference_type,
+    referenceId: r.reference_id,
+    createdAt: r.created_at,
   };
 }
 
@@ -39,7 +51,10 @@ export async function listMyNotifications(
     const { page, limit } = params;
     const offset = (page - 1) * limit;
 
-    const { rows: countRows } = await client.query<{ total: string; unread: string }>(
+    const { rows: countRows } = await client.query<{
+      total: string;
+      unread: string;
+    }>(
       `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_read = false) AS unread
        FROM notifications WHERE group_id = $1 AND member_id = $2`,
       [ctx.groupId, ctx.userId],
@@ -56,12 +71,20 @@ export async function listMyNotifications(
     );
 
     return {
-      items: rows.map(mapRow), total, page, pageSize: limit, totalPages: Math.ceil(total / limit), unreadCount,
+      items: rows.map(mapRow),
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+      unreadCount,
     };
   });
 }
 
-export async function markNotificationRead(ctx: TenantContext, id: string): Promise<void> {
+export async function markNotificationRead(
+  ctx: TenantContext,
+  id: string,
+): Promise<void> {
   await withTransaction(ctx, (client) =>
     client.query(
       `UPDATE notifications SET is_read = true, read_at = NOW()
@@ -71,7 +94,9 @@ export async function markNotificationRead(ctx: TenantContext, id: string): Prom
   );
 }
 
-export async function markAllNotificationsRead(ctx: TenantContext): Promise<void> {
+export async function markAllNotificationsRead(
+  ctx: TenantContext,
+): Promise<void> {
   await withTransaction(ctx, (client) =>
     client.query(
       `UPDATE notifications SET is_read = true, read_at = NOW()

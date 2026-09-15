@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { analyticsService } from '@/lib/services/analytics.service';
-import { AnalyticsQuerySchema } from '@/lib/validators/analytics.schema';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { analyticsService } from "@/lib/services/analytics.service";
+import { AnalyticsQuerySchema } from "@/lib/validators/analytics.schema";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/analytics/executive?period=30d|90d|12mo|all
@@ -13,9 +13,14 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const parsed = AnalyticsQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const result = await analyticsService.getExecutiveSummary(ctx, parsed.period);
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const parsed = AnalyticsQuerySchema.parse(
+      Object.fromEntries(req.nextUrl.searchParams),
+    );
+    const result = await analyticsService.getExecutiveSummary(
+      ctx,
+      parsed.period,
+    );
     return ok(result);
   });
 }

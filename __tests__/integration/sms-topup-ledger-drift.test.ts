@@ -13,10 +13,10 @@
  * first real top-up trips the alarm. Production drift is 0 today only because
  * no purchase has run since the ledger shipped.
  */
-import { billingService } from '@/lib/services/billing.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { billingService } from "@/lib/services/billing.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
 async function provisionAccount(groupId: string): Promise<void> {
   await rawQuery(
@@ -33,16 +33,16 @@ async function provisionAccount(groupId: string): Promise<void> {
   );
 }
 
-describe('top-up leaves no ledger drift (G18)', () => {
-  it('records the movement the balance actually made', async () => {
+describe("top-up leaves no ledger drift (G18)", () => {
+  it("records the movement the balance actually made", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionAccount(groupId);
 
     // KES 100 at 0.90 is 111.111... — the non-terminating case that produced
     // the drift.
     await billingService.addSmsCredits(
-      { userId: officerId, groupId, role: 'treasurer' },
+      { userId: officerId, groupId, role: "treasurer" },
       100,
     );
 
@@ -57,15 +57,15 @@ describe('top-up leaves no ledger drift (G18)', () => {
     expect(Number(row.balance)).toBe(Number(row.ledger));
   });
 
-  it('reports exactly zero drift through the reconciliation view', async () => {
+  it("reports exactly zero drift through the reconciliation view", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionAccount(groupId);
 
     // Several purchases, so any per-purchase drift would accumulate visibly.
     for (const amount of [100, 250, 75]) {
       await billingService.addSmsCredits(
-        { userId: officerId, groupId, role: 'treasurer' },
+        { userId: officerId, groupId, role: "treasurer" },
         amount,
       );
     }

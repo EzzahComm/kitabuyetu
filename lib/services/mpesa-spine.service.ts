@@ -8,22 +8,31 @@
  * Split out of mpesa.service.ts (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { formatMembershipNo } from '@/lib/utils/membership-no';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { formatMembershipNo } from "@/lib/utils/membership-no";
 
 // Sandbox env stamps `is_test=true` on every M-Pesa row + downstream journal
 // entry so a single DELETE WHERE is_test wipes test data pre-production.
-export const IS_SANDBOX = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
+export const IS_SANDBOX = (process.env.MPESA_ENV ?? "sandbox") !== "production";
 
 export async function logPaymentEvent(
-  db:        PoolClient,
+  db: PoolClient,
   paymentId: string,
-  event:     'received' | 'validated' | 'allocated' | 'journal_posted' | 'unrouted' |
-             'reallocated' | 'reversed' | 'refunded' | 'charged_back' | 'replayed',
-  detail?:   Record<string, unknown>,
-  actor?:    string | null,
+  event:
+    | "received"
+    | "validated"
+    | "allocated"
+    | "journal_posted"
+    | "unrouted"
+    | "reallocated"
+    | "reversed"
+    | "refunded"
+    | "charged_back"
+    | "replayed",
+  detail?: Record<string, unknown>,
+  actor?: string | null,
 ): Promise<void> {
   await db.query(
     `INSERT INTO payment_events (payment_id, event, actor, detail)
@@ -33,10 +42,10 @@ export async function logPaymentEvent(
 }
 
 export async function emitOutbox(
-  db:          PoolClient,
-  eventType:   string,
+  db: PoolClient,
+  eventType: string,
   aggregateId: string,
-  payload:     Record<string, unknown>,
+  payload: Record<string, unknown>,
 ): Promise<void> {
   await db.query(
     `INSERT INTO event_outbox (event_type, aggregate_id, payload)
@@ -46,7 +55,10 @@ export async function emitOutbox(
 }
 
 /** Spine payment id for a receipt (null when no payments row exists). */
-export async function spinePaymentId(db: PoolClient, receipt: string): Promise<string | null> {
+export async function spinePaymentId(
+  db: PoolClient,
+  receipt: string,
+): Promise<string | null> {
   const { rows } = await db.query<{ id: string }>(
     `SELECT id FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
     [receipt],
@@ -59,9 +71,13 @@ export async function spinePaymentId(db: PoolClient, receipt: string): Promise<s
  * Idempotent: only rows still in received/unrouted transition.
  */
 export async function markSpineAllocated(
-  db:      PoolClient,
+  db: PoolClient,
   receipt: string,
-  opts?:   { isThirdParty?: boolean; actor?: string | null; detail?: Record<string, unknown> },
+  opts?: {
+    isThirdParty?: boolean;
+    actor?: string | null;
+    detail?: Record<string, unknown>;
+  },
 ): Promise<void> {
   const { rows } = await db.query<{ id: string }>(
     `UPDATE payments
@@ -74,17 +90,18 @@ export async function markSpineAllocated(
   );
   const paymentId = rows[0]?.id;
   if (!paymentId) return;
-  await logPaymentEvent(db, paymentId, 'allocated', opts?.detail, opts?.actor);
-  await emitOutbox(db, 'payment.allocated', paymentId, {
-    receipt, ...(opts?.detail ?? {}),
+  await logPaymentEvent(db, paymentId, "allocated", opts?.detail, opts?.actor);
+  await emitOutbox(db, "payment.allocated", paymentId, {
+    receipt,
+    ...(opts?.detail ?? {}),
   });
 }
 
 /** Transition the spine to 'unrouted' when auto-allocation could not bind. */
 export async function markSpineUnrouted(
-  db:      PoolClient,
+  db: PoolClient,
   receipt: string,
-  reason:  string,
+  reason: string,
 ): Promise<void> {
   const { rows } = await db.query<{ id: string }>(
     `UPDATE payments
@@ -95,8 +112,8 @@ export async function markSpineUnrouted(
   );
   const paymentId = rows[0]?.id;
   if (!paymentId) return; // surrogate receipts (reconciliation) have no spine row
-  await logPaymentEvent(db, paymentId, 'unrouted', { reason });
-  await emitOutbox(db, 'payment.unrouted', paymentId, { receipt, reason });
+  await logPaymentEvent(db, paymentId, "unrouted", { reason });
+  await emitOutbox(db, "payment.unrouted", paymentId, { receipt, reason });
 }
 
 /**
@@ -119,13 +136,18 @@ export async function emitPaymentReceiptEvent(
   opts?: { requireAllocated?: boolean },
 ): Promise<void> {
   try {
-    const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-    const { SMS_EVENTS }        = await import('@/lib/sms/events');
+    const { emitBusinessEvent } = await import("@/lib/sms/trigger-engine");
+    const { SMS_EVENTS } = await import("@/lib/sms/events");
 
     const data = await withAdminDb(async (db) => {
-      const { rows: [payment] } = await db.query<{
-        group_id: string; amount: string; mpesa_phone: string | null;
-        mpesa_receipt_number: string | null; allocation_status: string;
+      const {
+        rows: [payment],
+      } = await db.query<{
+        group_id: string;
+        amount: string;
+        mpesa_phone: string | null;
+        mpesa_receipt_number: string | null;
+        allocation_status: string;
       }>(
         `SELECT group_id, amount, mpesa_phone, mpesa_receipt_number, allocation_status
          FROM   payments WHERE id = $1`,
@@ -135,10 +157,16 @@ export async function emitPaymentReceiptEvent(
       // C2B callers only confirm money that actually landed on a membership;
       // STK callers keep the historical always-confirm behaviour (invoice and
       // top-up payments never reach 'allocated' but still deserve a receipt).
-      if (opts?.requireAllocated && payment.allocation_status !== 'allocated') return null;
+      if (opts?.requireAllocated && payment.allocation_status !== "allocated")
+        return null;
 
-      const { rows: [alloc] } = await db.query<{
-        product: string; group_name: string; membership_no: string | null; balance: string;
+      const {
+        rows: [alloc],
+      } = await db.query<{
+        product: string;
+        group_name: string;
+        membership_no: string | null;
+        balance: string;
       }>(
         `SELECT 'savings' AS product, g.name AS group_name, gm.membership_no,
                 COALESCE((SELECT SUM(c2.amount) FROM contributions c2
@@ -191,29 +219,40 @@ export async function emitPaymentReceiptEvent(
     // meaningless message. A receipt that cannot say what the money did is
     // worse than no receipt.
     if (!data.alloc) {
-      logger.info('[mpesa] skipping generic receipt for a non-allocated payment', {
-        paymentId, groupId: data.payment.group_id,
-      });
+      logger.info(
+        "[mpesa] skipping generic receipt for a non-allocated payment",
+        {
+          paymentId,
+          groupId: data.payment.group_id,
+        },
+      );
       return;
     }
 
     await emitBusinessEvent({
       eventType: SMS_EVENTS.PAYMENT_RECEIVED,
-      eventId:   paymentId,
-      groupId:   data.payment.group_id,
+      eventId: paymentId,
+      groupId: data.payment.group_id,
       payload: {
-        amount:  parseFloat(data.payment.amount),
-        receipt: data.payment.mpesa_receipt_number ?? 'N/A',
-        phone:   data.payment.mpesa_phone,
-        ...(data.alloc ? {
-          group_name:    data.alloc.group_name,
-          membership_no: data.alloc.membership_no ? formatMembershipNo(data.alloc.membership_no) : undefined,
-          product:       data.alloc.product,
-          balance:       Number(data.alloc.balance).toLocaleString(),
-        } : {}),
+        amount: parseFloat(data.payment.amount),
+        receipt: data.payment.mpesa_receipt_number ?? "N/A",
+        phone: data.payment.mpesa_phone,
+        ...(data.alloc
+          ? {
+              group_name: data.alloc.group_name,
+              membership_no: data.alloc.membership_no
+                ? formatMembershipNo(data.alloc.membership_no)
+                : undefined,
+              product: data.alloc.product,
+              balance: Number(data.alloc.balance).toLocaleString(),
+            }
+          : {}),
       },
     });
   } catch (err) {
-    logger.warn('[mpesa] receipt event emit skipped', { paymentId, err: String(err) });
+    logger.warn("[mpesa] receipt event emit skipped", {
+      paymentId,
+      err: String(err),
+    });
   }
 }

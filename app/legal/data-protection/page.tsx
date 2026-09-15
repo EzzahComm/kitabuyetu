@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
-import { PageShell } from '@/components/marketing/page-shell';
-import { ROUTES } from '@/components/marketing/routes';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PageShell } from "@/components/marketing/page-shell";
+import { ROUTES } from "@/components/marketing/routes";
 
 export const metadata: Metadata = {
-  title: 'Data Protection',
+  title: "Data Protection",
   robots: { index: false, follow: true },
 };
 
@@ -17,17 +17,19 @@ export default function DataProtectionPage() {
   return (
     <PageShell title="Data Protection">
       <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
-        This page is a placeholder. Kitabu Yetu is not yet registered with the Office of
-        the Data Protection Commissioner (ODPC), and nothing below should be read as a
-        claim of compliance with Kenya&apos;s Data Protection Act, 2019.
+        This page is a placeholder. Kitabu Yetu is not yet registered with the
+        Office of the Data Protection Commissioner (ODPC), and nothing below
+        should be read as a claim of compliance with Kenya&apos;s Data
+        Protection Act, 2019.
       </div>
       <p>
-        Data protection registration and a full compliance program are in progress.
-        Until that work is complete and published here, treat this page as a statement
-        of intent, not a certification.
+        Data protection registration and a full compliance program are in
+        progress. Until that work is complete and published here, treat this
+        page as a statement of intent, not a certification.
       </p>
       <p>
-        Questions in the meantime go to <Link href={ROUTES.contact}>Contact</Link>.
+        Questions in the meantime go to{" "}
+        <Link href={ROUTES.contact}>Contact</Link>.
       </p>
     </PageShell>
   );

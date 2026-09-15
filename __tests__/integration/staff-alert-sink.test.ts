@@ -11,22 +11,22 @@
  * unchanged problem, that it DOES fire immediately when the problem changes,
  * and that resolving re-arms it.
  */
-import { raiseStaffAlert, clearStaffAlert } from '@/lib/services/staff-alerts';
-import { rawQuery } from './helpers/db';
+import { raiseStaffAlert, clearStaffAlert } from "@/lib/services/staff-alerts";
+import { rawQuery } from "./helpers/db";
 
-const mockQueueEmail = jest.fn().mockResolvedValue('job-id');
+const mockQueueEmail = jest.fn().mockResolvedValue("job-id");
 
-jest.mock('@/lib/services/email.service', () => ({
+jest.mock("@/lib/services/email.service", () => ({
   queueEmail: (...args: unknown[]) => mockQueueEmail(...args),
   sendTemplatedEmail: jest.fn(),
 }));
 
-const KEY = 'test_condition';
+const KEY = "test_condition";
 
-describe('staff alert sink', () => {
+describe("staff alert sink", () => {
   beforeEach(async () => {
     mockQueueEmail.mockClear();
-    process.env.EMAIL_ADMIN = 'ops@example.com';
+    process.env.EMAIL_ADMIN = "ops@example.com";
     // staff_alert_state is platform state, not tenant data, so resetDatabase()
     // does not clear it — and its whole job is remembering across runs.
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = $1`, [KEY]);
@@ -36,20 +36,24 @@ describe('staff alert sink', () => {
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = $1`, [KEY]);
   });
 
-  const alert = (details: unknown) => raiseStaffAlert({
-    key: KEY, subject: 'Something disagrees', body: 'Details below.', details,
-  });
+  const alert = (details: unknown) =>
+    raiseStaffAlert({
+      key: KEY,
+      subject: "Something disagrees",
+      body: "Details below.",
+      details,
+    });
 
-  it('emails on the first occurrence', async () => {
+  it("emails on the first occurrence", async () => {
     await expect(alert({ drifted: 1 })).resolves.toBe(true);
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
     const [call] = mockQueueEmail.mock.calls;
-    expect(call[0].to).toBe('ops@example.com');
-    expect(call[0].templateKey).toBe('staff_operational_alert');
+    expect(call[0].to).toBe("ops@example.com");
+    expect(call[0].templateKey).toBe("staff_operational_alert");
   });
 
-  it('does NOT re-email the same unchanged problem — the six-days-of-noise case', async () => {
+  it("does NOT re-email the same unchanged problem — the six-days-of-noise case", async () => {
     await alert({ drifted: 1 });
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
@@ -60,7 +64,7 @@ describe('staff alert sink', () => {
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('emails immediately when the problem CHANGES, without waiting out the window', async () => {
+  it("emails immediately when the problem CHANGES, without waiting out the window", async () => {
     await alert({ drifted: 1 });
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
@@ -69,7 +73,7 @@ describe('staff alert sink', () => {
     expect(mockQueueEmail).toHaveBeenCalledTimes(2);
   });
 
-  it('re-arms after the condition clears, so the NEXT incident alerts at once', async () => {
+  it("re-arms after the condition clears, so the NEXT incident alerts at once", async () => {
     await alert({ drifted: 1 });
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
@@ -82,28 +86,35 @@ describe('staff alert sink', () => {
     expect(mockQueueEmail).toHaveBeenCalledTimes(2);
   });
 
-  it('records that it checked even when it does not alert', async () => {
+  it("records that it checked even when it does not alert", async () => {
     await clearStaffAlert(KEY);
 
-    const [row] = await rawQuery<{ last_checked_at: Date | null; fingerprint: string | null }>(
-      `SELECT last_checked_at, fingerprint FROM staff_alert_state WHERE alert_key = $1`, [KEY],
+    const [row] = await rawQuery<{
+      last_checked_at: Date | null;
+      fingerprint: string | null;
+    }>(
+      `SELECT last_checked_at, fingerprint FROM staff_alert_state WHERE alert_key = $1`,
+      [KEY],
     );
     // "Healthy" and "nothing ever ran" must be distinguishable.
     expect(row.last_checked_at).toBeInstanceOf(Date);
     expect(row.fingerprint).toBeNull();
   });
 
-  it('does not throw, and does not claim to have alerted, with no recipient configured', async () => {
+  it("does not throw, and does not claim to have alerted, with no recipient configured", async () => {
     delete process.env.EMAIL_ADMIN;
 
     await expect(alert({ drifted: 1 })).resolves.toBe(false);
     expect(mockQueueEmail).not.toHaveBeenCalled();
   });
 
-  it('only one of two concurrent runs may alert', async () => {
+  it("only one of two concurrent runs may alert", async () => {
     // Both see the same problem at the same moment; the claim-by-UPDATE is
     // what stops two emails.
-    const [a, b] = await Promise.all([alert({ drifted: 9 }), alert({ drifted: 9 })]);
+    const [a, b] = await Promise.all([
+      alert({ drifted: 9 }),
+      alert({ drifted: 9 }),
+    ]);
 
     expect([a, b].filter(Boolean)).toHaveLength(1);
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);

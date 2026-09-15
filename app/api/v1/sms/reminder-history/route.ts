@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { listReminderHistory } from '@/lib/services/reminder.service';
-import { ReminderHistoryQuerySchema } from '@/lib/validators/sms.schema';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { listReminderHistory } from "@/lib/services/reminder.service";
+import { ReminderHistoryQuerySchema } from "@/lib/validators/sms.schema";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/sms/reminder-history — which automations ran, for whom, and
@@ -25,7 +25,7 @@ import { ok } from '@/lib/utils/response';
  * (FORCE, group-scoped), not from the handler.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.view', async (auth) => {
+  return withPermission(req, "messaging.view", async (auth) => {
     const params = ReminderHistoryQuerySchema.parse(
       Object.fromEntries(req.nextUrl.searchParams),
     );

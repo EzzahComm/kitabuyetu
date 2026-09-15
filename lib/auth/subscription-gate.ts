@@ -1,8 +1,11 @@
-import type { NextRequest } from 'next/server';
-import { withAdminDb } from '@/lib/db';
-import { PaymentRequiredError, ProductNotEntitledError } from '@/lib/utils/errors';
-import type { AuthContext } from '@/types/api.types';
-import type { SubscriptionProduct } from '@/types/enums';
+import type { NextRequest } from "next/server";
+import { withAdminDb } from "@/lib/db";
+import {
+  PaymentRequiredError,
+  ProductNotEntitledError,
+} from "@/lib/utils/errors";
+import type { AuthContext } from "@/types/api.types";
+import type { SubscriptionProduct } from "@/types/enums";
 
 /**
  * Platform-wide paid-subscription gate, scoped per product.
@@ -36,7 +39,7 @@ import type { SubscriptionProduct } from '@/types/enums';
  *   'any'   — any active product. The shared surface both products use.
  *   product — that specific product must be active.
  */
-export type RouteEntitlement = 'open' | 'any' | SubscriptionProduct;
+export type RouteEntitlement = "open" | "any" | SubscriptionProduct;
 
 /**
  * Anything not listed requires Kitabu Yetu. The default is deliberately the
@@ -51,29 +54,31 @@ export type RouteEntitlement = 'open' | 'any' | SubscriptionProduct;
  * The reverse default fails silently and dangerously: a group with no chart of
  * accounts quietly reaching /api/v1/dividends.
  */
-export const DEFAULT_ENTITLEMENT: RouteEntitlement = 'kitabu_yetu';
+export const DEFAULT_ENTITLEMENT: RouteEntitlement = "kitabu_yetu";
 
 /** Exported so the drift test can assert against the real policy. */
-export const ENTITLEMENT_RULES: ReadonlyArray<readonly [string, RouteEntitlement]> = [
+export const ENTITLEMENT_RULES: ReadonlyArray<
+  readonly [string, RouteEntitlement]
+> = [
   // ── open: the pay-from-locked path ──────────────────────────────────────
   // Sign in, refresh a token, switch group, sign out. Without this a locked
   // user cannot reach the app at all.
-  ['/api/v1/auth', 'open'],
+  ["/api/v1/auth", "open"],
   // See the plans and their prices, read entitlements, claim a completed
   // payment. A group with ZERO subscriptions has to reach this to render its
   // own subscribe page, which is why /billing/entitlements lives here too.
-  ['/api/v1/billing', 'open'],
+  ["/api/v1/billing", "open"],
   // Send the STK prompt, poll its status, and receive Safaricom's callback —
   // the actual act of paying.
-  ['/api/v1/mpesa', 'open'],
+  ["/api/v1/mpesa", "open"],
   // The member's own self-service surface (goals, notifications, passbook,
   // wallet). Note there is no route at /api/v1/me itself.
-  ['/api/v1/me', 'open'],
+  ["/api/v1/me", "open"],
   // Cron, queue workers and provider webhooks run with no interactive user;
   // gating them would silently stop billing itself from working.
-  ['/api/v1/workers', 'open'],
-  ['/api/v1/webhooks', 'open'],
-  ['/api/v1/daraja', 'open'],
+  ["/api/v1/workers", "open"],
+  ["/api/v1/webhooks", "open"],
+  ["/api/v1/daraja", "open"],
   // The organization axis used to be listed here as 'open'. It has moved to
   // /api/admin/organization/* (backoffice audience), and this gate only ever
   // runs inside withAuth — the backoffice guards never call it — so a rule for
@@ -85,12 +90,12 @@ export const ENTITLEMENT_RULES: ReadonlyArray<readonly [string, RouteEntitlement
   // than chama_reminder-scoped on purpose: a Kitabu Yetu group must keep its
   // member list and SMS Centre, and birthday SMS has been a platform-wide job
   // since Phase 1, so its views belong to both products.
-  ['/api/v1/members', 'any'],
-  ['/api/v1/sms', 'any'],
+  ["/api/v1/members", "any"],
+  ["/api/v1/sms", "any"],
 ];
 
 /** Roles that are never subject to a tenant's billing state. */
-const EXEMPT_ROLES: readonly string[] = ['super_admin', 'support'];
+const EXEMPT_ROLES: readonly string[] = ["super_admin", "support"];
 
 const CACHE_TTL_MS = 60_000;
 
@@ -104,7 +109,7 @@ const CACHE_TTL_MS = 60_000;
  * followed by '/'.
  */
 function matchesPrefix(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(prefix + '/');
+  return path === prefix || path.startsWith(prefix + "/");
 }
 
 /**
@@ -125,7 +130,7 @@ export function requiredEntitlement(path: string): RouteEntitlement {
 }
 
 interface CacheEntry {
-  products:  ReadonlySet<SubscriptionProduct>;
+  products: ReadonlySet<SubscriptionProduct>;
   expiresAt: number;
 }
 
@@ -153,7 +158,10 @@ const entitlements = new Map<string, CacheEntry>();
  */
 const MAX_CACHE_ENTRIES = 10_000;
 
-function remember(groupId: string, products: ReadonlySet<SubscriptionProduct>): void {
+function remember(
+  groupId: string,
+  products: ReadonlySet<SubscriptionProduct>,
+): void {
   if (entitlements.size >= MAX_CACHE_ENTRIES) {
     const now = Date.now();
     for (const [key, entry] of entitlements) {
@@ -174,7 +182,9 @@ export function __resetSubscriptionCache(): void {
   entitlements.clear();
 }
 
-async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProduct>> {
+async function loadActiveProducts(
+  groupId: string,
+): Promise<Set<SubscriptionProduct>> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{ product: SubscriptionProduct }>(
       `SELECT DISTINCT product FROM subscriptions
@@ -215,18 +225,19 @@ async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProd
  * which is why it hangs off withAuth instead.
  */
 export async function assertSubscriptionActive(
-  req:  NextRequest,
+  req: NextRequest,
   auth: AuthContext,
 ): Promise<void> {
   const required = requiredEntitlement(req.nextUrl.pathname);
-  if (required === 'open') return;
+  if (required === "open") return;
   if (EXEMPT_ROLES.includes(auth.role)) return;
 
   const satisfies = (products: ReadonlySet<SubscriptionProduct>): boolean =>
-    products.size > 0 && (required === 'any' || products.has(required));
+    products.size > 0 && (required === "any" || products.has(required));
 
   const cached = entitlements.get(auth.groupId);
-  if (cached && cached.expiresAt > Date.now() && satisfies(cached.products)) return;
+  if (cached && cached.expiresAt > Date.now() && satisfies(cached.products))
+    return;
 
   // Nothing cached, expired, or cached but insufficient for THIS route.
   // Never deny on cached state — re-read.
@@ -235,7 +246,7 @@ export async function assertSubscriptionActive(
 
   if (products.size === 0) {
     throw new PaymentRequiredError(
-      'This group has no active subscription. Choose a plan and pay to restore access.',
+      "This group has no active subscription. Choose a plan and pay to restore access.",
     );
   }
   if (!satisfies(products)) {

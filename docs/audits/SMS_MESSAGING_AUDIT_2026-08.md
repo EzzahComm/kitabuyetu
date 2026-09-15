@@ -9,19 +9,19 @@
 
 ## Executive summary
 
-The SMS subsystem has genuinely good bones — the trigger engine's idempotency model, the scheduler's claim-and-advance locking, and the condition DSL's fail-closed evaluation are among the better-engineered code in this repo. It also has **three confirmed-in-production Critical defects**, two of which mean the billed send path has not worked at all for months and every SMS that *did* deliver was recorded as a failure.
+The SMS subsystem has genuinely good bones — the trigger engine's idempotency model, the scheduler's claim-and-advance locking, and the condition DSL's fail-closed evaluation are among the better-engineered code in this repo. It also has **three confirmed-in-production Critical defects**, two of which mean the billed send path has not worked at all for months and every SMS that _did_ deliver was recorded as a failure.
 
 This audit's findings are unusually well-evidenced because the production database was queried directly rather than reasoned about. Production recorded the primary bug's error message verbatim in its own table.
 
 The central structural finding: **there are two parallel, independent SMS stacks**, and the wrong one is the one that works.
 
-| | Billed stack | Unbilled stack |
-|---|---|---|
-| Entry | `smsService.send` / `sendBulkCampaign` | `notifyMember` / `notifyMany` |
-| Callers | `/api/v1/sms/send`, trigger engine, campaign job | reminders, M-Pesa STK, role changes |
-| Bills credits | yes (`debitPayer`) | **no** — `credits_deducted` hardcoded `0` |
-| Honours opt-out | yes | yes |
-| **Works in production** | **no — throws `0A000` on every call** | yes |
+|                         | Billed stack                                     | Unbilled stack                            |
+| ----------------------- | ------------------------------------------------ | ----------------------------------------- |
+| Entry                   | `smsService.send` / `sendBulkCampaign`           | `notifyMember` / `notifyMany`             |
+| Callers                 | `/api/v1/sms/send`, trigger engine, campaign job | reminders, M-Pesa STK, role changes       |
+| Bills credits           | yes (`debitPayer`)                               | **no** — `credits_deducted` hardcoded `0` |
+| Honours opt-out         | yes                                              | yes                                       |
+| **Works in production** | **no — throws `0A000` on every call**            | yes                                       |
 
 Every SMS production has ever sent came through the unbilled path. `notifications.service.ts:20` acknowledges the split as a TODO ("deduction logic from `smsService.send()` can be wired in here").
 
@@ -68,7 +68,7 @@ I ran this exact query against production with a **non-existent** group id and i
 - the **entire trigger engine** (`lib/sms/trigger-engine.ts:226`)
 - **all bulk campaigns** (`lib/jobs/handlers.ts:550` → `sendBulkCampaign` → `debitPayer` at `sms.service.ts:349`)
 
-The subscription check at `sms.service.ts:127-131` runs *before* this and would mask the bug for a group with no active subscription — but all 5 production groups have `status='active'` subscriptions, so the gate passes and the broken query is reached every time.
+The subscription check at `sms.service.ts:127-131` runs _before_ this and would mask the bug for a group with no active subscription — but all 5 production groups have `status='active'` subscriptions, so the gate passes and the broken query is reached every time.
 
 **Production proof.** The one trigger execution ever attempted:
 
@@ -83,7 +83,7 @@ A real member's payment-received SMS retried 4 times and failed on this error ev
 
 **Fix shape:** `FOR UPDATE OF ba`. One line — but see C1a.
 
-**C1a — the lock is also semantically wrong.** Even once it parses, `FOR UPDATE OF ba` locks `billing_accounts` only after the row is read. The read-compare-update sequence at `:136-144` is a check-then-act on a locked row, which is correct *provided* the lock is actually taken. Verify the fix under concurrency, not just that it stops throwing.
+**C1a — the lock is also semantically wrong.** Even once it parses, `FOR UPDATE OF ba` locks `billing_accounts` only after the row is read. The read-compare-update sequence at `:136-144` is a check-then-act on a locked row, which is correct _provided_ the lock is actually taken. Verify the fix under concurrency, not just that it stops throwing.
 
 ### C2 — Every successfully delivered SMS is recorded as `failed` **[PROVEN-PROD]**
 
@@ -104,12 +104,12 @@ TextSMS returns numeric fields as **JSON strings**. Proven from the provider pay
 
 **Production proof.** All 270 `sms_usage_logs` rows are `status='failed'`. Broken down by reason:
 
-| `failed_reason` | rows | with real provider msg id | verdict |
-|---|---|---|---|
-| **"Success"** | **112** | **112** | **delivered, misrecorded as failed** |
-| `status code 422` | 96 | 0 | genuine failure |
-| `status code 401` | 54 | 0 | genuine failure (bad credentials) |
-| `status code 500` | 8 | 0 | genuine failure |
+| `failed_reason`   | rows    | with real provider msg id | verdict                              |
+| ----------------- | ------- | ------------------------- | ------------------------------------ |
+| **"Success"**     | **112** | **112**                   | **delivered, misrecorded as failed** |
+| `status code 422` | 96      | 0                         | genuine failure                      |
+| `status code 401` | 54      | 0                         | genuine failure (bad credentials)    |
+| `status code 500` | 8       | 0                         | genuine failure                      |
 
 All 112 "Success" rows carry a real provider message ID; the 158 genuine failures carry none. The single DLR row independently confirms delivery (`DeliveredToTerminal`, messageid `655405696`).
 
@@ -134,7 +134,7 @@ The handler is `async ()` — it never receives or reads the auth context, so `a
 
 Any authenticated user in any group holding `messaging.send` can supply an arbitrary `messageId` and both **read** another tenant's delivery status and **mutate** that tenant's log row. This is the only SMS route that takes a caller-supplied identifier without scoping it.
 
-This is a real tenant-isolation break in code, independent of RLS — and note it would *not* be caught by the `app_tenant` RLS work, because the query runs on the admin pool via `getDlr`.
+This is a real tenant-isolation break in code, independent of RLS — and note it would _not_ be caught by the `app_tenant` RLS work, because the query runs on the admin pool via `getDlr`.
 
 ---
 
@@ -144,13 +144,13 @@ This is a real tenant-isolation break in code, independent of RLS — and note i
 
 `lib/services/notifications.service.ts:226-254`'s `writeSmsLog` inserts into `sms_usage_logs` directly via the raw admin `pool`, hardcoding `credits_deducted` to `0` (`:241`), bypassing `debitPayer` entirely. Every production row confirms it: `SUM(credits_deducted) = 0.0000` across all 270 rows.
 
-Combined with C1, the practical state is: **the path that bills doesn't work, and the path that works doesn't bill.** SMS is currently free to every group, and the `billing_accounts.sms_credits` balance is decorative. Consent *is* honoured on this path (`notifyMember` checks `isPhoneOptedOut` at `:119`), so this is a revenue/cost-control gap, not a compliance one.
+Combined with C1, the practical state is: **the path that bills doesn't work, and the path that works doesn't bill.** SMS is currently free to every group, and the `billing_accounts.sms_credits` balance is decorative. Consent _is_ honoured on this path (`notifyMember` checks `isPhoneOptedOut` at `:119`), so this is a revenue/cost-control gap, not a compliance one.
 
 ### H2 — No rate limiting on any SMS send route **[REPORTED]**
 
 None of `send`, `bulk`, or `campaign` call any rate-limiting primitive. The repo's only helper, `checkRateLimit` (`lib/redis/index.ts:171`), is used exactly once, in `app/api/v1/mpesa/c2b/route.ts:96`. `BulkSmsSchema.phones` permits 5,000 recipients per call (`lib/validators/sms.schema.ts:22`) with no cooldown between calls. Once C1 is fixed, a compromised officer token can spend a group's entire credit balance in seconds. Fix C1 and H2 together — fixing C1 alone re-arms a money-spending endpoint that currently has no velocity control.
 
-### H3 — Campaign job retry re-bills and re-sends, without bound **[REPORTED]** — *fixed*
+### H3 — Campaign job retry re-bills and re-sends, without bound **[REPORTED]** — _fixed_
 
 > **Update 2026-08-06:** the **unbounded** half is fixed. `resetStuckJobs` now counts a timeout as an attempt and retires a job that exhausts `max_attempts`, so the loop terminates instead of re-billing forever. Verified with 4 real-Postgres tests.
 >
@@ -170,7 +170,7 @@ The Schedules tab gets this right two tabs away (`page.tsx:593` calls `new Date(
 
 ### H5 — Credits are never refunded, and provider exceptions get no retry **[REPORTED]**
 
-There is no `sms_credits = sms_credits + …` anywhere outside the top-up path (`billing.service.ts:207`); `sms.service.ts:333-335` acknowledges this as unimplemented (ticket SMS-009). Separately, `dispatchBatch`'s catch-all (`:758-768`) marks rows failed but writes **no `sms_failures` row**, so a provider *exception* — unlike a provider *rejection* — gets no retry at all. Credits are burned on every non-rejection failure.
+There is no `sms_credits = sms_credits + …` anywhere outside the top-up path (`billing.service.ts:207`); `sms.service.ts:333-335` acknowledges this as unimplemented (ticket SMS-009). Separately, `dispatchBatch`'s catch-all (`:758-768`) marks rows failed but writes **no `sms_failures` row**, so a provider _exception_ — unlike a provider _rejection_ — gets no retry at all. Credits are burned on every non-rejection failure.
 
 ### H6 — Chunked bulk sends rely on unverified positional alignment **[REPORTED]**
 
@@ -181,11 +181,12 @@ There is no `sms_credits = sms_credits + …` anywhere outside the top-up path (
 ## MEDIUM
 
 - **M1 — Platform-default trigger rules cannot dispatch.** `trigger-engine.ts:227` passes `created_by ?? 'system'` as `ctx.userId`; `set_config('app.current_user_id','system')` then fails `NULLIF(...)::uuid` in `app_current_user_id()` with `22P02`. Platform-scope rules (`created_by` nullable, `RuleRow:43`) would fail every dispatch — currently masked by C1. **[REPORTED]**
-- **M2 — `FORCE ROW LEVEL SECURITY` is inconsistent (but RLS *is* enforced).** All 13 SMS tables have RLS enabled; only `sms_usage_logs`, `sms_credits`, `sms_group_settings`, `sms_templates` have it *forced* (confirmed live via `pg_class.relforcerowsecurity`). Migration 097's header claims to cover every table reached via `withDb()`, but `sms_campaigns` (`app/api/v1/sms/campaign/route.ts:20`) and `sms_schedules` (`schedules/route.ts:12`) are both queried that way and were missed.
+- **M2 — `FORCE ROW LEVEL SECURITY` is inconsistent (but RLS _is_ enforced).** All 13 SMS tables have RLS enabled; only `sms_usage_logs`, `sms_credits`, `sms_group_settings`, `sms_templates` have it _forced_ (confirmed live via `pg_class.relforcerowsecurity`). Migration 097's header claims to cover every table reached via `withDb()`, but `sms_campaigns` (`app/api/v1/sms/campaign/route.ts:20`) and `sms_schedules` (`schedules/route.ts:12`) are both queried that way and were missed.
 
   **Correction to an earlier draft of this finding.** This was first written up as "moot while the app role has `BYPASSRLS`." That is **wrong and stale**: ADR-001 records the `app_tenant` cutover as completed 2026-08-05, with `TENANT_DATABASE_URL` set in Vercel Production. The tenant path now runs as `app_tenant`, which has `rolbypassrls = false` and — crucially — is **not the table owner**. `FORCE` only changes behaviour for the owner, so RLS policies are genuinely enforced on all 13 SMS tables today, forced or not.
 
-  The residual gap is narrower than "moot" and narrower than "unprotected": `FORCE` is defence-in-depth for the *owner* role (`postgres`), which `withAdminDb()` still uses. Worth closing for consistency with migration 097's stated intent, not urgent. Note this cuts the other way for **C3**, which runs on the admin pool and is therefore not covered by RLS at all. **[PROVEN-PROD]**
+  The residual gap is narrower than "moot" and narrower than "unprotected": `FORCE` is defence-in-depth for the _owner_ role (`postgres`), which `withAdminDb()` still uses. Worth closing for consistency with migration 097's stated intent, not urgent. Note this cuts the other way for **C3**, which runs on the admin pool and is therefore not covered by RLS at all. **[PROVEN-PROD]**
+
 - **M3 — Trigger-rule overrides are keyed on free-text `name`.** `specificity()` (`trigger-engine.ts:81`) collapses group > org > platform by `rule.name`; a typo means the override silently fails and **both** rules fire. **[REPORTED]**
 - **M4 — Reminder stage gaps.** The stage `CASE` (`handlers.ts:385-391`) has holes at `days_until_due` = 2, 1, −1, −2 → `reminder_stage IS NULL` → filtered out at `:395`, so nothing sends the day before a due date. `due_3_days`/`due_today` are exact-day matches, so a skipped cron tick loses them permanently (only overdue buckets are ranges). The `b069779` dedup fix itself is **intact and unregressed** — verified across `reminder.service.ts:49-110`, `handlers.ts:342-429`, and migration 106. **[REPORTED]**
 - **M5 — The opt-out list is never populated.** `smsService.optOut` (`sms.service.ts:703-720`) has zero callers, and nothing else writes `sms_group_settings.opt_out_phones`; production has **0 rows** in that table. Both consent checks (`fetchOptOuts:166`, `isPhoneOptedOut`) therefore read a permanently empty list — members have no way to opt out. Compliance-relevant. **[PROVEN-PROD]**
@@ -230,7 +231,7 @@ C1 is the notable one: a single integration test that sends one SMS against real
 
 1. **C1** `FOR UPDATE OF ba` + an integration test that actually sends through `debitPayer` against real Postgres.
 2. **C2** coerce the provider response code; audit sibling fields for the same assumption.
-3. **H2** rate-limit the three send routes *before* C1 re-arms them.
+3. **H2** rate-limit the three send routes _before_ C1 re-arms them.
 4. **C3** scope `getDlr` to `auth.groupId`.
 
 C1 and C2 interact: fixing C1 alone routes live traffic into a path that will mark every success as a failure. Ship them together.

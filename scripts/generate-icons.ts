@@ -8,13 +8,13 @@
  *
  * Run:  npx tsx scripts/generate-icons.ts
  */
-import sharp from 'sharp';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import sharp from "sharp";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const ROOT = process.cwd();
-const SRC  = join(ROOT, 'public', 'brand', 'kitabu-yetu-logo.png');
-const OUT  = join(ROOT, 'public', 'icons');
+const SRC = join(ROOT, "public", "brand", "kitabu-yetu-logo.png");
+const OUT = join(ROOT, "public", "icons");
 
 // Sizes referenced by app/manifest.ts + app/layout.tsx
 const PWA_SIZES = [72, 96, 128, 144, 152, 192, 384, 512] as const;
@@ -28,7 +28,8 @@ async function main(): Promise<void> {
 
   const input = sharp(SRC);
   const { width, height } = await input.metadata();
-  if (!width || !height) throw new Error(`Could not read source dimensions for ${SRC}`);
+  if (!width || !height)
+    throw new Error(`Could not read source dimensions for ${SRC}`);
   // eslint-disable-next-line no-console
   console.log(`Source: ${SRC} (${width}×${height})`);
 
@@ -36,7 +37,7 @@ async function main(): Promise<void> {
   for (const size of PWA_SIZES) {
     const out = join(OUT, `icon-${size}.png`);
     await sharp(SRC)
-      .resize(size, size, { fit: 'contain', background: BRAND_BG })
+      .resize(size, size, { fit: "contain", background: BRAND_BG })
       .flatten({ background: BRAND_BG })
       .png({ compressionLevel: 9 })
       .toFile(out);
@@ -45,9 +46,12 @@ async function main(): Promise<void> {
   }
 
   // Apple touch icon — iOS prefers an opaque background, 180×180 is the canonical size
-  const appleOut = join(OUT, 'apple-touch-icon.png');
+  const appleOut = join(OUT, "apple-touch-icon.png");
   await sharp(SRC)
-    .resize(APPLE_TOUCH_SIZE, APPLE_TOUCH_SIZE, { fit: 'contain', background: BRAND_BG })
+    .resize(APPLE_TOUCH_SIZE, APPLE_TOUCH_SIZE, {
+      fit: "contain",
+      background: BRAND_BG,
+    })
     .flatten({ background: BRAND_BG })
     .png({ compressionLevel: 9 })
     .toFile(appleOut);
@@ -57,9 +61,9 @@ async function main(): Promise<void> {
   // favicon.ico — multi-resolution (16 + 32 + 48) at /public root.
   // sharp doesn't emit ICO directly, so write the PNG at /public/favicon.png as well
   // and a 32×32 favicon.ico equivalent at /public/favicon.ico (Next.js serves both).
-  const favPng = join(ROOT, 'public', 'favicon.png');
+  const favPng = join(ROOT, "public", "favicon.png");
   await sharp(SRC)
-    .resize(32, 32, { fit: 'contain', background: BRAND_BG })
+    .resize(32, 32, { fit: "contain", background: BRAND_BG })
     .flatten({ background: BRAND_BG })
     .png({ compressionLevel: 9 })
     .toFile(favPng);

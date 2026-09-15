@@ -1,8 +1,16 @@
-import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
-import { renderTemplate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
-import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
-import { enqueueJob } from '@/lib/jobs';
-import { withAdminDb } from '@/lib/db';
+import {
+  sendEmailWithFallback,
+  type EmailPayload,
+  type EmailResult,
+} from "@/lib/email/provider";
+import {
+  renderTemplate,
+  wrapWithBranding,
+  loadBranding,
+} from "@/lib/email/templates/engine";
+import { DEFAULT_TEMPLATES } from "@/lib/email/templates/defaults";
+import { enqueueJob } from "@/lib/jobs";
+import { withAdminDb } from "@/lib/db";
 
 export interface SendTemplatedOptions {
   templateKey: string;
@@ -11,7 +19,7 @@ export interface SendTemplatedOptions {
   groupId?: string | null;
   userId?: string;
   locale?: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
   referenceId?: string;
   referenceType?: string;
   from?: string;
@@ -19,20 +27,25 @@ export interface SendTemplatedOptions {
 }
 
 // Send using a named template (DB first, inline fallback)
-export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<EmailResult> {
+export async function sendTemplatedEmail(
+  opts: SendTemplatedOptions,
+): Promise<EmailResult> {
   const fallbackTpl = DEFAULT_TEMPLATES[opts.templateKey];
 
   const { subject, html } = await renderTemplate(
     opts.templateKey,
     opts.vars,
     opts.groupId ?? null,
-    opts.locale ?? 'en',
+    opts.locale ?? "en",
     fallbackTpl?.body,
   ).catch(async () => {
     // If no DB template AND no inline fallback, build a minimal email
     const branding = await loadBranding(opts.groupId ?? null);
     const body = `<p>${JSON.stringify(opts.vars)}</p>`;
-    return { subject: String(opts.vars.subject ?? 'Kitabu Yetu'), html: wrapWithBranding(body, branding) };
+    return {
+      subject: String(opts.vars.subject ?? "Kitabu Yetu"),
+      html: wrapWithBranding(body, branding),
+    };
   });
 
   return sendEmailWithFallback({
@@ -53,20 +66,19 @@ export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<Em
 
 // Queue an email for async delivery (via the email_send job type)
 export async function queueEmail(
-  opts: SendTemplatedOptions & { delayMs?: number; priority?: 'high' | 'normal' | 'low' },
+  opts: SendTemplatedOptions & {
+    delayMs?: number;
+    priority?: "high" | "normal" | "low";
+  },
 ): Promise<string> {
   const { delayMs, priority, ...payload } = opts;
-  const jobPriority = priority === 'high' ? 8 : priority === 'low' ? 2 : 5;
-  const id = await enqueueJob(
-    'email_send',
-    payload,
-    {
-      priority:     jobPriority,
-      run_at:       delayMs ? new Date(Date.now() + delayMs) : undefined,
-      max_attempts: 5,
-    },
-  );
-  return id ?? '';
+  const jobPriority = priority === "high" ? 8 : priority === "low" ? 2 : 5;
+  const id = await enqueueJob("email_send", payload, {
+    priority: jobPriority,
+    run_at: delayMs ? new Date(Date.now() + delayMs) : undefined,
+    max_attempts: 5,
+  });
+  return id ?? "";
 }
 
 // Schedule an email at a specific time (writes to email_schedules table)
@@ -111,11 +123,20 @@ export async function sendFinancialReport(opts: {
   groupId: string;
   userId: string;
   requesterRole: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
 }): Promise<EmailResult> {
-  const allowed = ['treasurer', 'chairperson', 'superadmin', 'organization_coordinator'];
+  const allowed = [
+    "treasurer",
+    "chairperson",
+    "superadmin",
+    "organization_coordinator",
+  ];
   if (!allowed.includes(opts.requesterRole)) {
-    return { success: false, provider: 'denied', error: 'Insufficient role to send financial reports' };
+    return {
+      success: false,
+      provider: "denied",
+      error: "Insufficient role to send financial reports",
+    };
   }
 
   return sendEmailWithFallback({
@@ -125,7 +146,7 @@ export async function sendFinancialReport(opts: {
     attachments: opts.attachments,
     groupId: opts.groupId,
     userId: opts.userId,
-    category: 'financial_report',
+    category: "financial_report",
   });
 }
 
@@ -141,7 +162,7 @@ export async function queueAnnouncement(opts: {
 }): Promise<void> {
   for (const email of opts.memberEmails) {
     await queueEmail({
-      templateKey: 'announcement',
+      templateKey: "announcement",
       to: email,
       vars: {
         subject: opts.subject,
@@ -152,18 +173,24 @@ export async function queueAnnouncement(opts: {
       },
       groupId: opts.groupId,
       userId: opts.userId,
-      priority: 'low',
+      priority: "low",
     });
   }
 }
 
 // Categorize template for email_logs.category
 function categorize(key: string): string {
-  if (key.startsWith('invoice') || key.startsWith('payment') || key.startsWith('receipt')) return 'billing';
-  if (key.startsWith('loan')) return 'loan';
-  if (key.startsWith('contribution')) return 'contribution';
-  if (key.startsWith('newsletter')) return 'newsletter';
-  if (key.startsWith('contact')) return 'contact';
-  if (key === 'welcome' || key === 'otp' || key === 'password_reset') return 'auth';
-  return 'transactional';
+  if (
+    key.startsWith("invoice") ||
+    key.startsWith("payment") ||
+    key.startsWith("receipt")
+  )
+    return "billing";
+  if (key.startsWith("loan")) return "loan";
+  if (key.startsWith("contribution")) return "contribution";
+  if (key.startsWith("newsletter")) return "newsletter";
+  if (key.startsWith("contact")) return "contact";
+  if (key === "welcome" || key === "otp" || key === "password_reset")
+    return "auth";
+  return "transactional";
 }

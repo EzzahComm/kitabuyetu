@@ -9,23 +9,23 @@
  *
  * For a deep health check (DB + Redis connectivity), call /api/health/deep.
  */
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json(
     {
-      status:    'ok',
-      app:       'kitabuyetu',
+      status: "ok",
+      app: "kitabuyetu",
       timestamp: new Date().toISOString(),
-      version:   process.env.npm_package_version ?? '0.1.0',
-      env:       process.env.NODE_ENV ?? 'unknown',
+      version: process.env.npm_package_version ?? "0.1.0",
+      env: process.env.NODE_ENV ?? "unknown",
     },
     {
-      status:  200,
-      headers: { 'Cache-Control': 'no-store' },
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
     },
   );
 }

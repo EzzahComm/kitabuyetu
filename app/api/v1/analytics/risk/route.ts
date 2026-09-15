@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
-import { analyticsService } from '@/lib/services/analytics.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import { analyticsService } from "@/lib/services/analytics.service";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/v1/analytics/risk — surfaces high-risk signals across the group:
@@ -15,9 +15,11 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const risk = await analyticsService.getRiskAnalysis(
-      { userId: auth.userId, groupId: auth.groupId, role: auth.role },
-    );
+    const risk = await analyticsService.getRiskAnalysis({
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+    });
     return ok(risk);
   });
 }

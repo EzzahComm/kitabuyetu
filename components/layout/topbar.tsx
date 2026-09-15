@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { Menu, Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/lib/auth/context';
-import { openCommandPalette } from '@/components/layout/command-palette';
-import { SearchTrigger } from '@/components/shared/search-trigger';
+import { Menu, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/auth/context";
+import { openCommandPalette } from "@/components/layout/command-palette";
+import { SearchTrigger } from "@/components/shared/search-trigger";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -16,7 +16,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
 
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : '??';
+    : "??";
 
   return (
     <header className="h-16 border-b bg-background flex items-center gap-4 px-4 lg:px-6">

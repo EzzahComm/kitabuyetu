@@ -1,21 +1,27 @@
-import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
-import { DatabaseError } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { applyMemberMask } from '@/lib/utils/mask';
-import { normalizePhone } from '@/lib/utils/phone';
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import { DatabaseError } from "pg";
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { applyMemberMask } from "@/lib/utils/mask";
+import { normalizePhone } from "@/lib/utils/phone";
 import {
-  NotFoundError, ConflictError, ValidationError,
-} from '@/lib/utils/errors';
-import type { Member, GroupMember, PaginatedResult } from '@/types/db.types';
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "@/lib/utils/errors";
+import type { Member, GroupMember, PaginatedResult } from "@/types/db.types";
 import type {
-  CreateMemberInput, UpdateMemberInput, MemberQueryInput,
-  MemberStatus, CreateNextOfKinInput, UpdateNextOfKinInput,
-} from '@/lib/validators/member.schema';
-import { billingService } from './billing.service';
-import { linkMemberToGroup } from './group-membership';
+  CreateMemberInput,
+  UpdateMemberInput,
+  MemberQueryInput,
+  MemberStatus,
+  CreateNextOfKinInput,
+  UpdateNextOfKinInput,
+} from "@/lib/validators/member.schema";
+import { billingService } from "./billing.service";
+import { linkMemberToGroup } from "./group-membership";
 
-export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
+export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "10", 10);
 
 /**
  * Fire the `member.registered` business event so the SMS trigger engine can
@@ -40,9 +46,9 @@ async function emitMemberRegisteredEvent(
   member: { firstName: string; lastName: string; membershipNo: string },
 ): Promise<void> {
   try {
-    const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-    const { SMS_EVENTS }        = await import('@/lib/sms/events');
-    const { withAdminDb }       = await import('@/lib/db');
+    const { emitBusinessEvent } = await import("@/lib/sms/trigger-engine");
+    const { SMS_EVENTS } = await import("@/lib/sms/events");
+    const { withAdminDb } = await import("@/lib/db");
 
     // The engine's toTemplateVars copies the PAYLOAD and nothing else — it
     // does not inject the group. A {{group_name}} left unsupplied renders as
@@ -50,12 +56,18 @@ async function emitMemberRegisteredEvent(
     // fetched and passed explicitly. withAdminDb because this runs after the
     // tenant transaction has already closed.
     const groupName = await withAdminDb((db) =>
-      db.query<{ name: string }>('SELECT name FROM groups WHERE id = $1', [groupId])
+      db
+        .query<{
+          name: string;
+        }>("SELECT name FROM groups WHERE id = $1", [groupId])
         .then((r) => r.rows[0]?.name ?? null),
     );
     if (!groupName) {
-      const { logger } = await import('@/lib/logger');
-      logger.warn('[members] skipping welcome — group not found', { groupId, memberId });
+      const { logger } = await import("@/lib/logger");
+      logger.warn("[members] skipping welcome — group not found", {
+        groupId,
+        memberId,
+      });
       return;
     }
 
@@ -64,12 +76,12 @@ async function emitMemberRegisteredEvent(
       // The membership is the business row this event is about, and it is
       // what makes the emit idempotent: re-adding the same member to the same
       // group can never send twice for the same rule.
-      eventId:   memberId,
+      eventId: memberId,
       groupId,
       payload: {
         memberId,
         first_name: member.firstName,
-        last_name:  member.lastName,
+        last_name: member.lastName,
         group_name: groupName,
         // The SHORT per-group number (e.g. NC000078), not the long platform
         // member_code (KY000000300004) — this is the one a member is asked to
@@ -79,15 +91,17 @@ async function emitMemberRegisteredEvent(
       },
     });
   } catch (err) {
-    const { logger } = await import('@/lib/logger');
-    logger.error('[members] welcome event failed — member was still created', {
-      memberId, groupId, err: String(err),
+    const { logger } = await import("@/lib/logger");
+    logger.error("[members] welcome event failed — member was still created", {
+      memberId,
+      groupId,
+      err: String(err),
     });
   }
 }
 
 /** A members row with credential material removed — the only shape routes may return. */
-export type SafeMember = Omit<Member, 'password_hash'>;
+export type SafeMember = Omit<Member, "password_hash">;
 
 /**
  * Columns on `members` that must never leave this service. The list/detail
@@ -106,16 +120,22 @@ export type SafeMember = Omit<Member, 'password_hash'>;
  * See __tests__/integration/members-secret-fields.test.ts, which pins this.
  */
 const SENSITIVE_MEMBER_FIELDS = [
-  'password_hash', 'reset_otp_hash', 'reset_otp_expires_at', 'reset_otp_attempts', 'session_version',
+  "password_hash",
+  "reset_otp_hash",
+  "reset_otp_expires_at",
+  "reset_otp_attempts",
+  "session_version",
 ] as const;
 
-function stripSecrets<T extends {
-  password_hash?:        string | null;
-  reset_otp_hash?:        string | null;
-  reset_otp_expires_at?:  Date | string | null;
-  reset_otp_attempts?:    number | null;
-  session_version?:       number | null;
-}>(row: T): Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]> {
+function stripSecrets<
+  T extends {
+    password_hash?: string | null;
+    reset_otp_hash?: string | null;
+    reset_otp_expires_at?: Date | string | null;
+    reset_otp_attempts?: number | null;
+    session_version?: number | null;
+  },
+>(row: T): Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]> {
   const clean = { ...row } as Record<string, unknown>;
   for (const field of SENSITIVE_MEMBER_FIELDS) delete clean[field];
   return clean as Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]>;
@@ -123,22 +143,43 @@ function stripSecrets<T extends {
 
 // Member statuses that need a reason recorded when a transition lands.
 const REASON_REQUIRED_STATUSES = new Set<MemberStatus>([
-  'suspended', 'rejected', 'blacklisted', 'exited',
+  "suspended",
+  "rejected",
+  "blacklisted",
+  "exited",
 ]);
 
 export const membersService = {
-
   async list(
     ctx: TenantContext,
     params: MemberQueryInput,
-  ): Promise<PaginatedResult<SafeMember & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>> {
+  ): Promise<
+    PaginatedResult<
+      SafeMember & {
+        group_role: string;
+        group_status: string;
+        joined_at: Date;
+        membership_no: string | null;
+      }
+    >
+  > {
     return withDb(ctx, async (client) => {
-      const { page, limit, search, role, status, includeArchived, countyId, sortBy, sortDir } = params;
+      const {
+        page,
+        limit,
+        search,
+        role,
+        status,
+        includeArchived,
+        countyId,
+        sortBy,
+        sortDir,
+      } = params;
       const offset = (page - 1) * limit;
 
       const conditions: string[] = [];
       const values: unknown[] = [ctx.groupId];
-      let   idx = 2;
+      let idx = 2;
 
       if (search) {
         conditions.push(
@@ -147,20 +188,33 @@ export const membersService = {
         values.push(`%${search}%`);
         idx++;
       }
-      if (role)     { conditions.push(`gm.role = $${idx++}`);      values.push(role); }
-      if (status)   { conditions.push(`gm.status = $${idx++}`);    values.push(status); }
-      if (countyId) { conditions.push(`m.county_id = $${idx++}`);  values.push(countyId); }
+      if (role) {
+        conditions.push(`gm.role = $${idx++}`);
+        values.push(role);
+      }
+      if (status) {
+        conditions.push(`gm.status = $${idx++}`);
+        values.push(status);
+      }
+      if (countyId) {
+        conditions.push(`m.county_id = $${idx++}`);
+        values.push(countyId);
+      }
       // Hide archived rows by default; explicit toggle to include them. Archive
       // is a soft delete, so the list-view default matches user expectations.
-      if (!includeArchived && !status) { conditions.push(`gm.status <> 'archived'`); }
+      if (!includeArchived && !status) {
+        conditions.push(`gm.status <> 'archived'`);
+      }
 
-      const where = conditions.length ? 'AND ' + conditions.join(' AND ') : '';
+      const where = conditions.length ? "AND " + conditions.join(" AND ") : "";
       const validSortColumns: Record<string, string> = {
-        first_name: 'm.first_name', last_name: 'm.last_name',
-        joined_at:  'gm.joined_at', created_at: 'm.created_at',
+        first_name: "m.first_name",
+        last_name: "m.last_name",
+        joined_at: "gm.joined_at",
+        created_at: "m.created_at",
       };
-      const orderCol = validSortColumns[sortBy] ?? 'm.first_name';
-      const orderDir = sortDir === 'desc' ? 'DESC' : 'ASC';
+      const orderCol = validSortColumns[sortBy] ?? "m.first_name";
+      const orderDir = sortDir === "desc" ? "DESC" : "ASC";
 
       const countResult = await client.query<{ count: string }>(
         `SELECT COUNT(*) AS count
@@ -171,7 +225,14 @@ export const membersService = {
       );
       const total = parseInt(countResult.rows[0].count, 10);
 
-      const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
+      const rows = await client.query<
+        Member & {
+          group_role: string;
+          group_status: string;
+          joined_at: Date;
+          membership_no: string | null;
+        }
+      >(
         `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
                 gm.membership_no
          FROM group_members gm
@@ -182,27 +243,47 @@ export const membersService = {
         [...values, limit, offset],
       );
 
-      const data = rows.rows.map((m) => stripSecrets(applyMemberMask(m, ctx.role) as typeof m));
+      const data = rows.rows.map((m) =>
+        stripSecrets(applyMemberMask(m, ctx.role) as typeof m),
+      );
 
-      return { items: data, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
+      return {
+        items: data,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
+      };
     });
   },
 
-  async getById(ctx: TenantContext, memberId: string): Promise<SafeMember & { group_role: string; group_status: string; joined_at: Date }> {
+  async getById(
+    ctx: TenantContext,
+    memberId: string,
+  ): Promise<
+    SafeMember & { group_role: string; group_status: string; joined_at: Date }
+  > {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
+      const { rows } = await client.query<
+        Member & { group_role: string; group_status: string; joined_at: Date }
+      >(
         `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $2
          WHERE m.id = $1`,
         [memberId, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      if (!rows[0]) throw new NotFoundError("Member", memberId);
+      return stripSecrets(
+        applyMemberMask(rows[0], ctx.role) as (typeof rows)[0],
+      );
     });
   },
 
-  async create(ctx: TenantContext, data: CreateMemberInput): Promise<SafeMember> {
+  async create(
+    ctx: TenantContext,
+    data: CreateMemberInput,
+  ): Promise<SafeMember> {
     const member = await withTransaction(ctx, async (client) => {
       // Enforce member cap before adding
       await billingService.assertMemberCap(ctx, client);
@@ -211,7 +292,7 @@ export const membersService = {
 
       // Check if member already exists anywhere in the platform
       const existing = await client.query<{ id: string }>(
-        'SELECT id FROM members WHERE phone = $1',
+        "SELECT id FROM members WHERE phone = $1",
         [phone],
       );
 
@@ -220,10 +301,11 @@ export const membersService = {
       if (existing.rows[0]) {
         memberId = existing.rows[0].id;
         const inGroup = await client.query<{ id: string }>(
-          'SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2',
+          "SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2",
           [ctx.groupId, memberId],
         );
-        if (inGroup.rows[0]) throw new ConflictError('Member already belongs to this group');
+        if (inGroup.rows[0])
+          throw new ConflictError("Member already belongs to this group");
         // Existing platform members may also receive the E1 personal-info
         // updates (middle_name, alt_phone, county, occupation, referred_by).
         // We do this so a re-add picks up the latest details rather than
@@ -236,12 +318,20 @@ export const membersService = {
              occupation        = COALESCE($5, occupation),
              referred_by       = COALESCE($6, referred_by)
            WHERE id = $1`,
-          [memberId, data.middleName, data.alternativePhone, data.countyId, data.occupation, data.referredBy],
+          [
+            memberId,
+            data.middleName,
+            data.alternativePhone,
+            data.countyId,
+            data.occupation,
+            data.referredBy,
+          ],
         );
       } else {
         // Create new platform member with a temporary password they must reset
         const passwordHash = await bcrypt.hash(
-          (data as Record<string, unknown>).password as string | undefined ?? generateTempPassword(),
+          ((data as Record<string, unknown>).password as string | undefined) ??
+            generateTempPassword(),
           BCRYPT_ROUNDS,
         );
         // id is generated here (rather than left to the column's own
@@ -261,12 +351,21 @@ export const membersService = {
               alternative_phone, county_id, occupation, referred_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
           [
-            memberId, phone, data.email ?? null, passwordHash,
-            data.firstName, data.middleName ?? null, data.lastName,
-            data.nationalId ?? null, data.dateOfBirth ?? null,
-            data.gender ?? null, data.address ?? null,
-            data.alternativePhone ?? null, data.countyId ?? null,
-            data.occupation ?? null, data.referredBy ?? null,
+            memberId,
+            phone,
+            data.email ?? null,
+            passwordHash,
+            data.firstName,
+            data.middleName ?? null,
+            data.lastName,
+            data.nationalId ?? null,
+            data.dateOfBirth ?? null,
+            data.gender ?? null,
+            data.address ?? null,
+            data.alternativePhone ?? null,
+            data.countyId ?? null,
+            data.occupation ?? null,
+            data.referredBy ?? null,
           ],
         );
       }
@@ -276,19 +375,19 @@ export const membersService = {
       // what the register_group RPC does for the first member of a group.
       const link = await linkMemberToGroup(client, {
         memberId,
-        groupId:     ctx.groupId,
-        role:        data.role ?? 'member',
-        invitedBy:   ctx.userId,
-        firstName:   data.firstName,
-        lastName:    data.lastName,
+        groupId: ctx.groupId,
+        role: data.role ?? "member",
+        invitedBy: ctx.userId,
+        firstName: data.firstName,
+        lastName: data.lastName,
         phone,
-        nationalId:  data.nationalId,
+        nationalId: data.nationalId,
         dateOfBirth: data.dateOfBirth,
-        gender:      data.gender,
+        gender: data.gender,
       });
 
       const { rows } = await client.query<Member>(
-        'SELECT * FROM members WHERE id = $1',
+        "SELECT * FROM members WHERE id = $1",
         [memberId],
       );
       return { member: stripSecrets(rows[0]), membershipNo: link.membershipNo };
@@ -296,36 +395,40 @@ export const membersService = {
 
     // After the commit, never inside it — see emitMemberRegisteredEvent.
     await emitMemberRegisteredEvent(member.member.id, ctx.groupId, {
-      firstName:    data.firstName,
-      lastName:     data.lastName,
+      firstName: data.firstName,
+      lastName: data.lastName,
       membershipNo: member.membershipNo,
     });
 
     return member.member;
   },
 
-  async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<SafeMember> {
+  async update(
+    ctx: TenantContext,
+    memberId: string,
+    data: UpdateMemberInput,
+  ): Promise<SafeMember> {
     return withTransaction(ctx, async (client) => {
       // Field mapping kept explicit so unknown fields can't be smuggled into
       // the SQL via a dynamic object spread.
       const fieldMap: Record<string, string> = {
-        firstName:        'first_name',
-        lastName:         'last_name',
-        email:            'email',
-        nationalId:       'national_id',
-        dateOfBirth:      'date_of_birth',
-        gender:           'gender',
-        address:          'address',
-        profilePhotoUrl:  'profile_photo_url',
+        firstName: "first_name",
+        lastName: "last_name",
+        email: "email",
+        nationalId: "national_id",
+        dateOfBirth: "date_of_birth",
+        gender: "gender",
+        address: "address",
+        profilePhotoUrl: "profile_photo_url",
         // Phase E1
-        middleName:       'middle_name',
-        alternativePhone: 'alternative_phone',
-        countyId:         'county_id',
-        occupation:       'occupation',
-        referredBy:       'referred_by',
+        middleName: "middle_name",
+        alternativePhone: "alternative_phone",
+        countyId: "county_id",
+        occupation: "occupation",
+        referredBy: "referred_by",
       };
 
-      const sets: string[]   = [];
+      const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
 
@@ -337,19 +440,23 @@ export const membersService = {
         }
       }
 
-      if (sets.length === 0) throw new ValidationError('No fields to update');
+      if (sets.length === 0) throw new ValidationError("No fields to update");
 
       values.push(memberId);
       const { rows } = await client.query<Member>(
-        `UPDATE members SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+        `UPDATE members SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`,
         values,
       );
-      if (!rows[0]) throw new NotFoundError('Member', memberId);
+      if (!rows[0]) throw new NotFoundError("Member", memberId);
       return stripSecrets(rows[0]);
     });
   },
 
-  async updateRole(ctx: TenantContext, memberId: string, role: string): Promise<GroupMember> {
+  async updateRole(
+    ctx: TenantContext,
+    memberId: string,
+    role: string,
+  ): Promise<GroupMember> {
     return withTransaction(ctx, async (client) => {
       const { rows } = await client.query<GroupMember>(
         `UPDATE group_members SET role = $1
@@ -357,7 +464,8 @@ export const membersService = {
          RETURNING *`,
         [role, ctx.groupId, memberId],
       );
-      if (!rows[0]) throw new NotFoundError('Group membership for member', memberId);
+      if (!rows[0])
+        throw new NotFoundError("Group membership for member", memberId);
       return rows[0];
     });
   },
@@ -384,7 +492,9 @@ export const membersService = {
     reason?: string,
   ): Promise<GroupMember> {
     if (REASON_REQUIRED_STATUSES.has(target) && !reason?.trim()) {
-      throw new ValidationError(`A reason is required when setting status to '${target}'`);
+      throw new ValidationError(
+        `A reason is required when setting status to '${target}'`,
+      );
     }
 
     return withTransaction(ctx, async (client) => {
@@ -392,17 +502,24 @@ export const membersService = {
         `SELECT status FROM group_members WHERE group_id = $1 AND member_id = $2`,
         [ctx.groupId, memberId],
       );
-      if (!current[0]) throw new NotFoundError('Group membership for member', memberId);
+      if (!current[0])
+        throw new NotFoundError("Group membership for member", memberId);
 
       const validNext: Partial<Record<MemberStatus, Set<MemberStatus>>> = {
-        pending_verification: new Set(['active', 'rejected']),
-        active:               new Set(['suspended', 'inactive', 'archived', 'blacklisted', 'exited']),
-        inactive:             new Set(['active', 'archived']),
-        suspended:            new Set(['active', 'archived']),
-        rejected:             new Set(['archived']),
-        blacklisted:          new Set(['archived']),
-        exited:               new Set(['archived']),
-        archived:             new Set(['active']),
+        pending_verification: new Set(["active", "rejected"]),
+        active: new Set([
+          "suspended",
+          "inactive",
+          "archived",
+          "blacklisted",
+          "exited",
+        ]),
+        inactive: new Set(["active", "archived"]),
+        suspended: new Set(["active", "archived"]),
+        rejected: new Set(["archived"]),
+        blacklisted: new Set(["archived"]),
+        exited: new Set(["archived"]),
+        archived: new Set(["active"]),
       };
 
       const allowed = validNext[current[0].status];
@@ -416,35 +533,42 @@ export const membersService = {
       // own _at / _by / _reason. Restoring to 'active' clears archived_at
       // so the row no longer reads as soft-deleted.
       const setClauses: string[] = [`status = $1`];
-      const values: unknown[]    = [target];
+      const values: unknown[] = [target];
       let idx = 2;
 
-      if (target === 'archived') {
+      if (target === "archived") {
         setClauses.push(`archived_at = NOW()`);
-        setClauses.push(`archived_by = $${idx++}`); values.push(ctx.userId);
-      } else if (target === 'blacklisted') {
+        setClauses.push(`archived_by = $${idx++}`);
+        values.push(ctx.userId);
+      } else if (target === "blacklisted") {
         setClauses.push(`blacklisted_at = NOW()`);
-        setClauses.push(`blacklisted_by = $${idx++}`);   values.push(ctx.userId);
-        setClauses.push(`blacklist_reason = $${idx++}`); values.push(reason!);
-      } else if (target === 'exited') {
+        setClauses.push(`blacklisted_by = $${idx++}`);
+        values.push(ctx.userId);
+        setClauses.push(`blacklist_reason = $${idx++}`);
+        values.push(reason!);
+      } else if (target === "exited") {
         setClauses.push(`exited_at = NOW()`);
-        setClauses.push(`exited_by = $${idx++}`);   values.push(ctx.userId);
-        setClauses.push(`exit_reason = $${idx++}`); values.push(reason!);
-      } else if (target === 'rejected') {
+        setClauses.push(`exited_by = $${idx++}`);
+        values.push(ctx.userId);
+        setClauses.push(`exit_reason = $${idx++}`);
+        values.push(reason!);
+      } else if (target === "rejected") {
         setClauses.push(`rejected_at = NOW()`);
-        setClauses.push(`reject_reason = $${idx++}`); values.push(reason!);
-      } else if (target === 'suspended') {
+        setClauses.push(`reject_reason = $${idx++}`);
+        values.push(reason!);
+      } else if (target === "suspended") {
         // group_members has no suspended_at column — store reason on
         // reject_reason for now (Phase A added it as a generic reason field).
-        setClauses.push(`reject_reason = $${idx++}`); values.push(reason!);
-      } else if (target === 'active' && current[0].status === 'archived') {
+        setClauses.push(`reject_reason = $${idx++}`);
+        values.push(reason!);
+      } else if (target === "active" && current[0].status === "archived") {
         // Restoring from archive: clear archive metadata.
         setClauses.push(`archived_at = NULL`, `archived_by = NULL`);
       }
 
       values.push(ctx.groupId, memberId);
       const { rows } = await client.query<GroupMember>(
-        `UPDATE group_members SET ${setClauses.join(', ')}
+        `UPDATE group_members SET ${setClauses.join(", ")}
          WHERE group_id = $${idx++} AND member_id = $${idx++}
          RETURNING *`,
         values,
@@ -455,12 +579,12 @@ export const membersService = {
 
   /** Convenience: soft-archive a member (status → 'archived'). */
   async archive(ctx: TenantContext, memberId: string): Promise<GroupMember> {
-    return this.transitionStatus(ctx, memberId, 'archived');
+    return this.transitionStatus(ctx, memberId, "archived");
   },
 
   /** Convenience: restore a previously archived member (status → 'active'). */
   async restore(ctx: TenantContext, memberId: string): Promise<GroupMember> {
-    return this.transitionStatus(ctx, memberId, 'active');
+    return this.transitionStatus(ctx, memberId, "active");
   },
 
   /**
@@ -480,16 +604,22 @@ export const membersService = {
   ): Promise<void> {
     return withTransaction(ctx, async (client) => {
       const { rows } = await client.query<{ password_hash: string }>(
-        'SELECT password_hash FROM members WHERE id = $1',
+        "SELECT password_hash FROM members WHERE id = $1",
         [memberId],
       );
-      if (!rows[0]) throw new NotFoundError('Member', memberId);
+      if (!rows[0]) throw new NotFoundError("Member", memberId);
 
-      const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
-      if (!valid) throw new ValidationError('Current password is incorrect');
+      const valid = await bcrypt.compare(
+        currentPassword,
+        rows[0].password_hash,
+      );
+      if (!valid) throw new ValidationError("Current password is incorrect");
 
       const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-      await client.query('UPDATE members SET password_hash = $1 WHERE id = $2', [newHash, memberId]);
+      await client.query(
+        "UPDATE members SET password_hash = $1 WHERE id = $2",
+        [newHash, memberId],
+      );
     });
   },
 
@@ -510,7 +640,11 @@ export const membersService = {
     });
   },
 
-  async createNextOfKin(ctx: TenantContext, memberId: string, data: CreateNextOfKinInput) {
+  async createNextOfKin(
+    ctx: TenantContext,
+    memberId: string,
+    data: CreateNextOfKinInput,
+  ) {
     return withTransaction(ctx, async (client) => {
       // Make sure the member belongs to this tenant (RLS would block anyway,
       // but a clear 404 is friendlier than an opaque 403).
@@ -518,7 +652,8 @@ export const membersService = {
         `SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2`,
         [ctx.groupId, memberId],
       );
-      if (!m[0]) throw new NotFoundError('Group membership for member', memberId);
+      if (!m[0])
+        throw new NotFoundError("Group membership for member", memberId);
 
       // The unique partial index on next_of_kin(member_id) WHERE priority=1
       // catches duplicate primaries — surface a clean conflict instead of the
@@ -537,17 +672,28 @@ export const membersService = {
            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
            RETURNING *`,
           [
-            ctx.groupId, memberId,
-            data.fullName, data.relationship, phone, altPhone,
-            data.email || null, data.address || null,
-            data.nationalId || null, data.priority, data.notes || null,
+            ctx.groupId,
+            memberId,
+            data.fullName,
+            data.relationship,
+            phone,
+            altPhone,
+            data.email || null,
+            data.address || null,
+            data.nationalId || null,
+            data.priority,
+            data.notes || null,
           ],
         );
         return rows[0];
       } catch (e) {
-        if (e instanceof DatabaseError && e.code === '23505' && e.constraint === 'uq_nok_one_primary_per_member') {
+        if (
+          e instanceof DatabaseError &&
+          e.code === "23505" &&
+          e.constraint === "uq_nok_one_primary_per_member"
+        ) {
           throw new ConflictError(
-            'This member already has a primary next-of-kin (priority 1). Use a different priority or update the existing primary.',
+            "This member already has a primary next-of-kin (priority 1). Use a different priority or update the existing primary.",
           );
         }
         throw e;
@@ -563,17 +709,17 @@ export const membersService = {
   ) {
     return withTransaction(ctx, async (client) => {
       const fieldMap: Record<string, string> = {
-        fullName:         'full_name',
-        relationship:     'relationship',
-        phone:            'phone',
-        alternativePhone: 'alternative_phone',
-        email:            'email',
-        address:          'address',
-        nationalId:       'national_id',
-        priority:         'priority',
-        notes:            'notes',
+        fullName: "full_name",
+        relationship: "relationship",
+        phone: "phone",
+        alternativePhone: "alternative_phone",
+        email: "email",
+        address: "address",
+        nationalId: "national_id",
+        priority: "priority",
+        notes: "notes",
       };
-      const sets: string[]   = [];
+      const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
 
@@ -581,11 +727,21 @@ export const membersService = {
         const v = (data as Record<string, unknown>)[field];
         if (v !== undefined) {
           let value: unknown = v;
-          if ((field === 'phone' || field === 'alternativePhone') && typeof v === 'string' && v.length > 0) {
+          if (
+            (field === "phone" || field === "alternativePhone") &&
+            typeof v === "string" &&
+            v.length > 0
+          ) {
             value = normalizePhone(v);
           }
-          if ((field === 'email' || field === 'alternativePhone' || field === 'address' || field === 'nationalId' || field === 'notes')
-              && v === '') {
+          if (
+            (field === "email" ||
+              field === "alternativePhone" ||
+              field === "address" ||
+              field === "nationalId" ||
+              field === "notes") &&
+            v === ""
+          ) {
             value = null;
           }
           sets.push(`${column} = $${idx++}`);
@@ -593,32 +749,36 @@ export const membersService = {
         }
       }
 
-      if (sets.length === 0) throw new ValidationError('No fields to update');
+      if (sets.length === 0) throw new ValidationError("No fields to update");
 
       sets.push(`updated_at = NOW()`);
       values.push(ctx.groupId, memberId, kinId);
       const { rows } = await client.query(
-        `UPDATE next_of_kin SET ${sets.join(', ')}
+        `UPDATE next_of_kin SET ${sets.join(", ")}
          WHERE group_id = $${idx++} AND member_id = $${idx++} AND id = $${idx++}
          RETURNING *`,
         values,
       );
-      if (!rows[0]) throw new NotFoundError('Next of kin', kinId);
+      if (!rows[0]) throw new NotFoundError("Next of kin", kinId);
       return rows[0];
     });
   },
 
-  async deleteNextOfKin(ctx: TenantContext, memberId: string, kinId: string): Promise<void> {
+  async deleteNextOfKin(
+    ctx: TenantContext,
+    memberId: string,
+    kinId: string,
+  ): Promise<void> {
     return withTransaction(ctx, async (client) => {
       const { rowCount } = await client.query(
         `DELETE FROM next_of_kin WHERE group_id = $1 AND member_id = $2 AND id = $3`,
         [ctx.groupId, memberId, kinId],
       );
-      if (!rowCount) throw new NotFoundError('Next of kin', kinId);
+      if (!rowCount) throw new NotFoundError("Next of kin", kinId);
     });
   },
 };
 
 export function generateTempPassword(): string {
-  return Math.random().toString(36).slice(-10) + 'A1';
+  return Math.random().toString(36).slice(-10) + "A1";
 }

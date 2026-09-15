@@ -6,31 +6,46 @@
  * (ADR-001: RLS may still be decorative in production pending the
  * app_tenant cutover).
  */
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError } from '@/lib/utils/errors';
-import type { CreateMemberGoalInput, UpdateMemberGoalInput, LogGoalProgressInput } from '@/lib/validators/member-goal.schema';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError } from "@/lib/utils/errors";
+import type {
+  CreateMemberGoalInput,
+  UpdateMemberGoalInput,
+  LogGoalProgressInput,
+} from "@/lib/validators/member-goal.schema";
 
 export interface MemberGoal {
-  id:           string;
-  name:         string;
-  emoji:        string;
+  id: string;
+  name: string;
+  emoji: string;
   targetAmount: number;
-  savedAmount:  number;
-  deadline:     string | null;
-  status:       'active' | 'achieved' | 'archived';
-  createdAt:    Date;
+  savedAmount: number;
+  deadline: string | null;
+  status: "active" | "achieved" | "archived";
+  createdAt: Date;
 }
 
 interface GoalRow {
-  id: string; name: string; emoji: string; target_amount: string; saved_amount: string;
-  deadline: string | null; status: 'active' | 'achieved' | 'archived'; created_at: Date;
+  id: string;
+  name: string;
+  emoji: string;
+  target_amount: string;
+  saved_amount: string;
+  deadline: string | null;
+  status: "active" | "achieved" | "archived";
+  created_at: Date;
 }
 
 function mapRow(r: GoalRow): MemberGoal {
   return {
-    id: r.id, name: r.name, emoji: r.emoji,
-    targetAmount: parseFloat(r.target_amount), savedAmount: parseFloat(r.saved_amount),
-    deadline: r.deadline, status: r.status, createdAt: r.created_at,
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji,
+    targetAmount: parseFloat(r.target_amount),
+    savedAmount: parseFloat(r.saved_amount),
+    deadline: r.deadline,
+    status: r.status,
+    createdAt: r.created_at,
   };
 }
 
@@ -46,19 +61,33 @@ export async function listMyGoals(ctx: TenantContext): Promise<MemberGoal[]> {
   });
 }
 
-export async function createGoal(ctx: TenantContext, input: CreateMemberGoalInput): Promise<MemberGoal> {
+export async function createGoal(
+  ctx: TenantContext,
+  input: CreateMemberGoalInput,
+): Promise<MemberGoal> {
   return withTransaction(ctx, async (client) => {
     const { rows } = await client.query<GoalRow>(
       `INSERT INTO member_goals (group_id, member_id, name, emoji, target_amount, deadline)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [ctx.groupId, ctx.userId, input.name, input.emoji, input.targetAmount, input.deadline ?? null],
+      [
+        ctx.groupId,
+        ctx.userId,
+        input.name,
+        input.emoji,
+        input.targetAmount,
+        input.deadline ?? null,
+      ],
     );
     return mapRow(rows[0]);
   });
 }
 
-export async function updateGoal(ctx: TenantContext, id: string, input: UpdateMemberGoalInput): Promise<MemberGoal> {
+export async function updateGoal(
+  ctx: TenantContext,
+  id: string,
+  input: UpdateMemberGoalInput,
+): Promise<MemberGoal> {
   return withTransaction(ctx, async (client) => {
     const { rows } = await client.query<GoalRow>(
       `UPDATE member_goals SET
@@ -70,27 +99,41 @@ export async function updateGoal(ctx: TenantContext, id: string, input: UpdateMe
        WHERE id = $1 AND group_id = $9 AND member_id = $2
        RETURNING *`,
       [
-        id, ctx.userId, input.name ?? null, input.emoji ?? null, input.targetAmount ?? null,
-        'deadline' in input, input.deadline ?? null, input.status ?? null, ctx.groupId,
+        id,
+        ctx.userId,
+        input.name ?? null,
+        input.emoji ?? null,
+        input.targetAmount ?? null,
+        "deadline" in input,
+        input.deadline ?? null,
+        input.status ?? null,
+        ctx.groupId,
       ],
     );
-    if (!rows[0]) throw new NotFoundError('Goal', id);
+    if (!rows[0]) throw new NotFoundError("Goal", id);
     return mapRow(rows[0]);
   });
 }
 
-export async function deleteGoal(ctx: TenantContext, id: string): Promise<void> {
+export async function deleteGoal(
+  ctx: TenantContext,
+  id: string,
+): Promise<void> {
   return withTransaction(ctx, async (client) => {
     const { rowCount } = await client.query(
       `DELETE FROM member_goals WHERE id = $1 AND group_id = $2 AND member_id = $3`,
       [id, ctx.groupId, ctx.userId],
     );
-    if (!rowCount) throw new NotFoundError('Goal', id);
+    if (!rowCount) throw new NotFoundError("Goal", id);
   });
 }
 
 /** Atomically increments saved_amount and auto-flips status to 'achieved' at target. */
-export async function logProgress(ctx: TenantContext, id: string, input: LogGoalProgressInput): Promise<MemberGoal> {
+export async function logProgress(
+  ctx: TenantContext,
+  id: string,
+  input: LogGoalProgressInput,
+): Promise<MemberGoal> {
   return withTransaction(ctx, async (client) => {
     const { rows } = await client.query<GoalRow>(
       `UPDATE member_goals SET
@@ -100,7 +143,7 @@ export async function logProgress(ctx: TenantContext, id: string, input: LogGoal
        RETURNING *`,
       [id, ctx.groupId, ctx.userId, input.amount],
     );
-    if (!rows[0]) throw new NotFoundError('Goal', id);
+    if (!rows[0]) throw new NotFoundError("Goal", id);
     return mapRow(rows[0]);
   });
 }

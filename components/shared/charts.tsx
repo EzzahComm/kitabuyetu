@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import dynamic from 'next/dynamic';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import * as React from "react";
+import dynamic from "next/dynamic";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 /**
  * Themed Recharts kit — public API.
@@ -13,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
  * names and props are unchanged, so call sites stay identical.
  */
 
-export type { SeriesDef } from './charts-impl';
+export type { SeriesDef } from "./charts-impl";
 
 /** Placeholder shown while the Recharts chunk loads. Fills its container; a
  *  min-height keeps tiny sparklines from collapsing during the brief load. */
@@ -21,18 +27,34 @@ const chartLoading = () => (
   <div className="h-full min-h-[2.5rem] w-full animate-pulse rounded-md bg-muted" />
 );
 
-export const TrendChart = dynamic(() => import('./charts-impl').then((m) => m.TrendChartImpl), {
-  ssr: false, loading: chartLoading,
-});
-export const BarSeriesChart = dynamic(() => import('./charts-impl').then((m) => m.BarSeriesChartImpl), {
-  ssr: false, loading: chartLoading,
-});
-export const DonutChart = dynamic(() => import('./charts-impl').then((m) => m.DonutChartImpl), {
-  ssr: false, loading: chartLoading,
-});
-export const Sparkline = dynamic(() => import('./charts-impl').then((m) => m.SparklineImpl), {
-  ssr: false, loading: chartLoading,
-});
+export const TrendChart = dynamic(
+  () => import("./charts-impl").then((m) => m.TrendChartImpl),
+  {
+    ssr: false,
+    loading: chartLoading,
+  },
+);
+export const BarSeriesChart = dynamic(
+  () => import("./charts-impl").then((m) => m.BarSeriesChartImpl),
+  {
+    ssr: false,
+    loading: chartLoading,
+  },
+);
+export const DonutChart = dynamic(
+  () => import("./charts-impl").then((m) => m.DonutChartImpl),
+  {
+    ssr: false,
+    loading: chartLoading,
+  },
+);
+export const Sparkline = dynamic(
+  () => import("./charts-impl").then((m) => m.SparklineImpl),
+  {
+    ssr: false,
+    loading: chartLoading,
+  },
+);
 
 interface ChartCardProps {
   title?: string;
@@ -49,7 +71,14 @@ interface ChartCardProps {
  * (a lazy `TrendChart`/`BarSeriesChart`/`DonutChart`) is passed as children and
  * fills the fixed-height box via its own ResponsiveContainer.
  */
-export function ChartCard({ title, description, action, height = 256, className, children }: ChartCardProps) {
+export function ChartCard({
+  title,
+  description,
+  action,
+  height = 256,
+  className,
+  children,
+}: ChartCardProps) {
   return (
     <Card className={className}>
       {(title || action) && (

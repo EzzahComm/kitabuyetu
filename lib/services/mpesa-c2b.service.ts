@@ -4,18 +4,39 @@
  * High #9).
  */
 
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { safeNormalizePhone, UNKNOWN_PAYER_PHONE } from '@/lib/utils/phone';
-import { parseBillRefNumber, isSandboxTestRef, type RoutingDecision } from '@/lib/utils/mpesa-bill-ref';
-import { looksLikeMembershipNo, isValidMembershipNo, parseAccountRef } from '@/lib/utils/membership-no';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { safeNormalizePhone, UNKNOWN_PAYER_PHONE } from "@/lib/utils/phone";
 import {
-  registerC2BUrls as _registerC2B, getC2BUrls, assertSafaricomIp,
-  type C2BApiVersion, type C2BUrls, type C2BRegistrationResult,
-} from './daraja.service';
-import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
-import { IS_SANDBOX, emitPaymentReceiptEvent, logPaymentEvent, emitOutbox, spinePaymentId } from './mpesa-spine.service';
+  parseBillRefNumber,
+  isSandboxTestRef,
+  type RoutingDecision,
+} from "@/lib/utils/mpesa-bill-ref";
+import {
+  looksLikeMembershipNo,
+  isValidMembershipNo,
+  parseAccountRef,
+} from "@/lib/utils/membership-no";
+import {
+  registerC2BUrls as _registerC2B,
+  getC2BUrls,
+  assertSafaricomIp,
+  type C2BApiVersion,
+  type C2BUrls,
+  type C2BRegistrationResult,
+} from "./daraja.service";
+import {
+  lookupPaymentAccount,
+  isPaymentEligible,
+} from "./mpesa-payment-accounts.service";
+import {
+  IS_SANDBOX,
+  emitPaymentReceiptEvent,
+  logPaymentEvent,
+  emitOutbox,
+  spinePaymentId,
+} from "./mpesa-spine.service";
 import {
   type C2BFulfilmentInput,
   type StkRequestRow,
@@ -27,13 +48,15 @@ import {
   eligibilityGate,
   hasDueInstallments,
   applyLoanRepayment,
-} from './mpesa-allocation.service';
+} from "./mpesa-allocation.service";
 
 // ─── C2B registration ─────────────────────────────────────────────────────────
 
 export { getC2BUrls, type C2BUrls, type C2BRegistrationResult };
 
-export async function registerC2BUrls(version?: C2BApiVersion): Promise<C2BRegistrationResult> {
+export async function registerC2BUrls(
+  version?: C2BApiVersion,
+): Promise<C2BRegistrationResult> {
   return _registerC2B(version);
 }
 
@@ -41,7 +64,10 @@ export async function registerC2BUrls(version?: C2BApiVersion): Promise<C2BRegis
 
 export type C2BValidationVerdict =
   | { accept: true }
-  | { accept: false; reason: 'bad_account' | 'unknown_account' | 'membership_inactive' };
+  | {
+      accept: false;
+      reason: "bad_account" | "unknown_account" | "membership_inactive";
+    };
 
 /**
  * Pre-payment account validation — Safaricom calls this BEFORE completing a
@@ -60,7 +86,7 @@ export async function validateC2BAccount(
   billRef: string | null | undefined,
 ): Promise<C2BValidationVerdict> {
   try {
-    const parsed = parseAccountRef(billRef ?? '');
+    const parsed = parseAccountRef(billRef ?? "");
     if (!looksLikeMembershipNo(parsed.account)) {
       // Not membership-number shaped — legacy/invoice refs flow to
       // confirmation routing as before.
@@ -68,27 +94,35 @@ export async function validateC2BAccount(
     }
     // A1: an unknown trailing letter is malformed — reject, never guess.
     if (parsed.invalidSuffix) {
-      return { accept: false, reason: 'bad_account' };
+      return { accept: false, reason: "bad_account" };
     }
     if (!isValidMembershipNo(parsed.account)) {
-      return { accept: false, reason: 'bad_account' };
+      return { accept: false, reason: "bad_account" };
     }
     return await withAdminDb(async (db) => {
       const hit = await lookupPaymentAccount(db, parsed.account);
-      if (!hit) return { accept: false as const, reason: 'unknown_account' as const };
+      if (!hit)
+        return { accept: false as const, reason: "unknown_account" as const };
       if (isPaymentEligible(hit)) return { accept: true as const };
       // §4.1 obligations-only: suspended/inactive memberships may still pay
       // down loans — accept when due installments exist (confirmation forces
       // the money to the loan waterfall); otherwise reject before money moves.
-      if ((hit.membershipStatus === 'suspended' || hit.membershipStatus === 'inactive')
-          && hit.accountStatus === 'active' && hit.memberActive === true
-          && await hasDueInstallments(db, hit.groupId!, hit.memberId!)) {
+      if (
+        (hit.membershipStatus === "suspended" ||
+          hit.membershipStatus === "inactive") &&
+        hit.accountStatus === "active" &&
+        hit.memberActive === true &&
+        (await hasDueInstallments(db, hit.groupId!, hit.memberId!))
+      ) {
         return { accept: true as const };
       }
-      return { accept: false as const, reason: 'membership_inactive' as const };
+      return { accept: false as const, reason: "membership_inactive" as const };
     });
   } catch (err) {
-    logger.error('[mpesa/c2b] validation failed open', { billRef, err: String(err) });
+    logger.error("[mpesa/c2b] validation failed open", {
+      billRef,
+      err: String(err),
+    });
     return { accept: true };
   }
 }
@@ -96,19 +130,19 @@ export async function validateC2BAccount(
 // ─── C2B Confirmation ─────────────────────────────────────────────────────────
 
 export interface C2BCallbackBody {
-  TransactionType:    string;
-  TransID:            string;
-  TransTime:          string;
-  TransAmount:        string;
-  BusinessShortCode:  string;
-  BillRefNumber:      string;
-  InvoiceNumber?:     string;
+  TransactionType: string;
+  TransID: string;
+  TransTime: string;
+  TransAmount: string;
+  BusinessShortCode: string;
+  BillRefNumber: string;
+  InvoiceNumber?: string;
   OrgAccountBalance?: string;
   ThirdPartyTransID?: string;
-  MSISDN:             string;
-  FirstName?:         string;
-  MiddleName?:        string;
-  LastName?:          string;
+  MSISDN: string;
+  FirstName?: string;
+  MiddleName?: string;
+  LastName?: string;
 }
 
 export async function handleC2BConfirmation(
@@ -132,15 +166,15 @@ export async function handleC2BConfirmation(
   // comment below: the member is identified by the ACCOUNT NUMBER, never by
   // the paying phone, because third parties may pay. So an unusable MSISDN
   // must degrade the record, never reject the money.
-  const phone   = safeNormalizePhone(body.MSISDN) ?? UNKNOWN_PAYER_PHONE;
-  const amount  = parseFloat(body.TransAmount);
+  const phone = safeNormalizePhone(body.MSISDN) ?? UNKNOWN_PAYER_PHONE;
+  const amount = parseFloat(body.TransAmount);
   const rawBody = JSON.stringify(body);
-  const route   = parseBillRefNumber(body.BillRefNumber);
+  const route = parseBillRefNumber(body.BillRefNumber);
 
   await withAdminDb(async (db) => {
     // 1. Idempotency — duplicate Safaricom retries return early.
     const { rows: existingPay } = await db.query<{ id: string }>(
-      'SELECT id FROM payments WHERE mpesa_receipt_number=$1 LIMIT 1',
+      "SELECT id FROM payments WHERE mpesa_receipt_number=$1 LIMIT 1",
       [body.TransID],
     );
     if (existingPay[0]) return;
@@ -152,23 +186,35 @@ export async function handleC2BConfirmation(
     //    suffix (BG102534-W) is split off before the lookup (§3.5 A1/A3).
     const parsed = parseAccountRef(body.BillRefNumber);
     const hit = await lookupPaymentAccount(db, parsed.account);
-    if (hit && (hit.kind === 'membership_no' || hit.kind === 'legacy_code') && hit.groupId) {
+    if (
+      hit &&
+      (hit.kind === "membership_no" || hit.kind === "legacy_code") &&
+      hit.groupId
+    ) {
       await recordC2BInbound(db, hit.groupId, body, phone, amount, rawBody);
 
       const fulfil: C2BFulfilmentInput = {
-        groupId: hit.groupId, route, receipt: body.TransID,
-        amount, phone, billRef: body.BillRefNumber, rawBody,
+        groupId: hit.groupId,
+        route,
+        receipt: body.TransID,
+        amount,
+        phone,
+        billRef: body.BillRefNumber,
+        rawBody,
       };
 
       // A1: an unknown trailing letter is malformed — never "closest guess".
       if (parsed.invalidSuffix) {
-        await c2bToUnrouted(db, fulfil, 'bad_account');
+        await c2bToUnrouted(db, fulfil, "bad_account");
         return;
       }
 
       // §3.5 A2–A8: resolve the product deterministically.
       const resolved = await resolveProductForMembership(
-        db, hit, parsed.suffix, amount,
+        db,
+        hit,
+        parsed.suffix,
+        amount,
       );
 
       // §4.1 per-state eligibility: active → all products; suspended/inactive
@@ -176,30 +222,33 @@ export async function handleC2BConfirmation(
       // installments, the money is FORCED to loan repayment regardless of
       // defaults — a suspended member can always reduce debt, never grow savings.
       const gate = await eligibilityGate(db, hit, resolved.product);
-      if (gate === 'reject') {
-        await c2bToUnrouted(db, fulfil, 'membership_inactive');
+      if (gate === "reject") {
+        await c2bToUnrouted(db, fulfil, "membership_inactive");
         return;
       }
-      const product = gate === 'force_loan' ? 'loan_repayment' : resolved.product;
+      const product =
+        gate === "force_loan" ? "loan_repayment" : resolved.product;
 
       await dispatchProduct(db, {
         product,
-        requestId:      gate === 'force_loan' ? null : resolved.requestId,
+        requestId: gate === "force_loan" ? null : resolved.requestId,
         amountVariance: resolved.amountVariance,
-        tier:           gate === 'force_loan' ? 'state_machine' : resolved.tier,
-        obligationsOnly: gate === 'force_loan',
-        groupId:        hit.groupId,
-        memberId:       hit.memberId!,
+        tier: gate === "force_loan" ? "state_machine" : resolved.tier,
+        obligationsOnly: gate === "force_loan",
+        groupId: hit.groupId,
+        memberId: hit.memberId!,
         fulfil,
         // Only claim a third party paid when we actually know who did. With an
         // unusable MSISDN the honest answer is "unknown payer", not "someone
         // other than the member" — recording the sentinel here would assert a
         // third-party payment that was never established.
         thirdPartyPhone:
-          phone !== UNKNOWN_PAYER_PHONE && hit.memberPhone && hit.memberPhone !== phone
+          phone !== UNKNOWN_PAYER_PHONE &&
+          hit.memberPhone &&
+          hit.memberPhone !== phone
             ? phone
             : null,
-        preferRepaymentId: gate !== 'force_loan' ? resolved.entityId : null,
+        preferRepaymentId: gate !== "force_loan" ? resolved.entityId : null,
       });
       return;
     }
@@ -225,11 +274,18 @@ export async function handleC2BConfirmation(
           `SELECT id, status FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
           [body.TransID],
         );
-        if (dup[0]?.status === 'completed') {
-          logger.info('[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted', {
-            receipt: body.TransID, paymentId: dup[0].id,
+        if (dup[0]?.status === "completed") {
+          logger.info(
+            "[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted",
+            {
+              receipt: body.TransID,
+              paymentId: dup[0].id,
+            },
+          );
+          await logPaymentEvent(db, dup[0].id, "replayed", {
+            path: "c2b",
+            billRef: body.BillRefNumber,
           });
-          await logPaymentEvent(db, dup[0].id, 'replayed', { path: 'c2b', billRef: body.BillRefNumber });
           return;
         }
 
@@ -239,9 +295,11 @@ export async function handleC2BConfirmation(
            VALUES ($1, $2, $3, $4, $5, $6::jsonb, NULL)
            ON CONFLICT (receipt) DO NOTHING`,
           [
-            body.TransID, phone, amount.toFixed(2),
+            body.TransID,
+            phone,
+            amount.toFixed(2),
             body.BillRefNumber,
-            route.kind === 'unknown' ? 'unknown_prefix' : 'unknown_group',
+            route.kind === "unknown" ? "unknown_prefix" : "unknown_group",
             rawBody,
           ],
         );
@@ -254,10 +312,10 @@ export async function handleC2BConfirmation(
     await fulfilC2B(db, {
       groupId,
       route,
-      receipt:  body.TransID,
+      receipt: body.TransID,
       amount,
       phone,
-      billRef:  body.BillRefNumber,
+      billRef: body.BillRefNumber,
       rawBody,
     });
   });
@@ -268,7 +326,8 @@ export async function handleC2BConfirmation(
   // (rule, paymentId) inside the trigger engine, so Safaricom retries
   // cannot send a second receipt.
   const paymentId = await withAdminDb((db) => spinePaymentId(db, body.TransID));
-  if (paymentId) await emitPaymentReceiptEvent(paymentId, { requireAllocated: true });
+  if (paymentId)
+    await emitPaymentReceiptEvent(paymentId, { requireAllocated: true });
 }
 
 /**
@@ -276,11 +335,11 @@ export async function handleC2BConfirmation(
  * payments table. Both carry UNIQUE(mpesa_receipt_number) so retries are safe.
  */
 async function recordC2BInbound(
-  db:      PoolClient,
+  db: PoolClient,
   groupId: string,
-  body:    C2BCallbackBody,
-  phone:   string,
-  amount:  number,
+  body: C2BCallbackBody,
+  phone: string,
+  amount: number,
   rawBody: string,
 ): Promise<void> {
   await db.query(
@@ -289,7 +348,15 @@ async function recordC2BInbound(
         phone_number, amount, status, reference, raw_response, completed_at, is_test)
      VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
      ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
-    [groupId, body.TransID, phone, amount.toFixed(2), body.BillRefNumber, rawBody, IS_SANDBOX],
+    [
+      groupId,
+      body.TransID,
+      phone,
+      amount.toFixed(2),
+      body.BillRefNumber,
+      rawBody,
+      IS_SANDBOX,
+    ],
   );
 
   const { rows } = await db.query<{ id: string }>(
@@ -305,13 +372,18 @@ async function recordC2BInbound(
   // First arrival appends 'received' + announces on the outbox; a Safaricom
   // retry (conflict → no row) is recorded as 'replayed' instead.
   if (rows[0]) {
-    await logPaymentEvent(db, rows[0].id, 'received', { billRef: body.BillRefNumber });
-    await emitOutbox(db, 'payment.received', rows[0].id, {
-      receipt: body.TransID, amount, groupId,
+    await logPaymentEvent(db, rows[0].id, "received", {
+      billRef: body.BillRefNumber,
+    });
+    await emitOutbox(db, "payment.received", rows[0].id, {
+      receipt: body.TransID,
+      amount,
+      groupId,
     });
   } else {
     const existing = await spinePaymentId(db, body.TransID);
-    if (existing) await logPaymentEvent(db, existing, 'replayed', { path: 'c2b' });
+    if (existing)
+      await logPaymentEvent(db, existing, "replayed", { path: "c2b" });
   }
 }
 
@@ -328,9 +400,9 @@ async function recordC2BInbound(
  * real money into an arbitrary same-named group. Do not reintroduce it.
  */
 async function resolveC2BGroupId(
-  db:    PoolClient,
+  db: PoolClient,
   route: RoutingDecision,
-  body:  C2BCallbackBody,
+  body: C2BCallbackBody,
 ): Promise<string | null> {
   // 1. KY group code
   if (route.groupCode) {
@@ -342,14 +414,14 @@ async function resolveC2BGroupId(
   }
 
   // 2. Entity-id-derived group
-  if (route.kind === 'invoice' && route.invoiceNumber) {
+  if (route.kind === "invoice" && route.invoiceNumber) {
     const { rows } = await db.query<{ group_id: string }>(
       `SELECT group_id FROM invoices WHERE invoice_number = $1 LIMIT 1`,
       [route.invoiceNumber],
     );
     if (rows[0]) return rows[0].group_id;
   }
-  if (route.kind === 'loan_repayment' && route.entityId) {
+  if (route.kind === "loan_repayment" && route.entityId) {
     const { rows } = await db.query<{ group_id: string }>(
       `SELECT group_id FROM loans WHERE LOWER(id::text) = LOWER($1) LIMIT 1`,
       [route.entityId],
@@ -377,11 +449,14 @@ async function resolveC2BGroupId(
   return null;
 }
 
-async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void> {
+async function fulfilC2B(
+  db: PoolClient,
+  in_: C2BFulfilmentInput,
+): Promise<void> {
   const { route } = in_;
 
   // Direct invoice payment — flip the invoice to paid
-  if (route.kind === 'invoice' && route.invoiceNumber) {
+  if (route.kind === "invoice" && route.invoiceNumber) {
     await db.query(
       `UPDATE invoices
        SET    paid_amount = paid_amount + $1,
@@ -398,7 +473,11 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
   // grammar carries a member_code suffix the member is resolved by CODE —
   // never by phone, so third-party payers route correctly (§3.3 R6). Phone
   // resolution survives only for group-only legacy refs.
-  if (route.kind === 'contribution' || route.kind === 'welfare' || route.kind === 'share') {
+  if (
+    route.kind === "contribution" ||
+    route.kind === "welfare" ||
+    route.kind === "share"
+  ) {
     let memberId: string | null = null;
     let memberPhone: string | null = null;
 
@@ -412,18 +491,18 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
          LIMIT  1`,
         [in_.groupId, route.memberCode],
       );
-      memberId    = rows[0]?.member_id ?? null;
+      memberId = rows[0]?.member_id ?? null;
       memberPhone = rows[0]?.phone ?? null;
       // A member code that doesn't match is never "corrected" via phone —
       // that guess is exactly what mis-posts third-party payments.
       if (!memberId) {
-        await c2bToUnrouted(db, in_, 'unknown_member');
+        await c2bToUnrouted(db, in_, "unknown_member");
         return;
       }
     } else {
       memberId = await resolveMemberInGroup(db, in_.phone, in_.groupId);
       if (!memberId) {
-        await c2bToUnrouted(db, in_, 'unknown_member');
+        await c2bToUnrouted(db, in_, "unknown_member");
         return;
       }
     }
@@ -431,15 +510,22 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
     // Product dispatch by legacy ref kind (audit H-3): KYT-WELF money lands
     // in the welfare pool, never mislabelled as savings; shares stay
     // treasurer-mediated (class/price cannot be guessed).
-    const thirdPartyPhone = memberPhone && memberPhone !== in_.phone ? in_.phone : null;
-    if (route.kind === 'welfare') {
+    const thirdPartyPhone =
+      memberPhone && memberPhone !== in_.phone ? in_.phone : null;
+    if (route.kind === "welfare") {
       await applyWelfareFromC2B(db, {
-        product: 'welfare', requestId: null, amountVariance: false,
-        tier: 'legacy_ref', obligationsOnly: false,
-        groupId: in_.groupId, memberId, fulfil: in_, thirdPartyPhone,
+        product: "welfare",
+        requestId: null,
+        amountVariance: false,
+        tier: "legacy_ref",
+        obligationsOnly: false,
+        groupId: in_.groupId,
+        memberId,
+        fulfil: in_,
+        thirdPartyPhone,
       });
-    } else if (route.kind === 'share') {
-      await c2bToUnrouted(db, in_, 'other');
+    } else if (route.kind === "share") {
+      await c2bToUnrouted(db, in_, "other");
     } else {
       await applyContributionFromC2B(db, { ...in_, memberId, thirdPartyPhone });
     }
@@ -447,7 +533,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
   }
 
   // Loan repayment by paybill — match loan by entityId
-  if (route.kind === 'loan_repayment' && route.entityId) {
+  if (route.kind === "loan_repayment" && route.entityId) {
     // Find the next pending repayment for that loan
     const { rows: rpRows } = await db.query<{ id: string }>(
       `SELECT id
@@ -458,40 +544,45 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       [route.entityId],
     );
     if (!rpRows[0]) {
-      await c2bToUnrouted(db, in_, 'other');
+      await c2bToUnrouted(db, in_, "other");
       return;
     }
     // Reuse the same wiring as STK by piggy-backing on applyLoanRepayment
     const stkReq: StkRequestRow = {
-      id:                rpRows[0].id,
-      group_id:          in_.groupId,
-      purpose:           'loan_repayment',
-      invoice_id:        null,
+      id: rpRows[0].id,
+      group_id: in_.groupId,
+      purpose: "loan_repayment",
+      invoice_id: null,
       loan_repayment_id: rpRows[0].id,
       account_reference: in_.billRef,
-      amount:            in_.amount.toFixed(2),
+      amount: in_.amount.toFixed(2),
       // C2B PayBill payments never buy a subscription — this synthetic row
       // exists only to reuse applyLoanRepayment's wiring.
-      plan_type:         null,
-      product:           null,
-      billing_cycle:     null,
+      plan_type: null,
+      product: null,
+      billing_cycle: null,
     };
-    await applyLoanRepayment(
-      db,
-      stkReq,
-      { receipt: in_.receipt, amount: in_.amount, phone: in_.phone, rawBody: in_.rawBody },
-    );
+    await applyLoanRepayment(db, stkReq, {
+      receipt: in_.receipt,
+      amount: in_.amount,
+      phone: in_.phone,
+      rawBody: in_.rawBody,
+    });
     return;
   }
 
   // Subscription / investment / unknown — leave the payment recorded but
   // don't side-effect a domain entity. Treasurer resolves via /mpesa/unrouted.
-  await c2bToUnrouted(db, in_, route.kind === 'unknown' ? 'unknown_prefix' : 'other');
+  await c2bToUnrouted(
+    db,
+    in_,
+    route.kind === "unknown" ? "unknown_prefix" : "other",
+  );
 }
 
 async function resolveMemberInGroup(
-  db:     PoolClient,
-  phone:  string,
+  db: PoolClient,
+  phone: string,
   groupId: string,
 ): Promise<string | null> {
   const { rows } = await db.query<{ id: string }>(

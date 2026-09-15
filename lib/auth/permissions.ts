@@ -11,26 +11,37 @@
  * a literal "has every permission string" array, which would need to be kept
  * in sync with every future permission string ever added.
  */
-import { ForbiddenError } from '@/lib/utils/errors';
+import { ForbiddenError } from "@/lib/utils/errors";
 
 interface PermissionCheckable {
-  role:         string;
+  role: string;
   permissions?: string[];
 }
 
-export function hasPermission(auth: PermissionCheckable, required: string): boolean {
-  if (auth.role === 'super_admin') return true;
+export function hasPermission(
+  auth: PermissionCheckable,
+  required: string,
+): boolean {
+  if (auth.role === "super_admin") return true;
   return (auth.permissions ?? []).includes(required);
 }
 
-export function requirePermission(auth: PermissionCheckable, required: string): void {
+export function requirePermission(
+  auth: PermissionCheckable,
+  required: string,
+): void {
   if (!hasPermission(auth, required)) {
     throw new ForbiddenError(`Missing permission '${required}'`);
   }
 }
 
-export function requireAnyPermission(auth: PermissionCheckable, allowed: string[]): void {
+export function requireAnyPermission(
+  auth: PermissionCheckable,
+  allowed: string[],
+): void {
   if (!allowed.some((p) => hasPermission(auth, p))) {
-    throw new ForbiddenError(`Missing permission — one of: ${allowed.join(', ')}`);
+    throw new ForbiddenError(
+      `Missing permission — one of: ${allowed.join(", ")}`,
+    );
   }
 }

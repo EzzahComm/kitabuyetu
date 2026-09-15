@@ -24,33 +24,33 @@
  * So this module returns a discriminated union and each caller adapts it.
  * All SQLSTATE mapping lives here, in one place.
  */
-import type { PoolClient } from 'pg';
-import { pool, withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import { enqueueJob } from '@/lib/jobs';
-import { isFeatureEnabled } from './feature-flags.service';
-import { raiseStaffAlert, clearStaffAlert } from './staff-alerts';
+import type { PoolClient } from "pg";
+import { pool, withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { enqueueJob } from "@/lib/jobs";
+import { isFeatureEnabled } from "./feature-flags.service";
+import { raiseStaffAlert, clearStaffAlert } from "./staff-alerts";
 
 /** Postgres error codes raised by reserve_sms_credits (migration 123). */
-const PG_INSUFFICIENT   = '22003';
-const PG_BAD_INPUT      = '22023';
-const PG_NOT_AUTHORIZED = '42501';
+const PG_INSUFFICIENT = "22003";
+const PG_BAD_INPUT = "22023";
+const PG_NOT_AUTHORIZED = "42501";
 
-export type SmsPayerType = 'group' | 'organization' | 'platform';
+export type SmsPayerType = "group" | "organization" | "platform";
 
 export interface ReservationTarget {
-  payerType:       SmsPayerType;
-  groupId:         string | null;
+  payerType: SmsPayerType;
+  groupId: string | null;
   organizationId?: string | null;
 }
 
 export type ReserveFailure =
-  | 'insufficient_credits'
-  | 'no_billing_account'
-  | 'not_authorized'
-  | 'subscription_inactive'
-  | 'dispatch_halted'
-  | 'daily_limit_reached';
+  | "insufficient_credits"
+  | "no_billing_account"
+  | "not_authorized"
+  | "subscription_inactive"
+  | "dispatch_halted"
+  | "daily_limit_reached";
 
 /**
  * Operator kill switch (SMS-AUDIT-v3 V3-05).
@@ -64,25 +64,36 @@ export type ReserveFailure =
  * with no row present the flag reads enabled, so shipping this changes
  * nothing. Halting is an explicit act — insert the row with enabled=false.
  */
-export const SMS_DISPATCH_FLAG = 'sms_dispatch';
+export const SMS_DISPATCH_FLAG = "sms_dispatch";
 
 export type ReserveResult =
   | {
-      ok: true; rate: number; total: number; remaining: number;
+      ok: true;
+      rate: number;
+      total: number;
+      remaining: number;
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) — the
       // bundled-allowance/paid split. fromAllowance/fromPaid are money
       // values; fromAllowanceCount/fromPaidCount are message counts. Always
       // fromAllowance=0/fromAllowanceCount=0 for an organization payer —
       // organizations get no allowance, see migration 124.
-      fromAllowance: number; fromPaid: number;
-      fromAllowanceCount: number; fromPaidCount: number;
+      fromAllowance: number;
+      fromPaid: number;
+      fromAllowanceCount: number;
+      fromPaidCount: number;
     }
   | { ok: false; reason: ReserveFailure; detail: string };
 
 /** A `platform`-funded send is free by schema invariant — nothing to reserve. */
 export const PLATFORM_RATE_ZERO = {
-  ok: true as const, rate: 0, total: 0, remaining: 0,
-  fromAllowance: 0, fromPaid: 0, fromAllowanceCount: 0, fromPaidCount: 0,
+  ok: true as const,
+  rate: 0,
+  total: 0,
+  remaining: 0,
+  fromAllowance: 0,
+  fromPaid: 0,
+  fromAllowanceCount: 0,
+  fromPaidCount: 0,
 };
 
 /**
@@ -93,9 +104,9 @@ export const PLATFORM_RATE_ZERO = {
  * for `debit_organization_sms_credits` running in the caller's transaction.
  */
 export async function reserveCredits(
-  client: Pick<PoolClient, 'query'>,
+  client: Pick<PoolClient, "query">,
   target: ReservationTarget,
-  count:  number,
+  count: number,
 ): Promise<ReserveResult> {
   // Platform-funded sends (OTP, password reset, verification) bail out here,
   // BEFORE the kill switch below — deliberately. Those are the messages that
@@ -105,7 +116,7 @@ export async function reserveCredits(
   // regression can never brick password reset. To stop absolutely everything,
   // including auth, rotate the provider credential — that is faster and more
   // complete than a flag.
-  if (target.payerType === 'platform') return PLATFORM_RATE_ZERO;
+  if (target.payerType === "platform") return PLATFORM_RATE_ZERO;
   if (count <= 0) return PLATFORM_RATE_ZERO;
 
   // Checked here rather than at the routes because this is the one chokepoint
@@ -130,15 +141,18 @@ export async function reserveCredits(
       { groupId: target.groupId },
     );
   } catch (err) {
-    logger.warn('[messaging-billing] kill-switch lookup failed — allowing dispatch', {
-      err: err instanceof Error ? err.message : String(err),
-    });
+    logger.warn(
+      "[messaging-billing] kill-switch lookup failed — allowing dispatch",
+      {
+        err: err instanceof Error ? err.message : String(err),
+      },
+    );
   }
   if (!dispatchAllowed) {
     return {
       ok: false,
-      reason: 'dispatch_halted',
-      detail: 'SMS dispatch is currently halted by an operator',
+      reason: "dispatch_halted",
+      detail: "SMS dispatch is currently halted by an operator",
     };
   }
 
@@ -162,7 +176,7 @@ export async function reserveCredits(
     if (capped) {
       return {
         ok: false,
-        reason: 'daily_limit_reached',
+        reason: "daily_limit_reached",
         detail: `This group's daily SMS limit (${capped.limit}) would be exceeded: ${capped.used} already sent today, ${count} more requested`,
       };
     }
@@ -171,24 +185,30 @@ export async function reserveCredits(
   try {
     const { rows } = await client.query<{
       result: {
-        rate: string; total: string; remaining: string;
-        fromAllowance: string; fromPaid: string;
-        fromAllowanceCount: number; fromPaidCount: number;
+        rate: string;
+        total: string;
+        remaining: string;
+        fromAllowance: string;
+        fromPaid: string;
+        fromAllowanceCount: number;
+        fromPaidCount: number;
       };
-    }>(
-      `SELECT reserve_sms_credits($1,$2,$3,$4) AS result`,
-      [target.payerType, target.groupId, target.organizationId ?? null, count],
-    );
+    }>(`SELECT reserve_sms_credits($1,$2,$3,$4) AS result`, [
+      target.payerType,
+      target.groupId,
+      target.organizationId ?? null,
+      count,
+    ]);
     const r = rows[0].result;
     return {
-      ok:                 true,
-      rate:               Number(r.rate),
-      total:              Number(r.total),
-      remaining:          Number(r.remaining),
-      fromAllowance:      Number(r.fromAllowance),
-      fromPaid:           Number(r.fromPaid),
+      ok: true,
+      rate: Number(r.rate),
+      total: Number(r.total),
+      remaining: Number(r.remaining),
+      fromAllowance: Number(r.fromAllowance),
+      fromPaid: Number(r.fromPaid),
       fromAllowanceCount: Number(r.fromAllowanceCount),
-      fromPaidCount:      Number(r.fromPaidCount),
+      fromPaidCount: Number(r.fromPaidCount),
     };
   } catch (err) {
     return classifyReserveError(err, target);
@@ -208,9 +228,9 @@ export async function reserveCredits(
  * all messaging down with it.
  */
 async function isOverDailyLimit(
-  client:  Pick<PoolClient, 'query'>,
+  client: Pick<PoolClient, "query">,
   groupId: string,
-  count:   number,
+  count: number,
 ): Promise<{ limit: number; used: number } | null> {
   try {
     const { rows } = await client.query<{ limit: number | null; used: string }>(
@@ -231,38 +251,50 @@ async function isOverDailyLimit(
     const used = Number(rows[0].used);
     return used + count > limit ? { limit, used } : null;
   } catch (err) {
-    logger.warn('[messaging-billing] daily-limit lookup failed — allowing dispatch', {
-      err: err instanceof Error ? err.message : String(err),
-    });
+    logger.warn(
+      "[messaging-billing] daily-limit lookup failed — allowing dispatch",
+      {
+        err: err instanceof Error ? err.message : String(err),
+      },
+    );
     return null;
   }
 }
 
-function classifyReserveError(err: unknown, target: ReservationTarget): ReserveResult {
-  const code   = (err as { code?: string })?.code;
+function classifyReserveError(
+  err: unknown,
+  target: ReservationTarget,
+): ReserveResult {
+  const code = (err as { code?: string })?.code;
   const detail = err instanceof Error ? err.message : String(err);
 
   if (code === PG_INSUFFICIENT) {
-    return { ok: false, reason: 'insufficient_credits', detail };
+    return { ok: false, reason: "insufficient_credits", detail };
   }
   if (code === PG_NOT_AUTHORIZED) {
     // The group path raises this for a missing/inactive subscription; the org
     // path raises it when the group has no active access under the org.
     return {
-      ok:     false,
-      reason: target.payerType === 'organization' ? 'not_authorized' : 'subscription_inactive',
+      ok: false,
+      reason:
+        target.payerType === "organization"
+          ? "not_authorized"
+          : "subscription_inactive",
       detail,
     };
   }
   if (code === PG_BAD_INPUT) {
-    return { ok: false, reason: 'no_billing_account', detail };
+    return { ok: false, reason: "no_billing_account", detail };
   }
 
   // Anything else is a genuine fault (connection loss, a bug). Surface it as a
   // failure rather than a throw — but log it, because unlike the cases above
   // it is not an expected outcome.
-  logger.error('[messaging-billing] unexpected reserve error', { err: detail, target });
-  return { ok: false, reason: 'no_billing_account', detail };
+  logger.error("[messaging-billing] unexpected reserve error", {
+    err: detail,
+    target,
+  });
+  return { ok: false, reason: "no_billing_account", detail };
 }
 
 /**
@@ -275,8 +307,8 @@ function classifyReserveError(err: unknown, target: ReservationTarget): ReserveR
  * reservation with the SMS already sent.
  */
 export async function settleReservation(
-  logIds:  string[],
-  outcome: 'consume' | 'release',
+  logIds: string[],
+  outcome: "consume" | "release",
 ): Promise<{ settled: boolean; credits: number }> {
   if (!logIds.length) return { settled: true, credits: 0 };
 
@@ -293,7 +325,7 @@ export async function settleReservation(
     // (sms_release_stale_reservations) is the backstop: it re-settles anything
     // left in 'reserved', consuming rows the provider accepted and releasing
     // the rest. Losing this write is recoverable; throwing is not.
-    logger.error('[messaging-billing] settle failed — sweeper will recover', {
+    logger.error("[messaging-billing] settle failed — sweeper will recover", {
       err: err instanceof Error ? err.message : String(err),
       outcome,
       count: logIds.length,
@@ -323,42 +355,51 @@ export async function settleReservation(
  * unrelated send.
  */
 export async function releaseUnticketedReservation(
-  target:             ReservationTarget,
-  fromPaid:           number,
+  target: ReservationTarget,
+  fromPaid: number,
   fromAllowanceCount: number,
 ): Promise<void> {
-  if (target.payerType === 'platform') return;
+  if (target.payerType === "platform") return;
   if (fromPaid <= 0 && fromAllowanceCount <= 0) return;
 
   try {
-    if (target.payerType === 'organization') {
-      await withAdminDb((db) => db.query(
-        `UPDATE organization_billing_accounts
+    if (target.payerType === "organization") {
+      await withAdminDb((db) =>
+        db.query(
+          `UPDATE organization_billing_accounts
             SET reserved_sms_credits = GREATEST(reserved_sms_credits - $2, 0),
                 updated_at           = NOW()
           WHERE organization_id = $1`,
-        [target.organizationId, fromPaid],
-      ));
+          [target.organizationId, fromPaid],
+        ),
+      );
     } else {
-      await withAdminDb((db) => db.query(
-        `UPDATE billing_accounts
+      await withAdminDb((db) =>
+        db.query(
+          `UPDATE billing_accounts
             SET reserved_sms_credits   = GREATEST(reserved_sms_credits - $2, 0),
                 sms_allowance_reserved = GREATEST(sms_allowance_reserved - $3, 0),
                 updated_at             = NOW()
           WHERE group_id = $1`,
-        [target.groupId, fromPaid, fromAllowanceCount],
-      ));
+          [target.groupId, fromPaid, fromAllowanceCount],
+        ),
+      );
     }
-    logger.warn('[messaging-billing] released an unticketed reservation', {
-      payerType: target.payerType, fromPaid, fromAllowanceCount,
+    logger.warn("[messaging-billing] released an unticketed reservation", {
+      payerType: target.payerType,
+      fromPaid,
+      fromAllowanceCount,
     });
   } catch (err) {
     // Swallowed like settleReservation: this runs on a path whose whole point
     // is that the caller must not throw.
-    logger.error('[messaging-billing] failed to release an unticketed reservation', {
-      err: err instanceof Error ? err.message : String(err),
-      payerType: target.payerType,
-    });
+    logger.error(
+      "[messaging-billing] failed to release an unticketed reservation",
+      {
+        err: err instanceof Error ? err.message : String(err),
+        payerType: target.payerType,
+      },
+    );
   }
 }
 
@@ -384,7 +425,9 @@ const MESSAGE_RETENTION_MONTHS = 12;
  * cleared. The distinction matters: "we deleted your data" and "we can no
  * longer tell you what we sent you" are different failures.
  */
-export async function redactExpiredMessageBodies(): Promise<{ redacted: number }> {
+export async function redactExpiredMessageBodies(): Promise<{
+  redacted: number;
+}> {
   const { rowCount } = await withAdminDb((db) =>
     db.query(
       `UPDATE sms_usage_logs
@@ -399,18 +442,18 @@ export async function redactExpiredMessageBodies(): Promise<{ redacted: number }
 }
 
 /** Identity of the reconciliation condition in staff_alert_state. */
-const RECONCILIATION_ALERT_KEY = 'sms_credit_reconciliation';
+const RECONCILIATION_ALERT_KEY = "sms_credit_reconciliation";
 
 export interface SmsReconciliationResult {
-  payersChecked:    number;
-  driftedPayers:    number;
+  payersChecked: number;
+  driftedPayers: number;
   campaignsChecked: number;
   driftedCampaigns: number;
   /** Campaigns whose counters were recomputed from the message log this run. */
   repairedCampaigns: number;
   /** Whether staff were actually emailed on THIS run (false when suppressed
    *  as a repeat of the same unchanged problem). */
-  alerted:          boolean;
+  alerted: boolean;
 }
 
 /**
@@ -434,25 +477,43 @@ export interface SmsReconciliationResult {
  */
 export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   const { rows: payers } = await withAdminDb((db) =>
-    db.query<{ payer_type: string; payer_id: string; balance: string; ledger_total: string; drift: string; lot_drift: string }>(
+    db.query<{
+      payer_type: string;
+      payer_id: string;
+      balance: string;
+      ledger_total: string;
+      drift: string;
+      lot_drift: string;
+    }>(
       `SELECT payer_type, payer_id, balance, ledger_total, drift, lot_drift
          FROM vw_sms_credit_reconciliation`,
     ),
   );
 
-  const drifted = payers.filter((p) => Number(p.drift) !== 0 || Number(p.lot_drift) !== 0);
+  const drifted = payers.filter(
+    (p) => Number(p.drift) !== 0 || Number(p.lot_drift) !== 0,
+  );
   for (const p of drifted) {
-    logger.error('[sms-reconciliation] credit drift', {
-      payerType: p.payer_type, payerId: p.payer_id,
-      balance: p.balance, ledgerTotal: p.ledger_total,
-      drift: p.drift, lotDrift: p.lot_drift,
+    logger.error("[sms-reconciliation] credit drift", {
+      payerType: p.payer_type,
+      payerId: p.payer_id,
+      balance: p.balance,
+      ledgerTotal: p.ledger_total,
+      drift: p.drift,
+      lotDrift: p.lot_drift,
     });
   }
 
   // Campaign counters vs the rows they claim to summarise. Only completed
   // campaigns: one still sending legitimately disagrees mid-flight.
   const { rows: campaigns } = await withAdminDb((db) =>
-    db.query<{ id: string; sent_count: number; failed_count: number; real_sent: string; real_failed: string }>(
+    db.query<{
+      id: string;
+      sent_count: number;
+      failed_count: number;
+      real_sent: string;
+      real_failed: string;
+    }>(
       `SELECT c.id, c.sent_count, c.failed_count,
               (SELECT count(*) FROM sms_usage_logs u
                 WHERE u.correlation_id = c.id AND u.status IN ('sent','delivered')) AS real_sent,
@@ -464,7 +525,9 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   );
 
   const badCampaigns = campaigns.filter(
-    (c) => c.sent_count !== Number(c.real_sent) || c.failed_count !== Number(c.real_failed),
+    (c) =>
+      c.sent_count !== Number(c.real_sent) ||
+      c.failed_count !== Number(c.real_failed),
   );
 
   // ── Repair the campaign counters (SMS-REAUDIT-2026-09-02 F4) ────────────
@@ -504,20 +567,29 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
         [c.id, Number(c.real_sent), Number(c.real_failed)],
       ),
     );
-    logger.warn('[sms-reconciliation] repaired campaign counters from the message log', {
-      campaignId: c.id,
-      wasSent: c.sent_count, nowSent: Number(c.real_sent),
-      wasFailed: c.failed_count, nowFailed: Number(c.real_failed),
-    });
+    logger.warn(
+      "[sms-reconciliation] repaired campaign counters from the message log",
+      {
+        campaignId: c.id,
+        wasSent: c.sent_count,
+        nowSent: Number(c.real_sent),
+        wasFailed: c.failed_count,
+        nowFailed: Number(c.real_failed),
+      },
+    );
   }
 
   // A completed campaign that disagrees AND has no messages to recount cannot
   // be fixed from data — that needs somebody to look.
   for (const c of unrepairable) {
-    logger.error('[sms-reconciliation] campaign counters disagree and cannot be recomputed (no message rows)', {
-      campaignId: c.id,
-      storedSent: c.sent_count, storedFailed: c.failed_count,
-    });
+    logger.error(
+      "[sms-reconciliation] campaign counters disagree and cannot be recomputed (no message rows)",
+      {
+        campaignId: c.id,
+        storedSent: c.sent_count,
+        storedFailed: c.failed_count,
+      },
+    );
   }
 
   // ── Tell a human (SMS-REAUDIT-2026-09-02 F2) ────────────────────────────
@@ -542,32 +614,37 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
     }
 
     return raiseStaffAlert({
-      key:     RECONCILIATION_ALERT_KEY,
+      key: RECONCILIATION_ALERT_KEY,
       subject: `SMS reconciliation: ${drifted.length} payer(s) and ${unrepairable.length} campaign(s) need a human`,
       body:
-        'The daily SMS money-trail check found records that do not agree with each other. '
-        + 'Credit drift means a balance and its ledger tell different stories and a human has to '
-        + 'decide which is true — this job deliberately never repairs money. Any campaign '
-        + 'listed here disagrees with the message log AND has no message rows left to recompute '
-        + 'from, so it cannot be repaired automatically either.',
+        "The daily SMS money-trail check found records that do not agree with each other. " +
+        "Credit drift means a balance and its ledger tell different stories and a human has to " +
+        "decide which is true — this job deliberately never repairs money. Any campaign " +
+        "listed here disagrees with the message log AND has no message rows left to recompute " +
+        "from, so it cannot be repaired automatically either.",
       details: {
         driftedPayers: drifted.map((p) => ({
-          payerType: p.payer_type, payerId: p.payer_id,
-          balance: p.balance, ledgerTotal: p.ledger_total,
-          drift: p.drift, lotDrift: p.lot_drift,
+          payerType: p.payer_type,
+          payerId: p.payer_id,
+          balance: p.balance,
+          ledgerTotal: p.ledger_total,
+          drift: p.drift,
+          lotDrift: p.lot_drift,
         })),
         unrepairableCampaigns: unrepairable.map((c) => ({
           campaignId: c.id,
-          storedSent: c.sent_count, actualSent: Number(c.real_sent),
-          storedFailed: c.failed_count, actualFailed: Number(c.real_failed),
+          storedSent: c.sent_count,
+          actualSent: Number(c.real_sent),
+          storedFailed: c.failed_count,
+          actualFailed: Number(c.real_failed),
         })),
       },
     });
   })();
 
   return {
-    payersChecked:    payers.length,
-    driftedPayers:    drifted.length,
+    payersChecked: payers.length,
+    driftedPayers: drifted.length,
     campaignsChecked: campaigns.length,
     driftedCampaigns: badCampaigns.length,
     repairedCampaigns: repairable.length,
@@ -586,39 +663,51 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
  * The alert itself must NEVER be delivered by SMS: a group is alerted exactly
  * when it cannot afford to send one. The handler uses in-app + email only.
  */
-export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<void> {
-  if (target.payerType === 'platform') return;
+export async function raiseLowBalanceAlert(
+  target: ReservationTarget,
+): Promise<void> {
+  if (target.payerType === "platform") return;
 
-  const isOrg = target.payerType === 'organization';
-  const id    = isOrg ? target.organizationId : target.groupId;
+  const isOrg = target.payerType === "organization";
+  const id = isOrg ? target.organizationId : target.groupId;
   if (!id) return;
 
   try {
-    const table  = isOrg ? 'organization_billing_accounts' : 'billing_accounts';
-    const keyCol = isOrg ? 'organization_id' : 'group_id';
+    const table = isOrg ? "organization_billing_accounts" : "billing_accounts";
+    const keyCol = isOrg ? "organization_id" : "group_id";
 
     // Claim-by-UPDATE: only the caller that actually moves the timestamp gets
     // to enqueue, so concurrent senders can't produce a burst of alerts.
     const claimed = await withAdminDb((db) =>
-      db.query(
-        `UPDATE ${table}
+      db
+        .query(
+          `UPDATE ${table}
          SET low_balance_notified_at = NOW()
          WHERE ${keyCol} = $1
            AND (low_balance_notified_at IS NULL
                 OR low_balance_notified_at < NOW() - INTERVAL '24 hours')`,
-        [id],
-      ).then((r) => r.rowCount ?? 0),
+          [id],
+        )
+        .then((r) => r.rowCount ?? 0),
     );
     if (!claimed) return;
 
     await enqueueJob(
-      'sms_low_balance_alert',
-      { payerType: target.payerType, groupId: target.groupId, organizationId: target.organizationId ?? null },
-      { priority: 8, dedup_key: `low_balance:${target.payerType}:${id}`, max_attempts: 3 },
+      "sms_low_balance_alert",
+      {
+        payerType: target.payerType,
+        groupId: target.groupId,
+        organizationId: target.organizationId ?? null,
+      },
+      {
+        priority: 8,
+        dedup_key: `low_balance:${target.payerType}:${id}`,
+        max_attempts: 3,
+      },
     );
   } catch (err) {
     // An alert is best-effort; failing to warn must never fail the send path.
-    logger.error('[messaging-billing] low-balance alert failed', {
+    logger.error("[messaging-billing] low-balance alert failed", {
       err: err instanceof Error ? err.message : String(err),
     });
   }
@@ -636,18 +725,28 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
  * below was correct from the start.
  */
 export async function clearLowBalanceFlag(groupId: string): Promise<void> {
-  await pool.query(
-    `UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`,
-    [groupId],
-  ).catch(() => { /* best-effort */ });
+  await pool
+    .query(
+      `UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`,
+      [groupId],
+    )
+    .catch(() => {
+      /* best-effort */
+    });
 }
 
 /** Organization-side mirror of clearLowBalanceFlag, for addOrganizationSmsCredits. */
-export async function clearOrganizationLowBalanceFlag(organizationId: string): Promise<void> {
-  await pool.query(
-    `UPDATE organization_billing_accounts SET low_balance_notified_at = NULL WHERE organization_id = $1`,
-    [organizationId],
-  ).catch(() => { /* best-effort */ });
+export async function clearOrganizationLowBalanceFlag(
+  organizationId: string,
+): Promise<void> {
+  await pool
+    .query(
+      `UPDATE organization_billing_accounts SET low_balance_notified_at = NULL WHERE organization_id = $1`,
+      [organizationId],
+    )
+    .catch(() => {
+      /* best-effort */
+    });
 }
 
 /**
@@ -676,7 +775,9 @@ export async function clearOrganizationLowBalanceFlag(organizationId: string): P
  * instead of surfacing it to sms_release_stale_reservations, which exists
  * precisely to catch that.
  */
-export async function resetDueSmsAllowances(): Promise<{ groupsReset: number }> {
+export async function resetDueSmsAllowances(): Promise<{
+  groupsReset: number;
+}> {
   const { rowCount } = await withAdminDb((db) =>
     db.query(
       `UPDATE billing_accounts ba

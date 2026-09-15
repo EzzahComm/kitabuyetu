@@ -12,35 +12,39 @@
  * Can be triggered by Upstash QStash, a Vercel Cron, or manually.
  * Protected by either JWT (manual trigger) or CRON_SECRET header.
  */
-import { NextRequest } from 'next/server';
-import crypto from 'crypto';
-import { withPermission } from '@/lib/auth/middleware';
-import { runReconciliation, sweepPaybillTransactions } from '@/lib/services/mpesa.service';
-import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { NextRequest } from "next/server";
+import crypto from "crypto";
+import { withPermission } from "@/lib/auth/middleware";
+import {
+  runReconciliation,
+  sweepPaybillTransactions,
+} from "@/lib/services/mpesa.service";
+import { ok, handleError } from "@/lib/utils/response";
+import { withAdminDb } from "@/lib/db";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  const provided = req.headers.get('x-cron-secret') ?? '';
+  const provided = req.headers.get("x-cron-secret") ?? "";
   // Timing-safe comparison prevents secret leakage via timing side-channel.
-  const ha = crypto.createHash('sha256').update(provided).digest();
-  const hb = crypto.createHash('sha256').update(secret).digest();
+  const ha = crypto.createHash("sha256").update(provided).digest();
+  const hb = crypto.createHash("sha256").update(secret).digest();
   return crypto.timingSafeEqual(ha, hb);
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const type = req.nextUrl.searchParams.get('type') ?? 'stk';
-  
+  const type = req.nextUrl.searchParams.get("type") ?? "stk";
+
   // Allow cron-triggered calls without JWT
   if (verifyCronSecret(req)) {
     try {
-      const result = type === 'paybill'
-        ? await sweepPaybillTransactions(null, null)
-        : await runReconciliation(null, null);
-      return ok({ ...result, trigger: 'cron', reconciliationType: type });
+      const result =
+        type === "paybill"
+          ? await sweepPaybillTransactions(null, null)
+          : await runReconciliation(null, null);
+      return ok({ ...result, trigger: "cron", reconciliationType: type });
     } catch (err) {
       return handleError(err);
     }
@@ -49,12 +53,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Treasurer+ — matches the rest of the M-Pesa ops surface (the /mpesa
   // dashboard that links here is treasurer-accessible). Reconciliation is
   // idempotent (queries Daraja or sweeps C2B).
-  return withPermission(req, 'accounting.manage', async (auth) => {
+  return withPermission(req, "accounting.manage", async (auth) => {
     try {
-      const result = type === 'paybill'
-        ? await sweepPaybillTransactions(auth.groupId, auth.userId)
-        : await runReconciliation(auth.groupId, auth.userId);
-      return ok({ ...result, trigger: 'manual', reconciliationType: type });
+      const result =
+        type === "paybill"
+          ? await sweepPaybillTransactions(auth.groupId, auth.userId)
+          : await runReconciliation(auth.groupId, auth.userId);
+      return ok({ ...result, trigger: "manual", reconciliationType: type });
     } catch (err) {
       return handleError(err);
     }
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'accounting.manage', async (auth) => {
+  return withPermission(req, "accounting.manage", async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(

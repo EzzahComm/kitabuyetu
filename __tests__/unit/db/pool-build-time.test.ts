@@ -33,7 +33,7 @@ function clearPoolGlobals(): void {
   delete g._kyTenantPool;
 }
 
-describe('lib/db pool construction at build time', () => {
+describe("lib/db pool construction at build time", () => {
   beforeEach(() => {
     jest.resetModules();
     clearPoolGlobals();
@@ -44,33 +44,34 @@ describe('lib/db pool construction at build time', () => {
     clearPoolGlobals();
   });
 
-  it('imports cleanly when DATABASE_URL is absent during a production build', async () => {
-    process.env.NEXT_PHASE = 'phase-production-build';
+  it("imports cleanly when DATABASE_URL is absent during a production build", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
     delete process.env.DATABASE_URL;
     delete process.env.TENANT_DATABASE_URL;
 
-    const db = await import('@/lib/db');
+    const db = await import("@/lib/db");
 
     expect(db.pool).toBeDefined();
     expect(db.tenantPool).toBeDefined();
   });
 
-  it('still imports cleanly when only TENANT_DATABASE_URL is absent', async () => {
-    process.env.NEXT_PHASE = 'phase-production-build';
+  it("still imports cleanly when only TENANT_DATABASE_URL is absent", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
     delete process.env.TENANT_DATABASE_URL;
 
-    const db = await import('@/lib/db');
+    const db = await import("@/lib/db");
 
     // With no tenant DSN, the tenant pool falls back to the same instance as the
     // admin pool — the documented no-op until the app_tenant cutover.
     expect(db.tenantPool).toBe(db.pool);
   });
 
-  it('builds a distinct tenant pool when TENANT_DATABASE_URL is set', async () => {
-    process.env.NEXT_PHASE = 'phase-production-build';
-    process.env.TENANT_DATABASE_URL = 'postgresql://app_tenant:pw@localhost:5432/kitabuyetu';
+  it("builds a distinct tenant pool when TENANT_DATABASE_URL is set", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
+    process.env.TENANT_DATABASE_URL =
+      "postgresql://app_tenant:pw@localhost:5432/kitabuyetu";
 
-    const db = await import('@/lib/db');
+    const db = await import("@/lib/db");
 
     expect(db.tenantPool).not.toBe(db.pool);
   });
@@ -88,14 +89,16 @@ describe('lib/db pool construction at build time', () => {
  * hosts must satisfy directly. If the implementation ever regresses to a
  * substring test, the spoofed cases below are what catch it.
  */
-describe('Supabase host detection (TLS relaxation boundary)', () => {
+describe("Supabase host detection (TLS relaxation boundary)", () => {
   function isSupabaseHost(dsn: string | undefined): boolean {
     if (!dsn) return false;
     try {
       const host = new URL(dsn).hostname.toLowerCase();
       return (
-        host === 'supabase.com' || host.endsWith('.supabase.com') ||
-        host === 'supabase.co'  || host.endsWith('.supabase.co')
+        host === "supabase.com" ||
+        host.endsWith(".supabase.com") ||
+        host === "supabase.co" ||
+        host.endsWith(".supabase.co")
       );
     } catch {
       return false;
@@ -103,26 +106,32 @@ describe('Supabase host detection (TLS relaxation boundary)', () => {
   }
 
   it.each([
-    ['pooler (session mode)', 'postgresql://u:p@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'],
-    ['direct db host',        'postgresql://u:p@db.qztcgryhoanennsizcll.supabase.co:5432/postgres'],
-  ])('accepts a real Supabase host — %s', (_label, dsn) => {
+    [
+      "pooler (session mode)",
+      "postgresql://u:p@aws-0-eu-central-1.pooler.supabase.com:5432/postgres",
+    ],
+    [
+      "direct db host",
+      "postgresql://u:p@db.qztcgryhoanennsizcll.supabase.co:5432/postgres",
+    ],
+  ])("accepts a real Supabase host — %s", (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(true);
   });
 
   it.each([
-    ['suffix spoof',   'postgresql://u:p@supabase.com.attacker.net:5432/db'],
-    ['prefix spoof',   'postgresql://u:p@evilsupabase.com:5432/db'],
-    ['path-only match','postgresql://u:p@attacker.net:5432/supabase.com'],
-    ['local dev',      'postgresql://u:p@localhost:5432/kitabuyetu'],
-  ])('rejects %s', (_label, dsn) => {
+    ["suffix spoof", "postgresql://u:p@supabase.com.attacker.net:5432/db"],
+    ["prefix spoof", "postgresql://u:p@evilsupabase.com:5432/db"],
+    ["path-only match", "postgresql://u:p@attacker.net:5432/supabase.com"],
+    ["local dev", "postgresql://u:p@localhost:5432/kitabuyetu"],
+  ])("rejects %s", (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(false);
   });
 
   it.each([
-    ['undefined', undefined],
-    ['empty',     ''],
-    ['garbage',   'not-a-url'],
-  ])('rejects an absent or unparseable DSN — %s', (_label, dsn) => {
+    ["undefined", undefined],
+    ["empty", ""],
+    ["garbage", "not-a-url"],
+  ])("rejects an absent or unparseable DSN — %s", (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(false);
   });
 });

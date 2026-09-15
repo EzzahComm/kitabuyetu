@@ -41,9 +41,7 @@ export const Cta = (props: Readonly<CtaProps>) => {
           <p className="mt-2 font-medium text-white text-opacity-90 lg:text-xl">
             {subtitle}
           </p>
-          {note && (
-            <p className="mt-3 text-white text-opacity-80">{note}</p>
-          )}
+          {note && <p className="mt-3 text-white text-opacity-80">{note}</p>}
         </div>
         <div className="flex-shrink-0 w-full text-center lg:w-auto">
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
@@ -63,7 +61,9 @@ export const Cta = (props: Readonly<CtaProps>) => {
             )}
           </div>
           {footnote && (
-            <p className="mt-4 text-sm text-white text-opacity-80">{footnote}</p>
+            <p className="mt-4 text-sm text-white text-opacity-80">
+              {footnote}
+            </p>
           )}
         </div>
       </div>

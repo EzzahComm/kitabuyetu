@@ -1,10 +1,10 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { smsService } from '@/lib/services/sms.service';
-import { SmsUsageQuerySchema } from '@/lib/validators/sms.schema';
-import { summarizeUsageRows } from '@/lib/sms/analytics';
-import { ok } from '@/lib/utils/response';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { smsService } from "@/lib/services/sms.service";
+import { SmsUsageQuerySchema } from "@/lib/validators/sms.schema";
+import { summarizeUsageRows } from "@/lib/sms/analytics";
+import { ok } from "@/lib/utils/response";
 
 /**
  * Was withRole('treasurer'), which excluded the SECRETARY — the role that in
@@ -14,9 +14,11 @@ import { ok } from '@/lib/utils/response';
  * messaging permission set and is granted to all three officer roles.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.view', async (auth) => {
-    const params  = SmsUsageQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const ctx     = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+  return withPermission(req, "messaging.view", async (auth) => {
+    const params = SmsUsageQuerySchema.parse(
+      Object.fromEntries(req.nextUrl.searchParams),
+    );
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const [usage, balance] = await Promise.all([
       smsService.listUsage(ctx, params),
       smsService.getBalance(ctx),

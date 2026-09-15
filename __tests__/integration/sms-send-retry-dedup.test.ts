@@ -9,15 +9,15 @@
  * so a transient provider outage produced duplicate DELIVERED messages and
  * duplicate charges, not merely duplicate attempts.
  */
-import { smsService } from '@/lib/services/sms.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { SmsResponse } from '@/lib/services/textsms.service';
+import { smsService } from "@/lib/services/sms.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { SmsResponse } from "@/lib/services/textsms.service";
 
 const mockSendSingleSms = jest.fn<Promise<SmsResponse>, [unknown]>();
 
-jest.mock('@/lib/services/textsms.service', () => ({
+jest.mock("@/lib/services/textsms.service", () => ({
   sendSingleSms: (...args: unknown[]) => mockSendSingleSms(args[0]),
   sendBulkSms: jest.fn(),
   sendBulkSmsChunked: jest.fn(),
@@ -27,12 +27,20 @@ jest.mock('@/lib/services/textsms.service', () => ({
 
 function accepted(mobile: string): SmsResponse {
   return {
-    responseCode: 200, responseDescription: 'Success', mobile,
-    messageId: 'msg-1', networkId: '1', success: true, clientSmsId: 1,
+    responseCode: 200,
+    responseDescription: "Success",
+    mobile,
+    messageId: "msg-1",
+    networkId: "1",
+    success: true,
+    clientSmsId: 1,
   };
 }
 
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+async function provisionBilling(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -47,31 +55,44 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
   );
 }
 
-const EVENT_ID = '88888888-8888-8888-8888-888888888888';
-const PHONE = '254700000041';
+const EVENT_ID = "88888888-8888-8888-8888-888888888888";
+const PHONE = "254700000041";
 
-describe('send() retry dedup (G7)', () => {
+describe("send() retry dedup (G7)", () => {
   beforeEach(() => mockSendSingleSms.mockReset());
 
-  it('does not re-send or re-charge a recipient already logged under the same event', async () => {
+  it("does not re-send or re-charge a recipient already logged under the same event", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+    const ctx = { userId: officerId, groupId, role: "chairperson" as const };
 
     mockSendSingleSms.mockResolvedValue(accepted(PHONE));
 
-    const first = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+    const first = await smsService.send(
+      ctx,
+      PHONE,
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
     expect(first).toHaveLength(1);
     expect(mockSendSingleSms).toHaveBeenCalledTimes(1);
 
     const [afterFirst] = await rawQuery<{ n: string; charged: string }>(
       `SELECT count(*) AS n, COALESCE(SUM(credits_deducted),0) AS charged
-         FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+         FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
 
     // The trigger engine's own retry: same phones, same event id.
-    const retry = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+    const retry = await smsService.send(
+      ctx,
+      PHONE,
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
 
     // The existing row comes back so the caller can read its status...
     expect(retry).toHaveLength(1);
@@ -80,13 +101,14 @@ describe('send() retry dedup (G7)', () => {
 
     const [afterRetry] = await rawQuery<{ n: string; charged: string }>(
       `SELECT count(*) AS n, COALESCE(SUM(credits_deducted),0) AS charged
-         FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+         FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
     expect(afterRetry.n).toBe(afterFirst.n);
     expect(Number(afterRetry.charged)).toBe(Number(afterFirst.charged));
   });
 
-  it('reports the provider verdict, not the insert-time placeholder', async () => {
+  it("reports the provider verdict, not the insert-time placeholder", async () => {
     // send() used to return the rows exactly as INSERTed, whose status is the
     // column default 'queued'. dispatchBatch writes the provider's verdict to
     // the DATABASE and never touches those in-memory objects, so every send
@@ -98,70 +120,95 @@ describe('send() retry dedup (G7)', () => {
     // rejected everyone — the exact defect PR #124 meant to fix, on an
     // append-only table where it cannot be undone.
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+    const ctx = { userId: officerId, groupId, role: "chairperson" as const };
 
-    mockSendSingleSms.mockRejectedValue(new Error('provider down'));
-    const logs = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+    mockSendSingleSms.mockRejectedValue(new Error("provider down"));
+    const logs = await smsService.send(
+      ctx,
+      PHONE,
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
 
-    expect(logs[0].status).toBe('failed');
+    expect(logs[0].status).toBe("failed");
     // The condition trigger-engine actually evaluates.
-    expect(logs.some((l) => l.status !== 'failed')).toBe(false);
+    expect(logs.some((l) => l.status !== "failed")).toBe(false);
   });
 
-  it('returns the existing row so a caller can still see it FAILED', async () => {
+  it("returns the existing row so a caller can still see it FAILED", async () => {
     // The trigger engine decides retry-vs-settle from the returned rows'
     // status. If dedup hid them it would read [] as "everyone opted out" and
     // settle terminally on an append-only table.
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+    const ctx = { userId: officerId, groupId, role: "chairperson" as const };
 
-    mockSendSingleSms.mockRejectedValue(new Error('provider down'));
-    const first = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
-    expect(first[0].status).toBe('failed');
+    mockSendSingleSms.mockRejectedValue(new Error("provider down"));
+    const first = await smsService.send(
+      ctx,
+      PHONE,
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
+    expect(first[0].status).toBe("failed");
 
-    const retry = await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+    const retry = await smsService.send(
+      ctx,
+      PHONE,
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
     expect(retry).toHaveLength(1);
-    expect(retry[0].status).toBe('failed');
+    expect(retry[0].status).toBe("failed");
     expect(retry[0].id).toBe(first[0].id);
   });
 
-  it('still sends a NEW recipient added to the same event', async () => {
+  it("still sends a NEW recipient added to the same event", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+    const ctx = { userId: officerId, groupId, role: "chairperson" as const };
 
     mockSendSingleSms.mockResolvedValue(accepted(PHONE));
-    await smsService.send(ctx, PHONE, 'hello', 'payment.received', EVENT_ID);
+    await smsService.send(ctx, PHONE, "hello", "payment.received", EVENT_ID);
     expect(mockSendSingleSms).toHaveBeenCalledTimes(1);
 
-    const second = '254700000042';
-    const both = await smsService.send(ctx, [PHONE, second], 'hello', 'payment.received', EVENT_ID);
+    const second = "254700000042";
+    const both = await smsService.send(
+      ctx,
+      [PHONE, second],
+      "hello",
+      "payment.received",
+      EVENT_ID,
+    );
     // One skipped, one genuinely new.
     expect(both).toHaveLength(2);
     expect(mockSendSingleSms).toHaveBeenCalledTimes(2);
   });
 
-  it('does NOT dedup a manual send, which carries no correlation key', async () => {
+  it("does NOT dedup a manual send, which carries no correlation key", async () => {
     // Sending the same message twice by hand is legitimate and must stay
     // possible — only event-driven sends carry a referenceId.
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionBilling(groupId, 100);
-    const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
+    const ctx = { userId: officerId, groupId, role: "chairperson" as const };
 
     mockSendSingleSms.mockResolvedValue(accepted(PHONE));
-    await smsService.send(ctx, PHONE, 'hello');
-    await smsService.send(ctx, PHONE, 'hello');
+    await smsService.send(ctx, PHONE, "hello");
+    await smsService.send(ctx, PHONE, "hello");
 
     expect(mockSendSingleSms).toHaveBeenCalledTimes(2);
     const [{ n }] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
-    expect(n).toBe('2');
+    expect(n).toBe("2");
   });
 });

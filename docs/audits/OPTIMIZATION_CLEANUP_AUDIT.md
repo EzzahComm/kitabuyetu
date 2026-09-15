@@ -12,14 +12,14 @@ Kitabu Yetu's backend service layer (accounting, payments, M-Pesa, policy engine
 
 None of this is exotic — every finding below has a concrete fix, most of them small. But several are the kind of gap that looks fine in a demo and fails exactly when it matters (under load, under attack, or the day someone forgets to set an env var).
 
-| Score | /100 | Basis |
-|---|---|---|
-| **Overall code health** | **60** | Strong domain logic, weak seams (CI/test gate, caching, DB-role architecture) |
-| Maintainability | 57 | 219 `any` usages, oversized files (3,121-line service, 988-line page), type/component duplication |
-| Performance | 56 | Zero caching layer, one real request-path timeout risk, several job-loop scaling risks |
-| Security | 63 | Good foundations (headers, logging, masking, most auth wrappers) undercut by 2 fail-open gaps and the BYPASSRLS architecture |
-| Scalability | 54 | No caching, `DB_POOL_MAX=3`, unbounded driver queries in cron jobs, dual queue systems |
-| Technical debt | 50 | Tests never run in CI is the single biggest number here — a safety net that doesn't catch anything |
+| Score                   | /100   | Basis                                                                                                                        |
+| ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Overall code health** | **60** | Strong domain logic, weak seams (CI/test gate, caching, DB-role architecture)                                                |
+| Maintainability         | 57     | 219 `any` usages, oversized files (3,121-line service, 988-line page), type/component duplication                            |
+| Performance             | 56     | Zero caching layer, one real request-path timeout risk, several job-loop scaling risks                                       |
+| Security                | 63     | Good foundations (headers, logging, masking, most auth wrappers) undercut by 2 fail-open gaps and the BYPASSRLS architecture |
+| Scalability             | 54     | No caching, `DB_POOL_MAX=3`, unbounded driver queries in cron jobs, dual queue systems                                       |
+| Technical debt          | 50     | Tests never run in CI is the single biggest number here — a safety net that doesn't catch anything                           |
 
 ---
 
@@ -28,9 +28,9 @@ None of this is exotic — every finding below has a concrete fix, most of them 
 ### Critical
 
 1. **CI never runs the test suite.** `.github/workflows/ci.yml`'s Quality Gate runs `lint` → `typecheck` → `build` only. `package.json` defines `test`, `test:coverage`, and `test:ci` (`jest --ci --forceExit`), and 37 test files exist, but **no CI job invokes any of them.** The 50%-branch coverage threshold in `jest.config.ts` is enforced nowhere in the pipeline that gates production deploys. A regression that breaks accounting logic, posting templates, or auth would ship as long as it type-checks and builds.
-2. **The application's Postgres connection role has `BYPASSRLS`.** Confirmed via `.env`/`.env.local` (`DATABASE_URL=postgresql://postgres...`) and in-repo documentation (`supabase/migrations/20260714020000_058_registry_rls_hardening.sql:9`: *"the application pool role (`postgres`) has BYPASSRLS... RLS on these tables exists solely to fence off the PostgREST roles"*). `lib/db/index.ts` uses one pool for `withDb`/`withTransaction`/`withAdminDb` alike — **every RLS policy in this codebase, `FORCE` or not, provides zero enforcement against the app's own traffic.** Tenant isolation today is enforced *entirely* by hand-written `WHERE group_id = $1` clauses in service code (which, per the DB-layer research pass, are in fact correctly applied everywhere sampled — but that's a code-review guarantee, not a database one). This reframes every RLS-related finding in this report and in prior sessions' audits: they matter for defense-in-depth and for the stated future direction (a non-BYPASSRLS tenant role), not for today's actual protection.
+2. **The application's Postgres connection role has `BYPASSRLS`.** Confirmed via `.env`/`.env.local` (`DATABASE_URL=postgresql://postgres...`) and in-repo documentation (`supabase/migrations/20260714020000_058_registry_rls_hardening.sql:9`: _"the application pool role (`postgres`) has BYPASSRLS... RLS on these tables exists solely to fence off the PostgREST roles"_). `lib/db/index.ts` uses one pool for `withDb`/`withTransaction`/`withAdminDb` alike — **every RLS policy in this codebase, `FORCE` or not, provides zero enforcement against the app's own traffic.** Tenant isolation today is enforced _entirely_ by hand-written `WHERE group_id = $1` clauses in service code (which, per the DB-layer research pass, are in fact correctly applied everywhere sampled — but that's a code-review guarantee, not a database one). This reframes every RLS-related finding in this report and in prior sessions' audits: they matter for defense-in-depth and for the stated future direction (a non-BYPASSRLS tenant role), not for today's actual protection.
 3. **`app/api/v1/workers/email/route.ts` has no authentication if `WORKER_SECRET` is unset.** The check is conditional (`if (workerSecret) { ... }`) rather than fail-closed like its sibling `workers/cron` — if that one env var is ever missing, anyone can POST to this route and trigger email/campaign queue processing.
-4. **`app/api/v1/email/*` (9 routes) silently swallow unhandled errors.** Every one of these routes uses raw `getAuthContext(req)` with an `if (!auth) return ...` guard — but `getAuthContext` never returns null/undefined, it *throws*. None of the 9 files contain a `try {` block. Any auth failure, DB error, or malformed JSON in these routes bypasses the app's structured `handleError()` envelope entirely and surfaces as Next.js's default opaque error response.
+4. **`app/api/v1/email/*` (9 routes) silently swallow unhandled errors.** Every one of these routes uses raw `getAuthContext(req)` with an `if (!auth) return ...` guard — but `getAuthContext` never returns null/undefined, it _throws_. None of the 9 files contain a `try {` block. Any auth failure, DB error, or malformed JSON in these routes bypasses the app's structured `handleError()` envelope entirely and surfaces as Next.js's default opaque error response.
 5. **Zero component tests, zero API-route tests, zero tenant-isolation tests exist**, in a multi-tenant fintech app, despite `@testing-library/react` and `@testing-library/user-event` being installed as dependencies and never imported anywhere. All 37 test files cover `lib/services`/`lib/utils` only.
 
 ### High
@@ -47,7 +47,7 @@ None of this is exotic — every finding below has a concrete fix, most of them 
 15. **`app/api/health/deep/route.ts`'s secret check is not timing-safe and accepts the secret via query string** — unlike every other secret comparison in the codebase (cron, workers/cron, webhooks), which use `crypto.timingSafeEqual` over SHA-256 hashes. A query-string secret can also leak into access logs/referrers.
 16. **219 `: any`/`as any` usages** (143 + 76), 97% concentrated in `app/` page files (`accounting/page.tsx` alone has 42). `tsconfig.json` has `strict: true`, but `eslint.config.mjs` extends only `eslint-config-next/core-web-vitals`, not the TypeScript-aware config — `@typescript-eslint/no-explicit-any` is not enforced.
 17. **`Paged<T>` is reimplemented identically in 7 separate page files** instead of importing `PaginatedResult<T>` from `types/db.types.ts`. `db.types.ts` defines 19 domain interfaces but is imported by only 7 files in the entire app; 109 page-local `interface`/`type` declarations exist instead, many plausibly overlapping with the shared types.
-18. **The `(enterprise)` portal remains 100% mock-data-backed** — `app/(enterprise)/_data.ts`, whose own header comment says *"⚠️ No enterprise/portfolio API yet"*, is still the sole data source for all 3 enterprise pages. Unchanged from a prior audit.
+18. **The `(enterprise)` portal remains 100% mock-data-backed** — `app/(enterprise)/_data.ts`, whose own header comment says _"⚠️ No enterprise/portfolio API yet"_, is still the sole data source for all 3 enterprise pages. Unchanged from a prior audit.
 19. **Shared component adoption is inconsistent**: `PaginatedTable` is used by only 8 of ~33 tabular pages, `PageHeader` by 4 of 37, `StatCard` by 5 of 37. Most large pages hand-roll table/header markup the shared components already solve — `accounting/page.tsx` alone has 10 hand-rolled tables.
 
 ### Medium
@@ -81,14 +81,14 @@ None of this is exotic — every finding below has a concrete fix, most of them 
 
 ## 3. Dependency Cleanup Report
 
-| Package | Action | Evidence |
-|---|---|---|
-| `@supabase/supabase-js` | **Remove** | Zero direct imports; only `@supabase/ssr` is used, which pulls this in transitively anyway |
-| `@testing-library/react` | **Remove** (or start using it) | Zero imports anywhere; no component tests exist |
-| `@testing-library/user-event` | **Remove** (or start using it) | Zero imports anywhere |
-| `jest-environment-jsdom` | **Remove** (or start using it) | `testEnvironment: 'node'` is set globally; no test overrides to jsdom |
-| `axios` | **Consider replacing with `fetch`** | Only 2 server-side call sites (`daraja.service.ts`, `textsms.service.ts`) |
-| `jsonwebtoken` + `@types/jsonwebtoken` | **Consider migrating to `jose`** | Would let the whole app share one JWT library; currently split only because `proxy.ts` runs on the Edge runtime |
+| Package                                | Action                              | Evidence                                                                                                        |
+| -------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `@supabase/supabase-js`                | **Remove**                          | Zero direct imports; only `@supabase/ssr` is used, which pulls this in transitively anyway                      |
+| `@testing-library/react`               | **Remove** (or start using it)      | Zero imports anywhere; no component tests exist                                                                 |
+| `@testing-library/user-event`          | **Remove** (or start using it)      | Zero imports anywhere                                                                                           |
+| `jest-environment-jsdom`               | **Remove** (or start using it)      | `testEnvironment: 'node'` is set globally; no test overrides to jsdom                                           |
+| `axios`                                | **Consider replacing with `fetch`** | Only 2 server-side call sites (`daraja.service.ts`, `textsms.service.ts`)                                       |
+| `jsonwebtoken` + `@types/jsonwebtoken` | **Consider migrating to `jose`**    | Would let the whole app share one JWT library; currently split only because `proxy.ts` runs on the Edge runtime |
 
 No deprecated packages, no duplicate icon libraries, no duplicate date libraries, and no `lodash`/`moment`/`xlsx` bloat were found. **Not verified this pass:** dependency version currency against upstream (no `npm outdated`/`npm audit` was run) — recommend running both as a follow-up.
 
@@ -110,37 +110,38 @@ No deprecated packages, no duplicate icon libraries, no duplicate date libraries
 
 ## 5. Performance Optimization Plan
 
-| Area | Finding | Estimated impact of fixing |
-|---|---|---|
-| Caching | Zero cache layer; every dashboard/report read hits Postgres | High — a Redis-backed cache with a short TTL (30-120s) on the heaviest admin/org dashboard aggregates would cut DB load on the most-repeated queries substantially with minimal staleness risk |
-| Request-path fan-out | `launchCampaign` loops per-recipient inside an HTTP request | High — moving this to the existing job queue removes a concrete timeout failure mode entirely, not just a slowdown |
-| Job-loop scaling | `mpesa-reports`/`statement-email`/`billing-email` unbounded driver queries + sequential per-row work | Medium — bounding + batching (or `Promise.all` in small batches) keeps these jobs viable as tenant count grows; today's risk is proportional to current scale, not yet acute |
-| Connection pool | `DB_POOL_MAX=3` per warm instance | Unquantified without production traffic data — flagged as a scaling variable to monitor, not a confirmed bottleneck (SUSPECTED) |
-| Bundle size | `recharts` bypassing the lazy-load wrapper in 4 pages | Low-medium — moving these 4 imports behind the existing `next/dynamic` wrapper is a same-day fix with an immediate, measurable first-load JS reduction on those 4 pages |
-| Service file size | `mpesa.service.ts` at 3,121 lines | Indirect — doesn't affect runtime performance, but slows every future change to M-Pesa logic and increases the blast radius of any edit |
+| Area                 | Finding                                                                                              | Estimated impact of fixing                                                                                                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Caching              | Zero cache layer; every dashboard/report read hits Postgres                                          | High — a Redis-backed cache with a short TTL (30-120s) on the heaviest admin/org dashboard aggregates would cut DB load on the most-repeated queries substantially with minimal staleness risk |
+| Request-path fan-out | `launchCampaign` loops per-recipient inside an HTTP request                                          | High — moving this to the existing job queue removes a concrete timeout failure mode entirely, not just a slowdown                                                                             |
+| Job-loop scaling     | `mpesa-reports`/`statement-email`/`billing-email` unbounded driver queries + sequential per-row work | Medium — bounding + batching (or `Promise.all` in small batches) keeps these jobs viable as tenant count grows; today's risk is proportional to current scale, not yet acute                   |
+| Connection pool      | `DB_POOL_MAX=3` per warm instance                                                                    | Unquantified without production traffic data — flagged as a scaling variable to monitor, not a confirmed bottleneck (SUSPECTED)                                                                |
+| Bundle size          | `recharts` bypassing the lazy-load wrapper in 4 pages                                                | Low-medium — moving these 4 imports behind the existing `next/dynamic` wrapper is a same-day fix with an immediate, measurable first-load JS reduction on those 4 pages                        |
+| Service file size    | `mpesa.service.ts` at 3,121 lines                                                                    | Indirect — doesn't affect runtime performance, but slows every future change to M-Pesa logic and increases the blast radius of any edit                                                        |
 
 ---
 
 ## 6. Security Hardening Checklist (OWASP-mapped)
 
-| OWASP category | Status | Notes |
-|---|---|---|
-| A01 Broken Access Control | **Gap found** | `workers/email` conditional auth (Critical #3); otherwise 145/164 routes correctly wrapped, `proxy.ts` correctly strips inbound `x-*` claim headers before stamping its own |
-| A02 Cryptographic Failures | **Mostly clean, one gap** | Timing-safe comparisons used almost everywhere secrets are checked; `health/deep` is the exception (High #15) |
-| A03 Injection | **Mostly clean, one latent gap** | Parameterized queries throughout; one SQL string-interpolation site not currently exploitable (Medium #21). XSS/CSRF/SSRF were not independently probed this pass — flagged as not verified, not assumed clean |
-| A04 Insecure Design | **One architectural flag** | The `BYPASSRLS` posture (Critical #2) needs an explicit decision, not silent acceptance; dual queue systems (High #12) is a design-clarity gap |
-| A05 Security Misconfiguration | **Gaps found** | Production CSP allows `unsafe-inline` scripts (High #14); `LOGIN_LOCKOUT_MINUTES` default mismatch (High #11); env schema bypassed by most of the codebase (High #13) |
-| A06 Vulnerable/Outdated Components | **Not verified this pass** | No `npm audit`/`npm outdated` was run — recommend as an immediate follow-up |
-| A07 Auth Failures | **Mostly strong, two gaps** | Bcrypt, JWT audience separation, per-identifier login lockout, MFA lockout reuse all correctly implemented; the two fail-open webhook/worker gaps (Critical #3, High #7) are the exceptions |
-| A08 Software/Data Integrity | **Clean** | No unsigned-update or deserialization risk patterns found |
-| A09 Logging/Monitoring Failures | **Mostly strong, minor leaks** | Structured JSON logging in production, PII-masking utility used consistently, no secrets found in logs; two routes leak `err.message` to clients (Medium #22) |
-| A10 SSRF | **Not verified this pass** | Not independently probed — flagged as not verified |
+| OWASP category                     | Status                           | Notes                                                                                                                                                                                                          |
+| ---------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A01 Broken Access Control          | **Gap found**                    | `workers/email` conditional auth (Critical #3); otherwise 145/164 routes correctly wrapped, `proxy.ts` correctly strips inbound `x-*` claim headers before stamping its own                                    |
+| A02 Cryptographic Failures         | **Mostly clean, one gap**        | Timing-safe comparisons used almost everywhere secrets are checked; `health/deep` is the exception (High #15)                                                                                                  |
+| A03 Injection                      | **Mostly clean, one latent gap** | Parameterized queries throughout; one SQL string-interpolation site not currently exploitable (Medium #21). XSS/CSRF/SSRF were not independently probed this pass — flagged as not verified, not assumed clean |
+| A04 Insecure Design                | **One architectural flag**       | The `BYPASSRLS` posture (Critical #2) needs an explicit decision, not silent acceptance; dual queue systems (High #12) is a design-clarity gap                                                                 |
+| A05 Security Misconfiguration      | **Gaps found**                   | Production CSP allows `unsafe-inline` scripts (High #14); `LOGIN_LOCKOUT_MINUTES` default mismatch (High #11); env schema bypassed by most of the codebase (High #13)                                          |
+| A06 Vulnerable/Outdated Components | **Not verified this pass**       | No `npm audit`/`npm outdated` was run — recommend as an immediate follow-up                                                                                                                                    |
+| A07 Auth Failures                  | **Mostly strong, two gaps**      | Bcrypt, JWT audience separation, per-identifier login lockout, MFA lockout reuse all correctly implemented; the two fail-open webhook/worker gaps (Critical #3, High #7) are the exceptions                    |
+| A08 Software/Data Integrity        | **Clean**                        | No unsigned-update or deserialization risk patterns found                                                                                                                                                      |
+| A09 Logging/Monitoring Failures    | **Mostly strong, minor leaks**   | Structured JSON logging in production, PII-masking utility used consistently, no secrets found in logs; two routes leak `err.message` to clients (Medium #22)                                                  |
+| A10 SSRF                           | **Not verified this pass**       | Not independently probed — flagged as not verified                                                                                                                                                             |
 
 ---
 
 ## 7. Refactoring Roadmap
 
 **Quick wins (under 1 day each):**
+
 - Make `workers/email`'s `WORKER_SECRET` check fail-closed, matching `workers/cron` (Critical #3)
 - Make the WhatsApp webhook fail-closed in production when `WHATSAPP_APP_SECRET` is unset (High #7)
 - Reconcile `LOGIN_LOCKOUT_MINUTES`'s default to one value, sourced from `lib/env.ts` in all 3 route files instead of re-parsed locally (High #11)
@@ -153,6 +154,7 @@ No deprecated packages, no duplicate icon libraries, no duplicate date libraries
 - Confirm whether `workers/email` has a real trigger (Vercel Cron dashboard) or is genuinely dead (Medium #30)
 
 **Medium-term (1-2 weeks):**
+
 - Wire `test:ci` into the GitHub Actions Quality Gate as a required, blocking step (Critical #1) — this is the single highest-leverage change in this entire report
 - Add an API-route test suite starting with auth/authorization and tenant-isolation coverage for the highest-risk routes (payments, disbursements, admin) (Critical #5)
 - Refactor the `app/api/v1/email/*` module onto the standard `withAuth`/`ok`/`handleError` pattern with real Zod validation (Critical #4)
@@ -163,6 +165,7 @@ No deprecated packages, no duplicate icon libraries, no duplicate date libraries
 - Write down the `BYPASSRLS` decision explicitly (§4) as a recorded architectural choice, not an implicit fact
 
 **Long-term (architectural):**
+
 - Introduce server-driven data fetching (RSC) for read-heavy dashboard pages to reduce client JS and unlock real route-level caching
 - Consolidate the two queue systems (`lib/queue` + `lib/jobs`) into one
 - Build a real API for the `(enterprise)` portal to replace `_data.ts` mocks

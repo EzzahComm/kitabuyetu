@@ -21,35 +21,49 @@
  *     max_retries, then settle on 'failed'.
  */
 
-import { withAdminDb } from '@/lib/db';
-import { enqueueJob } from '@/lib/jobs';
-import { logger } from '@/lib/logger';
-import { AppError } from '@/lib/utils/errors';
-import { smsService, resolveSmsRecipients, GROUP_PAYER, type SmsPayer } from '@/lib/services/sms.service';
-import { renderTemplate, stripUnresolved, DEFAULT_TEMPLATES } from './templates';
-import { evaluateCondition } from './conditions';
-import { parseRecipientSpec, type BusinessEvent, type EventPayload, type RecipientSpec } from './events';
+import { withAdminDb } from "@/lib/db";
+import { enqueueJob } from "@/lib/jobs";
+import { logger } from "@/lib/logger";
+import { AppError } from "@/lib/utils/errors";
+import {
+  smsService,
+  resolveSmsRecipients,
+  GROUP_PAYER,
+  type SmsPayer,
+} from "@/lib/services/sms.service";
+import {
+  renderTemplate,
+  stripUnresolved,
+  DEFAULT_TEMPLATES,
+} from "./templates";
+import { evaluateCondition } from "./conditions";
+import {
+  parseRecipientSpec,
+  type BusinessEvent,
+  type EventPayload,
+  type RecipientSpec,
+} from "./events";
 
 interface RuleRow {
-  id:              string;
-  group_id:        string | null;
+  id: string;
+  group_id: string | null;
   organization_id: string | null;
-  name:            string;
-  event_type:      string;
-  conditions:     unknown;
-  template_key:   string;
+  name: string;
+  event_type: string;
+  conditions: unknown;
+  template_key: string;
   recipient_spec: unknown;
-  delay_seconds:  number;
-  max_retries:    number;
-  created_by:     string | null;
+  delay_seconds: number;
+  max_retries: number;
+  created_by: string | null;
 }
 
 export interface EmitSummary {
   evaluated: number;
-  matched:   number;
+  matched: number;
   dispatched: number;
-  deferred:  number;
-  skipped:   number;
+  deferred: number;
+  skipped: number;
 }
 
 // ─── Rule resolution ─────────────────────────────────────────────────────────
@@ -60,10 +74,14 @@ export interface EmitSummary {
  * scope wins — that is how a group overrides an Organization default without the Organization
  * rule having to be disabled for everyone.
  */
-export async function loadMatchingRules(eventType: string, groupId: string): Promise<RuleRow[]> {
+export async function loadMatchingRules(
+  eventType: string,
+  groupId: string,
+): Promise<RuleRow[]> {
   const rows = await withAdminDb((db) =>
-    db.query<RuleRow>(
-      `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
+    db
+      .query<RuleRow>(
+        `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
               r.template_key, r.recipient_spec, r.delay_seconds, r.max_retries, r.created_by
        FROM sms_trigger_rules r
        WHERE r.is_active AND r.event_type = $1
@@ -75,23 +93,34 @@ export async function loadMatchingRules(eventType: string, groupId: string): Pro
                  WHERE nga.group_id = $2 AND nga.is_active
               ))
          )`,
-      [eventType, groupId],
-    ).then((r) => r.rows),
+        [eventType, groupId],
+      )
+      .then((r) => r.rows),
   );
 
-  const specificity = (r: RuleRow) => (r.group_id ? 2 : r.organization_id ? 1 : 0);
+  const specificity = (r: RuleRow) =>
+    r.group_id ? 2 : r.organization_id ? 1 : 0;
   const winner = new Map<string, RuleRow>();
   for (const rule of rows) {
     const existing = winner.get(rule.name);
-    if (!existing || specificity(rule) > specificity(existing)) winner.set(rule.name, rule);
+    if (!existing || specificity(rule) > specificity(existing))
+      winner.set(rule.name, rule);
   }
   return [...winner.values()];
 }
 
 // ─── Emit ────────────────────────────────────────────────────────────────────
 
-export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSummary> {
-  const summary: EmitSummary = { evaluated: 0, matched: 0, dispatched: 0, deferred: 0, skipped: 0 };
+export async function emitBusinessEvent(
+  event: BusinessEvent,
+): Promise<EmitSummary> {
+  const summary: EmitSummary = {
+    evaluated: 0,
+    matched: 0,
+    dispatched: 0,
+    deferred: 0,
+    skipped: 0,
+  };
 
   try {
     const rules = await loadMatchingRules(event.eventType, event.groupId);
@@ -102,7 +131,10 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
         summary.skipped++;
         // Non-matches are logged, not persisted: an execution row per rule per
         // event would grow the audit table with the events that did nothing.
-        logger.debug('[sms-trigger] conditions not met', { rule: rule.name, event: event.eventType });
+        logger.debug("[sms-trigger] conditions not met", {
+          rule: rule.name,
+          event: event.eventType,
+        });
         continue;
       }
       summary.matched++;
@@ -110,19 +142,20 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
       const executionId = await claimExecution(rule, event);
       if (!executionId) {
         // Already claimed — a duplicate emit of the same business event.
-        logger.info('[sms-trigger] duplicate event suppressed', {
-          rule: rule.name, eventId: event.eventId,
+        logger.info("[sms-trigger] duplicate event suppressed", {
+          rule: rule.name,
+          eventId: event.eventId,
         });
         continue;
       }
 
       if (rule.delay_seconds > 0) {
         await enqueueJob(
-          'sms_trigger_fire',
+          "sms_trigger_fire",
           { executionId },
           {
-            priority:  6,
-            run_at:    new Date(Date.now() + rule.delay_seconds * 1000),
+            priority: 6,
+            run_at: new Date(Date.now() + rule.delay_seconds * 1000),
             dedup_key: `sms_trigger_fire:${executionId}`,
             max_attempts: rule.max_retries + 1,
           },
@@ -135,7 +168,11 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
     }
   } catch (err) {
     // Deliberately swallowed. See invariant (1) — the caller is mid-payment.
-    logger.error('[sms-trigger] emit failed', { event: event.eventType, eventId: event.eventId, err });
+    logger.error("[sms-trigger] emit failed", {
+      event: event.eventType,
+      eventId: event.eventId,
+      err,
+    });
   }
 
   return summary;
@@ -145,10 +182,14 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
  * Insert the execution row, which *is* the idempotency claim. Returns null when
  * the row already exists (duplicate event), meaning: do not send.
  */
-async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<string | null> {
-  const scheduledFor = rule.delay_seconds > 0
-    ? new Date(Date.now() + rule.delay_seconds * 1000)
-    : null;
+async function claimExecution(
+  rule: RuleRow,
+  event: BusinessEvent,
+): Promise<string | null> {
+  const scheduledFor =
+    rule.delay_seconds > 0
+      ? new Date(Date.now() + rule.delay_seconds * 1000)
+      : null;
 
   const { rows } = await withAdminDb((db) =>
     db.query<{ id: string }>(
@@ -157,8 +198,14 @@ async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<stri
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (rule_id, event_id) DO NOTHING
        RETURNING id`,
-      [rule.id, event.groupId, event.eventType, event.eventId,
-       JSON.stringify(event.payload), scheduledFor],
+      [
+        rule.id,
+        event.groupId,
+        event.eventType,
+        event.eventId,
+        JSON.stringify(event.payload),
+        scheduledFor,
+      ],
     ),
   );
   return rows[0]?.id ?? null;
@@ -167,11 +214,11 @@ async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<stri
 // ─── Dispatch ────────────────────────────────────────────────────────────────
 
 interface ExecutionRow extends RuleRow {
-  execution_id:  string;
+  execution_id: string;
   exec_group_id: string;
-  event_id:      string;
+  event_id: string;
   event_payload: EventPayload;
-  attempts:      number;
+  attempts: number;
 }
 
 /**
@@ -183,16 +230,18 @@ interface ExecutionRow extends RuleRow {
  */
 export async function dispatchExecution(executionId: string): Promise<void> {
   const exec = await withAdminDb((db) =>
-    db.query<ExecutionRow>(
-      `SELECT e.id AS execution_id, e.group_id AS exec_group_id, e.event_id,
+    db
+      .query<ExecutionRow>(
+        `SELECT e.id AS execution_id, e.group_id AS exec_group_id, e.event_id,
               e.event_payload, e.attempts,
               r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
               r.template_key, r.recipient_spec, r.delay_seconds, r.max_retries, r.created_by
        FROM sms_trigger_executions e
        JOIN sms_trigger_rules r ON r.id = e.rule_id
        WHERE e.id = $1 AND e.status = 'pending'`,
-      [executionId],
-    ).then((r) => r.rows[0]),
+        [executionId],
+      )
+      .then((r) => r.rows[0]),
   );
 
   // Absent or already terminal — nothing to do. Not an error: a retried job
@@ -200,27 +249,44 @@ export async function dispatchExecution(executionId: string): Promise<void> {
   if (!exec) return;
 
   const spec = parseRecipientSpec(exec.recipient_spec);
-  if (!spec) return settle(executionId, 'failed', `malformed recipient_spec on rule ${exec.name}`);
+  if (!spec)
+    return settle(
+      executionId,
+      "failed",
+      `malformed recipient_spec on rule ${exec.name}`,
+    );
 
   const body = await loadTemplateBody(exec.exec_group_id, exec.template_key);
-  if (!body) return settle(executionId, 'failed', `no template for key '${exec.template_key}'`);
+  if (!body)
+    return settle(
+      executionId,
+      "failed",
+      `no template for key '${exec.template_key}'`,
+    );
 
   let phones: string[];
   try {
-    phones = await resolveRecipients(exec.exec_group_id, spec, exec.event_payload);
+    phones = await resolveRecipients(
+      exec.exec_group_id,
+      spec,
+      exec.event_payload,
+    );
   } catch (err) {
     return retryOrFail(exec, `recipient resolution failed: ${errText(err)}`);
   }
 
-  if (!phones.length) return settle(executionId, 'suppressed', 'no eligible recipients');
+  if (!phones.length)
+    return settle(executionId, "suppressed", "no eligible recipients");
 
-  const message = stripUnresolved(renderTemplate(body, toTemplateVars(exec.event_payload)));
+  const message = stripUnresolved(
+    renderTemplate(body, toTemplateVars(exec.event_payload)),
+  );
 
   // An organization-scoped rule is the organization's automation, so the
   // organization funds it. Group and platform-default rules bill the group —
   // a platform default is not anyone's campaign to pay for.
   const payer: SmsPayer = exec.organization_id
-    ? { type: 'organization', organizationId: exec.organization_id }
+    ? { type: "organization", organizationId: exec.organization_id }
     : GROUP_PAYER;
 
   try {
@@ -231,7 +297,11 @@ export async function dispatchExecution(executionId: string): Promise<void> {
       // A platform-default rule has no created_by, so it would have failed every
       // dispatch — masked until now by C1 throwing earlier in the same call
       // (SMS_MESSAGING_AUDIT_2026-08.md M1).
-      { userId: exec.created_by ?? '', groupId: exec.exec_group_id, role: 'chairperson' },
+      {
+        userId: exec.created_by ?? "",
+        groupId: exec.exec_group_id,
+        role: "chairperson",
+      },
       phones,
       message,
       exec.event_type,
@@ -248,7 +318,8 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // them. That distinction matters because settling 'suppressed' is terminal
     // on an append-only table, and reporting a deduped retry as "everyone
     // opted out" would burn the key for a message that had in fact been sent.
-    if (!logs.length) return settle(executionId, 'suppressed', 'all recipients opted out');
+    if (!logs.length)
+      return settle(executionId, "suppressed", "all recipients opted out");
 
     // A returned log row is NOT proof the message left. send() catches
     // provider errors, writes the usage row with status='failed' (credits
@@ -265,10 +336,10 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // Confirmed in production 2026-08-27: eight Ndengelwa members had their
     // welcome SMS marked 'sent' while every send had returned HTTP 401. All
     // eight rows are terminal and unrecoverable.
-    if (!logs.some((l) => l.status !== 'failed')) {
+    if (!logs.some((l) => l.status !== "failed")) {
       return retryOrFail(
         exec,
-        `provider rejected every recipient: ${logs[0]?.failed_reason ?? 'unknown error'}`,
+        `provider rejected every recipient: ${logs[0]?.failed_reason ?? "unknown error"}`,
       );
     }
 
@@ -281,7 +352,10 @@ export async function dispatchExecution(executionId: string): Promise<void> {
         [executionId, logs.map((l) => l.id), logs.length],
       ),
     );
-    logger.info('[sms-trigger] sent', { rule: exec.name, recipients: logs.length });
+    logger.info("[sms-trigger] sent", {
+      rule: exec.name,
+      recipients: logs.length,
+    });
   } catch (err) {
     // Billing-configuration failures (insufficient credits, inactive
     // subscription, no billing account — smsService.send's 402s, all thrown
@@ -294,8 +368,11 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // Anything else here (provider outage, transient network error) still
     // gets the normal retry/backoff below.
     if (err instanceof AppError && err.statusCode === 402) {
-      logger.warn('[sms-trigger] billing failure — not retrying', { rule: exec.name, reason: err.message });
-      return settle(exec.execution_id, 'failed', err.message);
+      logger.warn("[sms-trigger] billing failure — not retrying", {
+        rule: exec.name,
+        reason: err.message,
+      });
+      return settle(exec.execution_id, "failed", err.message);
     }
     await retryOrFail(exec, errText(err));
   }
@@ -306,8 +383,12 @@ async function retryOrFail(exec: ExecutionRow, reason: string): Promise<void> {
   const attempts = exec.attempts + 1;
 
   if (attempts > exec.max_retries) {
-    logger.error('[sms-trigger] giving up', { rule: exec.name, attempts, reason });
-    return settle(exec.execution_id, 'failed', reason);
+    logger.error("[sms-trigger] giving up", {
+      rule: exec.name,
+      attempts,
+      reason,
+    });
+    return settle(exec.execution_id, "failed", reason);
   }
 
   await withAdminDb((db) =>
@@ -321,21 +402,25 @@ async function retryOrFail(exec: ExecutionRow, reason: string): Promise<void> {
   // Exponential backoff: 1, 2, 4 … minutes, matching sms_failures' cadence.
   const backoffMs = Math.min(2 ** (attempts - 1), 8) * 60_000;
   await enqueueJob(
-    'sms_trigger_fire',
+    "sms_trigger_fire",
     { executionId: exec.execution_id },
     {
-      priority:  6,
-      run_at:    new Date(Date.now() + backoffMs),
+      priority: 6,
+      run_at: new Date(Date.now() + backoffMs),
       dedup_key: `sms_trigger_fire:${exec.execution_id}:${attempts}`,
       max_attempts: 1,
     },
   );
-  logger.warn('[sms-trigger] retry scheduled', { rule: exec.name, attempts, reason });
+  logger.warn("[sms-trigger] retry scheduled", {
+    rule: exec.name,
+    attempts,
+    reason,
+  });
 }
 
 async function settle(
   executionId: string,
-  status: 'sent' | 'failed' | 'suppressed',
+  status: "sent" | "failed" | "suppressed",
   reason: string,
 ): Promise<void> {
   await withAdminDb((db) =>
@@ -346,7 +431,8 @@ async function settle(
       [executionId, status, reason],
     ),
   );
-  if (status === 'failed') logger.error('[sms-trigger] execution failed', { executionId, reason });
+  if (status === "failed")
+    logger.error("[sms-trigger] execution failed", { executionId, reason });
 }
 
 // ─── Recipients & templates ──────────────────────────────────────────────────
@@ -357,40 +443,51 @@ export async function resolveRecipients(
   payload: EventPayload,
 ): Promise<string[]> {
   switch (spec.type) {
-    case 'event_phone': {
+    case "event_phone": {
       const phone = payload[spec.field];
-      return typeof phone === 'string' && phone.trim() ? [phone] : [];
+      return typeof phone === "string" && phone.trim() ? [phone] : [];
     }
 
-    case 'event_member': {
+    case "event_member": {
       const memberId = payload[spec.field];
-      if (typeof memberId !== 'string' || !memberId) return [];
-      return resolveSmsRecipients(groupId, 'selected', { memberIds: [memberId] });
+      if (typeof memberId !== "string" || !memberId) return [];
+      return resolveSmsRecipients(groupId, "selected", {
+        memberIds: [memberId],
+      });
     }
 
-    case 'roles':
-      return resolveSmsRecipients(groupId, 'roles', { roles: spec.roles });
+    case "roles":
+      return resolveSmsRecipients(groupId, "roles", { roles: spec.roles });
 
-    case 'all_members':
-    case 'active_members':
+    case "all_members":
+    case "active_members":
       return resolveSmsRecipients(groupId, spec.type, null);
   }
 }
 
 /** Group override first, then a system template, then the compiled-in default. */
-async function loadTemplateBody(groupId: string, key: string): Promise<string | null> {
+async function loadTemplateBody(
+  groupId: string,
+  key: string,
+): Promise<string | null> {
   const body = await withAdminDb((db) =>
-    db.query<{ body: string }>(
-      `SELECT body FROM sms_templates
+    db
+      .query<{ body: string }>(
+        `SELECT body FROM sms_templates
        WHERE (group_id=$1 OR group_id IS NULL) AND template_key=$2 AND is_active
        ORDER BY group_id NULLS LAST LIMIT 1`,
-      [groupId, key],
-    ).then((r) => r.rows[0]?.body ?? null),
+        [groupId, key],
+      )
+      .then((r) => r.rows[0]?.body ?? null),
   );
 
   // A rule may name a custom key with no DB row yet; fall back only if the key
   // is one we ship. Unknown keys fail loudly rather than sending an empty SMS.
-  return body ?? (DEFAULT_TEMPLATES as Record<string, string | undefined>)[key] ?? null;
+  return (
+    body ??
+    (DEFAULT_TEMPLATES as Record<string, string | undefined>)[key] ??
+    null
+  );
 }
 
 function toTemplateVars(payload: EventPayload): Record<string, string> {

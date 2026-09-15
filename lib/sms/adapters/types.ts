@@ -14,7 +14,7 @@ import type {
   BulkSmsResult,
   DlrResult,
   BalanceResult,
-} from '@/lib/services/textsms.service';
+} from "@/lib/services/textsms.service";
 
 export type {
   SingleSmsInput,

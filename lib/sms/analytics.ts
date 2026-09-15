@@ -7,14 +7,19 @@ export interface SmsUsageSummary {
   totalCredits: string;
 }
 
-export function summarizeUsageRows(rows: Array<{ status?: string | null; credits_deducted?: string | number | null }>): SmsUsageSummary {
+export function summarizeUsageRows(
+  rows: Array<{
+    status?: string | null;
+    credits_deducted?: string | number | null;
+  }>,
+): SmsUsageSummary {
   const summary = rows.reduce(
     (acc, row) => {
-      const status = (row.status ?? 'queued').toLowerCase();
+      const status = (row.status ?? "queued").toLowerCase();
       acc.totalMessages += 1;
-      if (status === 'delivered') acc.delivered += 1;
-      else if (status === 'sent') acc.sent += 1;
-      else if (status === 'failed') acc.failed += 1;
+      if (status === "delivered") acc.delivered += 1;
+      else if (status === "sent") acc.sent += 1;
+      else if (status === "failed") acc.failed += 1;
       else acc.queued += 1;
 
       const credits = Number(row.credits_deducted ?? 0);

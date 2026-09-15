@@ -1,8 +1,13 @@
-import { sendFinancialReport, sendTemplatedEmail } from './email.service';
-import { withAdminDb } from '@/lib/db';
-import type { EmailResult, EmailPayload } from '@/lib/email/provider';
+import { sendFinancialReport, sendTemplatedEmail } from "./email.service";
+import { withAdminDb } from "@/lib/db";
+import type { EmailResult, EmailPayload } from "@/lib/email/provider";
 
-const ALLOWED_REPORT_ROLES = ['treasurer', 'chairperson', 'super_admin', 'organization_coordinator'];
+const ALLOWED_REPORT_ROLES = [
+  "treasurer",
+  "chairperson",
+  "super_admin",
+  "organization_coordinator",
+];
 
 export async function emailPnlReport(opts: {
   groupId: string;
@@ -11,7 +16,7 @@ export async function emailPnlReport(opts: {
   requesterEmail: string;
   period: string;
   htmlReport: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
 }): Promise<EmailResult> {
   return sendFinancialReport({
     to: opts.requesterEmail,
@@ -31,7 +36,7 @@ export async function emailBalanceSheet(opts: {
   requesterEmail: string;
   period: string;
   htmlReport: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
 }): Promise<EmailResult> {
   return sendFinancialReport({
     to: opts.requesterEmail,
@@ -50,7 +55,7 @@ export async function broadcastFinancialReport(opts: {
   reportType: string;
   period: string;
   generatedAt: string;
-  attachments?: EmailPayload['attachments'];
+  attachments?: EmailPayload["attachments"];
 }): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
@@ -65,7 +70,7 @@ export async function broadcastFinancialReport(opts: {
 
   for (const officer of rows) {
     await sendTemplatedEmail({
-      templateKey: 'financial_report',
+      templateKey: "financial_report",
       to: officer.email,
       vars: {
         recipientName: officer.full_name,
@@ -75,7 +80,7 @@ export async function broadcastFinancialReport(opts: {
       },
       groupId: opts.groupId,
       attachments: opts.attachments,
-      referenceType: 'report',
+      referenceType: "report",
     }).catch(() => {});
   }
 }
@@ -86,8 +91,10 @@ export async function sendWeeklySummaries(): Promise<void> {
     db.query(`SELECT id, name FROM groups WHERE is_active = true`, []),
   );
 
-  const weekLabel = new Date().toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
+  const weekLabel = new Date().toLocaleDateString("en-KE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 
   for (const group of groups) {
@@ -131,9 +138,17 @@ export async function sendWeeklySummaries(): Promise<void> {
 
     const vars = {
       weekLabel,
-      weekContributions: Number(contribRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-      weekLoans: Number(loanRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-      weekRepayments: Number(repayRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      weekContributions: Number(contribRow.rows[0]?.total ?? 0).toLocaleString(
+        "en-KE",
+        { minimumFractionDigits: 2 },
+      ),
+      weekLoans: Number(loanRow.rows[0]?.total ?? 0).toLocaleString("en-KE", {
+        minimumFractionDigits: 2,
+      }),
+      weekRepayments: Number(repayRow.rows[0]?.total ?? 0).toLocaleString(
+        "en-KE",
+        { minimumFractionDigits: 2 },
+      ),
       newMembers: String(memberRow.rows[0]?.total ?? 0),
     };
 
@@ -148,11 +163,15 @@ export async function sendWeeklySummaries(): Promise<void> {
 
     for (const officer of officers) {
       await sendTemplatedEmail({
-        templateKey: 'weekly_summary',
+        templateKey: "weekly_summary",
         to: officer.email,
-        vars: { ...vars, recipientName: officer.full_name, groupName: group.name },
+        vars: {
+          ...vars,
+          recipientName: officer.full_name,
+          groupName: group.name,
+        },
         groupId: group.id,
-        referenceType: 'report',
+        referenceType: "report",
       }).catch(() => {});
     }
   }

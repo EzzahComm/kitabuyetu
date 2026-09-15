@@ -13,7 +13,7 @@
  * jest.resetModules().
  */
 
-const ENV_KEYS = ['MPESA_ENV', 'MPESA_CALLBACK_TOKEN'] as const;
+const ENV_KEYS = ["MPESA_ENV", "MPESA_CALLBACK_TOKEN"] as const;
 const originalEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -28,38 +28,38 @@ afterEach(() => {
   }
 });
 
-describe('isValidCallbackToken', () => {
-  it('does not throw on import even when production is misconfigured (no MPESA_CALLBACK_TOKEN)', () => {
-    process.env.MPESA_ENV = 'production';
+describe("isValidCallbackToken", () => {
+  it("does not throw on import even when production is misconfigured (no MPESA_CALLBACK_TOKEN)", () => {
+    process.env.MPESA_ENV = "production";
     delete process.env.MPESA_CALLBACK_TOKEN;
-    expect(() => require('@/lib/services/daraja.service')).not.toThrow();
+    expect(() => require("@/lib/services/daraja.service")).not.toThrow();
   });
 
-  it('returns false (never trusts) when production is misconfigured, regardless of the token supplied', () => {
-    process.env.MPESA_ENV = 'production';
+  it("returns false (never trusts) when production is misconfigured, regardless of the token supplied", () => {
+    process.env.MPESA_ENV = "production";
     delete process.env.MPESA_CALLBACK_TOKEN;
-    const { isValidCallbackToken } = require('@/lib/services/daraja.service');
+    const { isValidCallbackToken } = require("@/lib/services/daraja.service");
 
-    expect(isValidCallbackToken('anything')).toBe(false);
+    expect(isValidCallbackToken("anything")).toBe(false);
     expect(isValidCallbackToken(null)).toBe(false);
   });
 
-  it('validates the token correctly when production is properly configured', () => {
-    process.env.MPESA_ENV = 'production';
-    process.env.MPESA_CALLBACK_TOKEN = 'super-secret-token';
-    const { isValidCallbackToken } = require('@/lib/services/daraja.service');
+  it("validates the token correctly when production is properly configured", () => {
+    process.env.MPESA_ENV = "production";
+    process.env.MPESA_CALLBACK_TOKEN = "super-secret-token";
+    const { isValidCallbackToken } = require("@/lib/services/daraja.service");
 
-    expect(isValidCallbackToken('super-secret-token')).toBe(true);
-    expect(isValidCallbackToken('wrong-token')).toBe(false);
+    expect(isValidCallbackToken("super-secret-token")).toBe(true);
+    expect(isValidCallbackToken("wrong-token")).toBe(false);
     expect(isValidCallbackToken(null)).toBe(false);
   });
 
-  it('is permissive in sandbox when no token is configured (nothing to check)', () => {
-    process.env.MPESA_ENV = 'sandbox';
+  it("is permissive in sandbox when no token is configured (nothing to check)", () => {
+    process.env.MPESA_ENV = "sandbox";
     delete process.env.MPESA_CALLBACK_TOKEN;
-    const { isValidCallbackToken } = require('@/lib/services/daraja.service');
+    const { isValidCallbackToken } = require("@/lib/services/daraja.service");
 
     expect(isValidCallbackToken(null)).toBe(true);
-    expect(isValidCallbackToken('anything')).toBe(true);
+    expect(isValidCallbackToken("anything")).toBe(true);
   });
 });

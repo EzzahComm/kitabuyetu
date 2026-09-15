@@ -37,28 +37,32 @@
  *  - All phone numbers normalised to E.164 (254XXXXXXXXX) before transmission.
  */
 
-import axios, { AxiosInstance } from 'axios';
-import crypto from 'crypto';
-import { redis } from '@/lib/redis';
-import { logger } from '@/lib/logger';
-import { toMpesaAmount } from '@/lib/utils/currency';
-import { normalizePhone } from '@/lib/utils/phone';
-import { getSecurityCredential } from '@/lib/utils/mpesa-credential';
+import axios, { AxiosInstance } from "axios";
+import crypto from "crypto";
+import { redis } from "@/lib/redis";
+import { logger } from "@/lib/logger";
+import { toMpesaAmount } from "@/lib/utils/currency";
+import { normalizePhone } from "@/lib/utils/phone";
+import { getSecurityCredential } from "@/lib/utils/mpesa-credential";
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const IS_SANDBOX = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
+const IS_SANDBOX = (process.env.MPESA_ENV ?? "sandbox") !== "production";
 
 const BASE_URL = IS_SANDBOX
-  ? 'https://sandbox.safaricom.co.ke'
-  : 'https://api.safaricom.co.ke';
+  ? "https://sandbox.safaricom.co.ke"
+  : "https://api.safaricom.co.ke";
 
-const CONSUMER_KEY    = process.env.MPESA_CONSUMER_KEY!;
+const CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY!;
 const CONSUMER_SECRET = process.env.MPESA_CONSUMER_SECRET!;
-const PASSKEY         = process.env.MPESA_PASSKEY!;
-const SHORTCODE       = process.env.MPESA_SHORTCODE!;
-const B2C_SHORTCODE   = process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHORTCODE!;
-const CALLBACK_BASE   = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/, '');
+const PASSKEY = process.env.MPESA_PASSKEY!;
+const SHORTCODE = process.env.MPESA_SHORTCODE!;
+const B2C_SHORTCODE =
+  process.env.MPESA_B2C_SHORTCODE ?? process.env.MPESA_SHORTCODE!;
+const CALLBACK_BASE = (process.env.MPESA_CALLBACK_BASE_URL ?? "").replace(
+  /\/$/,
+  "",
+);
 /**
  * DO NOT "correct" this spelling to "Kitabu Yetu".
  *
@@ -69,7 +73,7 @@ const CALLBACK_BASE   = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$
  *
  * Unrelated to the SMS sender ID, which IS "KITABU YETU" (lib/env.ts).
  */
-const INITIATOR_NAME  = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
+const INITIATOR_NAME = process.env.MPESA_B2C_INITIATOR_NAME ?? "KitabuYetu";
 
 // Safaricom's published production egress IPs for Daraja callbacks.
 // Single source of truth — every callback route validates against this set
@@ -78,20 +82,48 @@ const INITIATOR_NAME  = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
 // Source: https://developer.safaricom.co.ke/docs#ip-addresses (merged with the
 // ranges previously hard-coded in the STK callback route).
 export const DEFAULT_SAFARICOM_IPS = [
-  '196.201.214.200', '196.201.214.206', '196.201.214.207', '196.201.214.208',
-  '196.201.214.115', '196.201.214.128', '196.201.214.129', '196.201.214.130',
-  '196.201.214.131', '196.201.214.132', '196.201.213.150', '196.201.213.114',
-  '196.201.213.44',  '196.201.212.127', '196.201.212.128', '196.201.212.129',
-  '196.201.212.136', '196.201.212.138', '196.201.212.74',  '196.201.212.69',
-  '196.201.213.128', '196.201.213.129', '196.201.213.130', '196.201.213.131',
-  '196.201.213.132', '196.201.213.140', '196.201.213.141', '196.201.213.142',
-  '196.201.213.143', '196.201.213.144', '196.201.213.145', '196.201.213.146',
-  '196.201.213.147', '196.201.213.148', '196.201.213.149',
+  "196.201.214.200",
+  "196.201.214.206",
+  "196.201.214.207",
+  "196.201.214.208",
+  "196.201.214.115",
+  "196.201.214.128",
+  "196.201.214.129",
+  "196.201.214.130",
+  "196.201.214.131",
+  "196.201.214.132",
+  "196.201.213.150",
+  "196.201.213.114",
+  "196.201.213.44",
+  "196.201.212.127",
+  "196.201.212.128",
+  "196.201.212.129",
+  "196.201.212.136",
+  "196.201.212.138",
+  "196.201.212.74",
+  "196.201.212.69",
+  "196.201.213.128",
+  "196.201.213.129",
+  "196.201.213.130",
+  "196.201.213.131",
+  "196.201.213.132",
+  "196.201.213.140",
+  "196.201.213.141",
+  "196.201.213.142",
+  "196.201.213.143",
+  "196.201.213.144",
+  "196.201.213.145",
+  "196.201.213.146",
+  "196.201.213.147",
+  "196.201.213.148",
+  "196.201.213.149",
 ];
 
 const ALLOWED_IPS = new Set<string>(
   process.env.MPESA_ALLOWED_IPS
-    ? process.env.MPESA_ALLOWED_IPS.split(',').map((s) => s.trim()).filter(Boolean)
+    ? process.env.MPESA_ALLOWED_IPS.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : DEFAULT_SAFARICOM_IPS,
 );
 
@@ -108,8 +140,8 @@ const ALLOWED_IPS = new Set<string>(
 function assertAllowedIpsConfigured(): void {
   if (!IS_SANDBOX && ALLOWED_IPS.size === 0) {
     throw new Error(
-      '[daraja] MPESA_ENV=production but the Safaricom IP allow-list is empty. ' +
-      'Set MPESA_ALLOWED_IPS or restore DEFAULT_SAFARICOM_IPS.',
+      "[daraja] MPESA_ENV=production but the Safaricom IP allow-list is empty. " +
+        "Set MPESA_ALLOWED_IPS or restore DEFAULT_SAFARICOM_IPS.",
     );
   }
 }
@@ -123,12 +155,15 @@ export function isSafaricomIp(ip: string): boolean {
 
 // ─── OAuth Token ─────────────────────────────────────────────────────────────
 
-interface TokenEntry { token: string; expiresAt: number }
+interface TokenEntry {
+  token: string;
+  expiresAt: number;
+}
 
 // In-process memory cache — avoids Redis round-trip for same-instance hits
 let _memToken: TokenEntry | null = null;
 
-const REDIS_TOKEN_KEY = 'daraja:token'; // actual key: ky:daraja:token (prefix added by ioredis)
+const REDIS_TOKEN_KEY = "daraja:token"; // actual key: ky:daraja:token (prefix added by ioredis)
 
 export async function getAccessToken(): Promise<string> {
   // 1. In-memory (fastest — zero network)
@@ -146,18 +181,28 @@ export async function getAccessToken(): Promise<string> {
   }
 
   // 3. Fetch fresh token from Safaricom
-  const creds = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString('base64');
-  const { data } = await axios.get<{ access_token: string; expires_in: string }>(
-    `${BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
-    { headers: { Authorization: `Basic ${creds}` }, timeout: 15_000 },
+  const creds = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString(
+    "base64",
   );
+  const { data } = await axios.get<{
+    access_token: string;
+    expires_in: string;
+  }>(`${BASE_URL}/oauth/v1/generate?grant_type=client_credentials`, {
+    headers: { Authorization: `Basic ${creds}` },
+    timeout: 15_000,
+  });
 
-  const ttlMs  = parseInt(data.expires_in, 10) * 1_000;
-  const entry: TokenEntry = { token: data.access_token, expiresAt: Date.now() + ttlMs };
+  const ttlMs = parseInt(data.expires_in, 10) * 1_000;
+  const entry: TokenEntry = {
+    token: data.access_token,
+    expiresAt: Date.now() + ttlMs,
+  };
 
   _memToken = entry;
   // Store in Redis with a 60-second safety margin so it expires before we think it does
-  await redis.set(REDIS_TOKEN_KEY, JSON.stringify(entry), { px: ttlMs - 60_000 });
+  await redis.set(REDIS_TOKEN_KEY, JSON.stringify(entry), {
+    px: ttlMs - 60_000,
+  });
 
   return entry.token;
 }
@@ -168,7 +213,10 @@ async function makeClient(): Promise<AxiosInstance> {
   const token = await getAccessToken();
   return axios.create({
     baseURL: BASE_URL,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
     timeout: 30_000,
   });
 }
@@ -182,7 +230,9 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
       lastErr = err;
       const shouldRetry =
         axios.isAxiosError(err) &&
-        (!err.response || err.response.status >= 500 || err.response.status === 429);
+        (!err.response ||
+          err.response.status >= 500 ||
+          err.response.status === 429);
       if (!shouldRetry || attempt === maxAttempts - 1) throw err;
       await new Promise((r) => setTimeout(r, 1_000 * 2 ** attempt));
     }
@@ -193,11 +243,17 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function getMpesaTimestamp(): string {
-  return new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+  return new Date()
+    .toISOString()
+    .replace(/[-T:.Z]/g, "")
+    .slice(0, 14);
 }
 
-export function getMpesaPassword(timestamp: string, shortcode = SHORTCODE): string {
-  return Buffer.from(`${shortcode}${PASSKEY}${timestamp}`).toString('base64');
+export function getMpesaPassword(
+  timestamp: string,
+  shortcode = SHORTCODE,
+): string {
+  return Buffer.from(`${shortcode}${PASSKEY}${timestamp}`).toString("base64");
 }
 
 export function assertSafaricomIp(ip: string): void {
@@ -207,7 +263,10 @@ export function assertSafaricomIp(ip: string): void {
   // only app-initiated rows, and reconciliation as source of truth. We log the
   // IP so the allow-list can be re-tightened with observed values later.
   if (!isSafaricomIp(ip)) {
-    logger.warn('[daraja] callback IP not in Safaricom allow-list — processing anyway', { ip });
+    logger.warn(
+      "[daraja] callback IP not in Safaricom allow-list — processing anyway",
+      { ip },
+    );
   }
 }
 
@@ -222,7 +281,7 @@ function originatorId(): string {
 // for B2C specifically: a forged callback that doesn't know the token is
 // dropped before it can flip any money state. Safaricom echoes query strings
 // on Result/Timeout URLs unmodified, so this survives the round trip.
-const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
+const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? "";
 
 // Deliberately NOT thrown at module scope: this file is imported by every
 // route that transitively references daraja.service.ts, and Next.js
@@ -237,8 +296,8 @@ const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 function assertCallbackTokenConfigured(): void {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) {
     throw new Error(
-      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B ' +
-      'Result/Timeout callbacks would carry no authenticity token.',
+      "[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B " +
+        "Result/Timeout callbacks would carry no authenticity token.",
     );
   }
 }
@@ -263,121 +322,125 @@ export function isValidCallbackToken(token: string | null): boolean {
   if (!CALLBACK_TOKEN) return true; // sandbox only, no token configured — nothing to check
   if (!token) return false;
   // Constant-time: hash both sides first so differing lengths don't short-circuit.
-  const a = crypto.createHash('sha256').update(token).digest();
-  const b = crypto.createHash('sha256').update(CALLBACK_TOKEN).digest();
+  const a = crypto.createHash("sha256").update(token).digest();
+  const b = crypto.createHash("sha256").update(CALLBACK_TOKEN).digest();
   return crypto.timingSafeEqual(a, b);
 }
 
 // ─── STK Push (M-Pesa Express) ────────────────────────────────────────────────
 
 export interface StkPushInput {
-  phone:            string;
-  amount:           number;
+  phone: string;
+  amount: number;
   accountReference: string;
-  description:      string;
+  description: string;
 }
 
 export interface StkPushResponse {
-  merchantRequestId:    string;
-  checkoutRequestId:    string;
-  responseCode:         string;
-  responseDescription:  string;
-  customerMessage:      string;
+  merchantRequestId: string;
+  checkoutRequestId: string;
+  responseCode: string;
+  responseDescription: string;
+  customerMessage: string;
 }
 
-export async function initiateStkPush(input: StkPushInput): Promise<StkPushResponse> {
-  const phone     = normalizePhone(input.phone);
-  const amount    = toMpesaAmount(input.amount);
+export async function initiateStkPush(
+  input: StkPushInput,
+): Promise<StkPushResponse> {
+  const phone = normalizePhone(input.phone);
+  const amount = toMpesaAmount(input.amount);
   const timestamp = getMpesaTimestamp();
-  const password  = getMpesaPassword(timestamp);
+  const password = getMpesaPassword(timestamp);
 
   const c = await makeClient();
   const { data } = await withRetry(() =>
     c.post<{
-      MerchantRequestID:   string;
-      CheckoutRequestID:   string;
-      ResponseCode:        string;
+      MerchantRequestID: string;
+      CheckoutRequestID: string;
+      ResponseCode: string;
       ResponseDescription: string;
-      CustomerMessage:     string;
-    }>('/mpesa/stkpush/v1/processrequest', {
+      CustomerMessage: string;
+    }>("/mpesa/stkpush/v1/processrequest", {
       BusinessShortCode: SHORTCODE,
-      Password:          password,
-      Timestamp:         timestamp,
-      TransactionType:   'CustomerPayBillOnline',
-      Amount:            amount,
-      PartyA:            phone,
-      PartyB:            SHORTCODE,
-      PhoneNumber:       phone,
-      CallBackURL:       `${CALLBACK_BASE}/api/v1/mpesa/callback`,
-      AccountReference:  input.accountReference.slice(0, 12),
-      TransactionDesc:   input.description.slice(0, 20),
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: amount,
+      PartyA: phone,
+      PartyB: SHORTCODE,
+      PhoneNumber: phone,
+      CallBackURL: `${CALLBACK_BASE}/api/v1/mpesa/callback`,
+      AccountReference: input.accountReference.slice(0, 12),
+      TransactionDesc: input.description.slice(0, 20),
     }),
   );
 
   return {
-    merchantRequestId:   data.MerchantRequestID,
-    checkoutRequestId:   data.CheckoutRequestID,
-    responseCode:        data.ResponseCode,
+    merchantRequestId: data.MerchantRequestID,
+    checkoutRequestId: data.CheckoutRequestID,
+    responseCode: data.ResponseCode,
     responseDescription: data.ResponseDescription,
-    customerMessage:     data.CustomerMessage,
+    customerMessage: data.CustomerMessage,
   };
 }
 
 // ─── STK Push Query ───────────────────────────────────────────────────────────
 
 export interface StkQueryResponse {
-  merchantRequestId:   string;
-  checkoutRequestId:   string;
-  responseCode:        string;
+  merchantRequestId: string;
+  checkoutRequestId: string;
+  responseCode: string;
   responseDescription: string;
-  resultCode:          string;
-  resultDesc:          string;
+  resultCode: string;
+  resultDesc: string;
 }
 
-export async function queryStkStatus(checkoutRequestId: string): Promise<StkQueryResponse> {
+export async function queryStkStatus(
+  checkoutRequestId: string,
+): Promise<StkQueryResponse> {
   const timestamp = getMpesaTimestamp();
-  const password  = getMpesaPassword(timestamp);
+  const password = getMpesaPassword(timestamp);
   const c = await makeClient();
 
   const { data } = await withRetry(() =>
     c.post<{
-      MerchantRequestID:   string;
-      CheckoutRequestID:   string;
-      ResponseCode:        string;
+      MerchantRequestID: string;
+      CheckoutRequestID: string;
+      ResponseCode: string;
       ResponseDescription: string;
-      ResultCode:          string;
-      ResultDesc:          string;
-    }>('/mpesa/stkpushquery/v1/query', {
+      ResultCode: string;
+      ResultDesc: string;
+    }>("/mpesa/stkpushquery/v1/query", {
       BusinessShortCode: SHORTCODE,
-      Password:          password,
-      Timestamp:         timestamp,
+      Password: password,
+      Timestamp: timestamp,
       CheckoutRequestID: checkoutRequestId,
     }),
   );
 
   return {
-    merchantRequestId:   data.MerchantRequestID,
-    checkoutRequestId:   data.CheckoutRequestID,
-    responseCode:        data.ResponseCode,
+    merchantRequestId: data.MerchantRequestID,
+    checkoutRequestId: data.CheckoutRequestID,
+    responseCode: data.ResponseCode,
     responseDescription: data.ResponseDescription,
-    resultCode:          data.ResultCode,
-    resultDesc:          data.ResultDesc,
+    resultCode: data.ResultCode,
+    resultDesc: data.ResultDesc,
   };
 }
 
 // ─── C2B URL Registration ─────────────────────────────────────────────────────
 
-export type C2BApiVersion = 'v1' | 'v2';
+export type C2BApiVersion = "v1" | "v2";
 
 export interface C2BUrls {
-  shortCode:       string;
-  environment:     'sandbox' | 'production';
+  shortCode: string;
+  environment: "sandbox" | "production";
   confirmationUrl: string;
-  validationUrl:   string;
+  validationUrl: string;
 }
 
 export interface C2BRegistrationResult extends C2BUrls {
-  responseCode?:        string;
+  responseCode?: string;
   responseDescription?: string;
 }
 
@@ -390,13 +453,13 @@ export interface C2BRegistrationResult extends C2BUrls {
  */
 export function getC2BUrls(): C2BUrls {
   return {
-    shortCode:       SHORTCODE,
-    environment:     IS_SANDBOX ? 'sandbox' : 'production',
+    shortCode: SHORTCODE,
+    environment: IS_SANDBOX ? "sandbox" : "production",
     // Registration-safe paths: Safaricom's registerurl API rejects URLs that
     // contain the keyword "mpesa" or a query string, so the registered C2B
     // endpoints live under /api/v1/daraja/ as distinct paths (no `?type=`).
     confirmationUrl: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm`,
-    validationUrl:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
+    validationUrl: `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
   };
 }
 
@@ -410,90 +473,102 @@ export function getC2BUrls(): C2BUrls {
  * on demand from the admin UI ("M-Pesa C2B Registration" on /admin/settings)
  * whenever the callback config changes or delivery is suspect.
  */
-export async function registerC2BUrls(version: C2BApiVersion = 'v2'): Promise<C2BRegistrationResult> {
+export async function registerC2BUrls(
+  version: C2BApiVersion = "v2",
+): Promise<C2BRegistrationResult> {
   const c = await makeClient();
   const urls = getC2BUrls();
   const { data } = await withRetry(() =>
     c.post<{ ResponseCode?: string; ResponseDescription?: string }>(
       `/mpesa/c2b/${version}/registerurl`,
       {
-        ShortCode:       urls.shortCode,
-        ResponseType:    'Completed',
+        ShortCode: urls.shortCode,
+        ResponseType: "Completed",
         ConfirmationURL: urls.confirmationUrl,
-        ValidationURL:   urls.validationUrl,
+        ValidationURL: urls.validationUrl,
       },
     ),
   );
-  return { ...urls, responseCode: data?.ResponseCode, responseDescription: data?.ResponseDescription };
+  return {
+    ...urls,
+    responseCode: data?.ResponseCode,
+    responseDescription: data?.ResponseDescription,
+  };
 }
 
 // ─── B2C (Business to Customer) ───────────────────────────────────────────────
 
 export interface B2CInput {
-  phone:     string;
-  amount:    number;
-  commandId: 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
-  remarks:   string;
+  phone: string;
+  amount: number;
+  commandId: "BusinessPayment" | "SalaryPayment" | "PromotionPayment";
+  remarks: string;
   occasion?: string;
 }
 
 export interface B2CResponse {
-  conversationId:           string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
-export async function initiateB2C(input: B2CInput): Promise<B2CResponse & { originatorId: string }> {
-  const phone  = normalizePhone(input.phone);
+export async function initiateB2C(
+  input: B2CInput,
+): Promise<B2CResponse & { originatorId: string }> {
+  const phone = normalizePhone(input.phone);
   const amount = toMpesaAmount(input.amount);
   const origId = originatorId();
   const c = await makeClient();
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
-    }>('/mpesa/b2c/v1/paymentrequest', {
+      ResponseCode: string;
+      ResponseDescription: string;
+    }>("/mpesa/b2c/v1/paymentrequest", {
       OriginatorConversationID: origId,
-      InitiatorName:            INITIATOR_NAME,
-      SecurityCredential:       getSecurityCredential(),
-      CommandID:                input.commandId,
-      Amount:                   amount,
-      PartyA:                   B2C_SHORTCODE,
-      PartyB:                   phone,
-      Remarks:                  input.remarks.slice(0, 100),
-      QueueTimeOutURL:          withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2c?type=timeout`),
-      ResultURL:                withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2c?type=result`),
-      Occasion:                 (input.occasion ?? input.remarks).slice(0, 100),
+      InitiatorName: INITIATOR_NAME,
+      SecurityCredential: getSecurityCredential(),
+      CommandID: input.commandId,
+      Amount: amount,
+      PartyA: B2C_SHORTCODE,
+      PartyB: phone,
+      Remarks: input.remarks.slice(0, 100),
+      QueueTimeOutURL: withCallbackToken(
+        `${CALLBACK_BASE}/api/v1/mpesa/b2c?type=timeout`,
+      ),
+      ResultURL: withCallbackToken(
+        `${CALLBACK_BASE}/api/v1/mpesa/b2c?type=result`,
+      ),
+      Occasion: (input.occasion ?? input.remarks).slice(0, 100),
     }),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
 // ─── Airtime purchase ─────────────────────────────────────────────────────────
 
 export interface AirtimeInput {
-  phone:    string;
-  amount:   number;
+  phone: string;
+  amount: number;
   remarks?: string;
 }
 
 export interface AirtimeResponse {
-  originatorId:             string;
-  conversationId:           string;
+  originatorId: string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
 /**
@@ -506,52 +581,55 @@ export interface AirtimeResponse {
  * MPESA_AIRTIME_COMMAND_ID (and optionally MPESA_AIRTIME_ENDPOINT) from their
  * Daraja portal "Airtime" configuration.
  */
-export async function buyAirtime(input: AirtimeInput): Promise<AirtimeResponse> {
+export async function buyAirtime(
+  input: AirtimeInput,
+): Promise<AirtimeResponse> {
   const commandId = process.env.MPESA_AIRTIME_COMMAND_ID;
   if (!commandId) {
     // NotImplementedError lives in lib/utils/errors; import lazily to keep this
     // module free of app-layer deps for the pure API-call surface.
-    const { NotImplementedError } = await import('@/lib/utils/errors');
+    const { NotImplementedError } = await import("@/lib/utils/errors");
     throw new NotImplementedError(
-      'Airtime purchase is not configured. Set MPESA_AIRTIME_COMMAND_ID (and ' +
-      'MPESA_AIRTIME_ENDPOINT if your shortcode uses a non-default path) from ' +
-      'the Daraja portal Airtime configuration.',
+      "Airtime purchase is not configured. Set MPESA_AIRTIME_COMMAND_ID (and " +
+        "MPESA_AIRTIME_ENDPOINT if your shortcode uses a non-default path) from " +
+        "the Daraja portal Airtime configuration.",
     );
   }
 
-  const phone     = normalizePhone(input.phone);
-  const amount    = toMpesaAmount(input.amount);
-  const origId    = originatorId();
-  const endpoint  = process.env.MPESA_AIRTIME_ENDPOINT ?? '/mpesa/airtime/v1/purchase';
-  const partyA    = process.env.MPESA_AIRTIME_SHORTCODE ?? SHORTCODE;
+  const phone = normalizePhone(input.phone);
+  const amount = toMpesaAmount(input.amount);
+  const origId = originatorId();
+  const endpoint =
+    process.env.MPESA_AIRTIME_ENDPOINT ?? "/mpesa/airtime/v1/purchase";
+  const partyA = process.env.MPESA_AIRTIME_SHORTCODE ?? SHORTCODE;
   const c = await makeClient();
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
+      ResponseCode: string;
+      ResponseDescription: string;
     }>(endpoint, {
       OriginatorConversationID: origId,
-      InitiatorName:            INITIATOR_NAME,
-      SecurityCredential:       getSecurityCredential(),
-      CommandID:                commandId,
-      Amount:                   amount,
-      PartyA:                   partyA,
-      PartyB:                   phone,
-      Remarks:                  (input.remarks ?? 'Airtime purchase').slice(0, 100),
-      QueueTimeOutURL:          `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=timeout`,
-      ResultURL:                `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=result`,
+      InitiatorName: INITIATOR_NAME,
+      SecurityCredential: getSecurityCredential(),
+      CommandID: commandId,
+      Amount: amount,
+      PartyA: partyA,
+      PartyB: phone,
+      Remarks: (input.remarks ?? "Airtime purchase").slice(0, 100),
+      QueueTimeOutURL: `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=timeout`,
+      ResultURL: `${CALLBACK_BASE}/api/v1/mpesa/airtime?type=result`,
     }),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
@@ -562,25 +640,28 @@ export function isAirtimeConfigured(): boolean {
 
 // ─── B2B (Business to Business) ───────────────────────────────────────────────
 
-export type B2BCommandId        = 'BusinessBuyGoods' | 'BusinessPayBill' | 'B2CAccountTopUp';
-export type B2BIdentifierType   = '1' | '2' | '4'; // MSISDN | Till | Org shortcode
+export type B2BCommandId =
+  | "BusinessBuyGoods"
+  | "BusinessPayBill"
+  | "B2CAccountTopUp";
+export type B2BIdentifierType = "1" | "2" | "4"; // MSISDN | Till | Org shortcode
 
 export interface B2BInput {
-  amount:             number;
-  receiverShortcode:  string;
+  amount: number;
+  receiverShortcode: string;
   receiverIdentifier: B2BIdentifierType;
-  commandId:          B2BCommandId;
-  accountReference:   string;
-  remarks:            string;
-  requester?:         string;
+  commandId: B2BCommandId;
+  accountReference: string;
+  remarks: string;
+  requester?: string;
 }
 
 export interface B2BResponse {
-  originatorId:             string;
-  conversationId:           string;
+  originatorId: string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
 export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
@@ -590,16 +671,16 @@ export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
 
   const payload: Record<string, unknown> = {
     OriginatorConversationID: origId,
-    Initiator:                INITIATOR_NAME,
-    SecurityCredential:       getSecurityCredential(),
-    CommandID:                input.commandId,
-    SenderIdentifierType:     '4',
-    RecieverIdentifierType:   input.receiverIdentifier,
-    Amount:                   amount,
-    PartyA:                   SHORTCODE,
-    PartyB:                   input.receiverShortcode,
-    AccountReference:         input.accountReference.slice(0, 20),
-    Remarks:                  input.remarks.slice(0, 100),
+    Initiator: INITIATOR_NAME,
+    SecurityCredential: getSecurityCredential(),
+    CommandID: input.commandId,
+    SenderIdentifierType: "4",
+    RecieverIdentifierType: input.receiverIdentifier,
+    Amount: amount,
+    PartyA: SHORTCODE,
+    PartyB: input.receiverShortcode,
+    AccountReference: input.accountReference.slice(0, 20),
+    Remarks: input.remarks.slice(0, 100),
     // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
     // callbacks carried no authenticity token at all (unlike B2C, see the
     // comment above CALLBACK_TOKEN) until now — closed before building
@@ -608,101 +689,107 @@ export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
     // ships, since any B2B call already dispatched before deploy has no
     // token in its already-registered ResultURL and would be dropped by
     // the now-enforcing route (app/api/v1/mpesa/b2b/route.ts).
-    QueueTimeOutURL:          withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2b?type=timeout`),
-    ResultURL:                withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/b2b?type=result`),
+    QueueTimeOutURL: withCallbackToken(
+      `${CALLBACK_BASE}/api/v1/mpesa/b2b?type=timeout`,
+    ),
+    ResultURL: withCallbackToken(
+      `${CALLBACK_BASE}/api/v1/mpesa/b2b?type=result`,
+    ),
   };
   if (input.requester) payload.Requester = input.requester;
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
-    }>('/mpesa/b2b/v1/paymentrequest', payload),
+      ResponseCode: string;
+      ResponseDescription: string;
+    }>("/mpesa/b2b/v1/paymentrequest", payload),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
 // ─── Reversal ────────────────────────────────────────────────────────────────
 
 export interface ReversalInput {
-  transactionId:          string;  // Original M-Pesa receipt number
-  amount:                 number;
-  receiverParty:          string;  // Org shortcode
-  receiverIdentifierType: string;  // '11' = Organization
-  remarks:                string;
-  occasion?:              string;
+  transactionId: string; // Original M-Pesa receipt number
+  amount: number;
+  receiverParty: string; // Org shortcode
+  receiverIdentifierType: string; // '11' = Organization
+  remarks: string;
+  occasion?: string;
 }
 
 export interface ReversalResponse {
-  originatorId:             string;
-  conversationId:           string;
+  originatorId: string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
-export async function requestReversal(input: ReversalInput): Promise<ReversalResponse> {
+export async function requestReversal(
+  input: ReversalInput,
+): Promise<ReversalResponse> {
   const amount = toMpesaAmount(input.amount);
   const origId = originatorId();
   const c = await makeClient();
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
-    }>('/mpesa/reversal/v1/request', {
-      Initiator:              INITIATOR_NAME,
-      SecurityCredential:     getSecurityCredential(),
-      CommandID:              'TransactionReversal',
-      TransactionID:          input.transactionId,
-      Amount:                 amount,
-      ReceiverParty:          input.receiverParty,
+      ResponseCode: string;
+      ResponseDescription: string;
+    }>("/mpesa/reversal/v1/request", {
+      Initiator: INITIATOR_NAME,
+      SecurityCredential: getSecurityCredential(),
+      CommandID: "TransactionReversal",
+      TransactionID: input.transactionId,
+      Amount: amount,
+      ReceiverParty: input.receiverParty,
       RecieverIdentifierType: input.receiverIdentifierType,
-      Remarks:                input.remarks.slice(0, 100),
-      Occasion:               (input.occasion ?? input.remarks).slice(0, 100),
-      QueueTimeOutURL:        `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=timeout`,
-      ResultURL:              `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=result`,
+      Remarks: input.remarks.slice(0, 100),
+      Occasion: (input.occasion ?? input.remarks).slice(0, 100),
+      QueueTimeOutURL: `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=timeout`,
+      ResultURL: `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=result`,
     }),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
 // ─── Transaction Status ───────────────────────────────────────────────────────
 
-export type TxIdentifierType = '1' | '2' | '3' | '4'; // MSISDN | Till | PayBill | ShortCode
+export type TxIdentifierType = "1" | "2" | "3" | "4"; // MSISDN | Till | PayBill | ShortCode
 
 export interface TransactionStatusInput {
-  transactionId:  string;
-  partyA:         string;
+  transactionId: string;
+  partyA: string;
   identifierType: TxIdentifierType;
-  remarks:        string;
-  occasion?:      string;
+  remarks: string;
+  occasion?: string;
 }
 
 export interface TransactionStatusResponse {
-  originatorId:             string;
-  conversationId:           string;
+  originatorId: string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
 export async function queryTransactionStatus(
@@ -713,95 +800,99 @@ export async function queryTransactionStatus(
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
-    }>('/mpesa/transactionstatus/v1/query', {
-      Initiator:                INITIATOR_NAME,
-      SecurityCredential:       getSecurityCredential(),
-      CommandID:                'TransactionStatusQuery',
-      TransactionID:            input.transactionId,
+      ResponseCode: string;
+      ResponseDescription: string;
+    }>("/mpesa/transactionstatus/v1/query", {
+      Initiator: INITIATOR_NAME,
+      SecurityCredential: getSecurityCredential(),
+      CommandID: "TransactionStatusQuery",
+      TransactionID: input.transactionId,
       OriginatorConversationID: origId,
-      PartyA:                   input.partyA,
-      IdentifierType:           input.identifierType,
-      Remarks:                  input.remarks.slice(0, 100),
-      Occasion:                 (input.occasion ?? input.remarks).slice(0, 100),
-      ResultURL:       `${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=result`,
+      PartyA: input.partyA,
+      IdentifierType: input.identifierType,
+      Remarks: input.remarks.slice(0, 100),
+      Occasion: (input.occasion ?? input.remarks).slice(0, 100),
+      ResultURL: `${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=result`,
       QueueTimeOutURL: `${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=timeout`,
     }),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
 // ─── Account Balance ─────────────────────────────────────────────────────────
 
 export interface BalanceResponse {
-  originatorId:             string;
-  conversationId:           string;
+  originatorId: string;
+  conversationId: string;
   originatorConversationId: string;
-  responseCode:             string;
-  responseDescription:      string;
+  responseCode: string;
+  responseDescription: string;
 }
 
-export async function queryAccountBalance(shortcode = SHORTCODE): Promise<BalanceResponse> {
+export async function queryAccountBalance(
+  shortcode = SHORTCODE,
+): Promise<BalanceResponse> {
   const origId = originatorId();
   const c = await makeClient();
 
   const { data } = await withRetry(() =>
     c.post<{
-      ConversationID:           string;
+      ConversationID: string;
       OriginatorConversationID: string;
-      ResponseCode:             string;
-      ResponseDescription:      string;
-    }>('/mpesa/accountbalance/v1/query', {
-      Initiator:          INITIATOR_NAME,
+      ResponseCode: string;
+      ResponseDescription: string;
+    }>("/mpesa/accountbalance/v1/query", {
+      Initiator: INITIATOR_NAME,
       SecurityCredential: getSecurityCredential(),
-      CommandID:          'AccountBalance',
-      PartyA:             shortcode,
-      IdentifierType:     '4',
-      Remarks:            'Balance query',
-      QueueTimeOutURL:    `${CALLBACK_BASE}/api/v1/mpesa/balance?type=timeout`,
-      ResultURL:          `${CALLBACK_BASE}/api/v1/mpesa/balance?type=result`,
+      CommandID: "AccountBalance",
+      PartyA: shortcode,
+      IdentifierType: "4",
+      Remarks: "Balance query",
+      QueueTimeOutURL: `${CALLBACK_BASE}/api/v1/mpesa/balance?type=timeout`,
+      ResultURL: `${CALLBACK_BASE}/api/v1/mpesa/balance?type=result`,
     }),
   );
 
   return {
-    originatorId:             origId,
-    conversationId:           data.ConversationID,
+    originatorId: origId,
+    conversationId: data.ConversationID,
     originatorConversationId: data.OriginatorConversationID,
-    responseCode:             data.ResponseCode,
-    responseDescription:      data.ResponseDescription,
+    responseCode: data.ResponseCode,
+    responseDescription: data.ResponseDescription,
   };
 }
 
 // ─── Bill Manager ─────────────────────────────────────────────────────────────
 
 export interface BillManagerOptInInput {
-  email:           string;
+  email: string;
   officialContact: string;
-  sendReminders:   0 | 1;
-  logo?:           string;
-  callbackUrl:     string;
+  sendReminders: 0 | 1;
+  logo?: string;
+  callbackUrl: string;
 }
 
-export async function billManagerOptIn(input: BillManagerOptInInput): Promise<void> {
+export async function billManagerOptIn(
+  input: BillManagerOptInInput,
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
-    c.post('/v1/billmanager-invoice/v1/billmanager-invoice/optin', {
-      shortcode:       SHORTCODE,
-      email:           input.email,
+    c.post("/v1/billmanager-invoice/v1/billmanager-invoice/optin", {
+      shortcode: SHORTCODE,
+      email: input.email,
       officialContact: normalizePhone(input.officialContact),
-      sendReminders:   input.sendReminders,
-      logo:            input.logo ?? '',
-      callbackUrl:     input.callbackUrl,
+      sendReminders: input.sendReminders,
+      logo: input.logo ?? "",
+      callbackUrl: input.callbackUrl,
     }),
   );
 }
@@ -811,98 +902,119 @@ export async function updateBillManagerOptIn(
 ): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
-    c.post('/v1/billmanager-invoice/v1/billmanager-invoice/change-optin-details', {
-      shortcode: SHORTCODE,
-      ...input,
-      ...(input.officialContact
-        ? { officialContact: normalizePhone(input.officialContact) }
-        : {}),
-    }),
+    c.post(
+      "/v1/billmanager-invoice/v1/billmanager-invoice/change-optin-details",
+      {
+        shortcode: SHORTCODE,
+        ...input,
+        ...(input.officialContact
+          ? { officialContact: normalizePhone(input.officialContact) }
+          : {}),
+      },
+    ),
   );
 }
 
 export interface BillManagerInvoice {
   externalReference: string;
-  billedFullName:    string;
+  billedFullName: string;
   billedPhoneNumber: string;
   billedPeriodStart: string; // YYYY-MM-DD
-  billedPeriodEnd:   string;
-  invoiceDate:       string;
-  dueDate:           string;
-  accountReference:  string;
-  amount:            number;
-  invoiceName:       string;
+  billedPeriodEnd: string;
+  invoiceDate: string;
+  dueDate: string;
+  accountReference: string;
+  amount: number;
+  invoiceName: string;
 }
 
 function normaliseBillInvoice(inv: BillManagerInvoice): BillManagerInvoice {
   return { ...inv, billedPhoneNumber: normalizePhone(inv.billedPhoneNumber) };
 }
 
-export async function sendSingleInvoice(invoice: BillManagerInvoice): Promise<void> {
+export async function sendSingleInvoice(
+  invoice: BillManagerInvoice,
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
     c.post(
-      '/v1/billmanager-invoice/v1/billmanager-invoice/single-invoicing',
+      "/v1/billmanager-invoice/v1/billmanager-invoice/single-invoicing",
       normaliseBillInvoice(invoice),
     ),
   );
 }
 
-export async function sendBulkInvoices(invoices: BillManagerInvoice[]): Promise<void> {
+export async function sendBulkInvoices(
+  invoices: BillManagerInvoice[],
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
     c.post(
-      '/v1/billmanager-invoice/v1/billmanager-invoice/bulk-invoicing',
+      "/v1/billmanager-invoice/v1/billmanager-invoice/bulk-invoicing",
       invoices.map(normaliseBillInvoice),
     ),
   );
 }
 
-export async function updateSingleInvoice(invoice: BillManagerInvoice): Promise<void> {
+export async function updateSingleInvoice(
+  invoice: BillManagerInvoice,
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
     c.post(
-      '/v1/billmanager-invoice/v1/billmanager-invoice/change-invoice',
+      "/v1/billmanager-invoice/v1/billmanager-invoice/change-invoice",
       normaliseBillInvoice(invoice),
     ),
   );
 }
 
-export async function updateBulkInvoices(invoices: BillManagerInvoice[]): Promise<void> {
+export async function updateBulkInvoices(
+  invoices: BillManagerInvoice[],
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
     c.post(
-      '/v1/billmanager-invoice/v1/billmanager-invoice/change-invoices',
+      "/v1/billmanager-invoice/v1/billmanager-invoice/change-invoices",
       invoices.map(normaliseBillInvoice),
     ),
   );
 }
 
-export async function cancelSingleInvoice(externalReference: string): Promise<void> {
+export async function cancelSingleInvoice(
+  externalReference: string,
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
-    c.post('/v1/billmanager-invoice/v1/billmanager-invoice/cancel-single-invoice', {
-      externalReference,
-    }),
+    c.post(
+      "/v1/billmanager-invoice/v1/billmanager-invoice/cancel-single-invoice",
+      {
+        externalReference,
+      },
+    ),
   );
 }
 
-export async function cancelBulkInvoices(externalReferences: string[]): Promise<void> {
+export async function cancelBulkInvoices(
+  externalReferences: string[],
+): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
-    c.post('/v1/billmanager-invoice/v1/billmanager-invoice/cancel-bulk-invoice', {
-      externalReferences,
-    }),
+    c.post(
+      "/v1/billmanager-invoice/v1/billmanager-invoice/cancel-bulk-invoice",
+      {
+        externalReferences,
+      },
+    ),
   );
 }
 
 export interface BillManagerReconcileInput {
-  paymentDate:      string; // YYYY-MM-DD
+  paymentDate: string; // YYYY-MM-DD
   accountReference: string;
-  transactionId:    string; // M-Pesa receipt
-  paidAmount:       number;
-  msisdn:           string;
-  dateCreated?:     string;
+  transactionId: string; // M-Pesa receipt
+  paidAmount: number;
+  msisdn: string;
+  dateCreated?: string;
 }
 
 export async function reconcileBillManagerPayment(
@@ -910,7 +1022,7 @@ export async function reconcileBillManagerPayment(
 ): Promise<void> {
   const c = await makeClient();
   await withRetry(() =>
-    c.post('/v1/billmanager-invoice/v1/billmanager-invoice/reconciliation', {
+    c.post("/v1/billmanager-invoice/v1/billmanager-invoice/reconciliation", {
       ...input,
       msisdn: normalizePhone(input.msisdn),
     }),
@@ -928,41 +1040,43 @@ export async function reconcileBillManagerPayment(
  *   SM — Send to Mobile (M-Pesa to M-Pesa)
  *   SS — Send to Sortcode (bank-to-M-Pesa)
  */
-export type QrTransactionCode = 'BG' | 'PB' | 'WA' | 'SB' | 'SM' | 'SS';
+export type QrTransactionCode = "BG" | "PB" | "WA" | "SB" | "SM" | "SS";
 
 export interface DynamicQrInput {
   /** Display name shown in the customer's M-Pesa app on scan. Max 22 chars per Daraja. */
-  merchantName:    string;
+  merchantName: string;
   /** Reference shown alongside the merchant name (e.g. invoice no., contribution period). */
-  refNo:           string;
+  refNo: string;
   /** Amount in KES (whole shillings, integer). 0 = customer enters amount. */
-  amount:          number;
+  amount: number;
   /** Which M-Pesa flow to encode. */
-  trxCode:         QrTransactionCode;
+  trxCode: QrTransactionCode;
   /** Credit Party Identifier. For PB/SB this is the paybill; for BG it's the till; for SM it's a phone. */
-  cpi:             string;
+  cpi: string;
   /** Size in pixels. Daraja documents 300 as the default. */
-  size?:           number;
+  size?: number;
 }
 
 export interface DynamicQrResponse {
-  ResponseCode:        string;  // '00' = success
-  RequestID:           string;
+  ResponseCode: string; // '00' = success
+  RequestID: string;
   ResponseDescription: string;
   /** Base64-encoded PNG of the QR. UI renders via <img src="data:image/png;base64,…" />. */
-  QRCode:              string;
+  QRCode: string;
 }
 
-export async function generateDynamicQr(input: DynamicQrInput): Promise<DynamicQrResponse> {
+export async function generateDynamicQr(
+  input: DynamicQrInput,
+): Promise<DynamicQrResponse> {
   const c = await makeClient();
   const { data } = await withRetry(() =>
-    c.post<DynamicQrResponse>('/mpesa/qrcode/v1/generate', {
+    c.post<DynamicQrResponse>("/mpesa/qrcode/v1/generate", {
       MerchantName: input.merchantName.slice(0, 22),
-      RefNo:        input.refNo,
-      Amount:       String(toMpesaAmount(input.amount)),
-      TrxCode:      input.trxCode,
-      CPI:          input.cpi,
-      Size:         String(input.size ?? 300),
+      RefNo: input.refNo,
+      Amount: String(toMpesaAmount(input.amount)),
+      TrxCode: input.trxCode,
+      CPI: input.cpi,
+      Size: String(input.size ?? 300),
     }),
   );
   return data;

@@ -11,55 +11,61 @@
  * architecture audit series), so extending this union to them later is a
  * mechanical addition once this read pattern is proven, not new plumbing.
  */
-import { withDb, type TenantContext } from '@/lib/db';
-import type { PaginatedResult } from '@/types/db.types';
-import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.schema';
+import { withDb, type TenantContext } from "@/lib/db";
+import type { PaginatedResult } from "@/types/db.types";
+import type { MemberPassbookQueryInput } from "@/lib/validators/member-passbook.schema";
 
-export type TxnType = 'contribution' | 'loan_repayment' | 'loan_disbursement';
-export type TxnStatus = 'success' | 'pending' | 'failed';
-export type TxnMethod = 'mpesa' | 'cash';
+export type TxnType = "contribution" | "loan_repayment" | "loan_disbursement";
+export type TxnStatus = "success" | "pending" | "failed";
+export type TxnMethod = "mpesa" | "cash";
 
 export interface PassbookEntry {
-  id:        string;
-  type:      TxnType;
-  label:     string;
-  amount:    number;
-  direction: 'in' | 'out';
-  status:    TxnStatus;
-  method:    TxnMethod;
-  date:      string;
-  ref?:      string;
+  id: string;
+  type: TxnType;
+  label: string;
+  amount: number;
+  direction: "in" | "out";
+  status: TxnStatus;
+  method: TxnMethod;
+  date: string;
+  ref?: string;
 }
 
 interface PassbookRow {
-  id:        string;
-  type:      TxnType;
-  label:     string;
-  amount:    string;
-  direction: 'in' | 'out';
+  id: string;
+  type: TxnType;
+  label: string;
+  amount: string;
+  direction: "in" | "out";
   db_status: string;
   db_method: string | null;
-  txn_date:  string;
-  ref:       string | null;
+  txn_date: string;
+  ref: string | null;
 }
 
 function mapStatus(dbStatus: string): TxnStatus {
-  if (dbStatus === 'completed') return 'success';
-  if (dbStatus === 'pending') return 'pending';
-  return 'failed'; // failed | cancelled | overdue
+  if (dbStatus === "completed") return "success";
+  if (dbStatus === "pending") return "pending";
+  return "failed"; // failed | cancelled | overdue
 }
 
 // v1 folds bank_transfer/cheque/standing_order (and null) into 'cash' —
 // passbook-row.tsx's icon map only distinguishes mpesa/cash/auto today.
 function mapMethod(dbMethod: string | null): TxnMethod {
-  return dbMethod === 'mpesa' ? 'mpesa' : 'cash';
+  return dbMethod === "mpesa" ? "mpesa" : "cash";
 }
 
 function mapRow(r: PassbookRow): PassbookEntry {
   return {
-    id: r.id, type: r.type, label: r.label, amount: parseFloat(r.amount),
-    direction: r.direction, status: mapStatus(r.db_status), method: mapMethod(r.db_method),
-    date: r.txn_date, ref: r.ref ?? undefined,
+    id: r.id,
+    type: r.type,
+    label: r.label,
+    amount: parseFloat(r.amount),
+    direction: r.direction,
+    status: mapStatus(r.db_status),
+    method: mapMethod(r.db_method),
+    date: r.txn_date,
+    ref: r.ref ?? undefined,
   };
 }
 
@@ -96,11 +102,14 @@ export async function listMyPassbook(
       WHERE group_id = $1 AND member_id = $2 AND disbursed_at IS NOT NULL
     `;
 
-    const directionFilter = direction ? 'WHERE direction = $3' : '';
-    const values: unknown[] = direction ? [ctx.groupId, ctx.userId, direction] : [ctx.groupId, ctx.userId];
+    const directionFilter = direction ? "WHERE direction = $3" : "";
+    const values: unknown[] = direction
+      ? [ctx.groupId, ctx.userId, direction]
+      : [ctx.groupId, ctx.userId];
 
     const { rows: countRows } = await client.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM (${union}) t ${directionFilter}`, values,
+      `SELECT COUNT(*) AS count FROM (${union}) t ${directionFilter}`,
+      values,
     );
     const total = parseInt(countRows[0].count, 10);
 
@@ -114,7 +123,11 @@ export async function listMyPassbook(
     );
 
     return {
-      items: rows.map(mapRow), total, page, pageSize: limit, totalPages: Math.ceil(total / limit),
+      items: rows.map(mapRow),
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
     };
   });
 }

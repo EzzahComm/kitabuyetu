@@ -1,21 +1,26 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
-import { TemplateCreateSchema, TemplateUpdateSchema } from '@/lib/validators/sms.schema';
-import { extractVars } from '@/lib/sms/templates';
-import { ok, notFound } from '@/lib/utils/response';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { withDb, withAdminDb } from "@/lib/db";
+import {
+  TemplateCreateSchema,
+  TemplateUpdateSchema,
+} from "@/lib/validators/sms.schema";
+import { extractVars } from "@/lib/sms/templates";
+import { ok, notFound } from "@/lib/utils/response";
 
-function normalizeTemplatePayload<T extends { variables?: string[] | null; body?: string }>(row: T) {
+function normalizeTemplatePayload<
+  T extends { variables?: string[] | null; body?: string },
+>(row: T) {
   return {
     ...row,
-    variables: row.variables ?? extractVars(row.body ?? ''),
+    variables: row.variables ?? extractVars(row.body ?? ""),
   };
 }
 
 // GET /api/v1/sms/templates â€” list group + system templates
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.templates.view', async (auth) => {
+  return withPermission(req, "messaging.templates.view", async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return withDb(ctx, async (client) => {
       const { rows } = await client.query(
@@ -31,17 +36,27 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 // POST /api/v1/sms/templates â€” create custom template
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.templates.manage', async (auth) => {
-    const body  = await req.json();
+  return withPermission(req, "messaging.templates.manage", async (auth) => {
+    const body = await req.json();
     const input = TemplateCreateSchema.parse(body);
-    const vars  = extractVars(input.body);
+    const vars = extractVars(input.body);
 
-    const { rows: [tpl] } = await withAdminDb((db) =>
+    const {
+      rows: [tpl],
+    } = await withAdminDb((db) =>
       db.query(
         `INSERT INTO sms_templates
            (group_id, template_key, name, body, variables, category, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-        [auth.groupId, input.templateKey, input.name, input.body, vars, input.category, auth.userId],
+        [
+          auth.groupId,
+          input.templateKey,
+          input.name,
+          input.body,
+          vars,
+          input.category,
+          auth.userId,
+        ],
       ),
     );
     return ok(normalizeTemplatePayload(tpl), 201);
@@ -50,26 +65,34 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // PATCH /api/v1/sms/templates?id=xxx â€” update template
 export async function PATCH(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.templates.manage', async (auth) => {
-    const id   = new URL(req.url).searchParams.get('id');
+  return withPermission(req, "messaging.templates.manage", async (auth) => {
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return notFound();
-    const body  = await req.json();
+    const body = await req.json();
     const input = TemplateUpdateSchema.parse(body);
 
-    const sets: string[] = ['updated_at=NOW()'];
+    const sets: string[] = ["updated_at=NOW()"];
     const vals: unknown[] = [id, auth.groupId];
     let idx = 3;
 
-    if (input.name !== undefined)     { sets.push(`name=$${idx++}`);     vals.push(input.name); }
-    if (input.body !== undefined)     {
-      sets.push(`body=$${idx++}`);     vals.push(input.body);
-      sets.push(`variables=$${idx++}`); vals.push(extractVars(input.body));
+    if (input.name !== undefined) {
+      sets.push(`name=$${idx++}`);
+      vals.push(input.name);
     }
-    if (input.category !== undefined) { sets.push(`category=$${idx++}`); vals.push(input.category); }
+    if (input.body !== undefined) {
+      sets.push(`body=$${idx++}`);
+      vals.push(input.body);
+      sets.push(`variables=$${idx++}`);
+      vals.push(extractVars(input.body));
+    }
+    if (input.category !== undefined) {
+      sets.push(`category=$${idx++}`);
+      vals.push(input.category);
+    }
 
     const { rows } = await withAdminDb((db) =>
       db.query(
-        `UPDATE sms_templates SET ${sets.join(',')}
+        `UPDATE sms_templates SET ${sets.join(",")}
          WHERE id=$1 AND group_id=$2 AND is_system=false RETURNING *`,
         vals,
       ),
@@ -81,8 +104,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/templates?id=xxx â€” soft delete
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.templates.manage', async (auth) => {
-    const id = new URL(req.url).searchParams.get('id');
+  return withPermission(req, "messaging.templates.manage", async (auth) => {
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return notFound();
 
     const { rows } = await withAdminDb((db) =>

@@ -32,12 +32,12 @@ import type {
   BulkSmsResult,
   DlrResult,
   BalanceResult,
-} from './adapters/types';
-import { TextSmsAdapter } from './adapters/textsms';
-import { canAttempt, recordSuccess, recordFailure } from './circuit-breaker';
-import { ServiceUnavailableError } from '@/lib/utils/errors';
+} from "./adapters/types";
+import { TextSmsAdapter } from "./adapters/textsms";
+import { canAttempt, recordSuccess, recordFailure } from "./circuit-breaker";
+import { ServiceUnavailableError } from "@/lib/utils/errors";
 
-export const DEFAULT_SMS_PROVIDER = 'textsms';
+export const DEFAULT_SMS_PROVIDER = "textsms";
 
 const adapters: Record<string, ISmsAdapter> = {
   textsms: new TextSmsAdapter(),
@@ -66,7 +66,9 @@ function resolveAdapter(name?: string | null): ISmsAdapter {
     // (messaging-billing.ts): that guards against an operator's own lookup
     // breaking sends; this guards against a provider-identity mismatch
     // resolving to the wrong provider, which must never happen quietly.
-    throw new ServiceUnavailableError(`SMS provider "${key}" is not configured`);
+    throw new ServiceUnavailableError(
+      `SMS provider "${key}" is not configured`,
+    );
   }
   return adapter;
 }
@@ -94,9 +96,14 @@ export function isProviderAvailable(name?: string | null): boolean {
  * "is this provider reachable at all", not "did this one recipient's number
  * get rejected".
  */
-async function guarded<T>(providerName: string, fn: () => Promise<T>): Promise<T> {
+async function guarded<T>(
+  providerName: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   if (!canAttempt(providerName)) {
-    throw new ServiceUnavailableError(`SMS provider "${providerName}" is temporarily unavailable`);
+    throw new ServiceUnavailableError(
+      `SMS provider "${providerName}" is temporarily unavailable`,
+    );
   }
   try {
     const result = await fn();
@@ -114,22 +121,33 @@ async function guarded<T>(providerName: string, fn: () => Promise<T>): Promise<T
  * provider that actually accepted it the first time, not whatever is active
  * now. Every fresh-send call site omits it and gets the active provider.
  */
-export async function sendSingleSms(input: SingleSmsInput, provider?: string | null): Promise<SmsResponse> {
+export async function sendSingleSms(
+  input: SingleSmsInput,
+  provider?: string | null,
+): Promise<SmsResponse> {
   const adapter = resolveAdapter(provider);
   return guarded(adapter.name, () => adapter.sendSingle(input));
 }
 
-export async function sendBulkSmsChunked(items: BulkSmsItem[], provider?: string | null): Promise<BulkSmsResult> {
+export async function sendBulkSmsChunked(
+  items: BulkSmsItem[],
+  provider?: string | null,
+): Promise<BulkSmsResult> {
   const adapter = resolveAdapter(provider);
   return guarded(adapter.name, () => adapter.sendBulk(items));
 }
 
-export async function getDeliveryReport(messageId: string, provider?: string | null): Promise<DlrResult> {
+export async function getDeliveryReport(
+  messageId: string,
+  provider?: string | null,
+): Promise<DlrResult> {
   const adapter = resolveAdapter(provider);
   return guarded(adapter.name, () => adapter.getDlr(messageId));
 }
 
-export async function getProviderBalance(provider?: string | null): Promise<BalanceResult> {
+export async function getProviderBalance(
+  provider?: string | null,
+): Promise<BalanceResult> {
   const adapter = resolveAdapter(provider);
   return guarded(adapter.name, () => adapter.getBalance());
 }
@@ -141,4 +159,4 @@ export type {
   BulkSmsResult,
   DlrResult,
   BalanceResult,
-} from './adapters/types';
+} from "./adapters/types";

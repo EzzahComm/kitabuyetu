@@ -1,31 +1,35 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = "force-dynamic";
 /**
  * POST /api/v1/mpesa/balance              â€” Trigger balance query (treasurer+)
  * GET  /api/v1/mpesa/balance              â€” Return latest stored balance result
  * POST /api/v1/mpesa/balance?type=result  â€” Safaricom async result callback
  * POST /api/v1/mpesa/balance?type=timeout â€” Safaricom timeout callback
  */
-import { NextRequest, NextResponse, after } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { queryAccountBalance } from '@/lib/services/daraja.service';
-import { handleBalanceResult } from '@/lib/services/mpesa.service';
-import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse, after } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { queryAccountBalance } from "@/lib/services/daraja.service";
+import { handleBalanceResult } from "@/lib/services/mpesa.service";
+import { ok, handleError } from "@/lib/utils/response";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 function callerIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
 }
 
-const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const type = req.nextUrl.searchParams.get("type");
+  const ip = callerIp(req);
 
-  if (type === 'result' || type === 'timeout') {
+  if (type === "result" || type === "timeout") {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -38,20 +42,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     after(async () => {
-      try { await handleBalanceResult(body, ip); }
-      catch (err) { logger.error('[balance result]', err); }
+      try {
+        await handleBalanceResult(body, ip);
+      } catch (err) {
+        logger.error("[balance result]", err);
+      }
     });
     return ack();
   }
 
   // Authenticated balance query trigger â€” treasurer, chairperson, or super_admin
-  return withPermission(req, 'mpesa.view', async (auth) => {
+  return withPermission(req, "mpesa.view", async (auth) => {
     try {
-      const shortcode = process.env.MPESA_SHORTCODE ?? '';
+      const shortcode = process.env.MPESA_SHORTCODE ?? "";
       const res = await queryAccountBalance(shortcode);
 
       // Record the query in master ledger so we can correlate the callback
-      const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
+      const isSandbox = (process.env.MPESA_ENV ?? "sandbox") !== "production";
       await withAdminDb((db) =>
         db.query(
           `INSERT INTO mpesa_transactions
@@ -59,16 +66,22 @@ export async function POST(req: NextRequest): Promise<Response> {
               originator_conversation_id, conversation_id, is_test)
            VALUES ($1,'balance_query','outbound',0,'initiated','Account balance query',$2,$3,$4)
            ON CONFLICT (originator_conversation_id) DO NOTHING`,
-          [auth.groupId, res.originatorConversationId, res.conversationId, isSandbox],
+          [
+            auth.groupId,
+            res.originatorConversationId,
+            res.conversationId,
+            isSandbox,
+          ],
         ),
       );
 
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseCode:             res.responseCode,
-        responseDescription:      res.responseDescription,
-        message:                  'Balance query submitted. Result will arrive via callback within 30 seconds.',
+        responseCode: res.responseCode,
+        responseDescription: res.responseDescription,
+        message:
+          "Balance query submitted. Result will arrive via callback within 30 seconds.",
       });
     } catch (err) {
       return handleError(err);
@@ -78,7 +91,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 /** Return the latest balance result stored in mpesa_transactions for this group */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'mpesa.view', async (auth) => {
+  return withPermission(req, "mpesa.view", async (auth) => {
     try {
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(
@@ -101,14 +114,15 @@ export async function GET(req: NextRequest): Promise<Response> {
           ResultParameters?: { ResultParameter?: ResultParam[] };
         };
       };
-      const params = (raw as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
-      const get    = (k: string) => params.find((p) => p.Key === k)?.Value ?? 0;
+      const params =
+        (raw as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
+      const get = (k: string) => params.find((p) => p.Key === k)?.Value ?? 0;
 
       return ok({
-        workingAccountBalance:  Number(get('WorkingAccountAvailableFunds')),
-        utilityAccountBalance:  Number(get('UtilityAccountAvailableFunds')),
-        chargesAccountBalance:  Number(get('ChargesAccountAvailableFunds')),
-        queriedAt:              rows[0].completed_at as string,
+        workingAccountBalance: Number(get("WorkingAccountAvailableFunds")),
+        utilityAccountBalance: Number(get("UtilityAccountAvailableFunds")),
+        chargesAccountBalance: Number(get("ChargesAccountAvailableFunds")),
+        queriedAt: rows[0].completed_at as string,
       });
     } catch (err) {
       return handleError(err);

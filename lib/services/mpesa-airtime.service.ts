@@ -3,24 +3,24 @@
  * of mpesa.service.ts (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import { withAdminDb } from '@/lib/db';
-import { normalizePhone } from '@/lib/utils/phone';
-import { toMpesaAmount } from '@/lib/utils/currency';
-import { buyAirtime as _buyAirtime, assertSafaricomIp } from './daraja.service';
-import { IS_SANDBOX } from './mpesa-spine.service';
+import { withAdminDb } from "@/lib/db";
+import { normalizePhone } from "@/lib/utils/phone";
+import { toMpesaAmount } from "@/lib/utils/currency";
+import { buyAirtime as _buyAirtime, assertSafaricomIp } from "./daraja.service";
+import { IS_SANDBOX } from "./mpesa-spine.service";
 
 export interface AirtimeParams {
-  phone:        string;
-  amount:       number;
-  groupId:      string;
-  remarks?:     string;
+  phone: string;
+  amount: number;
+  groupId: string;
+  remarks?: string;
   initiatedBy?: string;
 }
 
 export interface AirtimeResult {
-  conversationId:           string;
+  conversationId: string;
   originatorConversationId: string;
-  responseDescription:      string;
+  responseDescription: string;
 }
 
 /**
@@ -29,13 +29,15 @@ export interface AirtimeResult {
  * is configured. Records the request in the master ledger as transaction_type
  * 'airtime' so it reports separately from B2C cash.
  */
-export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeResult> {
-  const phone     = normalizePhone(params.phone);
+export async function initiateAirtime(
+  params: AirtimeParams,
+): Promise<AirtimeResult> {
+  const phone = normalizePhone(params.phone);
   const amountStr = toMpesaAmount(params.amount).toFixed(2);
 
   const res = await _buyAirtime({
     phone,
-    amount:  params.amount,
+    amount: params.amount,
     remarks: params.remarks,
   });
 
@@ -48,9 +50,12 @@ export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeRes
        VALUES ($1,'airtime','outbound',$2,$3,'initiated',$4,$5,$6,$7,$8)
        ON CONFLICT (originator_conversation_id) DO NOTHING`,
       [
-        params.groupId, phone, amountStr,
-        params.remarks ?? 'Airtime purchase',
-        res.conversationId, res.originatorConversationId,
+        params.groupId,
+        phone,
+        amountStr,
+        params.remarks ?? "Airtime purchase",
+        res.conversationId,
+        res.originatorConversationId,
         process.env.MPESA_AIRTIME_SHORTCODE ?? null,
         IS_SANDBOX,
       ],
@@ -58,9 +63,9 @@ export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeRes
   );
 
   return {
-    conversationId:           res.conversationId,
+    conversationId: res.conversationId,
     originatorConversationId: res.originatorConversationId,
-    responseDescription:      res.responseDescription,
+    responseDescription: res.responseDescription,
   };
 }
 
@@ -74,16 +79,22 @@ export async function handleAirtimeResult(
 
   type RawResult = {
     Result?: {
-      ResultCode?: number; ResultDesc?: string;
-      OriginatorConversationID?: string; ConversationID?: string;
-      ResultParameters?: { ResultParameter?: { Key: string; Value: unknown }[] };
+      ResultCode?: number;
+      ResultDesc?: string;
+      OriginatorConversationID?: string;
+      ConversationID?: string;
+      ResultParameters?: {
+        ResultParameter?: { Key: string; Value: unknown }[];
+      };
     };
   };
   const r = (body as RawResult).Result;
   if (!r) return;
 
   const success = r.ResultCode === 0;
-  const receipt = r.ResultParameters?.ResultParameter?.find((p) => p.Key === 'TransactionReceipt')?.Value;
+  const receipt = r.ResultParameters?.ResultParameter?.find(
+    (p) => p.Key === "TransactionReceipt",
+  )?.Value;
   const rawBody = JSON.stringify(body);
 
   await withAdminDb(async (db) => {
@@ -93,12 +104,12 @@ export async function handleAirtimeResult(
            failure_reason=$3, raw_response=$4::jsonb, completed_at=NOW()
        WHERE originator_conversation_id=$5 OR conversation_id=$6`,
       [
-        success ? 'completed' : 'failed',
+        success ? "completed" : "failed",
         receipt != null ? String(receipt) : null,
         success ? null : (r.ResultDesc ?? null),
         rawBody,
-        r.OriginatorConversationID ?? '',
-        r.ConversationID ?? '',
+        r.OriginatorConversationID ?? "",
+        r.ConversationID ?? "",
       ],
     );
     if (!success) {
@@ -106,7 +117,12 @@ export async function handleAirtimeResult(
         `INSERT INTO failed_payment_logs
            (transaction_type, reference_id, failure_reason, failure_code, raw_data)
          VALUES ('airtime',$1,$2,$3,$4)`,
-        [r.OriginatorConversationID ?? '', r.ResultDesc ?? '', String(r.ResultCode ?? ''), rawBody],
+        [
+          r.OriginatorConversationID ?? "",
+          r.ResultDesc ?? "",
+          String(r.ResultCode ?? ""),
+          rawBody,
+        ],
       );
     }
   });

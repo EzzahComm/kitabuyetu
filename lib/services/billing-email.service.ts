@@ -1,10 +1,10 @@
-import { sendTemplatedEmail, queueEmail } from './email.service';
-import { withAdminDb } from '@/lib/db';
-import { logger } from '@/lib/logger';
-import type { EmailResult } from '@/lib/email/provider';
-import { env } from '@/lib/env';
+import { sendTemplatedEmail, queueEmail } from "./email.service";
+import { withAdminDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import type { EmailResult } from "@/lib/email/provider";
+import { env } from "@/lib/env";
 
-const SHORTCODE   = process.env.MPESA_SHORTCODE ?? '';
+const SHORTCODE = process.env.MPESA_SHORTCODE ?? "";
 /**
  * The staff address, when one is configured.
  *
@@ -26,36 +26,36 @@ const ADMIN_EMAIL: string | undefined = process.env.EMAIL_ADMIN;
 // ---------------------------------------------------------------------------
 
 interface InvoiceRow {
-  id:                  string;
-  group_id:            string;
-  billing_account_id:  string;
-  invoice_number:      string;
-  invoice_date:        string;
-  due_date:            string;
-  status:              string;
-  total_amount:        string;
-  paid_amount:         string;
-  notes:               string | null;
+  id: string;
+  group_id: string;
+  billing_account_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  status: string;
+  total_amount: string;
+  paid_amount: string;
+  notes: string | null;
   // computed / joined columns
-  recipient_email:     string | null;
-  recipient_name:      string;
-  group_name:          string;
+  recipient_email: string | null;
+  recipient_name: string;
+  group_name: string;
 }
 
 interface ReceiptRow {
-  id:                        string;
-  receipt_number:            string;
-  group_id:                  string;
-  invoice_id:                string;
-  amount_paid:               string;
-  payment_date:              string;
-  payment_method:            string;
+  id: string;
+  receipt_number: string;
+  group_id: string;
+  invoice_id: string;
+  amount_paid: string;
+  payment_date: string;
+  payment_method: string;
   // joined
-  invoice_number:            string;
-  invoice_amount_due:        string;
+  invoice_number: string;
+  invoice_amount_due: string;
   invoice_amount_paid_total: string;
-  recipient_email:           string | null;
-  recipient_name:            string;
+  recipient_email: string | null;
+  recipient_name: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,41 +102,54 @@ export async function sendInvoiceEmail(
       [invoiceId],
     ),
   );
-  if (!rows.length) return { success: false, provider: 'none', error: 'Invoice not found' };
+  if (!rows.length)
+    return { success: false, provider: "none", error: "Invoice not found" };
 
   const inv = rows[0] as InvoiceRow;
   if (!inv.recipient_email) {
-    return { success: false, provider: 'none', error: 'No recipient email found for this group' };
+    return {
+      success: false,
+      provider: "none",
+      error: "No recipient email found for this group",
+    };
   }
 
   const amountDue = parseFloat(inv.total_amount) - parseFloat(inv.paid_amount);
 
   const attachments = pdfBuffer
-    ? [{ filename: `Invoice-${inv.invoice_number}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+    ? [
+        {
+          filename: `Invoice-${inv.invoice_number}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ]
     : undefined;
 
   const result = await sendTemplatedEmail({
-    templateKey: 'invoice',
+    templateKey: "invoice",
     to: inv.recipient_email,
     vars: {
       invoiceNumber: inv.invoice_number,
       recipientName: inv.recipient_name,
-      groupName:     inv.group_name,
-      invoiceDate:   formatDate(inv.invoice_date),
-      dueDate:       formatDate(inv.due_date),
-      amountDue:     formatMoney(amountDue),
-      shortcode:     SHORTCODE,
-      notes:         inv.notes ?? '',
+      groupName: inv.group_name,
+      invoiceDate: formatDate(inv.invoice_date),
+      dueDate: formatDate(inv.due_date),
+      amountDue: formatMoney(amountDue),
+      shortcode: SHORTCODE,
+      notes: inv.notes ?? "",
     },
-    groupId:       inv.group_id,
+    groupId: inv.group_id,
     attachments,
-    referenceId:   invoiceId,
-    referenceType: 'invoice',
+    referenceId: invoiceId,
+    referenceType: "invoice",
   });
 
   if (result.success) {
     await withAdminDb((db) =>
-      db.query(`UPDATE invoices SET emailed_at = NOW() WHERE id = $1`, [invoiceId]),
+      db.query(`UPDATE invoices SET emailed_at = NOW() WHERE id = $1`, [
+        invoiceId,
+      ]),
     ).catch(() => {});
   }
 
@@ -170,7 +183,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
   );
 
   for (const inv of rows) {
-    const days:  number = inv.days_overdue ?? 0;
+    const days: number = inv.days_overdue ?? 0;
     const level: number = inv.overdue_notice_level ?? 0;
 
     // Level 1: 3–7 days overdue | Level 2: 8–14 days | Level 3: 15+ days
@@ -178,49 +191,59 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
     if (targetLevel === 0 || targetLevel <= level) continue;
     if (!inv.recipient_email) continue;
 
-    const amountDue = parseFloat(inv.total_amount) - parseFloat(inv.paid_amount);
+    const amountDue =
+      parseFloat(inv.total_amount) - parseFloat(inv.paid_amount);
     const templateKey = `invoice_overdue_${targetLevel}` as
-      'invoice_overdue_1' | 'invoice_overdue_2' | 'invoice_overdue_3';
+      | "invoice_overdue_1"
+      | "invoice_overdue_2"
+      | "invoice_overdue_3";
 
     const vars = {
       invoiceNumber: inv.invoice_number,
       recipientName: inv.recipient_name,
-      groupName:     inv.group_name,
-      dueDate:       formatDate(inv.due_date),
-      amountDue:     formatMoney(amountDue),
-      daysOverdue:   String(days),
-      shortcode:     SHORTCODE,
+      groupName: inv.group_name,
+      dueDate: formatDate(inv.due_date),
+      amountDue: formatMoney(amountDue),
+      daysOverdue: String(days),
+      shortcode: SHORTCODE,
       // Never blank: this renders inside "Contact <strong>{{adminEmail}}</strong>"
       // in a customer-facing overdue notice. EMAIL_FROM is required and real,
       // so an unconfigured EMAIL_ADMIN degrades to an address we own instead
       // of to an empty sentence.
-      adminEmail:    ADMIN_EMAIL ?? env.EMAIL_FROM,
+      adminEmail: ADMIN_EMAIL ?? env.EMAIL_FROM,
     };
 
     await sendTemplatedEmail({
       templateKey,
-      to:            inv.recipient_email,
+      to: inv.recipient_email,
       vars,
-      groupId:       inv.group_id,
-      referenceId:   inv.id,
-      referenceType: 'invoice',
+      groupId: inv.group_id,
+      referenceId: inv.id,
+      referenceType: "invoice",
     }).catch(() => {});
 
     // CC admin at level 2 and beyond — only when there is somewhere to send it.
     // Previously this always "succeeded" into a domain we do not own.
     if (targetLevel >= 2 && !ADMIN_EMAIL) {
-      logger.warn('[billing-email] EMAIL_ADMIN unset — overdue notice not copied to staff', {
-        invoiceId: inv.id, level: targetLevel,
-      });
+      logger.warn(
+        "[billing-email] EMAIL_ADMIN unset — overdue notice not copied to staff",
+        {
+          invoiceId: inv.id,
+          level: targetLevel,
+        },
+      );
     }
     if (targetLevel >= 2 && ADMIN_EMAIL) {
       await sendTemplatedEmail({
         templateKey,
-        to:   ADMIN_EMAIL,
-        vars: { ...vars, recipientName: `[ADMIN CC] ${inv.recipient_name} <${inv.recipient_email}>` },
-        groupId:       inv.group_id,
-        referenceId:   inv.id,
-        referenceType: 'invoice',
+        to: ADMIN_EMAIL,
+        vars: {
+          ...vars,
+          recipientName: `[ADMIN CC] ${inv.recipient_name} <${inv.recipient_email}>`,
+        },
+        groupId: inv.group_id,
+        referenceId: inv.id,
+        referenceType: "invoice",
       }).catch(() => {});
     }
 
@@ -262,37 +285,48 @@ export async function sendReceiptEmail(
       [receiptId],
     ),
   );
-  if (!rows.length) return { success: false, provider: 'none', error: 'Receipt not found' };
+  if (!rows.length)
+    return { success: false, provider: "none", error: "Receipt not found" };
 
   const r = rows[0] as ReceiptRow;
   if (!r.recipient_email) {
-    return { success: false, provider: 'none', error: 'No recipient email found for this receipt' };
+    return {
+      success: false,
+      provider: "none",
+      error: "No recipient email found for this receipt",
+    };
   }
 
-  const invoiceDue   = parseFloat(r.invoice_amount_due);
-  const invoicePaid  = parseFloat(r.invoice_amount_paid_total);
-  const balance      = Math.max(0, invoiceDue - invoicePaid);
+  const invoiceDue = parseFloat(r.invoice_amount_due);
+  const invoicePaid = parseFloat(r.invoice_amount_paid_total);
+  const balance = Math.max(0, invoiceDue - invoicePaid);
 
   const attachments = pdfBuffer
-    ? [{ filename: `Receipt-${r.receipt_number}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+    ? [
+        {
+          filename: `Receipt-${r.receipt_number}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ]
     : undefined;
 
   return sendTemplatedEmail({
-    templateKey: 'payment_receipt',
-    to:          r.recipient_email,
+    templateKey: "payment_receipt",
+    to: r.recipient_email,
     vars: {
-      receiptNumber:    r.receipt_number,
-      recipientName:    r.recipient_name,
-      invoiceNumber:    r.invoice_number,
-      amountPaid:       formatMoney(parseFloat(r.amount_paid)),
-      paymentDate:      formatDate(r.payment_date),
-      paymentMethod:    r.payment_method ?? 'M-Pesa',
-      balanceRemaining: balance > 0 ? formatMoney(balance) : '',
+      receiptNumber: r.receipt_number,
+      recipientName: r.recipient_name,
+      invoiceNumber: r.invoice_number,
+      amountPaid: formatMoney(parseFloat(r.amount_paid)),
+      paymentDate: formatDate(r.payment_date),
+      paymentMethod: r.payment_method ?? "M-Pesa",
+      balanceRemaining: balance > 0 ? formatMoney(balance) : "",
     },
-    groupId:       r.group_id,
+    groupId: r.group_id,
     attachments,
-    referenceId:   receiptId,
-    referenceType: 'receipt',
+    referenceId: receiptId,
+    referenceType: "receipt",
   });
 }
 
@@ -321,12 +355,16 @@ export async function processRecurringInvoices(): Promise<void> {
         ),
       );
       if (!baRows[0]) {
-        logger.error('[billing] No billing account for group', { groupId: sched.group_id });
+        logger.error("[billing] No billing account for group", {
+          groupId: sched.group_id,
+        });
         continue;
       }
       const billingAccountId = baRows[0].id;
 
-      const { rows: [inv] } = await withAdminDb((db) =>
+      const {
+        rows: [inv],
+      } = await withAdminDb((db) =>
         db.query(
           `INSERT INTO invoices
              (group_id, billing_account_id, invoice_number,
@@ -340,25 +378,30 @@ export async function processRecurringInvoices(): Promise<void> {
              $3, 0, $3, 'pending', $4
            )
            RETURNING id`,
-          [sched.group_id, billingAccountId, sched.amount, sched.description ?? null],
+          [
+            sched.group_id,
+            billingAccountId,
+            sched.amount,
+            sched.description ?? null,
+          ],
         ),
       );
 
       // Queue the invoice email if a recipient email is known
       if (sched.recipient_email) {
         await queueEmail({
-          templateKey:   'invoice',
-          to:             sched.recipient_email,
+          templateKey: "invoice",
+          to: sched.recipient_email,
           vars: {
             invoiceNumber: inv.id,
-            recipientName: sched.recipient_name ?? '',
-            amountDue:     formatMoney(sched.amount),
-            shortcode:     SHORTCODE,
-            notes:         sched.description ?? '',
+            recipientName: sched.recipient_name ?? "",
+            amountDue: formatMoney(sched.amount),
+            shortcode: SHORTCODE,
+            notes: sched.description ?? "",
           },
-          groupId:       sched.group_id,
-          referenceId:   inv.id,
-          referenceType: 'invoice',
+          groupId: sched.group_id,
+          referenceId: inv.id,
+          referenceType: "invoice",
         });
       }
 
@@ -373,7 +416,10 @@ export async function processRecurringInvoices(): Promise<void> {
         ),
       );
     } catch (err) {
-      logger.error('[billing] Failed to process invoice schedule', { schedId: sched.id, error: err });
+      logger.error("[billing] Failed to process invoice schedule", {
+        schedId: sched.id,
+        error: err,
+      });
     }
   }
 }
@@ -381,14 +427,16 @@ export async function processRecurringInvoices(): Promise<void> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(d: string | Date | null | undefined): string {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-KE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
 function formatMoney(n: number): string {
-  return Number(n).toLocaleString('en-KE', {
+  return Number(n).toLocaleString("en-KE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

@@ -15,9 +15,9 @@
  *     built directly from the real withRole/withOneOf/ROLES.can*() route
  *     inventory, not aspirational.
  */
-import { rawQuery } from '../helpers/db';
+import { rawQuery } from "../helpers/db";
 
-const RANKS = ['member', 'secretary', 'treasurer', 'chairperson'] as const;
+const RANKS = ["member", "secretary", "treasurer", "chairperson"] as const;
 type RoleCode = (typeof RANKS)[number];
 
 async function seededPermissions(): Promise<Record<RoleCode, string[]>> {
@@ -25,21 +25,27 @@ async function seededPermissions(): Promise<Record<RoleCode, string[]>> {
     `SELECT code, permissions FROM public.roles WHERE group_id IS NULL AND code = ANY($1)`,
     [RANKS as unknown as string[]],
   );
-  const byCode = Object.fromEntries(rows.map((r) => [r.code, r.permissions])) as Record<RoleCode, string[]>;
+  const byCode = Object.fromEntries(
+    rows.map((r) => [r.code, r.permissions]),
+  ) as Record<RoleCode, string[]>;
   for (const code of RANKS) {
-    if (!byCode[code]) throw new Error(`No system role row seeded for code='${code}'`);
+    if (!byCode[code])
+      throw new Error(`No system role row seeded for code='${code}'`);
   }
   return byCode;
 }
 
-describe('roles.permissions seed data', () => {
-  it('is monotonic by rank: chairperson ⊇ treasurer ⊇ secretary ⊇ member', async () => {
+describe("roles.permissions seed data", () => {
+  it("is monotonic by rank: chairperson ⊇ treasurer ⊇ secretary ⊇ member", async () => {
     const perms = await seededPermissions();
     for (let i = 1; i < RANKS.length; i++) {
       const lower = new Set(perms[RANKS[i - 1]]);
       const higher = new Set(perms[RANKS[i]]);
       const missing = [...lower].filter((p) => !higher.has(p));
-      expect({ higherRole: RANKS[i], missing }).toEqual({ higherRole: RANKS[i], missing: [] });
+      expect({ higherRole: RANKS[i], missing }).toEqual({
+        higherRole: RANKS[i],
+        missing: [],
+      });
     }
   });
 
@@ -50,39 +56,76 @@ describe('roles.permissions seed data', () => {
   // migration 110. This is the canonical catalog later batches migrate onto.
   const EXPECTED: Record<RoleCode, string[]> = {
     member: [
-      'dashboard.view', 'meetings.view',
-      'welfare.request', 'welfare.view', 'investments.view',
+      "dashboard.view",
+      "meetings.view",
+      "welfare.request",
+      "welfare.view",
+      "investments.view",
     ],
     secretary: [
-      'members.view', 'members.manage', 'analytics.view', 'meetings.manage',
-      'messaging.send', 'data.import',
-      'import.preview', 'import.commit', 'import.cancel',
-      'messaging.templates.view', 'messaging.schedules.view',
+      "members.view",
+      "members.manage",
+      "analytics.view",
+      "meetings.manage",
+      "messaging.send",
+      "data.import",
+      "import.preview",
+      "import.commit",
+      "import.cancel",
+      "messaging.templates.view",
+      "messaging.schedules.view",
     ],
     treasurer: [
-      'contributions.view', 'contributions.record', 'loans.view', 'loans.approve',
-      'mpesa.view', 'payments.request', 'payments.approve', 'expenses.approve',
-      'cashbook.view', 'accounting.manage', 'reports.view', 'governance.view',
-      'welfare.manage', 'shares.manage', 'cycles.manage', 'dividends.manage',
-      'treasury.manage', 'payouts.manage',
-      'import.start', 'investments.manage',
-      'credit_scores.recompute',
+      "contributions.view",
+      "contributions.record",
+      "loans.view",
+      "loans.approve",
+      "mpesa.view",
+      "payments.request",
+      "payments.approve",
+      "expenses.approve",
+      "cashbook.view",
+      "accounting.manage",
+      "reports.view",
+      "governance.view",
+      "welfare.manage",
+      "shares.manage",
+      "cycles.manage",
+      "dividends.manage",
+      "treasury.manage",
+      "payouts.manage",
+      "import.start",
+      "investments.manage",
+      "credit_scores.recompute",
     ],
     chairperson: [
-      'billing.manage', 'roles.manage',
-      'dividends.approve', 'shares.reverse', 'payments.disburse',
-      'data.rollback', 'admin.recompute', 'group.manage', 'messaging.manage',
-      'import.rollback', 'messaging.templates.manage', 'messaging.schedules.manage',
-      'fines.manage',
-      'credit_scores.recompute',
-      'loans.policy.manage', 'credit_scores.policy.manage', 'mpesa.bill_manager.manage',
+      "billing.manage",
+      "roles.manage",
+      "dividends.approve",
+      "shares.reverse",
+      "payments.disburse",
+      "data.rollback",
+      "admin.recompute",
+      "group.manage",
+      "messaging.manage",
+      "import.rollback",
+      "messaging.templates.manage",
+      "messaging.schedules.manage",
+      "fines.manage",
+      "credit_scores.recompute",
+      "loans.policy.manage",
+      "credit_scores.policy.manage",
+      "mpesa.bill_manager.manage",
     ],
   };
 
-  it.each(RANKS)('%s has every permission its real route tiers require', async (role) => {
-    const perms = await seededPermissions();
-    const have = new Set(perms[role]);
-    const missing = EXPECTED[role].filter((p) => !have.has(p));
-    expect(missing).toEqual([]);
-  });
+  it.each(RANKS)(
+    "%s has every permission its real route tiers require",
+    async (role) => {
+      const perms = await seededPermissions();
+      const have = new Set(perms[role]);
+      const missing = EXPECTED[role].filter((p) => !have.has(p));
+      expect(missing).toEqual([]);
+    },
+  );
 });

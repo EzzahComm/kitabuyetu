@@ -15,20 +15,27 @@
  *
  * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
  */
-import { handleJob } from '@/lib/jobs/handlers';
-import { getUsageAnalytics } from '@/lib/services/sms-analytics.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { Job } from '@/lib/jobs/types';
-import type { BulkSmsItem, BulkSmsResult } from '@/lib/services/textsms.service';
+import { handleJob } from "@/lib/jobs/handlers";
+import { getUsageAnalytics } from "@/lib/services/sms-analytics.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { Job } from "@/lib/jobs/types";
+import type {
+  BulkSmsItem,
+  BulkSmsResult,
+} from "@/lib/services/textsms.service";
 
-const mockSendBulkSmsChunked = jest.fn<Promise<BulkSmsResult>, [BulkSmsItem[]]>();
+const mockSendBulkSmsChunked = jest.fn<
+  Promise<BulkSmsResult>,
+  [BulkSmsItem[]]
+>();
 
-jest.mock('@/lib/services/textsms.service', () => ({
+jest.mock("@/lib/services/textsms.service", () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
-  sendBulkSmsChunked: (...args: unknown[]) => mockSendBulkSmsChunked(args[0] as BulkSmsItem[]),
+  sendBulkSmsChunked: (...args: unknown[]) =>
+    mockSendBulkSmsChunked(args[0] as BulkSmsItem[]),
   getDeliveryReport: jest.fn(),
   getProviderBalance: jest.fn(),
 }));
@@ -37,9 +44,13 @@ jest.mock('@/lib/services/textsms.service', () => ({
 function acceptAll(items: BulkSmsItem[]): BulkSmsResult {
   return {
     responses: items.map((item, i) => ({
-      responseCode: 200, responseDescription: 'Success',
-      mobile: item.mobile, messageId: `msg-${i + 1}`, networkId: '1',
-      success: true, clientSmsId: item.clientSmsId as number,
+      responseCode: 200,
+      responseDescription: "Success",
+      mobile: item.mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: "1",
+      success: true,
+      clientSmsId: item.clientSmsId as number,
     })),
     sent: items.length,
     failed: 0,
@@ -69,20 +80,31 @@ async function makeBulkJob(payload: Record<string, unknown>): Promise<Job> {
     [JSON.stringify(payload)],
   );
   return {
-    id: row.id, type: 'sms_bulk_send', payload, status: 'processing',
-    attempts: 0, max_attempts: 3,
+    id: row.id,
+    type: "sms_bulk_send",
+    payload,
+    status: "processing",
+    attempts: 0,
+    max_attempts: 3,
   } as unknown as Job;
 }
 
-async function featuresLogged(groupId: string): Promise<Array<{ notification_type: string | null; reference_type: string | null }>> {
-  return rawQuery<{ notification_type: string | null; reference_type: string | null }>(
+async function featuresLogged(
+  groupId: string,
+): Promise<
+  Array<{ notification_type: string | null; reference_type: string | null }>
+> {
+  return rawQuery<{
+    notification_type: string | null;
+    reference_type: string | null;
+  }>(
     `SELECT notification_type, reference_type FROM sms_usage_logs
      WHERE group_id = $1 ORDER BY created_at`,
     [groupId],
   );
 }
 
-describe('bulk SMS feature attribution', () => {
+describe("bulk SMS feature attribution", () => {
   // Same reasoning as sms-bulk-personalization.test.ts: resetDatabase() clears
   // job_queue only at the START of a test, so the last one's row would outlive
   // this file and join job-stuck-sweep.test.ts's whole-table tally.
@@ -92,78 +114,94 @@ describe('bulk SMS feature attribution', () => {
 
   beforeEach(() => {
     mockSendBulkSmsChunked.mockReset();
-    mockSendBulkSmsChunked.mockImplementation((items) => Promise.resolve(acceptAll(items)));
+    mockSendBulkSmsChunked.mockImplementation((items) =>
+      Promise.resolve(acceptAll(items)),
+    );
   });
 
-  it('records the scheduled reminder as a reminder, not as a campaign', async () => {
+  it("records the scheduled reminder as a reminder, not as a campaign", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson');
+    const { groupId, officerId } = await createTestGroup("chairperson");
     await provisionBilling(groupId);
 
     // Exactly what sms-scheduler.service.ts enqueues for a due occurrence.
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000001', '254711000002'],
-      message: 'Meeting on Saturday.',
-      referenceType: 'schedule',
-      referenceId: '00000000-0000-4000-8000-000000000001',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ["254711000001", "254711000002"],
+        message: "Meeting on Saturday.",
+        referenceType: "schedule",
+        referenceId: "00000000-0000-4000-8000-000000000001",
+      }),
+    );
 
     const rows = await featuresLogged(groupId);
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       // Was 'campaign' for every one of these before the fix, while
       // reference_type beside it already knew the answer.
-      expect(row.notification_type).toBe('schedule');
-      expect(row.reference_type).toBe('schedule');
+      expect(row.notification_type).toBe("schedule");
+      expect(row.reference_type).toBe("schedule");
     }
   });
 
-  it('still calls a campaign a campaign', async () => {
+  it("still calls a campaign a campaign", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson');
+    const { groupId, officerId } = await createTestGroup("chairperson");
     await provisionBilling(groupId);
 
     // The campaign routes pass no referenceType — 'campaign' is the honest
     // label there, so the fix must not relabel it.
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000003'],
-      message: 'End of year party!',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ["254711000003"],
+        message: "End of year party!",
+      }),
+    );
 
     const rows = await featuresLogged(groupId);
     expect(rows).toHaveLength(1);
-    expect(rows[0].notification_type).toBe('campaign');
+    expect(rows[0].notification_type).toBe("campaign");
   });
 
-  it('breaks usage down by real feature on the analytics screen', async () => {
+  it("breaks usage down by real feature on the analytics screen", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson');
+    const { groupId, officerId } = await createTestGroup("chairperson");
     await provisionBilling(groupId);
 
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000001', '254711000002'],
-      message: 'Contributions are due Friday.',
-      referenceType: 'contribution_reminder',
-      referenceId: '00000000-0000-4000-8000-000000000002',
-    }));
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000003'],
-      message: 'Happy birthday!',
-      referenceType: 'birthday',
-      referenceId: '00000000-0000-4000-8000-000000000003',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ["254711000001", "254711000002"],
+        message: "Contributions are due Friday.",
+        referenceType: "contribution_reminder",
+        referenceId: "00000000-0000-4000-8000-000000000002",
+      }),
+    );
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ["254711000003"],
+        message: "Happy birthday!",
+        referenceType: "birthday",
+        referenceId: "00000000-0000-4000-8000-000000000003",
+      }),
+    );
 
     const analytics = await getUsageAnalytics(groupId);
-    const byFeature = new Map(analytics.byFeature.map((f) => [f.feature, f.messages]));
+    const byFeature = new Map(
+      analytics.byFeature.map((f) => [f.feature, f.messages]),
+    );
 
     // The point of the whole exercise: two features, told apart. Before the
     // fix this was a single 'campaign' bucket of 3.
-    expect(byFeature.get('contribution_reminder')).toBe(2);
-    expect(byFeature.get('birthday')).toBe(1);
-    expect(byFeature.has('campaign')).toBe(false);
+    expect(byFeature.get("contribution_reminder")).toBe(2);
+    expect(byFeature.get("birthday")).toBe(1);
+    expect(byFeature.has("campaign")).toBe(false);
   });
 });

@@ -13,10 +13,10 @@
  * client would happily accept both while proving nothing — the same lesson
  * recorded in sms-credit-reservation.test.ts.
  */
-import { rawQuery } from './helpers/db';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { billingService } from '@/lib/services/billing.service';
+import { rawQuery } from "./helpers/db";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { billingService } from "@/lib/services/billing.service";
 
 async function provision(groupId: string): Promise<void> {
   await rawQuery(
@@ -46,19 +46,21 @@ async function createPayment(groupId: string, amount: number): Promise<string> {
 
 async function creditBalance(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
 
 async function ledgerCount(paymentId: string): Promise<number> {
   const [row] = await rawQuery<{ n: string }>(
-    `SELECT count(*) AS n FROM sms_credits WHERE payment_id = $1`, [paymentId],
+    `SELECT count(*) AS n FROM sms_credits WHERE payment_id = $1`,
+    [paymentId],
   );
   return Number(row.n);
 }
 
-describe('SMS top-up crediting', () => {
+describe("SMS top-up crediting", () => {
   let groupId: string;
   let ctx: { userId: string; groupId: string; role: string };
 
@@ -66,11 +68,11 @@ describe('SMS top-up crediting', () => {
     await resetDatabase();
     const g = await createTestGroup();
     groupId = g.groupId;
-    ctx = { userId: 'system', groupId, role: 'chairperson' };
+    ctx = { userId: "system", groupId, role: "chairperson" };
     await provision(groupId);
   });
 
-  it('credits the balance at the subscription rate', async () => {
+  it("credits the balance at the subscription rate", async () => {
     const paymentId = await createPayment(groupId, 100);
     await billingService.addSmsCredits(ctx, 100, paymentId);
 
@@ -79,7 +81,7 @@ describe('SMS top-up crediting', () => {
     expect(await ledgerCount(paymentId)).toBe(1);
   });
 
-  it('is exactly-once per payment — a replayed callback must not double-credit', async () => {
+  it("is exactly-once per payment — a replayed callback must not double-credit", async () => {
     const paymentId = await createPayment(groupId, 100);
 
     await billingService.addSmsCredits(ctx, 100, paymentId);
@@ -96,7 +98,7 @@ describe('SMS top-up crediting', () => {
     expect(await ledgerCount(paymentId)).toBe(1);
   });
 
-  it('still allows repeated manual grants, which carry no payment_id', async () => {
+  it("still allows repeated manual grants, which carry no payment_id", async () => {
     await billingService.addSmsCredits(ctx, 50, undefined);
     await billingService.addSmsCredits(ctx, 50, undefined);
 
@@ -116,8 +118,8 @@ describe('SMS top-up crediting', () => {
     expect(Number(row.n)).toBe(2);
   });
 
-  it('credits distinct payments independently', async () => {
-    const first  = await createPayment(groupId, 100);
+  it("credits distinct payments independently", async () => {
+    const first = await createPayment(groupId, 100);
     const second = await createPayment(groupId, 200);
 
     await billingService.addSmsCredits(ctx, 100, first);

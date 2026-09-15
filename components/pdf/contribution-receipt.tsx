@@ -1,51 +1,99 @@
-import {
-  Document, Page, Text, View, StyleSheet,
-} from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 export interface ContributionReceiptProps {
-  groupName:        string;
-  groupCode:        string;
-  memberFirstName:  string;
-  memberLastName:   string;
+  groupName: string;
+  groupCode: string;
+  memberFirstName: string;
+  memberLastName: string;
   /** Formatted Membership Number ("BG 10253 4") — the only public payment identifier. */
-  membershipNo:     string | null;
-  amount:           string;     // 2dp string
-  paymentMethod:    string | null;
-  mpesaReceipt:     string | null;
-  contributionDate: string;     // ISO date
-  receiptNo:        string;     // our internal receipt id (contribution id)
-  issuedAt:         string;     // ISO timestamp
+  membershipNo: string | null;
+  amount: string; // 2dp string
+  paymentMethod: string | null;
+  mpesaReceipt: string | null;
+  contributionDate: string; // ISO date
+  receiptNo: string; // our internal receipt id (contribution id)
+  issuedAt: string; // ISO timestamp
 }
 
 function fmt(amount: string | number) {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency', currency: 'KES', maximumFractionDigits: 2,
+  return new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: "KES",
+    maximumFractionDigits: 2,
   }).format(Number(amount));
 }
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' });
+    return new Date(iso).toLocaleDateString("en-KE", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
   } catch {
     return iso;
   }
 }
 
 const styles = StyleSheet.create({
-  page:      { padding: 48, fontSize: 11, fontFamily: 'Helvetica', color: '#1f2937' },
-  border:    { borderWidth: 1.5, borderColor: '#1D9E75', borderStyle: 'solid', padding: 28 },
-  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  groupName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#085041' },
-  groupCode: { fontSize: 10, color: '#6b7280', marginTop: 2 },
-  badge:     { fontSize: 9, color: '#1D9E75', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 1 },
-  title:     { fontSize: 13, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
-  amountBox: { backgroundColor: '#E1F5EE', borderRadius: 6, padding: 18, alignItems: 'center', marginVertical: 18 },
-  amountLbl: { fontSize: 9, color: '#0F6E56', textTransform: 'uppercase', letterSpacing: 1 },
-  amount:    { fontSize: 28, fontFamily: 'Helvetica-Bold', color: '#085041', marginTop: 4 },
-  row:       { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb', borderBottomStyle: 'solid' },
-  label:     { color: '#6b7280' },
-  value:     { fontFamily: 'Helvetica-Bold' },
-  footer:    { marginTop: 24, fontSize: 9, color: '#9ca3af', textAlign: 'center' },
+  page: {
+    padding: 48,
+    fontSize: 11,
+    fontFamily: "Helvetica",
+    color: "#1f2937",
+  },
+  border: {
+    borderWidth: 1.5,
+    borderColor: "#1D9E75",
+    borderStyle: "solid",
+    padding: 28,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 20,
+  },
+  groupName: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#085041" },
+  groupCode: { fontSize: 10, color: "#6b7280", marginTop: 2 },
+  badge: {
+    fontSize: 9,
+    color: "#1D9E75",
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  title: { fontSize: 13, fontFamily: "Helvetica-Bold", marginBottom: 4 },
+  amountBox: {
+    backgroundColor: "#E1F5EE",
+    borderRadius: 6,
+    padding: 18,
+    alignItems: "center",
+    marginVertical: 18,
+  },
+  amountLbl: {
+    fontSize: 9,
+    color: "#0F6E56",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  amount: {
+    fontSize: 28,
+    fontFamily: "Helvetica-Bold",
+    color: "#085041",
+    marginTop: 4,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#e5e7eb",
+    borderBottomStyle: "solid",
+  },
+  label: { color: "#6b7280" },
+  value: { fontFamily: "Helvetica-Bold" },
+  footer: { marginTop: 24, fontSize: 9, color: "#9ca3af", textAlign: "center" },
 });
 
 export function ContributionReceipt(props: ContributionReceiptProps) {
@@ -62,7 +110,7 @@ export function ContributionReceipt(props: ContributionReceiptProps) {
           </View>
 
           <Text style={styles.title}>Contribution received</Text>
-          <Text style={{ color: '#6b7280' }}>
+          <Text style={{ color: "#6b7280" }}>
             Thank you, {props.memberFirstName} {props.memberLastName}.
           </Text>
 
@@ -89,7 +137,9 @@ export function ContributionReceipt(props: ContributionReceiptProps) {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Payment method</Text>
-            <Text style={styles.value}>{(props.paymentMethod ?? 'N/A').toUpperCase()}</Text>
+            <Text style={styles.value}>
+              {(props.paymentMethod ?? "N/A").toUpperCase()}
+            </Text>
           </View>
           {props.mpesaReceipt && (
             <View style={styles.row}>
@@ -103,7 +153,8 @@ export function ContributionReceipt(props: ContributionReceiptProps) {
           </View>
 
           <Text style={styles.footer}>
-            Issued {fmtDate(props.issuedAt)} · Generated by Kitabu Yetu · This is a system-generated receipt.
+            Issued {fmtDate(props.issuedAt)} · Generated by Kitabu Yetu · This
+            is a system-generated receipt.
           </Text>
         </View>
       </Page>

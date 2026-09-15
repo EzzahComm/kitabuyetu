@@ -40,23 +40,35 @@
  * the messaging architecture doc's "Explicitly not duplicating" note on why
  * this stays narrowly scoped).
  */
-import { Client } from '@upstash/qstash';
-import { Client as WorkflowClient } from '@upstash/workflow';
-import { env } from '@/lib/env';
-import { logger } from '@/lib/logger';
-import type { TemplateVars } from '@/lib/sms/templates';
+import { Client } from "@upstash/qstash";
+import { Client as WorkflowClient } from "@upstash/workflow";
+import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import type { TemplateVars } from "@/lib/sms/templates";
 
 export function isQstashConfigured(): boolean {
-  return Boolean(env.QSTASH_URL && env.QSTASH_TOKEN && env.QSTASH_CURRENT_SIGNING_KEY && env.QSTASH_NEXT_SIGNING_KEY);
+  return Boolean(
+    env.QSTASH_URL &&
+    env.QSTASH_TOKEN &&
+    env.QSTASH_CURRENT_SIGNING_KEY &&
+    env.QSTASH_NEXT_SIGNING_KEY,
+  );
 }
 
-const globalWithQstash = globalThis as typeof globalThis & { _kyQstash?: Client };
+const globalWithQstash = globalThis as typeof globalThis & {
+  _kyQstash?: Client;
+};
 
 function buildClient(): Client {
-  if (!env.QSTASH_TOKEN) throw new Error('QSTASH_TOKEN environment variable is not set');
+  if (!env.QSTASH_TOKEN)
+    throw new Error("QSTASH_TOKEN environment variable is not set");
   // baseUrl defaults to https://qstash.upstash.io when unset — only pass it
   // through when configured (e.g. a region-pinned endpoint).
-  return new Client(env.QSTASH_URL ? { token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL } : { token: env.QSTASH_TOKEN });
+  return new Client(
+    env.QSTASH_URL
+      ? { token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL }
+      : { token: env.QSTASH_TOKEN },
+  );
 }
 
 function client(): Client {
@@ -69,24 +81,27 @@ function client(): Client {
 // Falls back to the production domain, matching lib/brand.ts and every
 // other NEXT_PUBLIC_APP_URL call site's convention.
 function appBaseUrl(): string {
-  return (env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
+  return (env.NEXT_PUBLIC_APP_URL ?? "https://kitabuyetu.vercel.app").replace(
+    /\/$/,
+    "",
+  );
 }
 
 export interface SmsDispatchChunkPayload {
-  jobId:          string;
-  chunkIndex:     number;
-  chunkCount:     number;
-  groupId:        string;
-  campaignId?:    string;
-  phones:         string[];
-  message:        string;
-  senderId?:      string;
-  timeToSend?:    string;
+  jobId: string;
+  chunkIndex: number;
+  chunkCount: number;
+  groupId: string;
+  campaignId?: string;
+  phones: string[];
+  message: string;
+  senderId?: string;
+  timeToSend?: string;
   referenceType?: string;
-  referenceId?:   string;
-  sentBy:         string;
+  referenceId?: string;
+  sentBy: string;
   totalRecipientCount: number;
-  fundedBy?:            'organization';
+  fundedBy?: "organization";
   payerOrganizationId?: string;
   /** Precomputed per-phone template variables, serialised (Map isn't JSON-safe). */
   varsByPhone?: Record<string, TemplateVars>;
@@ -101,26 +116,34 @@ export interface SmsDispatchChunkPayload {
  * not treat publish failures as fatal to the whole batch — see
  * handleSmsBulkSend's own fallback comment.
  */
-export async function publishSmsChunk(payload: SmsDispatchChunkPayload): Promise<string> {
+export async function publishSmsChunk(
+  payload: SmsDispatchChunkPayload,
+): Promise<string> {
   const { messageId } = await client().publishJSON({
-    url:  `${appBaseUrl()}/api/v1/workers/sms-dispatch-chunk`,
+    url: `${appBaseUrl()}/api/v1/workers/sms-dispatch-chunk`,
     body: payload,
     // Let QStash retry a chunk that 5xxs or times out — independent of, and
     // in addition to, the sms_usage_logs-level retry sms_failures already
     // does for individual provider rejections.
     retries: 3,
   });
-  logger.info(`[qstash] published SMS chunk ${payload.chunkIndex + 1}/${payload.chunkCount} for job ${payload.jobId}`, { messageId });
+  logger.info(
+    `[qstash] published SMS chunk ${payload.chunkIndex + 1}/${payload.chunkCount} for job ${payload.jobId}`,
+    { messageId },
+  );
   return messageId;
 }
 
 // ─── Disbursement watchdog (Upstash Workflow) ──────────────────────────────
 
-const globalWithWorkflow = globalThis as typeof globalThis & { _kyWorkflowClient?: WorkflowClient };
+const globalWithWorkflow = globalThis as typeof globalThis & {
+  _kyWorkflowClient?: WorkflowClient;
+};
 
 function workflowClient(): WorkflowClient {
   if (!globalWithWorkflow._kyWorkflowClient) {
-    if (!env.QSTASH_TOKEN) throw new Error('QSTASH_TOKEN environment variable is not set');
+    if (!env.QSTASH_TOKEN)
+      throw new Error("QSTASH_TOKEN environment variable is not set");
     globalWithWorkflow._kyWorkflowClient = env.QSTASH_URL
       ? new WorkflowClient({ token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL })
       : new WorkflowClient({ token: env.QSTASH_TOKEN });
@@ -128,10 +151,13 @@ function workflowClient(): WorkflowClient {
   return globalWithWorkflow._kyWorkflowClient;
 }
 
-export type DisbursementWatchdogKind = 'disbursement' | 'settlement' | 'vendor_payment';
+export type DisbursementWatchdogKind =
+  | "disbursement"
+  | "settlement"
+  | "vendor_payment";
 
 export interface DisbursementWatchdogPayload {
-  kind:  DisbursementWatchdogKind;
+  kind: DisbursementWatchdogKind;
   rowId: string;
 }
 
@@ -146,7 +172,10 @@ export interface DisbursementWatchdogPayload {
  * vendor_payments) ever reuses a row's id across a retry — a rejected or
  * failed request always creates a NEW row.
  */
-export function watchdogKey(kind: DisbursementWatchdogKind, rowId: string): string {
+export function watchdogKey(
+  kind: DisbursementWatchdogKind,
+  rowId: string,
+): string {
   return `${kind}:${rowId}`;
 }
 
@@ -163,17 +192,22 @@ export function watchdogKey(kind: DisbursementWatchdogKind, rowId: string): stri
  * back to exactly today's status quo (silent-stuck until the hourly
  * findStuck*() sweep pages it — see disbursement-watchdog.service.ts).
  */
-export async function triggerDisbursementWatchdog(input: DisbursementWatchdogPayload): Promise<void> {
+export async function triggerDisbursementWatchdog(
+  input: DisbursementWatchdogPayload,
+): Promise<void> {
   if (!isQstashConfigured()) return;
   const key = watchdogKey(input.kind, input.rowId);
   try {
     await workflowClient().trigger({
-      url:            `${appBaseUrl()}/api/v1/workers/disbursement-watchdog`,
-      body:           input,
-      workflowRunId:  key,
+      url: `${appBaseUrl()}/api/v1/workers/disbursement-watchdog`,
+      body: input,
+      workflowRunId: key,
     });
   } catch (err) {
-    logger.error(`[qstash] failed to trigger disbursement watchdog for ${key}`, { err: String(err) });
+    logger.error(
+      `[qstash] failed to trigger disbursement watchdog for ${key}`,
+      { err: String(err) },
+    );
   }
 }
 
@@ -187,15 +221,21 @@ export async function triggerDisbursementWatchdog(input: DisbursementWatchdogPay
  * failed no longer matches that WHERE clause, so the stale timeout is a no-op.
  */
 export async function notifyDisbursementCallback(
-  kind:      DisbursementWatchdogKind,
-  rowId:     string,
+  kind: DisbursementWatchdogKind,
+  rowId: string,
   eventData: unknown,
 ): Promise<void> {
   if (!isQstashConfigured()) return;
   const key = watchdogKey(kind, rowId);
   try {
-    await workflowClient().notify({ eventId: key, workflowRunId: key, eventData });
+    await workflowClient().notify({
+      eventId: key,
+      workflowRunId: key,
+      eventData,
+    });
   } catch (err) {
-    logger.error(`[qstash] failed to notify disbursement watchdog for ${key}`, { err: String(err) });
+    logger.error(`[qstash] failed to notify disbursement watchdog for ${key}`, {
+      err: String(err),
+    });
   }
 }

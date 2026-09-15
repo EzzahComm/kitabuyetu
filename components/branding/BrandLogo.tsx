@@ -1,6 +1,6 @@
-import Image from 'next/image';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import Image from "next/image";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface BrandLogoProps {
   /** Pixel height (and width — the source is square). Defaults to 36. */
@@ -29,7 +29,7 @@ export function BrandLogo({
   href,
   priority = false,
   className,
-  alt = 'Kitabu Yetu Logo',
+  alt = "Kitabu Yetu Logo",
 }: BrandLogoProps): React.ReactElement {
   const img = (
     <Image
@@ -47,7 +47,7 @@ export function BrandLogo({
     return (
       <Link
         href={href}
-        className={cn('inline-flex items-center', className)}
+        className={cn("inline-flex items-center", className)}
         aria-label={alt}
       >
         {img}
@@ -56,9 +56,7 @@ export function BrandLogo({
   }
 
   return (
-    <span className={cn('inline-flex items-center', className)}>
-      {img}
-    </span>
+    <span className={cn("inline-flex items-center", className)}>{img}</span>
   );
 }
 

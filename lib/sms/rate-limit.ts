@@ -18,8 +18,8 @@
  * and the per-member/per-phone/per-organization tiers) belongs with the
  * reservation ledger in Phase 2/3 of docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md.
  */
-import { checkRateLimit } from '@/lib/redis';
-import { errorResponse } from '@/lib/utils/response';
+import { checkRateLimit } from "@/lib/redis";
+import { errorResponse } from "@/lib/utils/response";
 
 /**
  * Per-group ceilings, keyed by send surface. `bulk` and `campaign` are far
@@ -28,9 +28,9 @@ import { errorResponse } from '@/lib/utils/response';
  * for transactional receipts and manual officer messages.
  */
 export const SMS_RATE_LIMITS = {
-  send:     { limit: 30, windowSeconds: 60 },
-  bulk:     { limit: 5,  windowSeconds: 60 },
-  campaign: { limit: 5,  windowSeconds: 60 },
+  send: { limit: 30, windowSeconds: 60 },
+  bulk: { limit: 5, windowSeconds: 60 },
+  campaign: { limit: 5, windowSeconds: 60 },
 } as const;
 
 export type SmsSendSurface = keyof typeof SMS_RATE_LIMITS;
@@ -44,12 +44,16 @@ export async function enforceSmsRateLimit(
   groupId: string,
 ): Promise<Response | null> {
   const { limit, windowSeconds } = SMS_RATE_LIMITS[surface];
-  const allowed = await checkRateLimit(`sms:${surface}:${groupId}`, limit, windowSeconds);
+  const allowed = await checkRateLimit(
+    `sms:${surface}:${groupId}`,
+    limit,
+    windowSeconds,
+  );
   if (allowed) return null;
 
   return errorResponse(
     `Too many SMS requests. This group may send at most ${limit} ${surface} requests per ${windowSeconds}s.`,
-    'RATE_LIMITED',
+    "RATE_LIMITED",
     429,
   );
 }

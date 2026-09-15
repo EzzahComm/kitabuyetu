@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useStkPush, usePollMpesa } from './use-billing';
-import { useToast } from './use-toast';
-import { getErrorMessage } from '@/lib/utils';
-import type { StkPushInput } from '@/lib/validators/mpesa.schema';
+import { useState, useEffect, useCallback } from "react";
+import { useStkPush, usePollMpesa } from "./use-billing";
+import { useToast } from "./use-toast";
+import { getErrorMessage } from "@/lib/utils";
+import type { StkPushInput } from "@/lib/validators/mpesa.schema";
 
 /**
  * The STK push → prompt → poll → settle loop, as one reusable state machine.
@@ -18,14 +18,16 @@ import type { StkPushInput } from '@/lib/validators/mpesa.schema';
  */
 export function useStkCheckout(onCompleted: (amount: number) => void) {
   const { toast } = useToast();
-  const stkPush   = useStkPush();
+  const stkPush = useStkPush();
 
-  const [open, setOpen]             = useState(false);
-  const [phone, setPhone]           = useState('');
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState("");
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
-  const [polling, setPolling]       = useState(false);
-  const [amount, setAmount]         = useState<number | null>(null);
-  const [payload, setPayload]       = useState<Omit<StkPushInput, 'phone'> | null>(null);
+  const [polling, setPolling] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [payload, setPayload] = useState<Omit<StkPushInput, "phone"> | null>(
+    null,
+  );
 
   const { data: mpesaStatus } = usePollMpesa(checkoutId, polling);
 
@@ -35,19 +37,23 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
   // copy-data-to-state anti-pattern the rule normally guards against.
   useEffect(() => {
     if (!mpesaStatus || amount == null) return;
-    if (mpesaStatus.status === 'completed') {
+    if (mpesaStatus.status === "completed") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPolling(false);
       setOpen(false);
       onCompleted(amount);
-    } else if (mpesaStatus.status === 'failed') {
+    } else if (mpesaStatus.status === "failed") {
       setPolling(false);
-      toast({ variant: 'destructive', title: 'Payment failed', description: 'M-Pesa payment was not completed' });
+      toast({
+        variant: "destructive",
+        title: "Payment failed",
+        description: "M-Pesa payment was not completed",
+      });
     }
   }, [mpesaStatus, amount, onCompleted, toast]);
 
   /** Open the dialog for a purchase. Nothing is sent until the user confirms. */
-  const start = useCallback((next: Omit<StkPushInput, 'phone'>) => {
+  const start = useCallback((next: Omit<StkPushInput, "phone">) => {
     setPayload(next);
     setAmount(next.amount);
     setOpen(true);
@@ -60,7 +66,11 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
       setCheckoutId(res.checkoutRequestId);
       setPolling(true);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'STK push failed', description: getErrorMessage(err) });
+      toast({
+        variant: "destructive",
+        title: "STK push failed",
+        description: getErrorMessage(err),
+      });
     }
   }, [payload, phone, stkPush, toast]);
 
@@ -68,8 +78,11 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
     open,
     // Refuse to close mid-poll: the payment is in flight and the dialog is the
     // only thing telling the user so.
-    setOpen: (next: boolean) => { if (!polling) setOpen(next); },
-    phone, setPhone,
+    setOpen: (next: boolean) => {
+      if (!polling) setOpen(next);
+    },
+    phone,
+    setPhone,
     polling,
     amount,
     start,

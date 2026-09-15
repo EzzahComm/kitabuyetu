@@ -6,36 +6,45 @@
  * destination off reduces risk, doesn't need a second officer, matching this
  * codebase's existing precedent for other risk-reducing-only actions.
  */
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError } from '@/lib/utils/errors';
-import { recordApproval } from './settlement-approvals.service';
-import type { CreateGroupBankAccountInput } from '@/lib/validators/group-bank-accounts.schema';
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import { NotFoundError } from "@/lib/utils/errors";
+import { recordApproval } from "./settlement-approvals.service";
+import type { CreateGroupBankAccountInput } from "@/lib/validators/group-bank-accounts.schema";
 
 export interface GroupBankAccountRow {
-  id:             string;
-  group_id:       string;
-  bank_name:      string;
-  shortcode:      string;
+  id: string;
+  group_id: string;
+  bank_name: string;
+  shortcode: string;
   account_number: string;
-  label:          string | null;
-  status:         'pending_approval' | 'active' | 'rejected' | 'disabled';
-  created_by:     string | null;
-  created_at:     Date;
-  activated_at:   Date | null;
-  notes:          string | null;
+  label: string | null;
+  status: "pending_approval" | "active" | "rejected" | "disabled";
+  created_by: string | null;
+  created_at: Date;
+  activated_at: Date | null;
+  notes: string | null;
 }
 
 export const groupBankAccountsService = {
-
-  async create(ctx: TenantContext, input: CreateGroupBankAccountInput): Promise<GroupBankAccountRow> {
+  async create(
+    ctx: TenantContext,
+    input: CreateGroupBankAccountInput,
+  ): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
         `INSERT INTO group_bank_accounts
            (group_id, bank_name, shortcode, account_number, label, notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, input.bankName, input.shortcode, input.accountNumber,
-         input.label ?? null, input.notes ?? null, ctx.userId],
+        [
+          ctx.groupId,
+          input.bankName,
+          input.shortcode,
+          input.accountNumber,
+          input.label ?? null,
+          input.notes ?? null,
+          ctx.userId,
+        ],
       );
       return rows[0];
     });
@@ -50,11 +59,13 @@ export const groupBankAccountsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending bank account', id);
+      if (!rows[0]) throw new NotFoundError("Pending bank account", id);
 
       await recordApproval(db, ctx, {
-        subjectType: 'bank_account', subjectId: id,
-        initiatedBy: rows[0].created_by ?? '', decision: 'approved',
+        subjectType: "bank_account",
+        subjectId: id,
+        initiatedBy: rows[0].created_by ?? "",
+        decision: "approved",
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
@@ -67,7 +78,11 @@ export const groupBankAccountsService = {
     });
   },
 
-  async reject(ctx: TenantContext, id: string, reason: string): Promise<GroupBankAccountRow> {
+  async reject(
+    ctx: TenantContext,
+    id: string,
+    reason: string,
+  ): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
         `SELECT * FROM group_bank_accounts
@@ -75,11 +90,14 @@ export const groupBankAccountsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending bank account', id);
+      if (!rows[0]) throw new NotFoundError("Pending bank account", id);
 
       await recordApproval(db, ctx, {
-        subjectType: 'bank_account', subjectId: id,
-        initiatedBy: rows[0].created_by ?? '', decision: 'rejected', reason,
+        subjectType: "bank_account",
+        subjectId: id,
+        initiatedBy: rows[0].created_by ?? "",
+        decision: "rejected",
+        reason,
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
@@ -91,7 +109,11 @@ export const groupBankAccountsService = {
   },
 
   /** Single-actor — no maker-checker for turning a destination off. */
-  async disable(ctx: TenantContext, id: string, reason?: string): Promise<GroupBankAccountRow> {
+  async disable(
+    ctx: TenantContext,
+    id: string,
+    reason?: string,
+  ): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
         `SELECT * FROM group_bank_accounts
@@ -99,7 +121,7 @@ export const groupBankAccountsService = {
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Active bank account', id);
+      if (!rows[0]) throw new NotFoundError("Active bank account", id);
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
         `UPDATE group_bank_accounts
@@ -117,7 +139,7 @@ export const groupBankAccountsService = {
         `SELECT * FROM group_bank_accounts WHERE id = $1 AND group_id = $2`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Bank account', id);
+      if (!rows[0]) throw new NotFoundError("Bank account", id);
       return rows[0];
     });
   },

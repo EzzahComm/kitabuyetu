@@ -1,15 +1,27 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import * as React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Network, Users2, Banknote, FileBarChart,
-  KeyRound, Palette, ScrollText, Menu, Building2, Receipt,
-} from 'lucide-react';
-import { useAuth } from '@/lib/auth/context';
-import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
-import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
+  LayoutDashboard,
+  Network,
+  Users2,
+  Banknote,
+  FileBarChart,
+  KeyRound,
+  Palette,
+  ScrollText,
+  Menu,
+  Building2,
+  Receipt,
+} from "lucide-react";
+import { useAuth } from "@/lib/auth/context";
+import { WorkspaceSwitcher } from "@/components/enterprise/workspace-switcher";
+import {
+  PortalSidebar,
+  type PortalNavSection,
+} from "@/components/shared/portal-sidebar";
 
 /**
  * B2B Enterprise portal shell — corporate, desktop-first, dense.
@@ -22,50 +34,58 @@ import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal
  * that `assertOrganizationCoordinator()` enforces server-side for every
  * /api/v1/organization/* route — mirrors (admin)/layout.tsx's ADMIN_ROLES guard.
  */
-const ENTERPRISE_ROLES = ['organization_coordinator', 'super_admin'] as const;
+const ENTERPRISE_ROLES = ["organization_coordinator", "super_admin"] as const;
 type EnterpriseRole = (typeof ENTERPRISE_ROLES)[number];
 
 // `soon` items show the planned IA without dead links — they render disabled
 // with a "Soon" pill until their screen ships (PortalSidebar honours the flag).
 const NAV: PortalNavSection[] = [
   {
-    title: 'Overview',
+    title: "Overview",
     items: [
-      { href: '/enterprise', label: 'Portfolio', icon: LayoutDashboard },
-      { href: '/enterprise/branches', label: 'Branches', icon: Network },
+      { href: "/enterprise", label: "Portfolio", icon: LayoutDashboard },
+      { href: "/enterprise/branches", label: "Branches", icon: Network },
       // Moved here from the GROUP portal's sidebar, where it sat behind an
       // "Ecosystem" section for organization_coordinator. A funder's view of
       // their own wallet, programs and disbursements belongs with the rest of
       // the organization surface, not inside a group's books.
-      { href: '/enterprise/funding', label: 'Funding Portal', icon: Building2 },
-      { href: '/enterprise/reports', label: 'Reports', icon: FileBarChart },
+      { href: "/enterprise/funding", label: "Funding Portal", icon: Building2 },
+      { href: "/enterprise/reports", label: "Reports", icon: FileBarChart },
     ],
   },
   {
-    title: 'Operations',
+    title: "Operations",
     items: [
-      { href: '/enterprise/members', label: 'Members', icon: Users2 },
-      { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
+      { href: "/enterprise/members", label: "Members", icon: Users2 },
+      {
+        href: "/enterprise/disbursements",
+        label: "Disbursements",
+        icon: Banknote,
+      },
       // Deliberately separate from Funding Portal: that page is the org's
       // CAPITAL wallet (donor contributions, grants, disbursements) — SMS
       // credits are their own wallet with no GL posting and nothing to do
       // with disbursement capacity. Mirrors the group side, which manages
       // its own SMS credits on a dedicated Billing page too, not folded
       // into any "funding" concept (components/layout/sidebar.tsx).
-      { href: '/enterprise/billing', label: 'Billing', icon: Receipt },
+      { href: "/enterprise/billing", label: "Billing", icon: Receipt },
     ],
   },
   {
-    title: 'Developer & Brand',
+    title: "Developer & Brand",
     items: [
-      { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound },
-      { href: '/enterprise/branding', label: 'White-label', icon: Palette },
-      { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText },
+      { href: "/enterprise/api-keys", label: "API & Webhooks", icon: KeyRound },
+      { href: "/enterprise/branding", label: "White-label", icon: Palette },
+      { href: "/enterprise/audit", label: "Audit Trail", icon: ScrollText },
     ],
   },
 ];
 
-export default function EnterpriseLayout({ children }: { children: React.ReactNode }) {
+export default function EnterpriseLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -73,32 +93,35 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
 
   React.useEffect(() => {
     if (isLoading) return;
-    if (!user || audience !== 'backoffice') {
-      router.replace('/enterprise/login');
+    if (!user || audience !== "backoffice") {
+      router.replace("/enterprise/login");
       return;
     }
     if (!ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole)) {
       // Genuinely authenticated-but-denied (e.g. a support-role backoffice
       // user without enterprise access) — /unauthorized, not back to the
       // login page they just came from.
-      router.replace('/unauthorized');
+      router.replace("/unauthorized");
     }
   }, [user, audience, isLoading, router]);
 
-  const ready = !isLoading
-    && !!user
-    && audience === 'backoffice'
-    && ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
+  const ready =
+    !isLoading &&
+    !!user &&
+    audience === "backoffice" &&
+    ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
 
   const isActive = (href: string) =>
-    href === '/enterprise' ? pathname === href : pathname.startsWith(href);
+    href === "/enterprise" ? pathname === href : pathname.startsWith(href);
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30">
         <div className="text-center">
           <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Verifying enterprise access…</p>
+          <p className="text-sm text-muted-foreground">
+            Verifying enterprise access…
+          </p>
         </div>
       </div>
     );
@@ -106,7 +129,9 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
 
   // `ready` already proved user is non-null; narrowing again keeps TS happy
   // below without a non-null assertion.
-  const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || '?';
+  const initials =
+    `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() ||
+    "?";
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/30">
@@ -122,11 +147,19 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
         sections={NAV}
         isActive={isActive}
         widthExpanded="w-[260px]"
-        preNav={<div className="border-b p-3"><WorkspaceSwitcher /></div>}
+        preNav={
+          <div className="border-b p-3">
+            <WorkspaceSwitcher />
+          </div>
+        }
         logo={() => (
           <Link href="/enterprise" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">K</span>
-            <span className="text-sm font-semibold text-foreground">Kitabu <span className="text-brand-600">Enterprise</span></span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">
+              K
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              Kitabu <span className="text-brand-600">Enterprise</span>
+            </span>
           </Link>
         )}
       />
@@ -134,7 +167,12 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
-          <button type="button" onClick={() => setOpen(true)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted lg:hidden" aria-label="Open menu">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted lg:hidden"
+            aria-label="Open menu"
+          >
             <Menu size={18} />
           </button>
           {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md M4 — the notification bell that
@@ -146,7 +184,9 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
               signed-in user's own initials. */}
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right leading-tight sm:block">
-              <p className="text-xs font-medium text-foreground">{user.firstName} {user.lastName}</p>
+              <p className="text-xs font-medium text-foreground">
+                {user.firstName} {user.lastName}
+              </p>
               <p className="text-[11px] text-muted-foreground">{user.email}</p>
             </div>
             <span

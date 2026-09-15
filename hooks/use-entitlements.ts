@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { billingApi } from '@/lib/api/endpoints';
-import { billingKeys } from './use-billing';
-import type { SubscriptionProduct } from '@/types/enums';
+import { useQuery } from "@tanstack/react-query";
+import { billingApi } from "@/lib/api/endpoints";
+import { billingKeys } from "./use-billing";
+import type { SubscriptionProduct } from "@/types/enums";
 
 /**
  * Which products this group may actually use, and which one it signed up for.
@@ -21,8 +21,8 @@ import type { SubscriptionProduct } from '@/types/enums';
  */
 export function useEntitlements() {
   const query = useQuery({
-    queryKey:  billingKeys.entitlements,
-    queryFn:   billingApi.entitlements,
+    queryKey: billingKeys.entitlements,
+    queryFn: billingApi.entitlements,
     staleTime: 30_000,
   });
 
@@ -40,7 +40,7 @@ export function useEntitlements() {
      * on its normal dashboard.
      */
     reminderOnly:
-      products.includes('chama_reminder') && !products.includes('kitabu_yetu'),
+      products.includes("chama_reminder") && !products.includes("kitabu_yetu"),
     /**
      * True for a group that has not paid for anything yet but registered for
      * Chama Reminder. `products` cannot answer this — since migration 139 a
@@ -49,6 +49,6 @@ export function useEntitlements() {
      * sent to the wrong subscribe page.
      */
     awaitingReminderPayment:
-      products.length === 0 && query.data?.signupProduct === 'chama_reminder',
+      products.length === 0 && query.data?.signupProduct === "chama_reminder",
   };
 }

@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Kitabu Yetu's accounting core is **more sophisticated than a first look at the product would suggest**. There is a real chart-of-accounts table (`accounts`), a real double-entry journal schema (`journal_entries`/`journal_lines`), and — unusually for a codebase at this stage — **two independent, DB-level enforcement layers** guaranteeing every posted journal balances: a `BEFORE UPDATE` trigger (migration 009) and a `DEFERRABLE` constraint trigger (migration 027) added specifically after the team discovered application code was bypassing the first one. A trigger-maintained balance column ties `accounts.balance` to `journal_lines` with no possibility of drift for group-level cash. Group and organization-to-group disbursements have genuine maker-checker `CHECK` constraints. A budget-commitment system in `organization-finance.service.ts` reserves against *pending* disbursement requests, not just completed ones, closing the exact overspend race condition the audit brief worried about. An SMS trigger-rule engine implements genuine three-tier (group > organization > platform) policy inheritance — proof the team can build this pattern.
+Kitabu Yetu's accounting core is **more sophisticated than a first look at the product would suggest**. There is a real chart-of-accounts table (`accounts`), a real double-entry journal schema (`journal_entries`/`journal_lines`), and — unusually for a codebase at this stage — **two independent, DB-level enforcement layers** guaranteeing every posted journal balances: a `BEFORE UPDATE` trigger (migration 009) and a `DEFERRABLE` constraint trigger (migration 027) added specifically after the team discovered application code was bypassing the first one. A trigger-maintained balance column ties `accounts.balance` to `journal_lines` with no possibility of drift for group-level cash. Group and organization-to-group disbursements have genuine maker-checker `CHECK` constraints. A budget-commitment system in `organization-finance.service.ts` reserves against _pending_ disbursement requests, not just completed ones, closing the exact overspend race condition the audit brief worried about. An SMS trigger-rule engine implements genuine three-tier (group > organization > platform) policy inheritance — proof the team can build this pattern.
 
 Set against that foundation, the audit's central question — **do Loans, Savings, Shares, Welfare, Payments, Subscriptions, and Organizations all converge into one authoritative accounting engine, or do they post independently?** — has an unambiguous, evidence-based answer: **they post independently, and four of them don't post at all.**
 
@@ -78,7 +78,7 @@ Set against that foundation, the audit's central question — **do Loans, Saving
   logic)
 ```
 
-No arrow above passes through a shared choke point except the DB triggers themselves — which only validate *balance*, not *which service* is allowed to post or *how*.
+No arrow above passes through a shared choke point except the DB triggers themselves — which only validate _balance_, not _which service_ is allowed to post or _how_.
 
 ---
 
@@ -103,6 +103,7 @@ A 17-account default COA is seeded per group via the `register_group` RPC (re-is
 `journal_lines` (`004_accounting.sql:70-89`): `account_id`, `debit`/`credit` with `CHECK (debit >= 0 AND credit >= 0)` **and** `CONSTRAINT journal_lines_debit_xor_credit CHECK ((debit>0 AND credit=0) OR (credit>0 AND debit=0))` — a genuinely strict one-sided-line constraint at the DB level.
 
 **Balance enforcement — two layers, and the history matters.**
+
 1. `validate_journal_balance()` (migration 009) — `BEFORE UPDATE`, fires on transition to `status='posted'`, rejects unbalanced or empty entries.
 2. `assert_posted_entry_balance()` (migration 027) — a `DEFERRABLE INITIALLY DEFERRED` constraint trigger added **specifically because** application code (`postContributionJournal`, `postDisbursementJournal`, `postRepaymentJournal` in `loans.service.ts`/`contributions.service.ts`) inserts `journal_entries` directly with `status='posted'`, never triggering the migration-009 UPDATE-based check. This is documented evidence of a real historical bug — a posting path that could have created an unbalanced, permanently-posted journal — caught and closed at the schema level rather than by fixing every call site individually. That is the right fix, but it is also evidence that the "many independent posting paths" problem in §7 has already bitten this codebase once.
 
@@ -127,7 +128,7 @@ A 17-account default COA is seeded per group via the `register_group` RPC (re-is
 
 Plus: `organization-finance.service.ts:134-146` (org→group funding, its own raw INSERT) and `reallocations.service.ts:322-349` (`mirrorJournal`, a seventh distinct posting mechanism for corrections).
 
-**Are journals generated consistently?** No. The manual vs. automated (M-Pesa) path for the *same* business event (a contribution, a disbursement, a repayment) is posted by different code with different capabilities (split-engine support, fee folding) depending on which channel the money came through — meaning the resulting ledger for two economically identical transactions can look different depending on payment channel alone.
+**Are journals generated consistently?** No. The manual vs. automated (M-Pesa) path for the _same_ business event (a contribution, a disbursement, a repayment) is posted by different code with different capabilities (split-engine support, fee folding) depending on which channel the money came through — meaning the resulting ledger for two economically identical transactions can look different depending on payment channel alone.
 
 **Journal types actually implemented:** Savings Deposit/Contribution (2 implementations), Loan Disbursement (2), Loan Repayment (2), Organization Funding (1), Payment Correction/Reallocation (1, via mirror). **Journal types NOT implemented at all** (§7): Share Purchase/Redemption, Dividend, Welfare, Subscription/Platform billing, Write-off, formal Reversal-as-a-type (only mirror-copy exists), Vendor Payment/Payroll/Expense (no dedicated expense-recording flow beyond manual journals was found), Interest Accrual as a distinct scheduled event (interest is calculated at repayment time in the loan schedule, not accrued via a periodic journal).
 
@@ -137,19 +138,19 @@ Plus: `organization-finance.service.ts:134-146` (org→group funding, its own ra
 
 This section is the audit's central finding — full module-by-module status:
 
-| Module | Status | Evidence |
-|---|---|---|
-| Contributions/Savings | **PARTIAL — duplicated** | `contributions.service.ts:231` (manual) vs. `mpesa.service.ts:707` (M-Pesa) — different logic for the same operation |
-| Loans — disbursement | **PARTIAL — duplicated** | `loans.service.ts:239` (manual) vs. `mpesa.service.ts:2646` (B2C, fee-aware) |
-| Loans — repayment | **PARTIAL — duplicated** | `loans.service.ts:265` (manual) vs. `mpesa.service.ts:796` (M-Pesa waterfall) |
-| Organization → group funding | **IMPLEMENTED (own engine)** | `organization-finance.service.ts:98-170`, DR 1001/CR 4005, group-side only |
-| Organization wallet deposits | **BYPASSES ACCOUNTING** | `organization-finance.service.ts:201-236` — writes `organization_ledger` only, never `journal_entries`; no GL exists for organizations at all (`accounts.group_id` is `NOT NULL`) |
-| **Shares** | **BYPASSES ACCOUNTING** | `shares.service.ts` — zero references to `journal`/`account_id` anywhere in the file; `createTransaction` (lines 218-388) records purchase/redemption/transfer with real `payment_method`/`payment_reference` fields but no DR Cash / CR Member Equity ever posted |
-| **Welfare** | **BYPASSES ACCOUNTING** | `welfare.service.ts` — no `journal`/`account` reference at all; `recordPoolContribution` (222-240) and `disburse` (171-191) move real cash (M-Pesa receipts, payment methods) with zero ledger trace |
-| **Dividends** | **BYPASSES ACCOUNTING** | `dividends.service.ts` (691 lines) — `approve`/`payAllocation`/`bulkPayAllocations` move real cash/M-Pesa payouts and compute withholding tax, none of it ever posted; no DR Retained Surplus / CR Dividends Payable entry exists |
-| **Subscriptions/Billing** | **BYPASSES ACCOUNTING** | `billing.service.ts` (219 lines) — plan upgrades paid via M-Pesa STK (`app/(dashboard)/billing/page.tsx:67`), `fulfilStkCallback` explicitly routes subscription payments to update `invoices.paid_amount` with a comment "no domain action needed here" (`mpesa.service.ts:430-432`) — **the seeded `5003 Platform Subscription` expense account is dead code, confirmed by a repo-wide grep showing it appears nowhere outside its own seed definition** |
-| M-Pesa/bank charges | **PARTIAL** | Posted only on the automated B2C path (`postStandaloneChargeJournal`, folded fee in `applyLoanDisbursement`); **never posted** on manual disbursement/repayment paths — the exact same charge is tracked when automated and silently absorbed when manual |
-| Payment reallocation/correction | **IMPLEMENTED (own engine)** | `reallocations.service.ts:322` `mirrorJournal` — a working but separate posting mechanism |
+| Module                          | Status                       | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contributions/Savings           | **PARTIAL — duplicated**     | `contributions.service.ts:231` (manual) vs. `mpesa.service.ts:707` (M-Pesa) — different logic for the same operation                                                                                                                                                                                                                                                                                                                                       |
+| Loans — disbursement            | **PARTIAL — duplicated**     | `loans.service.ts:239` (manual) vs. `mpesa.service.ts:2646` (B2C, fee-aware)                                                                                                                                                                                                                                                                                                                                                                               |
+| Loans — repayment               | **PARTIAL — duplicated**     | `loans.service.ts:265` (manual) vs. `mpesa.service.ts:796` (M-Pesa waterfall)                                                                                                                                                                                                                                                                                                                                                                              |
+| Organization → group funding    | **IMPLEMENTED (own engine)** | `organization-finance.service.ts:98-170`, DR 1001/CR 4005, group-side only                                                                                                                                                                                                                                                                                                                                                                                 |
+| Organization wallet deposits    | **BYPASSES ACCOUNTING**      | `organization-finance.service.ts:201-236` — writes `organization_ledger` only, never `journal_entries`; no GL exists for organizations at all (`accounts.group_id` is `NOT NULL`)                                                                                                                                                                                                                                                                          |
+| **Shares**                      | **BYPASSES ACCOUNTING**      | `shares.service.ts` — zero references to `journal`/`account_id` anywhere in the file; `createTransaction` (lines 218-388) records purchase/redemption/transfer with real `payment_method`/`payment_reference` fields but no DR Cash / CR Member Equity ever posted                                                                                                                                                                                         |
+| **Welfare**                     | **BYPASSES ACCOUNTING**      | `welfare.service.ts` — no `journal`/`account` reference at all; `recordPoolContribution` (222-240) and `disburse` (171-191) move real cash (M-Pesa receipts, payment methods) with zero ledger trace                                                                                                                                                                                                                                                       |
+| **Dividends**                   | **BYPASSES ACCOUNTING**      | `dividends.service.ts` (691 lines) — `approve`/`payAllocation`/`bulkPayAllocations` move real cash/M-Pesa payouts and compute withholding tax, none of it ever posted; no DR Retained Surplus / CR Dividends Payable entry exists                                                                                                                                                                                                                          |
+| **Subscriptions/Billing**       | **BYPASSES ACCOUNTING**      | `billing.service.ts` (219 lines) — plan upgrades paid via M-Pesa STK (`app/(dashboard)/billing/page.tsx:67`), `fulfilStkCallback` explicitly routes subscription payments to update `invoices.paid_amount` with a comment "no domain action needed here" (`mpesa.service.ts:430-432`) — **the seeded `5003 Platform Subscription` expense account is dead code, confirmed by a repo-wide grep showing it appears nowhere outside its own seed definition** |
+| M-Pesa/bank charges             | **PARTIAL**                  | Posted only on the automated B2C path (`postStandaloneChargeJournal`, folded fee in `applyLoanDisbursement`); **never posted** on manual disbursement/repayment paths — the exact same charge is tracked when automated and silently absorbed when manual                                                                                                                                                                                                  |
+| Payment reallocation/correction | **IMPLEMENTED (own engine)** | `reallocations.service.ts:322` `mirrorJournal` — a working but separate posting mechanism                                                                                                                                                                                                                                                                                                                                                                  |
 
 **Atomicity/transactions:** each raw-SQL posting site does run inside its caller's `withTransaction`, so individual postings are internally atomic — the problem is not missing transactions, it is missing centralization.
 
@@ -172,7 +173,7 @@ This section is the audit's central finding — full module-by-module status:
 
 ## 9. Wallet Accounting Assessment
 
-**Group-level wallet = the GL Cash account itself. IMPLEMENTED as a first-class accounting entity, no drift possible.** There is no separate "group wallet" table — `accounts.balance` (trigger-maintained from `journal_lines`) *is* the group's cash position. `accounts.reserved_amount` (migration 066) sits on the same row, so "available = balance − reserved_amount" is computed against the real Cash account. The one caveat: `reserved_amount` itself is mutated directly by `disbursements.service.ts` application code (not journal-derived) — a reservation is an operational hold, not a journal entry, until it converts into a real posted journal at settlement. This is a narrow, deliberately-scoped exception, well-documented in the migration's own comments, and does not create a balance/GL mismatch since it lives on the same row.
+**Group-level wallet = the GL Cash account itself. IMPLEMENTED as a first-class accounting entity, no drift possible.** There is no separate "group wallet" table — `accounts.balance` (trigger-maintained from `journal_lines`) _is_ the group's cash position. `accounts.reserved_amount` (migration 066) sits on the same row, so "available = balance − reserved_amount" is computed against the real Cash account. The one caveat: `reserved_amount` itself is mutated directly by `disbursements.service.ts` application code (not journal-derived) — a reservation is an operational hold, not a journal entry, until it converts into a real posted journal at settlement. This is a narrow, deliberately-scoped exception, well-documented in the migration's own comments, and does not create a balance/GL mismatch since it lives on the same row.
 
 **Organization-level wallet = purely operational, zero GL backing. This is the audit's second major structural finding.** `organization_wallets` (`available_balance`, `committed_balance`, `total_deposited`, `total_disbursed`, `total_returned`) is updated directly by application code with **no accounts/journal_entries table for organizations at all** — structurally impossible today, since `accounts.group_id` is `NOT NULL REFERENCES groups`. `deposit()` only appends to `organization_ledger` (an append-only log with `balance_after`, not a double-entry ledger) — the code's own comment concedes "M-Pesa/bank settlement is reconciled out-of-band for now." Even `settleOrgDisbursement()`, the one place double-entry IS invoked, posts **only to the receiving group's books** (DR 1001/CR 4005) — the organization's own wallet debit is a bare UPDATE with no offsetting journal anywhere on the organization side.
 
@@ -231,15 +232,15 @@ Maker-checker (the approval threshold) and budget-sufficiency are two separately
 
 ## 15. Financial Controls Assessment
 
-| Control point | Status | Evidence |
-|---|---|---|
-| Group B2C disbursement maker-checker | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> initiated_by)`, migration 066 |
-| Org→group disbursement maker-checker | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> created_by)`, migration 067 |
-| Payment reallocation maker-checker | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> initiated_by)`, migration 063 |
-| **Manual journal create/post/void** | **NOT FOUND** | `app/api/v1/accounting/journals/route.ts` gates all three actions behind one `withRole(req,'treasurer',…)` check; `posted_by`/`voided_by` have no distinct-actor constraint anywhere — the single weakest control point in an otherwise well-hardened system |
-| Write-off workflow | **NOT FOUND** | `written_off` exists only as a loan-status enum value set via bulk import; no service method or route books a write-off journal at all — the seeded `5004 Loan Write-offs` account is unreachable |
-| Period reopening | **N/A** | No period-locking exists to reopen (§13) |
-| Large-transaction threshold (journals) | **NOT FOUND** | Thresholds exist for disbursements/reallocations only; `CreateJournalSchema` has no amount ceiling or threshold check at all |
+| Control point                          | Status          | Evidence                                                                                                                                                                                                                                                     |
+| -------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Group B2C disbursement maker-checker   | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> initiated_by)`, migration 066                                                                                                                                                                                  |
+| Org→group disbursement maker-checker   | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> created_by)`, migration 067                                                                                                                                                                                    |
+| Payment reallocation maker-checker     | **IMPLEMENTED** | `CHECK (approved_by IS NULL OR approved_by <> initiated_by)`, migration 063                                                                                                                                                                                  |
+| **Manual journal create/post/void**    | **NOT FOUND**   | `app/api/v1/accounting/journals/route.ts` gates all three actions behind one `withRole(req,'treasurer',…)` check; `posted_by`/`voided_by` have no distinct-actor constraint anywhere — the single weakest control point in an otherwise well-hardened system |
+| Write-off workflow                     | **NOT FOUND**   | `written_off` exists only as a loan-status enum value set via bulk import; no service method or route books a write-off journal at all — the seeded `5004 Loan Write-offs` account is unreachable                                                            |
+| Period reopening                       | **N/A**         | No period-locking exists to reopen (§13)                                                                                                                                                                                                                     |
+| Large-transaction threshold (journals) | **NOT FOUND**   | Thresholds exist for disbursements/reallocations only; `CreateJournalSchema` has no amount ceiling or threshold check at all                                                                                                                                 |
 
 The pattern is stark: every control that governs money crossing a trust boundary between two parties (group↔organization, group↔group via reallocation) has real dual control. The one control governing a single treasurer's unilateral power to fabricate or erase ledger history has none.
 
@@ -270,7 +271,8 @@ Two real, working layers exist — and one critical layer is missing entirely:
 ## 18. Auditability Assessment
 
 **Two genuinely different audit-trail mechanisms exist, neither of which covers manual journal activity:**
-- `payment_events` (append-only, RLS-enforced immutability, JSONB `detail` blob, actor+timestamp) — scoped to the payment-registry/allocation subsystem. A `journal_posted` event fires when a journal results *from payment allocation*, but never from the manual journal API.
+
+- `payment_events` (append-only, RLS-enforced immutability, JSONB `detail` blob, actor+timestamp) — scoped to the payment-registry/allocation subsystem. A `journal_posted` event fires when a journal results _from payment allocation_, but never from the manual journal API.
 - `audit_logs` (a stronger, generic table — explicit before/after JSONB, `BEFORE UPDATE/DELETE` trigger enforcing true immutability, proper indexes) — confirmed writers include credit-scores, WhatsApp, imports, member-roles, dividends, and shares services. **`accounting.service.ts` is absent from this list** — creating, posting, or voiding a manual journal entry leaves no row in `audit_logs`, so the admin `/admin/audit-logs` screen has zero visibility into who did what to the ledger directly.
 
 Auditors could reconstruct: every posted journal and its balanced lines (the ledger itself is complete for what it contains), every disbursement approval/rejection (maker-checker + `payment_events`), every dividend/share/member-role change (`audit_logs`). Auditors **could not** reconstruct: who created, posted, or voided any specific manual journal entry (no audit-log write), any share/welfare/dividend/subscription cash movement's accounting trail (because none exists), or any organization-level wallet movement's tie to a bank/M-Pesa statement (no reconciliation exists to produce that trail).
@@ -289,7 +291,7 @@ Auditors could reconstruct: every posted journal and its balanced lines (the led
 ## 20. Compliance Assessment
 
 - **IFRS-style reporting:** Trial Balance and P&L are real; Balance Sheet is broken/unreachable (§12); Cash Flow and Statement of Changes in Equity don't exist. A full IFRS-compliant financial-statement set is **not producible today**, and would understate the business even if it were, due to §7's coverage gaps.
-- **Audit retention / record retention:** journals are immutable-by-design (no DELETE path) — a genuine retention strength. No explicit retention *policy* (auto-archival after N years) was found, which matters less today given the absence of partitioning anyway.
+- **Audit retention / record retention:** journals are immutable-by-design (no DELETE path) — a genuine retention strength. No explicit retention _policy_ (auto-archival after N years) was found, which matters less today given the absence of partitioning anyway.
 - **AML/regulatory reporting:** no AML-specific reporting surface was found in this audit's scope (out of scope beyond noting its absence — a dedicated AML audit would be needed).
 - **Kenya Data Protection Act:** out of scope for this accounting-specific audit; `audit_logs` capturing `ip_address`/`user_agent` is a relevant existing control worth noting for that separate review.
 - **External audit readiness:** an external auditor sampling manual journal entries would find no maker-checker and no audit-log trail for who posted them — a direct, specific finding an auditor would flag on day one.
@@ -300,18 +302,18 @@ Auditors could reconstruct: every posted journal and its balanced lines (the led
 
 Compared to the benchmark set (SAP S/4HANA, Oracle Financials, Dynamics 365 Finance, Odoo, ERPNext, Apache Fineract, Mifos X, Temenos Transact, Finacle, Oracle FLEXCUBE):
 
-| Capability | Enterprise ERP/core-banking norm | Kitabu Yetu today |
-|---|---|---|
-| Single posting engine | All modules post through one GL service/API | Six independent raw-SQL posting paths; four modules bypass the GL entirely |
-| Sub-ledger reconciliation | Sub-ledgers (loans, shares) reconcile to GL control accounts automatically | No sub-ledger exists for shares/welfare/dividends at all — nothing to reconcile |
-| Period close | Hard/soft close, locked periods, reopening workflow with approval | Does not exist in any form |
-| Manual journal control | Maker-checker mandatory above a configurable threshold | No maker-checker of any kind |
-| Multi-currency | Native, with FX revaluation | Not supported (no `currency` on `accounts`) |
-| Configuration-driven policy | Rate/limit/threshold tables with inheritance (org > branch > product) | One genuine 3-tier example (SMS triggers); everything else is flat or hardcoded globally |
-| Partitioned ledger storage | Standard at "millions of transactions" scale | No partitioning strategy exists |
-| GL-to-cash reconciliation | Automated bank/mobile-money reconciliation to the Cash GL account | Fetched externally, never compared to any ledger figure |
+| Capability                  | Enterprise ERP/core-banking norm                                           | Kitabu Yetu today                                                                        |
+| --------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Single posting engine       | All modules post through one GL service/API                                | Six independent raw-SQL posting paths; four modules bypass the GL entirely               |
+| Sub-ledger reconciliation   | Sub-ledgers (loans, shares) reconcile to GL control accounts automatically | No sub-ledger exists for shares/welfare/dividends at all — nothing to reconcile          |
+| Period close                | Hard/soft close, locked periods, reopening workflow with approval          | Does not exist in any form                                                               |
+| Manual journal control      | Maker-checker mandatory above a configurable threshold                     | No maker-checker of any kind                                                             |
+| Multi-currency              | Native, with FX revaluation                                                | Not supported (no `currency` on `accounts`)                                              |
+| Configuration-driven policy | Rate/limit/threshold tables with inheritance (org > branch > product)      | One genuine 3-tier example (SMS triggers); everything else is flat or hardcoded globally |
+| Partitioned ledger storage  | Standard at "millions of transactions" scale                               | No partitioning strategy exists                                                          |
+| GL-to-cash reconciliation   | Automated bank/mobile-money reconciliation to the Cash GL account          | Fetched externally, never compared to any ledger figure                                  |
 
-Kitabu Yetu's GL *core* (where used) is closer to a real core-banking double-entry engine than a typical early-stage SaaS ledger — the trigger-enforced balance guarantee and reservation-based budget commitment are genuinely enterprise-grade patterns. The gap to the benchmark set is **breadth of coverage and process maturity** (period close, manual-journal controls, reconciliation to external cash), not the fundamental data model.
+Kitabu Yetu's GL _core_ (where used) is closer to a real core-banking double-entry engine than a typical early-stage SaaS ledger — the trigger-enforced balance guarantee and reservation-based budget commitment are genuinely enterprise-grade patterns. The gap to the benchmark set is **breadth of coverage and process maturity** (period close, manual-journal controls, reconciliation to external cash), not the fundamental data model.
 
 ---
 
@@ -320,6 +322,7 @@ Kitabu Yetu's GL *core* (where used) is closer to a real core-banking double-ent
 Financial/business behavior is **inconsistently configurable** — some of it is genuinely tenant-driven, most of it is either hardcoded globally or configurable-in-schema-but-dead-in-code.
 
 **Real, working per-tenant configuration found:**
+
 - `groups.disbursement_approval_threshold` / `organizations.disbursement_approval_threshold` / `groups.reallocation_approval_threshold` — genuine, enforced thresholds.
 - `group_contribution_splits` — a real, per-group table read live by the M-Pesa allocation path (`loadActiveSplitRules()`), with percentage AND priority both configurable.
 - `organizations.enterprise_per_member_fee` / `enterprise_sms_free` / `enterprise_sms_rate` — negotiated per-organization billing overrides.
@@ -348,15 +351,15 @@ The intended group policy engine (`group_constitutions`) is fully built at the s
 
 ## 25. Policy Inheritance & Override Matrix
 
-| Policy area | Platform default | Organization override | Group override | Member override | Actual inheritance engine |
-|---|---|---|---|---|---|
-| SMS trigger rules | Yes (seeded) | Yes (real) | Yes (real) | No | **Real 3-tier resolver** (`trigger-engine.ts`) |
-| Disbursement approval threshold | No | Yes (own flat column) | Yes (own flat column, independent of org's) | No | None — two unrelated flat thresholds, not a cascading hierarchy |
-| Contribution split | Implicit (100% savings if no rows) | No | Yes (real) | No | Flat, single-tier |
-| Loan interest rate | No | No | `group_constitutions.loan_interest_rate` exists but is **never read** | Per-loan officer input (the real, used value) | No engine — orphaned column vs. free-form field |
-| Loan multiplier | Hardcoded global (`credit-scores.service.ts`) | No | `group_constitutions.loan_multiplier` exists but is **never read** | No | No engine — hardcoded global wins by default |
-| Default payment product | Implicit | No | Yes (`groups.default_product`) | Yes (`group_members.default_product`) | Real 2-tier (member > group), narrow scope |
-| Feature flags | Yes (global boolean) | Schema supports `applies_to='plan'/'group'` targeting | No FK to target a specific group | No | Schema exists, **never evaluated** — de facto flat global toggle |
+| Policy area                     | Platform default                              | Organization override                                 | Group override                                                        | Member override                               | Actual inheritance engine                                        |
+| ------------------------------- | --------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| SMS trigger rules               | Yes (seeded)                                  | Yes (real)                                            | Yes (real)                                                            | No                                            | **Real 3-tier resolver** (`trigger-engine.ts`)                   |
+| Disbursement approval threshold | No                                            | Yes (own flat column)                                 | Yes (own flat column, independent of org's)                           | No                                            | None — two unrelated flat thresholds, not a cascading hierarchy  |
+| Contribution split              | Implicit (100% savings if no rows)            | No                                                    | Yes (real)                                                            | No                                            | Flat, single-tier                                                |
+| Loan interest rate              | No                                            | No                                                    | `group_constitutions.loan_interest_rate` exists but is **never read** | Per-loan officer input (the real, used value) | No engine — orphaned column vs. free-form field                  |
+| Loan multiplier                 | Hardcoded global (`credit-scores.service.ts`) | No                                                    | `group_constitutions.loan_multiplier` exists but is **never read**    | No                                            | No engine — hardcoded global wins by default                     |
+| Default payment product         | Implicit                                      | No                                                    | Yes (`groups.default_product`)                                        | Yes (`group_members.default_product`)         | Real 2-tier (member > group), narrow scope                       |
+| Feature flags                   | Yes (global boolean)                          | Schema supports `applies_to='plan'/'group'` targeting | No FK to target a specific group                                      | No                                            | Schema exists, **never evaluated** — de facto flat global toggle |
 
 **Conclusion:** exactly one genuine multi-tier inheritance engine exists in the entire codebase (SMS triggers). Every other "override" is either a flat single-value column with no tier above or below it, or a schema column that inheritance could theoretically flow through but that nothing in the application ever reads.
 
@@ -396,7 +399,7 @@ if (loan.amount > 50000) {
 }
 ```
 
-This works for one organization. It breaks down the moment every organization has its own constitution, its own loan products, its own approval rules, its own accounting rules, and its own reporting requirements — which is exactly the state the audit brief describes as the platform's goal (NGOs, SACCOs, cooperatives, VSLAs, chamas, donors, insurance companies, government programs, MFIs, all on one codebase). §22–§28 already showed this concretely: `group_constitutions` was a real attempt to escape the pattern above, seeded correctly, isolated correctly, and never wired in — because nothing in the codebase expects to *ask* a configuration layer for an answer; every service still expects the answer to already be a constant or a free-form field.
+This works for one organization. It breaks down the moment every organization has its own constitution, its own loan products, its own approval rules, its own accounting rules, and its own reporting requirements — which is exactly the state the audit brief describes as the platform's goal (NGOs, SACCOs, cooperatives, VSLAs, chamas, donors, insurance companies, government programs, MFIs, all on one codebase). §22–§28 already showed this concretely: `group_constitutions` was a real attempt to escape the pattern above, seeded correctly, isolated correctly, and never wired in — because nothing in the codebase expects to _ask_ a configuration layer for an answer; every service still expects the answer to already be a constant or a free-form field.
 
 The fix is not another column on `groups` or `organizations`. It is a change of posture: **organizations are configurable financial institutions, and the platform is the engine they configure — not a codebase that is forked in spirit (via if/else branches) for every tenant that behaves differently.**
 
@@ -475,7 +478,7 @@ Effective Loan Policy
 Process Loan
 ```
 
-The critical property: **no application service should ever know whether a rule came from the platform, the organization, or the group.** It asks for the *effective* value and receives one answer. This is what `lib/sms/trigger-engine.ts`'s `loadMatchingRules()`/`specificity()` already does for notifications (§22) — the recommendation is to extract that logic into a reusable resolver rather than reimplement it per domain.
+The critical property: **no application service should ever know whether a rule came from the platform, the organization, or the group.** It asks for the _effective_ value and receives one answer. This is what `lib/sms/trigger-engine.ts`'s `loadMatchingRules()`/`specificity()` already does for notifications (§22) — the recommendation is to extract that logic into a reusable resolver rather than reimplement it per domain.
 
 ### 29.4 Policy inheritance, concretely
 
@@ -505,7 +508,7 @@ Group: Loan Limit = 150,000          (override)
 Effective = 150,000
 ```
 
-Contrast this with the current state documented in the Policy Inheritance & Override Matrix (§25): `groups.disbursement_approval_threshold` and `organizations.disbursement_approval_threshold` are two *independent* flat values today, not a cascading pair — there is no "organization sets 50,000, this group overrides to 30,000, that group inherits 50,000" capability anywhere in the codebase. The target architecture makes that the default shape for every policy, not a special case.
+Contrast this with the current state documented in the Policy Inheritance & Override Matrix (§25): `groups.disbursement_approval_threshold` and `organizations.disbursement_approval_threshold` are two _independent_ flat values today, not a cascading pair — there is no "organization sets 50,000, this group overrides to 30,000, that group inherits 50,000" capability anywhere in the codebase. The target architecture makes that the default shape for every policy, not a special case.
 
 ### 29.5 Organize policies into domains, not one config blob
 
@@ -526,16 +529,14 @@ Instead of the `credit-scores.service.ts` pattern found in §22:
 ```ts
 // today — global, no tenant override possible
 const TIER_THRESHOLDS = [
-  { tier: 'excellent', min: 85, loanMultiplier: 10 },
+  { tier: "excellent", min: 85, loanMultiplier: 10 },
   // ...
 ];
 ```
 
 ```ts
 // target
-const loanInterest = ConfigurationService
-  .getLoanPolicy(groupId)
-  .interestRate;
+const loanInterest = ConfigurationService.getLoanPolicy(groupId).interestRate;
 ```
 
 Instead of the ad hoc threshold checks scattered per-module (§15 — real for disbursements, absent for manual journals):
@@ -591,7 +592,7 @@ Posting Template
   Credit → Member Savings
 ```
 
-Organizations map these templates to the specific accounts in *their own* chart of accounts (§4) without any code change. Adding Share, Welfare, Dividend, and Subscription postings — the four modules found in §7 to bypass accounting entirely — becomes an exercise in authoring a new posting-template row, not a new hand-written SQL function per module. This is the single highest-leverage architectural change in this recommendation, because it simultaneously fixes the duplication problem (§6), the missing-module-coverage problem (§7, §10), and the configuration problem (§22) with one mechanism.
+Organizations map these templates to the specific accounts in _their own_ chart of accounts (§4) without any code change. Adding Share, Welfare, Dividend, and Subscription postings — the four modules found in §7 to bypass accounting entirely — becomes an exercise in authoring a new posting-template row, not a new hand-written SQL function per module. This is the single highest-leverage architectural change in this recommendation, because it simultaneously fixes the duplication problem (§6), the missing-module-coverage problem (§7, §10), and the configuration problem (§22) with one mechanism.
 
 ### 29.10 Custom, organization-defined loan products
 
@@ -622,7 +623,7 @@ Every tenant must have its own Chart of Accounts, loan products, approval workfl
 
 In order of foundational importance:
 
-1. **A single, mandatory posting engine.** `accountingService.createJournalEntry` becomes the *only* way any code writes to `journal_entries`/`journal_lines`, driven by the posting templates in §29.9 rather than per-module hand-written SQL. This alone would have prevented the migration-027 bug and the `contributions.service.ts`/`mpesa.service.ts` naming collision (§6).
+1. **A single, mandatory posting engine.** `accountingService.createJournalEntry` becomes the _only_ way any code writes to `journal_entries`/`journal_lines`, driven by the posting templates in §29.9 rather than per-module hand-written SQL. This alone would have prevented the migration-027 bug and the `contributions.service.ts`/`mpesa.service.ts` naming collision (§6).
 2. **Posting templates per business event** (§29.9), so Share/Welfare/Dividend/Subscription postings become configuration, not new code.
 3. **A real organization-level chart of accounts and journal** (§9), so `organization_wallets` movements post real double-entry lines on both sides of an org→group transfer.
 4. **Manual journal maker-checker** (§15), implemented as the same `ApprovalPolicy` domain (§29.6) every other money-movement path uses, not a bespoke constraint.
@@ -634,24 +635,27 @@ In order of foundational importance:
 
 ### 29.14 Long-term vision
 
-The platform should evolve from a VSLA application into a configuration-first financial operating system. In that model, the core engine handles authentication, workflows, accounting, payments, approvals, auditing, and reporting; organizations define *how* those capabilities behave through configuration, not code; groups inherit and optionally override approved policies within organization-defined limits; and every financial transaction is processed using the effective policy in force at the time it was created, preserving consistency, auditability, and regulatory compliance even as every tenant's rules evolve independently. This is what would let Kitabu Yetu serve informal savings groups, NGOs, SACCOs, and donor-funded programs on one platform without the if/else-per-tenant pattern that produced today's duplication.
+The platform should evolve from a VSLA application into a configuration-first financial operating system. In that model, the core engine handles authentication, workflows, accounting, payments, approvals, auditing, and reporting; organizations define _how_ those capabilities behave through configuration, not code; groups inherit and optionally override approved policies within organization-defined limits; and every financial transaction is processed using the effective policy in force at the time it was created, preserving consistency, auditability, and regulatory compliance even as every tenant's rules evolve independently. This is what would let Kitabu Yetu serve informal savings groups, NGOs, SACCOs, and donor-funded programs on one platform without the if/else-per-tenant pattern that produced today's duplication.
 
 ---
 
 ## 30. Prioritized Engineering Roadmap (30/60/90 Days)
 
 **Days 0–30 (stop the bleeding):**
+
 - Fix the Balance Sheet URL bug and wire `asOf` into the query (small, high-value, already-built feature currently broken three ways).
 - Add `CHECK (posted_by IS NULL OR posted_by <> created_by)` to `journal_entries` and gate the void action similarly — closes the single weakest control point immediately.
 - Add a GL-to-Daraja-cash reconciliation check using the existing daily `mpesa_balance_snapshot` data — no new integration needed, just a comparison and an alert.
 - Write `audit_logs` entries from `accounting.service.ts`'s three mutating functions.
 
 **Days 31–60 (stop the duplication):**
+
 - Consolidate the two `postContributionJournal` implementations into one, routed through `accountingService.createJournalEntry`.
 - Consolidate the two loan-disbursement and two loan-repayment posting paths the same way.
 - Build the missing Share/Welfare/Dividend/Subscription posting integrations using the now-consolidated engine — this is the single highest-impact fix in the whole audit, since it's the difference between "the reports are wrong" and "the reports are right."
 
 **Days 61–90 (close the books, generalize policy):**
+
 - Build `fiscal_periods` with close/reopen workflow and posting-date enforcement.
 - Extract the SMS trigger-engine's inheritance resolver into a reusable policy engine; wire `group_constitutions` fields (or their replacement) into loan creation and credit scoring as the first real consumer.
 - Design and begin `journal_lines` partitioning ahead of scale, and add the missing `(account_id, entry_date)` composite index in the interim.
@@ -661,12 +665,14 @@ The platform should evolve from a VSLA application into a configuration-first fi
 ## 31. Implementation Backlog
 
 **Critical**
+
 - Consolidate posting into one engine; wire Shares/Welfare/Dividends/Subscriptions into it (§7, §10).
 - Manual journal maker-checker (§15).
 - GL-to-real-cash reconciliation (§16).
 - Fix Balance Sheet (URL bug + unused `asOf`) (§12).
 
 **High**
+
 - Organization-level chart of accounts / double-entry for org wallet movements (§9).
 - Fiscal period locking + reopening workflow (§13, §5).
 - Write-off workflow with maker-checker (§15).
@@ -674,6 +680,7 @@ The platform should evolve from a VSLA application into a configuration-first fi
 - `organization_disbursements.group_journal_entry_id` FK (§17).
 
 **Medium**
+
 - Generalized policy-inheritance engine; wire `group_constitutions` or its replacement into loan/credit-scoring logic (§22–§26).
 - Policy effective-dating (§27).
 - Budget variance/utilization reporting (§14).
@@ -681,6 +688,7 @@ The platform should evolve from a VSLA application into a configuration-first fi
 - Feature-flag targeting actually evaluated at runtime, or the dead columns removed (§22).
 
 **Low**
+
 - Cash Flow Statement / Statement of Changes in Equity (§12).
 - Donor/grant-specific reporting (§12).
 - Wire the orphaned `AccountStatement` email template into a real per-member statement flow (§12).
@@ -690,16 +698,16 @@ The platform should evolve from a VSLA application into a configuration-first fi
 
 ## 32. Risk Matrix (Likelihood × Impact)
 
-| Risk | Likelihood | Impact | Rating |
-|---|---|---|---|
-| Trial Balance/P&L understate the business (Shares/Welfare/Dividends/Subscriptions invisible) | High (already true today) | Severe | **Critical** |
-| A treasurer fabricates/erases ledger history via manual journal with no second approver | Medium | Severe | **Critical** |
-| Organization wallet balance silently diverges from real bank/M-Pesa position | Medium | Severe | **Critical** |
-| Real M-Pesa cash position never checked against the GL | High (structurally guaranteed to eventually diverge) | High | **High** |
-| Duplicated posting logic diverges further as one path is patched and the other isn't | Medium | High | **High** |
-| `journal_lines` performance degrades at scale (no partitioning/composite index) | Low today, High at stated scale goal | Medium | **Medium** |
-| Policy set in `group_constitutions` is assumed by a future developer to be authoritative | Medium | Medium | **Medium** |
-| Feature-flag rollout percentage is assumed to work by whoever seeded it | Low | Low | **Low** |
+| Risk                                                                                         | Likelihood                                           | Impact | Rating       |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------ | ------------ |
+| Trial Balance/P&L understate the business (Shares/Welfare/Dividends/Subscriptions invisible) | High (already true today)                            | Severe | **Critical** |
+| A treasurer fabricates/erases ledger history via manual journal with no second approver      | Medium                                               | Severe | **Critical** |
+| Organization wallet balance silently diverges from real bank/M-Pesa position                 | Medium                                               | Severe | **Critical** |
+| Real M-Pesa cash position never checked against the GL                                       | High (structurally guaranteed to eventually diverge) | High   | **High**     |
+| Duplicated posting logic diverges further as one path is patched and the other isn't         | Medium                                               | High   | **High**     |
+| `journal_lines` performance degrades at scale (no partitioning/composite index)              | Low today, High at stated scale goal                 | Medium | **Medium**   |
+| Policy set in `group_constitutions` is assumed by a future developer to be authoritative     | Medium                                               | Medium | **Medium**   |
+| Feature-flag rollout percentage is assumed to work by whoever seeded it                      | Low                                                  | Low    | **Low**      |
 
 ---
 
@@ -715,17 +723,17 @@ The platform should evolve from a VSLA application into a configuration-first fi
 
 ## 34. Production Readiness Score: 40 / 100
 
-| Category | Score | Basis |
-|---|---|---|
-| Core double-entry engine (where used) | 15/20 | Genuinely strong — two-layer DB enforcement, trigger-maintained balances, real budget reservation system |
-| Posting engine centralization | 3/15 | One real shared function exists and is used by almost nothing; six duplicated raw-SQL paths |
-| Financial module coverage | 2/15 | Four major cash-moving modules (Shares, Welfare, Dividends, Subscriptions) have zero GL integration |
-| Financial controls | 5/15 | Excellent for disbursements/reallocations; nonexistent for manual journals and write-offs |
-| Reconciliation | 5/10 | Real at the transaction-matching and GL-internal layers; absent for GL-to-cash and the organization layer entirely |
-| Multi-tenant configuration/policy | 6/15 | One genuine 3-tier engine (SMS), several working flat overrides, one large fully-orphaned policy table, core loan/credit parameters hardcoded globally |
-| Period management & auditability | 4/10 | No period locking at all; strong audit-log design that the accounting service itself doesn't use |
+| Category                              | Score | Basis                                                                                                                                                  |
+| ------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Core double-entry engine (where used) | 15/20 | Genuinely strong — two-layer DB enforcement, trigger-maintained balances, real budget reservation system                                               |
+| Posting engine centralization         | 3/15  | One real shared function exists and is used by almost nothing; six duplicated raw-SQL paths                                                            |
+| Financial module coverage             | 2/15  | Four major cash-moving modules (Shares, Welfare, Dividends, Subscriptions) have zero GL integration                                                    |
+| Financial controls                    | 5/15  | Excellent for disbursements/reallocations; nonexistent for manual journals and write-offs                                                              |
+| Reconciliation                        | 5/10  | Real at the transaction-matching and GL-internal layers; absent for GL-to-cash and the organization layer entirely                                     |
+| Multi-tenant configuration/policy     | 6/15  | One genuine 3-tier engine (SMS), several working flat overrides, one large fully-orphaned policy table, core loan/credit parameters hardcoded globally |
+| Period management & auditability      | 4/10  | No period locking at all; strong audit-log design that the accounting service itself doesn't use                                                       |
 
-**Verdict:** the accounting *engine*, narrowly defined as the double-entry core, is closer to production-grade than the rest of the platform surveyed this session (B2C 34/100, B2B 31/100) — its trigger-level guarantees and budget-reservation logic are genuinely well-engineered. But the audit's central question was never "is the ledger internally consistent" — it was "do all financial modules converge into one authoritative engine." The answer is no, decisively, and the consequence is that the platform's own financial statements are wrong today for any group using shares, welfare, or dividends. That single finding, combined with zero period-locking and zero manual-journal control, is disqualifying for a "regulated financial institution" bar regardless of how well-built the underlying trigger machinery is.
+**Verdict:** the accounting _engine_, narrowly defined as the double-entry core, is closer to production-grade than the rest of the platform surveyed this session (B2C 34/100, B2B 31/100) — its trigger-level guarantees and budget-reservation logic are genuinely well-engineered. But the audit's central question was never "is the ledger internally consistent" — it was "do all financial modules converge into one authoritative engine." The answer is no, decisively, and the consequence is that the platform's own financial statements are wrong today for any group using shares, welfare, or dividends. That single finding, combined with zero period-locking and zero manual-journal control, is disqualifying for a "regulated financial institution" bar regardless of how well-built the underlying trigger machinery is.
 
 ---
 
@@ -733,6 +741,6 @@ The platform should evolve from a VSLA application into a configuration-first fi
 
 **Is this architecture suitable for a production-grade, multi-tenant fintech platform today? No — not because the ledger is poorly built, but because it is incompletely adopted.** The critical blockers, in order: (1) four core financial modules bypass accounting entirely; (2) manual journal entries have no maker-checker in a system that otherwise takes dual control seriously; (3) there is no mechanism to close a financial period, ever; (4) the organization layer has no ledger at all, only an operational balance; (5) the real M-Pesa cash position is never reconciled against the books that are supposed to represent it.
 
-**Maturity comparison:** the core data model and its DB-level integrity guarantees would not be out of place in a lean core-banking system (closer to early Mifos X/Apache Fineract territory than to a hobby project). The *process* maturity around it — period close, universal posting-engine adoption, manual-journal governance, GL-to-cash reconciliation — is well behind even Odoo/ERPNext's out-of-the-box defaults, let alone Temenos/FLEXCUBE-class systems.
+**Maturity comparison:** the core data model and its DB-level integrity guarantees would not be out of place in a lean core-banking system (closer to early Mifos X/Apache Fineract territory than to a hobby project). The _process_ maturity around it — period close, universal posting-engine adoption, manual-journal governance, GL-to-cash reconciliation — is well behind even Odoo/ERPNext's out-of-the-box defaults, let alone Temenos/FLEXCUBE-class systems.
 
 **Target architecture, restated simply:** one posting engine every module is required to use; every module wired into it; a real fiscal-period lifecycle; maker-checker on every path that touches the ledger, not just the ones that cross a tenant boundary; a real organization-side ledger; and a policy-inheritance engine generalized from the one pattern (SMS triggers) that already proves the team can build it correctly. None of this requires new invention — every missing piece has a working, in-repository precedent to generalize from.

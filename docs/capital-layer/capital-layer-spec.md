@@ -1,7 +1,7 @@
 # Kitabu Yetu — Capital & Investment Layer (Realigned Spec)
 
 **This supersedes `kitabu-yetu-capital-layer-prompt.md` for implementation purposes.**
-The original spec's *business semantics are adopted wholesale*; its *schema, precision, vocabulary, and architectural mechanism are corrected* to match the codebase. See [impact-report.md](./impact-report.md) for the evidence behind every correction.
+The original spec's _business semantics are adopted wholesale_; its _schema, precision, vocabulary, and architectural mechanism are corrected_ to match the codebase. See [impact-report.md](./impact-report.md) for the evidence behind every correction.
 
 **Status:** all six decisions resolved 2026-08-05 (see [impact-report.md](./impact-report.md) §7). **Phase 1 is unblocked.**
 
@@ -13,19 +13,19 @@ Resolutions, all as recommended: **D1** liability · **D5** pseudonymous member 
 
 These replace the original §0 non-negotiables. Changes are marked.
 
-1. **Ledger is truth; counters are derived and provably equal.** *(amended — original said "never store a balance in a mutable counter")* This codebase already maintains counters (`organization_wallets.*`, `funding_programs.disbursed_total`, `accounts.balance`) via triggers and transactional updates. Keep them. Satisfy the intent by shipping `rebuild_organization_capital_balances(organization_id)` plus a nightly reconciliation job that asserts equality against the ledger and writes drift to `capital_reconciliation_alerts`. A counter that cannot be rebuilt from the ledger is a defect.
+1. **Ledger is truth; counters are derived and provably equal.** _(amended — original said "never store a balance in a mutable counter")_ This codebase already maintains counters (`organization_wallets.*`, `funding_programs.disbursed_total`, `accounts.balance`) via triggers and transactional updates. Keep them. Satisfy the intent by shipping `rebuild_organization_capital_balances(organization_id)` plus a nightly reconciliation job that asserts equality against the ledger and writes drift to `capital_reconciliation_alerts`. A counter that cannot be rebuilt from the ledger is a defect.
 
-2. **Every money-moving operation is a single atomic transaction.** *(amended — original mandated a Postgres RPC)* Use the established `withAdminDb` / `withTransaction` service-layer pattern over raw `pg`, as every existing money path does. Atomicity is the requirement; `SECURITY DEFINER` RPCs are reserved for their existing narrow purpose (RLS privilege escalation), not adopted as the money API.
+2. **Every money-moving operation is a single atomic transaction.** _(amended — original mandated a Postgres RPC)_ Use the established `withAdminDb` / `withTransaction` service-layer pattern over raw `pg`, as every existing money path does. Atomicity is the requirement; `SECURITY DEFINER` RPCs are reserved for their existing narrow purpose (RLS privilege escalation), not adopted as the money API.
 
-3. **Money is `numeric(15,2)`.** *(corrected from `numeric(14,2)`)* Interest rates are `numeric(5,2)` expressed as a **percentage** (12.50 = 12.5%), matching `loans.interest_rate` — never a `numeric(5,4)` ratio.
+3. **Money is `numeric(15,2)`.** _(corrected from `numeric(14,2)`)_ Interest rates are `numeric(5,2)` expressed as a **percentage** (12.50 = 12.5%), matching `loans.interest_rate` — never a `numeric(5,4)` ratio.
 
-4. **Actors are `members(id)`.** *(corrected from `auth.users`)* `auth.users` does not exist in this database.
+4. **Actors are `members(id)`.** _(corrected from `auth.users`)_ `auth.users` does not exist in this database.
 
-5. **Every write returns the existing structured error envelope** (`lib/utils/response.ts` — `ok()`, and the `ValidationError`/`NotFoundError` family). Do not invent a new one. *(unchanged)*
+5. **Every write returns the existing structured error envelope** (`lib/utils/response.ts` — `ok()`, and the `ValidationError`/`NotFoundError` family). Do not invent a new one. _(unchanged)_
 
-6. **RLS is written on every new table, but is not the live enforcement boundary.** The app role has `BYPASSRLS` today; the `app_tenant` cutover has not happened. Enforce authorization in the service layer *and* write the RLS policies for the post-cutover world. Verify new policies under the `app_tenant` CI job — that job is the only place RLS is actually exercised, and it has caught real bugs three times.
+6. **RLS is written on every new table, but is not the live enforcement boundary.** The app role has `BYPASSRLS` today; the `app_tenant` cutover has not happened. Enforce authorization in the service layer _and_ write the RLS policies for the post-cutover world. Verify new policies under the `app_tenant` CI job — that job is the only place RLS is actually exercised, and it has caught real bugs three times.
 
-7. **No mock or seed data in any production code path.** *(unchanged)*
+7. **No mock or seed data in any production code path.** _(unchanged)_
 
 8. **Reuse, don't rebuild:** `idempotency_keys` (migration 057) for idempotency; `mpesa_unrouted` for suspense; `posting-templates.service.ts` for all GL postings; the `permissions text[]` RBAC system for authorization; `audit_logs` for the audit trail.
 
@@ -33,18 +33,18 @@ These replace the original §0 non-negotiables. Changes are marked.
 
 ## 2. Corrected vocabulary
 
-| Concept | Original spec | **Use instead** |
-|---|---|---|
-| Money type | `numeric(14,2)` | `numeric(15,2)` |
-| Interest rate | `numeric(5,4)` ratio | `numeric(5,2)` percentage |
-| Interest method | `flat \| declining_balance \| none` | `flat \| reducing_balance` (+ `is_repayable=false` for grants) |
-| Actor FK | `auth.users` | `members(id)` |
-| Table prefix | `cap_*` | extend `organization_*` / `funding_*`; new group-side tables unprefixed |
-| Financial product | `cap_financial_products` (new) | **extend `funding_programs`** |
-| Allocation | `cap_allocations` (new) | **extend `organization_disbursements`** |
-| Capital movements | `cap_capital_movements` (new) | **extend `organization_ledger`** |
-| Org roles | `org_admin\|portfolio_manager\|field_officer\|finance\|auditor` | **D-C resolved**: permission strings on the live RBAC system; `org_role` stays `lead\|staff`. `field_officer` is still not a role in this product. |
-| Member visibility | `member_visibility ∈ (aggregate, identified)` | **D5 resolved**: pseudonymous only — organizations see `member_code`/`membership_no`, never a name or contact field |
+| Concept           | Original spec                                                   | **Use instead**                                                                                                                                    |
+| ----------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Money type        | `numeric(14,2)`                                                 | `numeric(15,2)`                                                                                                                                    |
+| Interest rate     | `numeric(5,4)` ratio                                            | `numeric(5,2)` percentage                                                                                                                          |
+| Interest method   | `flat \| declining_balance \| none`                             | `flat \| reducing_balance` (+ `is_repayable=false` for grants)                                                                                     |
+| Actor FK          | `auth.users`                                                    | `members(id)`                                                                                                                                      |
+| Table prefix      | `cap_*`                                                         | extend `organization_*` / `funding_*`; new group-side tables unprefixed                                                                            |
+| Financial product | `cap_financial_products` (new)                                  | **extend `funding_programs`**                                                                                                                      |
+| Allocation        | `cap_allocations` (new)                                         | **extend `organization_disbursements`**                                                                                                            |
+| Capital movements | `cap_capital_movements` (new)                                   | **extend `organization_ledger`**                                                                                                                   |
+| Org roles         | `org_admin\|portfolio_manager\|field_officer\|finance\|auditor` | **D-C resolved**: permission strings on the live RBAC system; `org_role` stays `lead\|staff`. `field_officer` is still not a role in this product. |
+| Member visibility | `member_visibility ∈ (aggregate, identified)`                   | **D5 resolved**: pseudonymous only — organizations see `member_code`/`membership_no`, never a name or contact field                                |
 
 ---
 
@@ -71,6 +71,7 @@ ALTER TABLE funding_programs
 ```
 
 Database-level constraints (mirroring the original §5.2, adjusted):
+
 - `capital_model IN ('liability','pass_through')` — only `liability` implemented
 - `loss_bearer IN ('group','organization','shared')` — only `group` implemented
 - `interest_method IN ('flat','reducing_balance')` — **matches `loans_interest_method_check`**
@@ -109,6 +110,7 @@ pending_approval → approved → completed → active → {fully_repaid | overd
 overdue → {active | fully_repaid | written_off}
 pending_approval → {rejected | cancelled}
 ```
+
 (`completed` is the existing name for the original spec's `disbursed`.)
 
 ### 3.3 Extend `organization_ledger` (capital movements)
@@ -140,6 +142,7 @@ Waterfall rules are adopted unchanged from the original §7: configured order, p
 **D5 boundary — binding on every organization-facing read.** Organizations see `member_code`/`membership_no` and financial data; never `first_name`, `last_name`, `phone`, `email`, `national_id`, `date_of_birth`, or `address`. Note that `applyMemberMask` does **not** redact names, so composing with it is not sufficient — organization-facing queries must not select the name columns at all, and must not join `members` for identity. Enforce at the view/service boundary, never in the UI. This is what keeps the capital layer free of any consent/lawful-basis requirement; widening it is a product+legal decision, not a config change.
 
 Modified existing services — the highest-risk surface:
+
 - `loansService.disburse()` — accept a funding plan; write `loan_funding_splits`; **default to internal savings so existing behaviour cannot break**
 - `loansService.recordRepayment()` — write `repayment_splits`; propagate to allocation + `organization_ledger` in the same transaction
 - `posting-templates.service.ts` — **new template events** for capital-funded disbursement/repayment. Template overrides may only remap account codes (line structure is locked by design), so a new event is required rather than an override of the existing loan events.
@@ -168,9 +171,9 @@ For sensitive operations (disburse, write-off), extend `assertAuthFresh`'s exist
 Phase boundaries and acceptance criteria are adopted from the original §12, with these corrections:
 
 - **Phase 0** — this document + [impact-report.md](./impact-report.md). **Complete; awaiting sign-off.**
-- **Phase 1** — extend `funding_programs`; product CRUD + capitalization. *Accept when:* a product capitalized to KES 10,000,000 shows available 10,000,000 / allocated 0, and cross-organization denial tests pass under the `app_tenant` CI job.
+- **Phase 1** — extend `funding_programs`; product CRUD + capitalization. _Accept when:_ a product capitalized to KES 10,000,000 shows available 10,000,000 / allocated 0, and cross-organization denial tests pass under the `app_tenant` CI job.
 - **Phase 1a (landed, migration 115)** — `group_funding_sources` shipped ahead of the rest as unblocked groundwork: it depends on none of the six open decisions, and every later phase depends on it. Includes the table + constraints, an auto-provisioning `AFTER INSERT` trigger on `groups` (`SECURITY DEFINER`, per the migration-099 lesson), a backfill of all existing groups with an apply-time assertion, RLS, `lib/services/funding-sources.service.ts`, and an integration suite. No money moves; no GL posting; no balances stored.
-- **Phase 2** — allocation lifecycle on `organization_disbursements`; eligibility; schedule; wiring allocation-backed rows into `group_funding_sources`. *Accept when:* the reference scenario runs — EZZAHCOMM allocates KES 1,000,000 to The Fionas; org shows 9,000,000 available / 1,000,000 allocated; group shows the funding source; self-approval is rejected; an ineligible group is refused without an override and accepted with a logged one.
+- **Phase 2** — allocation lifecycle on `organization_disbursements`; eligibility; schedule; wiring allocation-backed rows into `group_funding_sources`. _Accept when:_ the reference scenario runs — EZZAHCOMM allocates KES 1,000,000 to The Fionas; org shows 9,000,000 available / 1,000,000 allocated; group shows the funding source; self-approval is rejected; an ineligible group is refused without an override and accepted with a logged one.
 - **Phase 3** — `loan_funding_splits` + backfill. **Note: production has 0 loans**, so the backfill's live blast radius is zero — but the balance-diff assertion ships exactly as specified regardless.
 - **Phase 4** — waterfall, `repayment_splits`, M-Pesa attribution via existing `idempotency_keys`, suspense via existing `mpesa_unrouted`.
 - **Phase 5** — reporting views under a `reporting` schema; metric definitions in `metrics.md`.

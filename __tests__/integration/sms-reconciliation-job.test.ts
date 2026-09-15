@@ -9,12 +9,15 @@
  * counterpart, so a row that drifted earlier stays wrong with nothing to
  * notice.
  */
-import { reconcileSmsCredits } from '@/lib/services/messaging-billing';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
+import { reconcileSmsCredits } from "@/lib/services/messaging-billing";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
 
-async function provisionAccount(groupId: string, credits: number): Promise<void> {
+async function provisionAccount(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -23,10 +26,10 @@ async function provisionAccount(groupId: string, credits: number): Promise<void>
   );
 }
 
-describe('SMS reconciliation (G16/G6)', () => {
-  it('reports clean books as clean', async () => {
+describe("SMS reconciliation (G16/G6)", () => {
+  it("reports clean books as clean", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await provisionAccount(groupId, 0);
 
     const r = await reconcileSmsCredits();
@@ -34,9 +37,9 @@ describe('SMS reconciliation (G16/G6)', () => {
     expect(r.driftedCampaigns).toBe(0);
   });
 
-  it('detects a balance that disagrees with the ledger', async () => {
+  it("detects a balance that disagrees with the ledger", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     // A balance with no ledger entry behind it — the shape a missed ledger
     // write, or a hand-edited balance, would leave.
     await provisionAccount(groupId, 250);
@@ -45,9 +48,9 @@ describe('SMS reconciliation (G16/G6)', () => {
     expect(r.driftedPayers).toBeGreaterThan(0);
   });
 
-  it('detects campaign counters that disagree with the message log', async () => {
+  it("detects campaign counters that disagree with the message log", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionAccount(groupId, 0);
 
     const [{ id: campaignId }] = await rawQuery<{ id: string }>(
@@ -70,9 +73,9 @@ describe('SMS reconciliation (G16/G6)', () => {
     expect(r.driftedCampaigns).toBe(1);
   });
 
-  it('ignores a campaign still sending, which legitimately disagrees mid-flight', async () => {
+  it("ignores a campaign still sending, which legitimately disagrees mid-flight", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await provisionAccount(groupId, 0);
 
     await rawQuery(

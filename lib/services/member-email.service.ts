@@ -1,6 +1,6 @@
-import { sendTemplatedEmail, queueEmail } from './email.service';
-import { withAdminDb } from '@/lib/db';
-import type { EmailResult } from '@/lib/email/provider';
+import { sendTemplatedEmail, queueEmail } from "./email.service";
+import { withAdminDb } from "@/lib/db";
+import type { EmailResult } from "@/lib/email/provider";
 
 export async function sendWelcomeEmail(opts: {
   email: string;
@@ -12,7 +12,7 @@ export async function sendWelcomeEmail(opts: {
   loginUrl: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'welcome',
+    templateKey: "welcome",
     to: opts.email,
     vars: {
       name: opts.name,
@@ -22,7 +22,7 @@ export async function sendWelcomeEmail(opts: {
     },
     groupId: opts.groupId,
     userId: opts.memberId,
-    referenceType: 'member',
+    referenceType: "member",
   });
 }
 
@@ -32,7 +32,7 @@ export async function sendOtpEmail(opts: {
   expiresIn: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'otp',
+    templateKey: "otp",
     to: opts.email,
     vars: { otp: opts.otp, expiresIn: opts.expiresIn },
   });
@@ -44,7 +44,7 @@ export async function sendPasswordResetEmail(opts: {
   expiresIn: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'password_reset',
+    templateKey: "password_reset",
     to: opts.email,
     vars: { resetUrl: opts.resetUrl, expiresIn: opts.expiresIn },
   });
@@ -57,7 +57,7 @@ export async function sendAccountUpdateEmail(opts: {
   changedAt: string;
 }): Promise<EmailResult> {
   return sendTemplatedEmail({
-    templateKey: 'account_update',
+    templateKey: "account_update",
     to: opts.email,
     vars: {
       name: opts.name,
@@ -86,19 +86,22 @@ export async function sendBirthdayEmails(): Promise<void> {
 
   for (const row of rows) {
     await queueEmail({
-      templateKey: 'birthday',
+      templateKey: "birthday",
       to: row.email,
       vars: { memberName: row.full_name, groupName: row.group_name },
       groupId: row.group_id,
       userId: row.id,
-      priority: 'low',
-      referenceType: 'member',
+      priority: "low",
+      referenceType: "member",
     }).catch(() => {});
   }
 }
 
 // Send monthly statements to all members in a group
-export async function sendMonthlyStatements(groupId: string, month: string): Promise<void> {
+export async function sendMonthlyStatements(
+  groupId: string,
+  month: string,
+): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(
       `-- LATERAL per child table, not a flat multi-table LEFT JOIN: a member
@@ -132,20 +135,25 @@ export async function sendMonthlyStatements(groupId: string, month: string): Pro
 
   for (const row of rows) {
     await queueEmail({
-      templateKey: 'monthly_statement',
+      templateKey: "monthly_statement",
       to: row.email,
       vars: {
         memberName: row.full_name,
         groupName: row.group_name,
         month,
-        totalContributions: Number(row.total_contributions).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-        loanBalance: Number(row.loan_balance).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-        fundShare: '0.00',
+        totalContributions: Number(row.total_contributions).toLocaleString(
+          "en-KE",
+          { minimumFractionDigits: 2 },
+        ),
+        loanBalance: Number(row.loan_balance).toLocaleString("en-KE", {
+          minimumFractionDigits: 2,
+        }),
+        fundShare: "0.00",
       },
       groupId,
       userId: row.id,
-      priority: 'low',
-      referenceType: 'member',
+      priority: "low",
+      referenceType: "member",
     }).catch(() => {});
   }
 }

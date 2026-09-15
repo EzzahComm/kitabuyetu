@@ -1,10 +1,13 @@
 // Default inline HTML templates (used when no DB template exists)
 // All use {{variable}} interpolation via engine.ts
 
-export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
+export const DEFAULT_TEMPLATES: Record<
+  string,
+  { subject: string; body: string }
+> = {
   // ─── Auth ────────────────────────────────────────────────────────────────────
   welcome: {
-    subject: 'Welcome to Kitabu Yetu, {{name}}!',
+    subject: "Welcome to Kitabu Yetu, {{name}}!",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome, {{name}}!</h2>
       <p style="margin:0 0 12px;color:#374151;">Your account has been created for <strong>{{groupName}}</strong>.</p>
@@ -15,7 +18,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   otp: {
-    subject: 'Your Kitabu Yetu verification code: {{otp}}',
+    subject: "Your Kitabu Yetu verification code: {{otp}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Verification Code</h2>
       <p style="margin:0 0 20px;color:#374151;">Use the code below to verify your identity. It expires in <strong>{{expiresIn}}</strong>.</p>
@@ -27,7 +30,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   group_verification_link: {
-    subject: 'Verify your Kitabu Yetu group',
+    subject: "Verify your Kitabu Yetu group",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Verify your group</h2>
       <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{name}}</strong>,</p>
@@ -38,7 +41,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   org_staff_invite: {
-    subject: 'You\'ve been invited to join {{organizationName}} on Kitabu Yetu',
+    subject: "You've been invited to join {{organizationName}} on Kitabu Yetu",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">You're invited</h2>
       <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{firstName}}</strong>,</p>
@@ -49,7 +52,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   password_reset: {
-    subject: 'Reset your Kitabu Yetu password',
+    subject: "Reset your Kitabu Yetu password",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Password Reset Request</h2>
       <p style="margin:0 0 20px;color:#374151;">Click the button below to reset your password. This link expires in <strong>{{expiresIn}}</strong>.</p>
@@ -59,7 +62,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   account_update: {
-    subject: 'Your Kitabu Yetu account has been updated',
+    subject: "Your Kitabu Yetu account has been updated",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Account Updated</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{name}}</strong>,</p>
@@ -71,7 +74,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Contributions ───────────────────────────────────────────────────────────
   contribution_received: {
-    subject: 'Contribution received — KES {{amount}}',
+    subject: "Contribution received — KES {{amount}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Contribution Confirmed</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -86,7 +89,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   contribution_reminder: {
-    subject: 'Reminder: {{periodLabel}} contribution due {{dueDate}}',
+    subject: "Reminder: {{periodLabel}} contribution due {{dueDate}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Contribution Reminder</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -98,7 +101,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Loans ───────────────────────────────────────────────────────────────────
   loan_approved: {
-    subject: 'Your loan application has been approved',
+    subject: "Your loan application has been approved",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Approved</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -114,7 +117,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   loan_rejected: {
-    subject: 'Your loan application was not approved',
+    subject: "Your loan application was not approved",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Application Update</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -126,7 +129,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   loan_disbursed: {
-    subject: 'Loan of KES {{amount}} disbursed to your M-Pesa',
+    subject: "Loan of KES {{amount}} disbursed to your M-Pesa",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Loan Disbursed</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -138,7 +141,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   loan_overdue: {
-    subject: 'URGENT: Loan repayment {{daysOverdue}} days overdue',
+    subject: "URGENT: Loan repayment {{daysOverdue}} days overdue",
     body: `
       <h2 style="margin:0 0 16px;color:#dc2626;">Overdue Loan Repayment</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -153,7 +156,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   loan_repayment_received: {
-    subject: 'Loan repayment of KES {{amount}} received',
+    subject: "Loan repayment of KES {{amount}} received",
     body: `
       <h2 style="margin:0 0 16px;color:#3CB043;">Repayment Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -169,7 +172,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Billing / Invoices ───────────────────────────────────────────────────────
   invoice: {
-    subject: 'Invoice {{invoiceNumber}} — KES {{amountDue}} due {{dueDate}}',
+    subject: "Invoice {{invoiceNumber}} — KES {{amountDue}} due {{dueDate}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 20px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -186,7 +189,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_1: {
-    subject: 'Invoice {{invoiceNumber}} overdue — please pay KES {{amountDue}}',
+    subject: "Invoice {{invoiceNumber}} overdue — please pay KES {{amountDue}}",
     body: `
       <h2 style="margin:0 0 16px;color:#d97706;">First Overdue Notice — Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -197,7 +200,8 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_2: {
-    subject: 'SECOND NOTICE: Invoice {{invoiceNumber}} — {{daysOverdue}} days past due',
+    subject:
+      "SECOND NOTICE: Invoice {{invoiceNumber}} — {{daysOverdue}} days past due",
     body: `
       <h2 style="margin:0 0 16px;color:#dc2626;">Second Overdue Notice — Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -208,7 +212,8 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_3: {
-    subject: 'FINAL NOTICE: Invoice {{invoiceNumber}} — immediate action required',
+    subject:
+      "FINAL NOTICE: Invoice {{invoiceNumber}} — immediate action required",
     body: `
       <h2 style="margin:0 0 16px;color:#dc2626;">FINAL NOTICE — Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -219,7 +224,8 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   payment_receipt: {
-    subject: 'Payment received — KES {{amountPaid}} (Receipt {{receiptNumber}})',
+    subject:
+      "Payment received — KES {{amountPaid}} (Receipt {{receiptNumber}})",
     body: `
       <h2 style="margin:0 0 16px;color:#3CB043;">Payment Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -237,7 +243,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Meetings ─────────────────────────────────────────────────────────────────
   meeting_invite: {
-    subject: '{{groupName}}: Meeting on {{meetingDate}}',
+    subject: "{{groupName}}: Meeting on {{meetingDate}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Meeting Invitation</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -253,7 +259,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   meeting_reminder: {
-    subject: 'Reminder: {{groupName}} meeting tomorrow at {{meetingTime}}',
+    subject: "Reminder: {{groupName}} meeting tomorrow at {{meetingTime}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Meeting Reminder</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -268,7 +274,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Reports ─────────────────────────────────────────────────────────────────
   monthly_statement: {
-    subject: '{{groupName}}: Your {{month}} Statement',
+    subject: "{{groupName}}: Your {{month}} Statement",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Monthly Statement — {{month}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -283,7 +289,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   financial_report: {
-    subject: '{{groupName}}: {{reportType}} — {{period}}',
+    subject: "{{groupName}}: {{reportType}} — {{period}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">{{reportType}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -296,7 +302,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   weekly_summary: {
-    subject: '{{groupName}}: Weekly Summary — {{weekLabel}}',
+    subject: "{{groupName}}: Weekly Summary — {{weekLabel}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Weekly Summary</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -312,7 +318,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Birthday ────────────────────────────────────────────────────────────────
   birthday: {
-    subject: 'Happy Birthday {{memberName}}! 🎉 From {{groupName}}',
+    subject: "Happy Birthday {{memberName}}! 🎉 From {{groupName}}",
     body: `
       <div style="text-align:center;margin:0 0 24px;">
         <div style="font-size:48px;">🎂</div>
@@ -326,7 +332,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Platform events ─────────────────────────────────────────────────────────
   announcement: {
-    subject: '{{groupName}}: {{subject}}',
+    subject: "{{groupName}}: {{subject}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">{{subject}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -337,7 +343,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Newsletter ───────────────────────────────────────────────────────────────
   newsletter_confirm: {
-    subject: 'Confirm your subscription to Kitabu Yetu updates',
+    subject: "Confirm your subscription to Kitabu Yetu updates",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Confirm Your Subscription</h2>
       <p style="margin:0 0 20px;color:#374151;">You recently subscribed to receive updates from Kitabu Yetu. Please confirm your email address by clicking the button below.</p>
@@ -347,7 +353,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   newsletter_welcome: {
-    subject: 'You\'re subscribed to Kitabu Yetu updates',
+    subject: "You're subscribed to Kitabu Yetu updates",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome to Kitabu Yetu Updates!</h2>
       <p style="margin:0 0 20px;color:#374151;">Thank you for confirming your subscription. You will receive updates about new features, community finance tips, and product announcements.</p>
@@ -357,7 +363,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Contact ─────────────────────────────────────────────────────────────────
   contact_confirmation: {
-    subject: 'We received your message — Kitabu Yetu',
+    subject: "We received your message — Kitabu Yetu",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Message Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{name}}</strong>,</p>
@@ -371,7 +377,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   contact_admin: {
-    subject: 'New contact form submission from {{name}}',
+    subject: "New contact form submission from {{name}}",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">New Contact Submission</h2>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
@@ -392,7 +398,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   // SMS-AUDIT-v3 T3-4. Goes to EMAIL_ADMIN, never to a tenant, and NEVER over
   // SMS — an alert about a broken SMS channel must not depend on that channel.
   sms_provider_degraded: {
-    subject: '[ALERT] SMS provider degraded — {{failureRate}} of sends failing',
+    subject: "[ALERT] SMS provider degraded — {{failureRate}} of sends failing",
     body: `
       <h2 style="margin:0 0 16px;color:#b91c1c;">SMS provider degraded</h2>
       <p style="margin:0 0 16px;color:#374151;">
@@ -415,7 +421,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   // problem can actually reach a person. Deliberately plain and detail-heavy:
   // the reader is an operator deciding whether to act tonight, not a customer.
   staff_operational_alert: {
-    subject: '[ALERT] {{subject}}',
+    subject: "[ALERT] {{subject}}",
     body: `
       <h2 style="margin:0 0 16px;color:#b91c1c;">{{subject}}</h2>
       <p style="margin:0 0 16px;color:#374151;">{{body}}</p>
@@ -430,7 +436,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   // through sendTemplatedEmail's last-resort branch — a JSON dump of its vars.
   // A DB template still wins over this if one exists.
   sms_low_balance: {
-    subject: 'SMS credits exhausted',
+    subject: "SMS credits exhausted",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">{{title}}</h2>
       <p style="margin:0 0 16px;color:#374151;">{{body}}</p>

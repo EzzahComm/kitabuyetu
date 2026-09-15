@@ -36,21 +36,21 @@ What remains are precise, verifiable gaps, not architectural flaws:
    (`register_invoice_account`) that populates it — but
    `handleC2BConfirmation()`'s registry-first branch only proceeds for
    `kind IN ('membership_no', 'legacy_code')` (`mpesa.service.ts:1513`). A registry hit
-   for an invoice is silently discarded, and the code falls through to the *old*
+   for an invoice is silently discarded, and the code falls through to the _old_
    `KYT-…` regex parser (`fulfilC2B`, same file, ~1718) to resolve invoices instead. The
    registry's invoice support is currently dead code on the confirmation path.
 2. **STK Push idempotency is optional, client-supplied, and Redis-only.** Contrast
    with the disbursement spine just shipped: `withIdempotencyKey()` (`lib/utils/
-   idempotency.ts:37`) reads the `Idempotency-Key` header **if present** — if a client
+idempotency.ts:37`) reads the `Idempotency-Key` header **if present** — if a client
    simply omits it, the call proceeds with zero duplicate protection, and there is no
    database-level backstop (no unique constraint) the way `disbursement_requests` now
    has. STK's only hard guarantee against a double-charge is Safaricom's own
    `mpesa_stk_requests.checkout_request_id UNIQUE` — which prevents duplicate
-   *callbacks*, not duplicate *prompts*.
+   _callbacks_, not duplicate _prompts_.
 3. **No monitor for aging unrouted receipts.** `payment_orphan_monitor` (this
    session's earlier work) catches spine rows stuck at `allocation_status='received'`
    — genuinely stuck money. It does **not** cover `allocation_status='unrouted'` or
-   `mpesa_unrouted` rows, which are a *resolved* terminal state (the system correctly
+   `mpesa_unrouted` rows, which are a _resolved_ terminal state (the system correctly
    decided it can't auto-route) but can sit for weeks with no alert if a treasurer
    doesn't check the queue.
 4. Fraud/velocity/limits, observability (correlation IDs, dashboards), and formal
@@ -72,13 +72,13 @@ follow-up — none of which risk double-posting or misdirected funds today.
 - **Event-driven:** the payment spine (`payments.allocation_status`) plus
   `payment_events` (append-only) plus `event_outbox` give every inbound payment a
   proper state trail and a broker-ready outbox — confirmed live (migration 057).
-- **Idempotency:** strong at the *money* layer (receipt uniqueness, `FOR UPDATE`
-  locks, `ON CONFLICT DO NOTHING` throughout) — weak at the *request* layer for STK
+- **Idempotency:** strong at the _money_ layer (receipt uniqueness, `FOR UPDATE`
+  locks, `ON CONFLICT DO NOTHING` throughout) — weak at the _request_ layer for STK
   (finding above).
 - **Multi-tenancy:** `payment_accounts`, `payment_requests`, `disbursement_requests`,
   `organization_disbursements` all carry group/org scoping enforced by RLS
   (`FORCE ROW LEVEL SECURITY`, verified in migrations 059, 066, 067). No shared-float
-  contamination risk exists on the *inbound* side the way it did for B2C's shared
+  contamination risk exists on the _inbound_ side the way it did for B2C's shared
   shortcode, because C2B money always lands against a specific membership's group.
 - **Retry / failure recovery:** `runReconciliation()` sweeps stale STK requests via
   `STK Query` — genuinely good, and something B2C never had until this session's
@@ -102,7 +102,8 @@ Customer → M-Pesa (STK or PayBill) → Validation → Confirmation → Callbac
 ```
 
 **Missing/duplicated stages found:**
-- **Duplication:** invoice resolution logic exists in *two* places conceptually —
+
+- **Duplication:** invoice resolution logic exists in _two_ places conceptually —
   the registry (`payment_accounts.kind='invoice'`, populated by trigger, never read at
   confirmation) and the legacy parser (`fulfilC2B`'s `route.kind === 'invoice'`
   branch, actually used). One is dead weight.
@@ -121,7 +122,7 @@ the confirmation handler's early-return on an existing receipt (`mpesa.service.t
 1500`) makes this structurally impossible for a replayed Safaricom callback.
 
 **Can one payment post to the wrong member?** Only via the pre-existing, documented,
-*accepted* risk: a member routes by account number, not phone — a third party paying
+_accepted_ risk: a member routes by account number, not phone — a third party paying
 on a member's behalf is flagged (`is_third_party`) but always lands correctly. The
 registry lookup is a single indexed query, not a heuristic.
 
@@ -135,7 +136,7 @@ matches the actual `dispatchProduct`/`fulfilC2B` code precisely, which is not al
 true of architecture docs.
 
 **Invalid payments:** a malformed or check-digit-failing membership number is
-rejected *before money moves* via `validateC2BAccount()` (fail-open only on internal
+rejected _before money moves_ via `validateC2BAccount()` (fail-open only on internal
 error, verified at `mpesa.service.ts:1462`).
 
 ---
@@ -153,13 +154,13 @@ exhaustion strategy) is a paper plan, not code, which is appropriate at current 
 
 ## 5. STK Push
 
-| Capability | State |
-| --- | --- |
-| Initiation / auth | ✅ `withAuth`, Zod-validated |
-| Idempotency | ⚠️ Optional header, Redis-only, no DB backstop (finding #2) |
-| Duplicate callback | ✅ `checkout_request_id UNIQUE` |
-| Late callback / stuck request | ✅ `runReconciliation()` sweeps `status='pending'` >5 min via STK Query |
-| Timeout / cancellation | ✅ handled as a distinct terminal state |
+| Capability                     | State                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Initiation / auth              | ✅ `withAuth`, Zod-validated                                                                               |
+| Idempotency                    | ⚠️ Optional header, Redis-only, no DB backstop (finding #2)                                                |
+| Duplicate callback             | ✅ `checkout_request_id UNIQUE`                                                                            |
+| Late callback / stuck request  | ✅ `runReconciliation()` sweeps `status='pending'` >5 min via STK Query                                    |
+| Timeout / cancellation         | ✅ handled as a distinct terminal state                                                                    |
 | Purpose-aware payment_requests | ✅ pre-creates a request so a member who pays via PayBill instead still lands on the right product (A2/A4) |
 
 ---
@@ -171,9 +172,9 @@ exhaustion strategy) is a paper plan, not code, which is appropriate at current 
 - **Confirmation authenticity:** `assertSafaricomIp()` is **advisory-only** — logs a
   warning on a non-Safaricom IP but never rejects (same pattern flagged as B2C
   finding H1). C2B confirmation has **no signed-token protection** analogous to what
-  was just added for B2C Result/Timeout URLs. Given confirmation only *records*
+  was just added for B2C Result/Timeout URLs. Given confirmation only _records_
   money that (per Safaricom) already moved — a forged confirmation can't steal funds,
-  but it *can* falsely credit a member's account from a fabricated payload. This is a
+  but it _can_ falsely credit a member's account from a fabricated payload. This is a
   real gap, not yet covered by any prior session's work.
 - **Replay / duplicate / out-of-order:** handled by receipt uniqueness + idempotent
   `ON CONFLICT DO NOTHING` throughout `recordC2BInbound`.
@@ -218,12 +219,12 @@ not a wallet abstraction), which is consistent with the platform's model.
 
 ## 10. Reconciliation
 
-| Direction | Coverage |
-| --- | --- |
-| STK (inbound) | ✅ Stale-row sweep via STK Query, nightly charge backfill, daily report |
-| C2B PayBill (inbound) | ⚠️ No sweep needed (synchronous confirm/validate) — but **no aging-unrouted alert** (finding #3) |
-| B2C (outbound) | ✅ (this session) stuck-payout monitor; ❌ still no Safaricom-statement-level tie-out (flagged in the B2C audit, unchanged) |
-| Org wallet ↔ group ledger | ✅ cross-linked via `ledger_entry_id`/`group_journal_entry_id` |
+| Direction                 | Coverage                                                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| STK (inbound)             | ✅ Stale-row sweep via STK Query, nightly charge backfill, daily report                                                     |
+| C2B PayBill (inbound)     | ⚠️ No sweep needed (synchronous confirm/validate) — but **no aging-unrouted alert** (finding #3)                            |
+| B2C (outbound)            | ✅ (this session) stuck-payout monitor; ❌ still no Safaricom-statement-level tie-out (flagged in the B2C audit, unchanged) |
+| Org wallet ↔ group ledger | ✅ cross-linked via `ledger_entry_id`/`group_journal_entry_id`                                                              |
 
 ---
 
@@ -242,10 +243,10 @@ not a wallet abstraction), which is consistent with the platform's model.
 
 ## 12. Fraud & Abuse Risks
 
-Structurally, C2B fraud surface is narrow: the worst a bad actor can do is *donate*
+Structurally, C2B fraud surface is narrow: the worst a bad actor can do is _donate_
 to a stranger's real membership number (accepted low risk, documented). No velocity
 limits, round-number detection, or dormant-account monitoring exist for inbound
-payments — lower priority than the B2C equivalent (there's no way to *extract* money
+payments — lower priority than the B2C equivalent (there's no way to _extract_ money
 via a fraudulent C2B), but worth building once volume justifies it.
 
 ---
@@ -296,13 +297,14 @@ isn't instrumented for fast tracing. Same gap as B2C.
 ## 18. Hardening Opportunities — Prioritized
 
 ### High
+
 1. **Wire the registry's invoice kind into confirmation routing** (or delete the
    dead trigger/kind if invoices are intentionally staying on the legacy parser) —
    remove the duplication identified in §2/§16.
 2. **Require Idempotency-Key on STK initiation** (mirror the B2C route's now-
    mandatory header) and add a DB-level backstop
    (`mpesa_stk_requests` already has a natural key via `checkout_request_id`, but that
-   only protects the *callback*, not a client-side double-submit before Safaricom
+   only protects the _callback_, not a client-side double-submit before Safaricom
    assigns one — a request-scoped idempotency key closes that window).
 3. **Add signed-token verification to the C2B confirmation callback**, extending the
    `MPESA_CALLBACK_TOKEN` mechanism shipped for B2C this session to
@@ -313,6 +315,7 @@ isn't instrumented for fast tracing. Same gap as B2C.
    on someone checking the queue.
 
 ### Medium
+
 5. Correlation IDs threaded through `payment_events`/logs for faster tracing.
 6. Partitioning plan for `mpesa_callbacks`/`payment_events` ahead of high volume.
 7. PII retention policy for raw callback storage.
@@ -322,6 +325,7 @@ isn't instrumented for fast tracing. Same gap as B2C.
 10. Fraud/velocity signals for inbound payments (lower priority than outbound).
 
 ### Low
+
 11. Group-level min/max contribution limits (only if a product/regulatory need exists).
 12. Legacy `KYT-…` grammar retirement plan once print materials are confirmed cycled out.
 13. Formalize the invoice registry-vs-legacy decision in the architecture doc once #1 is resolved.
@@ -331,11 +335,11 @@ isn't instrumented for fast tracing. Same gap as B2C.
 
 ## 19. Risk Matrix (Likelihood × Impact)
 
-| Likelihood ↓ / Impact → | Moderate | Major |
-| --- | --- | --- |
-| **Likely** | Correlation-ID gap, retention policy | — |
-| **Possible** | Unrouted-aging blind spot | STK idempotency gap |
-| **Rare** | Invoice dead-code duplication | Forged C2B confirmation (no signed token) |
+| Likelihood ↓ / Impact → | Moderate                             | Major                                     |
+| ----------------------- | ------------------------------------ | ----------------------------------------- |
+| **Likely**              | Correlation-ID gap, retention policy | —                                         |
+| **Possible**            | Unrouted-aging blind spot            | STK idempotency gap                       |
+| **Rare**                | Invoice dead-code duplication        | Forged C2B confirmation (no signed token) |
 
 No finding reaches "Severe × Likely" — consistent with the "no Critical" verdict.
 
@@ -363,5 +367,5 @@ registry path, or formally retire it) before it's worth the engineering time.
 
 ---
 
-*Source-grounded audit. No code was modified to produce this report. Companion
-documents: `B2C_DISBURSEMENT_AUDIT.md`, `B2B_ENTERPRISE_AUDIT.md`.*
+_Source-grounded audit. No code was modified to produce this report. Companion
+documents: `B2C_DISBURSEMENT_AUDIT.md`, `B2B_ENTERPRISE_AUDIT.md`._

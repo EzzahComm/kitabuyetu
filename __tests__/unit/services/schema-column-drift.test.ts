@@ -25,13 +25,13 @@
  *     exists. Only a real-Postgres test (see `test:integration`) can do
  *     that. This is a targeted regression guard, not a schema validator.
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const SERVICES = join(process.cwd(), 'lib', 'services');
+const SERVICES = join(process.cwd(), "lib", "services");
 
 function read(file: string): string {
-  return readFileSync(join(SERVICES, file), 'utf8');
+  return readFileSync(join(SERVICES, file), "utf8");
 }
 
 /**
@@ -43,42 +43,46 @@ function read(file: string): string {
  * bug, so the check is scoped to template literals.
  */
 function sqlLiteralsOf(file: string): string {
-  return (read(file).match(/`[^`]*`/g) ?? []).join('\n');
+  return (read(file).match(/`[^`]*`/g) ?? []).join("\n");
 }
 
-describe('schema column drift', () => {
+describe("schema column drift", () => {
   // Verified against production 2026-07-30: `full_name` exists only on
   // `next_of_kin` and `person`. Any `<alias>.full_name` where the alias is
   // bound to `members` is a parse-time error in Postgres.
   const MEMBERS_FULL_NAME = /\bm\.full_name\b/;
 
   describe.each([
-    ['member-email.service.ts'],
-    ['report-email.service.ts'],
-    ['statement-email.service.ts'],
-    ['campaign.service.ts'],
-  ])('%s', (file) => {
-    it('never selects m.full_name (members has first_name/last_name)', () => {
+    ["member-email.service.ts"],
+    ["report-email.service.ts"],
+    ["statement-email.service.ts"],
+    ["campaign.service.ts"],
+  ])("%s", (file) => {
+    it("never selects m.full_name (members has first_name/last_name)", () => {
       expect(sqlLiteralsOf(file)).not.toMatch(MEMBERS_FULL_NAME);
     });
 
-    it('builds the display name by concatenating first_name and last_name', () => {
-      expect(sqlLiteralsOf(file)).toMatch(/m\.first_name\s*\|\|\s*' '\s*\|\|\s*m\.last_name/);
+    it("builds the display name by concatenating first_name and last_name", () => {
+      expect(sqlLiteralsOf(file)).toMatch(
+        /m\.first_name\s*\|\|\s*' '\s*\|\|\s*m\.last_name/,
+      );
     });
   });
 
-  it('billing-email.service.ts remains the reference implementation', () => {
+  it("billing-email.service.ts remains the reference implementation", () => {
     // This file always did it correctly; it is what the fix was modelled on.
     // If it ever regresses, the pattern the others copied is gone too.
-    expect(read('billing-email.service.ts')).toMatch(
+    expect(read("billing-email.service.ts")).toMatch(
       /m\.first_name\s*\|\|\s*' '\s*\|\|\s*m\.last_name\s+AS full_name/,
     );
   });
 
-  it('report-email.service.ts sums loan_repayments.amount_paid, not amount', () => {
-    const sql = read('report-email.service.ts');
+  it("report-email.service.ts sums loan_repayments.amount_paid, not amount", () => {
+    const sql = read("report-email.service.ts");
     expect(sql).toMatch(/SUM\(amount_paid\)[\s\S]*FROM loan_repayments/);
     // `SUM(amount)` immediately followed by FROM loan_repayments was the bug.
-    expect(sql).not.toMatch(/SUM\(amount\)\s*,0\)\s*AS total FROM loan_repayments/);
+    expect(sql).not.toMatch(
+      /SUM\(amount\)\s*,0\)\s*AS total FROM loan_repayments/,
+    );
   });
 });

@@ -11,20 +11,22 @@
  * exactly that misconfiguration by asserting the connection's own role
  * identity before trusting anything else it proves.
  */
-import { withDb, type TenantContext } from '@/lib/db';
-import { createTestGroup } from '../helpers/fixtures';
-import { resetDatabase } from '../helpers/cleanup';
-import { rawQuery } from '../helpers/db';
+import { withDb, type TenantContext } from "@/lib/db";
+import { createTestGroup } from "../helpers/fixtures";
+import { resetDatabase } from "../helpers/cleanup";
+import { rawQuery } from "../helpers/db";
 
-describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clause)', () => {
+describe("app_tenant RLS enforcement (real Postgres, no service-layer WHERE clause)", () => {
   let groupAId: string, officerAId: string;
   let groupBId: string, officerBId: string;
   let meetingAId: string;
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId: groupAId, officerId: officerAId } = await createTestGroup('chairperson'));
-    ({ groupId: groupBId, officerId: officerBId } = await createTestGroup('chairperson'));
+    ({ groupId: groupAId, officerId: officerAId } =
+      await createTestGroup("chairperson"));
+    ({ groupId: groupBId, officerId: officerBId } =
+      await createTestGroup("chairperson"));
 
     const [meetingA] = await rawQuery<{ id: string }>(
       `INSERT INTO meetings (group_id, title, scheduled_at, created_by)
@@ -44,26 +46,38 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
     await resetDatabase();
   });
 
-  it('is actually connected as app_tenant (no BYPASSRLS, no superuser) — not the admin pool', async () => {
-    const ctx: TenantContext = { userId: officerAId, groupId: groupAId, role: 'chairperson' };
+  it("is actually connected as app_tenant (no BYPASSRLS, no superuser) — not the admin pool", async () => {
+    const ctx: TenantContext = {
+      userId: officerAId,
+      groupId: groupAId,
+      role: "chairperson",
+    };
     const [role] = await withDb(ctx, async (client) => {
       const { rows } = await client.query<{
-        rolname: string; rolbypassrls: boolean; rolsuper: boolean;
-      }>('SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
+        rolname: string;
+        rolbypassrls: boolean;
+        rolsuper: boolean;
+      }>(
+        "SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user",
+      );
       return rows;
     });
 
-    expect(role.rolname).toBe('app_tenant');
+    expect(role.rolname).toBe("app_tenant");
     expect(role.rolbypassrls).toBe(false);
     expect(role.rolsuper).toBe(false);
   });
 
   it("returns only group A's meeting for a raw SELECT with NO WHERE clause, under group A's tenant context", async () => {
-    const ctx: TenantContext = { userId: officerAId, groupId: groupAId, role: 'chairperson' };
+    const ctx: TenantContext = {
+      userId: officerAId,
+      groupId: groupAId,
+      role: "chairperson",
+    };
 
     const rows = await withDb(ctx, async (client) => {
       const { rows } = await client.query<{ id: string; group_id: string }>(
-        'SELECT id, group_id FROM meetings',
+        "SELECT id, group_id FROM meetings",
       );
       return rows;
     });
@@ -74,11 +88,15 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
   });
 
   it("returns only group B's meeting for the same unfiltered query, under group B's tenant context", async () => {
-    const ctx: TenantContext = { userId: officerBId, groupId: groupBId, role: 'chairperson' };
+    const ctx: TenantContext = {
+      userId: officerBId,
+      groupId: groupBId,
+      role: "chairperson",
+    };
 
     const rows = await withDb(ctx, async (client) => {
       const { rows } = await client.query<{ id: string; group_id: string }>(
-        'SELECT id, group_id FROM meetings',
+        "SELECT id, group_id FROM meetings",
       );
       return rows;
     });

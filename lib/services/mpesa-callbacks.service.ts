@@ -4,10 +4,13 @@
  * (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import { withAdminDb } from '@/lib/db';
-import { assertSafaricomIp } from './daraja.service';
-import { handleSTKCallback, type StkCallbackBody } from './mpesa-stk.service';
-import { handleC2BConfirmation, type C2BCallbackBody } from './mpesa-c2b.service';
+import { withAdminDb } from "@/lib/db";
+import { assertSafaricomIp } from "./daraja.service";
+import { handleSTKCallback, type StkCallbackBody } from "./mpesa-stk.service";
+import {
+  handleC2BConfirmation,
+  type C2BCallbackBody,
+} from "./mpesa-c2b.service";
 
 /**
  * Inserts a raw inbound callback into the audit log and returns its id so the
@@ -36,13 +39,22 @@ export async function logMpesaCallback(
 
 export async function markCallbackProcessed(id: string): Promise<void> {
   await withAdminDb((db) =>
-    db.query(`UPDATE mpesa_callbacks SET processed=true, processing_error=NULL WHERE id=$1`, [id]),
+    db.query(
+      `UPDATE mpesa_callbacks SET processed=true, processing_error=NULL WHERE id=$1`,
+      [id],
+    ),
   ).catch(() => {});
 }
 
-export async function markCallbackError(id: string, message: string): Promise<void> {
+export async function markCallbackError(
+  id: string,
+  message: string,
+): Promise<void> {
   await withAdminDb((db) =>
-    db.query(`UPDATE mpesa_callbacks SET processing_error=$2 WHERE id=$1`, [id, message.slice(0, 2000)]),
+    db.query(`UPDATE mpesa_callbacks SET processing_error=$2 WHERE id=$1`, [
+      id,
+      message.slice(0, 2000),
+    ]),
   ).catch(() => {});
 }
 
@@ -54,29 +66,42 @@ export async function markCallbackError(id: string, message: string): Promise<vo
  * (these bodies were already authenticated when first received).
  */
 export async function replayUnprocessedCallbacks(): Promise<{
-  examined: number; replayed: number; failed: number;
+  examined: number;
+  replayed: number;
+  failed: number;
 }> {
   const rows = await withAdminDb((db) =>
-    db.query<{ id: string; callback_type: string; caller_ip: string | null; body: unknown }>(
-      `SELECT id, callback_type, caller_ip::text AS caller_ip, body
+    db
+      .query<{
+        id: string;
+        callback_type: string;
+        caller_ip: string | null;
+        body: unknown;
+      }>(
+        `SELECT id, callback_type, caller_ip::text AS caller_ip, body
        FROM   mpesa_callbacks
        WHERE  processed = false
          AND  callback_type IN ('stk_push','c2b_confirmation')
          AND  created_at < NOW() - INTERVAL '2 minutes'
        ORDER  BY created_at ASC
        LIMIT  100`,
-    ).then((r) => r.rows),
+      )
+      .then((r) => r.rows),
   );
 
   let replayed = 0;
-  let failed   = 0;
+  let failed = 0;
   for (const row of rows) {
-    const ip = row.caller_ip ?? '0.0.0.0';
+    const ip = row.caller_ip ?? "0.0.0.0";
     try {
-      if (row.callback_type === 'stk_push') {
-        await handleSTKCallback(row.body as StkCallbackBody, ip, { skipIpCheck: true });
+      if (row.callback_type === "stk_push") {
+        await handleSTKCallback(row.body as StkCallbackBody, ip, {
+          skipIpCheck: true,
+        });
       } else {
-        await handleC2BConfirmation(row.body as C2BCallbackBody, ip, { skipIpCheck: true });
+        await handleC2BConfirmation(row.body as C2BCallbackBody, ip, {
+          skipIpCheck: true,
+        });
       }
       await markCallbackProcessed(row.id);
       replayed++;
@@ -98,29 +123,39 @@ export async function handleReversalResult(
 
   type RawResult = {
     Result?: {
-      ResultCode?: number; ResultDesc?: string;
-      OriginatorConversationID?: string; ConversationID?: string;
-      ResultParameters?: { ResultParameter?: { Key: string; Value: unknown }[] };
+      ResultCode?: number;
+      ResultDesc?: string;
+      OriginatorConversationID?: string;
+      ConversationID?: string;
+      ResultParameters?: {
+        ResultParameter?: { Key: string; Value: unknown }[];
+      };
     };
   };
   const r = (body as RawResult).Result;
   if (!r) return;
 
-  const origId  = r.OriginatorConversationID ?? '';
+  const origId = r.OriginatorConversationID ?? "";
   const success = r.ResultCode === 0;
-  const get     = (k: string) => r.ResultParameters?.ResultParameter?.find((p) => p.Key === k)?.Value;
-  const receipt = get('TransactionReceipt') as string | undefined;
+  const get = (k: string) =>
+    r.ResultParameters?.ResultParameter?.find((p) => p.Key === k)?.Value;
+  const receipt = get("TransactionReceipt") as string | undefined;
 
   await withAdminDb(async (db) => {
     await db.query(
       `UPDATE mpesa_reversals
        SET status=$1, reversal_receipt=$2, raw_result=$3, result_received_at=NOW()
        WHERE originator_conversation_id=$4`,
-      [success ? 'completed' : 'failed', receipt ?? null, JSON.stringify(body), origId],
+      [
+        success ? "completed" : "failed",
+        receipt ?? null,
+        JSON.stringify(body),
+        origId,
+      ],
     );
     if (success && receipt) {
       await db.query(
-        'UPDATE payments SET status=\'reversed\' WHERE mpesa_receipt_number=$1',
+        "UPDATE payments SET status='reversed' WHERE mpesa_receipt_number=$1",
         [receipt],
       );
     }
@@ -129,7 +164,12 @@ export async function handleReversalResult(
         `INSERT INTO failed_payment_logs
            (transaction_type, reference_id, failure_reason, failure_code, raw_data)
          VALUES ('reversal',$1,$2,$3,$4)`,
-        [origId, r.ResultDesc ?? '', String(r.ResultCode ?? ''), JSON.stringify(body)],
+        [
+          origId,
+          r.ResultDesc ?? "",
+          String(r.ResultCode ?? ""),
+          JSON.stringify(body),
+        ],
       );
     }
   });
@@ -145,7 +185,9 @@ export async function handleBalanceResult(
 
   type RawResult = {
     Result?: {
-      ResultCode?: number; ConversationID?: string; OriginatorConversationID?: string;
+      ResultCode?: number;
+      ConversationID?: string;
+      OriginatorConversationID?: string;
     };
   };
   const r = (body as RawResult).Result;
@@ -157,10 +199,10 @@ export async function handleBalanceResult(
        SET status=$1, raw_response=$2, completed_at=NOW()
        WHERE originator_conversation_id=$3 OR conversation_id=$4`,
       [
-        r.ResultCode === 0 ? 'completed' : 'failed',
+        r.ResultCode === 0 ? "completed" : "failed",
         JSON.stringify(body),
-        r.OriginatorConversationID ?? '',
-        r.ConversationID ?? '',
+        r.OriginatorConversationID ?? "",
+        r.ConversationID ?? "",
       ],
     );
   });
@@ -200,19 +242,19 @@ export async function handleTransactionStatusResult(
     return v == null ? null : String(v);
   };
 
-  const receipt = get('ReceiptNo');
-  const amountStr = get('Amount');
+  const receipt = get("ReceiptNo");
+  const amountStr = get("Amount");
   const amount = amountStr != null ? parseFloat(amountStr) : null;
 
   // Merge a parsed summary alongside the raw body for easy querying later.
   const parsed = {
-    receiptNo:         receipt,
-    transactionStatus: get('TransactionStatus'),
+    receiptNo: receipt,
+    transactionStatus: get("TransactionStatus"),
     amount,
-    debitPartyName:    get('DebitPartyName'),
-    creditPartyName:   get('CreditPartyName'),
-    transactionReason: get('TransactionReason') ?? get('ReasonType'),
-    finalisedTime:     get('FinalisedTime'),
+    debitPartyName: get("DebitPartyName"),
+    creditPartyName: get("CreditPartyName"),
+    transactionReason: get("TransactionReason") ?? get("ReasonType"),
+    finalisedTime: get("FinalisedTime"),
   };
   const stored = JSON.stringify({ ...body, _parsed: parsed });
 
@@ -229,12 +271,12 @@ export async function handleTransactionStatusResult(
            completed_at         = NOW()
        WHERE originator_conversation_id = $5 OR conversation_id = $6`,
       [
-        success ? 'completed' : 'failed',
+        success ? "completed" : "failed",
         stored,
         receipt,
         amount != null ? amount.toFixed(2) : null,
-        r.OriginatorConversationID ?? '',
-        r.ConversationID ?? '',
+        r.OriginatorConversationID ?? "",
+        r.ConversationID ?? "",
       ],
     );
   });
@@ -242,10 +284,13 @@ export async function handleTransactionStatusResult(
 
 // ─── Legacy queryBalance shim (used by existing /mpesa/b2c balance_result) ───
 
-export async function queryBalance(): Promise<{ workingAccount: number; utilityAccount: number }> {
+export async function queryBalance(): Promise<{
+  workingAccount: number;
+  utilityAccount: number;
+}> {
   // Balance is returned asynchronously via /api/v1/mpesa/balance?type=result callback
   // This shim initiates the async request only
-  const { queryAccountBalance } = await import('./daraja.service');
+  const { queryAccountBalance } = await import("./daraja.service");
   await queryAccountBalance();
   return { workingAccount: 0, utilityAccount: 0 };
 }

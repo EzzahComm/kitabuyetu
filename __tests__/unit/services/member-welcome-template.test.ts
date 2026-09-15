@@ -1,4 +1,9 @@
-import { DEFAULT_TEMPLATES, extractVars, renderTemplate, stripUnresolved } from '@/lib/sms/templates';
+import {
+  DEFAULT_TEMPLATES,
+  extractVars,
+  renderTemplate,
+  stripUnresolved,
+} from "@/lib/sms/templates";
 
 /**
  * The welcome SMS a member gets when they are added to a group.
@@ -8,18 +13,18 @@ import { DEFAULT_TEMPLATES, extractVars, renderTemplate, stripUnresolved } from 
  * body that quietly spills past one 160-character SMS segment (doubles the
  * credit cost of every member any group ever adds).
  */
-describe('welcome SMS template', () => {
+describe("welcome SMS template", () => {
   const template = DEFAULT_TEMPLATES.welcome;
 
   /** What members.service.ts actually puts on the member.registered payload. */
   const vars = {
-    first_name:    'Benedict',
-    last_name:     'Wanyama',
-    group_name:    'Ndengelwa Community Water Project',
-    membership_no: 'NC000078',
+    first_name: "Benedict",
+    last_name: "Wanyama",
+    group_name: "Ndengelwa Community Water Project",
+    membership_no: "NC000078",
   };
 
-  it('renders every placeholder it declares — none left unresolved', () => {
+  it("renders every placeholder it declares — none left unresolved", () => {
     const declared = extractVars(template);
     const supplied = Object.keys(vars);
 
@@ -37,34 +42,34 @@ describe('welcome SMS template', () => {
     expect(rendered).not.toMatch(/ {2}/);
   });
 
-  it('names the member, the group and the short membership number', () => {
+  it("names the member, the group and the short membership number", () => {
     const rendered = renderTemplate(template, vars);
 
-    expect(rendered).toContain('Benedict');
-    expect(rendered).toContain('Ndengelwa Community Water Project');
-    expect(rendered).toContain('NC000078');
+    expect(rendered).toContain("Benedict");
+    expect(rendered).toContain("Ndengelwa Community Water Project");
+    expect(rendered).toContain("NC000078");
   });
 
   it('opens with "Dear <name>" and closes on "Karibu."', () => {
     const rendered = renderTemplate(template, vars);
 
-    expect(rendered.startsWith('Dear Benedict,')).toBe(true);
-    expect(rendered.endsWith('Karibu.')).toBe(true);
+    expect(rendered.startsWith("Dear Benedict,")).toBe(true);
+    expect(rendered.endsWith("Karibu.")).toBe(true);
     // The member number is a sentence of its own, not run into the sign-off.
-    expect(rendered).toContain('NC000078. Karibu.');
+    expect(rendered).toContain("NC000078. Karibu.");
   });
 
-  it('fits one 160-character SMS segment with a real long group name', () => {
+  it("fits one 160-character SMS segment with a real long group name", () => {
     // 'Ndengelwa Community Water Project' is 33 characters and is a real
     // production group — if the fixed copy grows, this is what breaks first.
     const rendered = renderTemplate(template, vars);
     expect(rendered.length).toBeLessThanOrEqual(160);
   });
 
-  it('uses the short membership_no, never the long member_code', () => {
+  it("uses the short membership_no, never the long member_code", () => {
     // NC000078 vs KY000000300004 — the long platform code would eat 6 more
     // characters and is not what a member is asked to quote at a meeting.
-    expect(template).toContain('{{membership_no}}');
-    expect(template).not.toContain('{{member_code}}');
+    expect(template).toContain("{{membership_no}}");
+    expect(template).not.toContain("{{member_code}}");
   });
 });

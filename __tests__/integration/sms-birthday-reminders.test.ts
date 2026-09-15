@@ -9,15 +9,15 @@
  * separately-billed messages — one per membership, matching how
  * loan/contribution reminders already behave.
  */
-import { handleJob } from '@/lib/jobs/handlers';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { Job } from '@/lib/jobs/types';
+import { handleJob } from "@/lib/jobs/handlers";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { Job } from "@/lib/jobs/types";
 
 const mockSendSingleSms = jest.fn();
 
-jest.mock('@/lib/services/textsms.service', () => ({
+jest.mock("@/lib/services/textsms.service", () => ({
   sendSingleSms: (...args: unknown[]) => mockSendSingleSms(...args),
   sendBulkSms: jest.fn(),
   sendBulkSmsChunked: jest.fn(),
@@ -33,16 +33,29 @@ async function makeBirthdayJob(): Promise<Job> {
     `INSERT INTO job_queue (type, payload, status) VALUES ('sms_birthday_reminders', '{}', 'processing') RETURNING id`,
   );
   return {
-    id: row.id, type: 'sms_birthday_reminders', payload: {}, status: 'processing',
-    attempts: 0, max_attempts: 5,
+    id: row.id,
+    type: "sms_birthday_reminders",
+    payload: {},
+    status: "processing",
+    attempts: 0,
+    max_attempts: 5,
   } as unknown as Job;
 }
 
 function acceptedSms() {
-  return { success: true, messageId: 'msg-1', networkId: '1', responseCode: 200, responseDescription: 'Success' };
+  return {
+    success: true,
+    messageId: "msg-1",
+    networkId: "1",
+    responseCode: 200,
+    responseDescription: "Success",
+  };
 }
 
-async function provisionBilling(groupId: string, credits: number): Promise<void> {
+async function provisionBilling(
+  groupId: string,
+  credits: number,
+): Promise<void> {
   await rawQuery(
     `INSERT INTO billing_accounts (group_id, sms_credits)
      VALUES ($1, $2)
@@ -67,7 +80,9 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
 // the candidate query (like every other reminder scanner) only considers
 // g.status='active', so tests need this to make the group eligible at all.
 async function activateGroup(groupId: string): Promise<void> {
-  await rawQuery(`UPDATE groups SET status = 'active' WHERE id = $1`, [groupId]);
+  await rawQuery(`UPDATE groups SET status = 'active' WHERE id = $1`, [
+    groupId,
+  ]);
 }
 
 async function optInBirthday(groupId: string): Promise<void> {
@@ -88,12 +103,13 @@ async function setBirthdayToday(memberId: string): Promise<void> {
 
 async function smsCreditsOf(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
 
-describe('sms_birthday_reminders', () => {
+describe("sms_birthday_reminders", () => {
   // Same reason as sms-bulk-personalization.test.ts's: resetDatabase() clears
   // job_queue only at the start of each test, so the last one's row would
   // outlive this file and land in job-stuck-sweep.test.ts's whole-table counts.
@@ -113,9 +129,9 @@ describe('sms_birthday_reminders', () => {
     mockSendSingleSms.mockResolvedValue(acceptedSms());
   });
 
-  it('sends and bills a birthday SMS for an opted-in group with a matching DOB', async () => {
+  it("sends and bills a birthday SMS for an opted-in group with a matching DOB", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
     await optInBirthday(groupId);
@@ -137,13 +153,13 @@ describe('sms_birthday_reminders', () => {
          AND gm.member_id = $1`,
       [officerId, `birthday:${currentYear}`],
     );
-    expect(log?.status).toBe('sent');
+    expect(log?.status).toBe("sent");
     expect(await smsCreditsOf(groupId)).toBeLessThan(100); // real charge, not credits_deducted=0
   });
 
-  it('does not select a member from a group that has not opted in', async () => {
+  it("does not select a member from a group that has not opted in", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
     // No optInBirthday call — no sms_group_settings row at all for this group.
@@ -161,9 +177,9 @@ describe('sms_birthday_reminders', () => {
     expect(log).toBeUndefined();
   });
 
-  it('does not select a member whose birthday is not today', async () => {
+  it("does not select a member whose birthday is not today", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
     await optInBirthday(groupId);
@@ -175,9 +191,9 @@ describe('sms_birthday_reminders', () => {
     expect(mockSendSingleSms).not.toHaveBeenCalled();
   });
 
-  it('sends only once per member per year across repeated same-day runs, without double billing', async () => {
+  it("sends only once per member per year across repeated same-day runs, without double billing", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('treasurer');
+    const { groupId, officerId } = await createTestGroup("treasurer");
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
     await optInBirthday(groupId);
@@ -195,10 +211,10 @@ describe('sms_birthday_reminders', () => {
     expect(await smsCreditsOf(groupId)).toBe(creditsAfterFirst); // never billed twice
   });
 
-  it('bills a member in two opted-in groups separately, one message per group', async () => {
+  it("bills a member in two opted-in groups separately, one message per group", async () => {
     await resetDatabase();
-    const { groupId: groupA, officerId } = await createTestGroup('treasurer');
-    const { groupId: groupB } = await createTestGroup('treasurer');
+    const { groupId: groupA, officerId } = await createTestGroup("treasurer");
+    const { groupId: groupB } = await createTestGroup("treasurer");
     await activateGroup(groupA);
     await activateGroup(groupB);
     await provisionBilling(groupA, 100);
@@ -214,12 +230,15 @@ describe('sms_birthday_reminders', () => {
     // person/group_member_counters bookkeeping a raw group_members INSERT
     // would otherwise violate a NOT NULL constraint on).
     const [member] = await rawQuery<{ first_name: string; last_name: string }>(
-      `SELECT first_name, last_name FROM members WHERE id = $1`, [officerId],
+      `SELECT first_name, last_name FROM members WHERE id = $1`,
+      [officerId],
     );
-    await rawQuery(
-      `SELECT link_member_to_group($1, $2, 'member', $3, $4)`,
-      [officerId, groupB, member.first_name, member.last_name],
-    );
+    await rawQuery(`SELECT link_member_to_group($1, $2, 'member', $3, $4)`, [
+      officerId,
+      groupB,
+      member.first_name,
+      member.last_name,
+    ]);
 
     const result = await handleJob(await makeBirthdayJob());
 
@@ -242,6 +261,6 @@ describe('sms_birthday_reminders', () => {
     // 'sent') and silently skip. Two distinct membership rows means two
     // distinct claims: one dispatch-log row per group, both 'sent'.
     expect(logs).toHaveLength(2);
-    expect(logs.every((l) => l.status === 'sent')).toBe(true);
+    expect(logs.every((l) => l.status === "sent")).toBe(true);
   });
 });

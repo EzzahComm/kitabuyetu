@@ -1,7 +1,7 @@
-import { withAdminDb } from '@/lib/db';
-import { renderTemplate } from '@/lib/email/templates/engine';
-import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
-import { sendEmailWithFallback } from '@/lib/email/provider';
+import { withAdminDb } from "@/lib/db";
+import { renderTemplate } from "@/lib/email/templates/engine";
+import { DEFAULT_TEMPLATES } from "@/lib/email/templates/defaults";
+import { sendEmailWithFallback } from "@/lib/email/provider";
 
 export interface CampaignCreateInput {
   groupId: string;
@@ -19,7 +19,9 @@ export interface CampaignCreateInput {
   scheduledAt?: Date;
 }
 
-export async function createCampaign(input: CampaignCreateInput): Promise<string> {
+export async function createCampaign(
+  input: CampaignCreateInput,
+): Promise<string> {
   const { rows } = await withAdminDb((db) =>
     db.query(
       `INSERT INTO email_campaigns
@@ -47,7 +49,7 @@ export async function createCampaign(input: CampaignCreateInput): Promise<string
 
 export async function getCampaignRecipients(
   groupId: string,
-  filter?: CampaignCreateInput['recipientFilter'],
+  filter?: CampaignCreateInput["recipientFilter"],
 ): Promise<{ memberId: string; email: string; name: string }[]> {
   const parts: string[] = [
     `SELECT m.id AS member_id, m.email,
@@ -72,8 +74,12 @@ export async function getCampaignRecipients(
     parts.push(`AND m.id = ANY($${params.length}::uuid[])`);
   }
 
-  const { rows } = await withAdminDb((db) => db.query(parts.join(' '), params));
-  return rows.map((r) => ({ memberId: r.member_id, email: r.email, name: r.name }));
+  const { rows } = await withAdminDb((db) => db.query(parts.join(" "), params));
+  return rows.map((r) => ({
+    memberId: r.member_id,
+    email: r.email,
+    name: r.name,
+  }));
 }
 
 // Enqueue all recipients and update campaign status
@@ -81,9 +87,9 @@ export async function launchCampaign(campaignId: string): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [campaignId]),
   );
-  if (!rows.length) throw new Error('Campaign not found');
+  if (!rows.length) throw new Error("Campaign not found");
   const campaign = rows[0];
-  if (!['draft', 'scheduled'].includes(campaign.status)) {
+  if (!["draft", "scheduled"].includes(campaign.status)) {
     throw new Error(`Campaign already ${campaign.status}`);
   }
 
@@ -124,7 +130,7 @@ export async function processCampaignJob(job: {
   templateKey?: string;
   htmlBody?: string;
 }): Promise<{ success: boolean }> {
-  let html = job.htmlBody ?? '';
+  let html = job.htmlBody ?? "";
 
   if (job.templateKey) {
     const fallback = DEFAULT_TEMPLATES[job.templateKey]?.body;
@@ -132,7 +138,7 @@ export async function processCampaignJob(job: {
       job.templateKey,
       { memberName: job.recipientName, groupId: job.groupId },
       job.groupId,
-      'en',
+      "en",
       fallback,
     ).catch(() => null);
     if (rendered) html = rendered.html;
@@ -143,12 +149,12 @@ export async function processCampaignJob(job: {
     subject: job.subject,
     html,
     groupId: job.groupId,
-    category: 'campaign',
+    category: "campaign",
     referenceId: job.campaignId,
-    referenceType: 'campaign',
+    referenceType: "campaign",
   });
 
-  const status = result.success ? 'sent' : 'failed';
+  const status = result.success ? "sent" : "failed";
 
   await withAdminDb((db) =>
     db.query(
@@ -160,9 +166,11 @@ export async function processCampaignJob(job: {
     ),
   ).catch(() => {});
 
-  const col = result.success ? 'sent_count' : 'failed_count';
+  const col = result.success ? "sent_count" : "failed_count";
   await withAdminDb((db) =>
-    db.query(`UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`, [job.campaignId]),
+    db.query(`UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`, [
+      job.campaignId,
+    ]),
   ).catch(() => {});
 
   // Mark completed when all recipients processed
@@ -182,8 +190,8 @@ export async function processCampaignJob(job: {
 
 export interface CampaignDrainResult {
   processed: number;
-  sent:      number;
-  failed:    number;
+  sent: number;
+  failed: number;
 }
 
 /**
@@ -201,17 +209,19 @@ export interface CampaignDrainResult {
  * provider call — tune via the `email_campaign_drain` job's caller if
  * job_logs shows this handler running close to the limit.
  */
-export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrainResult> {
+export async function drainCampaignRecipients(
+  limit = 40,
+): Promise<CampaignDrainResult> {
   const { rows } = await withAdminDb((db) =>
     db.query<{
-      campaign_id:  string;
-      group_id:     string;
-      member_id:    string | null;
-      email:        string;
-      name:         string | null;
-      subject:      string;
+      campaign_id: string;
+      group_id: string;
+      member_id: string | null;
+      email: string;
+      name: string | null;
+      subject: string;
       template_key: string | null;
-      html_body:    string | null;
+      html_body: string | null;
     }>(
       `UPDATE email_campaign_recipients ecr
        SET status = 'sending'
@@ -236,16 +246,17 @@ export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrain
   let failed = 0;
   for (const r of rows) {
     const { success } = await processCampaignJob({
-      campaignId:     r.campaign_id,
+      campaignId: r.campaign_id,
       recipientEmail: r.email,
-      recipientName:  r.name ?? r.email,
-      memberId:       r.member_id ?? '',
-      groupId:        r.group_id,
-      subject:        r.subject,
-      templateKey:    r.template_key ?? undefined,
-      htmlBody:       r.html_body ?? undefined,
+      recipientName: r.name ?? r.email,
+      memberId: r.member_id ?? "",
+      groupId: r.group_id,
+      subject: r.subject,
+      templateKey: r.template_key ?? undefined,
+      htmlBody: r.html_body ?? undefined,
     });
-    if (success) sent++; else failed++;
+    if (success) sent++;
+    else failed++;
   }
 
   return { processed: rows.length, sent, failed };

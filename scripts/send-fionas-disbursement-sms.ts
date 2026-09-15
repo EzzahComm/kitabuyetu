@@ -16,22 +16,34 @@
  * the group default — 'savings' for this group — and a repayment would be
  * banked as savings while the loan sat untouched.
  */
-import { withAdminDb } from '@/lib/db';
-import { smsService } from '@/lib/services/sms.service';
-import type { TenantContext } from '@/lib/db';
+import { withAdminDb } from "@/lib/db";
+import { smsService } from "@/lib/services/sms.service";
+import type { TenantContext } from "@/lib/db";
 
-const SEND    = process.argv.includes('--send');
-const PAYBILL = process.env.MPESA_SHORTCODE ?? '';
+const SEND = process.argv.includes("--send");
+const PAYBILL = process.env.MPESA_SHORTCODE ?? "";
 
 interface Row {
-  loan_id: string; member_id: string; first_name: string; phone: string;
-  membership_no: string; group_id: string; group_name: string;
-  principal_amount: string; total_repayable: string; payment_method: string | null;
-  first_inst: string; first_due: string; n: string;
+  loan_id: string;
+  member_id: string;
+  first_name: string;
+  phone: string;
+  membership_no: string;
+  group_id: string;
+  group_name: string;
+  principal_amount: string;
+  total_repayable: string;
+  payment_method: string | null;
+  first_inst: string;
+  first_due: string;
+  n: string;
 }
 
 async function main() {
-  if (!PAYBILL) throw new Error('MPESA_SHORTCODE is not set — refusing to send a message with no paybill');
+  if (!PAYBILL)
+    throw new Error(
+      "MPESA_SHORTCODE is not set — refusing to send a message with no paybill",
+    );
 
   const rows = await withAdminDb(async (db) => {
     const { rows } = await db.query<Row>(`
@@ -53,43 +65,66 @@ async function main() {
   });
 
   if (rows.length !== 4) {
-    throw new Error(`Expected 4 disbursed loans, found ${rows.length} — refusing to send`);
+    throw new Error(
+      `Expected 4 disbursed loans, found ${rows.length} — refusing to send`,
+    );
   }
 
   const money = (v: string) =>
-    Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const whole = (v: string) => Number(v).toLocaleString('en-KE');
+    Number(v).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const whole = (v: string) => Number(v).toLocaleString("en-KE");
 
   for (const r of rows) {
     // Cash leaves no receipt to quote; only M-Pesa does. Saying "in CASH"
     // explicitly is what the group asked for, so a member can reconcile the
     // message against what they actually received by hand.
-    const channel = r.payment_method === 'cash' ? 'in CASH' : `via ${r.payment_method ?? 'the group'}`;
+    const channel =
+      r.payment_method === "cash"
+        ? "in CASH"
+        : `via ${r.payment_method ?? "the group"}`;
     const message =
-      `Dear ${r.first_name}, your loan of KES ${whole(r.principal_amount)} from ${r.group_name} `
-      + `is approved and disbursed ${channel}. `
-      + `Repay ${r.n} monthly instalments of KES ${money(r.first_inst)} `
-      + `(total KES ${whole(r.total_repayable)}) from ${r.first_due}. `
-      + `Repay via M-Pesa Paybill ${PAYBILL}, Account ${r.membership_no}L (the L is required).`;
+      `Dear ${r.first_name}, your loan of KES ${whole(r.principal_amount)} from ${r.group_name} ` +
+      `is approved and disbursed ${channel}. ` +
+      `Repay ${r.n} monthly instalments of KES ${money(r.first_inst)} ` +
+      `(total KES ${whole(r.total_repayable)}) from ${r.first_due}. ` +
+      `Repay via M-Pesa Paybill ${PAYBILL}, Account ${r.membership_no}L (the L is required).`;
 
     if (!SEND) {
-      console.log(`\n[DRY RUN] ${r.first_name} ${r.phone} (${message.length} chars)\n${message}`);
+      console.log(
+        `\n[DRY RUN] ${r.first_name} ${r.phone} (${message.length} chars)\n${message}`,
+      );
       continue;
     }
 
     const ctx = {
       groupId: r.group_id,
-      userId:  r.member_id,
-      role:    'chairperson',
+      userId: r.member_id,
+      role: "chairperson",
     } as TenantContext;
 
     // referenceType/referenceId tie the log row to the loan, so the send is
     // traceable from the loan record rather than floating in sms_usage_logs.
-    const logs = await smsService.send(ctx, r.phone, message, 'loan', r.loan_id);
-    console.log(`SENT ${r.first_name} ${r.phone} -> ${logs.map((l) => l.status).join(',') || 'suppressed (opted out)'}`);
+    const logs = await smsService.send(
+      ctx,
+      r.phone,
+      message,
+      "loan",
+      r.loan_id,
+    );
+    console.log(
+      `SENT ${r.first_name} ${r.phone} -> ${logs.map((l) => l.status).join(",") || "suppressed (opted out)"}`,
+    );
   }
 
-  console.log(SEND ? '\nDone.' : '\nDry run only — pass --send to dispatch.');
+  console.log(SEND ? "\nDone." : "\nDry run only — pass --send to dispatch.");
 }
 
-main().then(() => process.exit(0)).catch((err) => { console.error(err); process.exit(1); });
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

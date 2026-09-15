@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Shield } from 'lucide-react';
-import { AdminSidebar } from '@/components/admin/sidebar';
-import { AdminTopbar } from '@/components/admin/topbar';
-import { CommandPalette } from '@/components/admin/command-palette';
-import { useAuth } from '@/lib/auth/context';
-import { configureApiClient } from '@/lib/api/client';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Shield } from "lucide-react";
+import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminTopbar } from "@/components/admin/topbar";
+import { CommandPalette } from "@/components/admin/command-palette";
+import { useAuth } from "@/lib/auth/context";
+import { configureApiClient } from "@/lib/api/client";
 
 /**
  * Guards the entire /admin portal. Phase 1 of the backoffice isolation:
@@ -40,10 +40,14 @@ import { configureApiClient } from '@/lib/api/client';
  * "BACKOFFICE" badge) so staff never mistake the privileged context for
  * a tenant dashboard.
  */
-const ADMIN_ROLES = ['super_admin', 'support'] as const;
+const ADMIN_ROLES = ["super_admin", "support"] as const;
 type AdminRole = (typeof ADMIN_ROLES)[number];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, accessToken, audience, logout, isLoading } = useAuth();
   const router = useRouter();
@@ -53,15 +57,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // on the right re-auth page.
   useEffect(() => {
     configureApiClient({
-      getToken:       () => accessToken ?? null,
-      onUnauthorized: () => { logout(); router.push('/admin-login'); },
+      getToken: () => accessToken ?? null,
+      onUnauthorized: () => {
+        logout();
+        router.push("/admin-login");
+      },
     });
   }, [accessToken, logout, router]);
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user || audience !== 'backoffice') {
-      router.replace('/admin-login');
+    if (!user || audience !== "backoffice") {
+      router.replace("/admin-login");
       return;
     }
     if (!ADMIN_ROLES.includes(user.platformRole as AdminRole)) {
@@ -70,14 +77,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // allowlist before issuing a token. Genuinely authenticated-but-denied,
       // so this goes to /unauthorized, not back to the login page they just
       // came from (which would just be a confusing dead-end loop).
-      router.replace('/unauthorized');
+      router.replace("/unauthorized");
     }
   }, [user, audience, isLoading, router]);
 
-  const ready = !isLoading
-    && !!user
-    && audience === 'backoffice'
-    && ADMIN_ROLES.includes(user.platformRole as AdminRole);
+  const ready =
+    !isLoading &&
+    !!user &&
+    audience === "backoffice" &&
+    ADMIN_ROLES.includes(user.platformRole as AdminRole);
 
   if (!ready) {
     return (
@@ -101,18 +109,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="h-1 w-full bg-red-600" aria-hidden />
         <div className="flex items-center gap-2 bg-red-50 border-b border-red-200 px-4 py-1.5 text-xs text-red-900">
           <Shield className="h-3.5 w-3.5" />
-          <span className="font-medium uppercase tracking-wide">Backoffice</span>
+          <span className="font-medium uppercase tracking-wide">
+            Backoffice
+          </span>
           <span className="text-red-700/70">·</span>
-          <span className="text-red-700/80">Actions in this portal are logged.</span>
+          <span className="text-red-700/80">
+            Actions in this portal are logged.
+          </span>
           <span className="ml-auto font-mono">{user.platformRole}</span>
         </div>
 
         <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6 max-w-[1600px] mx-auto">
-            {children}
-          </div>
+          <div className="p-6 max-w-[1600px] mx-auto">{children}</div>
         </main>
       </div>
     </div>

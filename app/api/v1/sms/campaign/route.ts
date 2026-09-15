@@ -1,34 +1,41 @@
-﻿export const dynamic = 'force-dynamic'
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
-import { enqueueJob } from '@/lib/jobs';
-import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
-import { resolveSmsRecipients } from '@/lib/services/sms.service';
-import { enforceSmsRateLimit } from '@/lib/sms/rate-limit';
-import { ForbiddenError } from '@/lib/utils/errors';
-import { ok, notFound } from '@/lib/utils/response';
+﻿export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import { withDb, withAdminDb } from "@/lib/db";
+import { enqueueJob } from "@/lib/jobs";
+import { CampaignCreateSchema } from "@/lib/validators/sms.schema";
+import { resolveSmsRecipients } from "@/lib/services/sms.service";
+import { enforceSmsRateLimit } from "@/lib/sms/rate-limit";
+import { ForbiddenError } from "@/lib/utils/errors";
+import { ok, notFound } from "@/lib/utils/response";
 
 // GET /api/v1/sms/campaign â€” list campaigns
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.send', async (auth) => {
+  return withPermission(req, "messaging.send", async (auth) => {
     const { searchParams } = new URL(req.url);
-    const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const limit  = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
-    const status = searchParams.get('status');
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)),
+    );
+    const status = searchParams.get("status");
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     return withDb(ctx, async (client) => {
-      const conds: string[] = ['group_id=$1'];
+      const conds: string[] = ["group_id=$1"];
       const vals: unknown[] = [auth.groupId];
       let idx = 2;
-      if (status) { conds.push(`status=$${idx++}`); vals.push(status); }
+      if (status) {
+        conds.push(`status=$${idx++}`);
+        vals.push(status);
+      }
 
-      const where  = conds.join(' AND ');
+      const where = conds.join(" AND ");
       const offset = (page - 1) * limit;
 
       const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM sms_campaigns WHERE ${where}`, vals,
+        `SELECT COUNT(*) AS count FROM sms_campaigns WHERE ${where}`,
+        vals,
       );
       const total = parseInt(countRows[0].count, 10);
 
@@ -38,32 +45,48 @@ export async function GET(req: NextRequest): Promise<Response> {
         [...vals, limit, offset],
       );
 
-      return ok({ items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) });
+      return ok({
+        items: rows,
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
+      });
     });
   });
 }
 
 // POST /api/v1/sms/campaign â€” create & optionally send
 export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.send', async (auth) => {
-    const limited = await enforceSmsRateLimit('campaign', auth.groupId);
+  return withPermission(req, "messaging.send", async (auth) => {
+    const limited = await enforceSmsRateLimit("campaign", auth.groupId);
     if (limited) return limited;
 
-    const body  = await req.json();
+    const body = await req.json();
     const input = CampaignCreateSchema.parse(body);
 
     // Only a coordinator of an organization may spend that organization's SMS
     // credits. debit_organization_sms_credits() independently re-checks that the
     // group holds active access under the organization, so a forged header
     // cannot bill an unrelated organization.
-    if (input.fundedBy === 'organization' && auth.organizationId !== input.organizationId) {
-      throw new ForbiddenError('You cannot fund a campaign from this organization.');
+    if (
+      input.fundedBy === "organization" &&
+      auth.organizationId !== input.organizationId
+    ) {
+      throw new ForbiddenError(
+        "You cannot fund a campaign from this organization.",
+      );
     }
-    const payerOrgId = input.fundedBy === 'organization' ? input.organizationId! : null;
+    const payerOrgId =
+      input.fundedBy === "organization" ? input.organizationId! : null;
 
     // Resolve recipient phones (shared with the scheduler so scheduled and
     // immediate campaigns resolve membership identically).
-    const phones = await resolveSmsRecipients(auth.groupId, input.recipientType, input.rawRecipients);
+    const phones = await resolveSmsRecipients(
+      auth.groupId,
+      input.recipientType,
+      input.rawRecipients,
+    );
 
     // Insert campaign row
     //
@@ -76,7 +99,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     // so it throws `could not determine data type of parameter $9` — on
     // EVERY call, not just scheduled ones, since this fails at parse time
     // before any value is even bound. Cast explicitly at both occurrences.
-    const { rows: [campaign] } = await withAdminDb((db) =>
+    const {
+      rows: [campaign],
+    } = await withAdminDb((db) =>
       db.query(
         `INSERT INTO sms_campaigns
            (group_id, name, description, message, template_id, recipient_type,
@@ -86,11 +111,18 @@ export async function POST(req: NextRequest): Promise<Response> {
            CASE WHEN $9::timestamptz IS NOT NULL THEN 'scheduled' ELSE 'draft' END, $11, $12)
          RETURNING *`,
         [
-          auth.groupId, input.name, input.description ?? null,
-          input.message, input.templateId ?? null, input.recipientType,
-          phones.length, input.rawRecipients ? JSON.stringify(input.rawRecipients) : null,
-          input.scheduledAt ?? null, auth.userId,
-          input.fundedBy, payerOrgId,
+          auth.groupId,
+          input.name,
+          input.description ?? null,
+          input.message,
+          input.templateId ?? null,
+          input.recipientType,
+          phones.length,
+          input.rawRecipients ? JSON.stringify(input.rawRecipients) : null,
+          input.scheduledAt ?? null,
+          auth.userId,
+          input.fundedBy,
+          payerOrgId,
         ],
       ),
     );
@@ -99,18 +131,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     // (dedup-keyed on the campaign id so a retried request can't double-send).
     if (!input.scheduledAt && phones.length > 0) {
       await enqueueJob(
-        'sms_bulk_send',
+        "sms_bulk_send",
         {
           campaignId: campaign.id,
           phones,
-          message:    input.message,
-          senderId:   input.senderId,
-          groupId:    auth.groupId,
-          sentBy:     auth.userId,
-          fundedBy:   input.fundedBy,
+          message: input.message,
+          senderId: input.senderId,
+          groupId: auth.groupId,
+          sentBy: auth.userId,
+          fundedBy: input.fundedBy,
           payerOrganizationId: payerOrgId,
         },
-        { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${campaign.id}` },
+        {
+          priority: 7,
+          max_attempts: 3,
+          dedup_key: `sms_bulk_send:${campaign.id}`,
+        },
       );
     }
 
@@ -120,8 +156,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // DELETE /api/v1/sms/campaign?id=xxx â€” cancel
 export async function DELETE(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'messaging.manage', async (auth) => {
-    const id = new URL(req.url).searchParams.get('id');
+  return withPermission(req, "messaging.manage", async (auth) => {
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return notFound();
 
     const { rows } = await withAdminDb((db) =>

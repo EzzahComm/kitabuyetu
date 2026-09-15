@@ -14,17 +14,20 @@
  * (partial unique indexes, PL/pgSQL SELECT INTO's silent first-row rule,
  * LATERAL vs join multiplicity) that a mocked database cannot reproduce.
  */
-import { billingService } from '@/lib/services/billing.service';
-import { listGroups } from '@/lib/services/admin.service';
-import { createTestGroup } from './helpers/fixtures';
-import { resetDatabase } from './helpers/cleanup';
-import { rawQuery } from './helpers/db';
-import type { TenantContext } from '@/lib/db';
+import { billingService } from "@/lib/services/billing.service";
+import { listGroups } from "@/lib/services/admin.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { resetDatabase } from "./helpers/cleanup";
+import { rawQuery } from "./helpers/db";
+import type { TenantContext } from "@/lib/db";
 
 /** Add a second, concurrently-active subscription for the other product. */
 async function addChamaReminderSubscription(
   groupId: string,
-  opts: { smsRate: number; allowance: number } = { smsRate: 0.80, allowance: 500 },
+  opts: { smsRate: number; allowance: number } = {
+    smsRate: 0.8,
+    allowance: 500,
+  },
 ): Promise<void> {
   await rawQuery(
     `INSERT INTO subscriptions
@@ -46,36 +49,48 @@ async function activeSubscriptions(groupId: string) {
 }
 
 function ctxFor(groupId: string, userId: string): TenantContext {
-  return { userId, groupId, role: 'chairperson' };
+  return { userId, groupId, role: "chairperson" };
 }
 
-describe('multi-product subscriptions (migration 127)', () => {
-  it('register_group grants no subscription — there is no free plan (migration 139)', async () => {
+describe("multi-product subscriptions (migration 127)", () => {
+  it("register_group grants no subscription — there is no free plan (migration 139)", async () => {
     await resetDatabase();
 
     // Bypass the fixture's own paid-subscription provisioning: what is under
     // test here is precisely what register_group does on its own.
-    const { groupId } = await createTestGroup('treasurer', { subscribed: false });
-    expect(await rawQuery(
-      `SELECT id FROM subscriptions WHERE group_id = $1`, [groupId],
-    )).toHaveLength(0);
+    const { groupId } = await createTestGroup("treasurer", {
+      subscribed: false,
+    });
+    expect(
+      await rawQuery(`SELECT id FROM subscriptions WHERE group_id = $1`, [
+        groupId,
+      ]),
+    ).toHaveLength(0);
 
     // It used to insert starter/active at monthly_fee 0, which WAS the free
     // tier. A group now holds nothing until it pays, and the subscription gate
     // keeps it out of everything but sign-in and billing until then.
     const [row] = await rawQuery<{ result: { group_id: string } }>(
       `SELECT register_group($1::jsonb) AS result`,
-      [JSON.stringify({
-        groupName: 'Reminder Only Group', groupType: 'chama',
-        firstName: 'Asha', lastName: 'Mwangi', phone: '254798000123',
-        passwordHash: 'integration_test_password_hash_placeholder',
-        creatorRole: 'treasurer', product: 'chama_reminder',
-      })],
+      [
+        JSON.stringify({
+          groupName: "Reminder Only Group",
+          groupType: "chama",
+          firstName: "Asha",
+          lastName: "Mwangi",
+          phone: "254798000123",
+          passwordHash: "integration_test_password_hash_placeholder",
+          creatorRole: "treasurer",
+          product: "chama_reminder",
+        }),
+      ],
     );
     const crGroupId = row.result.group_id;
-    expect(await rawQuery(
-      `SELECT id FROM subscriptions WHERE group_id = $1`, [crGroupId],
-    )).toHaveLength(0);
+    expect(
+      await rawQuery(`SELECT id FROM subscriptions WHERE group_id = $1`, [
+        crGroupId,
+      ]),
+    ).toHaveLength(0);
 
     // DELIBERATE REVERSAL (migration 140). This asserted 16 accounts, with a
     // comment saying the GL-skip for chama_reminder-only groups was "still
@@ -85,20 +100,24 @@ describe('multi-product subscriptions (migration 127)', () => {
     // would be dead data. Buying Kitabu Yetu later seeds it — see the
     // conversion tests at the foot of this file.
     const [accounts] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM accounts WHERE group_id = $1`, [crGroupId],
+      `SELECT count(*) AS n FROM accounts WHERE group_id = $1`,
+      [crGroupId],
     );
     expect(Number(accounts.n)).toBe(0);
 
     // The billing account IS still created for both products — it holds the SMS
     // credit balance, and Chama Reminder is entirely SMS.
-    expect(await rawQuery(
-      `SELECT group_id FROM billing_accounts WHERE group_id = $1`, [crGroupId],
-    )).toHaveLength(1);
+    expect(
+      await rawQuery(
+        `SELECT group_id FROM billing_accounts WHERE group_id = $1`,
+        [crGroupId],
+      ),
+    ).toHaveLength(1);
   });
 
-  it('allows one active subscription per product, and rejects a second for the same product', async () => {
+  it("allows one active subscription per product, and rejects a second for the same product", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
 
     await addChamaReminderSubscription(groupId);
     expect(await activeSubscriptions(groupId)).toHaveLength(2);
@@ -114,21 +133,28 @@ describe('multi-product subscriptions (migration 127)', () => {
     ).rejects.toThrow(/idx_subscriptions_one_active_per_product/);
   });
 
-  it('reserve_sms_credits sums the allowances and charges the best rate across products', async () => {
+  it("reserve_sms_credits sums the allowances and charges the best rate across products", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
 
     // register_group seeds kitabu_yetu at 0.9000 with a 50-message bundle.
-    await addChamaReminderSubscription(groupId, { smsRate: 0.80, allowance: 500 });
-    await rawQuery(`UPDATE billing_accounts SET sms_credits = 1000 WHERE group_id = $1`, [groupId]);
+    await addChamaReminderSubscription(groupId, {
+      smsRate: 0.8,
+      allowance: 500,
+    });
+    await rawQuery(
+      `UPDATE billing_accounts SET sms_credits = 1000 WHERE group_id = $1`,
+      [groupId],
+    );
 
     const [{ result }] = await rawQuery<{ result: Record<string, string> }>(
-      `SELECT reserve_sms_credits('group', $1, NULL, 600) AS result`, [groupId],
+      `SELECT reserve_sms_credits('group', $1, NULL, 600) AS result`,
+      [groupId],
     );
 
     // MIN(0.90, 0.80) — not whichever row the planner happened to return first,
     // which is what the old SELECT ... INTO over a LEFT JOIN gave.
-    expect(Number(result.rate)).toBe(0.80);
+    expect(Number(result.rate)).toBe(0.8);
     // SUM(50, 500) = 550 free, so 600 messages split 550 allowance / 50 paid.
     expect(Number(result.fromAllowanceCount)).toBe(550);
     expect(Number(result.fromPaidCount)).toBe(50);
@@ -136,12 +162,12 @@ describe('multi-product subscriptions (migration 127)', () => {
     // so the best rate decides what the send COSTS, never how much of the
     // balance it consumes. `total` below is where the rate still shows up.
     expect(Number(result.fromPaid)).toBeCloseTo(50, 4);
-    expect(Number(result.total)).toBeCloseTo(600 * 0.80, 4);
+    expect(Number(result.total)).toBeCloseTo(600 * 0.8, 4);
   });
 
-  it('activation cancels only its own product, leaving the other subscription active', async () => {
+  it("activation cancels only its own product, leaving the other subscription active", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson');
+    const { groupId, officerId } = await createTestGroup("chairperson");
     await addChamaReminderSubscription(groupId);
 
     // Without the product predicate on the cancel UPDATE, this call would
@@ -149,14 +175,17 @@ describe('multi-product subscriptions (migration 127)', () => {
     // product it still pays for. Exercised through the payment-free
     // administrative path (migration 138 moved paid activation behind a
     // confirmed payment); the product-scoping logic is shared by both.
-    const upgraded = await billingService.activatePlanWithoutPayment(ctxFor(groupId, officerId), 'growth');
-    expect(upgraded.product).toBe('kitabu_yetu');
-    expect(upgraded.plan_type).toBe('growth');
+    const upgraded = await billingService.activatePlanWithoutPayment(
+      ctxFor(groupId, officerId),
+      "growth",
+    );
+    expect(upgraded.product).toBe("kitabu_yetu");
+    expect(upgraded.plan_type).toBe("growth");
 
     const active = await activeSubscriptions(groupId);
     expect(active).toEqual([
-      { product: 'chama_reminder', plan_type: 'growth', status: 'active' },
-      { product: 'kitabu_yetu',    plan_type: 'growth', status: 'active' },
+      { product: "chama_reminder", plan_type: "growth", status: "active" },
+      { product: "kitabu_yetu", plan_type: "growth", status: "active" },
     ]);
 
     // And the Chama Reminder row was never touched — still exactly one
@@ -165,22 +194,26 @@ describe('multi-product subscriptions (migration 127)', () => {
       `SELECT product FROM subscriptions WHERE group_id = $1 AND status = 'cancelled'`,
       [groupId],
     );
-    expect(cancelled).toEqual([{ product: 'kitabu_yetu' }]);
+    expect(cancelled).toEqual([{ product: "kitabu_yetu" }]);
   });
 
-  it('getSubscription resolves per product rather than picking an arbitrary row', async () => {
+  it("getSubscription resolves per product rather than picking an arbitrary row", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson');
+    const { groupId, officerId } = await createTestGroup("chairperson");
     await addChamaReminderSubscription(groupId);
     const ctx = ctxFor(groupId, officerId);
 
-    expect((await billingService.getSubscription(ctx))?.product).toBe('kitabu_yetu');
-    expect((await billingService.getSubscription(ctx, 'chama_reminder'))?.plan_type).toBe('growth');
+    expect((await billingService.getSubscription(ctx))?.product).toBe(
+      "kitabu_yetu",
+    );
+    expect(
+      (await billingService.getSubscription(ctx, "chama_reminder"))?.plan_type,
+    ).toBe("growth");
   });
 
-  it('the admin groups list returns one row per group, not one per product', async () => {
+  it("the admin groups list returns one row per group, not one per product", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('treasurer');
+    const { groupId } = await createTestGroup("treasurer");
     await addChamaReminderSubscription(groupId);
 
     const page = await listGroups({ page: 1, limit: 25 });
@@ -188,67 +221,85 @@ describe('multi-product subscriptions (migration 127)', () => {
     // A plain LEFT JOIN put sub.plan_type in the GROUP BY, so this group would
     // appear twice — while the paired count query's COUNT(DISTINCT g.id) still
     // said 1, desynchronising the pagination.
-    const rows = (page.items as { id: string; plan: string }[]).filter((r) => r.id === groupId);
+    const rows = (page.items as { id: string; plan: string }[]).filter(
+      (r) => r.id === groupId,
+    );
     expect(rows).toHaveLength(1);
     expect(page.total).toBe(page.items.length);
 
     // Default view is the Kitabu Yetu plan; the filter selects the other.
-    expect(rows[0].plan).toBe('starter');
-    const crPage = await listGroups({ page: 1, limit: 25, product: 'chama_reminder' });
-    const crRows = (crPage.items as { id: string; plan: string }[]).filter((r) => r.id === groupId);
+    expect(rows[0].plan).toBe("starter");
+    const crPage = await listGroups({
+      page: 1,
+      limit: 25,
+      product: "chama_reminder",
+    });
+    const crRows = (crPage.items as { id: string; plan: string }[]).filter(
+      (r) => r.id === groupId,
+    );
     expect(crRows).toHaveLength(1);
-    expect(crRows[0].plan).toBe('growth');
+    expect(crRows[0].plan).toBe("growth");
   });
 
   // ── The chart of accounts, product-scoped (migration 140) ────────────────
 
   async function accountCount(groupId: string): Promise<number> {
     const [{ count }] = await rawQuery<{ count: string }>(
-      `SELECT count(*)::text AS count FROM accounts WHERE group_id = $1`, [groupId],
+      `SELECT count(*)::text AS count FROM accounts WHERE group_id = $1`,
+      [groupId],
     );
     return Number(count);
   }
 
-  it('a Chama Reminder signup gets no chart of accounts', async () => {
+  it("a Chama Reminder signup gets no chart of accounts", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('chairperson', {
-      subscribed: false, product: 'chama_reminder',
+    const { groupId } = await createTestGroup("chairperson", {
+      subscribed: false,
+      product: "chama_reminder",
     });
     // A communication-only group has nothing to post journals against, and the
     // entitlement gate keeps it out of every accounting surface.
     expect(await accountCount(groupId)).toBe(0);
   });
 
-  it('a Kitabu Yetu signup still gets all 16 accounts', async () => {
+  it("a Kitabu Yetu signup still gets all 16 accounts", async () => {
     await resetDatabase();
-    const { groupId } = await createTestGroup('chairperson', { subscribed: false });
+    const { groupId } = await createTestGroup("chairperson", {
+      subscribed: false,
+    });
     expect(await accountCount(groupId)).toBe(16);
   });
 
-  it('buying Kitabu Yetu later seeds the ledger the group never had', async () => {
+  it("buying Kitabu Yetu later seeds the ledger the group never had", async () => {
     await resetDatabase();
     // THE UPSELL. Chama Reminder exists to convert into Kitabu Yetu, and
     // without this the converted group's every accounting path would throw
     // "Account code(s) not in your chart of accounts" from inside a posting
     // template — pointing nowhere near the cause.
-    const { groupId, officerId } = await createTestGroup('chairperson', {
-      subscribed: false, product: 'chama_reminder',
+    const { groupId, officerId } = await createTestGroup("chairperson", {
+      subscribed: false,
+      product: "chama_reminder",
     });
     expect(await accountCount(groupId)).toBe(0);
 
-    await billingService.activatePlanWithoutPayment(ctxFor(groupId, officerId), 'starter');
+    await billingService.activatePlanWithoutPayment(
+      ctxFor(groupId, officerId),
+      "starter",
+    );
 
     expect(await accountCount(groupId)).toBe(16);
   });
 
-  it('seeding is idempotent, so a second purchase does not duplicate accounts', async () => {
+  it("seeding is idempotent, so a second purchase does not duplicate accounts", async () => {
     await resetDatabase();
-    const { groupId, officerId } = await createTestGroup('chairperson', { subscribed: false });
+    const { groupId, officerId } = await createTestGroup("chairperson", {
+      subscribed: false,
+    });
     const ctx = ctxFor(groupId, officerId);
 
     // Already has 16 from registration; activating twice more must not add any.
-    await billingService.activatePlanWithoutPayment(ctx, 'starter');
-    await billingService.activatePlanWithoutPayment(ctx, 'growth');
+    await billingService.activatePlanWithoutPayment(ctx, "starter");
+    await billingService.activatePlanWithoutPayment(ctx, "growth");
 
     expect(await accountCount(groupId)).toBe(16);
   });

@@ -4,18 +4,21 @@
  * (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
 
-import type { PoolClient } from 'pg';
-import { logger } from '@/lib/logger';
-import { IS_SANDBOX } from './mpesa-spine.service';
+import type { PoolClient } from "pg";
+import { logger } from "@/lib/logger";
+import { IS_SANDBOX } from "./mpesa-spine.service";
 
 // Safaricom B2C/B2B transaction fees (debited from the Charges Paid sub-account)
 // are booked against this expense code. The seeded chart (mig 032) has no
 // dedicated charges account, so we use Administrative Expenses. The exact fee
 // per transaction is recorded separately in mpesa_charges for reconciliation.
-export const CHARGE_EXPENSE_CODE = '5001';
+export const CHARGE_EXPENSE_CODE = "5001";
 
 /** Deterministic Safaricom fee lookup via the seeded tier table (mig 047). */
-export async function computeB2CCharge(db: PoolClient, amount: number): Promise<number> {
+export async function computeB2CCharge(
+  db: PoolClient,
+  amount: number,
+): Promise<number> {
   const { rows } = await db.query<{ charge: string | null }>(
     `SELECT mpesa_charge_for_amount($1, 'b2c') AS charge`,
     [amount.toFixed(2)],
@@ -30,7 +33,10 @@ export async function computeB2CCharge(db: PoolClient, amount: number): Promise<
  * table already has 27 seeded 'b2b' rows (mig 047); only the wrapper was
  * missing.
  */
-export async function computeB2BCharge(db: PoolClient, amount: number): Promise<number> {
+export async function computeB2BCharge(
+  db: PoolClient,
+  amount: number,
+): Promise<number> {
   const { rows } = await db.query<{ charge: string | null }>(
     `SELECT mpesa_charge_for_amount($1, 'b2b') AS charge`,
     [amount.toFixed(2)],
@@ -44,13 +50,13 @@ export async function computeB2BCharge(db: PoolClient, amount: number): Promise<
  * (mpesa_transaction_id) constraint makes a duplicate callback a no-op.
  */
 export async function insertMpesaCharge(
-  db:   PoolClient,
+  db: PoolClient,
   args: {
-    groupId:            string;
+    groupId: string;
     mpesaTransactionId: string;
-    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
-    amount:             number;
-    journalEntryId:     string | null;
+    chargeType: "b2c" | "b2b" | "reversal" | "stk_push" | "other";
+    amount: number;
+    journalEntryId: string | null;
   },
 ): Promise<void> {
   await db.query(
@@ -58,7 +64,13 @@ export async function insertMpesaCharge(
        (group_id, mpesa_transaction_id, charge_type, amount, source, journal_entry_id)
      VALUES ($1,$2,$3,$4,'tier_table',$5)
      ON CONFLICT (mpesa_transaction_id) DO NOTHING`,
-    [args.groupId, args.mpesaTransactionId, args.chargeType, args.amount.toFixed(2), args.journalEntryId],
+    [
+      args.groupId,
+      args.mpesaTransactionId,
+      args.chargeType,
+      args.amount.toFixed(2),
+      args.journalEntryId,
+    ],
   );
 }
 
@@ -67,16 +79,16 @@ export async function insertMpesaCharge(
  * flows whose principal disbursement journal lives in another module.
  */
 export async function postStandaloneChargeJournal(
-  db:   PoolClient,
+  db: PoolClient,
   args: {
-    groupId:            string;
-    amount:             number;
-    reference:          string;
+    groupId: string;
+    amount: number;
+    reference: string;
     mpesaTransactionId: string;
-    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
+    chargeType: "b2c" | "b2b" | "reversal" | "stk_push" | "other";
   },
 ): Promise<void> {
-  const cashCode   = '1001';
+  const cashCode = "1001";
   const expenseCode = CHARGE_EXPENSE_CODE;
 
   const { rows: accts } = await db.query<{ code: string; id: string }>(
@@ -84,10 +96,12 @@ export async function postStandaloneChargeJournal(
      WHERE group_id = $1 AND is_active = true AND account_code IN ($2, $3)`,
     [args.groupId, cashCode, expenseCode],
   );
-  const cashId    = accts.find((a) => a.code === cashCode)?.id;
+  const cashId = accts.find((a) => a.code === cashCode)?.id;
   const expenseId = accts.find((a) => a.code === expenseCode)?.id;
   if (!cashId || !expenseId) {
-    logger.warn('[mpesa] skipped charge journal — chart missing 1001/5001', { groupId: args.groupId });
+    logger.warn("[mpesa] skipped charge journal — chart missing 1001/5001", {
+      groupId: args.groupId,
+    });
     // Still record the charge for reconciliation even if we can't post it.
     await insertMpesaCharge(db, { ...args, journalEntryId: null });
     return;
@@ -98,7 +112,12 @@ export async function postStandaloneChargeJournal(
        (group_id, entry_date, reference, description, status, created_by, posted_at, is_test, posted_via)
      VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW(), $4, 'system')
      RETURNING id`,
-    [args.groupId, args.reference, `M-Pesa ${args.chargeType.toUpperCase()} transaction charge`, IS_SANDBOX],
+    [
+      args.groupId,
+      args.reference,
+      `M-Pesa ${args.chargeType.toUpperCase()} transaction charge`,
+      IS_SANDBOX,
+    ],
   );
   const jeId = jeRows[0].id;
 

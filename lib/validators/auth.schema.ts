@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { isValidKenyanPhone } from '@/lib/utils/phone';
-import { GROUP_TYPES } from '@/types/enums';
+import { z } from "zod";
+import { isValidKenyanPhone } from "@/lib/utils/phone";
+import { GROUP_TYPES } from "@/types/enums";
 
 // Identifier may be either a Kenyan phone number or an email address.
 // The login route detects which by the presence of '@'.
@@ -10,16 +10,18 @@ import { GROUP_TYPES } from '@/types/enums';
 // responds with `needsGroupSelection` and the client re-submits with the
 // chosen groupCode. This avoids leaking group memberships in the schema.
 export const LoginSchema = z.object({
-  identifier: z.string()
-                .min(1, 'Phone number or email is required')
-                .refine(
-                  (v) => v.includes('@') || isValidKenyanPhone(v),
-                  'Enter a valid Kenyan phone number or email address',
-                ),
-  password:   z.string().min(1, 'Password is required'),
-  groupCode:  z.string()
-                .regex(/^KY[0-9]{7}$/i, 'Group code looks like KY0000001')
-                .optional(),
+  identifier: z
+    .string()
+    .min(1, "Phone number or email is required")
+    .refine(
+      (v) => v.includes("@") || isValidKenyanPhone(v),
+      "Enter a valid Kenyan phone number or email address",
+    ),
+  password: z.string().min(1, "Password is required"),
+  groupCode: z
+    .string()
+    .regex(/^KY[0-9]{7}$/i, "Group code looks like KY0000001")
+    .optional(),
 });
 
 // Shared by RegisterSchema (public, unauthenticated — creates a new person
@@ -41,10 +43,13 @@ const groupDetailsFields = {
   // Client-supplied and that is fine: it grants nothing. The group still has to
   // pay for whatever it wants to use, and buying Kitabu Yetu later seeds the
   // ledger it skipped.
-  product:   z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
+  product: z.enum(["kitabu_yetu", "chama_reminder"]).default("kitabu_yetu"),
 
   // Group identity
-  groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
+  groupName: z
+    .string()
+    .min(3, "Group name must be at least 3 characters")
+    .max(255),
   // Must match the group_type Postgres enum EXACTLY — 'organization_group' is
   // not a member of it (the real value is 'ngo_group'); register_group()'s
   // ::group_type cast rejected it outright and registration 500'd. Derived from
@@ -53,26 +58,53 @@ const groupDetailsFields = {
   groupType: z.enum(GROUP_TYPES),
 
   // Governance — the registrant must take one of the three mandatory roles (spec §2).
-  creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
-    errorMap: () => ({ message: 'Choose your role: chairperson, secretary, or treasurer' }),
+  creatorRole: z.enum(["chairperson", "secretary", "treasurer"], {
+    errorMap: () => ({
+      message: "Choose your role: chairperson, secretary, or treasurer",
+    }),
   }),
 
   // Location — countyId is required (FK to counties); sub-county / ward fall
   // back to free text until the IEBC dataset is seeded into sub_counties/wards.
-  countyId:        z.string().uuid('County is required'),
-  subCountyText:   z.string().max(80).optional().or(z.literal('')),
-  wardText:        z.string().max(100).optional().or(z.literal('')),
-  villageEstate:   z.string().max(200).optional().or(z.literal('')),
+  countyId: z.string().uuid("County is required"),
+  subCountyText: z.string().max(80).optional().or(z.literal("")),
+  wardText: z.string().max(100).optional().or(z.literal("")),
+  villageEstate: z.string().max(200).optional().or(z.literal("")),
 
   // Purpose + cadence
-  primaryObjective: z.enum([
-    'savings', 'table_banking', 'welfare', 'women_empowerment', 'youth_development',
-    'agriculture', 'business_investment', 'housing', 'education', 'health',
-    'community_development', 'other',
-  ]).optional(),
-  meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
-  meetingDay:       z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']).optional(),
-  meetingTime:      z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time must be HH:MM').optional().or(z.literal('')),
+  primaryObjective: z
+    .enum([
+      "savings",
+      "table_banking",
+      "welfare",
+      "women_empowerment",
+      "youth_development",
+      "agriculture",
+      "business_investment",
+      "housing",
+      "education",
+      "health",
+      "community_development",
+      "other",
+    ])
+    .optional(),
+  meetingFrequency: z.enum(["weekly", "biweekly", "monthly"]).optional(),
+  meetingDay: z
+    .enum([
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ])
+    .optional(),
+  meetingTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Time must be HH:MM")
+    .optional()
+    .or(z.literal("")),
 } as const;
 
 // Mirrors the public.register_group RPC signature + the v2 workflow spec.
@@ -82,17 +114,28 @@ export const RegisterSchema = z.object({
 
   // Registrant identity
   firstName: z.string().min(2).max(100),
-  lastName:  z.string().min(2).max(100),
-  phone:     z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  email:     z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
-  password:  z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-               .regex(/[0-9]/, 'Password must contain at least one number'),
+  lastName: z.string().min(2).max(100),
+  phone: z.string().refine(isValidKenyanPhone, "Invalid Kenyan phone number"),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
 
   // Optional KYC details — when present, populate the shared person record.
-  nationalId:    z.string().max(32).optional().or(z.literal('')),
-  dateOfBirth:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional().or(z.literal('')),
-  gender:        z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+  nationalId: z.string().max(32).optional().or(z.literal("")),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+    .optional()
+    .or(z.literal("")),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
 });
 
 // Mirrors the public.create_additional_group RPC (migration 147). Group-only
@@ -113,9 +156,9 @@ export const CreateAdditionalGroupSchema = z.object(groupDetailsFields);
 // wouldn't already allow. Optional + defaults to 'platform' so existing
 // callers (tests, any stale client) keep working unchanged.
 export const AdminLoginSchema = z.object({
-  email:    z.string().email('Enter a valid work email'),
-  password: z.string().min(1, 'Password is required'),
-  surface:  z.enum(['platform', 'organization']).optional().default('platform'),
+  email: z.string().email("Enter a valid work email"),
+  password: z.string().min(1, "Password is required"),
+  surface: z.enum(["platform", "organization"]).optional().default("platform"),
 });
 
 // Step 2 of the backoffice login flow (Phase 2 — MFA). The `challenge`
@@ -124,11 +167,12 @@ export const AdminLoginSchema = z.object({
 // optional dash). `label` is set ONLY during enrollment-confirm and gets
 // persisted as the authenticator nickname.
 export const AdminLoginMfaVerifySchema = z.object({
-  challenge: z.string().min(1, 'MFA challenge token is required'),
-  code:      z.string()
-               .min(6, 'Enter the 6-digit code from your authenticator')
-               .max(20),
-  label:     z.string().max(80).optional(),
+  challenge: z.string().min(1, "MFA challenge token is required"),
+  code: z
+    .string()
+    .min(6, "Enter the 6-digit code from your authenticator")
+    .max(20),
+  label: z.string().max(80).optional(),
   // Disambiguates which organization to sign into when the member is
   // active staff at more than one (multi-staff organizations, migration 101).
   organizationId: z.string().uuid().optional(),
@@ -136,18 +180,21 @@ export const AdminLoginMfaVerifySchema = z.object({
 
 // Phase D Part 2 — registrant verification.
 export const VerifyStartSchema = z.object({
-  channel:     z.enum(['email', 'sms']),
+  channel: z.enum(["email", "sms"]),
   destination: z.string().min(5).max(255),
 });
 
 // Only the SMS path goes through /verify/complete — email links are consumed
 // by the public GET /verify/email route since the token itself is the proof.
 export const VerifyCompleteSchema = z.object({
-  channel: z.literal('sms'),
-  code:    z.string().length(6).regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  channel: z.literal("sms"),
+  code: z
+    .string()
+    .length(6)
+    .regex(/^\d{6}$/, "OTP must be 6 digits"),
 });
 
-export type VerifyStartInput    = z.infer<typeof VerifyStartSchema>;
+export type VerifyStartInput = z.infer<typeof VerifyStartSchema>;
 export type VerifyCompleteInput = z.infer<typeof VerifyCompleteSchema>;
 
 export const RefreshSchema = z.object({
@@ -163,53 +210,69 @@ export const RefreshSchema = z.object({
  */
 export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword:     z.string().min(8)
-                    .regex(/[A-Z]/, 'Must contain uppercase')
-                    .regex(/[0-9]/, 'Must contain a number'),
+  newPassword: z
+    .string()
+    .min(8)
+    .regex(/[A-Z]/, "Must contain uppercase")
+    .regex(/[0-9]/, "Must contain a number"),
 });
 
 export const ForgotPasswordStartSchema = z.object({
-  phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+  phone: z.string().refine(isValidKenyanPhone, "Invalid Kenyan phone number"),
 });
 
 export const ResetPasswordSchema = z.object({
-  phone:    z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  otp:      z.string().length(6),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-               .regex(/[0-9]/, 'Password must contain at least one number'),
+  phone: z.string().refine(isValidKenyanPhone, "Invalid Kenyan phone number"),
+  otp: z.string().length(6),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
 });
 
 // Backoffice/staff forgot-password — email-link based (staff identities are
 // recovered via email, never phone; see AdminLoginSchema's comment above).
 export const AdminForgotPasswordStartSchema = z.object({
-  email: z.string().email('Enter a valid work email'),
+  email: z.string().email("Enter a valid work email"),
 });
 
 // The token itself is the proof of possession (mirrors VerifyStartSchema's
 // email-link shape) — no email/phone re-entered here.
 export const AdminResetPasswordSchema = z.object({
-  token:    z.string().min(32).max(128),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-               .regex(/[0-9]/, 'Password must contain at least one number'),
+  token: z.string().min(32).max(128),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
 });
 
-export type LoginInput            = z.infer<typeof LoginSchema>;
-export type AdminLoginInput       = z.infer<typeof AdminLoginSchema>;
-export type AdminLoginMfaVerifyInput = z.infer<typeof AdminLoginMfaVerifySchema>;
-export type RegisterInput         = z.infer<typeof RegisterSchema>;
-export type CreateAdditionalGroupInput = z.infer<typeof CreateAdditionalGroupSchema>;
-export type RefreshInput          = z.infer<typeof RefreshSchema>;
-export type ChangePasswordInput   = z.infer<typeof ChangePasswordSchema>;
-export type ForgotPasswordStartInput = z.infer<typeof ForgotPasswordStartSchema>;
-export type ResetPasswordInput    = z.infer<typeof ResetPasswordSchema>;
-export type AdminForgotPasswordStartInput = z.infer<typeof AdminForgotPasswordStartSchema>;
+export type LoginInput = z.infer<typeof LoginSchema>;
+export type AdminLoginInput = z.infer<typeof AdminLoginSchema>;
+export type AdminLoginMfaVerifyInput = z.infer<
+  typeof AdminLoginMfaVerifySchema
+>;
+export type RegisterInput = z.infer<typeof RegisterSchema>;
+export type CreateAdditionalGroupInput = z.infer<
+  typeof CreateAdditionalGroupSchema
+>;
+export type RefreshInput = z.infer<typeof RefreshSchema>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+export type ForgotPasswordStartInput = z.infer<
+  typeof ForgotPasswordStartSchema
+>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
+export type AdminForgotPasswordStartInput = z.infer<
+  typeof AdminForgotPasswordStartSchema
+>;
 export type AdminResetPasswordInput = z.infer<typeof AdminResetPasswordSchema>;
 
 // Client request-body types. z.input, not z.infer: a field carrying
 // .default() is optional on the wire but present after parsing, so the
 // server-side *Input aliases above are the wrong shape for a caller.
 export type RegisterPayload = z.input<typeof RegisterSchema>;
-export type CreateAdditionalGroupPayload = z.input<typeof CreateAdditionalGroupSchema>;
+export type CreateAdditionalGroupPayload = z.input<
+  typeof CreateAdditionalGroupSchema
+>;
 export type ChangePasswordPayload = z.input<typeof ChangePasswordSchema>;

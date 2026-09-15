@@ -1,7 +1,10 @@
-'use client';
+"use client";
 
-import { PageHeader } from '@/components/shared/page-header';
-import { PlanPurchase, useCurrentPlanSummary } from '@/components/billing/plan-purchase';
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  PlanPurchase,
+  useCurrentPlanSummary,
+} from "@/components/billing/plan-purchase";
 
 /**
  * The only page a Chama Reminder group can reach before it has paid — the
@@ -11,7 +14,10 @@ import { PlanPurchase, useCurrentPlanSummary } from '@/components/billing/plan-p
 export default function ReminderSubscriptionPage() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Subscription" description={useCurrentPlanSummary('chama_reminder')} />
+      <PageHeader
+        title="Subscription"
+        description={useCurrentPlanSummary("chama_reminder")}
+      />
       <PlanPurchase product="chama_reminder" />
     </div>
   );

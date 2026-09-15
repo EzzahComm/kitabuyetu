@@ -1,10 +1,10 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withPlatformRole } from '@/lib/auth/middleware';
-import { ok, badRequest } from '@/lib/utils/response';
-import { computeGovernanceForAllGroups } from '@/lib/services/governance.service';
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withPlatformRole } from "@/lib/auth/middleware";
+import { ok, badRequest } from "@/lib/utils/response";
+import { computeGovernanceForAllGroups } from "@/lib/services/governance.service";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({ asOf: z.string().date().optional() });
 
@@ -15,7 +15,7 @@ const bodySchema = z.object({ asOf: z.string().date().optional() });
  * ("recompute now") and verifying the engine works without waiting a month.
  */
 export function POST(req: NextRequest) {
-  return withPlatformRole(req, 'super_admin', async () => {
+  return withPlatformRole(req, "super_admin", async () => {
     const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 

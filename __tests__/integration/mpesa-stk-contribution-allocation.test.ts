@@ -19,10 +19,13 @@
  * job re-processing an unprocessed row) never creates a duplicate
  * contribution or a second, unbalanced journal entry.
  */
-import { handleSTKCallback, type StkCallbackBody } from '@/lib/services/mpesa-stk.service';
-import { createTestGroup } from './helpers/fixtures';
-import { rawQuery } from './helpers/db';
-import { resetDatabase } from './helpers/cleanup';
+import {
+  handleSTKCallback,
+  type StkCallbackBody,
+} from "@/lib/services/mpesa-stk.service";
+import { createTestGroup } from "./helpers/fixtures";
+import { rawQuery } from "./helpers/db";
+import { resetDatabase } from "./helpers/cleanup";
 
 // Redis is a real, external Upstash instance in every environment (no local
 // emulator) — mocked the same way any other external dependency is elsewhere
@@ -32,26 +35,31 @@ import { resetDatabase } from './helpers/cleanup';
 // CI, masking the actual pipeline assertions below with an unrelated network
 // error. acquireStkLock must resolve `true` (lock acquired) so the real
 // allocation logic actually runs instead of being skipped as "already locked."
-jest.mock('@/lib/redis', () => ({
+jest.mock("@/lib/redis", () => ({
   cacheMpesaStatus: jest.fn().mockResolvedValue(undefined),
   acquireStkLock: jest.fn().mockResolvedValue(true),
   releaseStkLock: jest.fn().mockResolvedValue(undefined),
 }));
 
-function stkSuccessBody(checkoutRequestId: string, receipt: string, amount: number, phone: string): StkCallbackBody {
+function stkSuccessBody(
+  checkoutRequestId: string,
+  receipt: string,
+  amount: number,
+  phone: string,
+): StkCallbackBody {
   return {
     Body: {
       stkCallback: {
         MerchantRequestID: `merchant-${checkoutRequestId}`,
         CheckoutRequestID: checkoutRequestId,
         ResultCode: 0,
-        ResultDesc: 'The service request is processed successfully.',
+        ResultDesc: "The service request is processed successfully.",
         CallbackMetadata: {
           Item: [
-            { Name: 'Amount', Value: amount },
-            { Name: 'MpesaReceiptNumber', Value: receipt },
-            { Name: 'TransactionDate', Value: 20260729154000 },
-            { Name: 'PhoneNumber', Value: phone },
+            { Name: "Amount", Value: amount },
+            { Name: "MpesaReceiptNumber", Value: receipt },
+            { Name: "TransactionDate", Value: 20260729154000 },
+            { Name: "PhoneNumber", Value: phone },
           ],
         },
       },
@@ -59,7 +67,7 @@ function stkSuccessBody(checkoutRequestId: string, receipt: string, amount: numb
   };
 }
 
-describe('STK contribution allocation pipeline', () => {
+describe("STK contribution allocation pipeline", () => {
   let groupId: string;
   let memberId: string;
   let phone: string;
@@ -69,8 +77,11 @@ describe('STK contribution allocation pipeline', () => {
 
   beforeAll(async () => {
     await resetDatabase();
-    ({ groupId, officerId: memberId } = await createTestGroup('treasurer'));
-    [{ phone }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id=$1`, [memberId]);
+    ({ groupId, officerId: memberId } = await createTestGroup("treasurer"));
+    [{ phone }] = await rawQuery<{ phone: string }>(
+      `SELECT phone FROM members WHERE id=$1`,
+      [memberId],
+    );
 
     // Mirror initiateSTKPush's own writes (purpose='contribution', pending).
     await rawQuery(
@@ -78,7 +89,13 @@ describe('STK contribution allocation pipeline', () => {
          (group_id, checkout_request_id, merchant_request_id, phone, amount,
           account_reference, description, purpose, status)
        VALUES ($1,$2,$3,$4,$5,'CONTRIB','Contribution','contribution','pending')`,
-      [groupId, checkoutRequestId, `merchant-${checkoutRequestId}`, phone, amount.toFixed(2)],
+      [
+        groupId,
+        checkoutRequestId,
+        `merchant-${checkoutRequestId}`,
+        phone,
+        amount.toFixed(2),
+      ],
     );
     await rawQuery(
       `INSERT INTO payments
@@ -92,30 +109,41 @@ describe('STK contribution allocation pipeline', () => {
     await resetDatabase();
   });
 
-  it('allocates a successful STK callback into a completed payment, a contribution, and a balanced journal entry', async () => {
+  it("allocates a successful STK callback into a completed payment, a contribution, and a balanced journal entry", async () => {
     const result = await handleSTKCallback(
       stkSuccessBody(checkoutRequestId, receipt, amount, phone),
-      '0.0.0.0',
+      "0.0.0.0",
       { skipIpCheck: true },
     );
     expect(result.success).toBe(true);
 
-    const [payment] = await rawQuery<{ status: string; allocation_status: string }>(
+    const [payment] = await rawQuery<{
+      status: string;
+      allocation_status: string;
+    }>(
       `SELECT status, allocation_status FROM payments WHERE mpesa_checkout_request_id=$1`,
       [checkoutRequestId],
     );
-    expect(payment.status).toBe('completed');
-    expect(payment.allocation_status).toBe('allocated');
+    expect(payment.status).toBe("completed");
+    expect(payment.allocation_status).toBe("allocated");
 
-    const contributions = await rawQuery<{ id: string; amount: string; status: string }>(
+    const contributions = await rawQuery<{
+      id: string;
+      amount: string;
+      status: string;
+    }>(
       `SELECT id, amount, status FROM contributions WHERE mpesa_receipt_number=$1`,
       [receipt],
     );
     expect(contributions).toHaveLength(1);
-    expect(contributions[0].status).toBe('completed');
+    expect(contributions[0].status).toBe("completed");
     expect(parseFloat(contributions[0].amount)).toBeCloseTo(amount, 2);
 
-    const journalLines = await rawQuery<{ entry_date: string; debit: string; credit: string }>(
+    const journalLines = await rawQuery<{
+      entry_date: string;
+      debit: string;
+      credit: string;
+    }>(
       `SELECT jl.entry_date, jl.debit, jl.credit
        FROM journal_lines jl
        JOIN journal_entries je ON je.id = jl.journal_entry_id
@@ -124,31 +152,40 @@ describe('STK contribution allocation pipeline', () => {
     );
     expect(journalLines.length).toBeGreaterThan(0);
     for (const line of journalLines) expect(line.entry_date).toBeTruthy();
-    const totalDebit  = journalLines.reduce((s, l) => s + parseFloat(l.debit), 0);
-    const totalCredit = journalLines.reduce((s, l) => s + parseFloat(l.credit), 0);
+    const totalDebit = journalLines.reduce(
+      (s, l) => s + parseFloat(l.debit),
+      0,
+    );
+    const totalCredit = journalLines.reduce(
+      (s, l) => s + parseFloat(l.credit),
+      0,
+    );
     expect(totalDebit).toBeCloseTo(totalCredit, 2);
   });
 
-  it('is idempotent: replaying the same callback never creates a duplicate contribution or journal entry', async () => {
+  it("is idempotent: replaying the same callback never creates a duplicate contribution or journal entry", async () => {
     const before = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
 
     const replay = await handleSTKCallback(
       stkSuccessBody(checkoutRequestId, receipt, amount, phone),
-      '0.0.0.0',
+      "0.0.0.0",
       { skipIpCheck: true },
     );
     expect(replay.success).toBe(true);
 
     const after = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
     expect(after[0].count).toBe(before[0].count);
 
     const journalEntries = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM journal_entries WHERE reference=$1`, [receipt],
+      `SELECT COUNT(*) FROM journal_entries WHERE reference=$1`,
+      [receipt],
     );
-    expect(journalEntries[0].count).toBe('1');
+    expect(journalEntries[0].count).toBe("1");
   });
 });

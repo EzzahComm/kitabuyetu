@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withOrganizationAccess } from '@/lib/auth/middleware';
-import { organizationFinanceService } from '@/lib/services/organization-finance.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withOrganizationAccess } from "@/lib/auth/middleware";
+import { organizationFinanceService } from "@/lib/services/organization-finance.service";
+import { ok } from "@/lib/utils/response";
 
 /**
  * GET /api/admin/organization/programs/:id/groups — the groups this funding
@@ -24,15 +24,24 @@ import { ok } from '@/lib/utils/response';
 // The id reaches a `WHERE id = $1` against a uuid column, so a malformed value
 // would surface as a Postgres cast error (500) rather than a client error.
 // Validating at the boundary keeps that a clean 400 — R14.
-const ParamsSchema = z.object({ id: z.string().uuid('Invalid program id') });
+const ParamsSchema = z.object({ id: z.string().uuid("Invalid program id") });
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  return withOrganizationAccess(req, 'organization.dashboard.view', async (auth) => {
-    const { id } = ParamsSchema.parse(await params);
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    return ok(await organizationFinanceService.listProgramGroups(ctx, id));
-  });
+  return withOrganizationAccess(
+    req,
+    "organization.dashboard.view",
+    async (auth) => {
+      const { id } = ParamsSchema.parse(await params);
+      const ctx = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
+      return ok(await organizationFinanceService.listProgramGroups(ctx, id));
+    },
+  );
 }

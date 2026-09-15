@@ -7,12 +7,8 @@ interface ContainerProps {
 
 export function Container(props: Readonly<ContainerProps>) {
   return (
-    <div
-      className={`container py-8 ${
-        props.className ? props.className : ""
-      }`}>
+    <div className={`container py-8 ${props.className ? props.className : ""}`}>
       {props.children}
     </div>
   );
 }
-

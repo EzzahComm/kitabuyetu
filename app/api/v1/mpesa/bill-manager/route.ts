@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = "force-dynamic";
 /**
  * Bill Manager API routes.
  *
@@ -11,9 +11,9 @@
  * GET  /api/v1/mpesa/bill-manager             â€” List group's BM invoices
  * POST /api/v1/mpesa/bill-manager?type=reconciliation â€” Safaricom callback
  */
-import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
-import { withRole, withPermission } from '@/lib/auth/middleware';
+import { NextRequest, NextResponse, after } from "next/server";
+import { z } from "zod";
+import { withRole, withPermission } from "@/lib/auth/middleware";
 import {
   billManagerOptIn,
   updateBillManagerOptIn,
@@ -24,38 +24,38 @@ import {
   cancelSingleInvoice,
   cancelBulkInvoices,
   type BillManagerInvoice,
-} from '@/lib/services/daraja.service';
-import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
-import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
+} from "@/lib/services/daraja.service";
+import { ok, handleError } from "@/lib/utils/response";
+import { withAdminDb } from "@/lib/db";
+import { isValidKenyanPhone, normalizePhone } from "@/lib/utils/phone";
 
 const InvoiceSchema = z.object({
   externalReference: z.string().min(1).max(50),
-  billedFullName:    z.string().min(1).max(100),
-  billedPhoneNumber: z.string().refine(isValidKenyanPhone, 'Invalid phone'),
+  billedFullName: z.string().min(1).max(100),
+  billedPhoneNumber: z.string().refine(isValidKenyanPhone, "Invalid phone"),
   billedPeriodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  billedPeriodEnd:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  invoiceDate:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  dueDate:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  accountReference:  z.string().min(1).max(20),
-  amount:            z.number().positive(),
-  invoiceName:       z.string().min(1).max(100),
+  billedPeriodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  accountReference: z.string().min(1).max(20),
+  amount: z.number().positive(),
+  invoiceName: z.string().min(1).max(100),
 });
 
-const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
 function callerIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
+  return withPermission(req, "mpesa.bill_manager.manage", async (auth) => {
     try {
-      const status = req.nextUrl.searchParams.get('status');
+      const status = req.nextUrl.searchParams.get("status");
       const rows = await withAdminDb(async (db) => {
         const { rows } = await db.query(
           `SELECT * FROM bill_manager_invoices
-           WHERE group_id=$1 ${status ? 'AND status=$2' : ''}
+           WHERE group_id=$1 ${status ? "AND status=$2" : ""}
            ORDER BY due_date DESC LIMIT 100`,
           status ? [auth.groupId, status] : [auth.groupId],
         );
@@ -69,14 +69,18 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const action = req.nextUrl.searchParams.get('action');
-  const type   = req.nextUrl.searchParams.get('type');
-  const ip     = callerIp(req);
+  const action = req.nextUrl.searchParams.get("action");
+  const type = req.nextUrl.searchParams.get("type");
+  const ip = callerIp(req);
 
   // Safaricom reconciliation callback (no JWT)
-  if (type === 'reconciliation') {
+  if (type === "reconciliation") {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
     after(() => {
       withAdminDb((db) =>
         db.query(
@@ -89,31 +93,34 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  if (action === 'optin') {
-    return withRole(req, 'super_admin', async () => {
+  if (action === "optin") {
+    return withRole(req, "super_admin", async () => {
       try {
-        const input = z.object({
-          email:           z.string().email(),
-          officialContact: z.string(),
-          sendReminders:   z.union([z.literal(0), z.literal(1)]),
-          logo:            z.string().url().optional(),
-          callbackUrl:     z.string().url().optional(),
-        }).parse(await req.json());
+        const input = z
+          .object({
+            email: z.string().email(),
+            officialContact: z.string(),
+            sendReminders: z.union([z.literal(0), z.literal(1)]),
+            logo: z.string().url().optional(),
+            callbackUrl: z.string().url().optional(),
+          })
+          .parse(await req.json());
 
         await billManagerOptIn({
           ...input,
-          callbackUrl: input.callbackUrl ??
-            `${process.env.MPESA_CALLBACK_BASE_URL ?? ''}/api/v1/mpesa/bill-manager?type=reconciliation`,
+          callbackUrl:
+            input.callbackUrl ??
+            `${process.env.MPESA_CALLBACK_BASE_URL ?? ""}/api/v1/mpesa/bill-manager?type=reconciliation`,
         });
-        return ok({ message: 'Bill Manager opt-in successful.' });
+        return ok({ message: "Bill Manager opt-in successful." });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  if (action === 'invoice') {
-    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
+  if (action === "invoice") {
+    return withPermission(req, "mpesa.bill_manager.manage", async (auth) => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await sendSingleInvoice(input as BillManagerInvoice);
@@ -130,25 +137,35 @@ export async function POST(req: NextRequest): Promise<Response> {
                SET billed_full_name=$3, amount=$7, due_date=$10,
                    sent_to_safaricom=true, sent_at=NOW()`,
             [
-              auth.groupId, input.externalReference, input.billedFullName,
-              normalizePhone(input.billedPhoneNumber), input.billedPeriodStart,
-              input.billedPeriodEnd, input.amount.toFixed(2),
-              input.accountReference, input.invoiceName, input.dueDate,
+              auth.groupId,
+              input.externalReference,
+              input.billedFullName,
+              normalizePhone(input.billedPhoneNumber),
+              input.billedPeriodStart,
+              input.billedPeriodEnd,
+              input.amount.toFixed(2),
+              input.accountReference,
+              input.invoiceName,
+              input.dueDate,
             ],
           ),
         );
 
-        return ok({ message: 'Invoice sent to Bill Manager.' });
+        return ok({ message: "Invoice sent to Bill Manager." });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  if (action === 'bulk') {
-    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
+  if (action === "bulk") {
+    return withPermission(req, "mpesa.bill_manager.manage", async (auth) => {
       try {
-        const invoices = z.array(InvoiceSchema).min(1).max(100).parse(await req.json());
+        const invoices = z
+          .array(InvoiceSchema)
+          .min(1)
+          .max(100)
+          .parse(await req.json());
         await sendBulkInvoices(invoices as BillManagerInvoice[]);
 
         // Persist all locally
@@ -163,28 +180,38 @@ export async function POST(req: NextRequest): Promise<Response> {
                ON CONFLICT (group_id, external_reference) DO UPDATE
                  SET sent_to_safaricom=true, sent_at=NOW()`,
               [
-                auth.groupId, inv.externalReference, inv.billedFullName,
-                normalizePhone(inv.billedPhoneNumber), inv.billedPeriodStart,
-                inv.billedPeriodEnd, inv.amount.toFixed(2),
-                inv.accountReference, inv.invoiceName, inv.dueDate,
+                auth.groupId,
+                inv.externalReference,
+                inv.billedFullName,
+                normalizePhone(inv.billedPhoneNumber),
+                inv.billedPeriodStart,
+                inv.billedPeriodEnd,
+                inv.amount.toFixed(2),
+                inv.accountReference,
+                inv.invoiceName,
+                inv.dueDate,
               ],
             );
           }
         });
 
-        return ok({ message: `${invoices.length} invoice(s) sent to Bill Manager.` });
+        return ok({
+          message: `${invoices.length} invoice(s) sent to Bill Manager.`,
+        });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  if (action === 'cancel') {
-    return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
+  if (action === "cancel") {
+    return withPermission(req, "mpesa.bill_manager.manage", async (auth) => {
       try {
-        const { externalReferences } = z.object({
-          externalReferences: z.array(z.string()).min(1),
-        }).parse(await req.json());
+        const { externalReferences } = z
+          .object({
+            externalReferences: z.array(z.string()).min(1),
+          })
+          .parse(await req.json());
 
         if (externalReferences.length === 1) {
           await cancelSingleInvoice(externalReferences[0]);
@@ -201,35 +228,42 @@ export async function POST(req: NextRequest): Promise<Response> {
           ),
         );
 
-        return ok({ message: `${externalReferences.length} invoice(s) cancelled.` });
+        return ok({
+          message: `${externalReferences.length} invoice(s) cancelled.`,
+        });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400 });
+  return new Response(JSON.stringify({ error: "Unknown action" }), {
+    status: 400,
+  });
 }
 
 export async function PUT(req: NextRequest): Promise<Response> {
-  const action = req.nextUrl.searchParams.get('action');
+  const action = req.nextUrl.searchParams.get("action");
 
-  if (action === 'invoice') {
-    return withPermission(req, 'mpesa.bill_manager.manage', async () => {
+  if (action === "invoice") {
+    return withPermission(req, "mpesa.bill_manager.manage", async () => {
       try {
         const input = InvoiceSchema.parse(await req.json());
         await updateSingleInvoice(input as BillManagerInvoice);
-        return ok({ message: 'Invoice updated.' });
+        return ok({ message: "Invoice updated." });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  if (action === 'bulk') {
-    return withPermission(req, 'mpesa.bill_manager.manage', async () => {
+  if (action === "bulk") {
+    return withPermission(req, "mpesa.bill_manager.manage", async () => {
       try {
-        const invoices = z.array(InvoiceSchema).min(1).parse(await req.json());
+        const invoices = z
+          .array(InvoiceSchema)
+          .min(1)
+          .parse(await req.json());
         await updateBulkInvoices(invoices as BillManagerInvoice[]);
         return ok({ message: `${invoices.length} invoice(s) updated.` });
       } catch (err) {
@@ -238,21 +272,25 @@ export async function PUT(req: NextRequest): Promise<Response> {
     });
   }
 
-  if (action === 'optin') {
-    return withRole(req, 'super_admin', async () => {
+  if (action === "optin") {
+    return withRole(req, "super_admin", async () => {
       try {
-        const input = z.object({
-          email:           z.string().email().optional(),
-          officialContact: z.string().optional(),
-          sendReminders:   z.union([z.literal(0), z.literal(1)]).optional(),
-        }).parse(await req.json());
+        const input = z
+          .object({
+            email: z.string().email().optional(),
+            officialContact: z.string().optional(),
+            sendReminders: z.union([z.literal(0), z.literal(1)]).optional(),
+          })
+          .parse(await req.json());
         await updateBillManagerOptIn(input);
-        return ok({ message: 'Bill Manager opt-in details updated.' });
+        return ok({ message: "Bill Manager opt-in details updated." });
       } catch (err) {
         return handleError(err);
       }
     });
   }
 
-  return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400 });
+  return new Response(JSON.stringify({ error: "Unknown action" }), {
+    status: 400,
+  });
 }

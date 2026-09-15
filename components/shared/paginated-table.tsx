@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { getErrorMessage } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Inbox, AlertTriangle, type LucideIcon } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { getErrorMessage } from "@/lib/utils";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+  AlertTriangle,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
  * Per-column responsive hiding (UX_UI_OPTIMIZATION_AUDIT_2026-08.md M6).
@@ -13,16 +19,16 @@ import { ChevronLeft, ChevronRight, Inbox, AlertTriangle, type LucideIcon } from
  * emitted into the stylesheet.
  */
 const HIDE_BELOW = {
-  sm: 'hidden sm:table-cell',
-  md: 'hidden md:table-cell',
-  lg: 'hidden lg:table-cell',
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
 } as const;
 
 export interface PaginatedTableColumn<T> {
-  key:     string;
+  key: string;
   // header is React.ReactNode so callers can pass a JSX element (e.g. a
   // "select all" checkbox in a selection column) — runtime already supports it.
-  header:  React.ReactNode;
+  header: React.ReactNode;
   render?: (row: T) => React.ReactNode;
   className?: string;
   /**
@@ -35,33 +41,59 @@ export interface PaginatedTableColumn<T> {
 }
 
 interface PaginatedTableProps<T> {
-  data?:         { items: T[]; total: number; page: number; pageSize: number; totalPages: number } | null;
-  isLoading:     boolean;
-  columns:       PaginatedTableColumn<T>[];
-  onPageChange:  (page: number) => void;
+  data?: {
+    items: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  } | null;
+  isLoading: boolean;
+  columns: PaginatedTableColumn<T>[];
+  onPageChange: (page: number) => void;
   emptyMessage?: string;
   /** Icon for the empty state; defaults to an inbox. */
-  emptyIcon?:    LucideIcon;
+  emptyIcon?: LucideIcon;
   /** Supporting line under the empty title. */
   emptyDescription?: string;
   /** Makes rows clickable (pointer cursor) — e.g. navigate to a detail page. */
-  onRowClick?:   (row: T) => void;
+  onRowClick?: (row: T) => void;
   /** Pass through a query's isError/error so a fetch failure (or a
    *  permission denial surfaced as a failed request) renders as a real
    *  error, not "No data found" (UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1). */
-  isError?:      boolean;
-  error?:        unknown;
+  isError?: boolean;
+  error?: unknown;
 }
 
 /** Wraps an unpaginated list in PaginatedTable's data shape (single page, pager hidden). */
-export function singlePage<T>(items: T[] | undefined | null): { items: T[]; total: number; page: number; pageSize: number; totalPages: number } {
+export function singlePage<T>(items: T[] | undefined | null): {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+} {
   const list = items ?? [];
-  return { items: list, total: list.length, page: 1, pageSize: Math.max(1, list.length), totalPages: 1 };
+  return {
+    items: list,
+    total: list.length,
+    page: 1,
+    pageSize: Math.max(1, list.length),
+    totalPages: 1,
+  };
 }
 
 export function PaginatedTable<T extends { id: string }>({
-  data, isLoading, columns, onPageChange, emptyMessage = 'No data found', emptyIcon, emptyDescription, onRowClick,
-  isError, error,
+  data,
+  isLoading,
+  columns,
+  onPageChange,
+  emptyMessage = "No data found",
+  emptyIcon,
+  emptyDescription,
+  onRowClick,
+  isError,
+  error,
 }: PaginatedTableProps<T>) {
   if (isLoading) {
     return (
@@ -80,7 +112,11 @@ export function PaginatedTable<T extends { id: string }>({
           variant="error"
           icon={AlertTriangle}
           title="Couldn't load this"
-          description={error ? getErrorMessage(error) : 'Something went wrong. Please try again.'}
+          description={
+            error
+              ? getErrorMessage(error)
+              : "Something went wrong. Please try again."
+          }
           size="sm"
         />
       </div>
@@ -98,7 +134,7 @@ export function PaginatedTable<T extends { id: string }>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-left font-medium text-muted-foreground ${col.hideBelow ? HIDE_BELOW[col.hideBelow] : ''} ${col.className ?? ''}`}
+                  className={`px-4 py-3 text-left font-medium text-muted-foreground ${col.hideBelow ? HIDE_BELOW[col.hideBelow] : ""} ${col.className ?? ""}`}
                 >
                   {col.header}
                 </th>
@@ -109,22 +145,33 @@ export function PaginatedTable<T extends { id: string }>({
             {items.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-2">
-                  <EmptyState icon={emptyIcon ?? Inbox} title={emptyMessage} description={emptyDescription} size="sm" />
+                  <EmptyState
+                    icon={emptyIcon ?? Inbox}
+                    title={emptyMessage}
+                    description={emptyDescription}
+                    size="sm"
+                  />
                 </td>
               </tr>
             ) : (
               items.map((row) => (
                 <tr
                   key={row.id}
-                  className={`border-t hover:bg-muted/30 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={`border-t hover:bg-muted/30 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-3 ${col.hideBelow ? HIDE_BELOW[col.hideBelow] : ''} ${col.className ?? ''}`}
+                      className={`px-4 py-3 ${col.hideBelow ? HIDE_BELOW[col.hideBelow] : ""} ${col.className ?? ""}`}
                     >
-                      {col.render ? col.render(row) : String((row as unknown as Record<string, unknown>)[col.key] ?? '')}
+                      {col.render
+                        ? col.render(row)
+                        : String(
+                            (row as unknown as Record<string, unknown>)[
+                              col.key
+                            ] ?? "",
+                          )}
                     </td>
                   ))}
                 </tr>
@@ -137,11 +184,13 @@ export function PaginatedTable<T extends { id: string }>({
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Showing {((data.page - 1) * data.pageSize) + 1}–{Math.min(data.page * data.pageSize, data.total)} of {data.total}
+            Showing {(data.page - 1) * data.pageSize + 1}–
+            {Math.min(data.page * data.pageSize, data.total)} of {data.total}
           </span>
           <div className="flex gap-1">
             <Button
-              variant="outline" size="icon"
+              variant="outline"
+              size="icon"
               aria-label="Previous page"
               disabled={data.page <= 1}
               onClick={() => onPageChange(data.page - 1)}
@@ -149,7 +198,8 @@ export function PaginatedTable<T extends { id: string }>({
               <ChevronLeft size={14} />
             </Button>
             <Button
-              variant="outline" size="icon"
+              variant="outline"
+              size="icon"
               aria-label="Next page"
               disabled={data.page >= data.totalPages}
               onClick={() => onPageChange(data.page + 1)}

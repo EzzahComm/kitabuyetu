@@ -11,12 +11,15 @@
 ## 1. DESIGN SYSTEM OVERVIEW
 
 ### Product Type
+
 **SaaS Platform** for community group administration and financial management
+
 - Financial credibility required
 - Community-oriented (not corporate)
 - Multi-tenant, multi-product (Bookkeeper, Chama Reminder, Fundraise, Enterprise)
 
 ### Core Design Principles
+
 1. **Trustworthy** — Financial operations require high visual confidence
 2. **Simple** — Easy for non-technical community leaders
 3. **Modern** — Clean, current tech aesthetic
@@ -26,6 +29,7 @@
 7. **Accessible** — Inclusive, supporting diverse users
 
 ### Anti-Patterns to Avoid
+
 - Excessive gradients
 - Excessive rounded cards
 - Excessive shadows
@@ -40,6 +44,7 @@
 ## 2. STYLE ARCHITECTURE
 
 ### Public Website (Nextly Foundation)
+
 - **Style:** Clean, modern, minimal
 - **Aesthetic:** Content-first, professional, warm
 - **Tone:** Community-focused, trustworthy, empowering
@@ -51,6 +56,7 @@
   - Simple, readable typography
 
 ### SaaS Application (Tabler Foundation)
+
 - **Style:** Clean, functional, minimal
 - **Aesthetic:** Data-forward, serious, organized
 - **Tone:** Professional, clear, action-oriented
@@ -66,8 +72,9 @@
 ## 3. COLOR PALETTE
 
 ### Brand Colors (Primary)
+
 ```
-Primary (Trustworthy Blue): 
+Primary (Trustworthy Blue):
   - Primary-900: #0F3F6D (Actions, primary buttons)
   - Primary-700: #1B5E9B (Hover states)
   - Primary-500: #2563EB (Main brand)
@@ -81,6 +88,7 @@ Accent (Community Green):
 ```
 
 ### Functional Colors
+
 ```
 Success: #22C55E (Donations, completed, deposits)
 Warning: #F59E0B (Pending, review needed)
@@ -94,6 +102,7 @@ Backgrounds:
 ```
 
 ### Semantic Tokens (DRY)
+
 ```
 text-primary: #1F2937 (on-light) / #F3F4F6 (on-dark)
 text-secondary: #6B7280 (on-light) / #D1D5DB (on-dark)
@@ -112,6 +121,7 @@ border-default: #E5E7EB (light) / #374151 (dark)
 ## 4. TYPOGRAPHY SYSTEM
 
 ### Font Stack
+
 ```
 Headings: Inter (sans-serif)
   - h1: 32px / 40px | weight 700 | letter-spacing -0.02em
@@ -137,6 +147,7 @@ Mono (financial data):
 ```
 
 ### Hierarchy Rules
+
 - **h1**: Page title only (one per page)
 - **h2-h3**: Section headings
 - **h4-h6**: Subsection, table headers
@@ -145,6 +156,7 @@ Mono (financial data):
 - **Mono**: Financial numbers, member IDs, amounts
 
 ### Line Length & Readability
+
 - **Mobile:** 35–50 characters per line (padding 16px)
 - **Desktop:** 60–75 characters per line (max-w-3xl / 48em for prose)
 - **Line height:** 1.5 (body text), 1.4 (headings)
@@ -154,6 +166,7 @@ Mono (financial data):
 ## 5. SPACING & LAYOUT SYSTEM
 
 ### Spacing Scale (Tailwind-aligned)
+
 ```
 xs: 4px   (4)
 sm: 8px   (8)
@@ -168,6 +181,7 @@ xl: 24px  (24)
 ```
 
 ### Container & Grid
+
 ```
 Mobile: 16px horizontal padding (full-width)
 Tablet (768px+): 24px horizontal padding, max-w-4xl
@@ -179,6 +193,7 @@ Card/block padding: 16px (mobile), 24px (desktop)
 ```
 
 ### Component Spacing
+
 ```
 Button height: 40px (default), 44px (mobile target)
 Input height: 40px (form baseline)
@@ -192,6 +207,7 @@ Table row height: 44px
 ## 6. INTERACTION & MICRO-INTERACTIONS
 
 ### Button States
+
 ```
 Default: bg-primary-500, text-white, shadow-sm
 Hover: bg-primary-600
@@ -204,6 +220,7 @@ Destructive: bg-error-500, text-white
 ```
 
 ### Input States
+
 ```
 Idle: border-1 border-gray-300, shadow-none
 Focus: border-primary-500, box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1)
@@ -213,6 +230,7 @@ Filled: bg-primary-50
 ```
 
 ### Animation Timing
+
 ```
 Micro-interactions: 150ms (button press, toggle)
 Transitions: 200ms (fade, color change)
@@ -225,6 +243,7 @@ Respect prefers-reduced-motion
 ```
 
 ### Loading & Empty States
+
 ```
 Loading: Show skeleton screens for >300ms operations
 Empty State: Clear message + action ("No contributions yet" + "Add Member")
@@ -237,6 +256,7 @@ Success Feedback: Checkmark icon + brief toast (3-5s auto-dismiss)
 ## 7. ACCESSIBILITY STANDARDS
 
 ### WCAG 2.1 AA Compliance
+
 ```
 Color Contrast:
   - Normal text: 4.5:1 minimum
@@ -291,6 +311,7 @@ Mobile-first approach:
 ```
 
 ### Responsive Behaviors
+
 ```
 Navigation:
   - Mobile: Bottom tab bar (5 items max) or drawer
@@ -317,6 +338,7 @@ Forms:
 ## 9. COMPONENT LIBRARY (Tabler-Based)
 
 ### Base Components
+
 ```
 Buttons: primary, secondary, outline, ghost, destructive, loading
 Inputs: text, email, tel, number, date, select, checkbox, radio, toggle
@@ -332,6 +354,7 @@ Charts: line, bar, pie, area (using Recharts or Chart.js)
 ```
 
 ### Typography Components
+
 ```
 Heading: h1–h6 with semantic HTML
 Body: p with consistent line-height
@@ -345,6 +368,7 @@ Code: pre + code with mono font
 ## 10. DARK MODE SUPPORT
 
 ### Light Mode (Default)
+
 ```
 Background: #FFFFFF
 Surface: #F9FAFB
@@ -355,6 +379,7 @@ Buttons: primary-500 (blue)
 ```
 
 ### Dark Mode
+
 ```
 Background: #111827
 Surface: #1F2937
@@ -365,6 +390,7 @@ Buttons: primary-600 (slightly lighter blue)
 ```
 
 ### Implementation
+
 ```
 Use Tailwind dark: prefix
 Use next-themes for switching
@@ -384,57 +410,57 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#2563EB', // brand
-          600: '#1D4ED8',
-          700: '#1B5E9B',
-          800: '#1E40AF',
-          900: '#0F3F6D',
+          50: "#EFF6FF",
+          100: "#DBEAFE",
+          200: "#BFDBFE",
+          300: "#93C5FD",
+          400: "#60A5FA",
+          500: "#2563EB", // brand
+          600: "#1D4ED8",
+          700: "#1B5E9B",
+          800: "#1E40AF",
+          900: "#0F3F6D",
         },
         accent: {
-          100: '#DCFCE7',
-          500: '#22C55E',
-          700: '#15803D',
+          100: "#DCFCE7",
+          500: "#22C55E",
+          700: "#15803D",
         },
         // ... semantic tokens
       },
       spacing: {
-        xs: '4px',
-        sm: '8px',
-        md: '12px',
-        base: '16px',
-        lg: '20px',
-        xl: '24px',
-        '2xl': '32px',
-        '3xl': '40px',
-        '4xl': '48px',
-        '5xl': '64px',
+        xs: "4px",
+        sm: "8px",
+        md: "12px",
+        base: "16px",
+        lg: "20px",
+        xl: "24px",
+        "2xl": "32px",
+        "3xl": "40px",
+        "4xl": "48px",
+        "5xl": "64px",
       },
       fontSize: {
-        xs: '12px',
-        sm: '14px',
-        base: '16px',
-        lg: '18px',
-        xl: '20px',
-        '2xl': '24px',
-        '3xl': '28px',
-        '4xl': '32px',
+        xs: "12px",
+        sm: "14px",
+        base: "16px",
+        lg: "18px",
+        xl: "20px",
+        "2xl": "24px",
+        "3xl": "28px",
+        "4xl": "32px",
       },
       borderRadius: {
-        DEFAULT: '8px',
-        sm: '4px',
-        md: '8px',
-        lg: '12px',
+        DEFAULT: "8px",
+        sm: "4px",
+        md: "8px",
+        lg: "12px",
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
-        DEFAULT: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        md: '0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
-        lg: '0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
+        sm: "0 1px 2px rgba(0, 0, 0, 0.05)",
+        DEFAULT: "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+        md: "0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)",
+        lg: "0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)",
       },
     },
   },
@@ -446,6 +472,7 @@ module.exports = {
 ## 12. NAVIGATION STRUCTURE
 
 ### Public Website Navigation
+
 ```
 Header (Fixed):
   - Logo
@@ -472,6 +499,7 @@ Footer:
 ```
 
 ### SaaS Application Navigation
+
 ```
 Desktop (1024px+):
   - Fixed Sidebar (250px):
@@ -515,6 +543,7 @@ Mobile (< 768px):
 ## 13. BUILD ROADMAP & PHASES
 
 ### Phase 1: Design System Foundation ✓ (In Progress)
+
 - [x] Color palette definition
 - [x] Typography system
 - [x] Spacing scale
@@ -523,6 +552,7 @@ Mobile (< 768px):
 - [x] Dark mode strategy
 
 ### Phase 2: Public Website Optimization (Next)
+
 - [ ] Adapt Nextly header/footer to Kitabu Yetu branding
 - [ ] Create product pages (Bookkeeper, Chama Reminder, Fundraise, Enterprise)
 - [ ] Ecosystem page layout
@@ -533,6 +563,7 @@ Mobile (< 768px):
 - [ ] Dark mode support
 
 ### Phase 3: SaaS Dashboard Shells (Following)
+
 - [ ] Dashboard layout (sidebar + content)
 - [ ] Navigation component (desktop + mobile)
 - [ ] Base card, table, form components
@@ -540,12 +571,14 @@ Mobile (< 768px):
 - [ ] Authentication pages (sign up, sign in, password reset)
 
 ### Phase 4: Product-Specific Pages (After)
+
 - [ ] Bookkeeper: Members, Contributions, Loans, Welfare, etc.
 - [ ] Chama Reminder: SMS templates, campaigns
 - [ ] Fundraise: Campaigns, donors
 - [ ] Enterprise: Portfolio dashboard, reporting
 
 ### Phase 5: Polish & Refinement
+
 - [ ] Accessibility audit (WCAG 2.1 AA)
 - [ ] Performance audit (Core Web Vitals)
 - [ ] Cross-browser testing
@@ -585,6 +618,7 @@ Mobile (< 768px):
 Before delivery:
 
 ### Visual Quality
+
 - [ ] No emoji icons (all SVG/Tabler)
 - [ ] Consistent icon family and style
 - [ ] Pressed states don't shift layout (use transform, not layout-changing)
@@ -592,6 +626,7 @@ Before delivery:
 - [ ] Official brand assets with proper spacing
 
 ### Interaction
+
 - [ ] All tappable elements show pressed feedback
 - [ ] Touch targets ≥44×44px (iOS) / 48×48dp (Android)
 - [ ] Micro-interaction timing 150–300ms with native easing
@@ -600,11 +635,13 @@ Before delivery:
 - [ ] Screen reader labels descriptive
 
 ### Light/Dark Mode
+
 - [ ] Text contrast 4.5:1 in both modes
 - [ ] Dividers visible in both modes
 - [ ] Both themes tested independently
 
 ### Layout
+
 - [ ] Safe areas respected (header, tab bar, bottom bar)
 - [ ] No horizontal scroll on mobile
 - [ ] Tested on 375px, 768px, 1440px
@@ -612,6 +649,7 @@ Before delivery:
 - [ ] Long-form text remains readable on large screens
 
 ### Accessibility
+
 - [ ] Meaningful image alt text
 - [ ] Form fields have labels and clear errors
 - [ ] Reduced motion respected
@@ -623,6 +661,7 @@ Before delivery:
 ## 16. IMPLEMENTATION PRINCIPLES
 
 ### Code Organization
+
 ```
 /design
   /tokens
@@ -659,6 +698,7 @@ Before delivery:
 ```
 
 ### CSS Architecture
+
 ```
 1. Tailwind for layout, spacing, typography
 2. CSS custom properties (--color-primary) for themes
@@ -668,6 +708,7 @@ Before delivery:
 ```
 
 ### Accessibility-First Approach
+
 ```
 1. Semantic HTML (button, input, label, nav, etc.)
 2. ARIA attributes when semantic HTML insufficient

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Download a server-side file (CSV, PDF, etc.) through the authenticated
@@ -19,14 +19,16 @@
  * certificates, import templates).
  */
 
-const STORAGE_KEY = 'ky_auth'; // mirrors lib/auth/context.tsx + lib/api/client.ts
+const STORAGE_KEY = "ky_auth"; // mirrors lib/auth/context.tsx + lib/api/client.ts
 
 function readAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return (JSON.parse(raw) as { accessToken?: string | null }).accessToken ?? null;
+    return (
+      (JSON.parse(raw) as { accessToken?: string | null }).accessToken ?? null
+    );
   } catch {
     return null;
   }
@@ -61,13 +63,13 @@ export async function downloadAuthenticated(
 ): Promise<void> {
   const token = readAccessToken();
   const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(url, { headers });
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
-      const body = await res.json() as { error?: string };
+      const body = (await res.json()) as { error?: string };
       if (body?.error) detail = body.error;
     } catch {
       // Body wasn't JSON — keep the HTTP status as the error message.
@@ -76,20 +78,20 @@ export async function downloadAuthenticated(
   }
 
   const filename =
-    filenameFromContentDisposition(res.headers.get('content-disposition'))
-    ?? options.fallbackFilename;
+    filenameFromContentDisposition(res.headers.get("content-disposition")) ??
+    options.fallbackFilename;
 
-  const blob      = await res.blob();
+  const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
 
   if (options.openInNewTab) {
-    window.open(objectUrl, '_blank', 'noopener,noreferrer');
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
     // Give the new tab a moment to load before revoking the URL.
     setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     return;
   }
 
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = objectUrl;
   a.download = filename;
   document.body.appendChild(a);

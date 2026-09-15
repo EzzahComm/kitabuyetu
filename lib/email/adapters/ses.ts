@@ -1,11 +1,11 @@
-import nodemailer from 'nodemailer';
-import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
+import nodemailer from "nodemailer";
+import type { IEmailAdapter, EmailPayload, EmailResult } from "./types";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
 
 function createSesTransport() {
   return nodemailer.createTransport({
-    host: `email-smtp.${process.env.AWS_SES_REGION ?? 'us-east-1'}.amazonaws.com`,
+    host: `email-smtp.${process.env.AWS_SES_REGION ?? "us-east-1"}.amazonaws.com`,
     port: 587,
     secure: false,
     auth: {
@@ -16,7 +16,7 @@ function createSesTransport() {
 }
 
 export class SesAdapter implements IEmailAdapter {
-  readonly name = 'ses';
+  readonly name = "ses";
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     const from = payload.from ?? env.EMAIL_FROM;
@@ -34,7 +34,7 @@ export class SesAdapter implements IEmailAdapter {
             payload.groupId ?? null,
             payload.userId ?? null,
             payload.templateKey ?? null,
-            payload.category ?? 'transactional',
+            payload.category ?? "transactional",
             toArr[0],
             from,
             payload.subject,
@@ -51,7 +51,7 @@ export class SesAdapter implements IEmailAdapter {
 
       const info = await transport.sendMail({
         from,
-        to: toArr.join(', '),
+        to: toArr.join(", "),
         subject: payload.subject,
         html: payload.html,
         text: payload.text,

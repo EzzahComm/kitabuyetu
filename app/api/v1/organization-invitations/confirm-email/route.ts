@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { confirmOrgInvitationEmail } from '@/lib/services/organization-members.service';
-import { ok, handleError } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { confirmOrgInvitationEmail } from "@/lib/services/organization-members.service";
+import { ok, handleError } from "@/lib/utils/response";
 
 const Schema = z.object({ token: z.string().min(32).max(128) });
 

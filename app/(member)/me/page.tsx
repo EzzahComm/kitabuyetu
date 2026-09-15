@@ -1,23 +1,40 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Link from 'next/link';
-import { HandCoins, Receipt, Target, FileText, ChevronRight, Bell, Landmark, AlertCircle } from 'lucide-react';
-import { WalletCard } from '@/components/member/wallet-card';
-import { QuickActions, type QuickAction } from '@/components/shared/quick-actions';
-import { SavingsGoalCard } from '@/components/member/savings-goal-card';
-import { PassbookRow } from '@/components/member/passbook-row';
-import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { EmptyState } from '@/components/ui/empty-state';
-import { ListSkeleton } from '@/components/shared/skeletons';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { useMyWallet, useMyGoals, useMyPassbook, useMyNotifications } from '@/hooks/use-member';
-import { formatKES, formatDateTime, getErrorMessage } from '@/lib/utils';
+import * as React from "react";
+import Link from "next/link";
+import {
+  HandCoins,
+  Receipt,
+  Target,
+  FileText,
+  ChevronRight,
+  Bell,
+  Landmark,
+  AlertCircle,
+} from "lucide-react";
+import { WalletCard } from "@/components/member/wallet-card";
+import {
+  QuickActions,
+  type QuickAction,
+} from "@/components/shared/quick-actions";
+import { SavingsGoalCard } from "@/components/member/savings-goal-card";
+import { PassbookRow } from "@/components/member/passbook-row";
+import { MoneyActionDialog } from "@/components/shared/confirm-dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ListSkeleton } from "@/components/shared/skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth, isTenantUser } from "@/lib/auth/context";
+import {
+  useMyWallet,
+  useMyGoals,
+  useMyPassbook,
+  useMyNotifications,
+} from "@/hooks/use-member";
+import { formatKES, formatDateTime, getErrorMessage } from "@/lib/utils";
 
-type MoneyFlow = 'contribute' | 'repay' | null;
+type MoneyFlow = "contribute" | "repay" | null;
 
 export default function MemberHomePage() {
   const { user } = useAuth();
@@ -37,12 +54,34 @@ export default function MemberHomePage() {
   const activeLoan = wallet.data?.activeLoan;
 
   const actions: QuickAction[] = [
-    { label: 'Contribute', icon: HandCoins, tint: 'bg-brand-50 text-brand-600', onClick: () => setFlow('contribute') },
+    {
+      label: "Contribute",
+      icon: HandCoins,
+      tint: "bg-brand-50 text-brand-600",
+      onClick: () => setFlow("contribute"),
+    },
     ...(activeLoan
-      ? [{ label: 'Pay loan', icon: Receipt, tint: 'bg-brand-blue-50 text-brand-blue-600', onClick: () => setFlow('repay') } as QuickAction]
+      ? [
+          {
+            label: "Pay loan",
+            icon: Receipt,
+            tint: "bg-brand-blue-50 text-brand-blue-600",
+            onClick: () => setFlow("repay"),
+          } as QuickAction,
+        ]
       : []),
-    { label: 'Goals', icon: Target, tint: 'bg-orange-50 text-orange-600', href: '/me/goals' },
-    { label: 'Statement', icon: FileText, tint: 'bg-purple-50 text-purple-600', href: '/me/passbook' },
+    {
+      label: "Goals",
+      icon: Target,
+      tint: "bg-orange-50 text-orange-600",
+      href: "/me/goals",
+    },
+    {
+      label: "Statement",
+      icon: FileText,
+      tint: "bg-purple-50 text-purple-600",
+      href: "/me/passbook",
+    },
   ];
 
   if (wallet.isLoading) {
@@ -72,7 +111,7 @@ export default function MemberHomePage() {
         shares={wallet.data.shares}
         thisMonth={wallet.data.thisMonth}
         loanBalance={wallet.data.loanBalance}
-        memberNo={memberNo ?? '—'}
+        memberNo={memberNo ?? "—"}
       />
 
       <QuickActions actions={actions} />
@@ -87,15 +126,24 @@ export default function MemberHomePage() {
                   <Landmark size={18} />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Loan balance</p>
-                  <p className="money text-xs text-muted-foreground">{formatKES(activeLoan.balance)} remaining</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    Loan balance
+                  </p>
+                  <p className="money text-xs text-muted-foreground">
+                    {formatKES(activeLoan.balance)} remaining
+                  </p>
                 </div>
               </div>
-              <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">{activeLoan.nextDueLabel}</span>
+              <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                {activeLoan.nextDueLabel}
+              </span>
             </div>
             <Progress value={activeLoan.progress} className="mt-3" />
             <p className="mt-2 text-xs text-muted-foreground">
-              {activeLoan.progress}% repaid · next payment <span className="money font-semibold text-foreground">{formatKES(activeLoan.nextAmount)}</span>
+              {activeLoan.progress}% repaid · next payment{" "}
+              <span className="money font-semibold text-foreground">
+                {formatKES(activeLoan.nextAmount)}
+              </span>
             </p>
           </CardContent>
         </Card>
@@ -109,7 +157,10 @@ export default function MemberHomePage() {
         ) : topGoal ? (
           <SavingsGoalCard goal={topGoal} />
         ) : (
-          <Link href="/me/goals" className="block rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground hover:bg-muted/40">
+          <Link
+            href="/me/goals"
+            className="block rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground hover:bg-muted/40"
+          >
             Set your first savings goal
           </Link>
         )}
@@ -121,11 +172,15 @@ export default function MemberHomePage() {
         {passbook.isLoading ? (
           <ListSkeleton rows={3} />
         ) : recent.length === 0 ? (
-          <p className="px-1 text-sm text-muted-foreground">No transactions yet.</p>
+          <p className="px-1 text-sm text-muted-foreground">
+            No transactions yet.
+          </p>
         ) : (
           <Card>
             <CardContent className="divide-y px-4 py-0">
-              {recent.map((e) => <PassbookRow key={e.id} entry={e} />)}
+              {recent.map((e) => (
+                <PassbookRow key={e.id} entry={e} />
+              ))}
             </CardContent>
           </Card>
         )}
@@ -139,9 +194,15 @@ export default function MemberHomePage() {
               <Bell size={18} />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{latestNotification.title}</p>
-              <p className="line-clamp-2 text-xs text-muted-foreground">{latestNotification.body}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground/70">{formatDateTime(latestNotification.createdAt)}</p>
+              <p className="truncate text-sm font-semibold text-foreground">
+                {latestNotification.title}
+              </p>
+              <p className="line-clamp-2 text-xs text-muted-foreground">
+                {latestNotification.body}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground/70">
+                {formatDateTime(latestNotification.createdAt)}
+              </p>
             </div>
           </div>
         </Link>
@@ -149,26 +210,34 @@ export default function MemberHomePage() {
 
       {/* Money flows — preview only for now, see warning copy below */}
       <MoneyActionDialog
-        open={flow === 'contribute'}
+        open={flow === "contribute"}
         onOpenChange={(o) => !o && setFlow(null)}
         title="Contribute via M-Pesa"
         amount={1000}
         details={[
-          { label: 'To', value: groupName ?? 'your group' },
-          { label: 'Type', value: 'Contribution' },
+          { label: "To", value: groupName ?? "your group" },
+          { label: "Type", value: "Contribution" },
         ]}
         warning="Preview only — this doesn't move money yet. Contact your treasurer to record a real payment."
         confirmLabel="Send M-Pesa request"
         onConfirm={() => new Promise((r) => setTimeout(r, 1200))}
       />
       <MoneyActionDialog
-        open={flow === 'repay'}
+        open={flow === "repay"}
         onOpenChange={(o) => !o && setFlow(null)}
         title="Pay loan instalment"
         amount={activeLoan?.nextAmount ?? 0}
         details={[
-          { label: 'To', value: groupName ?? 'your group' },
-          { label: 'Remaining after', value: formatKES(Math.max(0, (activeLoan?.balance ?? 0) - (activeLoan?.nextAmount ?? 0))) },
+          { label: "To", value: groupName ?? "your group" },
+          {
+            label: "Remaining after",
+            value: formatKES(
+              Math.max(
+                0,
+                (activeLoan?.balance ?? 0) - (activeLoan?.nextAmount ?? 0),
+              ),
+            ),
+          },
         ]}
         warning="Preview only — this doesn't move money yet. Contact your treasurer to record a real payment."
         confirmLabel="Pay now"
@@ -182,7 +251,10 @@ function SectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="flex items-center justify-between">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      <Link href={href} className="flex items-center text-xs font-medium text-brand-600">
+      <Link
+        href={href}
+        className="flex items-center text-xs font-medium text-brand-600"
+      >
         See all <ChevronRight size={14} />
       </Link>
     </div>

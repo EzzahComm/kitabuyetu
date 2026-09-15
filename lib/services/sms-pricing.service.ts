@@ -1,6 +1,6 @@
-import type { PoolClient } from 'pg';
-import { withAdminDb } from '@/lib/db';
-import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
+import type { PoolClient } from "pg";
+import { withAdminDb } from "@/lib/db";
+import { DEFAULT_SMS_PROVIDER } from "@/lib/sms/provider";
 
 /**
  * SMS pricing — tiers, packages and provider cost, read from the database
@@ -18,21 +18,21 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  */
 
 export interface PricingTier {
-  id:          string;
-  name:        string;
-  minCredits:  number;
-  maxCredits:  number | null;
-  unitPrice:   number;
-  currency:    string;
+  id: string;
+  name: string;
+  minCredits: number;
+  maxCredits: number | null;
+  unitPrice: number;
+  currency: string;
 }
 
 export interface SmsPackage {
-  id:            string;
-  name:          string;
-  description:   string | null;
-  credits:       number;
-  price:         number;
-  currency:      string;
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  price: number;
+  currency: string;
   isRecommended: boolean;
 }
 
@@ -46,8 +46,11 @@ const FALLBACK_UNIT_PRICE = 0.9;
  * guarantees at most one active band can match, so this cannot depend on row
  * order — which is exactly the property a hand-rolled CASE ladder would lack.
  */
-export async function getUnitPrice(volume: number, client?: PoolClient): Promise<number> {
-  const run = async (c: Pick<PoolClient, 'query'>) => {
+export async function getUnitPrice(
+  volume: number,
+  client?: PoolClient,
+): Promise<number> {
+  const run = async (c: Pick<PoolClient, "query">) => {
     const { rows } = await c.query<{ unit_price: string }>(
       `SELECT unit_price FROM sms_pricing_tiers
        WHERE is_active
@@ -65,16 +68,23 @@ export async function getUnitPrice(volume: number, client?: PoolClient): Promise
 export async function listActiveTiers(): Promise<PricingTier[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; name: string; min_credits: number;
-      max_credits: number | null; unit_price: string; currency: string;
+      id: string;
+      name: string;
+      min_credits: number;
+      max_credits: number | null;
+      unit_price: string;
+      currency: string;
     }>(
       `SELECT id, name, min_credits, max_credits, unit_price, currency
        FROM sms_pricing_tiers WHERE is_active ORDER BY display_order, min_credits`,
     );
     return rows.map((r) => ({
-      id: r.id, name: r.name,
-      minCredits: r.min_credits, maxCredits: r.max_credits,
-      unitPrice: Number(r.unit_price), currency: r.currency,
+      id: r.id,
+      name: r.name,
+      minCredits: r.min_credits,
+      maxCredits: r.max_credits,
+      unitPrice: Number(r.unit_price),
+      currency: r.currency,
     }));
   });
 }
@@ -93,15 +103,24 @@ export async function listActiveTiers(): Promise<PricingTier[]> {
 export async function listActivePackages(): Promise<SmsPackage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; name: string; description: string | null;
-      credits: number; price: string; currency: string; is_recommended: boolean;
+      id: string;
+      name: string;
+      description: string | null;
+      credits: number;
+      price: string;
+      currency: string;
+      is_recommended: boolean;
     }>(
       `SELECT id, name, description, credits, price, currency, is_recommended
        FROM sms_packages WHERE is_active ORDER BY display_order, credits`,
     );
     return rows.map((r) => ({
-      id: r.id, name: r.name, description: r.description,
-      credits: r.credits, price: Number(r.price), currency: r.currency,
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      credits: r.credits,
+      price: Number(r.price),
+      currency: r.currency,
       isRecommended: r.is_recommended,
     }));
   });
@@ -137,8 +156,8 @@ export async function getProviderCost(
 
 export interface Margin {
   sellPrice: number;
-  unitCost:  number;
-  margin:    number;
+  unitCost: number;
+  margin: number;
   marginPct: number;
 }
 
@@ -147,7 +166,10 @@ export interface Margin {
  * record — reporting "unknown" is correct, and inventing a cost to show a
  * plausible number would be worse than showing nothing.
  */
-export async function marginFor(sellPrice: number, onDate?: Date): Promise<Margin | null> {
+export async function marginFor(
+  sellPrice: number,
+  onDate?: Date,
+): Promise<Margin | null> {
   const unitCost = await getProviderCost(DEFAULT_SMS_PROVIDER, onDate);
   if (unitCost === null) return null;
   const margin = sellPrice - unitCost;

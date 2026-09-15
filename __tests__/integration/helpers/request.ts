@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest } from "next/server";
 
 /**
  * Header set matching exactly what proxy.ts stamps from a verified JWT
@@ -23,15 +23,18 @@ export interface AuthHeaderInput {
 
 export function authHeaders(input: AuthHeaderInput): Record<string, string> {
   const headers: Record<string, string> = {
-    'x-user-id': input.userId,
-    'x-group-id': input.groupId,
-    'x-role': input.role,
+    "x-user-id": input.userId,
+    "x-group-id": input.groupId,
+    "x-role": input.role,
   };
-  if (input.organizationId) headers['x-organization-id'] = input.organizationId;
-  if (input.membershipId) headers['x-membership-id'] = input.membershipId;
-  if (input.permissions?.length) headers['x-permissions'] = input.permissions.join(',');
-  if (input.authVersion != null) headers['x-auth-version'] = String(input.authVersion);
-  if (input.sessionVersion != null) headers['x-session-version'] = String(input.sessionVersion);
+  if (input.organizationId) headers["x-organization-id"] = input.organizationId;
+  if (input.membershipId) headers["x-membership-id"] = input.membershipId;
+  if (input.permissions?.length)
+    headers["x-permissions"] = input.permissions.join(",");
+  if (input.authVersion != null)
+    headers["x-auth-version"] = String(input.authVersion);
+  if (input.sessionVersion != null)
+    headers["x-session-version"] = String(input.sessionVersion);
   return headers;
 }
 
@@ -44,24 +47,28 @@ export function authHeaders(input: AuthHeaderInput): Record<string, string> {
  */
 export function backofficeHeaders(input: {
   userId: string;
-  platformRole: 'super_admin' | 'support' | 'organization_coordinator';
+  platformRole: "super_admin" | "support" | "organization_coordinator";
   organizationId?: string;
 }): Record<string, string> {
   const headers: Record<string, string> = {
-    'x-aud': 'backoffice',
-    'x-user-id': input.userId,
-    'x-platform-role': input.platformRole,
+    "x-aud": "backoffice",
+    "x-user-id": input.userId,
+    "x-platform-role": input.platformRole,
   };
-  if (input.organizationId) headers['x-organization-id'] = input.organizationId;
+  if (input.organizationId) headers["x-organization-id"] = input.organizationId;
   return headers;
 }
 
 export function buildRequest(
   path: string,
-  opts: { method?: string; headers?: Record<string, string>; body?: unknown } = {},
+  opts: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+  } = {},
 ): NextRequest {
   const headers = new Headers(opts.headers);
-  const init: RequestInit = { method: opts.method ?? 'GET', headers };
+  const init: RequestInit = { method: opts.method ?? "GET", headers };
   if (opts.body !== undefined) {
     if (opts.body instanceof FormData) {
       // Pass through as-is — fetch/undici sets the correct multipart
@@ -70,8 +77,11 @@ export function buildRequest(
       init.body = opts.body;
     } else {
       init.body = JSON.stringify(opts.body);
-      headers.set('content-type', 'application/json');
+      headers.set("content-type", "application/json");
     }
   }
-  return new NextRequest(new URL(path, 'http://localhost'), init as ConstructorParameters<typeof NextRequest>[1]);
+  return new NextRequest(
+    new URL(path, "http://localhost"),
+    init as ConstructorParameters<typeof NextRequest>[1],
+  );
 }

@@ -21,41 +21,52 @@
  * requires_approval flag at request-creation time), so those two are read
  * straight from the resolver with nothing to keep in sync.
  */
-import type { PoolClient } from 'pg';
-import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { resolvePolicy, resolvePolicyDetailed, setPolicy, type PolicySource } from './configuration.service';
-import { organizationService } from './organization.service';
-import { ValidationError } from '@/lib/utils/errors';
+import type { PoolClient } from "pg";
+import { withDb, withTransaction, type TenantContext } from "@/lib/db";
+import {
+  resolvePolicy,
+  resolvePolicyDetailed,
+  setPolicy,
+  type PolicySource,
+} from "./configuration.service";
+import { organizationService } from "./organization.service";
+import { ValidationError } from "@/lib/utils/errors";
 
-const DOMAIN = 'approval';
+const DOMAIN = "approval";
 
 export type ApprovalPolicyKey =
-  | 'journal_threshold'
-  | 'group_disbursement_threshold'
-  | 'org_disbursement_threshold';
+  | "journal_threshold"
+  | "group_disbursement_threshold"
+  | "org_disbursement_threshold";
 
-interface ThresholdValue { threshold: number }
+interface ThresholdValue {
+  threshold: number;
+}
 
 const FALLBACKS: Record<ApprovalPolicyKey, number> = {
-  journal_threshold:            0,
+  journal_threshold: 0,
   group_disbursement_threshold: 20000,
-  org_disbursement_threshold:   50000,
+  org_disbursement_threshold: 50000,
 };
 
 export interface EffectiveThreshold {
-  key:       ApprovalPolicyKey;
+  key: ApprovalPolicyKey;
   threshold: number;
-  source:    PolicySource;
+  source: PolicySource;
 }
 
 /** Used inline by accounting/disbursement services — no route/role concerns, just a read. */
 export async function getEffectiveThreshold(
   client: PoolClient,
-  key:    ApprovalPolicyKey,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  key: ApprovalPolicyKey,
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<number> {
   const { threshold } = await resolvePolicy<ThresholdValue>(
-    client, DOMAIN, key, scope, { threshold: FALLBACKS[key] },
+    client,
+    DOMAIN,
+    key,
+    scope,
+    { threshold: FALLBACKS[key] },
   );
   return threshold;
 }
@@ -70,7 +81,7 @@ export async function getEffectiveThreshold(
  */
 async function syncJournalThresholdColumn(
   client: PoolClient,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<void> {
   let affectedGroupIds: string[];
 
@@ -107,7 +118,9 @@ async function syncJournalThresholdColumn(
   }
 
   for (const groupId of affectedGroupIds) {
-    const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId });
+    const threshold = await getEffectiveThreshold(client, "journal_threshold", {
+      groupId,
+    });
     await client.query(
       `UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`,
       [threshold.toFixed(2), groupId],
@@ -119,13 +132,24 @@ export const approvalPolicyService = {
   /** Effective thresholds for the caller's own group, with resolution provenance for the settings UI. */
   async getGroupPolicies(ctx: TenantContext): Promise<EffectiveThreshold[]> {
     return withDb(ctx, async (client) => {
-      const keys: ApprovalPolicyKey[] = ['journal_threshold', 'group_disbursement_threshold'];
+      const keys: ApprovalPolicyKey[] = [
+        "journal_threshold",
+        "group_disbursement_threshold",
+      ];
       const results: EffectiveThreshold[] = [];
       for (const key of keys) {
         const resolved = await resolvePolicyDetailed<ThresholdValue>(
-          client, DOMAIN, key, { groupId: ctx.groupId }, { threshold: FALLBACKS[key] },
+          client,
+          DOMAIN,
+          key,
+          { groupId: ctx.groupId },
+          { threshold: FALLBACKS[key] },
         );
-        results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
+        results.push({
+          key,
+          threshold: resolved.value.threshold,
+          source: resolved.source,
+        });
       }
       return results;
     });
@@ -136,31 +160,59 @@ export const approvalPolicyService = {
    * 'treasurer', ...)), same as every other accounting-settings endpoint
    * (fiscal periods, journals, accounts) — not re-checked here.
    */
-  async setGroupOverride(ctx: TenantContext, key: ApprovalPolicyKey, threshold: number): Promise<void> {
-    if (key === 'org_disbursement_threshold') {
-      throw new ValidationError('org_disbursement_threshold has no group-level scope');
+  async setGroupOverride(
+    ctx: TenantContext,
+    key: ApprovalPolicyKey,
+    threshold: number,
+  ): Promise<void> {
+    if (key === "org_disbursement_threshold") {
+      throw new ValidationError(
+        "org_disbursement_threshold has no group-level scope",
+      );
     }
-    if (!(threshold >= 0)) throw new ValidationError('Threshold must be zero or positive');
+    if (!(threshold >= 0))
+      throw new ValidationError("Threshold must be zero or positive");
 
     await withTransaction(ctx, async (client) => {
-      await setPolicy(client, DOMAIN, key, { groupId: ctx.groupId }, { threshold }, ctx.userId);
-      if (key === 'journal_threshold') {
+      await setPolicy(
+        client,
+        DOMAIN,
+        key,
+        { groupId: ctx.groupId },
+        { threshold },
+        ctx.userId,
+      );
+      if (key === "journal_threshold") {
         await syncJournalThresholdColumn(client, { groupId: ctx.groupId });
       }
     });
   },
 
   /** Effective thresholds for the caller's own organization, with provenance. */
-  async getOrganizationPolicies(ctx: TenantContext): Promise<EffectiveThreshold[]> {
+  async getOrganizationPolicies(
+    ctx: TenantContext,
+  ): Promise<EffectiveThreshold[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
-      const keys: ApprovalPolicyKey[] = ['org_disbursement_threshold', 'group_disbursement_threshold', 'journal_threshold'];
+      const keys: ApprovalPolicyKey[] = [
+        "org_disbursement_threshold",
+        "group_disbursement_threshold",
+        "journal_threshold",
+      ];
       const results: EffectiveThreshold[] = [];
       for (const key of keys) {
         const resolved = await resolvePolicyDetailed<ThresholdValue>(
-          client, DOMAIN, key, { organizationId: ctx.organizationId }, { threshold: FALLBACKS[key] },
+          client,
+          DOMAIN,
+          key,
+          { organizationId: ctx.organizationId },
+          { threshold: FALLBACKS[key] },
         );
-        results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
+        results.push({
+          key,
+          threshold: resolved.value.threshold,
+          source: resolved.source,
+        });
       }
       return results;
     });
@@ -172,36 +224,68 @@ export const approvalPolicyService = {
    * group it oversees (which any of those groups can still override
    * locally, per the cascade).
    */
-  async setOrganizationOverride(ctx: TenantContext, key: ApprovalPolicyKey, threshold: number): Promise<void> {
+  async setOrganizationOverride(
+    ctx: TenantContext,
+    key: ApprovalPolicyKey,
+    threshold: number,
+  ): Promise<void> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    if (!(threshold >= 0)) throw new ValidationError('Threshold must be zero or positive');
+    if (!(threshold >= 0))
+      throw new ValidationError("Threshold must be zero or positive");
 
     await withTransaction(ctx, async (client) => {
-      await setPolicy(client, DOMAIN, key, { organizationId: ctx.organizationId }, { threshold }, ctx.userId);
-      if (key === 'journal_threshold') {
-        await syncJournalThresholdColumn(client, { organizationId: ctx.organizationId });
+      await setPolicy(
+        client,
+        DOMAIN,
+        key,
+        { organizationId: ctx.organizationId },
+        { threshold },
+        ctx.userId,
+      );
+      if (key === "journal_threshold") {
+        await syncJournalThresholdColumn(client, {
+          organizationId: ctx.organizationId,
+        });
       }
     });
   },
 
   /** Platform-wide defaults — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformPolicies(client: PoolClient): Promise<EffectiveThreshold[]> {
-    const keys: ApprovalPolicyKey[] = ['journal_threshold', 'group_disbursement_threshold', 'org_disbursement_threshold'];
+    const keys: ApprovalPolicyKey[] = [
+      "journal_threshold",
+      "group_disbursement_threshold",
+      "org_disbursement_threshold",
+    ];
     const results: EffectiveThreshold[] = [];
     for (const key of keys) {
       const resolved = await resolvePolicyDetailed<ThresholdValue>(
-        client, DOMAIN, key, {}, { threshold: FALLBACKS[key] },
+        client,
+        DOMAIN,
+        key,
+        {},
+        { threshold: FALLBACKS[key] },
       );
-      results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
+      results.push({
+        key,
+        threshold: resolved.value.threshold,
+        source: resolved.source,
+      });
     }
     return results;
   },
 
   /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
-  async setPlatformDefault(userId: string, client: PoolClient, key: ApprovalPolicyKey, threshold: number): Promise<void> {
-    if (!(threshold >= 0)) throw new ValidationError('Threshold must be zero or positive');
+  async setPlatformDefault(
+    userId: string,
+    client: PoolClient,
+    key: ApprovalPolicyKey,
+    threshold: number,
+  ): Promise<void> {
+    if (!(threshold >= 0))
+      throw new ValidationError("Threshold must be zero or positive");
     await setPolicy(client, DOMAIN, key, {}, { threshold }, userId);
-    if (key === 'journal_threshold') {
+    if (key === "journal_threshold") {
       await syncJournalThresholdColumn(client, {});
     }
   },

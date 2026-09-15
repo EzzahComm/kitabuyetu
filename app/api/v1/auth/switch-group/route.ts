@@ -1,34 +1,39 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
-import { signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';
-import { storeRefreshToken } from '@/lib/redis';
-import { ok, handleError, errorResponse } from '@/lib/utils/response';
-import type { LoginResponse } from '@/types/api.types';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth } from "@/lib/auth/middleware";
+import { withAdminDb } from "@/lib/db";
+import {
+  signAccessToken,
+  signRefreshToken,
+  hashToken,
+  refreshTtlSeconds,
+} from "@/lib/auth/jwt";
+import { storeRefreshToken } from "@/lib/redis";
+import { ok, handleError, errorResponse } from "@/lib/utils/response";
+import type { LoginResponse } from "@/types/api.types";
 
 const Schema = z.object({ groupId: z.string().uuid() });
 
 interface TargetRow {
   membership_id: string;
-  group_id:      string;
-  member_code:   string;
+  group_id: string;
+  member_code: string;
   membership_no: string;
-  person_id:     string;
-  group_role:    string;
-  auth_version:  number;
-  group_code:    string;
-  group_name:    string;
-  group_status:  string;
-  officer_role:  string | null;
-  first_name:    string;
-  last_name:     string;
-  phone:         string;
-  email:         string | null;
+  person_id: string;
+  group_role: string;
+  auth_version: number;
+  group_code: string;
+  group_name: string;
+  group_status: string;
+  officer_role: string | null;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
   platform_role: string;
   session_version: number;
-  permissions:   string[];   // roles.permissions via gm.role_id (RBAC activation)
+  permissions: string[]; // roles.permissions via gm.role_id (RBAC activation)
 }
 
 /**
@@ -46,7 +51,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     try {
       const input = Schema.parse(await req.json());
       if (input.groupId === auth.groupId) {
-        return errorResponse('You are already in this group', 'SAME_GROUP', 400);
+        return errorResponse(
+          "You are already in this group",
+          "SAME_GROUP",
+          400,
+        );
       }
 
       const target = await withAdminDb(async (client) => {
@@ -75,31 +84,35 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       if (!target) {
         return errorResponse(
-          'You have no active membership in that group.',
-          'NO_ACTIVE_GROUP',
+          "You have no active membership in that group.",
+          "NO_ACTIVE_GROUP",
           403,
         );
       }
 
-      const effectiveRole = target.platform_role === 'super_admin'
-        ? 'super_admin'
-        : target.group_role;
+      const effectiveRole =
+        target.platform_role === "super_admin"
+          ? "super_admin"
+          : target.group_role;
 
       const accessToken = signAccessToken({
-        sub:            auth.userId,
-        groupId:        target.group_id,
-        role:           effectiveRole as never,
-        personId:       target.person_id,
-        groupStatus:    target.group_status,
-        membershipId:   target.membership_id,
-        membershipNo:   target.membership_no,
-        authVersion:    target.auth_version,
+        sub: auth.userId,
+        groupId: target.group_id,
+        role: effectiveRole as never,
+        personId: target.person_id,
+        groupStatus: target.group_status,
+        membershipId: target.membership_id,
+        membershipNo: target.membership_no,
+        authVersion: target.auth_version,
         sessionVersion: target.session_version,
-        permissions:    target.permissions,
+        permissions: target.permissions,
       });
 
       const { token: refreshToken } = signRefreshToken(
-        auth.userId, 'tenant', target.group_id, target.session_version,
+        auth.userId,
+        "tenant",
+        target.group_id,
+        target.session_version,
       );
       const rtHash = hashToken(refreshToken);
       await withAdminDb((client) =>
@@ -107,32 +120,39 @@ export async function POST(req: NextRequest): Promise<Response> {
           `INSERT INTO refresh_tokens
              (member_id, token_hash, expires_at, ip_address, lineage_id, membership_id)
            VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(), $5)`,
-          [auth.userId, rtHash, refreshTtlSeconds(),
-           req.headers.get('x-forwarded-for') ?? null, target.membership_id],
+          [
+            auth.userId,
+            rtHash,
+            refreshTtlSeconds(),
+            req.headers.get("x-forwarded-for") ?? null,
+            target.membership_id,
+          ],
         ),
       );
-      await storeRefreshToken(rtHash, auth.userId, refreshTtlSeconds()).catch(() => {});
+      await storeRefreshToken(rtHash, auth.userId, refreshTtlSeconds()).catch(
+        () => {},
+      );
 
       const response: LoginResponse = {
         accessToken,
         refreshToken,
         member: {
-          id:           auth.userId,
-          firstName:    target.first_name,
-          lastName:     target.last_name,
-          phone:        target.phone,
-          email:        target.email,
+          id: auth.userId,
+          firstName: target.first_name,
+          lastName: target.last_name,
+          phone: target.phone,
+          email: target.email,
           platformRole: target.platform_role as never,
-          groupRole:    target.group_role as never,
-          groupId:      target.group_id,
-          groupName:    target.group_name,
-          groupCode:    target.group_code,
-          memberCode:   target.member_code,
+          groupRole: target.group_role as never,
+          groupId: target.group_id,
+          groupName: target.group_name,
+          groupCode: target.group_code,
+          memberCode: target.member_code,
           membershipNo: target.membership_no,
-          personId:     target.person_id,
-          officerRole:  target.officer_role ?? undefined,
-          groupStatus:  target.group_status,
-          permissions:  target.permissions,
+          personId: target.person_id,
+          officerRole: target.officer_role ?? undefined,
+          groupStatus: target.group_status,
+          permissions: target.permissions,
         },
       };
       return ok(response);

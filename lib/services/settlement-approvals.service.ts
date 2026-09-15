@@ -17,20 +17,23 @@
  * approve() — the one existing precedent for this exact rule in this
  * codebase.
  */
-import type { PoolClient } from 'pg';
-import type { TenantContext } from '@/lib/db';
-import { ForbiddenError } from '@/lib/utils/errors';
+import type { PoolClient } from "pg";
+import type { TenantContext } from "@/lib/db";
+import { ForbiddenError } from "@/lib/utils/errors";
 
-export type SettlementSubjectType = 'bank_account' | 'settlement' | 'vendor_payment';
-export type SettlementDecision    = 'approved' | 'rejected';
+export type SettlementSubjectType =
+  | "bank_account"
+  | "settlement"
+  | "vendor_payment";
+export type SettlementDecision = "approved" | "rejected";
 
 export interface RecordApprovalInput {
   subjectType: SettlementSubjectType;
-  subjectId:   string;
+  subjectId: string;
   /** The row's own creator/requester — checked against ctx.userId. */
   initiatedBy: string;
-  decision:    SettlementDecision;
-  reason?:     string;
+  decision: SettlementDecision;
+  reason?: string;
 }
 
 /**
@@ -41,19 +44,26 @@ export interface RecordApprovalInput {
  * two checks (row still pending, decision recorded) are atomic together.
  */
 export async function recordApproval(
-  db:   PoolClient,
-  ctx:  TenantContext,
+  db: PoolClient,
+  ctx: TenantContext,
   args: RecordApprovalInput,
 ): Promise<void> {
   if (args.initiatedBy === ctx.userId) {
     throw new ForbiddenError(
-      `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,
+      `Maker-checker: the initiator cannot ${args.decision === "approved" ? "approve" : "reject"} their own request`,
     );
   }
   await db.query(
     `INSERT INTO settlement_approvals
        (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason)
      VALUES ($1,$2,$3,$4,'officer',$5,$6)`,
-    [args.subjectType, args.subjectId, ctx.groupId, ctx.userId, args.decision, args.reason ?? null],
+    [
+      args.subjectType,
+      args.subjectId,
+      ctx.groupId,
+      ctx.userId,
+      args.decision,
+      args.reason ?? null,
+    ],
   );
 }

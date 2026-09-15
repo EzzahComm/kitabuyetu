@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
-import { AppError } from './errors';
-import { logger } from '@/lib/logger';
-import type { ApiSuccess, ApiError } from '@/types/api.types';
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+import { AppError } from "./errors";
+import { logger } from "@/lib/logger";
+import type { ApiSuccess, ApiError } from "@/types/api.types";
 
 export function ok<T>(data: T, status = 200): NextResponse<ApiSuccess<T>> {
   return NextResponse.json({ success: true, data }, { status });
@@ -21,15 +21,18 @@ export function errorResponse(
   code: string,
   status = 400,
 ): NextResponse<ApiError> {
-  return NextResponse.json({ success: false, error: message, code }, { status });
+  return NextResponse.json(
+    { success: false, error: message, code },
+    { status },
+  );
 }
 
-export function badRequest(message = 'Bad request'): NextResponse<ApiError> {
-  return errorResponse(message, 'BAD_REQUEST', 400);
+export function badRequest(message = "Bad request"): NextResponse<ApiError> {
+  return errorResponse(message, "BAD_REQUEST", 400);
 }
 
-export function notFound(message = 'Not found'): NextResponse<ApiError> {
-  return errorResponse(message, 'NOT_FOUND', 404);
+export function notFound(message = "Not found"): NextResponse<ApiError> {
+  return errorResponse(message, "NOT_FOUND", 404);
 }
 
 export function handleError(err: unknown): NextResponse<ApiError> {
@@ -38,28 +41,38 @@ export function handleError(err: unknown): NextResponse<ApiError> {
   }
 
   if (err instanceof ZodError) {
-    const message = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
-    return errorResponse(message, 'VALIDATION_ERROR', 422);
+    const message = err.errors
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join("; ");
+    return errorResponse(message, "VALIDATION_ERROR", 422);
   }
 
   // PostgreSQL unique violation
   if (
     err instanceof Error &&
-    'code' in err &&
-    (err as NodeJS.ErrnoException).code === '23505'
+    "code" in err &&
+    (err as NodeJS.ErrnoException).code === "23505"
   ) {
-    return errorResponse('A record with these details already exists', 'DUPLICATE', 409);
+    return errorResponse(
+      "A record with these details already exists",
+      "DUPLICATE",
+      409,
+    );
   }
 
   // PostgreSQL foreign key violation
   if (
     err instanceof Error &&
-    'code' in err &&
-    (err as NodeJS.ErrnoException).code === '23503'
+    "code" in err &&
+    (err as NodeJS.ErrnoException).code === "23503"
   ) {
-    return errorResponse('Referenced record does not exist', 'FOREIGN_KEY', 400);
+    return errorResponse(
+      "Referenced record does not exist",
+      "FOREIGN_KEY",
+      400,
+    );
   }
 
-  logger.error('[unhandled error]', err);
-  return errorResponse('An unexpected error occurred', 'INTERNAL_ERROR', 500);
+  logger.error("[unhandled error]", err);
+  return errorResponse("An unexpected error occurred", "INTERNAL_ERROR", 500);
 }

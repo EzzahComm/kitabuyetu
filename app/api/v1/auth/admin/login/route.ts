@@ -28,35 +28,45 @@
  * and enforced via SURFACE_ALLOWED_ROLES. One MFA/token pipeline either way;
  * only the pre-check of which platform_role is allowed on which page differs.
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { NextRequest } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { withAdminDb } from '@/lib/db';
-import { env } from '@/lib/env';
-import { signMfaChallenge } from '@/lib/auth/jwt';
+import { NextRequest } from "next/server";
+import bcrypt from "bcryptjs";
+import { withAdminDb } from "@/lib/db";
+import { env } from "@/lib/env";
+import { signMfaChallenge } from "@/lib/auth/jwt";
 import {
-  generateTotpSecret, buildOtpAuthQrCode,
+  generateTotpSecret,
+  buildOtpAuthQrCode,
   generateRecoveryCodes,
-} from '@/lib/auth/mfa';
+} from "@/lib/auth/mfa";
 import {
-  incrementLoginAttempts, clearLoginAttempts,
-  isAccountLocked, lockAccount,
-} from '@/lib/redis';
-import { AdminLoginSchema } from '@/lib/validators/auth.schema';
-import { ok, handleError, errorResponse } from '@/lib/utils/response';
+  incrementLoginAttempts,
+  clearLoginAttempts,
+  isAccountLocked,
+  lockAccount,
+} from "@/lib/redis";
+import { AdminLoginSchema } from "@/lib/validators/auth.schema";
+import { ok, handleError, errorResponse } from "@/lib/utils/response";
 import type {
-  AdminLoginEnrollmentChallenge, AdminLoginMfaChallenge, AdminLoginResult,
-} from '@/types/api.types';
+  AdminLoginEnrollmentChallenge,
+  AdminLoginMfaChallenge,
+  AdminLoginResult,
+} from "@/types/api.types";
 
 // OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
 // identical comment; this used to disagree with the validated schema default.
-const MAX_ATTEMPTS    = env.MAX_LOGIN_ATTEMPTS;
+const MAX_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
 const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 
-const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
+const DECOY_HASH =
+  "$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG";
 
-const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as const;
+const PLATFORM_ROLES = [
+  "super_admin",
+  "support",
+  "organization_coordinator",
+] as const;
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 
 // Two login surfaces, one shared MFA/token pipeline (see route doc comment
@@ -64,24 +74,27 @@ type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 // needs access to both /admin (backoffice) and /enterprise (as an override).
 // organization_coordinator is /enterprise/login-only; support is
 // /admin-login-only.
-const SURFACE_ALLOWED_ROLES: Record<'platform' | 'organization', readonly AdminPlatformRole[]> = {
-  platform:     ['super_admin', 'support'],
-  organization: ['super_admin', 'organization_coordinator'],
+const SURFACE_ALLOWED_ROLES: Record<
+  "platform" | "organization",
+  readonly AdminPlatformRole[]
+> = {
+  platform: ["super_admin", "support"],
+  organization: ["super_admin", "organization_coordinator"],
 };
 
 interface AdminMemberRow {
-  id:            string;
+  id: string;
   password_hash: string;
-  first_name:    string;
-  last_name:     string;
-  email:         string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
   platform_role: string;
-  is_active:     boolean;
+  is_active: boolean;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
   try {
-    const body  = await req.json();
+    const body = await req.json();
     const input = AdminLoginSchema.parse(body);
     const email = input.email.trim().toLowerCase();
 
@@ -89,7 +102,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (await isAccountLocked(lockKey)) {
       return errorResponse(
         `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`,
-        'ACCOUNT_LOCKED', 429,
+        "ACCOUNT_LOCKED",
+        429,
       );
     }
 
@@ -104,16 +118,18 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
       const member = rows[0];
       const hashToVerify = member?.password_hash ?? DECOY_HASH;
-      const passwordOk   = await bcrypt.compare(input.password, hashToVerify);
+      const passwordOk = await bcrypt.compare(input.password, hashToVerify);
 
       // Collapse "member missing / deactivated / wrong password / not a
       // platform role" into a single ambiguous failure so an attacker
       // can't enumerate emails or platform-role assignments.
-      if (!member
-          || !member.is_active
-          || !passwordOk
-          || !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)) {
-        return { kind: 'invalid' as const };
+      if (
+        !member ||
+        !member.is_active ||
+        !passwordOk ||
+        !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)
+      ) {
+        return { kind: "invalid" as const };
       }
 
       // Right password, real staff account — just the wrong surface
@@ -123,8 +139,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       // (nothing is revealed without already knowing the password), and
       // it's the whole point of having two surfaces — send them to the
       // right one instead of a confusing false "wrong password".
-      if (!SURFACE_ALLOWED_ROLES[input.surface].includes(member.platform_role as AdminPlatformRole)) {
-        return { kind: 'wrongSurface' as const };
+      if (
+        !SURFACE_ALLOWED_ROLES[input.surface].includes(
+          member.platform_role as AdminPlatformRole,
+        )
+      ) {
+        return { kind: "wrongSurface" as const };
       }
 
       // Look up existing MFA enrollment, if any.
@@ -133,23 +153,29 @@ export async function POST(req: NextRequest): Promise<Response> {
         [member.id],
       );
       const enrolled = mfa.length > 0;
-      return { kind: 'ok' as const, member, enrolled };
+      return { kind: "ok" as const, member, enrolled };
     });
 
-    if (result.kind === 'invalid') {
+    if (result.kind === "invalid") {
       const attempts = await incrementLoginAttempts(lockKey);
       if (attempts >= MAX_ATTEMPTS) {
         await lockAccount(lockKey, LOCKOUT_MINUTES);
       }
-      return errorResponse('Invalid email or password', 'INVALID_CREDENTIALS', 401);
+      return errorResponse(
+        "Invalid email or password",
+        "INVALID_CREDENTIALS",
+        401,
+      );
     }
 
-    if (result.kind === 'wrongSurface') {
+    if (result.kind === "wrongSurface") {
       // Not a guessing attempt — don't burn lockout budget on it.
-      const otherPage = input.surface === 'organization' ? '/admin-login' : '/enterprise/login';
+      const otherPage =
+        input.surface === "organization" ? "/admin-login" : "/enterprise/login";
       return errorResponse(
         `This account isn't valid on this sign-in page. Try signing in at ${otherPage}.`,
-        'WRONG_LOGIN_SURFACE', 403,
+        "WRONG_LOGIN_SURFACE",
+        403,
       );
     }
 
@@ -161,22 +187,25 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     if (enrolled) {
       // Step-1 done. UI prompts for a TOTP / recovery code next.
-      const challenge = signMfaChallenge({ sub: member.id, kind: 'verify' });
-      const response: AdminLoginMfaChallenge = { needsMfaCode: true, challenge };
+      const challenge = signMfaChallenge({ sub: member.id, kind: "verify" });
+      const response: AdminLoginMfaChallenge = {
+        needsMfaCode: true,
+        challenge,
+      };
       return ok<AdminLoginResult>(response);
     }
 
     // First-time enrollment: generate secret + QR + recovery codes. The
     // plaintext secret rides inside the signed challenge JWT so the verify
     // endpoint can persist it after the code confirms.
-    const secret        = generateTotpSecret();
-    const accountLabel  = member.email ?? email;
+    const secret = generateTotpSecret();
+    const accountLabel = member.email ?? email;
     const qrCodeDataUrl = await buildOtpAuthQrCode(accountLabel, secret);
     const recoveryCodes = generateRecoveryCodes();
 
     const challenge = signMfaChallenge({
-      sub:    member.id,
-      kind:   'enrollment',
+      sub: member.id,
+      kind: "enrollment",
       secret,
     });
 

@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withPlatformRole } from '@/lib/auth/middleware';
-import { addOrganizationSmsCredits } from '@/lib/services/billing.service';
-import { TopUpSmsCreditsSchema } from '@/lib/validators/organization.schema';
-import { ok, badRequest } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPlatformRole } from "@/lib/auth/middleware";
+import { addOrganizationSmsCredits } from "@/lib/services/billing.service";
+import { TopUpSmsCreditsSchema } from "@/lib/validators/organization.schema";
+import { ok, badRequest } from "@/lib/utils/response";
 
 /**
  * POST /api/admin/organizations/[id]/sms-credits — super_admin grants/corrects
@@ -13,19 +13,24 @@ import { ok, badRequest } from '@/lib/utils/response';
  * (app/api/admin/organization/sms-credits/route.ts) — the org id comes from
  * the URL path here instead of the caller's own auth context.
  */
-export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, 'super_admin', async (auth) => {
+export function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return withPlatformRole(req, "super_admin", async (auth) => {
     const { id } = await params;
     const parsed = TopUpSmsCreditsSchema.safeParse(await req.json());
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
     const result = await addOrganizationSmsCredits(
-      id, parsed.data.amountKes, auth.userId,
+      id,
+      parsed.data.amountKes,
+      auth.userId,
       { reference: parsed.data.reference, notes: parsed.data.notes },
     );
     // See the organization-scoped sibling route: null is a swallowed duplicate
     // payment, unreachable for a manual top-up but never reported as success.
-    if (!result) return badRequest('This payment has already been credited');
+    if (!result) return badRequest("This payment has already been credited");
     return ok(result, 201);
   });
 }

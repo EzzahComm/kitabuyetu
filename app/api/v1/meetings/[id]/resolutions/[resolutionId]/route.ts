@@ -1,8 +1,11 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
-import { meetingsService, UpdateResolutionSchema } from '@/lib/services/meetings.service';
-import { ok } from '@/lib/utils/response';
+export const dynamic = "force-dynamic";
+import { NextRequest } from "next/server";
+import { withPermission } from "@/lib/auth/middleware";
+import {
+  meetingsService,
+  UpdateResolutionSchema,
+} from "@/lib/services/meetings.service";
+import { ok } from "@/lib/utils/response";
 
 type Params = { params: Promise<{ id: string; resolutionId: string }> };
 
@@ -14,12 +17,17 @@ type Params = { params: Promise<{ id: string; resolutionId: string }> };
  * AND group, so a resolution id belonging to another meeting or another
  * tenant is not reachable here.
  */
-export async function PATCH(req: NextRequest, { params }: Params): Promise<Response> {
+export async function PATCH(
+  req: NextRequest,
+  { params }: Params,
+): Promise<Response> {
   const { id, resolutionId } = await params;
-  return withPermission(req, 'meetings.manage', async (auth) => {
-    const body  = await req.json();
+  return withPermission(req, "meetings.manage", async (auth) => {
+    const body = await req.json();
     const input = UpdateResolutionSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    return ok(await meetingsService.updateResolution(ctx, id, resolutionId, input));
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    return ok(
+      await meetingsService.updateResolution(ctx, id, resolutionId, input),
+    );
   });
 }

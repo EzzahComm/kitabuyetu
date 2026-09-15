@@ -20,7 +20,7 @@
  * Cross-instance visibility belongs to alerting, not to this — see the
  * provider-health signal recorded by the sms.service dispatch paths.
  */
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 
 /** Consecutive failures before the circuit opens. */
 const FAILURE_THRESHOLD = 5;
@@ -28,12 +28,12 @@ const FAILURE_THRESHOLD = 5;
 /** How long the circuit stays open before a single probe is allowed through. */
 const OPEN_DURATION_MS = 60_000;
 
-type State = 'closed' | 'open' | 'half_open';
+type State = "closed" | "open" | "half_open";
 
 interface Circuit {
-  state:            State;
+  state: State;
   consecutiveFails: number;
-  openedAt:         number | null;
+  openedAt: number | null;
 }
 
 const circuits = new Map<string, Circuit>();
@@ -41,7 +41,7 @@ const circuits = new Map<string, Circuit>();
 function get(name: string): Circuit {
   let c = circuits.get(name);
   if (!c) {
-    c = { state: 'closed', consecutiveFails: 0, openedAt: null };
+    c = { state: "closed", consecutiveFails: 0, openedAt: null };
     circuits.set(name, c);
   }
   return c;
@@ -55,26 +55,33 @@ function get(name: string): Circuit {
  */
 export function canAttempt(name: string): boolean {
   const c = get(name);
-  if (c.state === 'closed') return true;
+  if (c.state === "closed") return true;
 
-  if (c.state === 'open' && c.openedAt !== null && Date.now() - c.openedAt >= OPEN_DURATION_MS) {
-    c.state = 'half_open';
-    logger.info('[sms-breaker] probing provider after cool-down', { provider: name });
+  if (
+    c.state === "open" &&
+    c.openedAt !== null &&
+    Date.now() - c.openedAt >= OPEN_DURATION_MS
+  ) {
+    c.state = "half_open";
+    logger.info("[sms-breaker] probing provider after cool-down", {
+      provider: name,
+    });
     return true;
   }
 
   // Still open, or a probe is already in flight.
-  return c.state === 'half_open' ? false : false;
+  return c.state === "half_open" ? false : false;
 }
 
 export function recordSuccess(name: string): void {
   const c = get(name);
-  if (c.state !== 'closed') {
-    logger.info('[sms-breaker] provider recovered, circuit closed', {
-      provider: name, afterFailures: c.consecutiveFails,
+  if (c.state !== "closed") {
+    logger.info("[sms-breaker] provider recovered, circuit closed", {
+      provider: name,
+      afterFailures: c.consecutiveFails,
     });
   }
-  c.state = 'closed';
+  c.state = "closed";
   c.consecutiveFails = 0;
   c.openedAt = null;
 }
@@ -85,14 +92,15 @@ export function recordFailure(name: string): void {
 
   // A failed probe re-opens immediately: one success is the only thing that
   // earns a closed circuit back.
-  if (c.state === 'half_open' || c.consecutiveFails >= FAILURE_THRESHOLD) {
-    if (c.state !== 'open') {
-      logger.error('[sms-breaker] provider circuit OPEN — failing fast', {
-        provider: name, consecutiveFails: c.consecutiveFails,
+  if (c.state === "half_open" || c.consecutiveFails >= FAILURE_THRESHOLD) {
+    if (c.state !== "open") {
+      logger.error("[sms-breaker] provider circuit OPEN — failing fast", {
+        provider: name,
+        consecutiveFails: c.consecutiveFails,
         reopenAfterMs: OPEN_DURATION_MS,
       });
     }
-    c.state = 'open';
+    c.state = "open";
     c.openedAt = Date.now();
   }
 }

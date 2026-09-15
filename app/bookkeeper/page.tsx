@@ -73,7 +73,8 @@ export default function BookkeeperPage() {
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-brand-blue-900/65">
               Move from notebooks and spreadsheets to a double-entry record for
-              members, contributions, savings, loans, welfare, shares and M-Pesa.
+              members, contributions, savings, loans, welfare, shares and
+              M-Pesa.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <Link
@@ -96,7 +97,8 @@ export default function BookkeeperPage() {
           preTitle="Features"
           title="Everything for managing a group's finances"
         >
-          A complete system for members, money, contributions, loans and reporting.
+          A complete system for members, money, contributions, loans and
+          reporting.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -107,7 +109,9 @@ export default function BookkeeperPage() {
                 className="rounded-lg border border-brand-blue-900/10 bg-paper-deep p-6"
               >
                 <div className="flex items-start gap-4">
-                  <div className="mt-0.5 shrink-0 text-brand-600">{feature.icon}</div>
+                  <div className="mt-0.5 shrink-0 text-brand-600">
+                    {feature.icon}
+                  </div>
                   <div>
                     <h3 className="mb-2 text-xl font-semibold text-brand-blue-900">
                       {feature.title}
@@ -155,11 +159,15 @@ export default function BookkeeperPage() {
                     {plan.price}
                   </p>
                   {plan.period && (
-                    <p className="mt-1 text-sm text-brand-blue-900/55">{plan.period}</p>
+                    <p className="mt-1 text-sm text-brand-blue-900/55">
+                      {plan.period}
+                    </p>
                   )}
                 </div>
 
-                <p className="mb-6 text-sm text-brand-blue-900/65">{plan.sms}</p>
+                <p className="mb-6 text-sm text-brand-blue-900/65">
+                  {plan.sms}
+                </p>
 
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
@@ -192,7 +200,10 @@ export default function BookkeeperPage() {
           </div>
           <p className="mt-6 text-center text-sm text-brand-blue-900/55">
             Every plan is paid and bought self-service by M-Pesa. See{" "}
-            <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
+            <Link
+              href="/pricing"
+              className="font-medium text-brand-700 hover:underline"
+            >
               full pricing
             </Link>{" "}
             for both products side by side.
@@ -224,7 +235,11 @@ export default function BookkeeperPage() {
         <Container className="mb-20">
           <div className="rounded-2xl bg-brand-blue-900 p-8 text-white md:p-12">
             <div className="mx-auto max-w-2xl text-center">
-              <IconPhone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
+              <IconPhone
+                size={48}
+                aria-hidden="true"
+                className="mx-auto mb-4 text-brand-400"
+              />
               <h2 className="mb-4 font-display text-3xl font-light tracking-tight">
                 Built for M-Pesa
               </h2>
@@ -234,7 +249,9 @@ export default function BookkeeperPage() {
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-3">
                 <div>
-                  <p className="mb-2 font-semibold text-brand-400">Collections</p>
+                  <p className="mb-2 font-semibold text-brand-400">
+                    Collections
+                  </p>
                   <p className="text-sm text-white/65">
                     PayBill and STK push to member phones
                   </p>
@@ -261,7 +278,10 @@ export default function BookkeeperPage() {
           subtitle="Bring your members, money and records together."
           note="Not sure where to start? Tell us about your group and we'll recommend the right plan."
           footnote="No lock-in period · Pay by M-Pesa · Built for Kenyan groups"
-          primary={{ text: "Get started with Bookkeeper", href: signUpUrl("kitabu_yetu") }}
+          primary={{
+            text: "Get started with Bookkeeper",
+            href: signUpUrl("kitabu_yetu"),
+          }}
           secondary={{ text: "Talk to us", href: "/contact" }}
         />
       </main>

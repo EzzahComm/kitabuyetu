@@ -88,7 +88,6 @@ export function Footer() {
               </div>
               <div>Nairobi, Kenya</div>
             </div>
-
           </div>
 
           <FooterColumn title="Products" items={products} />
