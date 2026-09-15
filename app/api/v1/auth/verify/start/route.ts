@@ -5,6 +5,8 @@ import { withAuth } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import { startGroupVerification } from '@/lib/services/group-verification.service';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
+import { checkRateLimit } from '@/lib/redis';
+import { logger } from '@/lib/logger';
 
 const Schema = z.object({ channel: z.enum(['email', 'sms']) });
 
@@ -28,6 +30,25 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
       const { channel } = Schema.parse(await req.json());
+
+      // No cap on this route was very likely the actual mechanism behind a
+      // live incident traced to lib/services/scheduler.service.ts's retry
+      // loop: with that loop now excluding group_verification_link entirely
+      // (it can never send a correct retry), the hundreds of daily sends to
+      // one real recipient turned out to be genuine, successful Resend
+      // deliveries from repeated calls to THIS route, not retries — nothing
+      // stopped an authenticated member from re-requesting unlimited
+      // verification emails for their own group (docs/audits/
+      // optimization-2026-09). 3 per 10 minutes matches OTP_TTL_MINUTES.
+      const rateLimitKey = `verify_start:${auth.groupId}`;
+      if (!(await checkRateLimit(rateLimitKey, 3, 600))) {
+        logger.warn('[verify/start] rate limited', { groupId: auth.groupId });
+        return errorResponse(
+          'Too many verification requests. Please wait a few minutes and try again.',
+          'RATE_LIMITED',
+          429,
+        );
+      }
 
       const row = await withAdminDb(async (client) => {
         const { rows } = await client.query<GroupMemberRow>(
