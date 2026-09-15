@@ -137,6 +137,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'organization_sms_allowance_grant':
       return handleOrganizationSmsAllowanceGrant();
 
+    case "cleanup_old_jobs":
+      return handleCleanupOldJobs();
+
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`Unknown job type: ${exhaustiveCheck}`);
@@ -480,6 +483,28 @@ async function handleCleanupExpiredTokens(): Promise<HandlerResult> {
     `DELETE FROM refresh_tokens WHERE expires_at < NOW()`,
   );
   return { message: 'Expired refresh tokens removed', deleted: rowCount ?? 0 };
+}
+
+/**
+ * Was a bare `await pruneOldJobs(30)` fired directly inside enqueueTimeBasedJobs,
+ * bypassing the safe()/dedup_key mechanism every other entry uses — so it ran
+ * on all 12 five-minute ticks of its hour instead of once (docs/audits/
+ * optimization-2026-09). Routing it through the job queue with a monthly
+ * dedup key fixes that, and also prunes job_logs, which has no retention of
+ * its own and grows unbounded (451k+ inserts observed, mostly content-free
+ * "started" rows).
+ */
+async function handleCleanupOldJobs(): Promise<HandlerResult> {
+  const { pruneOldJobs, pruneOldJobLogs } = await import("./db");
+  const [queueDeleted, logsDeleted] = await Promise.all([
+    pruneOldJobs(30),
+    pruneOldJobLogs(7),
+  ]);
+  return {
+    message: "Old job_queue and job_logs rows pruned",
+    queueDeleted,
+    logsDeleted,
+  };
 }
 
 // ── Notification handlers (E10.2) ─────────────────────────────

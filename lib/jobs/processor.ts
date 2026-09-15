@@ -12,20 +12,20 @@
  *   Jobs left in 'processing' for > 6 min are reset to 'pending'.
  *   This handles Vercel Hobby function timeouts (10 s limit).
  */
-import type { Job, JobType, ProcessResult } from './types';
-import { logger } from '@/lib/logger';
-import { setTickDeadline } from './deadline';
+import type { Job, JobType, ProcessResult } from "./types";
+import { logger } from "@/lib/logger";
+import { setTickDeadline } from "./deadline";
 import {
   claimPendingJobs,
-  getDistinctPendingTypes,
-  getQueueDepth,
+  getJobQueueSnapshot,
+  type JobQueueSnapshot,
   resetStuckJobs,
   markJobCompleted,
   markJobFailed,
   scheduleRetry,
   logJob,
-} from './db';
-import { handleJob } from './handlers';
+} from "./db";
+import { handleJob } from "./handlers";
 
 /**
  * Ceiling on jobs claimed per tick. Raised from 25 alongside TIME_BUDGET_MS
@@ -118,14 +118,18 @@ const MIN_JOB_BUDGET_MS = 10_000;
  * static priority ordering left it.
  */
 export async function processJobBatch(): Promise<ProcessResult> {
-  const result: ProcessResult = { processed: 0, succeeded: 0, failed: 0, retried: 0 };
+  const result: ProcessResult = {
+    processed: 0,
+    succeeded: 0,
+    failed: 0,
+    retried: 0,
+  };
   const startedAt = Date.now();
   // Publish this tick's deadline so long-running handlers can bound themselves
   // (lib/jobs/deadline.ts). Cleared in the finally below so a service called
   // outside the job runner never sees a stale one.
   setTickDeadline(startedAt + TIME_BUDGET_MS);
   try {
-
     // Reset any jobs stuck from a prior timeout before claiming new ones. A
     // timeout now counts as an attempt, so a job that never fits the function
     // budget eventually fails permanently instead of looping (and, for
@@ -136,13 +140,15 @@ export async function processJobBatch(): Promise<ProcessResult> {
     }
     if (failed > 0) {
       result.failed += failed;
-      logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
+      logger.error(
+        `[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`,
+      );
     }
 
-    await emitQueueDepth();
+    const snapshot = await getJobQueueSnapshot();
+    emitQueueDepth(snapshot);
 
-    const priorityOrderedTypes = await getDistinctPendingTypes();
-    const types = rotateStartingType(priorityOrderedTypes, startedAt);
+    const types = rotateStartingType(snapshot.priorityOrderedTypes, startedAt);
 
     outer: while (types.length > 0 && result.processed < BATCH_SIZE) {
       let claimedAnyThisRound = false;
@@ -150,7 +156,9 @@ export async function processJobBatch(): Promise<ProcessResult> {
       for (const type of types) {
         if (result.processed >= BATCH_SIZE) break outer;
         if (Date.now() - startedAt >= TIME_BUDGET_MS - MIN_JOB_BUDGET_MS) {
-          logger.warn(`[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`);
+          logger.warn(
+            `[jobs] Time budget reached after ${result.processed} job(s); leaving the rest for the next tick`,
+          );
           break outer;
         }
 
@@ -183,35 +191,38 @@ export async function processJobBatch(): Promise<ProcessResult> {
 const STARVATION_MINS = 60;
 
 /**
- * Emit this tick's queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4).
- *
- * Best-effort and never allowed to fail a tick: a metric that can stop the
- * work it measures is worse than no metric. Escalates to logger.error only
- * when a type is genuinely starving, so the line is a signal rather than
- * hourly noise — the whole reason the previous starvation went unnoticed is
- * that nothing distinguished "deep queue, draining fine" from "stuck".
+ * Log this tick's queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4)
+ * from a snapshot the caller already fetched (getJobQueueSnapshot) — this no
+ * longer runs its own query. Escalates to logger.error only when a type is
+ * genuinely starving, so the line is a signal rather than hourly noise — the
+ * whole reason the previous starvation went unnoticed is that nothing
+ * distinguished "deep queue, draining fine" from "stuck". Wrapped so a bug
+ * in the summary/logging path itself can never fail the tick it's reporting
+ * on.
  */
-async function emitQueueDepth(): Promise<void> {
+function emitQueueDepth(depth: JobQueueSnapshot): void {
   try {
-    const depth = await getQueueDepth();
     if (depth.pending === 0) return;
 
-    const starving = depth.byType.filter((t) => t.oldestMins >= STARVATION_MINS);
+    const starving = depth.byType.filter(
+      (t) => t.oldestMins >= STARVATION_MINS,
+    );
     const summary = {
-      pending:           depth.pending,
+      pending: depth.pending,
       oldestPendingMins: depth.oldestPendingMins,
-      byType:            depth.byType.slice(0, 10),
+      byType: depth.byType.slice(0, 10),
     };
 
     if (starving.length > 0) {
-      logger.error('[jobs] queue STARVATION — job types not getting a turn', {
-        ...summary, starving,
+      logger.error("[jobs] queue STARVATION — job types not getting a turn", {
+        ...summary,
+        starving,
       });
     } else {
-      logger.info('[jobs] queue depth', summary);
+      logger.info("[jobs] queue depth", summary);
     }
   } catch (err) {
-    logger.warn('[jobs] queue-depth snapshot failed', {
+    logger.warn("[jobs] queue-depth logging failed", {
       err: err instanceof Error ? err.message : String(err),
     });
   }
@@ -232,48 +243,71 @@ function rotateStartingType(types: JobType[], now: number): JobType[] {
   return [...types.slice(offset), ...types.slice(0, offset)];
 }
 
-async function processSingleJob(job: Job, result: ProcessResult): Promise<void> {
+async function processSingleJob(
+  job: Job,
+  result: ProcessResult,
+): Promise<void> {
   const startedAt = Date.now();
 
-  await logJob(job.id, 'started', `Starting ${job.type} (attempt ${job.attempts + 1}/${job.max_attempts})`);
+  // Skip the 'started' row on a job's very first attempt — it carried no
+  // content beyond "a job started" (job_logs was 451,892 inserts, 52% of
+  // them this exact message, and zero application readers by id;
+  // docs/audits/optimization-2026-09). Kept for attempts > 0 deliberately:
+  // a dangling 'started' row with no terminal counterpart on a RETRY is
+  // exactly the signal that first caught the email_retry_failed poison-job
+  // incident, and that detector still needs it.
+  if (job.attempts > 0) {
+    await logJob(
+      job.id,
+      "started",
+      `Starting ${job.type} (attempt ${job.attempts + 1}/${job.max_attempts})`,
+    );
+  }
 
   try {
-      const handlerResult = await handleJob(job);
-      const durationMs = Date.now() - startedAt;
+    const handlerResult = await handleJob(job);
+    const durationMs = Date.now() - startedAt;
 
-      await markJobCompleted(job.id);
-      await logJob(job.id, 'completed', handlerResult.message, durationMs);
+    await markJobCompleted(job.id);
+    await logJob(job.id, "completed", handlerResult.message, durationMs);
 
-      result.succeeded++;
-    } catch (err) {
-      const durationMs = Date.now() - startedAt;
-      const error      = err instanceof Error ? err.message : String(err);
-      const newAttempts = job.attempts + 1;
+    result.succeeded++;
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const error = err instanceof Error ? err.message : String(err);
+    const newAttempts = job.attempts + 1;
 
-      if (newAttempts >= job.max_attempts) {
-        await markJobFailed(job.id, error);
-        await logJob(
-          job.id,
-          'failed',
-          `Permanently failed after ${newAttempts} attempt(s): ${error}`,
-          durationMs,
-        );
-        result.failed++;
+    if (newAttempts >= job.max_attempts) {
+      await markJobFailed(job.id, error);
+      await logJob(
+        job.id,
+        "failed",
+        `Permanently failed after ${newAttempts} attempt(s): ${error}`,
+        durationMs,
+      );
+      result.failed++;
 
-        logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, { jobId: job.id, type: job.type, error });
-      } else {
-        // Exponential backoff: 2^attempts * 60 seconds
-        const delaySecs = Math.pow(2, newAttempts) * 60;
-        await scheduleRetry(job.id, newAttempts, delaySecs, error);
-        await logJob(
-          job.id,
-          'retried',
-          `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`,
-          durationMs,
-        );
-        result.retried++;
+      logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, {
+        jobId: job.id,
+        type: job.type,
+        error,
+      });
+    } else {
+      // Exponential backoff: 2^attempts * 60 seconds
+      const delaySecs = Math.pow(2, newAttempts) * 60;
+      await scheduleRetry(job.id, newAttempts, delaySecs, error);
+      await logJob(
+        job.id,
+        "retried",
+        `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`,
+        durationMs,
+      );
+      result.retried++;
 
-        logger.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`, { jobId: job.id, type: job.type, delaySecs, error });
-    }
+      logger.warn(
+        `[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`,
+        { jobId: job.id, type: job.type, delaySecs, error },
+      );
     }
   }
+}
