@@ -16,6 +16,7 @@ export type {
 
 import { insertJob } from "./db";
 import type { JobType } from "./types";
+import { withAdminDb } from "@/lib/db";
 
 /**
  * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
@@ -76,11 +77,26 @@ export async function enqueueTimeBasedJobs(): Promise<
   // A CONSTANT dedup key makes the partial unique index on job_queue enforce
   // the real invariant (at most one non-terminal row per type), same fix
   // already applied to the SMS sweeps below.
-  queued.email_campaign_process = await safe(
-    "email_campaign_process",
-    {},
-    { priority: 5, dedup_key: "email_campaign_process" },
-  );
+  // Gated on real pending work existing, unlike every other type above and
+  // below: email_schedules (processDueSchedules' own source table) and
+  // email_campaign_recipients have held zero rows for as long as this
+  // feature has existed in production (docs/audits/optimization-2026-09) —
+  // both handlers still ran unconditionally every 5 minutes regardless,
+  // which is pure wasted work (a full SELECT/UPDATE against permanently
+  // empty tables, 288 times/day, forever). Genuinely dropping the enqueue
+  // entirely was considered and rejected: both tables have a real INSERT
+  // path (email.service.ts, campaign.service.ts) that's simply never been
+  // exercised yet, not dead code — an existence check costs far less than
+  // the handler it guards and does the right thing the moment either
+  // feature is actually used, with zero risk of silently orphaning future
+  // work the way removing the enqueue outright would.
+  queued.email_campaign_process = (await hasDueEmailSchedule())
+    ? await safe(
+        "email_campaign_process",
+        {},
+        { priority: 5, dedup_key: "email_campaign_process" },
+      )
+    : null;
 
   queued.email_retry_failed = await safe(
     "email_retry_failed",
@@ -91,12 +107,15 @@ export async function enqueueTimeBasedJobs(): Promise<
   // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
   // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's
-  // lib/queue + lib/jobs merge).
-  queued.email_campaign_drain = await safe(
-    "email_campaign_drain",
-    {},
-    { priority: 5, dedup_key: "email_campaign_drain" },
-  );
+  // lib/queue + lib/jobs merge). Gated — see comment above
+  // email_campaign_process.
+  queued.email_campaign_drain = (await hasPendingCampaignRecipients())
+    ? await safe(
+        "email_campaign_drain",
+        {},
+        { priority: 5, dedup_key: "email_campaign_drain" },
+      )
+    : null;
 
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
   //
@@ -546,6 +565,39 @@ async function safe(
   opts?: Parameters<typeof insertJob>[2],
 ): Promise<string | null> {
   return insertJob(type, payload, opts).catch(() => null);
+}
+
+// Existence-check gates for the two campaign job types above — mirrors each
+// handler's own claim condition exactly (scheduler.service.ts's
+// processDueSchedules, campaign.service.ts's drainCampaignRecipients) so a
+// "yes" here always means the handler would find real work.
+async function hasDueEmailSchedule(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM email_schedules WHERE is_active = true AND next_run_at <= NOW() LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function hasPendingCampaignRecipients(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM email_campaign_recipients ecr
+         JOIN email_campaigns ec ON ec.id = ecr.campaign_id
+         WHERE ecr.status = 'pending' AND ec.status = 'sending'
+         LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 // ── Date helpers ──────────────────────────────────────────────
