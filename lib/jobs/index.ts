@@ -240,8 +240,20 @@ export async function enqueueTimeBasedJobs(): Promise<
     );
   }
 
+  // Every block below now carries `&& fiveMinBucket === 0`, matching the
+  // hourly block above. Without it, each ran on EVERY 5-minute tick of its
+  // target hour, not once: idx_job_queue_dedup's partial unique index only
+  // excludes non-terminal rows (`status <> ALL(['completed','failed'])`),
+  // so the moment a fast job completes (most of these do, well under 5
+  // minutes), its dedup_key falls out of the index and the next tick's
+  // enqueue call finds nothing blocking a fresh duplicate. Confirmed live:
+  // sms_birthday_reminders ran 7-8 times/day for 1 intended, mpesa_balance_
+  // snapshot (a real Daraja Account Balance call each time) 26 extra times
+  // over 7 days — a genuine external-API cost, not just DB churn
+  // (docs/audits/optimization-2026-09).
+
   // ── Daily 06:00 EAT — recurring invoices ──────────────────────
-  if (hour === 6) {
+  if (hour === 6 && fiveMinBucket === 0) {
     queued.email_recurring_invoices = await safe(
       "email_recurring_invoices",
       {},
@@ -264,7 +276,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // built as a global job like notify_loan_due_alerts rather than a
   // per-group schedule row, since "who gets messaged" varies by the day
   // (today's birthdays), not a fixed recipient list on a fixed cadence.
-  if (hour === 7) {
+  if (hour === 7 && fiveMinBucket === 0) {
     queued.email_birthday = await safe(
       "email_birthday",
       {},
@@ -284,7 +296,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
-  if (hour === 9) {
+  if (hour === 9 && fiveMinBucket === 0) {
     queued.email_overdue_invoices = await safe(
       "email_overdue_invoices",
       {},
@@ -296,7 +308,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Monday 08:00 EAT — weekly summaries ───────────────────────
-  if (day === 1 && hour === 8) {
+  if (day === 1 && hour === 8 && fiveMinBucket === 0) {
     queued.email_weekly_summary = await safe(
       "email_weekly_summary",
       {},
@@ -308,7 +320,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
-  if (hour === 2) {
+  if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(
       "cleanup_expired_tokens",
       {},
@@ -343,7 +355,7 @@ export async function enqueueTimeBasedJobs(): Promise<
 
   // ── Daily 03:00 EAT — M-Pesa charge backfill ──────
   // Catches B2C transactions that completed without an mpesa_charges row.
-  if (hour === 3) {
+  if (hour === 3 && fiveMinBucket === 0) {
     queued.mpesa_reconcile_charges = await safe(
       "mpesa_reconcile_charges",
       {},
@@ -357,7 +369,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 04:00 EAT — accounts.balance drift audit ─
   // Compares the denormalized balance column against journal_lines sums
   // and records any drift for finance review (detection only, no rewrite).
-  if (hour === 4) {
+  if (hour === 4 && fiveMinBucket === 0) {
     queued.accounting_balance_drift = await safe(
       "accounting_balance_drift",
       {},
@@ -369,7 +381,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 05:00 EAT — sub-account balance snapshot ─
-  if (hour === 5) {
+  if (hour === 5 && fiveMinBucket === 0) {
     queued.mpesa_balance_snapshot = await safe(
       "mpesa_balance_snapshot",
       {},
@@ -383,7 +395,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 06:00 EAT — GL-to-real-cash reconciliation ─
   // One hour after the balance snapshot trigger above, so its async Daraja
   // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
-  if (hour === 6) {
+  if (hour === 6 && fiveMinBucket === 0) {
     queued.gl_cash_reconciliation = await safe(
       "gl_cash_reconciliation",
       {},
@@ -395,7 +407,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 20:00 EAT — M-Pesa daily report email ───
-  if (hour === 20) {
+  if (hour === 20 && fiveMinBucket === 0) {
     queued.mpesa_daily_report = await safe(
       "mpesa_daily_report",
       {},
@@ -409,7 +421,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 06:00 EAT — loan-due alerts ─────────────
   // Members in Kenya are most likely to act on a reminder mid-morning;
   // 09:00 EAT lands their notification just before they head to work.
-  if (hour === 6) {
+  if (hour === 6 && fiveMinBucket === 0) {
     queued.notify_loan_due_alerts = await safe(
       "notify_loan_due_alerts",
       {},
@@ -437,7 +449,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // that day's first billed sends see a freshly-reset allowance rather than
   // the previous period's. Hour 1 remains otherwise unused across this file
   // (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
-  if (hour === 1) {
+  if (hour === 1 && fiveMinBucket === 0) {
     queued.sms_allowance_monthly_reset = await safe(
       "sms_allowance_monthly_reset",
       {},
@@ -461,7 +473,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── 1st of month 08:00 EAT — prune old jobs ───────────────────
-  if (date === 1 && hour === 8) {
+  if (date === 1 && hour === 8 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
 
     // Was a bare direct `await pruneOldJobs(30)` call, bypassing the
@@ -493,7 +505,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // Ensures monthly partitions exist 3 months ahead (ACCOUNTING_ARCHITECTURE_
   // AUDIT.md §17/§19, migrations 094/095). A distinct hour from the 08:00
   // and 10:00 buckets so nothing competes within the same tick.
-  if (date === 1 && hour === 9) {
+  if (date === 1 && hour === 9 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.journal_lines_partition_maintenance = await safe(
       "journal_lines_partition_maintenance",
@@ -508,7 +520,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── 1st of month 10:00 EAT — per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
-  if (date === 1 && hour === 10) {
+  if (date === 1 && hour === 10 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.email_member_statements = await safe(
       "email_member_statements",
@@ -524,7 +536,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
   // unused across this file, so this never competes with an existing
   // monthly/daily bucket within the same tick.
-  if (date === 1 && hour === 11) {
+  if (date === 1 && hour === 11 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.governance_compute_metrics = await safe(
       "governance_compute_metrics",
