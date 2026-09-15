@@ -153,6 +153,22 @@ const entitlements = new Map<string, CacheEntry>();
  */
 const MAX_CACHE_ENTRIES = 10_000;
 
+/**
+ * A negative (deny-path) cache was tried here and reverted. It seemed safe
+ * at an 8s TTL — an order of magnitude below CACHE_TTL_MS — but
+ * subscription-lock.test.ts's "unlocks the moment a subscription becomes
+ * active" test proved it wasn't: that test calls subscribeTestGroup()
+ * synchronously right after a 402 and expects the very next request to
+ * succeed, with ZERO staleness tolerance on the deny→grant transition. ANY
+ * positive TTL on a deny reintroduces exactly the "I paid and it's still
+ * broken" bug this file's whole design exists to prevent — there is no
+ * window short enough to be both "some real caching" and "compatible with
+ * an immediate re-check after paying." Every deny re-reads the database,
+ * on purpose, still (docs/audits/optimization-2026-09 finding #13's
+ * negative-cache recommendation does not hold for this codebase's actual
+ * correctness contract).
+ */
+
 function remember(groupId: string, products: ReadonlySet<SubscriptionProduct>): void {
   if (entitlements.size >= MAX_CACHE_ENTRIES) {
     const now = Date.now();

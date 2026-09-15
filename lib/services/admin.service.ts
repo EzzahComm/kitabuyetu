@@ -1316,15 +1316,26 @@ export async function getPlatformAnalytics() {
         ORDER BY month ASC
       `),
       db.query(`
-        SELECT g.id, g.name, g.type AS group_type,
-               COUNT(DISTINCT gm.id) AS members,
-               COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS contributions,
-               COALESCE(SUM(l.principal_amount) FILTER (WHERE l.status IN ('active','disbursed')), 0) AS loan_book
-        FROM public.groups g
-        LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.status = 'active'
-        LEFT JOIN public.contributions c ON c.group_id = g.id
-        LEFT JOIN public.loans l ON l.group_id = g.id
-        GROUP BY g.id
+        -- Correlated subqueries, not a 3-way LEFT JOIN + GROUP BY: joining
+        -- group_members/contributions/loans directly onto groups fans every
+        -- contribution row out across every loan row (and vice versa)
+        -- before the SUM runs. Same bug class already found and fixed in
+        -- admin-geography.service.ts's getCountyAggregation (proven live:
+        -- THE FIONA'S read a KES 32.1M loan book here vs a real KES 1.07M —
+        -- a 30x inflation, docs/audits/optimization-2026-09) — this is the
+        -- one surviving instance of that pattern.
+        WITH group_stats AS (
+          SELECT g.id, g.name, g.type AS group_type,
+            (SELECT COUNT(*) FROM public.group_members gm
+              WHERE gm.group_id = g.id AND gm.status = 'active') AS members,
+            (SELECT COALESCE(SUM(amount) FILTER (WHERE status = 'completed'), 0)
+               FROM public.contributions c WHERE c.group_id = g.id) AS contributions,
+            (SELECT COALESCE(SUM(principal_amount) FILTER (WHERE status IN ('active','disbursed')), 0)
+               FROM public.loans l WHERE l.group_id = g.id) AS loan_book
+          FROM public.groups g
+        )
+        SELECT id, name, group_type, members, contributions, loan_book
+        FROM group_stats
         ORDER BY contributions DESC
         LIMIT 10
       `),

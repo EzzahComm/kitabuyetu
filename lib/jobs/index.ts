@@ -238,6 +238,22 @@ export async function enqueueTimeBasedJobs(): Promise<
         dedup_key: `sms_provider_health:${dateStr}T${hour}`,
       },
     );
+
+    // Paybill sweep — detects completed inbound C2B transactions with no
+    // domain record. Had no scheduler at all until now: only reachable via
+    // a manual authenticated endpoint, and had run exactly once in the
+    // platform's lifetime (2026-07-29) — meanwhile mpesa_reconcile above
+    // (which finds nothing 98%+ of the time) ran every 5 minutes forever.
+    // Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so hourly
+    // carries no correctness risk (docs/audits/optimization-2026-09).
+    queued.mpesa_paybill_sweep = await safe(
+      "mpesa_paybill_sweep",
+      {},
+      {
+        priority: 8, // detecting lost inbound money, same tier as outbox_dispatch
+        dedup_key: `mpesa_paybill_sweep:${dateStr}T${hour}`,
+      },
+    );
   }
 
   // ── Daily 06:00 EAT — recurring invoices ──────────────────────

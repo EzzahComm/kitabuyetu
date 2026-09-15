@@ -1,4 +1,5 @@
 import { withAdminDb } from '@/lib/db';
+import { cached, keys } from '@/lib/redis';
 import { BRAND, getBrandLogoUrl, brandFooterLine } from '@/lib/brand';
 
 export interface TemplateVars {
@@ -21,67 +22,84 @@ export function interpolate(template: string, vars: TemplateVars): string {
   });
 }
 
-// Load a template from DB, with optional locale fallback to 'en'
+// Load a template from DB, with optional locale fallback to 'en'. Cached
+// 5 minutes: email_templates has held zero rows in production the entire
+// time this has existed, yet this ran ~24,500 times in 121 days — every
+// templated send opened its own connection/BEGIN/COMMIT to ask the same
+// permanently-empty table the same question. The negative (null) result is
+// cached too — DEFAULT_TEMPLATES already supplies the fallback the caller
+// needs either way, so "not found" is a perfectly stable, cacheable answer
+// (docs/audits/optimization-2026-09).
 export async function loadDbTemplate(
   templateKey: string,
   groupId: string | null,
   locale = 'en',
 ): Promise<{ subject: string; body: string } | null> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(
-      `SELECT subject, body FROM email_templates
-       WHERE template_key=$1
-         AND (group_id=$2 OR group_id IS NULL)
-         AND locale=$3
-         AND is_active=true
-       ORDER BY group_id NULLS LAST
-       LIMIT 1`,
-      [templateKey, groupId, locale],
-    ),
+  return cached(
+    keys.cache('email-template', `${templateKey}:${groupId ?? ''}:${locale}`),
+    300,
+    async () => {
+      const { rows } = await withAdminDb((db) =>
+        db.query(
+          `SELECT subject, body FROM email_templates
+           WHERE template_key=$1
+             AND (group_id=$2 OR group_id IS NULL)
+             AND locale=$3
+             AND is_active=true
+           ORDER BY group_id NULLS LAST
+           LIMIT 1`,
+          [templateKey, groupId, locale],
+        ),
+      );
+      if (rows.length) return { subject: rows[0].subject, body: rows[0].body };
+
+      // Fallback to 'en' if locale not found
+      if (locale !== 'en') {
+        const { rows: fallback } = await withAdminDb((db) =>
+          db.query(
+            `SELECT subject, body FROM email_templates
+             WHERE template_key=$1
+               AND (group_id=$2 OR group_id IS NULL)
+               AND locale='en'
+               AND is_active=true
+             ORDER BY group_id NULLS LAST
+             LIMIT 1`,
+            [templateKey, groupId],
+          ),
+        );
+        if (fallback.length) return { subject: fallback[0].subject, body: fallback[0].body };
+      }
+
+      return null;
+    },
   );
-  if (rows.length) return { subject: rows[0].subject, body: rows[0].body };
-
-  // Fallback to 'en' if locale not found
-  if (locale !== 'en') {
-    const { rows: fallback } = await withAdminDb((db) =>
-      db.query(
-        `SELECT subject, body FROM email_templates
-         WHERE template_key=$1
-           AND (group_id=$2 OR group_id IS NULL)
-           AND locale='en'
-           AND is_active=true
-         ORDER BY group_id NULLS LAST
-         LIMIT 1`,
-        [templateKey, groupId],
-      ),
-    );
-    if (fallback.length) return { subject: fallback[0].subject, body: fallback[0].body };
-  }
-
-  return null;
 }
 
-// Load group branding from DB
+// Load group branding from DB. Cached 5 minutes — group_email_branding has
+// held zero rows in production the entire time this has existed, yet this
+// ran ~24,400 times in 121 days for the same reason as loadDbTemplate above.
 export async function loadBranding(groupId: string | null): Promise<BrandingContext> {
   if (!groupId) return {};
-  try {
-    const { rows } = await withAdminDb((db) =>
-      db.query(
-        `SELECT sender_name, logo_url, primary_color, footer_text
-         FROM group_email_branding WHERE group_id=$1`,
-        [groupId],
-      ),
-    );
-    if (!rows.length) return {};
-    return {
-      senderName: rows[0].sender_name,
-      logoUrl: rows[0].logo_url,
-      primaryColor: rows[0].primary_color,
-      footerText: rows[0].footer_text,
-    };
-  } catch {
-    return {};
-  }
+  return cached(keys.cache('email-branding', groupId), 300, async () => {
+    try {
+      const { rows } = await withAdminDb((db) =>
+        db.query(
+          `SELECT sender_name, logo_url, primary_color, footer_text
+           FROM group_email_branding WHERE group_id=$1`,
+          [groupId],
+        ),
+      );
+      if (!rows.length) return {};
+      return {
+        senderName: rows[0].sender_name,
+        logoUrl: rows[0].logo_url,
+        primaryColor: rows[0].primary_color,
+        footerText: rows[0].footer_text,
+      };
+    } catch {
+      return {};
+    }
+  });
 }
 
 // Wrap body content in a branded HTML shell. Designed for email clients —
