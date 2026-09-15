@@ -135,11 +135,6 @@ const envObjectSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   // Format from Resend dashboard: whsec_<base64>. Used by svix HMAC verify.
   RESEND_WEBHOOK_SECRET: z.string().optional(),
-  SENDGRID_API_KEY: z.string().optional(),
-  // ECDSA P-256 public key from SendGrid Event Webhook settings.
-  // Either the raw base64 the dashboard shows, or the full PEM block —
-  // the verify helper accepts both.
-  SENDGRID_WEBHOOK_VERIFICATION_KEY: z.string().optional(),
 
   // ── Encryption ────────────────────────────────────────────────────────────
   ENCRYPTION_KEY: z
@@ -208,16 +203,12 @@ const envObjectSchema = z.object({
 
   // ── Email adapters (provider-specific — only the active EMAIL_PROVIDER's
   // vars need to actually be set; all optional here for the same reason the
-  // existing RESEND_API_KEY/SENDGRID_API_KEY entries above are optional) ────
+  // existing RESEND_API_KEY entry above is optional) ──────────────────────
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_SECURE: z.string().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
-  AWS_SES_REGION: z.string().default('us-east-1'),
-  MAILGUN_API_KEY: z.string().optional(),
-  MAILGUN_DOMAIN: z.string().optional(),
-  MAILGUN_REGION: z.string().default('us'),
   EMAIL_FROM_NAME: z.string().default('Kitabu Yetu'),
 
   // ── Public (client-exposed) ─────────────────────────────────────────────────

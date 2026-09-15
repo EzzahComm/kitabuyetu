@@ -436,10 +436,9 @@ async function settleOrgDisbursement(id: string): Promise<void> {
         [disb.group_id, disb.reference, `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`],
       );
       groupJournalId = je[0].id;
-      // entry_date is the journal_lines partition key — supplied directly as
-      // the same CURRENT_DATE literal used for the parent journal_entries row
-      // above (a BEFORE INSERT trigger deriving it after Postgres has already
-      // routed the row to a partition is unsupported).
+      // entry_date is supplied directly as the same CURRENT_DATE literal used
+      // for the parent journal_entries row above (matching
+      // accounting.service.ts's postSystemJournal convention).
       // net_disbursed_amount (migration 125), not the gross amount — the
       // group's own cash account must reflect what it actually received; a
       // processing fee never reaches the group.

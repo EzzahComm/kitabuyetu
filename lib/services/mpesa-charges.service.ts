@@ -102,10 +102,9 @@ export async function postStandaloneChargeJournal(
   );
   const jeId = jeRows[0].id;
 
-  // entry_date is the journal_lines partition key — supplied directly as the
-  // same CURRENT_DATE literal used for the parent journal_entries row above
-  // (a BEFORE INSERT trigger deriving it after Postgres has already routed
-  // the row to a partition is unsupported).
+  // entry_date is supplied directly as the same CURRENT_DATE literal used
+  // for the parent journal_entries row above (matching accounting.service.ts's
+  // postSystemJournal convention).
   await db.query(
     `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
      VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)`,

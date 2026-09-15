@@ -2,21 +2,20 @@ import type { IEmailAdapter, EmailPayload, EmailResult } from './adapters/types'
 import { logger } from '@/lib/logger';
 import { ResendAdapter } from './adapters/resend';
 import { SmtpAdapter } from './adapters/smtp';
-import { SendGridAdapter } from './adapters/sendgrid';
-import { SesAdapter } from './adapters/ses';
-import { MailgunAdapter } from './adapters/mailgun';
 import { withAdminDb } from '@/lib/db';
 import { env } from '@/lib/env';
 
 let _adapter: IEmailAdapter | null = null;
 
+// sendgrid/ses/mailgun adapters existed but were never selected in
+// production (EMAIL_PROVIDER has only ever been 'resend' or 'smtp' — see
+// docs/audits/optimization-2026-09/raw/dead-weight-and-structural-
+// duplication-a.json); deleted rather than carried. Restore from git if
+// multi-provider support is wanted again.
 function getAdapter(): IEmailAdapter {
   if (_adapter) return _adapter;
   const provider = process.env.EMAIL_PROVIDER ?? 'resend';
   switch (provider) {
-    case 'sendgrid': _adapter = new SendGridAdapter(); break;
-    case 'ses':      _adapter = new SesAdapter();      break;
-    case 'mailgun':  _adapter = new MailgunAdapter();  break;
     case 'smtp':     _adapter = new SmtpAdapter();     break;
     default:         _adapter = new ResendAdapter();   break;
   }
@@ -46,15 +45,6 @@ async function logDryRun(payload: EmailPayload): Promise<void> {
       ],
     ),
   ).catch(() => {});
-}
-
-export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
-  if (process.env.EMAIL_DRY_RUN === 'true') {
-    await logDryRun(payload);
-    logger.info('[email:dry_run]', payload.to, payload.subject);
-    return { success: true, provider: 'dry_run', dryRun: true };
-  }
-  return getAdapter().send(payload);
 }
 
 export async function sendEmailWithFallback(payload: EmailPayload): Promise<EmailResult> {

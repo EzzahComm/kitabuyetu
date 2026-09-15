@@ -143,10 +143,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   const isMpesaCallback =
     pathname.startsWith('/api/v1/mpesa/callback') ||
-    pathname.startsWith('/api/v1/mpesa/c2b') ||
     pathname.startsWith('/api/v1/mpesa/b2c') ||
     pathname.startsWith('/api/v1/mpesa/b2b') ||
-    pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths
+    pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths (registerC2BUrls
+                                               // only ever submits /api/v1/daraja/c2b-{confirm,validate}
+                                               // to Safaricom — /api/v1/mpesa/c2b, deleted, was never
+                                               // reachable by real traffic; docs/audits/optimization-2026-09)
 
   const ip = (
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
