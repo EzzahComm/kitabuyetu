@@ -14,6 +14,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Input } from '@/components/ui/input';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 import type { OrganizationMemberRow } from '@/lib/services/organization.service';
@@ -23,7 +24,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationMemberRow>>({
-    queryKey: ['enterprise', 'members', page, search],
+    queryKey: enterpriseKeys.members(page, search),
     queryFn:  () => organizationApi.members({ page, limit: 25, search: search || undefined }),
   });
 

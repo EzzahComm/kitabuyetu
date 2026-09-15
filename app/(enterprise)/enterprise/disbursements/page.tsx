@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useHasOrganizationPermission } from '@/lib/auth/use-permission';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { ApiError } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
@@ -73,23 +74,30 @@ export default function DisbursementsPage() {
   const [rejectReason, setRejectReason] = useState('');
 
   const { data: walletData } = useQuery({
-    queryKey: ['enterprise', 'wallet'],
+    queryKey: enterpriseKeys.wallet(),
     queryFn:  () => organizationApi.wallet(),
+    staleTime: 30_000,
   });
+  // { limit: 200 }, not the bare groups() call Portfolio/Branches use — a
+  // different params object, so it gets a different cache key rather than
+  // colliding with theirs (see enterpriseKeys.groups' header comment).
   const { data: groupsPage } = useQuery({
-    queryKey: ['enterprise', 'groups'],
+    queryKey: enterpriseKeys.groups({ limit: 200 }),
     queryFn:  () => organizationApi.groups({ limit: 200 }),
+    staleTime: 30_000,
   });
   const { data: programsData } = useQuery({
-    queryKey: ['enterprise', 'programs'],
+    queryKey: enterpriseKeys.programs(),
     queryFn:  () => organizationApi.programs(),
+    staleTime: 30_000,
   });
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<DisbursementRow>>({
-    queryKey: ['enterprise', 'disbursements', page],
+    queryKey: enterpriseKeys.disbursements({ page, limit: 20 }),
     queryFn:  async () => {
       const res = await organizationApi.disbursements({ page, limit: 20 });
       return { ...res, pageSize: res.limit ?? 20, totalPages: Math.max(1, Math.ceil(res.total / (res.limit ?? 20))) };
     },
+    staleTime: 30_000,
   });
 
   const groups = groupsPage?.items ?? [];
@@ -104,8 +112,8 @@ export default function DisbursementsPage() {
     : null;
   const availableBalance = walletData ? parseFloat(walletData.wallet.available_balance) : null;
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['enterprise', 'disbursements'] });
-  const refreshWallet = () => qc.invalidateQueries({ queryKey: ['enterprise', 'wallet'] });
+  const refresh = () => qc.invalidateQueries({ queryKey: enterpriseKeys.disbursements() });
+  const refreshWallet = () => qc.invalidateQueries({ queryKey: enterpriseKeys.wallet() });
 
   const resetForm = () => {
     setGroupId(''); setAmount(''); setDisbursementType('grant'); setFundingProgramId(''); setNotes('');

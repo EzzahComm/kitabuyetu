@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { ApiError } from '@/lib/api/client';
 
 const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -29,7 +30,7 @@ export default function BrandingPage() {
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['enterprise', 'branding'],
+    queryKey: enterpriseKeys.branding(),
     queryFn:  () => organizationApi.branding(),
   });
 
@@ -63,7 +64,7 @@ export default function BrandingPage() {
         primaryColor: primaryColor.trim() || null,
       });
       toast({ title: 'Branding updated' });
-      await qc.invalidateQueries({ queryKey: ['enterprise', 'branding'] });
+      await qc.invalidateQueries({ queryKey: enterpriseKeys.branding() });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Could not save branding', description: err instanceof ApiError ? err.message : '' });
     } finally {

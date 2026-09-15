@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
@@ -21,7 +22,7 @@ export default function BranchesPage() {
   const [region, setRegion] = React.useState<string>('all');
 
   const { data: groupsPage, isLoading } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
-    queryKey: ['enterprise', 'groups'],
+    queryKey: enterpriseKeys.groups(),
     queryFn:  () => organizationApi.groups(),
   });
 
