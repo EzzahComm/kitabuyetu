@@ -62,21 +62,70 @@ export async function listMyNotifications(
 }
 
 export async function markNotificationRead(ctx: TenantContext, id: string): Promise<void> {
-  await withTransaction(ctx, (client) =>
-    client.query(
+  await withTransaction(ctx, async (client) => {
+    // Fetch existing notification to capture old values
+    const { rows: existing } = await client.query<{ is_read: boolean }>(
+      `SELECT is_read FROM notifications WHERE id = $1 AND group_id = $2 AND member_id = $3`,
+      [id, ctx.groupId, ctx.userId],
+    );
+    if (!existing[0]) return; // Not found or unauthorized, silently skip
+
+    const prev = existing[0];
+
+    await client.query(
       `UPDATE notifications SET is_read = true, read_at = NOW()
        WHERE id = $1 AND group_id = $2 AND member_id = $3`,
       [id, ctx.groupId, ctx.userId],
-    ),
-  );
+    );
+
+    // Record audit log
+    if (!prev.is_read) { // Only audit if status actually changed
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'notification.read',
+          'notification',
+          id,
+          JSON.stringify({ is_read: false }),
+          JSON.stringify({ is_read: true }),
+        ],
+      );
+    }
+  });
 }
 
 export async function markAllNotificationsRead(ctx: TenantContext): Promise<void> {
-  await withTransaction(ctx, (client) =>
-    client.query(
+  await withTransaction(ctx, async (client) => {
+    // Fetch all unread notifications to log each transition
+    const { rows: unread } = await client.query<{ id: string }>(
+      `SELECT id FROM notifications WHERE group_id = $1 AND member_id = $2 AND is_read = false`,
+      [ctx.groupId, ctx.userId],
+    );
+
+    await client.query(
       `UPDATE notifications SET is_read = true, read_at = NOW()
        WHERE group_id = $1 AND member_id = $2 AND is_read = false`,
       [ctx.groupId, ctx.userId],
-    ),
-  );
+    );
+
+    // Record audit logs for each notification marked as read
+    for (const notification of unread) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'notification.read',
+          'notification',
+          notification.id,
+          JSON.stringify({ is_read: false }),
+          JSON.stringify({ is_read: true }),
+        ],
+      );
+    }
+  });
 }

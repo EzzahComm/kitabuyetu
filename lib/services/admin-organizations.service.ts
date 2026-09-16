@@ -211,7 +211,7 @@ export async function createOrganization(input: {
   email?: string;
   county?: string;
   address?: string;
-}) {
+}, userId?: string) {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query(`
       INSERT INTO public.organizations
@@ -227,17 +227,67 @@ export async function createOrganization(input: {
       input.county?.trim() || null,
       input.address?.trim() || null,
     ]);
-    await organizationAccountingService.seedDefaultAccountsInTx(db, rows[0].id);
-    return rows[0];
+    const org = rows[0];
+
+    // Record audit log for organization creation
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        userId ?? null,
+        'organization.create',
+        'organization',
+        org.id,
+        null,
+        JSON.stringify({
+          name: org.name,
+          type: org.type,
+          registration_number: input.registrationNumber ?? null,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          county: input.county ?? null,
+          is_active: true,
+        }),
+      ],
+    );
+
+    await organizationAccountingService.seedDefaultAccountsInTx(db, org.id);
+    return org;
   });
 }
 
-export async function setOrganizationActive(orgId: string, isActive: boolean) {
+export async function setOrganizationActive(orgId: string, isActive: boolean, userId?: string) {
   return withAdminDb(async (db: PoolClient) => {
+    // Fetch existing organization to capture old values
+    const { rows: existing } = await db.query<{ is_active: boolean }>(
+      `SELECT is_active FROM public.organizations WHERE id = $1`,
+      [orgId],
+    );
+    if (!existing[0]) return { success: false };
+
+    const prev = existing[0];
+
     await db.query(
       `UPDATE public.organizations SET is_active = $1 WHERE id = $2`,
       [isActive, orgId],
     );
+
+    // Record audit log for organization status change
+    if (prev.is_active !== isActive) {
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          userId ?? null,
+          'organization.status_changed',
+          'organization',
+          orgId,
+          JSON.stringify({ is_active: prev.is_active }),
+          JSON.stringify({ is_active: isActive }),
+        ],
+      );
+    }
+
     return { success: true };
   });
 }
@@ -251,6 +301,17 @@ export async function assignGroupToOrganization(
 ) {
   return withAdminDb(async (db: PoolClient) => {
     await assertLinkedGroupCap(db, orgId, groupId);
+
+    // Fetch existing access record to capture old values
+    const { rows: existing } = await db.query<{ id: string; is_active: boolean; access_level: string }>(
+      `SELECT id, is_active, access_level FROM public.organization_group_access
+       WHERE organization_id = $1 AND group_id = $2`,
+      [orgId, groupId],
+    );
+
+    const isNew = !existing[0];
+    const prev = existing[0];
+
     await db.query(`
       INSERT INTO public.organization_group_access
         (organization_id, group_id, access_level, granted_by, is_active)
@@ -263,6 +324,21 @@ export async function assignGroupToOrganization(
         revoked_at   = NULL,
         revoked_by   = NULL
     `, [orgId, groupId, accessLevel, grantedBy]);
+
+    // Record audit log for group assignment
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        grantedBy,
+        isNew ? 'organization_group_access.create' : 'organization_group_access.update',
+        'organization_group_access',
+        prev?.id ?? `${orgId}:${groupId}`,
+        isNew ? null : JSON.stringify({ is_active: prev.is_active, access_level: prev.access_level }),
+        JSON.stringify({ is_active: true, access_level: accessLevel }),
+      ],
+    );
+
     return { success: true };
   });
 }
@@ -271,11 +347,36 @@ export async function revokeGroupFromOrganization(
   orgId: string, groupId: string, revokedBy: string,
 ) {
   return withAdminDb(async (db: PoolClient) => {
+    // Fetch existing access record to capture old values
+    const { rows: existing } = await db.query<{ id: string; is_active: boolean }>(
+      `SELECT id, is_active FROM public.organization_group_access
+       WHERE organization_id = $1 AND group_id = $2 AND is_active`,
+      [orgId, groupId],
+    );
+    if (!existing[0]) return { success: false };
+
+    const prev = existing[0];
+
     await db.query(`
       UPDATE public.organization_group_access
       SET is_active = false, revoked_at = NOW(), revoked_by = $3
       WHERE organization_id = $1 AND group_id = $2 AND is_active
     `, [orgId, groupId, revokedBy]);
+
+    // Record audit log for group revocation
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        revokedBy,
+        'organization_group_access.revoke',
+        'organization_group_access',
+        prev.id,
+        JSON.stringify({ is_active: true }),
+        JSON.stringify({ is_active: false }),
+      ],
+    );
+
     return { success: true };
   });
 }
