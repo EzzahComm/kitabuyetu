@@ -135,9 +135,23 @@ export async function sendInvoiceEmail(
   });
 
   if (result.success) {
-    await withAdminDb((db) =>
-      db.query(`UPDATE invoices SET emailed_at = NOW() WHERE id = $1`, [invoiceId]),
-    ).catch(() => {});
+    await withAdminDb(async (db) => {
+      await db.query(`UPDATE invoices SET emailed_at = NOW() WHERE id = $1`, [invoiceId]);
+
+      // Record audit log for invoice email sent (system-triggered)
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          null, // system-triggered email
+          'invoice.email_sent',
+          'invoice',
+          invoiceId,
+          JSON.stringify({ emailed_at: null }),
+          JSON.stringify({ emailed_at: new Date().toISOString() }),
+        ],
+      );
+    }).catch(() => {});
   }
 
   return result;
@@ -224,14 +238,32 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
       }).catch(() => {});
     }
 
-    await withAdminDb((db) =>
-      db.query(
+    await withAdminDb(async (db) => {
+      const currentLevel = inv.overdue_notice_level ?? 0;
+
+      await db.query(
         `UPDATE invoices
          SET overdue_notice_level = $1, last_reminder_sent_at = NOW()
          WHERE id = $2`,
         [targetLevel, inv.id],
-      ),
-    ).catch(() => {});
+      );
+
+      // Record audit log for overdue notice level change (system-triggered)
+      if (currentLevel !== targetLevel) {
+        await db.query(
+          `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            null, // system-triggered reminder
+            'invoice.overdue_notice_escalated',
+            'invoice',
+            inv.id,
+            JSON.stringify({ overdue_notice_level: currentLevel }),
+            JSON.stringify({ overdue_notice_level: targetLevel }),
+          ],
+        );
+      }
+    }).catch(() => {});
   }
 }
 
@@ -326,8 +358,8 @@ export async function processRecurringInvoices(): Promise<void> {
       }
       const billingAccountId = baRows[0].id;
 
-      const { rows: [inv] } = await withAdminDb((db) =>
-        db.query(
+      const { rows: [inv] } = await withAdminDb(async (db) => {
+        const result = await db.query(
           `INSERT INTO invoices
              (group_id, billing_account_id, invoice_number,
               invoice_date, due_date,
@@ -341,8 +373,31 @@ export async function processRecurringInvoices(): Promise<void> {
            )
            RETURNING id`,
           [sched.group_id, billingAccountId, sched.amount, sched.description ?? null],
-        ),
-      );
+        );
+
+        // Record audit log for recurring invoice creation (system-triggered)
+        if (result.rows[0]) {
+          await db.query(
+            `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              null, // system-triggered invoice generation
+              'invoice.recurring_created',
+              'invoice',
+              result.rows[0].id,
+              null,
+              JSON.stringify({
+                group_id: sched.group_id,
+                status: 'pending',
+                total_amount: sched.amount,
+                invoice_date: new Date().toISOString().split('T')[0],
+              }),
+            ],
+          );
+        }
+
+        return result;
+      });
 
       // Queue the invoice email if a recipient email is known
       if (sched.recipient_email) {
@@ -363,15 +418,31 @@ export async function processRecurringInvoices(): Promise<void> {
       }
 
       // Advance next_run_at by the configured frequency
-      await withAdminDb((db) =>
-        db.query(
+      await withAdminDb(async (db) => {
+        const oldNextRunAt = sched.next_run_at;
+
+        await db.query(
           `UPDATE invoice_schedules
            SET next_run_at = next_run_at + (frequency_days || ' days')::interval,
                last_run_at = NOW()
            WHERE id = $1`,
           [sched.id],
-        ),
-      );
+        );
+
+        // Record audit log for schedule advancement (system-triggered)
+        await db.query(
+          `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            null, // system-triggered schedule update
+            'invoice_schedule.advanced',
+            'invoice_schedule',
+            sched.id,
+            JSON.stringify({ next_run_at: oldNextRunAt, last_run_at: null }),
+            JSON.stringify({ next_run_at: new Date(new Date(oldNextRunAt).getTime() + sched.frequency_days * 24 * 60 * 60 * 1000).toISOString(), last_run_at: new Date().toISOString() }),
+          ],
+        );
+      });
     } catch (err) {
       logger.error('[billing] Failed to process invoice schedule', { schedId: sched.id, error: err });
     }

@@ -78,7 +78,28 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
       [input.groupId, input.memberId, input.referenceType, input.referenceId,
        input.reminderStage, input.jobExecutionId ?? null],
     );
-    if (inserted.rows[0]) return { outcome: 'send', id: inserted.rows[0].id };
+
+    // Record audit log for new reminder claim (system-triggered)
+    if (inserted.rows[0]) {
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          null, // system-triggered reminder scheduling
+          'reminder_dispatch.claimed',
+          'reminder_dispatch_log',
+          inserted.rows[0].id,
+          null,
+          JSON.stringify({
+            reference_type: input.referenceType,
+            reference_id: input.referenceId,
+            reminder_stage: input.reminderStage,
+            status: 'pending',
+          }),
+        ],
+      );
+      return { outcome: 'send', id: inserted.rows[0].id };
+    }
 
     const existing = await db.query<{ id: string; status: string }>(
       `SELECT id, status FROM reminder_dispatch_log
@@ -104,8 +125,18 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
   const status = outcome.status === 'sent' ? 'sent'
     : outcome.status === 'suppressed' ? 'suppressed'
     : 'failed';
-  await withAdminDb((db) =>
-    db.query(
+  await withAdminDb(async (db) => {
+    // Fetch existing reminder to capture old values
+    const { rows: existing } = await db.query<{ id: string; status: string; attempts: number }>(
+      `SELECT id, status, attempts FROM reminder_dispatch_log WHERE id = $1`,
+      [id],
+    );
+    if (!existing[0]) return;
+
+    const prev = existing[0];
+    const newAttempts = prev.attempts + 1;
+
+    await db.query(
       // $2 is cast explicitly in BOTH the SET and the CASE below. Left
       // implicit, node-pg's Parse message carries no type OIDs, so Postgres
       // has to infer $2's type from context — and it sees two different
@@ -120,8 +151,22 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
            sent_at=CASE WHEN $2::reminder_dispatch_status='sent' THEN NOW() ELSE sent_at END
        WHERE id=$1 AND status IN ('pending','failed')`,
       [id, status, outcome.channel === 'none' ? null : outcome.channel, outcome.detail ?? null],
-    ),
-  );
+    );
+
+    // Record audit log for reminder settlement (system-triggered)
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        null, // system-triggered reminder processing
+        'reminder_dispatch.settled',
+        'reminder_dispatch_log',
+        id,
+        JSON.stringify({ status: prev.status, attempts: prev.attempts }),
+        JSON.stringify({ status, attempts: newAttempts, channel: outcome.channel === 'none' ? null : outcome.channel }),
+      ],
+    );
+  });
 }
 
 export interface ReminderHistoryQuery {
