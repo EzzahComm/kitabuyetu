@@ -50,6 +50,27 @@ export const contributionSplitsService = {
           ctx.userId,
         ],
       );
+
+      // Record audit log for contribution split creation — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contributionSplit.create',
+          'contribution_split',
+          rows[0].id,
+          null,
+          JSON.stringify({
+            account_code: data.accountCode,
+            percentage: data.percentage ?? null,
+            fixed_amount: data.fixedAmount ?? null,
+            priority: data.priority,
+          }),
+        ],
+      );
+
       return rows[0];
     });
   },
@@ -80,6 +101,15 @@ export const contributionSplitsService = {
       }
 
       values.push(id, ctx.groupId);
+
+      // Read prior state for audit log
+      const { rows: priorRows } = await client.query<ContributionSplit>(
+        'SELECT * FROM group_contribution_splits WHERE id = $1 AND group_id = $2',
+        [id, ctx.groupId],
+      );
+      if (!priorRows[0]) throw new NotFoundError('Contribution split', id);
+      const prior = priorRows[0];
+
       const { rows } = await client.query<ContributionSplit>(
         `UPDATE group_contribution_splits SET ${sets.join(', ')}
          WHERE id = $${idx++} AND group_id = $${idx}
@@ -87,17 +117,72 @@ export const contributionSplitsService = {
         values,
       );
       if (!rows[0]) throw new NotFoundError('Contribution split', id);
+
+      // Record audit log for contribution split update — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contributionSplit.update',
+          'contribution_split',
+          id,
+          JSON.stringify({
+            account_code: prior.account_code,
+            percentage: prior.percentage,
+            fixed_amount: prior.fixed_amount,
+            priority: prior.priority,
+            is_active: prior.is_active,
+          }),
+          JSON.stringify({
+            account_code: rows[0].account_code,
+            percentage: rows[0].percentage,
+            fixed_amount: rows[0].fixed_amount,
+            priority: rows[0].priority,
+            is_active: rows[0].is_active,
+          }),
+        ],
+      );
+
       return rows[0];
     });
   },
 
   async remove(ctx: TenantContext, id: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
+      // Read prior state for audit log
+      const { rows: priorRows } = await client.query<ContributionSplit>(
+        'SELECT * FROM group_contribution_splits WHERE id = $1 AND group_id = $2',
+        [id, ctx.groupId],
+      );
+      if (!priorRows[0]) throw new NotFoundError('Contribution split', id);
+      const prior = priorRows[0];
+
       const { rowCount } = await client.query(
         'DELETE FROM group_contribution_splits WHERE id = $1 AND group_id = $2',
         [id, ctx.groupId],
       );
       if (!rowCount) throw new NotFoundError('Contribution split', id);
+
+      // Record audit log for contribution split removal — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contributionSplit.delete',
+          'contribution_split',
+          id,
+          JSON.stringify({
+            account_code: prior.account_code,
+            percentage: prior.percentage,
+            fixed_amount: prior.fixed_amount,
+          }),
+          null,
+        ],
+      );
     });
   },
 
@@ -110,10 +195,39 @@ export const contributionSplitsService = {
     data: ReplaceContributionSplitsInput,
   ): Promise<ContributionSplit[]> {
     return withTransaction(ctx, async (client) => {
+      // Read prior state for audit log
+      const { rows: priorRules } = await client.query<ContributionSplit>(
+        'SELECT * FROM group_contribution_splits WHERE group_id = $1 ORDER BY priority ASC',
+        [ctx.groupId],
+      );
+
       await client.query(
         'DELETE FROM group_contribution_splits WHERE group_id = $1',
         [ctx.groupId],
       );
+
+      // Record audit log for all deleted splits
+      if (priorRules.length > 0) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'contributionSplits.replaceAll',
+            'contribution_splits',
+            `${ctx.groupId}:all`,
+            JSON.stringify(priorRules.map(r => ({
+              id: r.id,
+              account_code: r.account_code,
+              percentage: r.percentage,
+              fixed_amount: r.fixed_amount,
+            }))),
+            JSON.stringify(data.rules),
+          ],
+        );
+      }
+
       const out: ContributionSplit[] = [];
       for (const r of data.rules) {
         const { rows } = await client.query<ContributionSplit>(
