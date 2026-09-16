@@ -24,7 +24,7 @@ export async function createCampaign(input: CampaignCreateInput): Promise<string
   const ctx: TenantContext = {
     groupId: input.groupId,
     userId: input.createdBy,
-    organizationId: null,
+    role: '',
   };
 
   return withTransaction(ctx, async (client) => {
@@ -121,8 +121,8 @@ export async function launchCampaign(campaignId: string, createdBy?: string | nu
   // Create a minimal TenantContext for the transaction
   const ctx: TenantContext = {
     groupId: campaign.group_id,
-    userId: createdBy ?? null,
-    organizationId: null,
+    userId: createdBy ?? '',
+    role: '',
   };
 
   const recipients = await getCampaignRecipients(
@@ -207,8 +207,8 @@ export async function processCampaignJob(job: {
   // Create a minimal TenantContext for the transaction
   const ctx: TenantContext = {
     groupId: job.groupId,
-    userId: null, // System-triggered operation (job)
-    organizationId: null,
+    userId: '', // System-triggered operation (job)
+    role: '',
   };
 
   await withTransaction(ctx, async (client) => {

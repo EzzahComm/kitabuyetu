@@ -37,6 +37,7 @@ export interface DisbursementRow {
   id:                string;
   group_id:          string;
   loan_id:           string | null;
+  cash_account_id:   string;
   phone:             string;
   amount:            string;
   status:            string;

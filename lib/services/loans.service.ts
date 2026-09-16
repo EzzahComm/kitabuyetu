@@ -242,9 +242,6 @@ export const loansService = {
       }
 
       // Transition to disbursed — the DB trigger generates the repayment schedule
-      const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [id, ctx.groupId],
-      );
       const prev = existing[0];
 
       const { rows } = await client.query<Loan>(

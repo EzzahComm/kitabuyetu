@@ -159,7 +159,7 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
  * already holds the row or advanced it past due.
  */
 async function claimOccurrence(client: PoolClient, id: string): Promise<string | null> {
-  const { rows } = await client.query<{ occurrence: string; missed: string }>(
+  const { rows } = await client.query<{ occurrence: string; missed: string; schedule_type: string }>(
     // next_run_at advances to the next FUTURE occurrence, not to one period
     // after the occurrence just claimed.
     //
@@ -200,7 +200,7 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
                           END
      FROM   claimed c
      WHERE  s.id = c.id
-     RETURNING c.occurrence, c.missed`,
+     RETURNING c.occurrence, c.missed, c.schedule_type`,
     [id],
   );
 

@@ -90,8 +90,20 @@ if (!globalWithPool._kyPool) {
 // admin pool silently disables RLS, creating a security vulnerability.
 // See: Phase 1 RLS Hardening (2026-09-16).
 if (!globalWithPool._kyTenantPool) {
+  // Next.js's build-time page-data-collection step imports every route
+  // module, evaluating this module scope regardless of whether the build
+  // machine holds production secrets (it deliberately doesn't). Throwing
+  // here on that basis would kill the whole build at whichever route
+  // imports lib/db first — the same class of bug __tests__/unit/db/
+  // pool-build-time.test.ts guards against for DATABASE_URL. Real
+  // enforcement happens at cold-start in the deployed runtime, same as
+  // lib/env.ts's validateEnv().
+  const isBuildTime =
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.NEXT_PHASE === 'phase-production-build';
+
   if (!env.TENANT_DATABASE_URL) {
-    if (env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production' && !isBuildTime) {
       throw new Error(
         'TENANT_DATABASE_URL is REQUIRED in production. ' +
         'Missing this env var causes RLS to be silently bypassed, ' +
@@ -99,7 +111,7 @@ if (!globalWithPool._kyTenantPool) {
         'Set TENANT_DATABASE_URL to the PostgreSQL connection string for the app_tenant role.'
       );
     }
-    // In development, allow fallback to admin pool for testing, but log a warning
+    // In development (or at build time), allow fallback to admin pool, but log a warning
     logger.warn(
       '[db] TENANT_DATABASE_URL not set — using admin pool for tenant traffic. ' +
       'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.'

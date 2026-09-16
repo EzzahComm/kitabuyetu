@@ -558,9 +558,9 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
 
   const result = await withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{
-      status: string; email: string; first_name: string; organization_name: string;
+      status: string; email: string; first_name: string; organization_name: string; organization_id: string;
     }>(
-      `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name
+      `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name, oi.organization_id
        FROM public.organization_invitations oi
        JOIN public.organizations o ON o.id = oi.organization_id
        WHERE oi.id = $1`,
@@ -590,7 +590,7 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
         null, // Admin action but not tied to specific user context in this flow
         'orgInvitation.resend',
         'organization_invitation',
-        inv.id,
+        id,
         JSON.stringify({ status: inv.status }),
         JSON.stringify({ status: 'invited' }),
       ],
@@ -615,8 +615,8 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
 /** Lead/super_admin-only. */
 export async function cancelOrgInvitation(id: string): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query<{ status: string }>(
-      `SELECT status FROM public.organization_invitations WHERE id = $1`, [id],
+    const { rows } = await db.query<{ status: string; organization_id: string }>(
+      `SELECT status, organization_id FROM public.organization_invitations WHERE id = $1`, [id],
     );
     const inv = rows[0];
     if (!inv) throw new NotFoundError('Invitation', id);

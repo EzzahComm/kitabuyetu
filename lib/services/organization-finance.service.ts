@@ -219,7 +219,6 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
         currency: created[0].currency,
         available_balance: created[0].available_balance,
         committed_balance: created[0].committed_balance,
-        is_active: created[0].is_active,
       }),
     ],
   );
