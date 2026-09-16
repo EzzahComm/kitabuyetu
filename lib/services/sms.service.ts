@@ -629,7 +629,32 @@ export const smsService = {
            referenceType ?? null, referenceId ?? null,
            referenceType ?? null, referenceId ?? null, provider, payerType, payerOrgId, segsEach],
         );
-        rows.push(inserted[0]);
+        const log = inserted[0];
+        rows.push(log);
+
+        // Audit log: SMS usage entry created
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'sms_usage.create',
+            'sms_usage_log',
+            log.id,
+            null,
+            JSON.stringify({
+              id: log.id,
+              recipient_phone: log.recipient_phone,
+              notification_type: log.notification_type,
+              segments: log.segments,
+              credits_reserved: log.credits_reserved,
+              billing_state: log.billing_state,
+              provider: log.provider,
+              payer_type: log.payer_type,
+            }),
+          ],
+        );
       }
       // `fresh` is what may be dispatched; `alreadyLogged` must NOT be, or the
       // dedup above would have prevented the duplicate ROW while still causing
@@ -840,13 +865,13 @@ export const smsService = {
           const segs = segsByPhone.get(phone) ?? 1;
           const fromAllowance = Math.min(allowanceLeft, segs);
           allowanceLeft -= fromAllowance;
-          const { rows } = await db.query<{ id: string }>(
+          const { rows } = await db.query<SmsUsageLog>(
             `INSERT INTO sms_usage_logs
                (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
                 credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
                 reference_type, reference_id, campaign_id, provider,
                 payer_type, payer_organization_id, segments)
-             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+             VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
             [
               input.groupId, phone, messageFor(phone), segs.toFixed(4), fromAllowance.toFixed(4),
               feature,
@@ -858,7 +883,31 @@ export const smsService = {
               payerType, payerOrgId, segs,
             ],
           );
-          logIds.push(rows[0].id);
+          const log = rows[0];
+          logIds.push(log.id);
+
+          // Audit log: bulk SMS usage entry created
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              input.groupId,
+              null, // bulk campaign is system-coordinated by handler, not user-triggered
+              'sms_usage.bulk_create',
+              'sms_usage_log',
+              log.id,
+              null,
+              JSON.stringify({
+                id: log.id,
+                recipient_phone: log.recipient_phone,
+                notification_type: log.notification_type,
+                segments: log.segments,
+                credits_reserved: log.credits_reserved,
+                campaign_id: log.campaign_id,
+                billing_state: log.billing_state,
+              }),
+            ],
+          );
         }
       }
 
@@ -867,10 +916,37 @@ export const smsService = {
         // see totalRecipientCount's doc comment. Every chunk of the same
         // campaign writes the same value, so this is idempotent regardless
         // of call order or how many chunks there are.
+        const { rows: beforeUpdate } = await db.query<{ status: string; recipient_count: number }>(
+          `SELECT status, recipient_count FROM sms_campaigns WHERE id=$1`,
+          [input.campaignId],
+        );
+        const oldStatus = beforeUpdate[0];
+
         await db.query(
           `UPDATE sms_campaigns SET status='sending', started_at=COALESCE(started_at, NOW()),
            recipient_count=$1 WHERE id=$2`,
           [input.totalRecipientCount ?? eligible.length, input.campaignId],
+        );
+
+        // Audit log: campaign status update
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            input.groupId,
+            null, // system-triggered via job handler
+            'sms_campaign.update',
+            'sms_campaign',
+            input.campaignId,
+            JSON.stringify({
+              status: oldStatus?.status,
+              recipient_count: oldStatus?.recipient_count,
+            }),
+            JSON.stringify({
+              status: 'sending',
+              recipient_count: input.totalRecipientCount ?? eligible.length,
+            }),
+          ],
         );
       }
 
@@ -928,11 +1004,28 @@ export const smsService = {
       const reason = err instanceof Error ? err.message : String(err);
 
       await withAdminDb(async (db) => {
+        // Audit: SMS usage logs marked as failed
         await db.query(
           `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
           [reason, logIds],
         );
+
+        // Audit each failure
         for (const logId of logIds) {
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              input.groupId,
+              null, // system-triggered dispatch error
+              'sms_usage.dispatch_failed',
+              'sms_usage_log',
+              logId,
+              JSON.stringify({ status: 'reserved', failed_reason: null }),
+              JSON.stringify({ status: 'failed', failed_reason: reason }),
+            ],
+          );
+
           await db.query(
             `INSERT INTO sms_failures
                (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
@@ -940,6 +1033,26 @@ export const smsService = {
             // -1: sentinel failure_code — there is no provider response to
             // report, only a local/network exception.
             [input.groupId, logId, phoneByLogId.get(logId)!, input.message, '-1', reason],
+          );
+
+          // Audit: SMS failure entry created
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              input.groupId,
+              null,
+              'sms_failure.create',
+              'sms_failure',
+              logId,
+              null,
+              JSON.stringify({
+                sms_log_id: logId,
+                phone: phoneByLogId.get(logId),
+                failure_code: '-1',
+                failure_reason: reason,
+              }),
+            ],
           );
         }
         if (input.campaignId) {
@@ -962,6 +1075,7 @@ export const smsService = {
       for (const logId of logIds) {
         const r = byLogId.get(logId);
         if (!r) continue; // unmatched — handled as a rejection below, same as before
+
         await db.query(
           `UPDATE sms_usage_logs
            SET status=$1, provider_msg_id=$2, network_id=$3,
@@ -974,6 +1088,26 @@ export const smsService = {
             r.networkId || null,
             r.success ? null : r.responseDescription,
             logId,
+          ],
+        );
+
+        // Audit: SMS delivery status update from provider
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            input.groupId,
+            null, // system-triggered provider callback
+            'sms_usage.provider_dispatch',
+            'sms_usage_log',
+            logId,
+            JSON.stringify({ status: 'reserved', failed_reason: null }),
+            JSON.stringify({
+              status: r.success ? 'sent' : 'failed',
+              provider_msg_id: r.messageId || null,
+              network_id: r.networkId || null,
+              failed_reason: r.success ? null : r.responseDescription,
+            }),
           ],
         );
       }
@@ -1017,6 +1151,28 @@ export const smsService = {
             [
               input.groupId, logId, phoneByLogId.get(logId)!,
               input.message, String(r.responseCode), r.responseDescription,
+            ],
+          ),
+        );
+
+        // Audit: SMS failure entry created
+        await withAdminDb((db) =>
+          db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              input.groupId,
+              null,
+              'sms_failure.create',
+              'sms_failure',
+              logId,
+              null,
+              JSON.stringify({
+                sms_log_id: logId,
+                phone: phoneByLogId.get(logId),
+                failure_code: String(r.responseCode),
+                failure_reason: r.responseDescription,
+              }),
             ],
           ),
         );
@@ -1088,6 +1244,29 @@ export const smsService = {
         [activeSmsProvider(), result.balance, result.currency, memberId, JSON.stringify(result.raw)],
       ),
     );
+
+    // Audit: provider balance snapshot recorded
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          'system',
+          null, // system-triggered provider API query
+          'provider_balance.snapshot',
+          'sms_provider_balance',
+          `${activeSmsProvider()}_${Date.now()}`,
+          null,
+          JSON.stringify({
+            provider: activeSmsProvider(),
+            balance: result.balance,
+            currency: result.currency,
+            queried_by: memberId,
+          }),
+        ],
+      ),
+    );
+
     return { balance: result.balance, currency: result.currency };
   },
 
@@ -1135,12 +1314,48 @@ export const smsService = {
            WHERE provider_msg_id=$1`,
           [messageId, result.deliveredAt ?? new Date().toISOString()],
         );
+
+        // Audit: SMS delivered
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            'system',
+            null,
+            'sms_usage.delivered',
+            'sms_usage_log',
+            messageId,
+            JSON.stringify({ status: 'sent', delivered_at: null }),
+            JSON.stringify({
+              status: 'delivered',
+              delivered_at: result.deliveredAt ?? new Date().toISOString(),
+            }),
+          ],
+        );
       } else if (cls === 'failed') {
         await db.query(
           `UPDATE sms_usage_logs
            SET status='failed', failed_reason=$2
            WHERE provider_msg_id=$1 AND status <> 'delivered'`,
           [messageId, result.status],
+        );
+
+        // Audit: SMS delivery failed
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            'system',
+            null,
+            'sms_usage.delivery_failed',
+            'sms_usage_log',
+            messageId,
+            JSON.stringify({ status: 'sent', failed_reason: null }),
+            JSON.stringify({
+              status: 'failed',
+              failed_reason: result.status,
+            }),
+          ],
         );
       }
 
@@ -1159,6 +1374,26 @@ export const smsService = {
                -- and the ordering degenerates back to "oldest first forever".
                poll_count   = sms_delivery_reports.poll_count + 1`,
         [messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw)],
+      );
+
+      // Audit: delivery report recorded
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          'system',
+          null,
+          'delivery_report.record',
+          'sms_delivery_report',
+          messageId,
+          null,
+          JSON.stringify({
+            provider_message_id: messageId,
+            phone: result.phone,
+            status: cls,
+            network_id: result.networkId,
+          }),
+        ],
       );
     });
 
@@ -1206,15 +1441,43 @@ export const smsService = {
     // cannot drift apart: anything this marks is exactly what that query can
     // no longer see.
     const abandoned = await withAdminDb((db) =>
-      db.query(
+      db.query<{ id: string }>(
         `UPDATE sms_usage_logs
             SET dlr_abandoned_at = NOW()
           WHERE status = 'sent'
             AND dlr_abandoned_at IS NULL
-            AND (sent_at IS NULL OR sent_at < NOW() - INTERVAL '7 days')`,
+            AND (sent_at IS NULL OR sent_at < NOW() - INTERVAL '7 days')
+          RETURNING id, group_id`,
       ).then((r) => r.rowCount ?? 0),
     );
+
+    // Audit abandoned messages
     if (abandoned > 0) {
+      const { rows: abandonedRows } = await withAdminDb((db) =>
+        db.query<{ id: string; group_id: string }>(
+          `SELECT id, group_id FROM sms_usage_logs
+           WHERE dlr_abandoned_at IS NOT NULL
+           AND dlr_abandoned_at >= NOW() - INTERVAL '1 second'
+           LIMIT 1000`,
+        ),
+      );
+      for (const row of abandonedRows) {
+        await withAdminDb((db) =>
+          db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              row.group_id,
+              null,
+              'sms_usage.dlr_abandoned',
+              'sms_usage_log',
+              row.id,
+              JSON.stringify({ dlr_abandoned_at: null }),
+              JSON.stringify({ dlr_abandoned_at: new Date().toISOString() }),
+            ],
+          ),
+        );
+      }
       logger.info('[sms] delivery tracking gave up on aged messages', { abandoned });
     }
 
@@ -1293,15 +1556,44 @@ export const smsService = {
 
     // Refresh delivered_count on campaigns that gained terminal results.
     for (const campaignId of touchedCampaigns) {
-      await withAdminDb((db) =>
-        db.query(
-          `UPDATE sms_campaigns
-           SET delivered_count = (SELECT COUNT(*) FROM sms_usage_logs WHERE campaign_id=$1 AND status='delivered'),
-               updated_at = NOW()
-           WHERE id=$1`,
+      const { rows: beforeUpdate } = await withAdminDb((db) =>
+        db.query<{ delivered_count: number }>(
+          `SELECT delivered_count FROM sms_campaigns WHERE id=$1`,
           [campaignId],
         ),
       );
+      const oldCount = beforeUpdate[0]?.delivered_count ?? 0;
+
+      const { rows: afterUpdate } = await withAdminDb((db) =>
+        db.query<{ delivered_count: number }>(
+          `UPDATE sms_campaigns
+           SET delivered_count = (SELECT COUNT(*) FROM sms_usage_logs WHERE campaign_id=$1 AND status='delivered'),
+               updated_at = NOW()
+           WHERE id=$1
+           RETURNING delivered_count`,
+          [campaignId],
+        ),
+      );
+      const newCount = afterUpdate[0]?.delivered_count ?? 0;
+
+      // Audit: campaign delivered count updated
+      if (newCount !== oldCount) {
+        await withAdminDb((db) =>
+          db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              'system',
+              null,
+              'sms_campaign.delivered_count_update',
+              'sms_campaign',
+              campaignId,
+              JSON.stringify({ delivered_count: oldCount }),
+              JSON.stringify({ delivered_count: newCount }),
+            ],
+          ),
+        );
+      }
     }
 
     // `checked` is what was actually polled, which is NOT logs.length when the
@@ -1684,14 +1976,50 @@ export const smsService = {
     opts: { source?: 'member' | 'officer' | 'inbound_stop'; actorId?: string | null; note?: string } = {},
   ): Promise<void> {
     const normalized = normalizePhone(phone);
-    await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO sms_opt_outs (group_id, phone, source, actor_id, note)
-         VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (group_id, phone) DO NOTHING`,
-        [groupId, normalized, opts.source ?? 'member', opts.actorId ?? null, opts.note ?? null],
+    const source = opts.source ?? 'member';
+    const actorId = opts.actorId ?? null;
+    const note = opts.note ?? null;
+
+    // Check if already opted out
+    const { rows: existing } = await withAdminDb((db) =>
+      db.query<{ id: string }>(
+        `SELECT id FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
+        [groupId, normalized],
       ),
     );
+
+    if (!existing[0]) {
+      // New opt-out
+      await withAdminDb((db) =>
+        db.query(
+          `INSERT INTO sms_opt_outs (group_id, phone, source, actor_id, note)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [groupId, normalized, source, actorId, note],
+        ),
+      );
+
+      // Audit: SMS opt-out recorded
+      await withAdminDb((db) =>
+        db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            actorId,
+            'sms_opt_out.create',
+            'sms_opt_out',
+            normalized,
+            null,
+            JSON.stringify({
+              phone: normalized,
+              source: source,
+              actor_id: actorId,
+              note: note,
+            }),
+          ],
+        ),
+      );
+    }
   },
 
   /**
@@ -1703,12 +2031,45 @@ export const smsService = {
    */
   async optIn(groupId: string, phone: string): Promise<void> {
     const normalized = normalizePhone(phone);
+
+    // Read old state before deletion
+    const { rows: existing } = await withAdminDb((db) =>
+      db.query<{ source: string; actor_id: string | null; note: string | null }>(
+        `SELECT source, actor_id, note FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
+        [groupId, normalized],
+      ),
+    );
+
     // Deleting the row IS the opt-in: absence of a row is the consent state,
     // so a later opt-out records a fresh, truthful timestamp rather than
     // resurrecting a stale one.
     await withAdminDb((db) =>
       db.query(`DELETE FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, normalized]),
     );
+
+    // Audit: SMS opt-in (reversal of opt-out)
+    if (existing[0]) {
+      await withAdminDb((db) =>
+        db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            null, // opt-in is typically self-service member action
+            'sms_opt_out.delete',
+            'sms_opt_out',
+            normalized,
+            JSON.stringify({
+              phone: normalized,
+              source: existing[0].source,
+              actor_id: existing[0].actor_id,
+              note: existing[0].note,
+            }),
+            null,
+          ],
+        ),
+      );
+    }
   },
 };
 
@@ -1817,10 +2178,34 @@ async function dispatchBatch(
     const { pool } = await import('@/lib/db');
     const client = await pool.connect();
     try {
+      // Get group_id for audit logging
+      const { rows: logRows } = await client.query<{ group_id: string }>(
+        `SELECT DISTINCT group_id FROM sms_usage_logs WHERE id=ANY($1::uuid[]) LIMIT 1`,
+        [logIds],
+      );
+      const groupId_ = logRows[0]?.group_id ?? groupId;
+
       await client.query(
         `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
         [reason, logIds],
       );
+
+      // Audit each failure
+      for (const logId of logIds) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId_,
+            null, // system-triggered dispatch error
+            'sms_usage.dispatch_error',
+            'sms_usage_log',
+            logId,
+            JSON.stringify({ status: 'reserved', failed_reason: null }),
+            JSON.stringify({ status: 'failed', failed_reason: reason }),
+          ],
+        );
+      }
     } finally { client.release(); }
     // The provider never confirmed acceptance, so nothing here is chargeable —
     // the caller's settleReservation(failedIds, 'release') already returns the
@@ -1846,6 +2231,12 @@ async function updateLogRow(
   const { pool } = await import('@/lib/db');
   const client   = await pool.connect();
   try {
+    const { rows: oldRows } = await client.query<{ group_id: string; status: string }>(
+      `SELECT group_id, status FROM sms_usage_logs WHERE id=$1`,
+      [id],
+    );
+    const oldRow = oldRows[0];
+
     await client.query(
       `UPDATE sms_usage_logs
        SET status=$1::sms_status, provider_msg_id=$2, network_id=$3,
@@ -1854,6 +2245,28 @@ async function updateLogRow(
        WHERE id=$5`,
       [status, msgId || null, networkId || null, reason, id],
     );
+
+    // Audit: SMS status update from dispatch
+    if (oldRow) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          oldRow.group_id,
+          null, // system-triggered dispatch
+          'sms_usage.dispatch_status',
+          'sms_usage_log',
+          id,
+          JSON.stringify({ status: oldRow.status, failed_reason: null }),
+          JSON.stringify({
+            status: status,
+            provider_msg_id: msgId || null,
+            network_id: networkId || null,
+            failed_reason: reason,
+          }),
+        ],
+      );
+    }
   } finally { client.release(); }
 }
 
@@ -1909,6 +2322,27 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
         [f.id],
       ),
     );
+
+    // Audit: retry suppressed due to opt-out
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          f.group_id,
+          null,
+          'sms_failure.suppressed',
+          'sms_failure',
+          f.id,
+          JSON.stringify({ resolved: false, failure_reason: null }),
+          JSON.stringify({
+            resolved: true,
+            failure_reason: 'suppressed: recipient opted out',
+          }),
+        ],
+      ),
+    );
+
     return 'suppressed';
   }
 
@@ -1954,6 +2388,28 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
         [f.sms_log_id, retrySegments.toFixed(4), fromAllowance.toFixed(4), retrySegments],
       ),
     );
+
+    // Audit: SMS credits re-reserved for retry
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          f.group_id,
+          null,
+          'sms_usage.retry_reserved',
+          'sms_usage_log',
+          f.sms_log_id,
+          JSON.stringify({ billing_state: 'released', credits_reserved: null }),
+          JSON.stringify({
+            billing_state: 'reserved',
+            credits_reserved: retrySegments.toFixed(4),
+            credits_from_allowance: fromAllowance.toFixed(4),
+            segments: retrySegments,
+          }),
+        ],
+      ),
+    );
   }
 
   try {
@@ -1968,7 +2424,27 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
              WHERE id=$1`,
             [f.sms_log_id, res.messageId || null, res.networkId || null],
           );
+
+          // Audit: SMS retry succeeded
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              f.group_id,
+              null,
+              'sms_usage.retry_success',
+              'sms_usage_log',
+              f.sms_log_id,
+              JSON.stringify({ status: 'reserved', failed_reason: null }),
+              JSON.stringify({
+                status: 'sent',
+                provider_msg_id: res.messageId || null,
+                network_id: res.networkId || null,
+              }),
+            ],
+          );
         }
+
         await db.query(
           `UPDATE sms_failures
            SET resolved=true, resolved_at=NOW(),
@@ -1976,19 +2452,83 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
            WHERE id=$1`,
           [f.id],
         );
+
+        // Audit: SMS failure resolved
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            f.group_id,
+            null,
+            'sms_failure.resolved',
+            'sms_failure',
+            f.id,
+            JSON.stringify({ resolved: false, retry_count: f.retry_count }),
+            JSON.stringify({
+              resolved: true,
+              retry_count: f.retry_count + 1,
+            }),
+          ],
+        );
       });
       // Provider accepted ⇒ the earmark becomes a real debit.
       if (f.sms_log_id) await settleReservation([f.sms_log_id], 'consume');
       return 'resolved';
     }
     if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
+
+    // Audit: SMS retry failed
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          f.group_id,
+          null,
+          'sms_failure.retry_failed',
+          'sms_failure',
+          f.id,
+          JSON.stringify({ resolved: false, retry_count: f.retry_count }),
+          JSON.stringify({
+            resolved: false,
+            retry_count: f.retry_count + 1,
+            failure_reason: res.responseDescription,
+          }),
+        ],
+      ),
+    );
+
     await bumpRetry(f.id, f.retry_count, res.responseDescription);
     return 'failed';
   } catch (err) {
     // Release on the throw path too, or a provider timeout strands the
     // earmark until the stale-reservation sweeper reclaims it.
     if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
-    await bumpRetry(f.id, f.retry_count, err instanceof Error ? err.message : String(err));
+
+    const errMsg = err instanceof Error ? err.message : String(err);
+
+    // Audit: SMS retry threw exception
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          f.group_id,
+          null,
+          'sms_failure.retry_error',
+          'sms_failure',
+          f.id,
+          JSON.stringify({ resolved: false, retry_count: f.retry_count }),
+          JSON.stringify({
+            resolved: false,
+            retry_count: f.retry_count + 1,
+            failure_reason: errMsg,
+          }),
+        ],
+      ),
+    );
+
+    await bumpRetry(f.id, f.retry_count, errMsg);
     return 'failed';
   }
 }
@@ -2003,6 +2543,14 @@ async function bumpRetry(id: string, retryCount: number, reason: string): Promis
   const { pool } = await import('@/lib/db');
   const client   = await pool.connect();
   try {
+    const nextRetryInterval = Math.min(Math.pow(2, retryCount), 8) * 5; // minutes
+
+    const { rows: oldRows } = await client.query<{ group_id: string; retry_count: number; next_retry_at: Date | null }>(
+      `SELECT group_id, retry_count, next_retry_at FROM sms_failures WHERE id=$1`,
+      [id],
+    );
+    const oldRow = oldRows[0];
+
     await client.query(
       `UPDATE sms_failures
        SET retry_count   = retry_count + 1,
@@ -2013,6 +2561,31 @@ async function bumpRetry(id: string, retryCount: number, reason: string): Promis
        WHERE id = $1`,
       [id, reason],
     );
+
+    // Audit: retry count bumped
+    if (oldRow) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          oldRow.group_id,
+          null,
+          'sms_failure.retry_bumped',
+          'sms_failure',
+          id,
+          JSON.stringify({
+            retry_count: oldRow.retry_count,
+            failure_reason: null,
+            next_retry_interval_minutes: Math.min(Math.pow(2, Math.max(retryCount - 1, 0)), 8) * 5,
+          }),
+          JSON.stringify({
+            retry_count: oldRow.retry_count + 1,
+            failure_reason: reason,
+            next_retry_interval_minutes: nextRetryInterval,
+          }),
+        ],
+      );
+    }
   } finally { client.release(); }
 }
 
@@ -2028,6 +2601,27 @@ async function logFailure(
          (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
        VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
       [groupId, logId, phone, message, String(code), reason],
+    );
+
+    // Audit: SMS failure entry logged
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered failure logging
+        'sms_failure.create',
+        'sms_failure',
+        logId,
+        null,
+        JSON.stringify({
+          sms_log_id: logId,
+          phone: phone,
+          failure_code: String(code),
+          failure_reason: reason,
+          next_retry_interval: '5 minutes',
+        }),
+      ],
     );
   } finally { client.release(); }
 }
