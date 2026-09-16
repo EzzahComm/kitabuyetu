@@ -215,6 +215,28 @@ export const contributionsService = {
 
       const contribution = rows[0];
 
+      // Record audit log entry (atomic with the contribution insert)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.create',
+          'contribution',
+          contribution.id,
+          null,
+          JSON.stringify({
+            id: contribution.id,
+            amount: contribution.amount,
+            contribution_date: contribution.contribution_date,
+            status: contribution.status,
+            payment_method: contribution.payment_method,
+            mpesa_receipt_number: contribution.mpesa_receipt_number,
+          }),
+        ],
+      );
+
       // Auto-post a journal entry when the contribution is completed on creation
       if (contribution.status === 'completed') {
         await postContributionJournal(client, {
@@ -304,6 +326,31 @@ export const contributionsService = {
       );
       const updated = rows[0];
 
+      // Record audit log entry for the update (atomic with the update)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.update',
+          'contribution',
+          updated.id,
+          JSON.stringify({
+            status: prev.status,
+            payment_method: prev.payment_method,
+            mpesa_receipt_number: prev.mpesa_receipt_number,
+            notes: prev.notes,
+          }),
+          JSON.stringify({
+            status: updated.status,
+            payment_method: updated.payment_method,
+            mpesa_receipt_number: updated.mpesa_receipt_number,
+            notes: updated.notes,
+          }),
+        ],
+      );
+
       // Post journal when status transitions to completed
       if (updated.status === 'completed' && prev.status !== 'completed') {
         await postContributionJournal(client, {
@@ -320,11 +367,33 @@ export const contributionsService = {
   // Only pending contributions can be cancelled; completed ones are immutable.
   async delete(ctx: TenantContext, id: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
-      const { rowCount } = await client.query(
-        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
+      const { rows: existing } = await client.query<Contribution>(
+        `SELECT * FROM contributions WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
         [id, ctx.groupId],
       );
-      if (!rowCount) throw new NotFoundError('Pending contribution', id);
+      if (!existing[0]) throw new NotFoundError('Pending contribution', id);
+
+      const prev = existing[0];
+
+      await client.query(
+        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2`,
+        [id, ctx.groupId],
+      );
+
+      // Record audit log entry for the soft delete (atomic with the update)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.delete',
+          'contribution',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: 'cancelled' }),
+        ],
+      );
     });
   },
 };

@@ -168,7 +168,17 @@ export const loansService = {
           data.guarantorId ?? null,
         ],
       );
-      return rows[0];
+
+      const loan = rows[0];
+      await writeAuditLog(client, ctx, 'loan.apply', loan.id, undefined, {
+        principal_amount: loan.principal_amount,
+        interest_rate: loan.interest_rate,
+        loan_term_months: loan.loan_term_months,
+        interest_method: loan.interest_method,
+        status: loan.status,
+      });
+
+      return loan;
     });
   },
 
@@ -182,12 +192,17 @@ export const loansService = {
         throw new ValidationError(`Cannot approve a loan with status '${existing[0].status}'`);
       }
 
+      const prev = existing[0];
       const { rows } = await client.query<Loan>(
         `UPDATE loans SET status = 'approved', approved_by = $1, approved_at = NOW()
          WHERE id = $2 RETURNING *`,
         [ctx.userId, id],
       );
-      return rows[0];
+
+      const updated = rows[0];
+      await writeAuditLog(client, ctx, 'loan.approve', id, { status: prev.status }, { status: updated.status });
+
+      return updated;
     });
   },
 
@@ -201,13 +216,18 @@ export const loansService = {
         throw new ValidationError(`Cannot reject a loan with status '${existing[0].status}'`);
       }
 
+      const prev = existing[0];
       const { rows } = await client.query<Loan>(
         `UPDATE loans
          SET status = 'rejected', rejected_by = $1, rejected_at = NOW(), rejection_reason = $2
          WHERE id = $3 RETURNING *`,
         [ctx.userId, data.reason, id],
       );
-      return rows[0];
+
+      const updated = rows[0];
+      await writeAuditLog(client, ctx, 'loan.reject', id, { status: prev.status }, { status: updated.status, reason: data.reason });
+
+      return updated;
     });
   },
 
@@ -222,6 +242,11 @@ export const loansService = {
       }
 
       // Transition to disbursed — the DB trigger generates the repayment schedule
+      const { rows: existing } = await client.query<Loan>(
+        `SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [id, ctx.groupId],
+      );
+      const prev = existing[0];
+
       const { rows } = await client.query<Loan>(
         `UPDATE loans
          SET status = 'disbursed',
@@ -240,6 +265,8 @@ export const loansService = {
         ],
       );
 
+      const updated = rows[0];
+
       // Attribute the money to its funding source(s) — migration 118.
       //
       // This is what distinguishes "the group lent its own savings" from "the
@@ -249,7 +276,7 @@ export const loansService = {
       //
       // A deferred constraint trigger asserts these sum to the principal, so a
       // loan can never reach 'disbursed' only partly attributed.
-      const principal = parseFloat(rows[0].principal_amount);
+      const principal = parseFloat(updated.principal_amount);
       const plan = await resolveFundingPlan(client, ctx.groupId, principal, data.fundingPlan);
 
       for (const split of plan) {
@@ -257,17 +284,20 @@ export const loansService = {
           `INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (loan_id, funding_source_id) DO UPDATE SET amount = EXCLUDED.amount`,
-          [ctx.groupId, rows[0].id, split.fundingSourceId, split.amount.toFixed(2)],
+          [ctx.groupId, updated.id, split.fundingSourceId, split.amount.toFixed(2)],
         );
       }
 
       // Post disbursement journal
       await postLoanDisbursementJournal(client, {
-        groupId: ctx.groupId, loanId: rows[0].id, principal,
-        entryDate: rows[0].disbursement_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
+        groupId: ctx.groupId, loanId: updated.id, principal,
+        entryDate: updated.disbursement_date!, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
       });
 
-      return rows[0];
+      // Record audit log
+      await writeAuditLog(client, ctx, 'loan.disburse', id, { status: prev.status }, { status: updated.status, principal_amount: updated.principal_amount });
+
+      return updated;
     });
   },
 
@@ -292,6 +322,7 @@ export const loansService = {
         if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
       }
 
+      const oldInstallment = installment[0];
       const { rows } = await client.query<LoanRepayment>(
         `UPDATE loan_repayments
          SET amount_paid          = $1,
@@ -310,8 +341,10 @@ export const loansService = {
         ],
       );
 
+      const updatedInstallment = rows[0];
+
       // Update the parent loan's outstanding balance and next payment date
-      await client.query(
+      const { rows: loanRows } = await client.query<Loan>(
         `UPDATE loans SET
            outstanding_balance = outstanding_balance - $1,
            next_payment_date = (
@@ -322,18 +355,25 @@ export const loansService = {
              WHEN (SELECT COUNT(*) FROM loan_repayments WHERE loan_id = $2 AND status != 'completed') = 0
              THEN 'completed' ELSE status
            END
-         WHERE id = $2`,
-        [rows[0].principal_component, loanId],
+         WHERE id = $2
+         RETURNING *`,
+        [updatedInstallment.principal_component, loanId],
       );
 
       // Post repayment journal
       await postLoanRepaymentJournal(client, {
-        groupId: ctx.groupId, repaymentId: rows[0].id, loanId: loanId,
-        principalPortion: parseFloat(rows[0].principal_component), interestPortion: parseFloat(rows[0].interest_component),
-        entryDate: rows[0].payment_date!, reference: rows[0].mpesa_receipt_number, createdBy: ctx.userId,
+        groupId: ctx.groupId, repaymentId: updatedInstallment.id, loanId: loanId,
+        principalPortion: parseFloat(updatedInstallment.principal_component), interestPortion: parseFloat(updatedInstallment.interest_component),
+        entryDate: updatedInstallment.payment_date!, reference: updatedInstallment.mpesa_receipt_number, createdBy: ctx.userId,
       });
 
-      return rows[0];
+      // Record audit log for repayment
+      await writeAuditLog(client, ctx, 'loan.repayment_recorded', loanId,
+        { installment: data.installmentNumber, status: oldInstallment.status },
+        { installment: data.installmentNumber, amount_paid: data.amountPaid, status: updatedInstallment.status }
+      );
+
+      return updatedInstallment;
     });
   },
 
@@ -348,14 +388,17 @@ export const loansService = {
         throw new ValidationError(`Only active loans can be marked defaulted (current status: '${existing[0].status}')`);
       }
 
+      const prev = existing[0];
       const { rows } = await client.query<Loan>(
         `UPDATE loans
          SET    status = 'defaulted', defaulted_by = $1, defaulted_at = NOW(), default_reason = $2
          WHERE  id = $3 RETURNING *`,
         [ctx.userId, data.reason, id],
       );
-      await writeAuditLog(client, ctx, 'loan.defaulted', id, { reason: data.reason });
-      return rows[0];
+
+      const updated = rows[0];
+      await writeAuditLog(client, ctx, 'loan.defaulted', id, { status: prev.status }, { status: updated.status, reason: data.reason });
+      return updated;
     });
   },
 
@@ -379,7 +422,8 @@ export const loansService = {
         throw new ForbiddenError('Maker-checker: the officer who marked this loan defaulted cannot authorize its write-off');
       }
 
-      const outstanding = parseFloat(existing[0].outstanding_balance ?? '0');
+      const prev = existing[0];
+      const outstanding = parseFloat(prev.outstanding_balance ?? '0');
       let journalEntryId: string | null = null;
       if (outstanding > 0) {
         journalEntryId = await postTemplatedJournal(
@@ -396,8 +440,13 @@ export const loansService = {
          WHERE  id = $4 RETURNING *`,
         [ctx.userId, data.reason, journalEntryId, id],
       );
-      await writeAuditLog(client, ctx, 'loan.written_off', id, { reason: data.reason, amount: outstanding.toFixed(2) });
-      return rows[0];
+
+      const updated = rows[0];
+      await writeAuditLog(client, ctx, 'loan.written_off', id,
+        { status: prev.status, outstanding_balance: prev.outstanding_balance },
+        { status: updated.status, outstanding_balance: updated.outstanding_balance, reason: data.reason }
+      );
+      return updated;
     });
   },
 };
@@ -407,12 +456,20 @@ async function writeAuditLog(
   ctx:    TenantContext,
   action: string,
   resourceId: string,
-  payload: Record<string, unknown>,
+  oldValues?: Record<string, unknown>,
+  newValues?: Record<string, unknown>,
 ): Promise<void> {
   await client.query(
-    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
-     VALUES ($1, $2, $3, 'loan', $4, $5::jsonb)`,
-    [ctx.groupId, ctx.userId, action, resourceId, JSON.stringify(payload)],
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, 'loan', $4, $5, $6)`,
+    [
+      ctx.groupId,
+      ctx.userId,
+      action,
+      resourceId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ],
   );
 }
 
