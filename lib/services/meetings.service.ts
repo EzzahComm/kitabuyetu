@@ -172,7 +172,33 @@ export const meetingsService = {
          data.chairedBy ?? null, data.secretaryId ?? null,
          data.notes ?? null, ctx.userId],
       );
-      return rows[0];
+      const meeting = rows[0];
+
+      // Record audit log entry (atomic with the meeting insert)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'meeting.create',
+          'meeting',
+          meeting.id,
+          null,
+          JSON.stringify({
+            title: meeting.title,
+            meeting_type: meeting.meeting_type,
+            scheduled_at: meeting.scheduled_at,
+            venue: meeting.venue,
+            is_virtual: meeting.is_virtual,
+            meeting_link: meeting.meeting_link,
+            quorum_required: meeting.quorum_required,
+            status: meeting.status,
+          }),
+        ],
+      );
+
+      return meeting;
     });
   },
 
@@ -183,6 +209,7 @@ export const meetingsService = {
       );
       if (!meeting) throw new NotFoundError('Meeting', id);
 
+      const prev = meeting;
       const updates: string[] = ['updated_at=now()'];
       const args: unknown[] = [];
       let p = 1;
@@ -211,7 +238,81 @@ export const meetingsService = {
         `UPDATE meetings SET ${updates.join(',')} WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
         args,
       );
-      return rows[0];
+      const updated = rows[0];
+
+      // Record audit log entry for the update (atomic with the update)
+      const changedFields: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
+      if (data.title !== undefined) {
+        changedFields.title = prev.title;
+        newValues.title = updated.title;
+      }
+      if (data.status !== undefined) {
+        changedFields.status = prev.status;
+        newValues.status = updated.status;
+      }
+      if (data.scheduledAt !== undefined) {
+        changedFields.scheduled_at = prev.scheduled_at;
+        newValues.scheduled_at = updated.scheduled_at;
+      }
+      if (data.venue !== undefined) {
+        changedFields.venue = prev.venue;
+        newValues.venue = updated.venue;
+      }
+      if (data.isVirtual !== undefined) {
+        changedFields.is_virtual = prev.is_virtual;
+        newValues.is_virtual = updated.is_virtual;
+      }
+      if (data.meetingLink !== undefined) {
+        changedFields.meeting_link = prev.meeting_link;
+        newValues.meeting_link = updated.meeting_link;
+      }
+      if (data.minutes !== undefined) {
+        changedFields.minutes = prev.minutes;
+        newValues.minutes = updated.minutes;
+      }
+      if (data.quorumAchieved !== undefined) {
+        changedFields.quorum_achieved = prev.quorum_achieved;
+        newValues.quorum_achieved = updated.quorum_achieved;
+      }
+      if (data.chairedBy !== undefined) {
+        changedFields.chaired_by = prev.chaired_by;
+        newValues.chaired_by = updated.chaired_by;
+      }
+      if (data.secretaryId !== undefined) {
+        changedFields.secretary_id = prev.secretary_id;
+        newValues.secretary_id = updated.secretary_id;
+      }
+      if (data.notes !== undefined) {
+        changedFields.notes = prev.notes;
+        newValues.notes = updated.notes;
+      }
+      if (data.endedAt !== undefined) {
+        changedFields.ended_at = prev.ended_at;
+        newValues.ended_at = updated.ended_at;
+      }
+      if (data.agenda !== undefined) {
+        changedFields.agenda = prev.agenda;
+        newValues.agenda = updated.agenda;
+      }
+
+      if (Object.keys(changedFields).length > 0) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'meeting.update',
+            'meeting',
+            updated.id,
+            JSON.stringify(changedFields),
+            JSON.stringify(newValues),
+          ],
+        );
+      }
+
+      return updated;
     });
   },
 
@@ -221,6 +322,8 @@ export const meetingsService = {
         'SELECT * FROM meetings WHERE id=$1 AND group_id=$2', [meetingId, ctx.groupId],
       );
       if (!meeting) throw new NotFoundError('Meeting', meetingId);
+
+      const prevQuorumAchieved = meeting.quorum_achieved;
 
       for (const a of data.attendance) {
         await client.query(
@@ -238,12 +341,31 @@ export const meetingsService = {
          FROM meeting_attendance WHERE meeting_id=$1`,
         [meetingId],
       );
+      const presentCount = Number(present);
+
       await client.query(
         'UPDATE meetings SET quorum_achieved=$1, updated_at=now() WHERE id=$2',
-        [Number(present), meetingId],
+        [presentCount, meetingId],
       );
 
-      return { recorded: data.attendance.length, presentCount: Number(present) };
+      // Record audit log entry for attendance recording (quorum update)
+      if (presentCount !== prevQuorumAchieved) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'meeting_attendance.record',
+            'meeting',
+            meetingId,
+            JSON.stringify({ quorum_achieved: prevQuorumAchieved, attendance_count: data.attendance.length }),
+            JSON.stringify({ quorum_achieved: presentCount, attendance_count: data.attendance.length }),
+          ],
+        );
+      }
+
+      return { recorded: data.attendance.length, presentCount };
     });
   },
 
@@ -271,7 +393,31 @@ export const meetingsService = {
          data.implementationDeadline ?? null, data.responsibleParty ?? null,
          data.notes ?? null],
       );
-      return rows[0];
+      const resolution = rows[0];
+
+      // Record audit log entry (atomic with the resolution insert)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'meeting_resolution.create',
+          'meeting_resolution',
+          resolution.id,
+          null,
+          JSON.stringify({
+            resolution_text: resolution.resolution_text,
+            status: resolution.status,
+            proposed_by: resolution.proposed_by,
+            votes_for: resolution.votes_for,
+            votes_against: resolution.votes_against,
+            votes_abstain: resolution.votes_abstain,
+          }),
+        ],
+      );
+
+      return resolution;
     });
   },
 
@@ -302,6 +448,7 @@ export const meetingsService = {
       );
       if (!existing) throw new NotFoundError('Resolution', resolutionId);
 
+      const prev = existing;
       const updates: string[] = [];
       const args: unknown[] = [];
       let p = 1;
@@ -330,7 +477,47 @@ export const meetingsService = {
          WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
         args,
       );
-      return rows[0];
+      const updated = rows[0];
+
+      // Record audit log entry for the update (atomic with the update)
+      const changedFields: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
+      if (data.implemented !== undefined) {
+        changedFields.implemented = prev.implemented;
+        newValues.implemented = updated.implemented;
+      }
+      if (data.status !== undefined) {
+        changedFields.status = prev.status;
+        newValues.status = updated.status;
+      }
+      if (data.implementationDeadline !== undefined) {
+        changedFields.implementation_deadline = prev.implementation_deadline;
+        newValues.implementation_deadline = updated.implementation_deadline;
+      }
+      if (data.responsibleParty !== undefined) {
+        changedFields.responsible_party = prev.responsible_party;
+        newValues.responsible_party = updated.responsible_party;
+      }
+      if (data.notes !== undefined) {
+        changedFields.notes = prev.notes;
+        newValues.notes = updated.notes;
+      }
+
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'meeting_resolution.update',
+          'meeting_resolution',
+          updated.id,
+          JSON.stringify(changedFields),
+          JSON.stringify(newValues),
+        ],
+      );
+
+      return updated;
     });
   },
 
