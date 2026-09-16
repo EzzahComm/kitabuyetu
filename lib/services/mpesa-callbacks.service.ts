@@ -112,25 +112,90 @@ export async function handleReversalResult(
   const receipt = get('TransactionReceipt') as string | undefined;
 
   await withAdminDb(async (db) => {
+    // Get reversal details for audit log
+    const { rows: revRows } = await db.query<{ id: string; group_id: string | null }>(
+      `SELECT id, group_id FROM mpesa_reversals WHERE originator_conversation_id=$1 LIMIT 1`,
+      [origId],
+    );
+    const rev = revRows[0];
+
+    const newStatus = success ? 'completed' : 'failed';
     await db.query(
       `UPDATE mpesa_reversals
        SET status=$1, reversal_receipt=$2, raw_result=$3, result_received_at=NOW()
        WHERE originator_conversation_id=$4`,
-      [success ? 'completed' : 'failed', receipt ?? null, JSON.stringify(body), origId],
+      [newStatus, receipt ?? null, JSON.stringify(body), origId],
     );
+
+    // Audit reversal status change
+    if (rev) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, NULL, $2, 'mpesa_reversal', $3, $4, $5)`,
+        [
+          rev.group_id,
+          'reversal.result',
+          rev.id,
+          JSON.stringify({ status: 'initiated' }),
+          JSON.stringify({
+            status: newStatus,
+            reversal_receipt: receipt ?? null,
+          }),
+        ],
+      );
+    }
+
     if (success && receipt) {
+      // Get payment for audit
+      const { rows: payRows } = await db.query<{ id: string; group_id: string }>(
+        `SELECT id, group_id FROM payments WHERE mpesa_receipt_number=$1 LIMIT 1`,
+        [receipt],
+      );
+      const pay = payRows[0];
+
       await db.query(
         'UPDATE payments SET status=\'reversed\' WHERE mpesa_receipt_number=$1',
         [receipt],
       );
+
+      if (pay) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, NULL, $2, 'payment', $3, $4, $5)`,
+          [
+            pay.group_id,
+            'payment.reversed',
+            pay.id,
+            JSON.stringify({ status: 'completed' }),
+            JSON.stringify({ status: 'reversed' }),
+          ],
+        );
+      }
     }
+
     if (!success) {
-      await db.query(
+      const { rows: logRows } = await db.query<{ id: string }>(
         `INSERT INTO failed_payment_logs
-           (transaction_type, reference_id, failure_reason, failure_code, raw_data)
-         VALUES ('reversal',$1,$2,$3,$4)`,
-        [origId, r.ResultDesc ?? '', String(r.ResultCode ?? ''), JSON.stringify(body)],
+           (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
+         VALUES ($1, 'reversal',$2,$3,$4,$5)
+         RETURNING id`,
+        [rev?.group_id ?? null, origId, r.ResultDesc ?? '', String(r.ResultCode ?? ''), JSON.stringify(body)],
       );
+      if (logRows[0] && rev) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, NULL, $2, 'failed_payment_log', $3, NULL, $4)`,
+          [
+            rev.group_id,
+            'reversal.failure_logged',
+            logRows[0].id,
+            JSON.stringify({
+              transaction_type: 'reversal',
+              failure_reason: r.ResultDesc,
+            }),
+          ],
+        );
+      }
     }
   });
 }
@@ -152,17 +217,42 @@ export async function handleBalanceResult(
   if (!r) return;
 
   await withAdminDb(async (db) => {
+    // Get transaction for audit
+    const { rows: txRows } = await db.query<{ id: string; group_id: string; status: string }>(
+      `SELECT id, group_id, status FROM mpesa_transactions
+       WHERE originator_conversation_id=$1 OR conversation_id=$2
+       LIMIT 1`,
+      [r.OriginatorConversationID ?? '', r.ConversationID ?? ''],
+    );
+    const tx = txRows[0];
+
+    const newStatus = r.ResultCode === 0 ? 'completed' : 'failed';
     await db.query(
       `UPDATE mpesa_transactions
        SET status=$1, raw_response=$2, completed_at=NOW()
        WHERE originator_conversation_id=$3 OR conversation_id=$4`,
       [
-        r.ResultCode === 0 ? 'completed' : 'failed',
+        newStatus,
         JSON.stringify(body),
         r.OriginatorConversationID ?? '',
         r.ConversationID ?? '',
       ],
     );
+
+    // Audit transaction status change
+    if (tx) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, NULL, $2, 'mpesa_transaction', $3, $4, $5)`,
+        [
+          tx.group_id,
+          'balance.result',
+          tx.id,
+          JSON.stringify({ status: tx.status }),
+          JSON.stringify({ status: newStatus }),
+        ],
+      );
+    }
   });
 }
 
@@ -219,6 +309,16 @@ export async function handleTransactionStatusResult(
   const success = r.ResultCode === 0;
 
   await withAdminDb(async (db) => {
+    // Get transaction for audit
+    const { rows: txRows } = await db.query<{ id: string; group_id: string; status: string; amount: string }>(
+      `SELECT id, group_id, status, amount FROM mpesa_transactions
+       WHERE originator_conversation_id = $1 OR conversation_id = $2
+       LIMIT 1`,
+      [r.OriginatorConversationID ?? '', r.ConversationID ?? ''],
+    );
+    const tx = txRows[0];
+
+    const newStatus = success ? 'completed' : 'failed';
     await db.query(
       `UPDATE mpesa_transactions
        SET status               = $1,
@@ -229,7 +329,7 @@ export async function handleTransactionStatusResult(
            completed_at         = NOW()
        WHERE originator_conversation_id = $5 OR conversation_id = $6`,
       [
-        success ? 'completed' : 'failed',
+        newStatus,
         stored,
         receipt,
         amount != null ? amount.toFixed(2) : null,
@@ -237,6 +337,27 @@ export async function handleTransactionStatusResult(
         r.ConversationID ?? '',
       ],
     );
+
+    // Audit transaction status change with parsed details
+    if (tx) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, NULL, $2, 'mpesa_transaction', $3, $4, $5)`,
+        [
+          tx.group_id,
+          'transaction_status.result',
+          tx.id,
+          JSON.stringify({ status: tx.status, amount: tx.amount }),
+          JSON.stringify({
+            status: newStatus,
+            receipt_number: receipt,
+            amount: amount != null ? amount.toFixed(2) : tx.amount,
+            debit_party: parsed.debitPartyName,
+            credit_party: parsed.creditPartyName,
+          }),
+        ],
+      );
+    }
   });
 }
 

@@ -53,13 +53,31 @@ export async function insertMpesaCharge(
     journalEntryId:     string | null;
   },
 ): Promise<void> {
-  await db.query(
+  const { rows } = await db.query<{ id: string }>(
     `INSERT INTO mpesa_charges
        (group_id, mpesa_transaction_id, charge_type, amount, source, journal_entry_id)
      VALUES ($1,$2,$3,$4,'tier_table',$5)
-     ON CONFLICT (mpesa_transaction_id) DO NOTHING`,
+     ON CONFLICT (mpesa_transaction_id) DO NOTHING
+     RETURNING id`,
     [args.groupId, args.mpesaTransactionId, args.chargeType, args.amount.toFixed(2), args.journalEntryId],
   );
+  if (rows[0]) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, NULL, $2, 'mpesa_charge', $3, NULL, $4)`,
+      [
+        args.groupId,
+        'mpesa_charge.record',
+        rows[0].id,
+        JSON.stringify({
+          charge_type: args.chargeType,
+          amount: args.amount.toFixed(2),
+          mpesa_transaction_id: args.mpesaTransactionId,
+          journal_entry_id: args.journalEntryId,
+        }),
+      ],
+    );
+  }
 }
 
 /**
@@ -102,15 +120,53 @@ export async function postStandaloneChargeJournal(
   );
   const jeId = jeRows[0].id;
 
+  // Audit the journal entry
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, NULL, $2, 'journal_entry', $3, NULL, $4)`,
+    [
+      args.groupId,
+      'mpesa_charge.journal',
+      jeId,
+      JSON.stringify({
+        entry_date: 'CURRENT_DATE',
+        reference: args.reference,
+        description: `M-Pesa ${args.chargeType.toUpperCase()} transaction charge`,
+        amount: args.amount.toFixed(2),
+        status: 'posted',
+      }),
+    ],
+  );
+
   // entry_date is the journal_lines partition key — supplied directly as the
   // same CURRENT_DATE literal used for the parent journal_entries row above
   // (a BEFORE INSERT trigger deriving it after Postgres has already routed
   // the row to a partition is unsupported).
-  await db.query(
+  const { rows: jlRows } = await db.query<{ id: string }>(
     `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
-     VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)`,
+     VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)
+     RETURNING id`,
     [args.groupId, jeId, expenseId, args.amount.toFixed(2), cashId],
   );
+
+  // Audit the journal lines (both debit and credit)
+  if (jlRows.length >= 2) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, NULL, $2, 'journal_lines', $3, NULL, $4)`,
+      [
+        args.groupId,
+        'mpesa_charge.journal_lines',
+        jlRows[0].id,
+        JSON.stringify({
+          journal_entry_id: jeId,
+          amount: args.amount.toFixed(2),
+          expense_debit: true,
+          cash_credit: true,
+        }),
+      ],
+    );
+  }
 
   await insertMpesaCharge(db, { ...args, journalEntryId: jeId });
 }
