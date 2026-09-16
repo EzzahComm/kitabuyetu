@@ -81,8 +81,8 @@ export async function scheduleEmail(opts: {
   referenceId?: string;
   referenceType?: string;
 }): Promise<string> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(
+  const { rows } = await withAdminDb(async (db) => {
+    const result = await db.query<{ id: string }>(
       `INSERT INTO email_schedules
          (group_id, name, template_key, recipient_email, variables,
           schedule_type, next_run_at, is_active, created_by, reference_id, reference_type)
@@ -98,8 +98,29 @@ export async function scheduleEmail(opts: {
         opts.referenceId ?? null,
         opts.referenceType ?? null,
       ],
-    ),
-  );
+    );
+
+    if (result.rows[0] && opts.groupId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, 'email_schedule', $4, NULL, $5)`,
+        [
+          opts.groupId,
+          opts.userId ?? null,
+          'email.schedule',
+          result.rows[0].id,
+          JSON.stringify({
+            template_key: opts.templateKey,
+            recipient_email: Array.isArray(opts.to) ? opts.to[0] : opts.to,
+            schedule_type: 'once',
+            next_run_at: opts.sendAt.toISOString(),
+            reference_type: opts.referenceType,
+          }),
+        ],
+      );
+    }
+    return result;
+  });
   return rows[0].id;
 }
 

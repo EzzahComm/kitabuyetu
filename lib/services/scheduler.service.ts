@@ -36,23 +36,45 @@ export async function processDueSchedules(): Promise<{
       });
 
       if (sched.schedule_type === "once") {
-        await withAdminDb((db) =>
-          db.query(
+        await withAdminDb(async (db) => {
+          await db.query(
             `UPDATE email_schedules SET is_active=false, last_run_at=NOW() WHERE id=$1`,
             [sched.id],
-          ),
-        );
+          );
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
+            [
+              sched.group_id,
+              'email_schedule.sent_once',
+              sched.id,
+              JSON.stringify({ is_active: true, schedule_type: 'once' }),
+              JSON.stringify({ is_active: false, status: 'completed' }),
+            ],
+          );
+        });
       } else {
         const nextRun = computeNextRun(
           sched.schedule_type,
           new Date(sched.next_run_at),
         );
-        await withAdminDb((db) =>
-          db.query(
+        await withAdminDb(async (db) => {
+          await db.query(
             `UPDATE email_schedules SET last_run_at=NOW(), next_run_at=$1 WHERE id=$2`,
             [nextRun.toISOString(), sched.id],
-          ),
-        );
+          );
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
+            [
+              sched.group_id,
+              'email_schedule.sent_recurring',
+              sched.id,
+              JSON.stringify({ next_run_at: sched.next_run_at }),
+              JSON.stringify({ next_run_at: nextRun.toISOString() }),
+            ],
+          );
+        });
       }
 
       processed++;
