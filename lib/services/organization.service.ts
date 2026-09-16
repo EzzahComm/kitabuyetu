@@ -125,6 +125,14 @@ export const organizationService = {
     await this.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
       await assertWhiteLabelAccess(client, orgId(ctx));
+
+      // Fetch current branding to capture old values
+      const { rows: current } = await client.query<OrganizationBranding>(
+        `SELECT logo_url AS "logoUrl", primary_color AS "primaryColor" FROM organizations WHERE id = $1`,
+        [ctx.organizationId],
+      );
+      const prev = current[0];
+
       const { rows } = await client.query<OrganizationBranding>(
         `UPDATE organizations
          SET logo_url = $2, primary_color = $3
@@ -132,8 +140,33 @@ export const organizationService = {
          RETURNING logo_url AS "logoUrl", primary_color AS "primaryColor"`,
         [ctx.organizationId, input.logoUrl ?? null, input.primaryColor ?? null],
       );
-      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
-      return rows[0];
+      const updated = rows[0];
+
+      if (!updated) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+
+      // Record audit log for branding update
+      // Note: organization_id is stored at org level, not group level for this action
+      await client.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.organizationId,
+          ctx.userId,
+          'organization.setBranding',
+          'organization',
+          ctx.organizationId,
+          JSON.stringify({
+            logo_url: prev?.logoUrl,
+            primary_color: prev?.primaryColor,
+          }),
+          JSON.stringify({
+            logo_url: updated.logoUrl,
+            primary_color: updated.primaryColor,
+          }),
+        ],
+      );
+
+      return updated;
     });
   },
 
