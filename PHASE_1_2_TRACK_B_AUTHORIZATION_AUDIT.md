@@ -1,9 +1,45 @@
 # Phase 1.2 Track B: Authorization Audit
 
-**Completed**: 2026-09-16  
-**Audit Focus**: Critical financial, membership, and governance services  
-**Services Analyzed**: 10 critical services across 4 tiers  
-**Status**: Authorization gaps identified; recommendations ready for Phase 2 implementation
+**Completed**: 2026-09-16
+**Audit Focus**: Critical financial, membership, and governance services
+**Services Analyzed**: 10 critical services across 4 tiers
+**Status**: ⚠️ **CORRECTED 2026-09-16 — the HIGH RISK findings below are false positives. Do not implement the Phase 2 roadmap in this document.**
+
+> ## Correction (2026-09-16, same day)
+>
+> This audit inspected only `lib/services/*.ts` and never checked the API
+> route handlers under `app/api/v1/...`, which is where this codebase
+> deliberately puts every authorization check (services are intentionally
+> role-agnostic business logic). Verified directly against the route files:
+> every operation flagged HIGH RISK below — loan approve/reject/disburse/
+> markDefaulted, contribution create/update/delete, member create/
+> updateRole/transitionStatus, settlement initiate, disbursement initiate,
+> bank account create — is gated by `withPermission(req, '<permission>',
+> ...)` (`lib/auth/middleware.ts` + `lib/auth/permissions.ts`) against a real
+> `roles.permissions` seed catalog
+> (`__tests__/integration/permissions/role-permission-catalog.test.ts`),
+> scoped to secretary/treasurer/chairperson tiers, never plain `member`.
+> Several — loan approval, settlement initiation, B2C disbursement
+> initiation, member status transitions — additionally re-verify the
+> permission against LIVE `roles.permissions` via `assertAuthFresh()` before
+> acting, because they're flagged "Sensitive op" (§2.5,
+> `SIMPLIFICATION_AND_RBAC_AUDIT.md` Workstream 4).
+>
+> The role names this document's Phase 2 code samples invented —
+> `loan_officer`, `finance_officer`, `chairman` — do not exist anywhere in
+> the schema. The real `member_role` enum (migration 001) has exactly four
+> values: `group_admin`, `treasurer`, `secretary`, `member`. Implementing
+> those samples as written would have silently locked every real treasurer
+> and chairperson out of their own group in production.
+>
+> The one row in this document's own table that IS correct:
+> `changePassword()` has no role check, but it's deliberately self-scoped
+> (hardcodes `auth.userId`, can't target another member) — already flagged
+> "acceptable pattern" in the per-service table below, even though the
+> executive summary above contradicts that and calls it HIGH RISK anyway.
+>
+> **No Phase 2 authorization implementation is needed.** The findings and
+> Phase 2 roadmap below are preserved for the record, not as active guidance.
 
 ---
 
