@@ -131,6 +131,27 @@ export const welfareService = {
         [ctx.groupId, ctx.userId, membershipId, data.requestType, data.title,
          data.description ?? null, data.amountRequested, data.priority, data.notes ?? null],
       );
+
+      // Record audit log for welfare request creation — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'welfareRequest.create',
+          'welfare_request',
+          rows[0].id,
+          null,
+          JSON.stringify({
+            request_type: data.requestType,
+            amount_requested: data.amountRequested,
+            priority: data.priority,
+            status: 'pending',
+          }),
+        ],
+      );
+
       return rows[0];
     });
   },
@@ -154,6 +175,22 @@ export const welfareService = {
            WHERE id=$4 AND group_id=$5 RETURNING *`,
           [data.amountApproved ?? req.amount_requested, ctx.userId, data.notes ?? null, id, ctx.groupId],
         );
+
+        // Record audit log for welfare request approval — user-triggered
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'welfareRequest.approve',
+            'welfare_request',
+            id,
+            JSON.stringify({ status: req.status }),
+            JSON.stringify({ status: 'approved', amount_approved: data.amountApproved }),
+          ],
+        );
+
         return rows[0];
       } else {
         if (!data.rejectionReason) throw new ValidationError('Rejection reason is required');
@@ -164,6 +201,22 @@ export const welfareService = {
            WHERE id=$4 AND group_id=$5 RETURNING *`,
           [ctx.userId, data.rejectionReason, data.notes ?? null, id, ctx.groupId],
         );
+
+        // Record audit log for welfare request rejection — user-triggered
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'welfareRequest.reject',
+            'welfare_request',
+            id,
+            JSON.stringify({ status: req.status }),
+            JSON.stringify({ status: 'rejected', rejection_reason: data.rejectionReason }),
+          ],
+        );
+
         return rows[0];
       }
     });
@@ -186,6 +239,21 @@ export const welfareService = {
          WHERE id=$6 AND group_id=$7 RETURNING *`,
         [data.amountDisbursed, ctx.userId, data.paymentMethod,
          data.mpesaReceiptNumber ?? null, data.notes ?? null, id, ctx.groupId],
+      );
+
+      // Record audit log for welfare request disbursement — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'welfareRequest.disburse',
+          'welfare_request',
+          id,
+          JSON.stringify({ status: 'approved' }),
+          JSON.stringify({ status: 'disbursed', amount_disbursed: data.amountDisbursed }),
+        ],
       );
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: a real cash payout with
@@ -245,6 +313,25 @@ export const welfareService = {
          data.paymentMethod ?? null, data.mpesaReceiptNumber ?? null,
          data.periodMonth ?? null, data.periodYear ?? null,
          ctx.userId, data.notes ?? null],
+      );
+
+      // Record audit log for welfare pool contribution — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'welfarePoolContribution.create',
+          'welfare_pool_contribution',
+          rows[0].id,
+          null,
+          JSON.stringify({
+            member_id: data.memberId,
+            amount: data.amount,
+            contribution_type: data.contributionType,
+          }),
+        ],
       );
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: money coming in with previously
