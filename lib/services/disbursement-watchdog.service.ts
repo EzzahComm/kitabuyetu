@@ -71,6 +71,24 @@ export async function resolveWatchdogTimeout(
     const row = rows[0];
 
     if (row) {
+      // Audit the watchdog timeout resolution
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, NULL, $2, $3, $4, $5, $6)`,
+        [
+          row.group_id,
+          'watchdog.timeout',
+          kind === 'disbursement' ? 'disbursement_request' :
+          kind === 'settlement' ? 'settlement_request' : 'vendor_payment',
+          row.id,
+          JSON.stringify({ status: inProgressStatus, amount: row.amount }),
+          JSON.stringify({
+            status: 'timed_out',
+            failure_reason: 'Watchdog timeout: no Daraja result callback received',
+          }),
+        ],
+      );
+
       // Same shape/fields as findStuckDisbursements' existing paging signal
       // (disbursements.service.ts) — deliberately not a new alert channel;
       // see the messaging architecture doc §9 for why.
