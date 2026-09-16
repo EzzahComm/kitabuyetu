@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { PoolClient } from 'pg';
 import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 import { NotFoundError, ForbiddenError } from '@/lib/utils/errors';
 
@@ -23,14 +24,21 @@ interface TemplateRow { group_id: string | null }
  * was only editable by a super_admin) — any authenticated member of any
  * group could read, edit, or delete any other group's templates, or the
  * shared platform-wide defaults every group falls back to.
+ *
+ * Refactored (2026-09-16) to use client parameter within withDb context.
  */
-async function assertOwnership(id: string, auth: { groupId: string; role: string }): Promise<void> {
-  const { rows } = await withAdminDb((db) =>
-    db.query<TemplateRow>(`SELECT group_id FROM email_templates WHERE id = $1`, [id]),
+async function assertOwnership(
+  client: PoolClient,
+  id: string,
+  auth: { groupId: string; role: string }
+): Promise<void> {
+  const result = await client.query<TemplateRow>(
+    `SELECT group_id FROM email_templates WHERE id = $1`,
+    [id]
   );
-  if (!rows.length) throw new NotFoundError('Email template', id);
+  if (!result.rows.length) throw new NotFoundError('Email template', id);
 
-  const ownerGroupId = rows[0].group_id;
+  const ownerGroupId = result.rows[0].group_id;
   if (ownerGroupId === null) {
     if (auth.role !== 'super_admin') {
       throw new ForbiddenError('Only a super_admin can modify a platform-wide template');
@@ -45,25 +53,40 @@ async function assertOwnership(id: string, auth: { groupId: string; role: string
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'messaging.templates.view', async (auth) => {
-    const { rows } = await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      const result = await client.query(
         `SELECT * FROM email_templates WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)`,
         [id, auth.groupId],
-      ),
-    );
-    if (!rows.length) throw new NotFoundError('Email template', id);
-    return ok(rows[0]);
+      );
+      if (!result.rows.length) throw new NotFoundError('Email template', id);
+      return ok(result.rows[0]);
+    });
   });
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
-    await assertOwnership(id, auth);
     const body = UpdateTemplateSchema.parse(await req.json());
 
-    await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      await assertOwnership(client, id, auth);
+
+      await client.query(
         `UPDATE email_templates
          SET name     = COALESCE($1, name),
              subject  = COALESCE($2, subject),
@@ -72,10 +95,10 @@ export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> 
              updated_at = NOW()
          WHERE id = $5`,
         [body.name ?? null, body.subject ?? null, body.body ?? null, body.isActive ?? null, id],
-      ),
-    );
+      );
 
-    return ok({ success: true });
+      return ok({ success: true });
+    });
   });
 }
 
