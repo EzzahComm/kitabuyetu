@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 import type { SubscriptionProduct } from '@/types/enums';
 
@@ -24,13 +24,21 @@ import type { SubscriptionProduct } from '@/types/enums';
  * without this a standalone Chama Reminder registrant would be indistinguishable
  * from an unpaid Kitabu Yetu one and would be sent to the wrong subscribe page.
  *
- * withAdminDb rather than withDb: this is the group's own billing state, read
- * by group_id, and a locked group must be able to read it regardless of RLS
- * session setup.
+ * Refactored (2026-09-16) from withAdminDb to withDb for RLS enforcement.
+ * The subscription-gate allowlist still permits locked groups to access this
+ * route (reads billing state), while RLS ensures they can only read their own
+ * group's subscriptions (defense-in-depth).
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const { products, signupProduct } = await withAdminDb(async (db) => {
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    const { products, signupProduct } = await withDb(ctx, async (db) => {
       const [subs, group] = await Promise.all([
         db.query<{ product: SubscriptionProduct }>(
           `SELECT DISTINCT product FROM subscriptions
