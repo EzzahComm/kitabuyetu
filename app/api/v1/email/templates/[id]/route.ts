@@ -105,12 +105,19 @@ export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> 
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
-    await assertOwnership(id, auth);
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
-    await withAdminDb((db) =>
-      db.query(`DELETE FROM email_templates WHERE id = $1`, [id]),
-    );
+    return withDb(ctx, async (client) => {
+      await assertOwnership(client, id, auth);
 
-    return ok({ success: true });
+      await client.query(`DELETE FROM email_templates WHERE id = $1`, [id]);
+
+      return ok({ success: true });
+    });
   });
 }
