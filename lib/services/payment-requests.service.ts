@@ -42,7 +42,31 @@ export const paymentRequestsService = {
           data.expiresInHours ?? null, ctx.userId,
         ],
       );
-      return rows[0];
+
+      const paymentRequest = rows[0];
+
+      // Record audit log entry (atomic with the payment request insert)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'payment_request.create',
+          'payment_request',
+          paymentRequest.id,
+          null,
+          JSON.stringify({
+            member_id: paymentRequest.member_id,
+            product: paymentRequest.product,
+            amount: paymentRequest.amount,
+            status: paymentRequest.status,
+            expires_at: paymentRequest.expires_at,
+          }),
+        ],
+      );
+
+      return paymentRequest;
     });
   },
 
@@ -80,12 +104,37 @@ export const paymentRequestsService = {
 
   async cancel(ctx: TenantContext, id: string) {
     return withTransaction(ctx, async (client) => {
+      // Fetch existing payment request before cancellation
+      const { rows: existing } = await client.query(
+        `SELECT * FROM payment_requests WHERE id = $1 AND group_id = $2 AND status = 'open'`,
+        [id, ctx.groupId],
+      );
+      if (!existing[0]) throw new NotFoundError('Open payment request', id);
+
+      const prev = existing[0];
+
       const { rowCount } = await client.query(
         `UPDATE payment_requests SET status = 'cancelled'
          WHERE id = $1 AND group_id = $2 AND status = 'open'`,
         [id, ctx.groupId],
       );
-      if (!rowCount) throw new NotFoundError('Open payment request', id);
+
+      if (rowCount) {
+        // Record audit log entry for the cancellation (atomic with the update)
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'payment_request.cancel',
+            'payment_request',
+            id,
+            JSON.stringify({ status: prev.status }),
+            JSON.stringify({ status: 'cancelled' }),
+          ],
+        );
+      }
     });
   },
 };

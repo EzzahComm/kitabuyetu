@@ -1,4 +1,4 @@
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withTransaction, type TenantContext } from '@/lib/db';
 import { renderTemplate } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { sendEmailWithFallback } from '@/lib/email/provider';
@@ -20,14 +20,20 @@ export interface CampaignCreateInput {
 }
 
 export async function createCampaign(input: CampaignCreateInput): Promise<string> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(
+  // Create a minimal TenantContext for the transaction
+  const ctx: TenantContext = {
+    groupId: input.groupId,
+    userId: input.createdBy,
+    organizationId: null,
+  };
+
+  return withTransaction(ctx, async (client) => {
+    const status = input.scheduledAt ? 'scheduled' : 'draft';
+    const { rows } = await client.query<{ id: string }>(
       `INSERT INTO email_campaigns
          (group_id, created_by, name, subject, template_key, html_body, text_body,
           recipient_filter, status, scheduled_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
-               CASE WHEN $9::timestamptz IS NOT NULL THEN 'scheduled' ELSE 'draft' END,
-               $9)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING id`,
       [
         input.groupId,
@@ -38,11 +44,36 @@ export async function createCampaign(input: CampaignCreateInput): Promise<string
         input.htmlBody ?? null,
         input.textBody ?? null,
         input.recipientFilter ? JSON.stringify(input.recipientFilter) : null,
+        status,
         input.scheduledAt?.toISOString() ?? null,
       ],
-    ),
-  );
-  return rows[0].id as string;
+    );
+
+    const campaignId = rows[0].id;
+
+    // Record audit log entry (atomic with the campaign insert)
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        input.groupId,
+        input.createdBy,
+        'campaign.create',
+        'campaign',
+        campaignId,
+        null,
+        JSON.stringify({
+          name: input.name,
+          subject: input.subject,
+          template_key: input.templateKey,
+          status,
+          scheduled_at: input.scheduledAt?.toISOString() ?? null,
+        }),
+      ],
+    );
+
+    return campaignId;
+  });
 }
 
 export async function getCampaignRecipients(
@@ -77,7 +108,7 @@ export async function getCampaignRecipients(
 }
 
 // Enqueue all recipients and update campaign status
-export async function launchCampaign(campaignId: string): Promise<void> {
+export async function launchCampaign(campaignId: string, createdBy?: string | null): Promise<void> {
   const { rows } = await withAdminDb((db) =>
     db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [campaignId]),
   );
@@ -87,30 +118,53 @@ export async function launchCampaign(campaignId: string): Promise<void> {
     throw new Error(`Campaign already ${campaign.status}`);
   }
 
+  // Create a minimal TenantContext for the transaction
+  const ctx: TenantContext = {
+    groupId: campaign.group_id,
+    userId: createdBy ?? null,
+    organizationId: null,
+  };
+
   const recipients = await getCampaignRecipients(
     campaign.group_id,
     campaign.recipient_filter,
   );
 
-  await withAdminDb((db) =>
-    db.query(
+  await withTransaction(ctx, async (client) => {
+    const prevStatus = campaign.status;
+
+    // Update campaign status
+    await client.query(
       `UPDATE email_campaigns SET status='sending', started_at=NOW(), total_recipients=$1 WHERE id=$2`,
       [recipients.length, campaignId],
-    ),
-  );
+    );
 
-  // Insert recipient rows — drained by the email_campaign_drain job on a
-  // schedule (lib/jobs), not enqueued individually here.
-  for (const r of recipients) {
-    await withAdminDb((db) =>
-      db.query(
+    // Record audit log entry for campaign launch
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        campaign.group_id,
+        createdBy ?? null,
+        'campaign.launch',
+        'campaign',
+        campaignId,
+        JSON.stringify({ status: prevStatus }),
+        JSON.stringify({ status: 'sending', total_recipients: recipients.length }),
+      ],
+    );
+
+    // Insert recipient rows — drained by the email_campaign_drain job on a
+    // schedule (lib/jobs), not enqueued individually here.
+    for (const r of recipients) {
+      await client.query(
         `INSERT INTO email_campaign_recipients (campaign_id, group_id, member_id, email, name)
          VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT DO NOTHING`,
         [campaignId, campaign.group_id, r.memberId, r.email, r.name],
-      ),
-    ).catch(() => {});
-  }
+      );
+    }
+  });
 }
 
 // Process a single campaign job (called by the drain)
@@ -150,32 +204,54 @@ export async function processCampaignJob(job: {
 
   const status = result.success ? 'sent' : 'failed';
 
-  await withAdminDb((db) =>
-    db.query(
+  // Create a minimal TenantContext for the transaction
+  const ctx: TenantContext = {
+    groupId: job.groupId,
+    userId: null, // System-triggered operation (job)
+    organizationId: null,
+  };
+
+  await withTransaction(ctx, async (client) => {
+    // Update recipient status
+    await client.query(
       `UPDATE email_campaign_recipients
        SET status=$1, sent_at=CASE WHEN $1='sent' THEN NOW() ELSE NULL END,
            error_message=CASE WHEN $1='failed' THEN $2 ELSE NULL END
        WHERE campaign_id=$3 AND email=$4`,
       [status, result.error ?? null, job.campaignId, job.recipientEmail],
-    ),
-  ).catch(() => {});
+    ).catch(() => {});
 
-  const col = result.success ? 'sent_count' : 'failed_count';
-  await withAdminDb((db) =>
-    db.query(`UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`, [job.campaignId]),
-  ).catch(() => {});
+    const col = result.success ? 'sent_count' : 'failed_count';
+    await client.query(
+      `UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`,
+      [job.campaignId],
+    ).catch(() => {});
 
-  // Mark completed when all recipients processed
-  await withAdminDb((db) =>
-    db.query(
+    // Mark completed when all recipients processed
+    await client.query(
       `UPDATE email_campaigns
        SET status='sent', completed_at=NOW()
        WHERE id=$1
          AND (sent_count + failed_count) >= COALESCE(total_recipients, 0)
          AND status = 'sending'`,
       [job.campaignId],
-    ),
-  ).catch(() => {});
+    ).catch(() => {});
+
+    // Record audit log entry for recipient processing
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        job.groupId,
+        null, // System-triggered
+        'campaign.recipient.process',
+        'campaign_recipient',
+        `${job.campaignId}:${job.recipientEmail}`,
+        JSON.stringify({ status: 'pending' }),
+        JSON.stringify({ status, email: job.recipientEmail, error: result.error ?? null }),
+      ],
+    ).catch(() => {});
+  });
 
   return { success: result.success };
 }
