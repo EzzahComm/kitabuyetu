@@ -1,0 +1,71 @@
+{
+  "engineVersion": "3.0.0",
+  "createdAt": "2026-09-14T18:48:53.3056629+03:00",
+  "phases": {
+    "0": {
+      "detail": "Checkpoint: optimize-checkpoint-phase0-20260915-002736",
+      "updatedAt": "2026-09-15T08:24:47.3907777+03:00",
+      "status": "PASSED"
+    },
+    "1": {
+      "detail": "Checkpoint: optimize-checkpoint-phase1-20260915-082603",
+      "updatedAt": "2026-09-15T09:26:25.0000000+03:00",
+      "status": "PASSED"
+    },
+    "2": {
+      "detail": "Checkpoint: optimize-checkpoint-phase2-20260914-200945",
+      "updatedAt": "2026-09-14T20:17:48.669309+03:00",
+      "status": "PASSED"
+    },
+    "3": {
+      "detail": "Checkpoint: optimize-checkpoint-phase3-20260914-201753",
+      "updatedAt": "2026-09-14T20:25:42.0341163+03:00",
+      "status": "PASSED"
+    },
+    "4": {
+      "detail": "Checkpoint: optimize-checkpoint-phase4-20260914-202547",
+      "updatedAt": "2026-09-14T20:33:37.3317553+03:00",
+      "status": "PASSED"
+    },
+    "5": {
+      "detail": "Checkpoint: optimize-checkpoint-phase5-20260914-203430",
+      "updatedAt": "2026-09-14T20:42:14.7065209+03:00",
+      "status": "PASSED"
+    },
+    "6": {
+      "detail": "Checkpoint: optimize-checkpoint-phase6-20260914-204219",
+      "updatedAt": "2026-09-14T20:50:46.6453431+03:00",
+      "status": "PASSED"
+    },
+    "7": {
+      "detail": "Checkpoint: optimize-checkpoint-phase7-20260914-205051",
+      "updatedAt": "2026-09-14T20:59:58.0665288+03:00",
+      "status": "PASSED"
+    },
+    "8": {
+      "detail": "Checkpoint: optimize-checkpoint-phase8-20260914-210103",
+      "updatedAt": "2026-09-14T21:10:23.4333597+03:00",
+      "status": "PASSED"
+    },
+    "9": {
+      "detail": "Checkpoint: optimize-checkpoint-phase9-20260914-211028",
+      "updatedAt": "2026-09-14T21:19:40.6192628+03:00",
+      "status": "PASSED"
+    },
+    "10": {
+      "detail": "Checkpoint: optimize-checkpoint-phase10-20260914-212005",
+      "updatedAt": "2026-09-14T21:29:08.8022637+03:00",
+      "status": "PASSED"
+    },
+    "11": {
+      "detail": "Checkpoint: optimize-checkpoint-phase11-20260914-212919",
+      "updatedAt": "2026-09-14T21:39:07.2829159+03:00",
+      "status": "PASSED"
+    },
+    "12": {
+      "detail": "Checkpoint: optimize-checkpoint-phase12-20260914-214348",
+      "updatedAt": "2026-09-14T21:55:40.8875369+03:00",
+      "status": "PASSED"
+    }
+  }
+}

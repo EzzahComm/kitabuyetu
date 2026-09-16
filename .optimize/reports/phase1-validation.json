@@ -1,0 +1,18 @@
+{
+  "TypeScript (tsc --noEmit)": {
+    "passed": true,
+    "output": ""
+  },
+  "ESLint": {
+    "passed": true,
+    "output": "11 problems (0 errors, 11 warnings) — pre-existing unused-var/no-console warnings, unchanged from Phase 0."
+  },
+  "Unit/Integration tests": {
+    "passed": true,
+    "output": "Test Suites: 72 passed, 72 total\nTests: 758 passed, 758 total\nSnapshots: 0 total"
+  },
+  "Production build": {
+    "passed": true,
+    "output": "Compiled successfully in 31.4s"
+  }
+}
