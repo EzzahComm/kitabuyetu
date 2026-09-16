@@ -103,7 +103,28 @@ export const settlementsService = {
          RETURNING *`,
         [ctx.groupId, input.bankAccountId, input.amount.toFixed(2), ctx.userId, input.idempotencyKey, input.notes ?? null, sourceAccount],
       );
-      return inserted[0];
+      const settlement = inserted[0];
+
+      // Record audit log for settlement initiation
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'settlement.initiate',
+          'settlement',
+          settlement.id,
+          null,
+          JSON.stringify({
+            amount: settlement.amount,
+            bank_account_id: settlement.bank_account_id,
+            status: settlement.status,
+          }),
+        ],
+      );
+
+      return settlement;
     });
   },
 
@@ -118,16 +139,35 @@ export const settlementsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending settlement', id);
 
+      const prev = rows[0];
+
       await recordApproval(db, ctx, {
         subjectType: 'settlement', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'approved',
+        initiatedBy: prev.requested_by ?? '', decision: 'approved',
       });
 
       const { rows: updated } = await db.query<SettlementRow>(
         `UPDATE settlement_requests SET status = 'approved' WHERE id = $1 RETURNING *`,
         [id],
       );
-      return updated[0];
+      const settlement = updated[0];
+
+      // Record audit log for settlement approval
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'settlement.approve',
+          'settlement',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: settlement.status }),
+        ],
+      );
+
+      return settlement;
     });
 
     await dispatchSettlement(row.id);
@@ -144,9 +184,11 @@ export const settlementsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending settlement', id);
 
+      const prev = rows[0];
+
       await recordApproval(db, ctx, {
         subjectType: 'settlement', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'rejected', reason,
+        initiatedBy: prev.requested_by ?? '', decision: 'rejected', reason,
       });
 
       const { rows: acctRows } = await db.query<{ id: string }>(
@@ -155,7 +197,7 @@ export const settlementsService = {
       if (acctRows[0]) {
         await db.query(
           `SELECT adjust_account_reserved_amount($1, $2)`,
-          [acctRows[0].id, `-${rows[0].amount}`],
+          [acctRows[0].id, `-${prev.amount}`],
         );
       }
 
@@ -165,7 +207,24 @@ export const settlementsService = {
          WHERE  id = $1 RETURNING *`,
         [id, reason],
       );
-      return updated[0];
+      const settlement = updated[0];
+
+      // Record audit log for settlement rejection
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'settlement.reject',
+          'settlement',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: settlement.status, reason }),
+        ],
+      );
+
+      return settlement;
     });
   },
 
@@ -262,12 +321,27 @@ async function dispatchSettlement(id: string): Promise<void> {
       accountReference:   claimed.bank_account_number.slice(0, 20),
       remarks:            'Group settlement sweep',
     });
-    await withAdminDb((db) =>
-      db.query(
+    await withAdminDb(async (db) => {
+      await db.query(
         `UPDATE settlement_requests SET originator_conversation_id = $2 WHERE id = $1`,
         [claimed.id, res.originatorConversationId],
-      ),
-    );
+      );
+
+      // Record audit log for settlement dispatch
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          claimed.group_id,
+          null, // System-triggered dispatch, no user actor
+          'settlement.dispatch',
+          'settlement',
+          claimed.id,
+          JSON.stringify({ status: 'approved' }),
+          JSON.stringify({ status: 'processing', originator_conversation_id: res.originatorConversationId }),
+        ],
+      );
+    });
     // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to B2B —
     // see disbursements.service.ts's dispatchDisbursement for the identical
     // pattern). Never blocks/fails a dispatch that already succeeded.
@@ -283,11 +357,27 @@ async function dispatchSettlement(id: string): Promise<void> {
       if (acctRows[0]) {
         await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${claimed.amount}`]);
       }
+      const failureReason = `Dispatch error: ${String(err).slice(0, 500)}`;
       await db.query(
         `UPDATE settlement_requests
          SET    status = 'failed', failure_reason = $2
          WHERE  id = $1 AND status = 'processing'`,
-        [id, `Dispatch error: ${String(err).slice(0, 500)}`],
+        [id, failureReason],
+      );
+
+      // Record audit log for settlement failure
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          claimed.group_id,
+          null, // System-triggered failure, no user actor
+          'settlement.failed',
+          'settlement',
+          id,
+          JSON.stringify({ status: 'processing' }),
+          JSON.stringify({ status: 'failed', failure_reason: failureReason }),
+        ],
       );
     });
   }
