@@ -276,6 +276,22 @@ export async function postLoanDisbursementJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE loans SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.loanId]);
+
+  // Record audit log for loan-journal linkage
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'loan.journal_entry_posted',
+      'loan',
+      args.loanId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return { journalEntryId: jeId, chargePosted: postCharge };
 }
 
@@ -317,6 +333,22 @@ export async function postLoanRepaymentJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.repaymentId]);
+
+  // Record audit log for loan-repayment journal linkage
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'loan_repayment.journal_entry_posted',
+      'loan_repayment',
+      args.repaymentId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 
@@ -360,6 +392,22 @@ export async function postSettlementSweepJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE settlement_requests SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.settlementId]);
+
+  // Record audit log for settlement-journal linkage (system-triggered)
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'settlement_request.journal_entry_posted',
+      'settlement_request',
+      args.settlementId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 
@@ -415,6 +463,22 @@ export async function postVendorPaymentJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE vendor_payments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.vendorPaymentId]);
+
+  // Record audit log for vendor-payment journal linkage (system-triggered)
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'vendor_payment.journal_entry_posted',
+      'vendor_payment',
+      args.vendorPaymentId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 
