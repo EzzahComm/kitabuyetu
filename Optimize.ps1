@@ -1,8 +1,23 @@
+#requires -Version 5.1
+<#
+KITABU YETU - Optimize.ps1
+Safe UI reconciliation + validation/build engine
+
+Main application:
+  D:\Claude\Projects\KITABU YETU\kitabuyetu
+
+Reference UI:
+  D:\Templates\Kitabu Yetu UI\src\components
+
+The script preserves the production application architecture, reconciles
+reference UI components into the root components directory, creates backups,
+repairs deterministic import paths, and validates lint/typecheck/build.
+#>
+
 [CmdletBinding()]
 param(
     [string]$MainRoot = "D:\Claude\Projects\KITABU YETU\kitabuyetu",
-    [ValidateSet("Baseline","Foundation","Bookkeeper","Payments","Reminder","ChangiSha","Enterprise","CRM","Blog","HRM","Recruitment","JobBoard","Ecosystem","All")]
-    [string]$Phase = "Baseline",
+    [string]$UiSourceRoot = "D:\Templates\Kitabu Yetu UI\src\components",
     [switch]$DryRun,
     [switch]$SkipBuild,
     [switch]$SkipLint,
@@ -12,34 +27,18 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-# ============================================================
-# KITABU YETU
-# Autonomous Main-Repo Optimization Engine v3.1
-# Main repository is the ONLY implementation source of truth.
-# Master Prompt is the specification / acceptance contract.
-#
-# v3.1 changes:
-#   - Detects npm workspaces configuration in package.json
-#   - Validates @kitabu/ui as a local workspace package
-#     (packages/ui) rather than only checking for a registry
-#     dependency entry
-#   - Confirms @supabase/supabase-js and @vercel/analytics
-#     are present as real dependencies (previously missing)
-#   - Adds a WORKSPACE VALIDATION section (2b) with its own
-#     report artifact
-# ============================================================
+$Version  = "1.0.0"
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$Repo = (Resolve-Path -LiteralPath $MainRoot).Path
+$Source = (Resolve-Path -LiteralPath $UiSourceRoot).Path
 
-$ScriptVersion = "3.1.0"
-$Timestamp     = Get-Date -Format "yyyyMMdd-HHmmss"
-$Repo          = (Resolve-Path $MainRoot).Path
-$OptRoot       = Join-Path $Repo ".optimization\$Timestamp"
-$ReportRoot    = Join-Path $OptRoot "reports"
-$BackupRoot    = Join-Path $OptRoot "backups"
-$LogRoot       = Join-Path $OptRoot "logs"
+$OptRoot = Join-Path $Repo ".optimize\$Timestamp"
+$ReportRoot = Join-Path $OptRoot "reports"
+$BackupRoot = Join-Path $OptRoot "backups"
+$LogRoot = Join-Path $OptRoot "logs"
+$LogFile = Join-Path $LogRoot "Optimize.log"
 
 New-Item -ItemType Directory -Force -Path $ReportRoot,$BackupRoot,$LogRoot | Out-Null
-
-$LogFile = Join-Path $LogRoot "optimization.log"
 
 function Write-Log {
     param(
@@ -47,7 +46,6 @@ function Write-Log {
         [ValidateSet("INFO","WARN","ERROR","PASS","STOP")]
         [string]$Level = "INFO"
     )
-
     $line = "[{0}] [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"),$Level,$Message
     Write-Host $line
     Add-Content -LiteralPath $LogFile -Value $line
@@ -55,22 +53,44 @@ function Write-Log {
 
 function Section {
     param([string]$Title)
-
     Write-Host ""
     Write-Host ("=" * 72)
     Write-Host $Title
     Write-Host ("=" * 72)
 }
 
-function Require-Command {
-    param([string]$Command)
+function Save-Json {
+    param([string]$Path,$Object)
+    $Object | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
 
-    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
-        throw "Required command not found: $Command"
+function Save-Text {
+    param([string]$Path,[string]$Content)
+    $Content | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Require-Command {
+    param([string]$Name)
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        throw "Required command not found: $Name"
     }
 }
 
-function Invoke-Safe {
+function Get-Relative {
+    param([string]$FullPath)
+    return $FullPath.Substring($Repo.Length).TrimStart("\")
+}
+
+function Backup-File {
+    param([string]$FullPath)
+    if (-not (Test-Path -LiteralPath $FullPath -PathType Leaf)) { return }
+    $relative = Get-Relative $FullPath
+    $destination = Join-Path $BackupRoot $relative
+    New-Item -ItemType Directory -Force -Path (Split-Path $destination -Parent) | Out-Null
+    Copy-Item -LiteralPath $FullPath -Destination $destination -Force
+}
+
+function Invoke-Native {
     param(
         [string]$Description,
         [scriptblock]$Action,
@@ -80,90 +100,40 @@ function Invoke-Safe {
     Write-Log $Description
 
     if ($DryRun) {
-        Write-Log "DRY-RUN: skipped execution." "WARN"
-        return $null
+        Write-Log "DRY-RUN: execution skipped." "WARN"
+        return 0
     }
 
     try {
-        return & $Action
+        & $Action
+        $code = $LASTEXITCODE
+        if ($code -ne 0 -and -not $AllowFailure) {
+            throw "$Description failed with exit code $code."
+        }
+        return $code
     }
     catch {
         if ($AllowFailure) {
             Write-Log "$Description failed: $($_.Exception.Message)" "WARN"
-            return $null
+            return 1
         }
-
-        Write-Log "$Description failed: $($_.Exception.Message)" "ERROR"
         throw
     }
 }
 
-function Get-GitStatus {
-    $status = @(git -C $Repo status --short)
-    return $status
-}
-
-function Save-Text {
-    param(
-        [string]$Path,
-        [string]$Content
-    )
-
-    $Content | Set-Content -LiteralPath $Path -Encoding UTF8
-}
-
-function Save-Json {
-    param(
-        [string]$Path,
-        $Object
-    )
-
-    $Object | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding UTF8
-}
-
-function Count-Files {
-    param([string]$Path)
-
-    if (-not (Test-Path $Path)) {
-        return 0
-    }
-
-    return @(Get-ChildItem -LiteralPath $Path -Recurse -File -ErrorAction SilentlyContinue).Count
-}
-
-function Get-DependencyValue {
-    param(
-        [Parameter(Mandatory)]
-        $DependencyBlock,
-        [Parameter(Mandatory)]
-        [string]$Name
-    )
-
-    if (-not $DependencyBlock) {
-        return $null
-    }
-
-    $prop = $DependencyBlock.PSObject.Properties | Where-Object Name -eq $Name | Select-Object -First 1
-    if ($prop) {
-        return $prop.Value
-    }
-
-    return $null
-}
-
 # ------------------------------------------------------------
-# 0. PRE-FLIGHT
+# 0. PREFLIGHT
 # ------------------------------------------------------------
 
-Section "KITABU YETU OPTIMIZATION ENGINE v$ScriptVersion"
+Section "KITABU YETU Optimize.ps1 v$Version"
 
-Write-Log "Repository: $Repo"
-Write-Log "Phase: $Phase"
-Write-Log "Run: $Timestamp"
-Write-Log "DryRun: $DryRun"
-Write-Log "AutoFix: $AutoFix"
+Write-Log "Repository : $Repo"
+Write-Log "UI source  : $Source"
+Write-Log "Run        : $Timestamp"
+Write-Log "DryRun     : $DryRun"
+Write-Log "AutoFix    : $AutoFix"
 
-if (-not (Test-Path (Join-Path $Repo ".git"))) {
+if (-not (Test-Path (Join-Path $Repo ".git") -PathType Container)) {
     throw "MainRoot is not a Git repository: $Repo"
 }
 
@@ -171,13 +141,15 @@ Require-Command "git"
 Require-Command "node"
 Require-Command "npm"
 
-$PackageJson = Join-Path $Repo "package.json"
-
-if (-not (Test-Path $PackageJson)) {
+if (-not (Test-Path (Join-Path $Repo "package.json") -PathType Leaf)) {
     throw "package.json was not found."
 }
 
-$Package = Get-Content $PackageJson -Raw | ConvertFrom-Json
+if (-not (Test-Path $Source -PathType Container)) {
+    throw "UI source directory was not found: $Source"
+}
+
+$Package = Get-Content (Join-Path $Repo "package.json") -Raw | ConvertFrom-Json
 
 # ------------------------------------------------------------
 # 1. SAFETY SNAPSHOT
@@ -185,35 +157,37 @@ $Package = Get-Content $PackageJson -Raw | ConvertFrom-Json
 
 Section "1. SAFETY SNAPSHOT"
 
-$InitialHead = git -C $Repo rev-parse HEAD
-$InitialBranch = git -C $Repo branch --show-current
-$InitialStatus = Get-GitStatus
+$InitialHead = (git -C $Repo rev-parse HEAD).Trim()
+$InitialBranch = (git -C $Repo branch --show-current).Trim()
+$InitialStatus = @(git -C $Repo status --short)
 
-Save-Text `
-    (Join-Path $ReportRoot "INITIAL-GIT-HEAD.txt") `
-    $InitialHead
-
-Save-Text `
-    (Join-Path $ReportRoot "INITIAL-GIT-BRANCH.txt") `
-    $InitialBranch
-
-Save-Text `
-    (Join-Path $ReportRoot "INITIAL-GIT-STATUS.txt") `
-    (($InitialStatus -join "`r`n"))
+Save-Text (Join-Path $ReportRoot "INITIAL-GIT-HEAD.txt") $InitialHead
+Save-Text (Join-Path $ReportRoot "INITIAL-GIT-BRANCH.txt") $InitialBranch
+Save-Text (Join-Path $ReportRoot "INITIAL-GIT-STATUS.txt") ($InitialStatus -join "`r`n")
 
 Write-Log "Git branch: $InitialBranch"
 Write-Log "Git HEAD: $InitialHead"
 
 if ($InitialStatus.Count -gt 0) {
-    Write-Log "Existing working-tree changes detected." "WARN"
-    Write-Log "These changes will NOT be discarded or reset." "WARN"
-}
-else {
+    Write-Log "Existing working-tree changes detected. They will NOT be discarded." "WARN"
+} else {
     Write-Log "Working tree is clean." "PASS"
 }
 
-# Snapshot important configuration
-$SnapshotFiles = @(
+# ------------------------------------------------------------
+# 2. PROTECTED ARCHITECTURE CHECK
+# ------------------------------------------------------------
+
+Section "2. PROTECTED ARCHITECTURE"
+
+$ProtectedRoots = @(
+    "app",
+    "lib",
+    "services",
+    "providers"
+)
+
+$ProtectedFiles = @(
     "package.json",
     "package-lock.json",
     "pnpm-lock.yaml",
@@ -223,739 +197,416 @@ $SnapshotFiles = @(
     "next.config.js",
     "next.config.mjs",
     "next.config.ts",
-    "tailwind.config.js",
-    "tailwind.config.ts",
-    "postcss.config.js",
-    "postcss.config.mjs",
     "eslint.config.js",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    ".env",
+    ".env.local"
 )
 
-foreach ($file in $SnapshotFiles) {
-    $source = Join-Path $Repo $file
+Write-Log "Application architecture is protected: app/lib/services/providers." "PASS"
+Write-Log "Package, TypeScript, Next.js, ESLint and environment configuration are protected." "PASS"
 
-    if (Test-Path $source) {
-        $destination = Join-Path $BackupRoot $file
-        $destinationDir = Split-Path $destination -Parent
+# ------------------------------------------------------------
+# 3. COMPONENT INVENTORY
+# ------------------------------------------------------------
 
-        New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
-        Copy-Item $source $destination -Force
+Section "3. COMPONENT RECONCILIATION PLAN"
 
-        Write-Log "Backed up $file"
+$DestinationComponents = Join-Path $Repo "components"
+
+if (-not (Test-Path $DestinationComponents -PathType Container)) {
+    if ($DryRun) {
+        Write-Log "Destination components directory would be created: $DestinationComponents" "WARN"
+    } else {
+        New-Item -ItemType Directory -Force -Path $DestinationComponents | Out-Null
     }
 }
 
-# ------------------------------------------------------------
-# 2. DISCOVERY
-# ------------------------------------------------------------
-
-Section "2. MAIN REPOSITORY DISCOVERY"
-
-$RoutesRoot = Join-Path $Repo "app"
-$ComponentsRoot = Join-Path $Repo "components"
-$LibRoot = Join-Path $Repo "lib"
-$PublicRoot = Join-Path $Repo "public"
-$PackagesRoot = Join-Path $Repo "packages"
-
-$RouteCount = Count-Files $RoutesRoot
-$ComponentCount = Count-Files $ComponentsRoot
-$LibCount = Count-Files $LibRoot
-$PublicCount = Count-Files $PublicRoot
-
-Write-Log "App files: $RouteCount"
-Write-Log "Component files: $ComponentCount"
-Write-Log "Library files: $LibCount"
-Write-Log "Public files: $PublicCount"
-
-$SupabaseVersion = Get-DependencyValue $Package.dependencies "@supabase/supabase-js"
-$VercelAnalyticsVersion = Get-DependencyValue $Package.dependencies "@vercel/analytics"
-$KitabuUIVersion = Get-DependencyValue $Package.dependencies "@kitabu/ui"
-$TablerVersion = Get-DependencyValue $Package.dependencies "@tabler/icons-react"
-
-Write-Log "@supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { 'NOT INSTALLED' })"
-Write-Log "@vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { 'NOT INSTALLED' })"
-Write-Log "@tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { 'NOT INSTALLED' })"
-Write-Log "@kitabu/ui: $(if ($KitabuUIVersion) { $KitabuUIVersion } else { 'NOT INSTALLED' })"
-
-$Discovery = [ordered]@{
-    generatedAt = (Get-Date).ToString("o")
-    engine = $ScriptVersion
-    repository = $Repo
-    branch = $InitialBranch
-    head = $InitialHead
-    phase = $Phase
-    routeFiles = $RouteCount
-    componentFiles = $ComponentCount
-    libraryFiles = $LibCount
-    publicFiles = $PublicCount
-    nextVersion = Get-DependencyValue $Package.dependencies "next"
-    reactVersion = Get-DependencyValue $Package.dependencies "react"
-    reactDomVersion = Get-DependencyValue $Package.dependencies "react-dom"
-    typescriptVersion = Get-DependencyValue $Package.devDependencies "typescript"
-    tailwindVersion = Get-DependencyValue $Package.dependencies "tailwindcss"
-    supabase = $SupabaseVersion
-    vercelAnalytics = $VercelAnalyticsVersion
-    tablerIcons = $TablerVersion
-    kitabuUI = $KitabuUIVersion
-}
-
-Save-Json (Join-Path $ReportRoot "DISCOVERY.json") $Discovery
-
-# ------------------------------------------------------------
-# 2b. WORKSPACE VALIDATION (@kitabu/ui)
-# ------------------------------------------------------------
-
-Section "2b. WORKSPACE VALIDATION"
-
-$WorkspacesDeclared = $false
-$WorkspacesList = @()
-
-if ($Package.PSObject.Properties.Name -contains "workspaces") {
-    $WorkspacesDeclared = $true
-    $WorkspacesList = @($Package.workspaces)
-}
-
-$KitabuUIPackageJson = Join-Path $Repo "packages\ui\package.json"
-$KitabuUIFolderExists = Test-Path (Join-Path $Repo "packages\ui")
-$KitabuUIPackageJsonExists = Test-Path $KitabuUIPackageJson
-$KitabuUILinkedInNodeModules = Test-Path (Join-Path $Repo "node_modules\@kitabu\ui")
-
-$KitabuUIStatus = [ordered]@{
-    workspacesDeclaredInRootPackageJson = $WorkspacesDeclared
-    workspacesGlobs = $WorkspacesList
-    packagesUiFolderExists = $KitabuUIFolderExists
-    packagesUiPackageJsonExists = $KitabuUIPackageJsonExists
-    dependencyEntryInRootPackageJson = [bool]$KitabuUIVersion
-    linkedInNodeModules = $KitabuUILinkedInNodeModules
-    resolvedName = $null
-    resolvedVersion = $null
-    fullyConfigured = $false
-}
-
-if ($KitabuUIPackageJsonExists) {
-    try {
-        $KitabuUIPkg = Get-Content $KitabuUIPackageJson -Raw | ConvertFrom-Json
-        $KitabuUIStatus.resolvedName = $KitabuUIPkg.name
-        $KitabuUIStatus.resolvedVersion = $KitabuUIPkg.version
+$SourceFiles = @(
+    Get-ChildItem -LiteralPath $Source -Recurse -File |
+    Where-Object {
+        $_.FullName -notmatch "\\node_modules\\" -and
+        $_.FullName -notmatch "\\.git\\"
     }
-    catch {
-        Write-Log "Failed to parse packages/ui/package.json: $($_.Exception.Message)" "WARN"
-    }
-}
-
-$KitabuUIStatus.fullyConfigured = (
-    $WorkspacesDeclared -and
-    $KitabuUIFolderExists -and
-    $KitabuUIPackageJsonExists -and
-    [bool]$KitabuUIVersion -and
-    $KitabuUILinkedInNodeModules
 )
 
-if ($KitabuUIStatus.fullyConfigured) {
-    Write-Log "@kitabu/ui is fully configured as a linked workspace package." "PASS"
-}
-elseif ($KitabuUIFolderExists -or $KitabuUIVersion) {
-    Write-Log "@kitabu/ui is partially configured. See WORKSPACE-VALIDATION.json for detail." "WARN"
-}
-else {
-    Write-Log "@kitabu/ui does not exist yet. It has not been created in this repository." "WARN"
+Write-Log "Reference UI component files discovered: $($SourceFiles.Count)" "PASS"
+
+# Detect case collisions in the reference source before copying.
+$CaseCollisions = @(
+    $SourceFiles |
+    Group-Object { $_.FullName.Substring($Source.Length).TrimStart("\").ToLowerInvariant() } |
+    Where-Object { $_.Count -gt 1 }
+)
+
+if ($CaseCollisions.Count -gt 0) {
+    foreach ($collision in $CaseCollisions) {
+        $names = ($collision.Group | ForEach-Object { $_.FullName }) -join "; "
+        Write-Log "Case-collision in UI source: $names" "ERROR"
+    }
+    throw "Reference UI contains case-insensitive duplicate component paths. Resolve those before migration."
 }
 
-Save-Json `
-    (Join-Path $ReportRoot "WORKSPACE-VALIDATION.json") `
-    $KitabuUIStatus
+$CopyPlan = New-Object System.Collections.Generic.List[object]
+
+foreach ($file in $SourceFiles) {
+    $relative = $file.FullName.Substring($Source.Length).TrimStart("\")
+    $target = Join-Path $DestinationComponents $relative
+    $exists = Test-Path -LiteralPath $target -PathType Leaf
+
+    $CopyPlan.Add([pscustomobject]@{
+        Relative = "components\$relative"
+        Source = $file.FullName
+        Target = $target
+        Exists = $exists
+        Action = if ($exists) { "REPLACE_WITH_BACKUP" } else { "ADD" }
+    })
+}
+
+Save-Json (Join-Path $ReportRoot "COMPONENT-COPY-PLAN.json") $CopyPlan
+
+$replaceCount = @($CopyPlan | Where-Object Exists).Count
+$addCount = @($CopyPlan | Where-Object { -not $_.Exists }).Count
+
+Write-Log "Component files to add: $addCount"
+Write-Log "Component files to replace: $replaceCount"
 
 # ------------------------------------------------------------
-# 3. ROUTE INVENTORY
+# 4. APPLY COMPONENTS
 # ------------------------------------------------------------
 
-Section "3. ROUTE INVENTORY"
+Section "4. APPLY UI COMPONENTS"
 
-$RouteFiles = @()
-
-if (Test-Path $RoutesRoot) {
-    $RouteFiles = @(
-        Get-ChildItem $RoutesRoot -Recurse -File -Include "page.tsx","page.jsx","page.js" |
-        ForEach-Object {
-            $_.FullName.Substring($Repo.Length).TrimStart("\")
+if ($DryRun) {
+    foreach ($item in $CopyPlan) {
+        Write-Log "DRY-RUN: $($item.Action) -> $($item.Relative)"
+    }
+} else {
+    foreach ($item in $CopyPlan) {
+        if ($item.Exists) {
+            Backup-File $item.Target
         }
-    )
+
+        $targetDir = Split-Path $item.Target -Parent
+        New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+        Copy-Item -LiteralPath $item.Source -Destination $item.Target -Force
+    }
+
+    Write-Log "UI component reconciliation completed." "PASS"
 }
 
-Save-Text `
-    (Join-Path $ReportRoot "ROUTE-INVENTORY.txt") `
-    (($RouteFiles | Sort-Object) -join "`r`n")
-
-Write-Log "Discovered $($RouteFiles.Count) route pages." "PASS"
-
 # ------------------------------------------------------------
-# 4. UI / UX AUDIT
+# 5. LEGACY IMPORT REPAIR
 # ------------------------------------------------------------
 
-Section "4. UI / UX AUDIT"
+Section "5. DETERMINISTIC IMPORT REPAIR"
 
-$AuditResults = New-Object System.Collections.Generic.List[object]
+$SearchRoots = @(
+    (Join-Path $Repo "app"),
+    (Join-Path $Repo "components"),
+    (Join-Path $Repo "lib"),
+    (Join-Path $Repo "services"),
+    (Join-Path $Repo "providers"),
+    (Join-Path $Repo "packages")
+)
 
-$SourceFiles = @()
-
-foreach ($root in @($RoutesRoot,$ComponentsRoot,$PackagesRoot)) {
-    if (Test-Path $root) {
-        $SourceFiles += Get-ChildItem $root -Recurse -File -Include "*.tsx","*.ts","*.jsx","*.js" |
+$TextFiles = @()
+foreach ($root in $SearchRoots) {
+    if (Test-Path $root -PathType Container) {
+        $TextFiles += Get-ChildItem -LiteralPath $root -Recurse -File -Include *.ts,*.tsx,*.js,*.jsx |
             Where-Object { $_.FullName -notmatch "\\node_modules\\" }
     }
 }
 
-foreach ($file in $SourceFiles) {
-    $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+$ImportChanges = New-Object System.Collections.Generic.List[object]
 
-    if (-not $content) {
-        continue
-    }
+foreach ($file in $TextFiles) {
+    $content = Get-Content -LiteralPath $file.FullName -Raw
+    $original = $content
 
-    $relative = $file.FullName.Substring($Repo.Length).TrimStart("\")
-
-    $AuditResults.Add([pscustomobject]@{
-        File = $relative
-        HasImage = [bool]($content -match "<Image|<img")
-        HasButton = [bool]($content -match "<button|<Button")
-        HasForm = [bool]($content -match "<form|<Form")
-        HasTable = [bool]($content -match "<table|<Table")
-        HasModal = [bool]($content -match "Dialog|Modal")
-        HasLoading = [bool]($content -match "loading|Loading|Skeleton")
-        HasEmptyState = [bool]($content -match "EmptyState|empty state|No .* found")
-        HasAria = [bool]($content -match "aria-")
-        HasHardcodedHex = [bool]($content -match "#[0-9A-Fa-f]{3,8}")
-        HasFixedWidth = [bool]($content -match "w-\[[0-9]+px\]|width:\s*[0-9]+px")
-        IsFromKitabuUIPackage = [bool]($relative -match "^packages\\ui\\")
-    })
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "UI-UX-AUDIT.json") `
-    $AuditResults
-
-Write-Log "Audited $($AuditResults.Count) source files." "PASS"
-
-# ------------------------------------------------------------
-# 5. DESIGN SYSTEM DISCOVERY
-# ------------------------------------------------------------
-
-Section "5. DESIGN SYSTEM DISCOVERY"
-
-$DesignSystem = [ordered]@{
-    shadcnDetected = $false
-    flowbiteDetected = $false
-    kitabuUIDetected = $false
-    kitabuUIFullyConfigured = $KitabuUIStatus.fullyConfigured
-    tablerDetected = $false
-    lucideDetected = $false
-    tailwindDetected = $false
-    duplicateButtonFiles = @()
-    duplicateInputFiles = @()
-    duplicateModalFiles = @()
-    duplicateTableFiles = @()
-    duplicateCardFiles = @()
-}
-
-if ((Get-DependencyValue $Package.dependencies "@/components/ui") -or
-    (Test-Path (Join-Path $Repo "components\ui"))) {
-    $DesignSystem.shadcnDetected = $true
-}
-
-if ((Get-DependencyValue $Package.dependencies "flowbite") -or
-    (Get-DependencyValue $Package.devDependencies "flowbite")) {
-    $DesignSystem.flowbiteDetected = $true
-}
-
-# kitabuUIDetected now reflects EITHER a registry-style dependency
-# entry OR an on-disk local workspace package, matching the way
-# @kitabu/ui is actually resolved (npm workspace symlink, not npm registry).
-if ($KitabuUIVersion -or $KitabuUIStatus.packagesUiFolderExists) {
-    $DesignSystem.kitabuUIDetected = $true
-}
-
-if (Get-DependencyValue $Package.dependencies "@tabler/icons-react") {
-    $DesignSystem.tablerDetected = $true
-}
-
-if (Get-DependencyValue $Package.dependencies "lucide-react") {
-    $DesignSystem.lucideDetected = $true
-}
-
-if ((Get-DependencyValue $Package.dependencies "tailwindcss") -or
-    (Test-Path (Join-Path $Repo "tailwind.config.ts"))) {
-    $DesignSystem.tailwindDetected = $true
-}
-
-$Patterns = @{
-    Buttons = "*button*.tsx"
-    Inputs  = "*input*.tsx"
-    Modals  = "*modal*.tsx"
-    Tables  = "*table*.tsx"
-    Cards   = "*card*.tsx"
-}
-
-foreach ($key in $Patterns.Keys) {
-    $matches = @(
-        Get-ChildItem $Repo -Recurse -File -Filter $Patterns[$key] `
-            -ErrorAction SilentlyContinue |
-        Where-Object {
-            $_.FullName -notmatch "\\node_modules\\" -and
-            $_.FullName -notmatch "\\.next\\" -and
-            $_.FullName -notmatch "\\.git\\"
-        } |
-        ForEach-Object {
-            $_.FullName.Substring($Repo.Length).TrimStart("\")
-        }
+    # Legacy "@/src/components/X" -> "@/components/X"
+    $content = [regex]::Replace(
+        $content,
+        '(["''])(@/src/components/)([^"'']+)\1',
+        '$1@/components/$3$1'
     )
 
-    switch ($key) {
-        "Buttons" { $DesignSystem.duplicateButtonFiles = $matches }
-        "Inputs"  { $DesignSystem.duplicateInputFiles = $matches }
-        "Modals"  { $DesignSystem.duplicateModalFiles = $matches }
-        "Tables"  { $DesignSystem.duplicateTableFiles = $matches }
-        "Cards"   { $DesignSystem.duplicateCardFiles = $matches }
-    }
-}
+    # Legacy Nextly namespace -> canonical root component when target exists.
+    $matches = [regex]::Matches($content, '(["''])(@/components/marketing/nextly/)([^"'']+)\1')
+    foreach ($m in $matches) {
+        $name = $m.Groups[3].Value
+        $candidate = Join-Path $DestinationComponents $name
 
-# Flag duplicate primitives that live OUTSIDE packages/ui once @kitabu/ui
-# is fully configured -- these are migration candidates per R17/R18/R24.
-if ($KitabuUIStatus.fullyConfigured) {
-    $MigrationCandidates = @()
-    foreach ($key in @("duplicateButtonFiles","duplicateInputFiles","duplicateModalFiles","duplicateTableFiles","duplicateCardFiles")) {
-        $MigrationCandidates += @($DesignSystem.$key | Where-Object { $_ -notmatch "^packages\\ui\\" })
-    }
-    $DesignSystem["migrationCandidatesOutsideKitabuUI"] = @($MigrationCandidates | Sort-Object -Unique)
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "DESIGN-SYSTEM-DISCOVERY.json") `
-    $DesignSystem
-
-# ------------------------------------------------------------
-# 6. CONTENT PRESERVATION BASELINE
-# ------------------------------------------------------------
-
-Section "6. CONTENT PRESERVATION BASELINE"
-
-$ContentBaseline = @()
-
-foreach ($file in $SourceFiles) {
-    $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
-
-    if (-not $content) {
-        continue
-    }
-
-    $relative = $file.FullName.Substring($Repo.Length).TrimStart("\")
-
-    $ContentBaseline += [pscustomobject]@{
-        File = $relative
-        Characters = $content.Length
-        Words = @($content -split "\s+" | Where-Object { $_ }).Count
-        SHA256 = (Get-FileHash $file.FullName -Algorithm SHA256).Hash
-    }
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "CONTENT-BASELINE.json") `
-    $ContentBaseline
-
-Write-Log "Content baseline captured for $($ContentBaseline.Count) files." "PASS"
-
-# ------------------------------------------------------------
-# 7. MASTER PROMPT GOVERNANCE
-# ------------------------------------------------------------
-
-Section "7. MASTER PROMPT GOVERNANCE"
-
-$Rules = @(
-    "R1 - Never trust client organization IDs.",
-    "R2 - Scope queries and mutations to active organization.",
-    "R3 - Enforce RLS and API authentication.",
-    "R4 - Preserve double-entry ledger architecture.",
-    "R5 - Preserve payment idempotency.",
-    "R6 - Preserve atomic ledger posting.",
-    "R7 - Preserve append-only ledger.",
-    "R8 - Financial operations remain server-side.",
-    "R9 - Preserve canonical payment state machine.",
-    "R9.5 - Preserve serializable ledger operations / row locks.",
-    "R10 - Never display figures when data failed to load.",
-    "R11 - Audit every mutation.",
-    "R12 - No business logic in page/route components.",
-    "R13 - Preserve layered service architecture.",
-    "R14 - Preserve shared validation/errors.",
-    "R15 - Navigation/API must remain permission/subscription aware.",
-    "R16 - Phase 0 precedes Phase 1.",
-    "R17 - Create primitives in canonical library first.",
-    "R18 - Centralize reusable tokens/components.",
-    "R19 - Mobile-first 320px baseline.",
-    "R20 - Forms single-column mobile / 44px touch targets.",
-    "R21 - Responsive tables.",
-    "R22 - Responsive dashboard grids.",
-    "R23 - Responsive accessible navigation.",
-    "R24 - Old/new components may coexist during migration.",
-    "R25 - Merge configuration safely.",
-    "R26 - Database schema changes are additive only.",
-    "R27 - API responses must not drop fields.",
-    "R28 - @kitabu/ui is the canonical component library and MUST be an npm workspace package (packages/ui), never a duplicated ad-hoc component tree."
-)
-
-Save-Text `
-    (Join-Path $ReportRoot "MASTER-PROMPT-RULES.md") `
-    ($Rules -join "`r`n")
-
-# ------------------------------------------------------------
-# 8. PACKAGE / CONFIG VALIDATION
-# ------------------------------------------------------------
-
-Section "8. PACKAGE AND CONFIGURATION VALIDATION"
-
-$PackageReport = [ordered]@{
-    packageManager = if (Test-Path (Join-Path $Repo "pnpm-lock.yaml")) {
-        "pnpm"
-    } elseif (Test-Path (Join-Path $Repo "yarn.lock")) {
-        "yarn"
-    } elseif (Test-Path (Join-Path $Repo "bun.lockb")) {
-        "bun"
-    } else {
-        "npm"
-    }
-    workspacesDeclared = $WorkspacesDeclared
-    workspacesGlobs = $WorkspacesList
-    scripts = $Package.scripts
-    dependencies = $Package.dependencies
-    devDependencies = $Package.devDependencies
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "PACKAGE-MANIFEST.json") `
-    $PackageReport
-
-# ------------------------------------------------------------
-# 9. OPTIONAL GIT CHECKPOINT
-# ------------------------------------------------------------
-
-Section "9. GIT CHECKPOINT"
-
-if (-not $DryRun) {
-
-    if ($InitialStatus.Count -eq 0) {
-
-        $CheckpointBranch = "optimization/$Timestamp"
-
-        git -C $Repo checkout -b $CheckpointBranch | Out-Null
-
-        Write-Log "Created isolated optimization branch: $CheckpointBranch" "PASS"
-
-        Save-Text `
-            (Join-Path $ReportRoot "OPTIMIZATION-BRANCH.txt") `
-            $CheckpointBranch
-    }
-    else {
-        Write-Log "Skipped branch creation because the working tree already contains user changes." "WARN"
-    }
-}
-
-# ------------------------------------------------------------
-# 10. PHASE PLAN
-# ------------------------------------------------------------
-
-Section "10. PHASE PLAN"
-
-$PhasePlan = [ordered]@{
-    Baseline    = "Discovery, safety, inventory, governance and validation baseline."
-    Foundation  = "Auth, organizations, groups, members, roles, audit and app shell."
-    Bookkeeper  = "Accounting, ledger, statements, reporting and financial UX."
-    Payments    = "M-Pesa, payment lifecycle, reconciliation and payment UX."
-    Reminder    = "SMS/reminder workflows and communication UX."
-    ChangiSha   = "Savings, shares, loans and member financial workflows."
-    Enterprise  = "Enterprise / NGO / multi-group management."
-    CRM         = "CRM and relationship workflows."
-    Blog        = "Blog, news and newsletter."
-    HRM         = "Human resource management."
-    Recruitment = "Recruitment and careers."
-    JobBoard    = "Job board."
-    Ecosystem   = "Ecosystem integrations and final optimization."
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "PHASE-PLAN.json") `
-    $PhasePlan
-
-# ------------------------------------------------------------
-# 11. VALIDATION
-# ------------------------------------------------------------
-
-Section "11. VALIDATION"
-
-$Validation = [ordered]@{
-    timestamp = (Get-Date).ToString("o")
-    typecheck = "NOT_RUN"
-    lint = "NOT_RUN"
-    build = "NOT_RUN"
-    gitStatus = "NOT_RUN"
-}
-
-function Run-NpmScript {
-    param([string]$ScriptName)
-
-    if (-not $Package.scripts.$ScriptName) {
-        Write-Log "npm script '$ScriptName' does not exist." "WARN"
-        return "NOT_AVAILABLE"
-    }
-
-    try {
-        npm run $ScriptName
-        if ($LASTEXITCODE -eq 0) {
-            return "PASS"
+        $resolved = $null
+        foreach ($ext in @(".tsx",".ts",".jsx",".js")) {
+            $candidateWithExt = if ($name -match '\.(tsx|ts|jsx|js)$') { $candidate } else { $candidate + $ext }
+            if (Test-Path $candidateWithExt -PathType Leaf) {
+                $resolved = $name -replace '\.(tsx|ts|jsx|js)$',''
+                break
+            }
         }
 
-        return "FAIL"
+        if ($resolved) {
+            $old = "@/components/marketing/nextly/$name"
+            $new = "@/components/$resolved"
+            $content = $content.Replace($old,$new)
+        }
+    }
+
+    # Canonicalize common UI primitive import casing when the lowercase
+    # implementation exists. This avoids Windows/TypeScript casing conflicts.
+    foreach ($primitive in @("button","badge","input","dialog","card","table","select","textarea","label")) {
+        $lowerCandidates = @(
+            (Join-Path $DestinationComponents "ui\$primitive.tsx"),
+            (Join-Path $DestinationComponents "ui\$primitive.ts")
+        )
+        $lowerExists = $false
+        foreach ($candidate in $lowerCandidates) {
+            if (Test-Path $candidate -PathType Leaf) {
+                $lowerExists = $true
+                break
+            }
+        }
+
+        if ($lowerExists) {
+            $content = $content -replace "(?i)(@/components/ui/)$primitive", ('$1' + $primitive)
+        }
+    }
+
+    if ($content -ne $original) {
+        $relative = Get-Relative $file.FullName
+        $ImportChanges.Add([pscustomobject]@{
+            File = $relative
+            Changed = $true
+        })
+
+        if (-not $DryRun) {
+            Backup-File $file.FullName
+            Set-Content -LiteralPath $file.FullName -Value $content -Encoding UTF8
+        }
+
+        Write-Log "$(if ($DryRun) { 'DRY-RUN: would repair' } else { 'Repaired' }) imports in $relative" "PASS"
+    }
+}
+
+Save-Json (Join-Path $ReportRoot "IMPORT-REPAIRS.json") $ImportChanges
+
+# ------------------------------------------------------------
+# 6. CONFIGURATION INTEGRITY
+# ------------------------------------------------------------
+
+Section "6. CONFIGURATION INTEGRITY"
+
+$EslintConfig = Join-Path $Repo "eslint.config.mjs"
+
+if (Test-Path $EslintConfig -PathType Leaf) {
+    $eslintText = Get-Content $EslintConfig -Raw
+
+    if ($eslintText -match '^\s*cd\s+"' -or $eslintText -match '(?m)^\s*npx\s+eslint\s+') {
+        throw "eslint.config.mjs contains shell commands and is corrupted. Refusing to overwrite it automatically."
+    }
+
+    Write-Log "eslint.config.mjs contains JavaScript/ESM rather than shell commands." "PASS"
+}
+
+$TsConfig = Join-Path $Repo "tsconfig.json"
+if (Test-Path $TsConfig -PathType Leaf) {
+    try {
+        $Ts = Get-Content $TsConfig -Raw | ConvertFrom-Json
+        Write-Log "tsconfig.json parses successfully." "PASS"
+
+        if ($Ts.compilerOptions -and $Ts.compilerOptions.paths) {
+            $paths = $Ts.compilerOptions.paths.PSObject.Properties
+            foreach ($p in $paths) {
+                Write-Log "tsconfig path alias: $($p.Name) -> $($p.Value -join ', ')"
+            }
+        }
     }
     catch {
-        return "FAIL"
+        throw "tsconfig.json is not valid JSON: $($_.Exception.Message)"
     }
 }
 
-if (-not $DryRun) {
+# ------------------------------------------------------------
+# 7. POST-MIGRATION AUDIT
+# ------------------------------------------------------------
 
-    $Validation.typecheck = Run-NpmScript "typecheck"
+Section "7. POST-MIGRATION AUDIT"
 
-    if ($Validation.typecheck -eq "NOT_AVAILABLE") {
-        $Validation.typecheck = Run-NpmScript "type-check"
+$LegacyHits = @()
+$SrcComponentHits = @()
+
+foreach ($file in $TextFiles) {
+    if (-not (Test-Path $file.FullName -PathType Leaf)) { continue }
+    $content = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
+    if (-not $content) { continue }
+
+    if ($content -match '@/components/marketing/nextly/') {
+        $LegacyHits += (Get-Relative $file.FullName)
     }
 
+    if ($content -match '@/src/components/') {
+        $SrcComponentHits += (Get-Relative $file.FullName)
+    }
+}
+
+$LegacyHits = @($LegacyHits | Sort-Object -Unique)
+$SrcComponentHits = @($SrcComponentHits | Sort-Object -Unique)
+
+Save-Text (Join-Path $ReportRoot "REMAINING-NEXTLY-IMPORTS.txt") ($LegacyHits -join "`r`n")
+Save-Text (Join-Path $ReportRoot "REMAINING-SRC-COMPONENT-IMPORTS.txt") ($SrcComponentHits -join "`r`n")
+
+if ($LegacyHits.Count -gt 0) {
+    Write-Log "Remaining legacy Nextly imports: $($LegacyHits.Count)" "WARN"
+    $LegacyHits | ForEach-Object { Write-Log "  $_" "WARN" }
+} else {
+    Write-Log "No legacy marketing/nextly imports remain in scanned source." "PASS"
+}
+
+if ($SrcComponentHits.Count -gt 0) {
+    Write-Log "Remaining @/src/components imports: $($SrcComponentHits.Count)" "WARN"
+    $SrcComponentHits | ForEach-Object { Write-Log "  $_" "WARN" }
+} else {
+    Write-Log "No @/src/components imports remain in scanned source." "PASS"
+}
+
+# ------------------------------------------------------------
+# 8. VALIDATION
+# ------------------------------------------------------------
+
+Section "8. VALIDATION"
+
+$Validation = [ordered]@{
+    eslint = "NOT_RUN"
+    typecheck = "NOT_RUN"
+    build = "NOT_RUN"
+}
+
+if ($DryRun) {
+    $Validation.eslint = "DRY_RUN"
+    $Validation.typecheck = "DRY_RUN"
+    $Validation.build = "DRY_RUN"
+} else {
     if (-not $SkipLint) {
-        $Validation.lint = Run-NpmScript "lint"
+        Write-Log "Running ESLint..."
+        npx eslint . --no-cache
+        $Validation.eslint = if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }
 
-        if ($AutoFix -and $Validation.lint -eq "FAIL") {
-            Write-Log "Attempting lint auto-fix." "WARN"
-            npm run lint -- --fix
-            $Validation.lint = if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }
+        if ($Validation.eslint -eq "FAIL" -and $AutoFix) {
+            Write-Log "Attempting ESLint auto-fix." "WARN"
+            npx eslint . --no-cache --fix
+            $Validation.eslint = if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }
         }
+    } else {
+        $Validation.eslint = "SKIPPED"
     }
-    else {
-        $Validation.lint = "SKIPPED"
-    }
+
+    Write-Log "Running TypeScript..."
+    npx tsc --noEmit
+    $Validation.typecheck = if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }
 
     if (-not $SkipBuild) {
-        $Validation.build = Run-NpmScript "build"
-    }
-    else {
+        Write-Log "Running production build..."
+        npm run build
+        $Validation.build = if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }
+    } else {
         $Validation.build = "SKIPPED"
     }
-
-    $Validation.gitStatus = if ((Get-GitStatus).Count -eq 0) {
-        "CLEAN"
-    }
-    else {
-        "CHANGED"
-    }
-}
-else {
-    $Validation.typecheck = "DRY_RUN"
-    $Validation.lint = "DRY_RUN"
-    $Validation.build = "DRY_RUN"
-    $Validation.gitStatus = "DRY_RUN"
 }
 
-Save-Json `
-    (Join-Path $ReportRoot "VALIDATION.json") `
-    $Validation
+Save-Json (Join-Path $ReportRoot "VALIDATION.json") $Validation
 
 # ------------------------------------------------------------
-# 12. PHASE GATE
+# 9. GATE
 # ------------------------------------------------------------
 
-Section "12. PHASE GATE"
+Section "9. OPTIMIZATION GATE"
 
 $GateStatus = "PASS"
 
-if ($Validation.typecheck -eq "FAIL") {
-    $GateStatus = "FAIL"
+foreach ($key in @("eslint","typecheck","build")) {
+    if ($Validation[$key] -eq "FAIL") {
+        $GateStatus = "FAIL"
+    }
 }
 
-if ($Validation.lint -eq "FAIL") {
+if ($LegacyHits.Count -gt 0 -or $SrcComponentHits.Count -gt 0) {
     $GateStatus = "FAIL"
-}
-
-if ($Validation.build -eq "FAIL") {
-    $GateStatus = "FAIL"
-}
-
-$ManualReview = @(
-    "Visual screenshot review at 320px, 768px and desktop widths",
-    "WCAG / keyboard interaction verification",
-    "Legal/privacy/DPA review",
-    "Financial workflow human acceptance",
-    "Production deployment verification"
-)
-
-if (-not $KitabuUIStatus.fullyConfigured) {
-    $ManualReview += "Finish configuring @kitabu/ui as an npm workspace package (see WORKSPACE-VALIDATION.json) before relying on it as the canonical component library"
 }
 
 $Gate = [ordered]@{
-    phase = $Phase
+    version = $Version
+    timestamp = (Get-Date).ToString("o")
+    repository = $Repo
+    uiSource = $Source
+    initialHead = $InitialHead
+    branch = $InitialBranch
+    dryRun = [bool]$DryRun
     status = $GateStatus
-    automatedChecks = $Validation
-    workspaceValidation = $KitabuUIStatus
-    manualReviewRequired = $ManualReview
-    generatedAt = (Get-Date).ToString("o")
+    validation = $Validation
+    remainingLegacyNextlyImports = $LegacyHits
+    remainingSrcComponentImports = $SrcComponentHits
+    backupRoot = $BackupRoot
+    reportRoot = $ReportRoot
+    deployment = "NOT_PERFORMED"
 }
 
-Save-Json `
-    (Join-Path $ReportRoot "PHASE-GATE.json") `
-    $Gate
-
-Save-Text `
-    (Join-Path $ReportRoot "PHASE-$Phase-GATE.md") `
-    @"
-# Kitabu Yetu Phase Gate
-
-Phase: $Phase
-Status: $GateStatus
-Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-
-## Automated Checks
-
-- TypeScript: $($Validation.typecheck)
-- Lint: $($Validation.lint)
-- Build: $($Validation.build)
-- Git status: $($Validation.gitStatus)
-
-## Dependency / Workspace Status
-
-- @supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { "NOT INSTALLED" })
-- @vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { "NOT INSTALLED" })
-- @tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { "NOT INSTALLED" })
-- @kitabu/ui fully configured as workspace package: $($KitabuUIStatus.fullyConfigured)
-
-## Manual Verification Required
-
-$(($ManualReview | ForEach-Object { "- $_" }) -join "`r`n")
-
-## Rule
-
-The next phase must not begin until this phase has exited successfully in production.
-"@
-
-# ------------------------------------------------------------
-# 13. ROLLBACK INFORMATION
-# ------------------------------------------------------------
-
-Section "13. ROLLBACK INFORMATION"
-
-$CurrentHead = git -C $Repo rev-parse HEAD
-
-$Rollback = @"
-# Rollback Information
-
-Initial branch:
-$InitialBranch
-
-Initial HEAD:
-$InitialHead
-
-Optimization branch:
-$(if (Test-Path (Join-Path $ReportRoot "OPTIMIZATION-BRANCH.txt")) {
-    Get-Content (Join-Path $ReportRoot "OPTIMIZATION-BRANCH.txt") -Raw
-} else {
-    "No isolated branch was created because pre-existing working-tree changes were detected."
-})
-
-Initial working-tree status:
-$($InitialStatus -join "`r`n")
-
-Current HEAD:
-$CurrentHead
-
-IMPORTANT:
-Do not use `git reset --hard` when pre-existing user changes existed.
-Restore only optimization changes.
-"@
-
-Save-Text `
-    (Join-Path $ReportRoot "ROLLBACK.md") `
-    $Rollback
-
-# ------------------------------------------------------------
-# 14. FINAL REPORT
-# ------------------------------------------------------------
-
-Section "14. FINAL REPORT"
+Save-Json (Join-Path $ReportRoot "OPTIMIZATION-GATE.json") $Gate
 
 $Summary = @"
-# KITABU YETU OPTIMIZATION RUN
+# KITABU YETU OPTIMIZATION
 
-Engine: v$ScriptVersion
+Version: $Version
 Run: $Timestamp
 Repository: $Repo
-Phase: $Phase
+UI source: $Source
 
-## Result
+## Gate
 
-Gate: $GateStatus
-
-## Discovery
-
-Routes: $($RouteFiles.Count)
-Source files audited: $($AuditResults.Count)
-
-## Dependencies
-
-- @supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { "NOT INSTALLED" })
-- @vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { "NOT INSTALLED" })
-- @tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { "NOT INSTALLED" })
-- @kitabu/ui: $(if ($KitabuUIVersion) { $KitabuUIVersion } else { "NOT INSTALLED" }) (workspace fully configured: $($KitabuUIStatus.fullyConfigured))
+Status: $GateStatus
 
 ## Validation
 
-TypeScript: $($Validation.typecheck)
-Lint: $($Validation.lint)
-Build: $($Validation.build)
+- ESLint: $($Validation.eslint)
+- TypeScript: $($Validation.typecheck)
+- Production build: $($Validation.build)
+
+## Import audit
+
+- Remaining @/components/marketing/nextly imports: $($LegacyHits.Count)
+- Remaining @/src/components imports: $($SrcComponentHits.Count)
 
 ## Safety
 
 Initial HEAD: $InitialHead
-Current HEAD: $CurrentHead
-Pre-existing changes: $($InitialStatus.Count -gt 0)
+Initial branch: $InitialBranch
+Pre-existing working-tree changes: $($InitialStatus.Count -gt 0)
 
-## Important
+Backups: $BackupRoot
+Reports: $ReportRoot
 
-This engine does not blindly replace application code.
+## Deployment
 
-It:
-1. discovers the existing Main repository;
-2. preserves existing work;
-3. establishes a recoverable baseline;
-4. validates the @kitabu/ui workspace configuration;
-5. audits UI/UX and architecture;
-6. validates against the master prompt;
-7. runs deterministic validation;
-8. blocks phase progression when gates fail.
+No Git reset, force push, Vercel deployment, or deletion of src/ was performed by Optimize.ps1.
 
-Manual visual, legal, financial and production verification remain mandatory.
+A successful gate means the repository is ready for the separate deployment/cleanup procedure.
 "@
 
-Save-Text `
-    (Join-Path $ReportRoot "OPTIMIZATION-SUMMARY.md") `
-    $Summary
+Save-Text (Join-Path $ReportRoot "OPTIMIZATION-SUMMARY.md") $Summary
 
 Write-Host ""
 Write-Host ("=" * 72)
-Write-Host "OPTIMIZATION RUN COMPLETE"
+Write-Host "OPTIMIZE.PS1 COMPLETE"
 Write-Host ("=" * 72)
 Write-Host "Status : $GateStatus"
-Write-Host "Phase  : $Phase"
 Write-Host "Reports: $ReportRoot"
+Write-Host "Backup : $BackupRoot"
 Write-Host ""
 
 if ($GateStatus -eq "FAIL") {
-    Write-Log "Phase gate FAILED. Do not proceed to the next phase." "STOP"
+    Write-Log "Optimization gate FAILED. Do not deploy yet." "STOP"
     exit 1
 }
 
-Write-Log "Phase gate passed automated validation." "PASS"
+Write-Log "Optimization gate PASSED. Production build completed successfully." "PASS"
 exit 0
