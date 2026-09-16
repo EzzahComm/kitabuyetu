@@ -85,10 +85,26 @@ if (!globalWithPool._kyPool) {
 }
 
 // Tenant-context pool — used by withDb()/withTransaction() for real tenant
-// traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS)
-// once TENANT_DATABASE_URL is provisioned; falls back to the same pool/role
-// as withAdminDb() until then, so this is a no-op until that role exists.
+// traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS).
+// CRITICAL: TENANT_DATABASE_URL is REQUIRED in production. Falling back to the
+// admin pool silently disables RLS, creating a security vulnerability.
+// See: Phase 1 RLS Hardening (2026-09-16).
 if (!globalWithPool._kyTenantPool) {
+  if (!env.TENANT_DATABASE_URL) {
+    if (env.NODE_ENV === 'production') {
+      throw new Error(
+        'TENANT_DATABASE_URL is REQUIRED in production. ' +
+        'Missing this env var causes RLS to be silently bypassed, ' +
+        'creating a critical security vulnerability. ' +
+        'Set TENANT_DATABASE_URL to the PostgreSQL connection string for the app_tenant role.'
+      );
+    }
+    // In development, allow fallback to admin pool for testing, but log a warning
+    logger.warn(
+      '[db] TENANT_DATABASE_URL not set — using admin pool for tenant traffic. ' +
+      'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.'
+    );
+  }
   globalWithPool._kyTenantPool = env.TENANT_DATABASE_URL
     ? buildPool(env.TENANT_DATABASE_URL)
     : globalWithPool._kyPool;
