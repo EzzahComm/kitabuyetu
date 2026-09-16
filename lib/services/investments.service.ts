@@ -157,6 +157,16 @@ export const investmentsService = {
          data.registrationNumber ?? null, data.location ?? null,
          data.notes ?? null, ctx.userId],
       );
+      if (rows[0]) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, 'investment', $4, NULL, $5)`,
+          [
+            ctx.groupId, ctx.userId, 'investment.created', rows[0].id,
+            JSON.stringify({ name: data.name, investment_type: data.investmentType, principal_amount: data.principalAmount }),
+          ],
+        );
+      }
       return rows[0];
     });
   },
@@ -193,6 +203,19 @@ export const investmentsService = {
         `UPDATE investments SET ${updates.join(',')} WHERE id=$${p++} AND group_id=$${p++} RETURNING *`,
         args,
       );
+
+      if (rows[0]) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, 'investment', $4, $5, $6)`,
+          [
+            ctx.groupId, ctx.userId, 'investment.updated', id,
+            JSON.stringify({ status: inv.status, current_value: inv.current_value }),
+            JSON.stringify({ status: rows[0].status, current_value: rows[0].current_value }),
+          ],
+        );
+      }
+
       return rows[0];
     });
   },
@@ -212,6 +235,18 @@ export const investmentsService = {
         [investmentId, ctx.groupId, data.returnType, data.amount,
          data.returnDate, data.receiptNumber ?? null, data.notes ?? null, ctx.userId],
       );
+
+      if (rows[0]) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, 'investment_return', $4, NULL, $5)`,
+          [
+            ctx.groupId, ctx.userId, 'investment_return.recorded', rows[0].id,
+            JSON.stringify({ return_type: data.returnType, amount: data.amount, return_date: data.returnDate }),
+          ],
+        );
+      }
+
       return rows[0];
     });
   },
@@ -231,6 +266,18 @@ export const investmentsService = {
         [investmentId, ctx.groupId, data.expenseType, data.amount,
          data.expenseDate, data.receiptNumber ?? null, data.notes ?? null, ctx.userId],
       );
+
+      if (rows[0]) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, 'investment_expense', $4, NULL, $5)`,
+          [
+            ctx.groupId, ctx.userId, 'investment_expense.recorded', rows[0].id,
+            JSON.stringify({ expense_type: data.expenseType, amount: data.amount, expense_date: data.expenseDate }),
+          ],
+        );
+      }
+
       return rows[0];
     });
   },
