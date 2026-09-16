@@ -14,22 +14,12 @@ Set-StrictMode -Version Latest
 
 # ============================================================
 # KITABU YETU
-# Autonomous Main-Repo Optimization Engine v3.1
+# Autonomous Main-Repo Optimization Engine v3
 # Main repository is the ONLY implementation source of truth.
 # Master Prompt is the specification / acceptance contract.
-#
-# v3.1 changes:
-#   - Detects npm workspaces configuration in package.json
-#   - Validates @kitabu/ui as a local workspace package
-#     (packages/ui) rather than only checking for a registry
-#     dependency entry
-#   - Confirms @supabase/supabase-js and @vercel/analytics
-#     are present as real dependencies (previously missing)
-#   - Adds a WORKSPACE VALIDATION section (2b) with its own
-#     report artifact
 # ============================================================
 
-$ScriptVersion = "3.1.0"
+$ScriptVersion = "3.0.0"
 $Timestamp     = Get-Date -Format "yyyyMMdd-HHmmss"
 $Repo          = (Resolve-Path $MainRoot).Path
 $OptRoot       = Join-Path $Repo ".optimization\$Timestamp"
@@ -129,26 +119,6 @@ function Count-Files {
     }
 
     return @(Get-ChildItem -LiteralPath $Path -Recurse -File -ErrorAction SilentlyContinue).Count
-}
-
-function Get-DependencyValue {
-    param(
-        [Parameter(Mandatory)]
-        $DependencyBlock,
-        [Parameter(Mandatory)]
-        [string]$Name
-    )
-
-    if (-not $DependencyBlock) {
-        return $null
-    }
-
-    $prop = $DependencyBlock.PSObject.Properties | Where-Object Name -eq $Name | Select-Object -First 1
-    if ($prop) {
-        return $prop.Value
-    }
-
-    return $null
 }
 
 # ------------------------------------------------------------
@@ -255,7 +225,6 @@ $RoutesRoot = Join-Path $Repo "app"
 $ComponentsRoot = Join-Path $Repo "components"
 $LibRoot = Join-Path $Repo "lib"
 $PublicRoot = Join-Path $Repo "public"
-$PackagesRoot = Join-Path $Repo "packages"
 
 $RouteCount = Count-Files $RoutesRoot
 $ComponentCount = Count-Files $ComponentsRoot
@@ -266,16 +235,6 @@ Write-Log "App files: $RouteCount"
 Write-Log "Component files: $ComponentCount"
 Write-Log "Library files: $LibCount"
 Write-Log "Public files: $PublicCount"
-
-$SupabaseVersion = Get-DependencyValue $Package.dependencies "@supabase/supabase-js"
-$VercelAnalyticsVersion = Get-DependencyValue $Package.dependencies "@vercel/analytics"
-$KitabuUIVersion = Get-DependencyValue $Package.dependencies "@kitabu/ui"
-$TablerVersion = Get-DependencyValue $Package.dependencies "@tabler/icons-react"
-
-Write-Log "@supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { 'NOT INSTALLED' })"
-Write-Log "@vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { 'NOT INSTALLED' })"
-Write-Log "@tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { 'NOT INSTALLED' })"
-Write-Log "@kitabu/ui: $(if ($KitabuUIVersion) { $KitabuUIVersion } else { 'NOT INSTALLED' })"
 
 $Discovery = [ordered]@{
     generatedAt = (Get-Date).ToString("o")
@@ -288,82 +247,16 @@ $Discovery = [ordered]@{
     componentFiles = $ComponentCount
     libraryFiles = $LibCount
     publicFiles = $PublicCount
-    nextVersion = Get-DependencyValue $Package.dependencies "next"
-    reactVersion = Get-DependencyValue $Package.dependencies "react"
-    reactDomVersion = Get-DependencyValue $Package.dependencies "react-dom"
-    typescriptVersion = Get-DependencyValue $Package.devDependencies "typescript"
-    tailwindVersion = Get-DependencyValue $Package.dependencies "tailwindcss"
-    supabase = $SupabaseVersion
-    vercelAnalytics = $VercelAnalyticsVersion
-    tablerIcons = $TablerVersion
-    kitabuUI = $KitabuUIVersion
+    nextVersion = $Package.dependencies.next
+    reactVersion = $Package.dependencies.react
+    reactDomVersion = $Package.dependencies.'react-dom'
+    typescriptVersion = $Package.devDependencies.typescript
+    tailwindVersion = $Package.dependencies.tailwindcss
+    supabase = $Package.dependencies.'@supabase/supabase-js'
+    vercel = $Package.dependencies.'@vercel/analytics'
 }
 
 Save-Json (Join-Path $ReportRoot "DISCOVERY.json") $Discovery
-
-# ------------------------------------------------------------
-# 2b. WORKSPACE VALIDATION (@kitabu/ui)
-# ------------------------------------------------------------
-
-Section "2b. WORKSPACE VALIDATION"
-
-$WorkspacesDeclared = $false
-$WorkspacesList = @()
-
-if ($Package.PSObject.Properties.Name -contains "workspaces") {
-    $WorkspacesDeclared = $true
-    $WorkspacesList = @($Package.workspaces)
-}
-
-$KitabuUIPackageJson = Join-Path $Repo "packages\ui\package.json"
-$KitabuUIFolderExists = Test-Path (Join-Path $Repo "packages\ui")
-$KitabuUIPackageJsonExists = Test-Path $KitabuUIPackageJson
-$KitabuUILinkedInNodeModules = Test-Path (Join-Path $Repo "node_modules\@kitabu\ui")
-
-$KitabuUIStatus = [ordered]@{
-    workspacesDeclaredInRootPackageJson = $WorkspacesDeclared
-    workspacesGlobs = $WorkspacesList
-    packagesUiFolderExists = $KitabuUIFolderExists
-    packagesUiPackageJsonExists = $KitabuUIPackageJsonExists
-    dependencyEntryInRootPackageJson = [bool]$KitabuUIVersion
-    linkedInNodeModules = $KitabuUILinkedInNodeModules
-    resolvedName = $null
-    resolvedVersion = $null
-    fullyConfigured = $false
-}
-
-if ($KitabuUIPackageJsonExists) {
-    try {
-        $KitabuUIPkg = Get-Content $KitabuUIPackageJson -Raw | ConvertFrom-Json
-        $KitabuUIStatus.resolvedName = $KitabuUIPkg.name
-        $KitabuUIStatus.resolvedVersion = $KitabuUIPkg.version
-    }
-    catch {
-        Write-Log "Failed to parse packages/ui/package.json: $($_.Exception.Message)" "WARN"
-    }
-}
-
-$KitabuUIStatus.fullyConfigured = (
-    $WorkspacesDeclared -and
-    $KitabuUIFolderExists -and
-    $KitabuUIPackageJsonExists -and
-    [bool]$KitabuUIVersion -and
-    $KitabuUILinkedInNodeModules
-)
-
-if ($KitabuUIStatus.fullyConfigured) {
-    Write-Log "@kitabu/ui is fully configured as a linked workspace package." "PASS"
-}
-elseif ($KitabuUIFolderExists -or $KitabuUIVersion) {
-    Write-Log "@kitabu/ui is partially configured. See WORKSPACE-VALIDATION.json for detail." "WARN"
-}
-else {
-    Write-Log "@kitabu/ui does not exist yet. It has not been created in this repository." "WARN"
-}
-
-Save-Json `
-    (Join-Path $ReportRoot "WORKSPACE-VALIDATION.json") `
-    $KitabuUIStatus
 
 # ------------------------------------------------------------
 # 3. ROUTE INVENTORY
@@ -398,10 +291,9 @@ $AuditResults = New-Object System.Collections.Generic.List[object]
 
 $SourceFiles = @()
 
-foreach ($root in @($RoutesRoot,$ComponentsRoot,$PackagesRoot)) {
+foreach ($root in @($RoutesRoot,$ComponentsRoot)) {
     if (Test-Path $root) {
-        $SourceFiles += Get-ChildItem $root -Recurse -File -Include "*.tsx","*.ts","*.jsx","*.js" |
-            Where-Object { $_.FullName -notmatch "\\node_modules\\" }
+        $SourceFiles += Get-ChildItem $root -Recurse -File -Include "*.tsx","*.ts","*.jsx","*.js"
     }
 }
 
@@ -426,7 +318,6 @@ foreach ($file in $SourceFiles) {
         HasAria = [bool]($content -match "aria-")
         HasHardcodedHex = [bool]($content -match "#[0-9A-Fa-f]{3,8}")
         HasFixedWidth = [bool]($content -match "w-\[[0-9]+px\]|width:\s*[0-9]+px")
-        IsFromKitabuUIPackage = [bool]($relative -match "^packages\\ui\\")
     })
 }
 
@@ -446,7 +337,6 @@ $DesignSystem = [ordered]@{
     shadcnDetected = $false
     flowbiteDetected = $false
     kitabuUIDetected = $false
-    kitabuUIFullyConfigured = $KitabuUIStatus.fullyConfigured
     tablerDetected = $false
     lucideDetected = $false
     tailwindDetected = $false
@@ -457,32 +347,30 @@ $DesignSystem = [ordered]@{
     duplicateCardFiles = @()
 }
 
-if ((Get-DependencyValue $Package.dependencies "@/components/ui") -or
+if ($Package.dependencies.'@/components/ui' -or
     (Test-Path (Join-Path $Repo "components\ui"))) {
     $DesignSystem.shadcnDetected = $true
 }
 
-if ((Get-DependencyValue $Package.dependencies "flowbite") -or
-    (Get-DependencyValue $Package.devDependencies "flowbite")) {
+if ($Package.dependencies.'flowbite' -or
+    $Package.devDependencies.'flowbite') {
     $DesignSystem.flowbiteDetected = $true
 }
 
-# kitabuUIDetected now reflects EITHER a registry-style dependency
-# entry OR an on-disk local workspace package, matching the way
-# @kitabu/ui is actually resolved (npm workspace symlink, not npm registry).
-if ($KitabuUIVersion -or $KitabuUIStatus.packagesUiFolderExists) {
+if ($Package.dependencies.'@kitabu/ui' -or
+    (Test-Path (Join-Path $Repo "packages\ui"))) {
     $DesignSystem.kitabuUIDetected = $true
 }
 
-if (Get-DependencyValue $Package.dependencies "@tabler/icons-react") {
+if ($Package.dependencies.'@tabler/icons-react') {
     $DesignSystem.tablerDetected = $true
 }
 
-if (Get-DependencyValue $Package.dependencies "lucide-react") {
+if ($Package.dependencies.'lucide-react') {
     $DesignSystem.lucideDetected = $true
 }
 
-if ((Get-DependencyValue $Package.dependencies "tailwindcss") -or
+if ($Package.dependencies.'tailwindcss' -or
     (Test-Path (Join-Path $Repo "tailwind.config.ts"))) {
     $DesignSystem.tailwindDetected = $true
 }
@@ -516,16 +404,6 @@ foreach ($key in $Patterns.Keys) {
         "Tables"  { $DesignSystem.duplicateTableFiles = $matches }
         "Cards"   { $DesignSystem.duplicateCardFiles = $matches }
     }
-}
-
-# Flag duplicate primitives that live OUTSIDE packages/ui once @kitabu/ui
-# is fully configured -- these are migration candidates per R17/R18/R24.
-if ($KitabuUIStatus.fullyConfigured) {
-    $MigrationCandidates = @()
-    foreach ($key in @("duplicateButtonFiles","duplicateInputFiles","duplicateModalFiles","duplicateTableFiles","duplicateCardFiles")) {
-        $MigrationCandidates += @($DesignSystem.$key | Where-Object { $_ -notmatch "^packages\\ui\\" })
-    }
-    $DesignSystem["migrationCandidatesOutsideKitabuUI"] = @($MigrationCandidates | Sort-Object -Unique)
 }
 
 Save-Json `
@@ -597,8 +475,7 @@ $Rules = @(
     "R24 - Old/new components may coexist during migration.",
     "R25 - Merge configuration safely.",
     "R26 - Database schema changes are additive only.",
-    "R27 - API responses must not drop fields.",
-    "R28 - @kitabu/ui is the canonical component library and MUST be an npm workspace package (packages/ui), never a duplicated ad-hoc component tree."
+    "R27 - API responses must not drop fields."
 )
 
 Save-Text `
@@ -621,8 +498,6 @@ $PackageReport = [ordered]@{
     } else {
         "npm"
     }
-    workspacesDeclared = $WorkspacesDeclared
-    workspacesGlobs = $WorkspacesList
     scripts = $Package.scripts
     dependencies = $Package.dependencies
     devDependencies = $Package.devDependencies
@@ -792,15 +667,10 @@ $ManualReview = @(
     "Production deployment verification"
 )
 
-if (-not $KitabuUIStatus.fullyConfigured) {
-    $ManualReview += "Finish configuring @kitabu/ui as an npm workspace package (see WORKSPACE-VALIDATION.json) before relying on it as the canonical component library"
-}
-
 $Gate = [ordered]@{
     phase = $Phase
     status = $GateStatus
     automatedChecks = $Validation
-    workspaceValidation = $KitabuUIStatus
     manualReviewRequired = $ManualReview
     generatedAt = (Get-Date).ToString("o")
 }
@@ -825,16 +695,13 @@ Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 - Build: $($Validation.build)
 - Git status: $($Validation.gitStatus)
 
-## Dependency / Workspace Status
-
-- @supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { "NOT INSTALLED" })
-- @vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { "NOT INSTALLED" })
-- @tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { "NOT INSTALLED" })
-- @kitabu/ui fully configured as workspace package: $($KitabuUIStatus.fullyConfigured)
-
 ## Manual Verification Required
 
-$(($ManualReview | ForEach-Object { "- $_" }) -join "`r`n")
+- Visual QA at 320px / 768px / desktop
+- Accessibility / keyboard navigation
+- Legal and privacy review
+- Financial workflow acceptance
+- Production deployment verification
 
 ## Rule
 
@@ -903,13 +770,6 @@ Gate: $GateStatus
 Routes: $($RouteFiles.Count)
 Source files audited: $($AuditResults.Count)
 
-## Dependencies
-
-- @supabase/supabase-js: $(if ($SupabaseVersion) { $SupabaseVersion } else { "NOT INSTALLED" })
-- @vercel/analytics: $(if ($VercelAnalyticsVersion) { $VercelAnalyticsVersion } else { "NOT INSTALLED" })
-- @tabler/icons-react: $(if ($TablerVersion) { $TablerVersion } else { "NOT INSTALLED" })
-- @kitabu/ui: $(if ($KitabuUIVersion) { $KitabuUIVersion } else { "NOT INSTALLED" }) (workspace fully configured: $($KitabuUIStatus.fullyConfigured))
-
 ## Validation
 
 TypeScript: $($Validation.typecheck)
@@ -930,11 +790,10 @@ It:
 1. discovers the existing Main repository;
 2. preserves existing work;
 3. establishes a recoverable baseline;
-4. validates the @kitabu/ui workspace configuration;
-5. audits UI/UX and architecture;
-6. validates against the master prompt;
-7. runs deterministic validation;
-8. blocks phase progression when gates fail.
+4. audits UI/UX and architecture;
+5. validates against the master prompt;
+6. runs deterministic validation;
+7. blocks phase progression when gates fail.
 
 Manual visual, legal, financial and production verification remain mandatory.
 "@
