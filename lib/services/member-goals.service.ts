@@ -54,12 +54,39 @@ export async function createGoal(ctx: TenantContext, input: CreateMemberGoalInpu
        RETURNING *`,
       [ctx.groupId, ctx.userId, input.name, input.emoji, input.targetAmount, input.deadline ?? null],
     );
+
+    if (rows[0]) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, 'member_goal', $4, NULL, $5)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'goal.created',
+          rows[0].id,
+          JSON.stringify({
+            name: input.name,
+            emoji: input.emoji,
+            target_amount: input.targetAmount,
+            deadline: input.deadline,
+          }),
+        ],
+      );
+    }
+
     return mapRow(rows[0]);
   });
 }
 
 export async function updateGoal(ctx: TenantContext, id: string, input: UpdateMemberGoalInput): Promise<MemberGoal> {
   return withTransaction(ctx, async (client) => {
+    // Get old values before update for audit log
+    const { rows: oldRows } = await client.query<GoalRow>(
+      `SELECT * FROM member_goals WHERE id = $1 AND group_id = $2 AND member_id = $3`,
+      [id, ctx.groupId, ctx.userId],
+    );
+    const oldGoal = oldRows[0];
+
     const { rows } = await client.query<GoalRow>(
       `UPDATE member_goals SET
          name          = COALESCE($3, name),
@@ -75,23 +102,86 @@ export async function updateGoal(ctx: TenantContext, id: string, input: UpdateMe
       ],
     );
     if (!rows[0]) throw new NotFoundError('Goal', id);
+
+    // Audit the update
+    if (oldGoal && rows[0]) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, 'member_goal', $4, $5, $6)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'goal.updated',
+          id,
+          JSON.stringify({
+            name: oldGoal.name,
+            emoji: oldGoal.emoji,
+            target_amount: oldGoal.target_amount,
+            deadline: oldGoal.deadline,
+            status: oldGoal.status,
+          }),
+          JSON.stringify({
+            name: rows[0].name,
+            emoji: rows[0].emoji,
+            target_amount: rows[0].target_amount,
+            deadline: rows[0].deadline,
+            status: rows[0].status,
+          }),
+        ],
+      );
+    }
+
     return mapRow(rows[0]);
   });
 }
 
 export async function deleteGoal(ctx: TenantContext, id: string): Promise<void> {
   return withTransaction(ctx, async (client) => {
+    // Get goal details before delete for audit
+    const { rows: oldRows } = await client.query<GoalRow>(
+      `SELECT * FROM member_goals WHERE id = $1 AND group_id = $2 AND member_id = $3`,
+      [id, ctx.groupId, ctx.userId],
+    );
+    const oldGoal = oldRows[0];
+    if (!oldGoal) throw new NotFoundError('Goal', id);
+
     const { rowCount } = await client.query(
       `DELETE FROM member_goals WHERE id = $1 AND group_id = $2 AND member_id = $3`,
       [id, ctx.groupId, ctx.userId],
     );
     if (!rowCount) throw new NotFoundError('Goal', id);
+
+    // Audit the deletion
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, 'member_goal', $4, $5, NULL)`,
+      [
+        ctx.groupId,
+        ctx.userId,
+        'goal.deleted',
+        id,
+        JSON.stringify({
+          name: oldGoal.name,
+          emoji: oldGoal.emoji,
+          target_amount: oldGoal.target_amount,
+          deadline: oldGoal.deadline,
+          status: oldGoal.status,
+        }),
+      ],
+    );
   });
 }
 
 /** Atomically increments saved_amount and auto-flips status to 'achieved' at target. */
 export async function logProgress(ctx: TenantContext, id: string, input: LogGoalProgressInput): Promise<MemberGoal> {
   return withTransaction(ctx, async (client) => {
+    // Get old values before update
+    const { rows: oldRows } = await client.query<GoalRow>(
+      `SELECT * FROM member_goals WHERE id = $1 AND group_id = $2 AND member_id = $3`,
+      [id, ctx.groupId, ctx.userId],
+    );
+    const oldGoal = oldRows[0];
+
     const { rows } = await client.query<GoalRow>(
       `UPDATE member_goals SET
          saved_amount = saved_amount + $4,
@@ -101,6 +191,30 @@ export async function logProgress(ctx: TenantContext, id: string, input: LogGoal
       [id, ctx.groupId, ctx.userId, input.amount],
     );
     if (!rows[0]) throw new NotFoundError('Goal', id);
+
+    // Audit progress log
+    if (oldGoal && rows[0]) {
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, 'member_goal', $4, $5, $6)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'goal.progress_logged',
+          id,
+          JSON.stringify({
+            saved_amount: oldGoal.saved_amount,
+            status: oldGoal.status,
+          }),
+          JSON.stringify({
+            saved_amount: rows[0].saved_amount,
+            status: rows[0].status,
+            amount_logged: input.amount,
+          }),
+        ],
+      );
+    }
+
     return mapRow(rows[0]);
   });
 }
