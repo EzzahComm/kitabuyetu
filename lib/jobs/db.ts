@@ -3,12 +3,12 @@
  * Uses the shared pg Pool directly (no RLS context needed — job queue
  * is admin-only; the postgres superuser has BYPASSRLS).
  */
-import type { PoolClient } from 'pg';
-import { pool } from '@/lib/db';
-import type { Job, JobStatus, JobType, EnqueueOptions } from './types';
+import type { PoolClient } from "pg";
+import { pool } from "@/lib/db";
+import type { Job, JobStatus, JobType, EnqueueOptions } from "./types";
 
 /** A pg Pool or a transaction-bound PoolClient — anything with `.query`. */
-type Queryable = Pick<PoolClient, 'query'>;
+type Queryable = Pick<PoolClient, "query">;
 
 /**
  * Atomically claim the next batch of pending jobs using
@@ -27,85 +27,120 @@ type Queryable = Pick<PoolClient, 'query'>;
  * processor guarantee every distinct pending type gets touched once per
  * round before any type gets a second job.
  */
-export async function claimPendingJobs(limit = 10, onlyType?: JobType): Promise<Job[]> {
-  const { rows } = await pool.query<Job>(
-    `UPDATE job_queue
-     SET    status     = 'processing',
-            updated_at = NOW()
-     WHERE  id IN (
-       SELECT id
-       FROM   job_queue
-       WHERE  status = 'pending'
-         AND  run_at <= NOW()
-         AND  ($2::text IS NULL OR type = $2)
-       ORDER  BY priority DESC, run_at ASC
-       LIMIT  $1
-       FOR UPDATE SKIP LOCKED
-     )
-     RETURNING *`,
-    [limit, onlyType ?? null],
-  );
+export async function claimPendingJobs(
+  limit = 10,
+  onlyType?: JobType,
+): Promise<Job[]> {
+  // Split into two statements rather than one query with
+  // `($2::text IS NULL OR type = $2)` — that disjunction isn't sargable, so
+  // the planner can't seek on `type` and falls back to scanning the pending
+  // set from the front of the priority order, filtering as it goes. Measured
+  // live at up to 10,815 buffers / 16.9ms for a single-row claim against a
+  // ~19,700-row backlog (docs/audits/optimization-2026-09). The typed branch
+  // below lets idx_job_queue_claim (type, priority DESC, run_at) serve the
+  // claim directly.
+  const { rows } = onlyType
+    ? await pool.query<Job>(
+        `UPDATE job_queue
+         SET    status     = 'processing',
+                updated_at = NOW()
+         WHERE  id IN (
+           SELECT id
+           FROM   job_queue
+           WHERE  status = 'pending'
+             AND  run_at <= NOW()
+             AND  type = $2
+           ORDER  BY priority DESC, run_at ASC
+           LIMIT  $1
+           FOR UPDATE SKIP LOCKED
+         )
+         RETURNING *`,
+        [limit, onlyType],
+      )
+    : await pool.query<Job>(
+        `UPDATE job_queue
+         SET    status     = 'processing',
+                updated_at = NOW()
+         WHERE  id IN (
+           SELECT id
+           FROM   job_queue
+           WHERE  status = 'pending'
+             AND  run_at <= NOW()
+           ORDER  BY priority DESC, run_at ASC
+           LIMIT  $1
+           FOR UPDATE SKIP LOCKED
+         )
+         RETURNING *`,
+        [limit],
+      );
   return rows;
 }
 
-/**
- * Every distinct job type with pending, due work right now — ordered by its
- * own highest priority, purely as a claiming preference within a round (see
- * processJobBatch). Used to build one round-robin cycle: each type here gets
- * exactly one claim attempt before any type gets a second.
- */
-export async function getDistinctPendingTypes(): Promise<JobType[]> {
-  const { rows } = await pool.query<{ type: JobType }>(
-    `SELECT type, MAX(priority) AS priority
-     FROM   job_queue
-     WHERE  status = 'pending' AND run_at <= NOW()
-     GROUP  BY type
-     ORDER  BY priority DESC`,
-  );
-  return rows.map((r) => r.type);
-}
-
-export interface QueueDepth {
+export interface JobQueueSnapshot {
+  /**
+   * Every distinct job type with pending, due work right now, ordered by its
+   * own highest priority — purely a claiming preference within a round (see
+   * processJobBatch). Each type here gets exactly one claim attempt before
+   * any type gets a second.
+   */
+  priorityOrderedTypes: JobType[];
   /** Total pending and due right now. */
-  pending:            number;
+  pending: number;
   /** Age of the oldest due job, in minutes. 0 when the queue is empty. */
-  oldestPendingMins:  number;
+  oldestPendingMins: number;
   /** Per-type breakdown, worst (oldest) first, for the tick's log line. */
-  byType:             { type: JobType; pending: number; oldestMins: number }[];
+  byType: { type: JobType; pending: number; oldestMins: number }[];
 }
 
 /**
- * Queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4 / G14).
+ * One tick's-worth of job-queue introspection: the round-robin claim order
+ * AND the queue-depth/starvation metrics, from a single GROUP BY scan.
  *
- * The starvation that broke reminder delivery for days in August was fully
- * visible in this one query the entire time — sms_release_stale_reservations
- * sat at 2,258 pending having completed nothing in 8 days — and nobody ran
- * it, because nothing emitted it. Four rounds of fixes were shipped partly
- * blind for want of exactly these two numbers.
+ * Previously two separate queries (getDistinctPendingTypes + getQueueDepth)
+ * ran back-to-back over the same `status='pending' AND run_at<=NOW()` rows
+ * every tick. Measured live: the first pays the full scan cost (~931ms
+ * against a ~19,700-row backlog) and the second — identical shape, same
+ * rows, still warm — costs ~15ms. Billing both separately overstated the
+ * "introspection tax" by 2x and did two scans where Postgres only needed one
+ * (docs/audits/optimization-2026-09). `idx_job_queue_claim` makes this an
+ * index-only scan once the backlog is small, same index that serves
+ * claimPendingJobs' typed branch.
  *
  * `run_at <= NOW()` deliberately: a job scheduled for the future is not a
  * backlog, and counting it would make every healthy tick look alarming.
  */
-export async function getQueueDepth(): Promise<QueueDepth> {
-  const { rows } = await pool.query<{ type: JobType; pending: string; oldest_mins: string }>(
+export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
+  const { rows } = await pool.query<{
+    type: JobType;
+    priority: number;
+    pending: string;
+    oldest_mins: string;
+  }>(
     `SELECT type,
-            COUNT(*)::text                                                    AS pending,
-            (EXTRACT(EPOCH FROM (NOW() - MIN(run_at))) / 60)::int::text       AS oldest_mins
+            MAX(priority)                                                AS priority,
+            COUNT(*)::text                                                AS pending,
+            (EXTRACT(EPOCH FROM (NOW() - MIN(run_at))) / 60)::int::text  AS oldest_mins
        FROM job_queue
       WHERE status = 'pending' AND run_at <= NOW()
       GROUP BY type
-      ORDER BY MIN(run_at) ASC`,
+      ORDER BY priority DESC`,
   );
 
-  const byType = rows.map((r) => ({
-    type:       r.type,
-    pending:    Number(r.pending),
-    oldestMins: Number(r.oldest_mins),
-  }));
+  const byType = rows
+    .map((r) => ({
+      type: r.type,
+      pending: Number(r.pending),
+      oldestMins: Number(r.oldest_mins),
+    }))
+    // Worst (oldest) first for the tick's log line — independent of the
+    // priority ordering above, which only matters for claim order.
+    .sort((a, b) => b.oldestMins - a.oldestMins);
 
   return {
-    pending:           byType.reduce((sum, t) => sum + t.pending, 0),
-    oldestPendingMins: byType.length > 0 ? Math.max(...byType.map((t) => t.oldestMins)) : 0,
+    priorityOrderedTypes: rows.map((r) => r.type),
+    pending: byType.reduce((sum, t) => sum + t.pending, 0),
+    oldestPendingMins:
+      byType.length > 0 ? Math.max(...byType.map((t) => t.oldestMins)) : 0,
     byType,
   };
 }
@@ -152,8 +187,8 @@ export async function resetStuckJobs(
   );
 
   return {
-    released: rows.filter((r) => r.status === 'pending').length,
-    failed:   rows.filter((r) => r.status === 'failed').length,
+    released: rows.filter((r) => r.status === "pending").length,
+    failed: rows.filter((r) => r.status === "failed").length,
   };
 }
 
@@ -180,10 +215,10 @@ export async function markJobFailed(id: string, error: string): Promise<void> {
  * Resets status to 'pending' so the job is picked up in a future tick.
  */
 export async function scheduleRetry(
-  id:        string,
-  attempts:  number,
+  id: string,
+  attempts: number,
   delaySecs: number,
-  error:     string,
+  error: string,
 ): Promise<void> {
   await pool.query(
     `UPDATE job_queue
@@ -202,18 +237,20 @@ export async function scheduleRetry(
  * Fire-and-forget safe — does not throw if it fails.
  */
 export async function logJob(
-  jobId:      string,
-  status:     JobStatus | 'retried' | 'started',
-  message:    string,
+  jobId: string,
+  status: JobStatus | "retried" | "started",
+  message: string,
   durationMs?: number,
 ): Promise<void> {
-  await pool.query(
-    `INSERT INTO job_logs (job_id, status, message, duration_ms)
+  await pool
+    .query(
+      `INSERT INTO job_logs (job_id, status, message, duration_ms)
      VALUES ($1, $2, $3, $4)`,
-    [jobId, status, message.slice(0, 4000), durationMs ?? null],
-  ).catch(() => {
-    // Log write failure must never crash the processor
-  });
+      [jobId, status, message.slice(0, 4000), durationMs ?? null],
+    )
+    .catch(() => {
+      // Log write failure must never crash the processor
+    });
 }
 
 /**
@@ -227,14 +264,14 @@ export async function logJob(
  * happen without the other. Defaults to the shared pool (its own connection).
  */
 export async function insertJob(
-  type:     JobType,
-  payload:  Record<string, unknown>,
-  opts:     EnqueueOptions = {},
+  type: JobType,
+  payload: Record<string, unknown>,
+  opts: EnqueueOptions = {},
   executor: Queryable = pool,
 ): Promise<string | null> {
   const {
-    priority     = 0,
-    run_at       = new Date(),
+    priority = 0,
+    run_at = new Date(),
     max_attempts = 5,
     dedup_key,
   } = opts;
@@ -247,7 +284,14 @@ export async function insertJob(
          AND status NOT IN ('completed', 'failed')
      DO NOTHING
      RETURNING id`,
-    [type, JSON.stringify(payload), priority, run_at, max_attempts, dedup_key ?? null],
+    [
+      type,
+      JSON.stringify(payload),
+      priority,
+      run_at,
+      max_attempts,
+      dedup_key ?? null,
+    ],
   );
   return rows[0]?.id ?? null;
 }
@@ -261,6 +305,29 @@ export async function pruneOldJobs(days = 30): Promise<number> {
     `DELETE FROM job_queue
      WHERE status IN ('completed', 'failed')
        AND updated_at < NOW() - ($1 || ' days')::INTERVAL`,
+    [days],
+  );
+  return rowCount ?? 0;
+}
+
+/**
+ * job_logs has no retention of its own — pruneOldJobs only ever deletes the
+ * *job_queue* row (job_logs then cascades via job_logs_job_id_fkey), so a
+ * job still inside its 30-day retention window keeps accumulating "started"/
+ * "completed" log rows indefinitely across every retry. Measured live:
+ * 451,892 inserts, 0 updates, 58MB, with 'started' alone 51.6% of rows and
+ * zero application code reading the table by id (docs/audits/
+ * optimization-2026-09).
+ *
+ * 'failed' and 'retried' rows are kept regardless of age — they're the only
+ * rows with real diagnostic content and the ones an operator would actually
+ * want after a week.
+ */
+export async function pruneOldJobLogs(days = 7): Promise<number> {
+  const { rowCount } = await pool.query(
+    `DELETE FROM job_logs
+     WHERE status IN ('started', 'completed')
+       AND created_at < NOW() - ($1 || ' days')::INTERVAL`,
     [days],
   );
   return rowCount ?? 0;
