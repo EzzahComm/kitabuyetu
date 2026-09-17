@@ -32,6 +32,11 @@ export interface StkRequestRow {
   /** Migration 155. NULL on any pre-155 row or a client that omitted it —
    *  the reader treats that as 'monthly', never as an error. */
   billing_cycle:      string | null;
+  /** Set only when purpose = 'campaign_donation' (migration 182/184). */
+  campaign_id:        string | null;
+  donor_name:         string | null;
+  donor_message:      string | null;
+  is_anonymous:       boolean | null;
 }
 
 export interface FulfilmentInput {

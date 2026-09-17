@@ -17,7 +17,7 @@ import { toMpesaAmount } from '@/lib/utils/currency';
 import type { PlanType, SubscriptionProduct, BillingCycle } from '@/types/enums';
 import { notifyMember } from './notifications.service';
 import { billingService } from './billing.service';
-import { postContributionJournal } from './accounting.service';
+import { postContributionJournal, postSystemJournal } from './accounting.service';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
@@ -47,6 +47,13 @@ export interface StkPushParams {
   /** Defaults to 'monthly' at the callback if omitted (migration 155) — an
    *  older client that never sends this keeps today's behaviour exactly. */
   billingCycle?:    BillingCycle;
+  /** Required when purpose = 'campaign_donation' — read back at settlement
+   *  by applyCampaignDonationFromSTK (migration 184; AccountReference itself
+   *  is truncated to 12 chars by Safaricom, so it cannot carry this). */
+  campaignId?:      string;
+  donorName?:       string;
+  donorMessage?:    string;
+  isAnonymous?:     boolean;
 }
 
 export interface StkPushResult {
@@ -129,8 +136,9 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       `INSERT INTO mpesa_stk_requests
          (group_id, mpesa_transaction_id, checkout_request_id, merchant_request_id,
           phone, amount, account_reference, description, purpose,
-          status, invoice_id, initiated_by, plan_type, product, billing_cycle)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14)
+          status, invoice_id, initiated_by, plan_type, product, billing_cycle,
+          campaign_id, donor_name, donor_message, is_anonymous)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14,$15,$16,$17,$18)
        ON CONFLICT (checkout_request_id) DO NOTHING
        RETURNING id`,
       [
@@ -145,6 +153,10 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
         params.planType ?? null,
         params.product ?? null,
         params.billingCycle ?? null,
+        params.campaignId ?? null,
+        params.donorName ?? null,
+        params.donorMessage ?? null,
+        params.isAnonymous ?? null,
       ],
     );
     const stkId = stkRows[0]?.id ?? null;
@@ -471,7 +483,8 @@ export async function handleSTKCallback(
     // 2. Lock the STK request row (FOR UPDATE) so duplicate callbacks serialise.
     const { rows: stkRows } = await db.query<StkRequestRow>(
       `SELECT id, group_id, purpose, invoice_id, loan_repayment_id,
-              account_reference, amount, plan_type, product, billing_cycle
+              account_reference, amount, plan_type, product, billing_cycle,
+              campaign_id, donor_name, donor_message, is_anonymous
        FROM   mpesa_stk_requests
        WHERE  checkout_request_id=$1
        FOR UPDATE`,
@@ -676,6 +689,13 @@ async function fulfilStkCallback(
   // Subscription — activate the plan that was actually paid for.
   if (stkReq.purpose === 'subscription') {
     await activateSubscriptionFromSTK(db, stkReq, in_);
+    return;
+  }
+
+  // Changi$ha donation — the payer is a member of the public, not a group
+  // member, so there is no member-matching step (contrast applyContributionFromSTK).
+  if (stkReq.purpose === 'campaign_donation') {
+    await applyCampaignDonationFromSTK(db, stkReq, in_);
     return;
   }
 
@@ -1008,6 +1028,79 @@ function stkFailureReason(code: number): string {
     case 2001: return 'failed due to an incorrect M-Pesa PIN';
     default:   return 'could not be completed';
   }
+}
+
+/**
+ * Settles a Changi$ha donation. Unlike applyContributionFromSTK, there is no
+ * member to match — the payer is a member of the public, so this creates the
+ * campaign_donations row directly rather than looking one up. donor_name/
+ * donor_message/is_anonymous ride on the STK request row itself
+ * (stkReq.campaign_id etc., migration 184) rather than a pre-created pending
+ * row, because AccountReference — the only thing that would otherwise
+ * correlate a callback back to a specific donation — is truncated to 12
+ * characters by Safaricom before it ever reaches us (daraja.service.ts).
+ *
+ * Idempotent the same way as applyContributionFromSTK: ON CONFLICT on
+ * campaign_donations' unique mpesa_receipt_number index makes a duplicate
+ * callback a no-op.
+ */
+async function applyCampaignDonationFromSTK(
+  db:     PoolClient,
+  stkReq: StkRequestRow,
+  in_:    FulfilmentInput,
+): Promise<void> {
+  if (!stkReq.campaign_id) {
+    logger.error('[mpesa] campaign_donation callback with no campaign_id on its STK request', { stkRequestId: stkReq.id });
+    return;
+  }
+
+  const { rows: donationRows } = await db.query<{ id: string }>(
+    `INSERT INTO campaign_donations
+       (campaign_id, group_id, donor_name, donor_phone, amount, message, is_anonymous, mpesa_receipt_number, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'completed')
+     ON CONFLICT (mpesa_receipt_number) DO NOTHING
+     RETURNING id`,
+    [
+      stkReq.campaign_id, stkReq.group_id,
+      stkReq.donor_name, in_.phone, in_.amount.toFixed(2),
+      stkReq.donor_message, stkReq.is_anonymous ?? false, in_.receipt,
+    ],
+  );
+  const donationId = donationRows[0]?.id ?? null;
+  if (!donationId) return; // duplicate callback — nothing more to do
+
+  const { rows: campaignRows } = await db.query<{ title: string }>(
+    `UPDATE campaigns
+     SET    amount_raised = amount_raised + $2, updated_at = NOW()
+     WHERE  id = $1
+     RETURNING title`,
+    [stkReq.campaign_id, in_.amount.toFixed(2)],
+  );
+  const campaignTitle = campaignRows[0]?.title ?? 'campaign';
+
+  const journalEntryId = await postSystemJournal(
+    db, stkReq.group_id, null,
+    `Changi$ha donation — ${campaignTitle}`,
+    [{ accountCode: '1001', debit: in_.amount }, { accountCode: '4001', credit: in_.amount }],
+    { reference: in_.receipt, isTest: IS_SANDBOX },
+  );
+  if (journalEntryId) {
+    await db.query(`UPDATE campaign_donations SET journal_entry_id = $1 WHERE id = $2`, [journalEntryId, donationId]);
+  }
+
+  // Audit: donation settled from STK payment
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      stkReq.group_id,
+      null, // system-triggered via M-Pesa callback
+      'campaign_donation.settle',
+      'campaign_donation',
+      donationId,
+      JSON.stringify({ amount: in_.amount.toFixed(2), mpesa_receipt_number: in_.receipt, campaign_id: stkReq.campaign_id }),
+    ],
+  );
 }
 
 /**
