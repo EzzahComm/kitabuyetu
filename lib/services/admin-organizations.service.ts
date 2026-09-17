@@ -333,7 +333,11 @@ export async function assignGroupToOrganization(
         grantedBy,
         isNew ? 'organization_group_access.create' : 'organization_group_access.update',
         'organization_group_access',
-        prev?.id ?? `${orgId}:${groupId}`,
+        // resource_id is UUID — organization_group_access has no natural
+        // single-id key on insert (it's a composite orgId+groupId row), so
+        // this is null rather than the invalid "orgId:groupId" string this
+        // used to fall back to.
+        prev?.id ?? null,
         isNew ? null : JSON.stringify({ is_active: prev.is_active, access_level: prev.access_level }),
         JSON.stringify({ is_active: true, access_level: accessLevel }),
       ],

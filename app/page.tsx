@@ -59,8 +59,8 @@ export default function Home() {
         title="Your group already keeps records. They just aren't reliable."
       >
         Every group tracks its money somehow. The problem is never effort —
-        it's that notebooks, spreadsheets and scattered M-Pesa messages
-        don't add up the same way twice.
+        it&apos;s that notebooks, spreadsheets and scattered M-Pesa messages
+        don&apos;t add up the same way twice.
       </SectionTitle>
 
       <ProblemSolution />
