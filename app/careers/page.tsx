@@ -4,6 +4,8 @@ import { Container } from "@/components/Container";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { CareersOpenings } from "@/components/marketing/careers-openings";
+import { getOpenJobs } from "@/lib/cms/sanity";
 
 export const metadata: Metadata = {
   title: "Careers — Kitabu Yetu",
@@ -16,8 +18,14 @@ export const metadata: Metadata = {
  * moved to SiteHeader/SiteFooter — it shipped live with no navigation at all.
  * Wrapped here rather than ported into PageShell, since its layout is a
  * custom multi-section grid PageShell's prose container isn't built for.
+ *
+ * Open positions are Sanity-backed (kitabuyetu-studio's "job" type) — see
+ * CareersOpenings for the filtering UI and app/careers/[slug] for the detail
+ * page. Falls back to an honest "no open roles" state, same as before,
+ * when the CMS has nothing published.
  */
-export default function CareersPage() {
+export default async function CareersPage() {
+  const jobs = await getOpenJobs();
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <SiteHeader />
@@ -128,37 +136,7 @@ export default function CareersPage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-trueGray-700 dark:bg-trueGray-900">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Search jobs
-                <input aria-label="Search jobs" type="search" placeholder="Search roles" className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600" />
-              </label>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Department
-                <select aria-label="Filter by department" className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600">
-                  <option>All departments</option>
-                  <option>Product and engineering</option>
-                  <option>Community and operations</option>
-                </select>
-              </label>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Location
-                <select aria-label="Filter by location" className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600">
-                  <option>All locations</option>
-                  <option>Kenya</option>
-                  <option>Remote</option>
-                </select>
-              </label>
-            </div>
-            <div className="mt-8 border-t border-gray-200 pt-8 text-center dark:border-trueGray-700">
-              <h3 className="text-xl font-bold text-gray-800 dark:text-white">No open roles right now</h3>
-              <p className="mx-auto mt-3 max-w-md leading-7 text-gray-500 dark:text-gray-300">We do not have a published vacancy that matches these filters today. We would still like to hear from people who understand this work.</p>
-              <a href="mailto:careers@kitabuyetu.co.ke" className="mt-5 inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300">
-                Introduce yourself <IconArrowUpRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </div>
-          </div>
+          <CareersOpenings jobs={jobs} />
         </div>
       </Container>
 
