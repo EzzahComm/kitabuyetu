@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
     }
     if (action === 'waiveCharge') {
       // body.chargeId, not the loan `id` in the path — a loan_charges row has
-      // its own id (migration 174). Same permission bar as every other
+      // its own id (migration 179). Same permission bar as every other
       // officer action on this route.
       const input = WaiveChargeSchema.parse(body);
       return ok(await loanChargesService.waiveCharge(ctx, input.chargeId, input.reason));

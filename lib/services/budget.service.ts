@@ -7,7 +7,7 @@ import type {
 } from '@/lib/validators/budget.schema';
 
 /**
- * Budget tracking (migration 173): planned amounts per real GL account
+ * Budget tracking (migration 178): planned amounts per real GL account
  * (public.accounts), compared against what has actually been posted to the
  * double-entry ledger (journal_entries/journal_lines) for the budget's own
  * period. No actual amount is ever stored — it is computed live on every

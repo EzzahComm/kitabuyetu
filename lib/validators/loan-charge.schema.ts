@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Configurable loan charges/fees engine (migration 174). Mirrors this
+ * Configurable loan charges/fees engine (migration 179). Mirrors this
  * codebase's other Zod conventions (see loan.schema.ts): server-side *Input
  * aliases via z.infer, client-facing *Payload aliases via z.input for any
  * schema carrying a `.default()`.

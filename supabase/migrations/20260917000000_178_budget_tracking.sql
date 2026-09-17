@@ -1,5 +1,5 @@
 -- =============================================================================
--- 173: Budget tracking — planned vs actual per GL account, per fiscal period
+-- 178: Budget tracking — planned vs actual per GL account, per fiscal period
 --
 -- Genuinely missing feature (Phase 3, code-verified gap): no budget concept
 -- existed anywhere in this codebase — no service, no schema, no route. A
@@ -60,7 +60,7 @@ CREATE INDEX idx_budgets_group_period ON public.budgets (group_id, period_start,
 CREATE INDEX idx_budgets_group_status ON public.budgets (group_id, status);
 
 COMMENT ON TABLE public.budgets IS
-  'Per-group planned-spend/income header for a fiscal period (migration 173). '
+  'Per-group planned-spend/income header for a fiscal period (migration 178). '
   'See lib/services/budget.service.ts. Lines live in budget_lines; actual '
   'amounts are computed live from journal_lines/journal_entries, never '
   'stored here.';
@@ -96,7 +96,7 @@ CREATE INDEX idx_budget_lines_group_id   ON public.budget_lines (group_id);
 CREATE INDEX idx_budget_lines_account_id ON public.budget_lines (account_id);
 
 COMMENT ON TABLE public.budget_lines IS
-  'Planned amount for one GL account within a budget (migration 173). The '
+  'Planned amount for one GL account within a budget (migration 178). The '
   'account''s actual activity for the budget''s period is computed live from '
   'journal_lines/journal_entries by lib/services/budget.service.ts, using '
   'the same debit/credit-normal convention as the trial balance.';

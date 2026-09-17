@@ -1,5 +1,5 @@
 -- =============================================================================
--- 174: Configurable loan charges/fees engine
+-- 179: Configurable loan charges/fees engine
 --
 -- THE GAP
 -- loans/loan_repayments could carry a manually-typed `penalty_amount` on a
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS public.loan_charge_types (
 );
 
 COMMENT ON TABLE public.loan_charge_types IS
-  'Configured loan fee catalogue (migration 174): named fixed/percentage charge '
+  'Configured loan fee catalogue (migration 179): named fixed/percentage charge '
   'rules, cascading Platform -> Organization -> Group like the policies table, '
   'but as its own table so loan_charges has a stable id to reference. '
   'is_active is a live on/off switch, not version history.';
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS public.loan_charges (
 );
 
 COMMENT ON TABLE public.loan_charges IS
-  'Ledger of charges actually applied to a loan (migration 174) — one row per '
+  'Ledger of charges actually applied to a loan (migration 179) — one row per '
   'application of a loan_charge_types rule, amount snapshotted at that moment. '
   'journal_entry_id links the GL posting made via posting-templates.service.ts''s '
   '''loan_charge'' event.';
@@ -210,7 +210,7 @@ CREATE POLICY loan_charge_types_update ON public.loan_charge_types
 -- ── RLS: loan_charges ────────────────────────────────────────────────────────
 -- Same shape as loans/loan_repayments (010_rls_policies.sql): group-scoped,
 -- writes restricted to the officer roles that already write loans/loan_repayments
--- (group_admin, treasurer) — this table is only ever written from inside
+-- (chairperson, treasurer) — this table is only ever written from inside
 -- loans.service.ts's disburse()/recordRepayment() hooks or the waiveCharge
 -- action, all of which are gated on the loans.approve permission.
 ALTER TABLE public.loan_charges ENABLE ROW LEVEL SECURITY;
@@ -225,14 +225,14 @@ CREATE POLICY loan_charges_insert ON public.loan_charges
   FOR INSERT WITH CHECK (
     is_super_admin()
     OR (group_id = app_current_group_id()
-        AND app_current_role() IN ('group_admin', 'treasurer'))
+        AND app_current_role() IN ('chairperson', 'treasurer'))
   );
 
 CREATE POLICY loan_charges_update ON public.loan_charges
   FOR UPDATE USING (
     is_super_admin()
     OR (group_id = app_current_group_id()
-        AND app_current_role() IN ('group_admin', 'treasurer'))
+        AND app_current_role() IN ('chairperson', 'treasurer'))
   );
 
 -- ── Grants ───────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 /**
- * Configurable loan charges/fees engine (migration 174). Closes the gap
+ * Configurable loan charges/fees engine (migration 179). Closes the gap
  * identified against loans.service.ts / loan-policy.service.ts: loans could
  * only carry a manually-typed `penalty_amount` on a repayment — no
  * configurable fee catalogue (processing fee, insurance fee, …), no automatic

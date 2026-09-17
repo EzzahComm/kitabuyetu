@@ -1,5 +1,5 @@
 -- =============================================================================
--- 175: fines issuance and tracking
+-- 180: fines issuance and tracking
 --
 -- fine-policy.service.ts (migration 088) is advisory only — a per-offence
 -- tariff schedule, nothing more; its own header says so ("nothing
@@ -73,7 +73,7 @@ CREATE INDEX idx_fines_payment_request   ON public.fines (payment_request_id)
   WHERE payment_request_id IS NOT NULL;
 
 COMMENT ON TABLE public.fines IS
-  'A fine actually issued against a member (migration 175) — issued -> '
+  'A fine actually issued against a member (migration 180) — issued -> '
   'paid/waived/cancelled. fine-policy.service.ts remains the advisory tariff '
   'schedule this reads a suggested amount from; amount here is a snapshot, '
   'not a live reference. Collection rides payment_requests (product=''fine''), '

@@ -293,7 +293,7 @@ export const loansService = {
       });
 
       // Auto-apply any configured one-time charges (processing fee, insurance
-      // fee, …) — migration 174. A no-op today for every group, since nothing
+      // fee, …) — migration 179. A no-op today for every group, since nothing
       // seeds a default charge type; only fires once a chairperson configures
       // one via loanChargesService.configureChargeType. Inside this same
       // transaction so a charge is atomic with the disbursement itself.
@@ -373,7 +373,7 @@ export const loansService = {
       });
 
       // Auto-apply any configured late-payment charge when this instalment was
-      // paid after its due date — migration 174. Parallel to, not a
+      // paid after its due date — migration 179. Parallel to, not a
       // replacement for, the manual `penalty_amount` above: a no-op today for
       // every group, since nothing seeds a default charge type. Idempotent —
       // an instalment can only reach this point once (the completed-status

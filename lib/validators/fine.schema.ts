@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Fines issuance and tracking (Phase 3, migration 175). Style mirrors
+ * Fines issuance and tracking (Phase 3, migration 180). Style mirrors
  * loan.schema.ts: standalone validator file, PATCH-action union reconstructing
  * the real wire shape, z.input payload aliases for client-facing types.
  */

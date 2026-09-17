@@ -73,7 +73,7 @@ export const SetPostingTemplateSchema = z.object({
   // to that union (and to DEFAULT_TEMPLATES, and to the Policies-tab list the
   // UI renders from it) but not to this enum — so picking either of those two
   // events in the UI produced a 400 no override could get past. loan_charge
-  // (migration 174) and fine_collection (migration 175) below, same reason.
+  // (migration 179) and fine_collection (migration 180) below, same reason.
   event: z.enum([
     'share_purchase', 'share_redemption', 'welfare_disbursement',
     'welfare_pool_contribution', 'dividend_declaration', 'dividend_payment',

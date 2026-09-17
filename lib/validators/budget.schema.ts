@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Budget tracking (migration 173, lib/services/budget.service.ts). A budget
+ * Budget tracking (migration 178, lib/services/budget.service.ts). A budget
  * is a real financial record — planned amounts per real GL account
  * (public.accounts), for one group, over one fiscal period — compared
  * against actual activity already posted to the double-entry ledger

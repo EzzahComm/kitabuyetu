@@ -18,7 +18,7 @@ import { ok } from '@/lib/utils/response';
  *
  * A sibling resource to /loans/policy rather than folded into it: a charge
  * type is a named, individually addressable row (loan_charges references it
- * by id), not a single terms document — see migration 174's header.
+ * by id), not a single terms document — see migration 179's header.
  */
 
 export async function GET(req: NextRequest): Promise<Response> {

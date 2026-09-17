@@ -132,7 +132,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1001', side: 'debit',  amount: 'interest' },
     { accountCode: '4002', side: 'credit', amount: 'interest' },
   ]},
-  // A configured loan charge (migration 174: loan_charge_types /
+  // A configured loan charge (migration 179: loan_charge_types /
   // loan_charges) — a processing fee, insurance fee, or automatic late
   // charge — is added to what the borrower owes and recognized as revenue
   // immediately, the moment it is applied (not deferred to when it is
@@ -170,7 +170,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '5001', side: 'debit',  amount: 'fee' },
     { accountCode: '1001', side: 'credit', amount: 'fee' },
   ]},
-  // Phase 3 (migration 175): a fine actually collected is realized revenue
+  // Phase 3 (migration 180): a fine actually collected is realized revenue
   // for the group, not a liability held in trust like welfare_pool_contribution
   // — credited to 4004 (Other Income), the standard chart's only generic
   // income account, rather than adding a new account code to every group's
