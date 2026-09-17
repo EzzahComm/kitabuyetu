@@ -12,10 +12,10 @@ import {
 } from "framer-motion";
 import { Container } from "@/components/Container";
 import { signUpUrl } from "@/lib/app-links";
-const bookkeeperImg = "/img/bookkeeper.jpg";
-const chamaReminderImg = "/img/chama-reminder.jpg";
-const fundraiseImg = "/img/fundraise.jpg";
-const enterpriseImg = "/img/enterprise.jpg";
+import bookkeeperImg from "../public/img/bookkeeper.jpg";
+import chamaReminderImg from "../public/img/chama-reminder.jpg";
+import fundraiseImg from "../public/img/fundraise.jpg";
+import enterpriseImg from "../public/img/enterprise.jpg";
 
 /**
  * The four product pillars rotate through the home hero so the platform is

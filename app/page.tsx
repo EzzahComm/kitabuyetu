@@ -13,6 +13,8 @@ import {
 import { Hero } from "@/components/Hero";
 import { Container } from "@/components/Container";
 import { SectionTitle } from "@/components/SectionTitle";
+import { WhoItsFor } from "@/components/WhoItsFor";
+import { ProblemSolution } from "@/components/ProblemSolution";
 import { Benefits } from "@/components/Benefits";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Testimonials } from "@/components/Testimonials";
@@ -39,6 +41,28 @@ export default function Home() {
       <SiteHeader variant="overlay" />
 
       <Hero />
+
+      <SectionTitle
+        preTitle="Who it's for"
+        title="Built for the groups Kenyans already organize."
+      >
+        Chamas, SACCOs, welfare groups, investment groups, CBOs and the
+        organizations that support them — not a generic business tool
+        adapted to fit.
+      </SectionTitle>
+
+      <WhoItsFor />
+
+      <SectionTitle
+        preTitle="The problem"
+        title="Your group already keeps records. They just aren't reliable."
+      >
+        Every group tracks its money somehow. The problem is never effort —
+        it's that notebooks, spreadsheets and scattered M-Pesa messages
+        don't add up the same way twice.
+      </SectionTitle>
+
+      <ProblemSolution />
 
       <SectionTitle
         preTitle="The whole picture"
