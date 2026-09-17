@@ -21,6 +21,7 @@ export const ROUTES = {
   support:       '/support',
   docs:          '/docs',
   status:        '/status',
+  resources:     '/resources',
 
   // About
   about:         '/about',
@@ -126,6 +127,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { label: 'Enterprise',    href: ROUTES.enterprise },
   { label: 'How it works',  href: `/#${SECTION_IDS.howItWorks}` },
   { label: 'Pricing',       href: ROUTES.pricing },
+  { label: 'Resources',     href: ROUTES.resources },
   { label: 'Contact',       href: ROUTES.contact },
 ];
 
@@ -153,6 +155,14 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: 'Ecosystem',
     links: ECOSYSTEM_ITEMS,
+  },
+  {
+    heading: 'Resources',
+    links: [
+      { label: 'Blog',        href: ROUTES.resources },
+      { label: 'Guides',      href: `${ROUTES.resources}?category=guide` },
+      { label: 'Case studies', href: `${ROUTES.resources}?category=case-study` },
+    ],
   },
   {
     heading: 'Company',
