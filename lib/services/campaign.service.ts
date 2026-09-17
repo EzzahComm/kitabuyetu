@@ -181,13 +181,14 @@ export async function processCampaignJob(job: {
   let html = job.htmlBody ?? '';
 
   if (job.templateKey) {
-    const fallback = DEFAULT_TEMPLATES[job.templateKey]?.body;
+    const fallbackTpl = DEFAULT_TEMPLATES[job.templateKey];
     const rendered = await renderTemplate(
       job.templateKey,
       { memberName: job.recipientName, groupId: job.groupId },
       job.groupId,
       'en',
-      fallback,
+      fallbackTpl?.body,
+      fallbackTpl?.subject,
     ).catch(() => null);
     if (rendered) html = rendered.html;
   }

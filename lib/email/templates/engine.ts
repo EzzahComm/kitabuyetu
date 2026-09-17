@@ -155,6 +155,7 @@ export async function renderTemplate(
   groupId: string | null,
   locale = 'en',
   fallbackHtml?: string,
+  fallbackSubject?: string,
 ): Promise<{ subject: string; html: string }> {
   const branding = await loadBranding(groupId);
   const tpl = await loadDbTemplate(templateKey, groupId, locale);
@@ -166,10 +167,18 @@ export async function renderTemplate(
     return { subject, html };
   }
 
-  // Fall back to inline default
+  // Fall back to inline default. Previously discarded the fallback
+  // template's own subject entirely — every one of the 47,947
+  // group_verification_link emails ever sent (its DEFAULT_TEMPLATES entry
+  // has never had a DB row to override it) carried the generic subject
+  // "Kitabu Yetu" instead of "Verify your Kitabu Yetu group", with no
+  // indication of what the email was for (docs/audits/optimization-2026-09).
   if (fallbackHtml) {
     const html = wrapWithBranding(interpolate(fallbackHtml, vars), branding);
-    return { subject: vars.subject ? String(vars.subject) : 'Kitabu Yetu', html };
+    const subject = fallbackSubject
+      ? interpolate(fallbackSubject, vars)
+      : (vars.subject ? String(vars.subject) : 'Kitabu Yetu');
+    return { subject, html };
   }
 
   throw new Error(`Email template '${templateKey}' not found and no fallback provided.`);
