@@ -1251,10 +1251,11 @@ export const smsService = {
   async getProviderBalance(memberId: string): Promise<{ balance: number; currency: string }> {
     const result = await getProviderBalance();
     // Snapshot to DB for history
-    await withAdminDb((db) =>
-      db.query(
+    const { rows: snapshotRows } = await withAdminDb((db) =>
+      db.query<{ id: string }>(
         `INSERT INTO sms_provider_balances (provider, balance, currency, queried_by, raw_response)
-         VALUES ($1,$2,$3,$4,$5)`,
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING id`,
         [activeSmsProvider(), result.balance, result.currency, memberId, JSON.stringify(result.raw)],
       ),
     );
@@ -1265,11 +1266,11 @@ export const smsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          'system',
+          null, // platform-level, not tenant-scoped
           null, // system-triggered provider API query
           'provider_balance.snapshot',
           'sms_provider_balance',
-          `${activeSmsProvider()}_${Date.now()}`,
+          snapshotRows[0]?.id ?? null,
           null,
           JSON.stringify({
             provider: activeSmsProvider(),
@@ -1336,59 +1337,65 @@ export const smsService = {
       // NOT downgrade a message to 'failed' (the previous bug), and a 'failed'
       // report must not clobber a message already confirmed 'delivered'.
       if (cls === 'delivered') {
-        await db.query(
+        const { rows: updated } = await db.query<{ id: string; group_id: string }>(
           `UPDATE sms_usage_logs
            SET status='delivered', delivered_at=$2
-           WHERE provider_msg_id=$1`,
+           WHERE provider_msg_id=$1
+           RETURNING id, group_id`,
           [messageId, result.deliveredAt ?? new Date().toISOString()],
         );
 
         // Audit: SMS delivered
-        await db.query(
-          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            'system',
-            null,
-            'sms_usage.delivered',
-            'sms_usage_log',
-            messageId,
-            JSON.stringify({ status: 'sent', delivered_at: null }),
-            JSON.stringify({
-              status: 'delivered',
-              delivered_at: result.deliveredAt ?? new Date().toISOString(),
-            }),
-          ],
-        );
+        if (updated[0]) {
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              updated[0].group_id,
+              null,
+              'sms_usage.delivered',
+              'sms_usage_log',
+              updated[0].id,
+              JSON.stringify({ status: 'sent', delivered_at: null }),
+              JSON.stringify({
+                status: 'delivered',
+                delivered_at: result.deliveredAt ?? new Date().toISOString(),
+              }),
+            ],
+          );
+        }
       } else if (cls === 'failed') {
-        await db.query(
+        const { rows: updated } = await db.query<{ id: string; group_id: string }>(
           `UPDATE sms_usage_logs
            SET status='failed', failed_reason=$2
-           WHERE provider_msg_id=$1 AND status <> 'delivered'`,
+           WHERE provider_msg_id=$1 AND status <> 'delivered'
+           RETURNING id, group_id`,
           [messageId, result.status],
         );
 
         // Audit: SMS delivery failed
-        await db.query(
-          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            'system',
-            null,
-            'sms_usage.delivery_failed',
-            'sms_usage_log',
-            messageId,
-            JSON.stringify({ status: 'sent', failed_reason: null }),
-            JSON.stringify({
-              status: 'failed',
-              failed_reason: result.status,
-            }),
-          ],
-        );
+        if (updated[0]) {
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              updated[0].group_id,
+              null,
+              'sms_usage.delivery_failed',
+              'sms_usage_log',
+              updated[0].id,
+              JSON.stringify({ status: 'sent', failed_reason: null }),
+              JSON.stringify({
+                status: 'failed',
+                failed_reason: result.status,
+              }),
+            ],
+          );
+        }
       }
 
       // One row per provider message; refresh it on each poll.
-      await db.query(
+      const { rows: reportRows } = await db.query<{ id: string }>(
         `INSERT INTO sms_delivery_reports
            (provider_message_id, phone, status, network_id, delivered_at, raw_response)
          VALUES ($1,$2,$3,$4,$5,$6)
@@ -1400,7 +1407,8 @@ export const smsService = {
                queried_at   = NOW(),
                -- Drives the back-off above. Without this every row stays at 0
                -- and the ordering degenerates back to "oldest first forever".
-               poll_count   = sms_delivery_reports.poll_count + 1`,
+               poll_count   = sms_delivery_reports.poll_count + 1
+         RETURNING id`,
         [messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw)],
       );
 
@@ -1409,11 +1417,11 @@ export const smsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          'system',
+          'groupId' in scope ? scope.groupId : null,
           null,
           'delivery_report.record',
           'sms_delivery_report',
-          messageId,
+          reportRows[0]?.id ?? null,
           null,
           JSON.stringify({
             provider_message_id: messageId,
@@ -1585,8 +1593,8 @@ export const smsService = {
     // Refresh delivered_count on campaigns that gained terminal results.
     for (const campaignId of touchedCampaigns) {
       const { rows: beforeUpdate } = await withAdminDb((db) =>
-        db.query<{ delivered_count: number }>(
-          `SELECT delivered_count FROM sms_campaigns WHERE id=$1`,
+        db.query<{ delivered_count: number; group_id: string }>(
+          `SELECT delivered_count, group_id FROM sms_campaigns WHERE id=$1`,
           [campaignId],
         ),
       );
@@ -1611,7 +1619,7 @@ export const smsService = {
             `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
-              'system',
+              beforeUpdate[0]?.group_id ?? null,
               null,
               'sms_campaign.delivered_count_update',
               'sms_campaign',
@@ -2026,10 +2034,11 @@ export const smsService = {
 
     if (!existing[0]) {
       // New opt-out
-      await withTransaction(systemCtx(groupId), (db) =>
-        db.query(
+      const { rows: inserted } = await withTransaction(systemCtx(groupId), (db) =>
+        db.query<{ id: string }>(
           `INSERT INTO sms_opt_outs (group_id, phone, source, actor_id, note)
-           VALUES ($1,$2,$3,$4,$5)`,
+           VALUES ($1,$2,$3,$4,$5)
+           RETURNING id`,
           [groupId, normalized, source, actorId, note],
         ),
       );
@@ -2044,7 +2053,7 @@ export const smsService = {
             actorId,
             'sms_opt_out.create',
             'sms_opt_out',
-            normalized,
+            inserted[0]?.id ?? null,
             null,
             JSON.stringify({
               phone: normalized,
@@ -2070,8 +2079,8 @@ export const smsService = {
 
     // Read old state before deletion
     const { rows: existing } = await withDb(systemCtx(groupId), (db) =>
-      db.query<{ source: string; actor_id: string | null; note: string | null }>(
-        `SELECT source, actor_id, note FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
+      db.query<{ id: string; source: string; actor_id: string | null; note: string | null }>(
+        `SELECT id, source, actor_id, note FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
         [groupId, normalized],
       ),
     );
@@ -2094,7 +2103,7 @@ export const smsService = {
             null, // opt-in is typically self-service member action
             'sms_opt_out.delete',
             'sms_opt_out',
-            normalized,
+            existing[0].id,
             JSON.stringify({
               phone: normalized,
               source: existing[0].source,
