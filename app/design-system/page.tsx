@@ -25,6 +25,7 @@ import { PageSection, FormActions } from '@/components/shared/page-section';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { PortalSidebar } from '@/components/shared/portal-sidebar';
 import { brandGreen, brandNavy, chartPalette } from '@/lib/ui/tokens';
+import { fraunces } from '@/components/marketing/fraunces-font';
 
 const trendData = [
   { month: 'Jan', savings: 120000, loans: 40000 },
@@ -65,7 +66,7 @@ export default function DesignSystemPage() {
   const [moneyOpen, setMoneyOpen] = React.useState(false);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-12 p-6 lg:p-10">
+    <div className={`${fraunces.variable} mx-auto max-w-5xl space-y-12 p-6 lg:p-10`}>
       <PageHeader
         title="Kitabu Yetu — Design System"
         description="Living reference for tokens and shared components. Build every portal screen from these primitives."

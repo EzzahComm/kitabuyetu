@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
+import { fraunces } from '@/components/marketing/fraunces-font';
 import {
   PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL,
   type SubscriptionProduct,
@@ -174,7 +175,7 @@ const FAQS: [string, string][] = [
 
 export default function PricingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-paper">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-paper`}>
       <SiteHeader />
 
       <main id="main" className="flex-1">

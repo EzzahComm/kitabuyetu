@@ -17,6 +17,7 @@ import { Benefits } from "@/components/Benefits";
 import { Cta } from "@/components/Cta";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { fraunces } from "@/components/marketing/fraunces-font";
 import { signUpUrl } from "@/lib/app-links";
 import {
   PLAN_MONTHLY_FEES,
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
  */
 export default function ChamaReminderPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         <Container className="mb-20 pt-28 md:pt-36">
