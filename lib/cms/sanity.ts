@@ -84,3 +84,41 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     { slug },
   );
 }
+
+export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship';
+
+export interface Job {
+  slug: string;
+  title: string;
+  department: string;
+  location: string;
+  employmentType: EmploymentType;
+  summary: string;
+  description: PortableTextBlock[];
+  postedAt: string | null;
+}
+
+const JOB_FIELDS = `
+  "slug": slug.current,
+  title,
+  department,
+  location,
+  employmentType,
+  summary,
+  description,
+  postedAt
+`;
+
+export async function getOpenJobs(): Promise<Job[]> {
+  const jobs = await sanityFetch<Job[]>(
+    `*[_type == "job" && isOpen != false] | order(postedAt desc) { ${JOB_FIELDS} }`,
+  );
+  return jobs ?? [];
+}
+
+export async function getJobBySlug(slug: string): Promise<Job | null> {
+  return sanityFetch<Job | null>(
+    `*[_type == "job" && slug.current == $slug][0] { ${JOB_FIELDS} }`,
+    { slug },
+  );
+}

@@ -283,17 +283,19 @@ async function recordC2BInbound(
   amount:  number,
   rawBody: string,
 ): Promise<void> {
-  const { rowCount: txnCount } = await db.query(
+  const { rows: txnRows } = await db.query<{ id: string }>(
     `INSERT INTO mpesa_transactions
        (group_id, transaction_type, direction, mpesa_receipt_number,
         phone_number, amount, status, reference, raw_response, completed_at, is_test)
      VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
-     ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
+     ON CONFLICT (mpesa_receipt_number) DO NOTHING
+     RETURNING id`,
     [groupId, body.TransID, phone, amount.toFixed(2), body.BillRefNumber, rawBody, IS_SANDBOX],
   );
+  const transactionId = txnRows[0]?.id ?? null;
 
   // Record audit log for C2B inbound transaction — system-triggered (Safaricom callback)
-  if (txnCount) {
+  if (transactionId) {
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -302,9 +304,9 @@ async function recordC2BInbound(
         null, // system-triggered (Safaricom callback)
         'payment.c2bInbound',
         'mpesa_transaction',
-        body.TransID,
+        transactionId,
         null,
-        JSON.stringify({ transaction_type: 'c2b', direction: 'inbound', amount, phone }),
+        JSON.stringify({ transaction_type: 'c2b', direction: 'inbound', amount, phone, mpesa_receipt_number: body.TransID }),
       ],
     );
   }
@@ -507,6 +509,10 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       plan_type:         null,
       product:           null,
       billing_cycle:     null,
+      campaign_id:       null,
+      donor_name:        null,
+      donor_message:     null,
+      is_anonymous:      null,
     };
     await applyLoanRepayment(
       db,

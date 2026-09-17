@@ -140,12 +140,13 @@ export const NAV_LINKS: NavLink[] = NAV_ITEMS.flatMap((entry) =>
 export interface FooterColumn { heading: string; links: NavLink[] }
 
 /**
- * Legal pages exist as routes now, but deliberately hold placeholder content,
- * not real policy text — a wrong Privacy Policy or Terms document for a
- * product handling real money and personal data is a liability, not a
- * marketing choice, so nobody should draft it except counsel. See each page
- * under app/legal/ for the "pending legal review" notice. Do not fill these
- * in with generated policy language.
+ * Privacy and Terms (app/legal/privacy, app/legal/terms) hold real policy
+ * text supplied directly by the business owner, published 2026-09. Data
+ * Protection (app/legal/data-protection) is still a deliberate placeholder —
+ * a wrong policy document for a product handling real money and personal
+ * data is a liability, not a marketing choice, so nobody should draft it
+ * except counsel or the business owner themself. Do not generate policy
+ * language for it.
  */
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {

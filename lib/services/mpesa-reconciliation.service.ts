@@ -70,6 +70,7 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
       // Only used to route an unmatched payment to mpesa_unrouted, which never
       // activates a subscription.
       plan_type: null, product: null, billing_cycle: null,
+      campaign_id: null, donor_name: null, donor_message: null, is_anonymous: null,
     };
     await routeToUnrouted(
       db,
