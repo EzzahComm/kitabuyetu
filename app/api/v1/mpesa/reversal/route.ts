@@ -12,7 +12,7 @@ import { handleReversalResult } from '@/lib/services/mpesa.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 const ReversalSchema = z.object({
@@ -74,7 +74,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       });
 
       // Persist reversal record
-      const { rows } = await withAdminDb((db) =>
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const { rows } = await withTransaction(ctx, (db) =>
         db.query<{ id: string }>(
           `INSERT INTO mpesa_reversals
              (group_id, original_receipt_number, conversation_id,
@@ -108,7 +109,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
-      const rows = await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT r.*, m.first_name || ' ' || m.last_name AS requested_by_name
            FROM mpesa_reversals r

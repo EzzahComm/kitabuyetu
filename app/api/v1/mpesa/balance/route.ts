@@ -10,7 +10,7 @@ import { withPermission } from '@/lib/auth/middleware';
 import { queryAccountBalance } from '@/lib/services/daraja.service';
 import { handleBalanceResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 function callerIp(req: NextRequest): string {
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // Record the query in master ledger so we can correlate the callback
       const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      await withAdminDb((db) =>
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      await withTransaction(ctx, (db) =>
         db.query(
           `INSERT INTO mpesa_transactions
              (group_id, transaction_type, direction, amount, status, description,
@@ -80,7 +81,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
-      const rows = await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT raw_response, completed_at, status
            FROM mpesa_transactions

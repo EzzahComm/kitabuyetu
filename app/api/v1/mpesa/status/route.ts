@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { getMpesaStatus } from '@/lib/redis';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok, errorResponse } from '@/lib/utils/response';
 
 /**
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
 
     // Fall back to DB
-    const payment = await withAdminDb(async (db) => {
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const payment = await withDb(ctx, async (db) => {
       const { rows } = await db.query<{ status: string; mpesa_receipt_number: string | null }>(
         `SELECT status, mpesa_receipt_number
          FROM payments

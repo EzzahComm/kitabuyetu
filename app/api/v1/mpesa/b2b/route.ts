@@ -12,7 +12,7 @@ import { initiateB2B, isValidCallbackToken } from '@/lib/services/daraja.service
 import { handleB2BResult } from '@/lib/services/mpesa.service';
 import { handleSettlementB2BResult, handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { toMpesaAmount } from '@/lib/utils/currency';
 import { logger } from '@/lib/logger';
 
@@ -96,7 +96,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // Persist in both master ledger and B2B-specific table
       const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      await withTransaction(ctx, async (db) => {
         const { rows: txRows } = await db.query<{ id: string }>(
           `INSERT INTO mpesa_transactions
              (group_id, transaction_type, direction, amount, status,
@@ -137,7 +138,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
-      const rows = await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT b.*, m.first_name||' '||m.last_name AS initiated_by_name
            FROM mpesa_b2b_transactions b
