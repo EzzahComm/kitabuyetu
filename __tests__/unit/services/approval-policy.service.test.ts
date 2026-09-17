@@ -83,6 +83,7 @@ describe('approvalPolicyService.setGroupOverride', () => {
 
   it('sets journal_threshold and syncs groups.journal_approval_threshold (DB trigger backstop)', async () => {
     (resolvePolicy as jest.Mock).mockResolvedValueOnce({ threshold: 8000 }); // effective value after the write
+    mockQuery.mockResolvedValueOnce({ rows: [{ journal_approval_threshold: '5000.00' }] }); // prior value, for the audit log
 
     await approvalPolicyService.setGroupOverride(ctx, 'journal_threshold', 8000);
 
@@ -104,6 +105,10 @@ describe('approvalPolicyService.setOrganizationOverride', () => {
 
   it('sets journal_threshold at organization scope and syncs every linked group without its own override', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1' }, { id: 'g2' }] }); // groups linked to org without an override
+    mockQuery.mockResolvedValueOnce({ rows: [{ journal_approval_threshold: '5000.00' }] }); // g1 prior value
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // g1 UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [{ journal_approval_threshold: '5000.00' }] }); // g2 prior value
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // g2 UPDATE
     (resolvePolicy as jest.Mock)
       .mockResolvedValueOnce({ threshold: 5000 }) // g1
       .mockResolvedValueOnce({ threshold: 5000 }); // g2

@@ -55,11 +55,12 @@ describe('setPolicy', () => {
   it('inserts version 1 when no active row exists at this scope yet', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });              // no existing active row
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-1', version: 1 }] }); // INSERT
+    mockQuery.mockResolvedValueOnce({ rows: [] });              // audit log
 
     const result = await setPolicy(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 5000 }, 'user-1');
 
     expect(result).toEqual({ id: 'p-1', version: 1 });
-    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(mockQuery).toHaveBeenCalledTimes(3);
     const insertCall = mockQuery.mock.calls[1];
     expect(insertCall[1]).toEqual(['approval', 'journal_threshold', null, 'g1', JSON.stringify({ threshold: 5000 }), 1, 'user-1']);
   });
@@ -68,11 +69,12 @@ describe('setPolicy', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-old', version: 2 }] }); // existing active row
     mockQuery.mockResolvedValueOnce({ rows: [] });                            // UPDATE retiring it
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-new', version: 3 }] }); // INSERT new version
+    mockQuery.mockResolvedValueOnce({ rows: [] });                            // audit log
 
     const result = await setPolicy(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 8000 }, 'user-1');
 
     expect(result).toEqual({ id: 'p-new', version: 3 });
-    expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery).toHaveBeenCalledTimes(4);
     const retireCall = mockQuery.mock.calls[1];
     expect(retireCall[0]).toContain('is_active = false');
     expect(retireCall[1]).toEqual(['p-old']);

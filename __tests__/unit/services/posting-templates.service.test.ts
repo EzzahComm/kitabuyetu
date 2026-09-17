@@ -424,18 +424,19 @@ describe('postVendorPaymentJournal', () => {
   });
 
   it('stamps the journal id onto the vendor payment row', async () => {
-    // No fee passed, so no fee-account lookup happens — the UPDATE is the
-    // only query.
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    // No fee passed, so no fee-account lookup happens — the UPDATE (and its
+    // trailing audit log) are the only queries.
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE vendor_payments
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
     await postVendorPaymentJournal(mockClient as never, {
       groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000,
       expenseAccountCode: '5001', entryDate: '2026-08-11', createdBy: null,
     });
 
-    const update = mockQuery.mock.calls[mockQuery.mock.calls.length - 1];
-    expect(String(update[0])).toContain('UPDATE vendor_payments');
-    expect(update[1]).toEqual(['je-1', 'vp-1']);
+    const update = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE vendor_payments'));
+    expect(update).toBeDefined();
+    expect(update?.[1]).toEqual(['je-1', 'vp-1']);
   });
 
   it('returns null when the journal itself could not post', async () => {

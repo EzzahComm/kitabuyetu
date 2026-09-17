@@ -84,11 +84,12 @@ describe('contributionsService.create', () => {
     };
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce({ rows: [pendingContribution] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: contribution.create
 
     const result = await contributionsService.create(ctx, baseContributionInput);
 
     expect(result.status).toBe('pending');
-    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(mockQuery).toHaveBeenCalledTimes(3);
   });
 
   it('creates a completed contribution when payment method is provided', async () => {
@@ -122,18 +123,21 @@ describe('contributionsService.create', () => {
 
 describe('contributionsService.delete', () => {
   it('soft-deletes by setting status to cancelled (not a hard delete)', async () => {
-    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+    // existence/status guard (SELECT ... WHERE status = 'pending')
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'c-1', status: 'pending' }] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });   // UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [] });      // audit log: contribution.delete
 
     await contributionsService.delete(ctx, 'c-1');
 
-    const [sql] = mockQuery.mock.calls[0] as [string, ...unknown[]];
+    const [sql] = mockQuery.mock.calls[1] as [string, ...unknown[]];
     expect(sql.trim().toUpperCase()).toMatch(/^UPDATE/);
     expect(sql).toContain("'cancelled'");
     expect(sql.toUpperCase()).not.toContain('DELETE');
   });
 
   it('throws NotFoundError when contribution is not pending or does not exist', async () => {
-    mockQuery.mockResolvedValueOnce({ rowCount: 0 });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no pending row found
 
     await expect(contributionsService.delete(ctx, 'non-existent')).rejects.toBeInstanceOf(
       NotFoundError,

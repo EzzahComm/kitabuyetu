@@ -52,15 +52,19 @@ describe('resolveWatchdogTimeout', () => {
   });
 
   it('never touches reserved_amount or any accounts table', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'row-3', group_id: 'grp-1', amount: '1000.00' }],
-    });
+    // Two calls: the status UPDATE, then an audit_logs INSERT (R11) — this
+    // test's own invariant is that NEITHER touches reserved_amount/accounts,
+    // not that there's exactly one call.
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'row-3', group_id: 'grp-1', amount: '1000.00' }] })
+      .mockResolvedValueOnce({ rows: [] });
 
     await resolveWatchdogTimeout('disbursement', 'row-3');
 
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    const [sql] = mockQuery.mock.calls[0];
-    expect(sql).not.toMatch(/reserved_amount/i);
-    expect(sql).not.toMatch(/\baccounts\b/i);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    for (const [sql] of mockQuery.mock.calls) {
+      expect(sql).not.toMatch(/reserved_amount/i);
+      expect(sql).not.toMatch(/\baccounts\b/i);
+    }
   });
 });
