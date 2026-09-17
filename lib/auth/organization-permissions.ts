@@ -28,6 +28,8 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.members.view',
   'organization.audit_logs.view',
   'organization.reports.view',
+  'organization.reports.export',
+  'organization.reports.schedules.manage',
   'organization.dashboard.view',
   'organization.programs.manage',
   'organization.disbursements.manage',

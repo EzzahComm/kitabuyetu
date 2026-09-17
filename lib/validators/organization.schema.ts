@@ -227,6 +227,43 @@ export const SetSmsRateSchema = z.object({
   rate: z.number().positive('Rate must be positive').max(100),
 });
 
+// ─── Report export + scheduling (Phase 5 gap analysis, remaining items 1-2) ──
+// Mirrors organizationFinanceService.programBudgetReport/donorSpendReport —
+// the two report generators that exist today. Add a value here AND to
+// report-export.service.ts's REPORT_GENERATORS map together.
+export const REPORT_TYPES = ['program_budget', 'donor_spend'] as const;
+export const REPORT_FORMATS = ['pdf', 'xlsx', 'csv'] as const;
+export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
+
+export const CreateReportExportSchema = z.object({
+  reportType: z.enum(REPORT_TYPES),
+  format:     z.enum(REPORT_FORMATS),
+});
+
+export const CreateReportScheduleSchema = z.object({
+  reportType: z.enum(REPORT_TYPES),
+  format:     z.enum(REPORT_FORMATS),
+  cadence:    z.enum(REPORT_CADENCES),
+  /** Explicit recipient addresses. Either this or notifyCoordinator (or both) must be set. */
+  recipientEmails: z.array(z.string().email()).max(20).optional(),
+  /** When true, also emails every active coordinator/lead of this organization. */
+  notifyCoordinator: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if (!v.notifyCoordinator && (!v.recipientEmails || v.recipientEmails.length === 0)) {
+    ctx.addIssue({
+      code: 'custom', path: ['recipientEmails'],
+      message: 'Set at least one recipient email or enable notifyCoordinator',
+    });
+  }
+});
+
+export const UpdateReportScheduleSchema = z.object({
+  cadence:           z.enum(REPORT_CADENCES).optional(),
+  recipientEmails:   z.array(z.string().email()).max(20).optional(),
+  notifyCoordinator: z.boolean().optional(),
+  isActive:          z.boolean().optional(),
+});
+
 export type DepositInput            = z.infer<typeof DepositSchema>;
 export type CreateProgramInput      = z.infer<typeof CreateProgramSchema>;
 export type CapitalAdjustmentInput  = z.infer<typeof CapitalAdjustmentSchema>;
@@ -238,6 +275,9 @@ export type DisbursementActionInput = z.infer<typeof DisbursementActionSchema>;
 export type BrandingInput           = z.infer<typeof BrandingSchema>;
 export type TopUpSmsCreditsInput    = z.infer<typeof TopUpSmsCreditsSchema>;
 export type SetSmsRateInput         = z.infer<typeof SetSmsRateSchema>;
+export type CreateReportExportInput   = z.infer<typeof CreateReportExportSchema>;
+export type CreateReportScheduleInput = z.infer<typeof CreateReportScheduleSchema>;
+export type UpdateReportScheduleInput = z.infer<typeof UpdateReportScheduleSchema>;
 
 // Client request-body types — z.input, not z.infer, matching this
 // codebase's convention elsewhere (see accounting.schema.ts): none of the

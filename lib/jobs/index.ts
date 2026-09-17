@@ -168,6 +168,20 @@ export async function enqueueTimeBasedJobs(): Promise<
     },
   );
 
+  // Report-schedule sweep (Phase 5 gap analysis item 2). Same self-idempotent
+  // constant-dedup-key shape as the SMS sweeps above — at most one
+  // outstanding row, freed the moment it completes, so this "ensures one is
+  // queued" rather than minting a new one every 5 minutes regardless of
+  // whether the last run finished.
+  queued.organization_report_schedules_process = await safe(
+    'organization_report_schedules_process',
+    {},
+    {
+      priority: 2,
+      dedup_key: 'organization_report_schedules_process',
+    },
+  );
+
   queued.mpesa_reconcile = await safe(
     "mpesa_reconcile",
     {},

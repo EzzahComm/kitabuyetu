@@ -137,6 +137,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'organization_sms_allowance_grant':
       return handleOrganizationSmsAllowanceGrant();
 
+    case 'organization_report_export':
+      return handleOrganizationReportExport(job);
+
+    case 'organization_report_schedules_process':
+      return handleOrganizationReportSchedulesProcess();
+
     case "cleanup_old_jobs":
       return handleCleanupOldJobs();
 
@@ -1249,6 +1255,39 @@ async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
   const { grantDueOrganizationSmsAllowances } = await import('@/lib/services/organization-plan.service');
   const result = await grantDueOrganizationSmsAllowances();
   return { message: `SMS allowance granted for ${result.organizationsGranted} organization(s)`, ...result };
+}
+
+/**
+ * Render + upload one organization_report_exports row (Phase 5 gap analysis
+ * item 1 — async report export). `isFinalAttempt` tells the service whether
+ * to record a terminal 'failed' status on this exception, or leave the row
+ * for job_queue's own retry to pick up again a few minutes later — see
+ * processReportExport's own doc comment for why that distinction matters to
+ * a coordinator polling the status route.
+ */
+async function handleOrganizationReportExport(job: Job): Promise<HandlerResult> {
+  const exportId = job.payload.exportId ? String(job.payload.exportId) : '';
+  if (!exportId) return { message: 'Report export skipped: no exportId' };
+
+  const { processReportExport } = await import('@/lib/services/report-export.service');
+  const isFinalAttempt = job.attempts + 1 >= job.max_attempts;
+  const message = await processReportExport(exportId, { isFinalAttempt });
+  return { message, exportId };
+}
+
+/**
+ * Report-schedule sweep — the SAME idiom as handleSmsProcessSchedules: a
+ * payload-free, constantly-keyed 5-minute tick (see lib/jobs/index.ts) that
+ * finds due report_schedules rows and enqueues one organization_report_export
+ * job per row. Deliberately NOT a second pg_cron entry — this codebase's
+ * entire pg_cron footprint is the single 5-minute /api/cron tick; every
+ * other recurring behaviour is a job type dispatched from that one tick, and
+ * this follows the same shape rather than forking a new scheduling path.
+ */
+async function handleOrganizationReportSchedulesProcess(): Promise<HandlerResult> {
+  const { processDueReportSchedules } = await import('@/lib/services/report-export.service');
+  const result = await processDueReportSchedules();
+  return { message: `Report schedules processed (${result.processed} due)`, ...result };
 }
 
 /**
