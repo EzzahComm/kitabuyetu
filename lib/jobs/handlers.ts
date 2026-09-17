@@ -53,6 +53,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'mpesa_reconcile':
       return handleMpesaReconcile();
 
+    case 'mpesa_paybill_sweep':
+      return handleMpesaPaybillSweep();
+
     case 'mpesa_replay_callbacks':
       return handleMpesaReplayCallbacks();
 
@@ -264,6 +267,22 @@ async function handleMpesaReplayCallbacks(): Promise<HandlerResult> {
   const { replayUnprocessedCallbacks } = await import('@/lib/services/mpesa.service');
   const result = await replayUnprocessedCallbacks();
   return { message: 'M-Pesa callback DLQ replay complete', ...flattenResult(result) };
+}
+
+/**
+ * Detects completed inbound C2B paybill transactions with no domain record
+ * (contribution/loan repayment/invoice payment) and queues them into
+ * mpesa_unrouted for treasurer resolution. Before this, the only caller was
+ * a manual, authenticated HTTP endpoint — it had run exactly once in the
+ * platform's lifetime (2026-07-29, five and a half weeks before this job
+ * type was added). Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so
+ * hourly scheduling carries no correctness risk (docs/audits/
+ * optimization-2026-09).
+ */
+async function handleMpesaPaybillSweep(): Promise<HandlerResult> {
+  const { sweepPaybillTransactions } = await import('@/lib/services/mpesa.service');
+  const result = await sweepPaybillTransactions(null, null);
+  return { message: 'M-Pesa paybill sweep complete', ...flattenResult(result) };
 }
 
 async function handleMpesaReconcileCharges(): Promise<HandlerResult> {
