@@ -119,11 +119,11 @@ export default function BillingAdminPage() {
                 <div key={p.plan} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: PLAN_COLORS[p.plan] }} />
-                    <span className="capitalize text-gray-600 font-medium">{p.plan}</span>
+                    <span className="capitalize text-muted-foreground font-medium">{p.plan}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-gray-500">
+                  <div className="flex items-center gap-4 text-muted-foreground">
                     <span>{p.count} org{parseInt(p.count) !== 1 ? 's' : ''}</span>
-                    <span className="font-semibold text-gray-900">{formatKES(p.revenue)}/mo</span>
+                    <span className="font-semibold text-foreground">{formatKES(p.revenue)}/mo</span>
                   </div>
                 </div>
               ))}
@@ -138,7 +138,7 @@ export default function BillingAdminPage() {
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <AlertCircle size={14} className="text-amber-500" /> Outstanding Invoices
               </CardTitle>
-              <span className="text-xs text-gray-500">{outstanding.length} unpaid</span>
+              <span className="text-xs text-muted-foreground">{outstanding.length} unpaid</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -150,19 +150,19 @@ export default function BillingAdminPage() {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {outstanding.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50">
+                  <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-accent">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{inv.group_name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{inv.group_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400">{inv.invoice_number}</span>
-                        <span className="text-xs text-gray-400">·</span>
-                        <span className={`text-xs ${new Date(inv.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                        <span className="text-xs text-muted-foreground">{inv.invoice_number}</span>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className={`text-xs ${new Date(inv.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
                           Due {formatDate(inv.due_date)}
                         </span>
                       </div>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-sm font-bold text-gray-900">{formatKES(inv.amount_due)}</p>
+                      <p className="text-sm font-bold text-foreground">{formatKES(inv.amount_due)}</p>
                       <StatusPill status={inv.status} size="sm" />
                     </div>
                   </div>
@@ -187,15 +187,15 @@ export default function BillingAdminPage() {
             onPageChange={() => {}}
             emptyMessage="No payments yet"
             columns={[
-              { key: 'group_name', header: 'Organization', render: (p) => <span className="font-medium text-gray-900">{p.group_name ?? '—'}</span> },
-              { key: 'invoice_number', header: 'Invoice', render: (p) => <span className="text-gray-500 text-xs font-mono">{p.invoice_number ?? '—'}</span> },
+              { key: 'group_name', header: 'Organization', render: (p) => <span className="font-medium text-foreground">{p.group_name ?? '—'}</span> },
+              { key: 'invoice_number', header: 'Invoice', render: (p) => <span className="text-muted-foreground text-xs font-mono">{p.invoice_number ?? '—'}</span> },
               { key: 'amount', header: 'Amount', className: 'text-right', render: (p) => <span className="font-semibold">{formatKES(p.amount)}</span> },
-              { key: 'payment_method', header: 'Method', render: (p) => <span className="text-xs text-gray-500 capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</span> },
+              { key: 'payment_method', header: 'Method', render: (p) => <span className="text-xs text-muted-foreground capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</span> },
               {
                 key: 'status', header: 'Status',
                 render: (p) => <StatusPill status={p.status} size="sm" />,
               },
-              { key: 'created_at', header: 'Date', render: (p) => <span className="text-xs text-gray-500">{formatDate(p.created_at)}</span> },
+              { key: 'created_at', header: 'Date', render: (p) => <span className="text-xs text-muted-foreground">{formatDate(p.created_at)}</span> },
             ]}
           />
         </CardContent>

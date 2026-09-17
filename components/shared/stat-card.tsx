@@ -14,7 +14,7 @@ const accentMap = {
   red:    'bg-red-50 text-red-600',
   orange: 'bg-orange-50 text-orange-600',
   purple: 'bg-purple-50 text-purple-600',
-  gray:   'bg-gray-100 text-gray-600',
+  gray:   'bg-muted text-muted-foreground',
 };
 
 interface StatCardProps {

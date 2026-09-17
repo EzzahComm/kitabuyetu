@@ -155,7 +155,7 @@ export default function MpesaUnroutedPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -163,7 +163,7 @@ export default function MpesaUnroutedPage() {
                 className="pl-8 h-8 text-sm"
               />
             </div>
-            <span className="ml-auto text-xs text-gray-400">{total} unresolved</span>
+            <span className="ml-auto text-xs text-muted-foreground">{total} unresolved</span>
           </div>
         </CardContent>
       </Card>
@@ -178,13 +178,13 @@ export default function MpesaUnroutedPage() {
         columns={[
           {
             key: 'receipt', header: 'Receipt',
-            render: (row) => <span className="font-mono text-xs text-gray-700">{row.receipt}</span>,
+            render: (row) => <span className="font-mono text-xs text-muted-foreground">{row.receipt}</span>,
           },
           { key: 'amount', header: 'Amount', render: (row) => <span className="font-semibold text-sm">{formatKES(Number(row.amount))}</span> },
           {
             key: 'ref', header: 'Account ref',
             render: (row) => (
-              <span className="font-mono text-xs text-gray-600">
+              <span className="font-mono text-xs text-muted-foreground">
                 {row.bill_ref ?? '—'}
                 {SUBSCRIPTION_REFS.has(row.bill_ref ?? '') && (
                   <span className="ml-1.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-sans font-medium text-blue-700">
@@ -198,10 +198,10 @@ export default function MpesaUnroutedPage() {
             key: 'candidate', header: 'Candidate group',
             render: (row) => row.candidate_group_name
               ? <span className="text-sm">{row.candidate_group_name}</span>
-              : <span className="text-xs text-gray-400 italic">none — router couldn&apos;t guess</span>,
+              : <span className="text-xs text-muted-foreground italic">none — router couldn&apos;t guess</span>,
           },
-          { key: 'reason', header: 'Reason', render: (row) => <span className="text-xs text-gray-500">{row.reason}</span> },
-          { key: 'date', header: 'Paid', render: (row) => <span className="text-xs text-gray-500">{formatDate(row.created_at)}</span> },
+          { key: 'reason', header: 'Reason', render: (row) => <span className="text-xs text-muted-foreground">{row.reason}</span> },
+          { key: 'date', header: 'Paid', render: (row) => <span className="text-xs text-muted-foreground">{formatDate(row.created_at)}</span> },
           {
             key: 'actions', header: '',
             render: (row) => (
@@ -220,7 +220,7 @@ export default function MpesaUnroutedPage() {
           </DialogHeader>
           {target && (
             <div className="space-y-4">
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-0.5">
+              <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground space-y-0.5">
                 <p><span className="font-medium">{formatKES(Number(target.amount))}</span> · ref <span className="font-mono">{target.bill_ref ?? '—'}</span></p>
                 <p>{target.reason}</p>
               </div>
@@ -252,7 +252,7 @@ export default function MpesaUnroutedPage() {
                   {groupId ? (
                     <div className="flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm">
                       <span>{groupResults?.items.find((g) => g.id === groupId)?.name ?? target.candidate_group_name ?? groupId}</span>
-                      <button type="button" className="text-xs text-gray-400 hover:text-gray-700" onClick={() => { setGroupId(''); setMemberId(''); }}>
+                      <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setGroupId(''); setMemberId(''); }}>
                         Change
                       </button>
                     </div>
@@ -269,14 +269,14 @@ export default function MpesaUnroutedPage() {
                           {(groupResults?.items ?? []).map((g) => (
                             <button
                               key={g.id} type="button"
-                              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                              className="block w-full text-left px-3 py-2 text-sm hover:bg-accent"
                               onClick={() => { setGroupId(g.id); setMemberId(''); }}
                             >
                               {g.name}
                             </button>
                           ))}
                           {groupResults?.items.length === 0 && (
-                            <p className="px-3 py-2 text-xs text-gray-400">No groups match</p>
+                            <p className="px-3 py-2 text-xs text-muted-foreground">No groups match</p>
                           )}
                         </div>
                       )}
@@ -345,7 +345,7 @@ export default function MpesaUnroutedPage() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     This cycle costs <span className="font-medium">{formatKES(expectedFee)}</span>.
                     {' '}The receipt is <span className="font-medium">{formatKES(Number(target.amount))}</span>
                     {Number(target.amount) < expectedFee && (

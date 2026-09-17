@@ -55,7 +55,7 @@ function WardBreakdown({ countyId }: { countyId: string }) {
         <TableBody>
           {wards.map((w) => (
             <TableRow key={w.ward} className="hover:bg-transparent">
-              <TableCell className="py-1.5 text-sm text-gray-700">{w.ward}</TableCell>
+              <TableCell className="py-1.5 text-sm text-muted-foreground">{w.ward}</TableCell>
               <TableCell className="py-1.5 text-right text-sm">{w.group_count}</TableCell>
               <TableCell className="py-1.5 text-right text-sm">{Number(w.member_count).toLocaleString()}</TableCell>
               <TableCell className="py-1.5 text-right text-sm text-green-600">{formatKES(w.total_contributions)}</TableCell>
@@ -81,7 +81,7 @@ function SortHeader({
         className="inline-flex items-center gap-1 hover:text-foreground"
       >
         {label}
-        <ArrowUpDown size={11} className={active ? 'text-foreground' : 'text-gray-300'} />
+        <ArrowUpDown size={11} className={active ? 'text-foreground' : 'text-muted-foreground'} />
         {active && <span className="text-[10px]">{dir === 'asc' ? '↑' : '↓'}</span>}
       </button>
     </TableHead>
@@ -141,8 +141,8 @@ export default function GeographyPage() {
             </div>
           ) : rows.length === 0 ? (
             <div className="p-12 text-center">
-              <MapPin className="mx-auto h-8 w-8 text-gray-300 mb-3" />
-              <p className="text-sm font-medium text-gray-900">No jurisdiction data available</p>
+              <MapPin className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-sm font-medium text-foreground">No jurisdiction data available</p>
             </div>
           ) : (
             <Table>
@@ -166,19 +166,19 @@ export default function GeographyPage() {
                         className="cursor-pointer"
                         onClick={() => setExpanded(isOpen ? null : county.county_id)}
                       >
-                        <TableCell className="text-gray-400">
+                        <TableCell className="text-muted-foreground">
                           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </TableCell>
-                        <TableCell className="font-medium text-gray-900">{county.county_name}</TableCell>
-                        <TableCell className="text-gray-600">{county.region ?? '—'}</TableCell>
+                        <TableCell className="font-medium text-foreground">{county.county_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{county.region ?? '—'}</TableCell>
                         <TableCell className="text-right font-medium">{county.group_count}</TableCell>
                         <TableCell className="text-right font-medium">{Number(county.member_count).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-green-600 font-medium">{formatKES(county.total_contributions)}</TableCell>
-                        <TableCell className="text-right text-gray-600">{formatKES(county.loan_book)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatKES(county.loan_book)}</TableCell>
                       </TableRow>
                       {isOpen && (
                         <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={7} className="p-0 bg-gray-50/50">
+                          <TableCell colSpan={7} className="p-0 bg-muted/50">
                             <WardBreakdown countyId={county.county_id} />
                           </TableCell>
                         </TableRow>

@@ -78,8 +78,8 @@ export default function OrganizationsComparePage() {
             </div>
           ) : rows.length === 0 ? (
             <div className="p-12 text-center">
-              <Landmark className="mx-auto h-8 w-8 text-gray-300 mb-3" />
-              <p className="text-sm font-medium text-gray-900">No active organizations yet</p>
+              <Landmark className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-sm font-medium text-foreground">No active organizations yet</p>
               <p className="text-xs text-muted-foreground mt-1">Onboard an organization to see it here.</p>
             </div>
           ) : (
@@ -111,25 +111,25 @@ export default function OrganizationsComparePage() {
                             <Landmark size={13} className="text-blue-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{org.name}</p>
-                            <p className="text-xs text-gray-400">{TYPE_LABEL[org.type] ?? org.type}</p>
+                            <p className="font-medium text-foreground">{org.name}</p>
+                            <p className="text-xs text-muted-foreground">{TYPE_LABEL[org.type] ?? org.type}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-600">{org.county ?? '—'}</TableCell>
+                      <TableCell className="text-muted-foreground">{org.county ?? '—'}</TableCell>
                       <TableCell className="text-right font-medium">{org.group_count}</TableCell>
                       <TableCell className="text-right font-medium">{Number(org.member_reach).toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <span className="text-green-600 font-medium">{formatKES(org.wallet_balance)}</span>
                       </TableCell>
-                      <TableCell className="text-right text-gray-600">{formatKES(org.total_disbursed)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatKES(org.total_disbursed)}</TableCell>
                       <TableCell className="text-right">
                         {band ? (
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${band.className}`}>
                             {band.label} {score}
                           </span>
                         ) : (
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                             Not yet scored
                           </span>
                         )}

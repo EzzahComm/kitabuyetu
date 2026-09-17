@@ -19,7 +19,7 @@ import { useAdminDashboard, useAdminRevenueTrend } from '@/hooks/use-admin';
 // first-load bundle and only downloads when the chart actually renders.
 const RevenueChart = dynamic(() => import('./_revenue-chart'), {
   ssr: false,
-  loading: () => <div className="h-[200px] w-full animate-pulse rounded bg-gray-100" />,
+  loading: () => <div className="h-[200px] w-full animate-pulse rounded bg-muted" />,
 });
 import { formatKES, formatDate } from '@/lib/utils';
 import Link from 'next/link';
@@ -38,9 +38,9 @@ function StatusRow({ label, value, color }: { label: string; value: string | num
     <div className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full ${color}`} />
-        <span className="text-sm text-gray-600">{label}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
       </div>
-      <span className="text-sm font-semibold text-gray-900">{value}</span>
+      <span className="text-sm font-semibold text-foreground">{value}</span>
     </div>
   );
 }
@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
           value={g.suspended ?? 0}
           description="Require review"
           icon={Building2}
-          iconClass="bg-gray-100"
+          iconClass="bg-muted"
         />
       </div>
 
@@ -172,7 +172,7 @@ export default function AdminDashboardPage() {
         {/* Revenue chart */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Revenue Trend (6 months)</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Revenue Trend (6 months)</CardTitle>
           </CardHeader>
           <CardContent>
             {!trend || trend.length === 0 ? (
@@ -188,19 +188,19 @@ export default function AdminDashboardPage() {
         {/* Subscription breakdown */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Subscription Status</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Subscription Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
             <StatusRow label="Active"    value={s.active_subscriptions ?? 0} color="bg-green-500" />
             <StatusRow label="Suspended" value={s.suspended_subscriptions ?? 0} color="bg-amber-400" />
             <StatusRow label="Expired"   value={s.expired_subscriptions ?? 0} color="bg-gray-400" />
-            <div className="pt-3 border-t border-gray-100 mt-2">
+            <div className="pt-3 border-t border-border mt-2">
               <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Monthly Recurring Revenue</span>
+                <span className="text-muted-foreground">Monthly Recurring Revenue</span>
                 <span className="font-bold text-green-600">{formatKES(mrr)}</span>
               </div>
               <div className="flex justify-between text-xs mt-1">
-                <span className="text-gray-500">Overdue invoices</span>
+                <span className="text-muted-foreground">Overdue invoices</span>
                 <span className="font-bold text-red-500">{s.overdue_count ?? 0}</span>
               </div>
             </div>
@@ -248,14 +248,14 @@ export default function AdminDashboardPage() {
                   <div key={i} className="flex items-start gap-2.5 text-xs">
                     <ActivityDot action={a.action} />
                     <div className="flex-1 min-w-0">
-                      <span className="font-medium text-gray-900 capitalize">{a.action.toLowerCase()}</span>
+                      <span className="font-medium text-foreground capitalize">{a.action.toLowerCase()}</span>
                       {' '}
-                      <span className="text-gray-500">{a.table_name}</span>
+                      <span className="text-muted-foreground">{a.table_name}</span>
                       {a.group_name && (
-                        <span className="text-gray-400"> · {a.group_name}</span>
+                        <span className="text-muted-foreground"> · {a.group_name}</span>
                       )}
                     </div>
-                    <span className="text-gray-400 shrink-0">{formatDate(a.created_at)}</span>
+                    <span className="text-muted-foreground shrink-0">{formatDate(a.created_at)}</span>
                   </div>
                 ))}
               </div>
@@ -289,7 +289,7 @@ export default function AdminDashboardPage() {
                 ].map(({ label, value, color, bg }) => (
                   <div key={label} className={`${bg} rounded-lg p-3 text-center`}>
                     <p className={`text-lg font-bold ${color}`}>{value}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">{label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
                   </div>
                 ))}
               </div>

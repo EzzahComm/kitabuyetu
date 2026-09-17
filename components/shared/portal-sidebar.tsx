@@ -47,26 +47,26 @@ export interface PortalNavSection {
 const V = {
   light: {
     overlay:        'bg-black/40',
-    aside:          'bg-white border-r border-gray-200 transition-all duration-200',
-    headerExpanded: 'flex items-center justify-between h-14 px-3 border-b border-gray-200 shrink-0',
-    headerCollapsed:'flex flex-col items-center gap-1 py-2 border-b border-gray-200 shrink-0',
-    closeBtn:       'lg:hidden p-1 rounded text-gray-400 hover:text-gray-600',
+    aside:          'bg-background border-r border-border transition-all duration-200',
+    headerExpanded: 'flex items-center justify-between h-14 px-3 border-b border-border shrink-0',
+    headerCollapsed:'flex flex-col items-center gap-1 py-2 border-b border-border shrink-0',
+    closeBtn:       'lg:hidden p-1 rounded text-muted-foreground hover:text-foreground',
     closeIcon:      16,
     nav:            'flex-1 overflow-y-auto py-3 px-2 space-y-4',
-    sectionTitle:   'text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-2 mb-1',
+    sectionTitle:   'text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1',
     sectionWrap:    '',
     itemsWrap:      'space-y-0.5',
     link:           'flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium transition-colors group',
     linkActive:     'bg-blue-50 text-blue-700',
-    linkInactive:   'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+    linkInactive:   'text-muted-foreground hover:bg-accent hover:text-foreground',
     iconActive:     'text-blue-600',
-    iconInactive:   'text-gray-400 group-hover:text-gray-600',
+    iconInactive:   'text-muted-foreground group-hover:text-foreground',
     iconSize:       16,
-    footer:         'px-2 py-3 border-t border-gray-200 shrink-0',
+    footer:         'px-2 py-3 border-t border-border shrink-0',
     footerCollapsed:'px-1',
-    signOut:        'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors',
+    signOut:        'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors',
     signOutIcon:    15,
-    subGroupBorder: 'border-gray-200',
+    subGroupBorder: 'border-border',
   },
   dark: {
     overlay:        'bg-black/50',
@@ -226,7 +226,7 @@ export function PortalSidebar({
                 type="button"
                 onClick={() => setCollapsed((c) => !c)}
                 aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                className="hidden lg:flex p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                className="hidden lg:flex p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent"
                 title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
@@ -237,14 +237,14 @@ export function PortalSidebar({
 
         {/* Search */}
         {searchable && !collapsed && (
-          <div className="px-3 py-2 border-b border-gray-100">
+          <div className="px-3 py-2 border-b border-border">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search navigation…"
-                className="h-7 pl-7 text-xs bg-gray-50 border-gray-200"
+                className="h-7 pl-7 text-xs bg-muted border-input"
               />
             </div>
           </div>

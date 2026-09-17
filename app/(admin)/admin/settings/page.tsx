@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <User size={16} className="text-gray-400" /> Account
+            <User size={16} className="text-muted-foreground" /> Account
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -44,12 +44,12 @@ export default function AdminSettingsPage() {
           <Row
             label="Email"
             value={staff?.email ?? '—'}
-            icon={<Mail size={13} className="text-gray-400" />}
+            icon={<Mail size={13} className="text-muted-foreground" />}
           />
           <Row
             label="Role"
             value={staff ? (ROLE_LABELS[staff.platformRole] ?? staff.platformRole) : '—'}
-            icon={<Shield size={13} className="text-gray-400" />}
+            icon={<Shield size={13} className="text-muted-foreground" />}
           />
         </CardContent>
       </Card>
@@ -104,7 +104,7 @@ function C2BRegistrationCard() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <Smartphone size={16} className="text-gray-400" /> M-Pesa C2B Registration
+          <Smartphone size={16} className="text-muted-foreground" /> M-Pesa C2B Registration
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
@@ -128,11 +128,11 @@ function C2BRegistrationCard() {
             />
             <Row label="Shortcode" value={urls.shortCode} />
             <div className="space-y-1 pt-1">
-              <div className="text-gray-500">This deployment would register</div>
-              <code className="block break-all rounded bg-gray-50 px-2 py-1.5 text-xs text-gray-700">
+              <div className="text-muted-foreground">This deployment would register</div>
+              <code className="block break-all rounded bg-muted px-2 py-1.5 text-xs text-muted-foreground">
                 {urls.confirmationUrl}
               </code>
-              <code className="block break-all rounded bg-gray-50 px-2 py-1.5 text-xs text-gray-700">
+              <code className="block break-all rounded bg-muted px-2 py-1.5 text-xs text-muted-foreground">
                 {urls.validationUrl}
               </code>
             </div>
@@ -159,9 +159,9 @@ function Row({ label, value, icon, valueSlot }: {
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       {valueSlot ?? (
-        <span className="flex items-center gap-1.5 font-medium text-gray-900">{icon}{value}</span>
+        <span className="flex items-center gap-1.5 font-medium text-foreground">{icon}{value}</span>
       )}
     </div>
   );

@@ -99,7 +99,7 @@ export default function MonitoringPage() {
       {/* Service health grid */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-gray-900">Service health</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Service health</CardTitle>
           <p className="text-xs text-muted-foreground">p95 latency and trailing success rate by service</p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -112,7 +112,7 @@ export default function MonitoringPage() {
                 {services.filter((s) => s.group === title).map((s) => (
                   <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{s.name}</p>
+                      <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
                       <p className="truncate text-xs text-muted-foreground">{s.note}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -137,13 +137,13 @@ export default function MonitoringPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">SMS usage</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">SMS usage</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Credits remaining</span>
-                <span className="font-semibold text-gray-900">
+                <span className="font-semibold text-foreground">
                   {smsUsage.creditsRemaining.toLocaleString()} / {smsUsage.creditsTotal.toLocaleString()}
                 </span>
               </div>
@@ -169,7 +169,7 @@ export default function MonitoringPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-gray-900">Real-time transaction feed</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Real-time transaction feed</CardTitle>
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {live ? (
                 <>
@@ -217,7 +217,7 @@ export default function MonitoringPage() {
                           <ts.Icon size={11} /> {ts.label}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 font-medium text-gray-900">{tx.org}</td>
+                      <td className="px-4 py-2.5 font-medium text-foreground">{tx.org}</td>
                       <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground sm:table-cell">{tx.phone}</td>
                       <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground md:table-cell">{tx.ref}</td>
                       <td className="px-4 py-2.5 text-right">
