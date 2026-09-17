@@ -34,8 +34,12 @@ export type WelfarePoolSummary = Awaited<ReturnType<typeof welfareService.getPoo
 
 export interface WelfarePoolResponse {
   summary:       WelfarePoolSummary;
-  /** Not modeled precisely — not consumed client-side today (no page_size in the real response). */
-  contributions: unknown;
+  /**
+   * Opt-in only (?includeContributions=true) — omitted by default since no
+   * caller reads it (confirmed by a whole-repo grep,
+   * docs/audits/optimization-2026-09). Not modeled precisely if present.
+   */
+  contributions?: unknown;
 }
 
 export const welfareKeys = {

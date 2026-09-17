@@ -47,6 +47,15 @@ export const ReportQuerySchema = z.object({
   to:   z.string().date(),
 });
 
+// GET /accounting/journals was the only list endpoint on the group surface
+// with no cap at all (parseInt with no schema, no .max(), no NaN guard) —
+// every peer list endpoint caps at 100-200 (docs/audits/optimization-2026-09).
+export const JournalQuerySchema = z.object({
+  page:   z.coerce.number().int().min(1).default(1),
+  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  status: z.string().optional(),
+});
+
 export const BalanceSheetQuerySchema = z.object({
   asOf: z.string().date().optional(),
 });
@@ -98,6 +107,7 @@ export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
 export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;
 export type VoidJournalInput    = z.infer<typeof VoidJournalSchema>;
 export type ReportQueryInput    = z.infer<typeof ReportQuerySchema>;
+export type JournalQueryInput   = z.infer<typeof JournalQuerySchema>;
 export type ClosePeriodInput    = z.infer<typeof ClosePeriodSchema>;
 export type ReopenPeriodInput   = z.infer<typeof ReopenPeriodSchema>;
 export type SetApprovalPolicyInput = z.infer<typeof SetApprovalPolicySchema>;

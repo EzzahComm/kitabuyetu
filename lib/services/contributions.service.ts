@@ -26,33 +26,38 @@ export const contributionsService = {
       const where   = conditions.join(' AND ');
       const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
 
-      const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
-      );
+      const [{ rows: countRows }, { rows }] = await Promise.all([
+        client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
+        ),
+        client.query<Contribution & { member_name: string }>(
+          `SELECT c.*,
+                  m.first_name || ' ' || m.last_name AS member_name
+           FROM contributions c
+           JOIN members m ON m.id = c.member_id
+           WHERE ${where}
+           ORDER BY c.contribution_date ${orderDir}
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...values, limit, offset],
+        ),
+      ]);
       const total = parseInt(countRows[0].count, 10);
-
-      const { rows } = await client.query<Contribution & { member_name: string }>(
-        `SELECT c.*,
-                m.first_name || ' ' || m.last_name AS member_name
-         FROM contributions c
-         JOIN members m ON m.id = c.member_id
-         WHERE ${where}
-         ORDER BY c.contribution_date ${orderDir}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...values, limit, offset],
-      );
 
       return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
     });
   },
 
   // Active members with no completed contribution in the current calendar month.
-  // Powers the treasurer home "needs you now" list — small per group, so we
-  // return the full set and let the caller cap the preview.
+  // Powers the treasurer home "needs you now" list. Only ever returns a
+  // 5-row sample + a count — COUNT(*) OVER () computes the true total over
+  // every matching row before LIMIT trims the output, so this needs one
+  // query and one round trip instead of materializing the full non-
+  // contributor set to then slice it in JS (docs/audits/optimization-2026-09).
   async nonContributors(ctx: TenantContext): Promise<{ count: number; sample: { id: string; name: string }[] }> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<{ id: string; name: string }>(
-        `SELECT m.id, m.first_name || ' ' || m.last_name AS name
+      const { rows } = await client.query<{ id: string; name: string; total_count: string }>(
+        `SELECT m.id, m.first_name || ' ' || m.last_name AS name,
+                COUNT(*) OVER () AS total_count
          FROM group_members gm
          JOIN members m ON m.id = gm.member_id
          WHERE gm.group_id = $1
@@ -64,10 +69,14 @@ export const contributionsService = {
                AND c.status = 'completed'
                AND c.contribution_date >= date_trunc('month', CURRENT_DATE)
            )
-         ORDER BY m.first_name, m.last_name`,
+         ORDER BY m.first_name, m.last_name
+         LIMIT 5`,
         [ctx.groupId],
       );
-      return { count: rows.length, sample: rows.slice(0, 5) };
+      return {
+        count: rows.length ? parseInt(rows[0].total_count, 10) : 0,
+        sample: rows.map(({ id, name }) => ({ id, name })),
+      };
     });
   },
 
