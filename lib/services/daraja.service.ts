@@ -226,11 +226,16 @@ function originatorId(): string {
 //
 // Originally B2C/B2B only. Phase 4 extended the same mechanism to STK Push,
 // Reversal, Account Balance, and Transaction Status — every Daraja product
-// that takes a ResultURL/QueueTimeOutURL/CallBackURL per request. C2B is
-// deliberately excluded: its Confirmation/Validation URLs are registered
-// ONCE via registerC2BUrls()'s registerurl call, and Safaricom's registerurl
-// API rejects any URL containing a query string (see the comment on
-// getC2BUrls() below) — there is no query string for a token to ride on.
+// that takes a ResultURL/QueueTimeOutURL/CallBackURL per request.
+//
+// C2B was initially excluded: its Confirmation/Validation URLs are
+// registered ONCE via registerC2BUrls()'s registerurl call, and Safaricom's
+// registerurl API rejects any URL containing a query string OR the keyword
+// "mpesa" (see the comment on getC2BUrls() below) — there is no query string
+// for a `?token=` to ride on there. Phase 4 (later pass) closed that gap too:
+// the same token now rides as a PATH SEGMENT instead
+// (`/c2b-confirm/<token>`), which violates neither constraint. See
+// getC2BUrls() and app/api/v1/daraja/c2b-confirm/[token]/route.ts.
 const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 
 // Deliberately NOT thrown at module scope: this file is imported by every
@@ -248,8 +253,8 @@ function assertCallbackTokenConfigured(): void {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) {
     throw new Error(
       '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B/STK/' +
-      'Reversal/Balance/Transaction-Status Result/Timeout/CallBack URLs would carry ' +
-      'no authenticity token.',
+      'Reversal/Balance/Transaction-Status/C2B Result/Timeout/CallBack/Confirmation/' +
+      'Validation URLs would carry no authenticity token.',
     );
   }
 }
@@ -266,13 +271,15 @@ function withCallbackToken(url: string): string {
 }
 
 /**
- * True when `token` (from the callback request's query string) matches the
- * configured secret. Deliberately returns false — not a throw — when
- * production is misconfigured (no MPESA_CALLBACK_TOKEN): every caller
- * (the b2c/b2b/callback(stk)/reversal/balance/transaction-status route
- * handlers) acks and logs a warning either way, so it never leaks a
- * misconfiguration to whoever sent the callback, but it must never treat an
- * unauthenticated request as valid just because the secret wasn't set up.
+ * True when `token` (from the callback request's query string, or — for C2B
+ * — the `[token]` dynamic path segment) matches the configured secret.
+ * Deliberately returns false — not a throw — when production is
+ * misconfigured (no MPESA_CALLBACK_TOKEN): every caller (the
+ * b2c/b2b/callback(stk)/reversal/balance/transaction-status/c2b-confirm/
+ * c2b-validate route handlers) acks and logs a warning either way, so it
+ * never leaks a misconfiguration to whoever sent the callback, but it must
+ * never treat an unauthenticated request as valid just because the secret
+ * wasn't set up.
  */
 export function isValidCallbackToken(token: string | null): boolean {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) return false; // production misconfiguration — never trust
@@ -403,16 +410,42 @@ export interface C2BRegistrationResult extends C2BUrls {
  * catch a callback base pointed at a deployment-protected preview URL —
  * without spending a live Daraja call or waiting on Vercel CLI access to a
  * Secret-typed env var.
+ *
+ * Phase 4: the callback token now rides as a trailing PATH SEGMENT
+ * (`.../c2b-confirm/<token>`), not a `?token=` query string — Safaricom's
+ * registerurl API rejects any Confirmation/Validation URL containing a query
+ * string OR the keyword "mpesa", and a bare path segment violates neither
+ * (the token value itself is a random secret that will never contain
+ * "mpesa"). assertCallbackTokenConfigured() is called here too, matching how
+ * withCallbackToken() guards every other callback type, so a production
+ * deploy with no MPESA_CALLBACK_TOKEN set fails loudly here as well instead
+ * of silently registering an unauthenticated (or literally empty-segment)
+ * URL. Sandbox with no token configured falls back to the old no-segment path.
+ *
+ * This function is used BOTH to display "what would be registered"
+ * (GET /api/admin/mpesa/register-c2b, rendered on the super_admin-only
+ * /admin/settings page — see app/(admin)/admin/settings/page.tsx) AND to
+ * compute the actual URLs registerC2BUrls() submits below. That means
+ * displaying it reveals the live callback secret to whoever can view that
+ * admin page — consistent with the existing trust model (an admin can
+ * already see other secrets there), so no additional redaction is added.
  */
 export function getC2BUrls(): C2BUrls {
+  assertCallbackTokenConfigured();
+  // Empty only in sandbox (assertCallbackTokenConfigured throws in production
+  // otherwise) — fall back to the old no-token path rather than emit an
+  // empty trailing path segment (`.../c2b-confirm/`).
+  const tokenSegment = CALLBACK_TOKEN ? `/${encodeURIComponent(CALLBACK_TOKEN)}` : '';
   return {
     shortCode:       SHORTCODE,
     environment:     IS_SANDBOX ? 'sandbox' : 'production',
     // Registration-safe paths: Safaricom's registerurl API rejects URLs that
     // contain the keyword "mpesa" or a query string, so the registered C2B
-    // endpoints live under /api/v1/daraja/ as distinct paths (no `?type=`).
-    confirmationUrl: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm`,
-    validationUrl:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate`,
+    // endpoints live under /api/v1/daraja/ as distinct paths, with the
+    // authenticity token embedded as a trailing path segment instead of a
+    // query string.
+    confirmationUrl: `${CALLBACK_BASE}/api/v1/daraja/c2b-confirm${tokenSegment}`,
+    validationUrl:   `${CALLBACK_BASE}/api/v1/daraja/c2b-validate${tokenSegment}`,
   };
 }
 
