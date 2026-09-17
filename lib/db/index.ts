@@ -150,12 +150,23 @@ async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<
   // set_config(name, value, is_local=TRUE) is transaction-scoped, equivalent to SET LOCAL.
   // Using the function form lets us pass values as parameterised arguments instead of
   // string-interpolating them into SQL, eliminating any injection risk.
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_user_id',  ctx.userId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_group_id', ctx.groupId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_role',     ctx.role]);
-  if (ctx.organizationId) {
-    await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_organization_id', ctx.organizationId]);
-  }
+  //
+  // One round trip, not up to four: each set_config call still fires as part
+  // of computing this single output row, so all four side effects still
+  // happen — this only removes three extra network trips per tenant
+  // transaction (measured live: 6,409 set_config calls / 2,126 BEGINs =
+  // ~3 per transaction, docs/audits/optimization-2026-09).
+  // organizationId is now always passed ('' when absent) rather than
+  // conditionally skipped — app_current_organization_id() already treats ''
+  // the same as never-set (NULLIF(current_setting(...), '')::uuid), so this
+  // is not a behavior change, just one fewer branch.
+  await client.query(
+    `SELECT set_config('app.current_user_id', $1, TRUE),
+            set_config('app.current_group_id', $2, TRUE),
+            set_config('app.current_role', $3, TRUE),
+            set_config('app.current_organization_id', $4, TRUE)`,
+    [ctx.userId, ctx.groupId, ctx.role, ctx.organizationId ?? ''],
+  );
 }
 
 /**
