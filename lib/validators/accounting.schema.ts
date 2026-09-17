@@ -69,16 +69,17 @@ export const SetApprovalPolicySchema = z.object({
 // event's default shape by posting-templates.service.ts; this only checks form.
 export const SetPostingTemplateSchema = z.object({
   // Must stay in step with posting-templates.service.ts's PostingEvent union.
-  // It drifted: commit c10b1ee added loan_disbursement/loan_repayment to that
-  // union (and to DEFAULT_TEMPLATES, and to the Policies-tab list the UI
-  // renders from it) but not to this enum — so picking either of those two
-  // events in the UI produced a 400 no override could get past.
+  // It drifted before: commit c10b1ee added loan_disbursement/loan_repayment
+  // to that union (and to DEFAULT_TEMPLATES, and to the Policies-tab list the
+  // UI renders from it) but not to this enum — so picking either of those two
+  // events in the UI produced a 400 no override could get past. loan_charge
+  // (migration 174) and fine_collection (migration 175) below, same reason.
   event: z.enum([
     'share_purchase', 'share_redemption', 'welfare_disbursement',
     'welfare_pool_contribution', 'dividend_declaration', 'dividend_payment',
     'subscription_payment', 'loan_writeoff',
-    'loan_disbursement', 'loan_repayment',
-    'settlement_sweep', 'vendor_payment',
+    'loan_disbursement', 'loan_repayment', 'loan_charge',
+    'settlement_sweep', 'vendor_payment', 'fine_collection',
   ]),
   lines: z.array(z.object({
     accountCode: z.string().regex(/^\d{4}$/),
