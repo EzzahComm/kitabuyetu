@@ -2,10 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 
+const TITLE = 'Fundraise / Changi$ha';
+const DESCRIPTION =
+  'Digital fundraising and collections for communities, groups and causes across East Africa. Coming soon to Kitabu Yetu.';
+
 export const metadata: Metadata = {
-  title: 'Fundraise / Changi$ha',
-  description:
-    'Digital fundraising and collections for communities, groups and causes across East Africa. Coming soon to Kitabu Yetu.',
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/fundraise`,
+  },
+  // Without its own openGraph block a page fully inherits the root layout's
+  // (title/description included, not auto-derived from this page's own) —
+  // so a link to /fundraise shared on social media showed the generic
+  // homepage preview instead of this page's own.
+  openGraph: { title: TITLE, description: DESCRIPTION },
+  twitter: { title: TITLE, description: DESCRIPTION },
 };
 
 /**

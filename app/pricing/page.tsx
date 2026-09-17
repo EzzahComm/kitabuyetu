@@ -246,6 +246,60 @@ export default function PricingPage() {
             <PlanGrid product="chama_reminder" />
           </section>
 
+          {/* Enterprise — not a self-serve subscription product (it's a plan
+              tier, priced by agreement), so no PlanGrid; static content only. */}
+          <section id="enterprise" aria-labelledby="enterprise-heading" className="mt-24 scroll-mt-28">
+            <div className="max-w-3xl">
+              <h2 id="enterprise-heading" className="font-display text-2xl font-normal text-brand-blue-900">
+                Enterprise
+              </h2>
+              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
+                For organizations managing many groups at once — portfolio dashboards,
+                multi-group reporting and programme management. Priced by agreement,
+                based on the number of groups and members under your organization.
+              </p>
+            </div>
+            <div className="mt-8 flex flex-col items-start gap-5 rounded-2xl bg-brand-blue-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-400">
+                  Enterprise
+                </span>
+                <p className="mt-2 font-display text-2xl font-normal">By agreement</p>
+              </div>
+              <Link
+                href={ROUTES.contact}
+                className="inline-flex shrink-0 items-center justify-center rounded-md bg-brand-500 px-5 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
+              >
+                Talk to us
+              </Link>
+            </div>
+          </section>
+
+          {/* Changi$ha — no self-serve campaigns exist yet (see /fundraise),
+              so this is an honest "coming soon" note, not a priced plan. */}
+          <section id="changisha" aria-labelledby="changisha-heading" className="mt-24 scroll-mt-28">
+            <div className="max-w-3xl">
+              <h2 id="changisha-heading" className="font-display text-2xl font-normal text-brand-blue-900">
+                Changi$ha
+              </h2>
+              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
+                Fundraising for community projects and causes, built on the same
+                platform identity as the rest of Kitabu Yetu.
+              </p>
+            </div>
+            <div className="mt-8 rounded-2xl border border-dashed border-brand-blue-900/15 bg-white px-6 py-6">
+              <p className="text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
+                <span className="font-semibold text-brand-blue-900">Coming soon.</span>{' '}
+                Changi$ha is not yet open for self-serve campaigns — there is nothing
+                to buy here today.{' '}
+                <Link href={ROUTES.fundraise} className="font-medium text-brand-700 hover:underline">
+                  See what&apos;s planned
+                </Link>
+                .
+              </p>
+            </div>
+          </section>
+
           <section aria-labelledby="faq-heading" className="mt-24">
             <h2 id="faq-heading" className="font-display text-2xl font-normal text-brand-blue-900">
               Questions we get asked
