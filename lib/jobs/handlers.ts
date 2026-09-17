@@ -1042,7 +1042,7 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
       db.query<{ email: string }>(
         `SELECT m.email
          FROM organization_members om JOIN members m ON m.id = om.member_id
-         WHERE om.organization_id = $1 AND om.is_active
+         WHERE om.organization_id = $1 AND om.status = 'active'
            AND om.org_role = 'lead' AND m.email IS NOT NULL
          LIMIT 5`,
         [orgId],

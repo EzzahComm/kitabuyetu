@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { Input } from '@/components/ui/input';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 import type { OrganizationAuditLogRow } from '@/lib/services/organization.service';
@@ -23,7 +24,7 @@ export default function AuditTrailPage() {
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationAuditLogRow>>({
-    queryKey: ['enterprise', 'audit-logs', page, search],
+    queryKey: enterpriseKeys.auditLogs(page, search),
     queryFn:  () => organizationApi.auditLogs({ page, limit: 30, search: search || undefined }),
   });
 

@@ -58,7 +58,14 @@ const NAV: PortalNavSection[] = [
   {
     title: 'Developer & Brand',
     items: [
-      { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound },
+      // soon: true — the page is 100% client-side mock (app/(enterprise)/_data.ts:
+      // generate() mints fake ky_live_* keys from Math.random, nothing is ever
+      // sent to a server, and no api_keys/webhooks table exists in any
+      // migration). Shipping it un-gated let a coordinator generate and copy a
+      // credential that looks real but does nothing — any customer who tried
+      // to use it got an unexplained failure with no server-side trace
+      // (docs/audits/optimization-2026-09).
+      { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound, soon: true },
       { href: '/enterprise/branding', label: 'White-label', icon: Palette },
       { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText },
     ],

@@ -28,6 +28,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { SectionHeader } from '@/components/shared/dashboard-sections';
 import { useToast } from '@/hooks/use-toast';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatDate, formatKES } from '@/lib/utils';
 
 const CAP_LABEL = (n: number | null) => (n === null ? 'Unlimited' : n.toLocaleString());
@@ -36,13 +37,13 @@ export default function OrganizationBillingPage() {
   const [topUpOpen, setTopUpOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['organization', 'sms-credits'],
+    queryKey: enterpriseKeys.smsCredits(),
     queryFn:  () => organizationApi.smsCredits(),
     staleTime: 30_000,
   });
 
   const { data: plan, isLoading: planLoading } = useQuery({
-    queryKey: ['organization', 'plan'],
+    queryKey: enterpriseKeys.plan(),
     queryFn:  () => organizationApi.plan(),
     staleTime: 30_000,
   });
@@ -151,7 +152,7 @@ function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () =
       reference: reference || undefined,
     }),
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ['organization', 'sms-credits'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.smsCredits() });
       toast({
         title: 'SMS credits added',
         description: `${result.creditsAdded.toLocaleString()} credits — new balance ${result.newBalance.toLocaleString()}.`,

@@ -16,6 +16,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { Skeleton } from '@/components/ui/skeleton';
 import { organizationApi } from '@/lib/api/endpoints';
 import { adminApi } from '@/lib/api/client';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
@@ -49,15 +50,15 @@ function ComingSoon({ title }: { title: string }) {
 
 export default function EnterpriseDashboardPage() {
   const { data: dash, isLoading: dashLoading, isError: dashError, error: dashErr } = useQuery<OrgDashboard>({
-    queryKey: ['enterprise', 'dashboard'],
+    queryKey: enterpriseKeys.dashboard(),
     queryFn:  () => adminApi.get('/organization/dashboard'),
   });
   const { data: healthResponse, isLoading: healthLoading, isError: healthError, error: healthErr } = useQuery({
-    queryKey: ['enterprise', 'health'],
+    queryKey: enterpriseKeys.health(),
     queryFn:  organizationApi.health,
   });
   const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
-    queryKey: ['enterprise', 'groups'],
+    queryKey: enterpriseKeys.groups(),
     queryFn:  () => organizationApi.groups(),
   });
   // Phase 5 gap analysis — geography, the last missing item on the

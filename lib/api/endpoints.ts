@@ -582,7 +582,6 @@ export const organizationApi = {
   profile: () => adminApi.get<OrganizationProfile>('/organization/profile'),
   groups:  (params?: { page?: number; limit?: number }) =>
     adminApi.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),
-  detail:  (groupId: string) => adminApi.get<unknown>(`/organization/reports?groupId=${groupId}`),
   policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: SetApprovalPolicyInput) =>
     adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
