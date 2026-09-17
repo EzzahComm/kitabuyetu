@@ -1,7 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
+import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { TemplateCreateSchema, TemplateUpdateSchema } from '@/lib/validators/sms.schema';
 import { extractVars } from '@/lib/sms/templates';
 import { ok, notFound } from '@/lib/utils/response';
@@ -35,8 +35,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     const body  = await req.json();
     const input = TemplateCreateSchema.parse(body);
     const vars  = extractVars(input.body);
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows: [tpl] } = await withAdminDb((db) =>
+    const { rows: [tpl] } = await withTransaction(ctx, (db) =>
       db.query(
         `INSERT INTO sms_templates
            (group_id, template_key, name, body, variables, category, created_by)
@@ -55,6 +56,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     if (!id) return notFound();
     const body  = await req.json();
     const input = TemplateUpdateSchema.parse(body);
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     const sets: string[] = ['updated_at=NOW()'];
     const vals: unknown[] = [id, auth.groupId];
@@ -67,7 +69,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     }
     if (input.category !== undefined) { sets.push(`category=$${idx++}`); vals.push(input.category); }
 
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withTransaction(ctx, (db) =>
       db.query(
         `UPDATE sms_templates SET ${sets.join(',')}
          WHERE id=$1 AND group_id=$2 AND is_system=false RETURNING *`,
@@ -84,8 +86,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withTransaction(ctx, (db) =>
       db.query(
         `UPDATE sms_templates SET is_active=false, updated_at=NOW()
          WHERE id=$1 AND group_id=$2 AND is_system=false RETURNING id`,

@@ -1,7 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
+import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const body  = await req.json();
     const input = CampaignCreateSchema.parse(body);
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
 
     // Only a coordinator of an organization may spend that organization's SMS
     // credits. debit_organization_sms_credits() independently re-checks that the
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // so it throws `could not determine data type of parameter $9` — on
     // EVERY call, not just scheduled ones, since this fails at parse time
     // before any value is even bound. Cast explicitly at both occurrences.
-    const { rows: [campaign] } = await withAdminDb((db) =>
+    const { rows: [campaign] } = await withTransaction(ctx, (db) =>
       db.query(
         `INSERT INTO sms_campaigns
            (group_id, name, description, message, template_id, recipient_type,
@@ -123,8 +124,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
 
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withTransaction(ctx, (db) =>
       db.query(
         `UPDATE sms_campaigns
          SET status='cancelled', updated_at=NOW()

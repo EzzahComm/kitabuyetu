@@ -302,6 +302,20 @@ async function syncCampaignCompletion(client: import('pg').PoolClient, campaignI
   );
 }
 
+/**
+ * Minimal TenantContext for module functions whose public signature predates
+ * TenantContext and receives only a bare groupId — cron/job callers
+ * (trigger-engine.ts, sms-scheduler.service.ts, the DLR/retry sweeps) have no
+ * per-request session to hand in. Same "unset" sentinel this codebase already
+ * uses for a system-triggered actor (campaign.service.ts's createCampaign):
+ * every RLS policy on these tables keys off group_id alone, so an empty
+ * role/userId does not weaken the scoping — it just means "no specific human
+ * is acting", which is already true for these callers.
+ */
+function systemCtx(groupId: string): TenantContext {
+  return { userId: '', groupId, role: '' };
+}
+
 // ─── Recipient resolution ──────────────────────────────────────────────────
 
 /**
@@ -317,7 +331,7 @@ export async function resolveSmsRecipients(
 ): Promise<string[]> {
   if (recipientType === 'all_members' || recipientType === 'active_members') {
     const activeOnly = recipientType === 'active_members';
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ phone: string }>(
         `SELECT m.phone FROM members m
          JOIN group_members gm ON gm.member_id = m.id
@@ -336,7 +350,7 @@ export async function resolveSmsRecipients(
   if (recipientType === 'selected') {
     const ids = (rawRecipients as { memberIds?: string[] })?.memberIds ?? [];
     if (!ids.length) return [];
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ phone: string }>(
         `SELECT m.phone FROM members m
          JOIN group_members gm ON gm.member_id = m.id
@@ -352,7 +366,7 @@ export async function resolveSmsRecipients(
   if (recipientType === 'roles') {
     const roles = (rawRecipients as { roles?: string[] })?.roles ?? [];
     if (!roles.length) return [];
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ phone: string }>(
         `SELECT m.phone FROM members m
          JOIN group_members gm ON gm.member_id = m.id
@@ -420,7 +434,7 @@ export async function resolveRecipientVars(
     (v) => message.includes(`{{${v}}}`),
   );
 
-  const { groupName, members, balances } = await withAdminDb(async (db) => {
+  const { groupName, members, balances } = await withDb(systemCtx(groupId), async (db) => {
     const [{ rows: groupRows }, { rows: memberRows }] = await Promise.all([
       db.query<{ name: string }>(`SELECT name FROM groups WHERE id=$1`, [groupId]),
       db.query<{ phone: string; first_name: string; last_name: string; membership_no: string | null; member_id: string }>(
@@ -1289,8 +1303,22 @@ export const smsService = {
     messageId: string,
     scope: { groupId: string } | { system: true },
   ): Promise<{ status: DlrClass; deliveredAt?: string }> {
+    // A request-driven lookup (`groupId` scope) runs the ownership check AND
+    // every mutation below it on the RLS-enforced tenant pool, scoped to the
+    // caller's own group: RLS's `group_id = app_current_group_id()` policy is
+    // now the real reason a caller cannot touch another tenant's row, not
+    // merely this hand-written predicate (kept as defense-in-depth) — closing
+    // the residual reach of C3 (SMS_MESSAGING_AUDIT_2026-08.md) one layer
+    // deeper. The DLR poll cron (`system: true`) spans every tenant in one
+    // pass with no single group to scope to, so it keeps the admin pool
+    // exactly as before.
+    type RunDb = <T>(fn: (db: import('pg').PoolClient) => Promise<T>) => Promise<T>;
+    const runDb: RunDb = 'groupId' in scope
+      ? (fn) => withDb(systemCtx(scope.groupId), fn)
+      : withAdminDb;
+
     if ('groupId' in scope) {
-      const owned = await withAdminDb((db) =>
+      const owned = await runDb((db) =>
         db.query(
           `SELECT 1 FROM sms_usage_logs
            WHERE provider_msg_id=$1 AND group_id=$2 LIMIT 1`,
@@ -1303,7 +1331,7 @@ export const smsService = {
     const result = await getDeliveryReport(messageId);
     const cls    = classifyDlrStatus(result.status);
 
-    await withAdminDb(async (db) => {
+    await runDb(async (db) => {
       // Only advance to a terminal state. A 'pending'/in-transit report must
       // NOT downgrade a message to 'failed' (the previous bug), and a 'failed'
       // report must not clobber a message already confirmed 'delivered'.
@@ -1884,7 +1912,15 @@ export const smsService = {
     ctx: TenantContext,
     failureId: string,
   ): Promise<{ status: RetryOutcome | 'not_found' | 'already_resolved' }> {
-    const [row] = await withAdminDb((db) =>
+    // Ownership lookup runs on the RLS-enforced tenant pool: RLS's own
+    // `group_id = app_current_group_id()` policy is now the real reason an
+    // officer of one group can never resolve another tenant's failure id,
+    // not merely this hand-written `f.group_id = $2` (kept below as
+    // defense-in-depth). retryOneFailure() itself stays on the admin pool
+    // below — it is shared with the cron sweep (retryFailures()), which has
+    // no per-request session — but every write inside it is already scoped
+    // to this specific row's own f.group_id.
+    const [row] = await withDb(ctx, (db) =>
       db.query<RetryableFailure & { resolved: boolean }>(
         `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count, f.resolved,
                 l.payer_type, l.payer_organization_id, l.provider
@@ -1937,7 +1973,7 @@ export const smsService = {
 
   async isOptedOut(groupId: string, phone: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ n: string }>(
         `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
         [groupId, normalized],
@@ -1950,7 +1986,7 @@ export const smsService = {
   async listOptOuts(groupId: string): Promise<
     { phone: string; optedOutAt: string; source: string; note: string | null }[]
   > {
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ phone: string; opted_out_at: string; source: string; note: string | null }>(
         `SELECT phone, opted_out_at, source, note
            FROM sms_opt_outs WHERE group_id=$1 ORDER BY opted_out_at DESC`,
@@ -1981,7 +2017,7 @@ export const smsService = {
     const note = opts.note ?? null;
 
     // Check if already opted out
-    const { rows: existing } = await withAdminDb((db) =>
+    const { rows: existing } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ id: string }>(
         `SELECT id FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
         [groupId, normalized],
@@ -1990,7 +2026,7 @@ export const smsService = {
 
     if (!existing[0]) {
       // New opt-out
-      await withAdminDb((db) =>
+      await withTransaction(systemCtx(groupId), (db) =>
         db.query(
           `INSERT INTO sms_opt_outs (group_id, phone, source, actor_id, note)
            VALUES ($1,$2,$3,$4,$5)`,
@@ -1999,7 +2035,7 @@ export const smsService = {
       );
 
       // Audit: SMS opt-out recorded
-      await withAdminDb((db) =>
+      await withTransaction(systemCtx(groupId), (db) =>
         db.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -2033,7 +2069,7 @@ export const smsService = {
     const normalized = normalizePhone(phone);
 
     // Read old state before deletion
-    const { rows: existing } = await withAdminDb((db) =>
+    const { rows: existing } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ source: string; actor_id: string | null; note: string | null }>(
         `SELECT source, actor_id, note FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
         [groupId, normalized],
@@ -2043,13 +2079,13 @@ export const smsService = {
     // Deleting the row IS the opt-in: absence of a row is the consent state,
     // so a later opt-out records a fresh, truthful timestamp rather than
     // resurrecting a stale one.
-    await withAdminDb((db) =>
+    await withTransaction(systemCtx(groupId), (db) =>
       db.query(`DELETE FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, normalized]),
     );
 
     // Audit: SMS opt-in (reversal of opt-out)
     if (existing[0]) {
-      await withAdminDb((db) =>
+      await withTransaction(systemCtx(groupId), (db) =>
         db.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,

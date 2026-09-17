@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { SmsGroupSettingsUpdateSchema } from '@/lib/validators/sms.schema';
 import { ok } from '@/lib/utils/response';
 
@@ -14,9 +14,12 @@ import { ok } from '@/lib/utils/response';
  * was effectively unarmable from inside the product. Same for the other three
  * auto_send_* flags.
  *
- * withAdminDb rather than withDb because register_group never creates this row
- * — the PUT has to be able to INSERT it, and there is nothing to read until it
- * does. Both handlers scope explicitly by auth.groupId.
+ * Phase 1 Week 1.2: moved off the admin (BYPASSRLS) pool onto withDb/
+ * withTransaction so RLS (`group_id = app_current_group_id()`) is the real
+ * enforcement, not just the hand-written `auth.groupId` scoping kept below as
+ * defense-in-depth. withDb/withTransaction can INSERT and UPSERT just as well
+ * as withAdminDb — the PUT's ON CONFLICT upsert works unchanged even though
+ * register_group never creates this row ahead of time.
  */
 
 const DEFAULTS = {
@@ -48,7 +51,8 @@ const present = (row: SettingsRow | undefined) => row ? {
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.view', async (auth) => {
-    const { rows } = await withAdminDb((db) => db.query<SettingsRow>(
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const { rows } = await withDb(ctx, (db) => db.query<SettingsRow>(
       `SELECT sender_id, auto_send_contribution, auto_send_loan,
               auto_send_meeting, auto_send_birthday, daily_send_limit
          FROM sms_group_settings WHERE group_id = $1`,
@@ -63,8 +67,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.manage', async (auth) => {
     const input = SmsGroupSettingsUpdateSchema.parse(await req.json());
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows } = await withAdminDb((db) => db.query<SettingsRow>(
+    const { rows } = await withTransaction(ctx, (db) => db.query<SettingsRow>(
       // Upsert: the row may genuinely not exist yet. COALESCE on every column
       // makes this a partial update — a page that only toggles birthdays must
       // not silently clear the other three automations.
