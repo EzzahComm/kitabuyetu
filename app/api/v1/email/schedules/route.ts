@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withPermission, withAnyPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { scheduleEmail } from '@/lib/services/email.service';
 import { ok } from '@/lib/utils/response';
 import { NotFoundError } from '@/lib/utils/errors';
@@ -26,7 +26,8 @@ const UpdateScheduleSchema = z.object({
 // (GET /api/v1/sms/schedules) already requires messaging.schedules.view.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.view', async (auth) => {
-    const { rows } = await withAdminDb((db) =>
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const { rows } = await withDb(ctx, (db) =>
       db.query(
         `SELECT id, name, template_key, recipient_email, schedule_type,
                 next_run_at, last_run_at, is_active, created_at
@@ -71,7 +72,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const body = UpdateScheduleSchema.parse(await req.json());
 
-    const { rowCount } = await withAdminDb((db) =>
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const { rowCount } = await withTransaction(ctx, (db) =>
       db.query(
         `UPDATE email_schedules SET is_active=$1, updated_at=NOW() WHERE id=$2 AND group_id=$3`,
         [body.isActive, body.id, auth.groupId],
