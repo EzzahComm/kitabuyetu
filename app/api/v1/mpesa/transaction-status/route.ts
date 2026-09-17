@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
-import { queryTransactionStatus } from '@/lib/services/daraja.service';
+import { queryTransactionStatus, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleTransactionStatusResult } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -31,6 +31,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip   = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
+    // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
+    // callback that doesn't carry the shared secret is dropped before it can
+    // touch any money state. Acked (not rejected) so a prober learns nothing
+    // from the response, and logged so a real misconfiguration is visible.
+    if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+      logger.warn('[tx-status callback] invalid or missing token — dropped', { type, ip });
+      return ack();
+    }
+
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 

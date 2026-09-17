@@ -215,30 +215,41 @@ function originatorId(): string {
   return `KY-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// ─── Callback authenticity (B2C audit H1) ────────────────────────────────────
+// ─── Callback authenticity (B2C audit H1; extended Phase 4 to every ─────────
+// per-request callback URL) ───────────────────────────────────────────────
 // assertSafaricomIp() below is advisory-only (Vercel/serverless IPs aren't
 // reliably the true client IP), so it cannot be the integrity boundary on its
-// own. A shared secret in the Result/Timeout URL query string closes that gap
-// for B2C specifically: a forged callback that doesn't know the token is
-// dropped before it can flip any money state. Safaricom echoes query strings
-// on Result/Timeout URLs unmodified, so this survives the round trip.
+// own. A shared secret in the Result/Timeout/CallBack URL query string closes
+// that gap: a forged callback that doesn't know the token is dropped before
+// it can flip any money state. Safaricom echoes query strings on these URLs
+// unmodified, so this survives the round trip.
+//
+// Originally B2C/B2B only. Phase 4 extended the same mechanism to STK Push,
+// Reversal, Account Balance, and Transaction Status — every Daraja product
+// that takes a ResultURL/QueueTimeOutURL/CallBackURL per request. C2B is
+// deliberately excluded: its Confirmation/Validation URLs are registered
+// ONCE via registerC2BUrls()'s registerurl call, and Safaricom's registerurl
+// API rejects any URL containing a query string (see the comment on
+// getC2BUrls() below) — there is no query string for a token to ride on.
 const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 
 // Deliberately NOT thrown at module scope: this file is imported by every
 // route that transitively references daraja.service.ts, and Next.js
 // evaluates each route's module graph during the build's page-data
 // collection — a module-scope throw here fails the ENTIRE build (every
-// route, not just the B2C ones) whenever MPESA_ENV=production is set
+// route, not just the M-Pesa ones) whenever MPESA_ENV=production is set
 // without MPESA_CALLBACK_TOKEN, rather than just refusing the specific
-// operation that would be insecure. Called instead at the top of the two
-// functions that actually touch the token, so the guarantee (never
-// register or accept an unauthenticated B2C callback in production) still
-// holds at the only times it needs to.
+// operation that would be insecure. Called instead at the top of
+// withCallbackToken() (every outbound initiation that builds a per-request
+// callback URL routes through it), so the guarantee (never register or
+// accept an unauthenticated callback in production) holds at every call
+// site without each one needing its own guard.
 function assertCallbackTokenConfigured(): void {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) {
     throw new Error(
-      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B ' +
-      'Result/Timeout callbacks would carry no authenticity token.',
+      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B/STK/' +
+      'Reversal/Balance/Transaction-Status Result/Timeout/CallBack URLs would carry ' +
+      'no authenticity token.',
     );
   }
 }
@@ -246,17 +257,22 @@ function assertCallbackTokenConfigured(): void {
 function withCallbackToken(url: string): string {
   assertCallbackTokenConfigured();
   if (!CALLBACK_TOKEN) return url; // sandbox without a token configured
-  return `${url}&token=${encodeURIComponent(CALLBACK_TOKEN)}`;
+  // B2C/B2B ResultURL/QueueTimeOutURL already carry `?type=...`, so `&` was
+  // correct there. STK's CallBackURL has no query string at all (single URL,
+  // no result/timeout split), so it needs `?` instead — detect rather than
+  // assume, so this one helper stays correct for every caller.
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}token=${encodeURIComponent(CALLBACK_TOKEN)}`;
 }
 
 /**
  * True when `token` (from the callback request's query string) matches the
  * configured secret. Deliberately returns false — not a throw — when
- * production is misconfigured (no MPESA_CALLBACK_TOKEN): the caller
- * (app/api/v1/mpesa/b2c/route.ts) acks and logs a warning either way, so it
- * never leaks a misconfiguration to whoever sent the callback, but it must
- * never treat an unauthenticated request as valid just because the secret
- * wasn't set up.
+ * production is misconfigured (no MPESA_CALLBACK_TOKEN): every caller
+ * (the b2c/b2b/callback(stk)/reversal/balance/transaction-status route
+ * handlers) acks and logs a warning either way, so it never leaks a
+ * misconfiguration to whoever sent the callback, but it must never treat an
+ * unauthenticated request as valid just because the secret wasn't set up.
  */
 export function isValidCallbackToken(token: string | null): boolean {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) return false; // production misconfiguration — never trust
@@ -308,7 +324,7 @@ export async function initiateStkPush(input: StkPushInput): Promise<StkPushRespo
       PartyA:            phone,
       PartyB:            SHORTCODE,
       PhoneNumber:       phone,
-      CallBackURL:       `${CALLBACK_BASE}/api/v1/mpesa/callback`,
+      CallBackURL:       withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/callback`),
       AccountReference:  input.accountReference.slice(0, 12),
       TransactionDesc:   input.description.slice(0, 20),
     }),
@@ -671,8 +687,8 @@ export async function requestReversal(input: ReversalInput): Promise<ReversalRes
       RecieverIdentifierType: input.receiverIdentifierType,
       Remarks:                input.remarks.slice(0, 100),
       Occasion:               (input.occasion ?? input.remarks).slice(0, 100),
-      QueueTimeOutURL:        `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=timeout`,
-      ResultURL:              `${CALLBACK_BASE}/api/v1/mpesa/reversal?type=result`,
+      QueueTimeOutURL:        withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/reversal?type=timeout`),
+      ResultURL:              withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/reversal?type=result`),
     }),
   );
 
@@ -727,8 +743,8 @@ export async function queryTransactionStatus(
       IdentifierType:           input.identifierType,
       Remarks:                  input.remarks.slice(0, 100),
       Occasion:                 (input.occasion ?? input.remarks).slice(0, 100),
-      ResultURL:       `${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=result`,
-      QueueTimeOutURL: `${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=timeout`,
+      ResultURL:       withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=result`),
+      QueueTimeOutURL: withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/transaction-status?type=timeout`),
     }),
   );
 
@@ -768,8 +784,8 @@ export async function queryAccountBalance(shortcode = SHORTCODE): Promise<Balanc
       PartyA:             shortcode,
       IdentifierType:     '4',
       Remarks:            'Balance query',
-      QueueTimeOutURL:    `${CALLBACK_BASE}/api/v1/mpesa/balance?type=timeout`,
-      ResultURL:          `${CALLBACK_BASE}/api/v1/mpesa/balance?type=result`,
+      QueueTimeOutURL:    withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/balance?type=timeout`),
+      ResultURL:          withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/balance?type=result`),
     }),
   );
 

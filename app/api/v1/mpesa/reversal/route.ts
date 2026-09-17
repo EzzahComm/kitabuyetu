@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
-import { requestReversal } from '@/lib/services/daraja.service';
+import { requestReversal, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleReversalResult } from '@/lib/services/mpesa.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
@@ -34,6 +34,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip   = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
+    // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
+    // callback that doesn't carry the shared secret is dropped before it can
+    // touch any money state. Acked (not rejected) so a prober learns nothing
+    // from the response, and logged so a real misconfiguration is visible.
+    if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+      logger.warn('[reversal callback] invalid or missing token — dropped', { type, ip });
+      return ack();
+    }
+
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return ack(); }
 
