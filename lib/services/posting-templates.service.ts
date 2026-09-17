@@ -62,8 +62,10 @@ export type PostingEvent =
   | 'loan_writeoff'
   | 'loan_disbursement'
   | 'loan_repayment'
+  | 'loan_charge'
   | 'settlement_sweep'
-  | 'vendor_payment';
+  | 'vendor_payment'
+  | 'fine_collection';
 
 export interface TemplateLine {
   accountCode: string;
@@ -130,6 +132,26 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1001', side: 'debit',  amount: 'interest' },
     { accountCode: '4002', side: 'credit', amount: 'interest' },
   ]},
+  // A configured loan charge (migration 174: loan_charge_types /
+  // loan_charges) — a processing fee, insurance fee, or automatic late
+  // charge — is added to what the borrower owes and recognized as revenue
+  // immediately, the moment it is applied (not deferred to when it is
+  // eventually collected). DR Loans Receivable / CR revenue.
+  //
+  // Reuses 4004 'Other Income' rather than introducing a new default account
+  // code: every group's chart of accounts already carries it (seeded since
+  // DEFAULT_ACCOUNTS' introduction), so posting works immediately for every
+  // existing group with no backfill migration needed, unlike a brand-new code
+  // which would only reach groups created after one. A group that wants a
+  // dedicated 'Loan Fee Income' line can remap this event to its own account
+  // via postingTemplatesService.setGroupOverride — exactly what the override
+  // mechanism exists for. Waiving a charge posts the same event inverted
+  // (loan-charges.service.ts's waiveCharge), which correctly reverses
+  // whichever account the group has it mapped to.
+  loan_charge: { lines: [
+    { accountCode: '1101', side: 'debit',  amount: 'amount' },
+    { accountCode: '4004', side: 'credit', amount: 'amount' },
+  ]},
   // Bank Accounts / Settlements / Vendor Payments rebuild. Matches migration
   // 134's policies seed exactly — see postSettlementSweepJournal/
   // postVendorPaymentJournal below for the wrapper functions.
@@ -147,6 +169,15 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1001', side: 'credit', amount: 'amount' },
     { accountCode: '5001', side: 'debit',  amount: 'fee' },
     { accountCode: '1001', side: 'credit', amount: 'fee' },
+  ]},
+  // Phase 3 (migration 175): a fine actually collected is realized revenue
+  // for the group, not a liability held in trust like welfare_pool_contribution
+  // — credited to 4004 (Other Income), the standard chart's only generic
+  // income account, rather than adding a new account code to every group's
+  // seeded chart of accounts.
+  fine_collection: { lines: [
+    { accountCode: '1001', side: 'debit',  amount: 'amount' },
+    { accountCode: '4004', side: 'credit', amount: 'amount' },
   ]},
 };
 

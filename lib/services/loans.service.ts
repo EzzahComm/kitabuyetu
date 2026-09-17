@@ -4,6 +4,7 @@ import { assertActiveMembership } from './membership-guard';
 import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
 import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
+import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -291,6 +292,13 @@ export const loansService = {
         entryDate: updated.disbursement_date!, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
       });
 
+      // Auto-apply any configured one-time charges (processing fee, insurance
+      // fee, …) — migration 174. A no-op today for every group, since nothing
+      // seeds a default charge type; only fires once a chairperson configures
+      // one via loanChargesService.configureChargeType. Inside this same
+      // transaction so a charge is atomic with the disbursement itself.
+      await applyDisbursementCharges(client, ctx, updated);
+
       // Record audit log
       await writeAuditLog(client, ctx, 'loan.disburse', id, { status: prev.status }, { status: updated.status, principal_amount: updated.principal_amount });
 
@@ -363,6 +371,20 @@ export const loansService = {
         principalPortion: parseFloat(updatedInstallment.principal_component), interestPortion: parseFloat(updatedInstallment.interest_component),
         entryDate: updatedInstallment.payment_date!, reference: updatedInstallment.mpesa_receipt_number, createdBy: ctx.userId,
       });
+
+      // Auto-apply any configured late-payment charge when this instalment was
+      // paid after its due date — migration 174. Parallel to, not a
+      // replacement for, the manual `penalty_amount` above: a no-op today for
+      // every group, since nothing seeds a default charge type. Idempotent —
+      // an instalment can only reach this point once (the completed-status
+      // guard above), and applyOverdueCharges itself checks for a prior
+      // application before inserting.
+      await applyOverdueCharges(
+        client, ctx,
+        { id: loanId, principal_amount: loanRows[0].principal_amount },
+        oldInstallment,
+        data.paymentDate,
+      );
 
       // Record audit log for repayment
       await writeAuditLog(client, ctx, 'loan.repayment_recorded', loanId,

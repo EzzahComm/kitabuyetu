@@ -143,6 +143,37 @@ export interface LoanRepayment {
   updated_at:           Date;
 }
 
+// Configurable loan charges/fees engine (migration 174).
+export interface LoanChargeType {
+  id:               string;
+  organization_id:  string | null;
+  group_id:         string | null;
+  name:             string;
+  calculation_type: 'fixed' | 'percentage';
+  amount:           string;
+  trigger_event:    'on_disburse' | 'on_overdue';
+  is_active:        boolean;
+  created_by:       string | null;
+  created_at:       Date;
+  updated_at:       Date;
+}
+
+export interface LoanCharge {
+  id:                string;
+  group_id:          string;
+  loan_id:           string;
+  charge_type_id:    string;
+  loan_repayment_id: string | null;
+  amount:            string;
+  status:            'pending' | 'paid' | 'waived';
+  applied_at:        Date;
+  journal_entry_id:  string | null;
+  waived_by:         string | null;
+  waived_at:         Date | null;
+  waived_reason:     string | null;
+  created_at:        Date;
+}
+
 export interface Account {
   id:           string;
   group_id:     string;
