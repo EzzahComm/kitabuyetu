@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useHasOrganizationPermission } from '@/lib/auth/use-permission';
 import { cn, formatKES, getErrorMessage } from '@/lib/utils';
 import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { PROGRAM_TYPES } from '@/lib/validators/organization.schema';
 
 function UtilizationBar({ pct }: { pct: number }) {
@@ -44,7 +45,7 @@ function BudgetReportTab() {
   const { toast } = useToast();
   const canManagePrograms = useHasOrganizationPermission();
   const { data, isLoading } = useQuery({
-    queryKey: ['enterprise', 'reports', 'budget'],
+    queryKey: enterpriseKeys.reportsBudget(),
     queryFn:  () => organizationApi.budgetReport(),
   });
   const items = data?.items ?? [];
@@ -57,9 +58,9 @@ function BudgetReportTab() {
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'paused' }) =>
       organizationApi.updateProgramStatus(id, { status }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'budget'] });
-      qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'donor'] });
-      qc.invalidateQueries({ queryKey: ['enterprise', 'programs'] });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.reportsBudget() });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.reportsDonor() });
+      qc.invalidateQueries({ queryKey: enterpriseKeys.programs() });
       toast({ title: 'Program updated' });
     },
     onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: getErrorMessage(err) }),
@@ -126,7 +127,7 @@ function BudgetReportTab() {
 
 function DonorSpendTab() {
   const { data, isLoading } = useQuery({
-    queryKey: ['enterprise', 'reports', 'donor'],
+    queryKey: enterpriseKeys.reportsDonor(),
     queryFn:  () => organizationApi.donorSpendReport(),
   });
   const items = data?.items ?? [];
@@ -199,7 +200,7 @@ function DonorSpendTab() {
  */
 function TrialBalanceTab() {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['enterprise', 'accounting'],
+    queryKey: enterpriseKeys.accounting(),
     queryFn:  () => organizationApi.accounting(),
   });
   const lines = data?.trialBalance ?? [];
@@ -337,9 +338,9 @@ export default function ReportsPage() {
   const [creating, setCreating] = useState(false);
 
   const refreshPrograms = () => Promise.all([
-    qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'budget'] }),
-    qc.invalidateQueries({ queryKey: ['enterprise', 'reports', 'donor'] }),
-    qc.invalidateQueries({ queryKey: ['enterprise', 'programs'] }),
+    qc.invalidateQueries({ queryKey: enterpriseKeys.reportsBudget() }),
+    qc.invalidateQueries({ queryKey: enterpriseKeys.reportsDonor() }),
+    qc.invalidateQueries({ queryKey: enterpriseKeys.programs() }),
   ]);
 
   return (

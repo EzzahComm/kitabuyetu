@@ -94,7 +94,7 @@ export default function RiskDashboardPage() {
         {/* Risk heatmap */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-900">Risk heatmap</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Risk heatmap</CardTitle>
             <p className="text-xs text-muted-foreground">Risk score (0–100) by segment and dimension</p>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -110,7 +110,7 @@ export default function RiskDashboardPage() {
               <tbody>
                 {(data?.heatmap ?? []).map((row) => (
                   <tr key={row.segment}>
-                    <td className="whitespace-nowrap px-2 py-1 text-xs font-medium text-gray-700">{row.segment}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-xs font-medium text-muted-foreground">{row.segment}</td>
                     {row.scores.map((score, i) => (
                       <td key={i} className="p-0">
                         <div
@@ -182,7 +182,7 @@ export default function RiskDashboardPage() {
                   <div className="flex items-center gap-2">
                     <StatusPill status={a.severity as string} tone={a.severity === 'red' ? 'negative' : 'warning'} label={a.severity as string} size="sm" />
                     <StatusPill status={a.status as string} tone={alertStatusTone[a.status as string] ?? 'neutral'} label={a.status as string} size="sm" />
-                    <span className="truncate text-sm font-semibold text-gray-900">{a.group_name as string}</span>
+                    <span className="truncate text-sm font-semibold text-foreground">{a.group_name as string}</span>
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{a.metric_name as string} · {a.message as string}</p>
                 </div>
@@ -254,10 +254,10 @@ export default function RiskDashboardPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <StatusPill status={a.severity} tone={severityTone[a.severity]} label={a.severity} size="sm" />
-                        <span className="truncate text-sm font-semibold text-gray-900">{a.type}</span>
+                        <span className="truncate text-sm font-semibold text-foreground">{a.type}</span>
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">{a.org} · {a.detail}</p>
-                      <p className="mt-1 font-mono text-[11px] text-gray-400">{a.id} · {ago(a.ago)}</p>
+                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">{a.id} · {ago(a.ago)}</p>
                     </div>
                     <MoneyDisplay amount={a.amount} size="sm" color="red" className="shrink-0" />
                   </div>
@@ -302,12 +302,12 @@ export default function RiskDashboardPage() {
             ) : (
               kyc.map((k) => (
                 <div key={k.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
                     {k.name.split(' ').map((n) => n[0]).join('')}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-gray-900">{k.name}</span>
+                      <span className="truncate text-sm font-semibold text-foreground">{k.name}</span>
                       <StatusPill status={k.risk} tone={k.risk === 'high' ? 'negative' : k.risk === 'medium' ? 'warning' : 'positive'} label={`${k.risk} risk`} size="sm" />
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{k.docType} · {k.org} · {k.submitted}</p>

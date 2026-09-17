@@ -85,10 +85,38 @@ if (!globalWithPool._kyPool) {
 }
 
 // Tenant-context pool — used by withDb()/withTransaction() for real tenant
-// traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS)
-// once TENANT_DATABASE_URL is provisioned; falls back to the same pool/role
-// as withAdminDb() until then, so this is a no-op until that role exists.
+// traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS).
+// CRITICAL: TENANT_DATABASE_URL is REQUIRED in production. Falling back to the
+// admin pool silently disables RLS, creating a security vulnerability.
+// See: Phase 1 RLS Hardening (2026-09-16).
 if (!globalWithPool._kyTenantPool) {
+  // Next.js's build-time page-data-collection step imports every route
+  // module, evaluating this module scope regardless of whether the build
+  // machine holds production secrets (it deliberately doesn't). Throwing
+  // here on that basis would kill the whole build at whichever route
+  // imports lib/db first — the same class of bug __tests__/unit/db/
+  // pool-build-time.test.ts guards against for DATABASE_URL. Real
+  // enforcement happens at cold-start in the deployed runtime, same as
+  // lib/env.ts's validateEnv().
+  const isBuildTime =
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (!env.TENANT_DATABASE_URL) {
+    if (env.NODE_ENV === 'production' && !isBuildTime) {
+      throw new Error(
+        'TENANT_DATABASE_URL is REQUIRED in production. ' +
+        'Missing this env var causes RLS to be silently bypassed, ' +
+        'creating a critical security vulnerability. ' +
+        'Set TENANT_DATABASE_URL to the PostgreSQL connection string for the app_tenant role.'
+      );
+    }
+    // In development (or at build time), allow fallback to admin pool, but log a warning
+    logger.warn(
+      '[db] TENANT_DATABASE_URL not set — using admin pool for tenant traffic. ' +
+      'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.'
+    );
+  }
   globalWithPool._kyTenantPool = env.TENANT_DATABASE_URL
     ? buildPool(env.TENANT_DATABASE_URL)
     : globalWithPool._kyPool;
@@ -122,12 +150,23 @@ async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<
   // set_config(name, value, is_local=TRUE) is transaction-scoped, equivalent to SET LOCAL.
   // Using the function form lets us pass values as parameterised arguments instead of
   // string-interpolating them into SQL, eliminating any injection risk.
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_user_id',  ctx.userId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_group_id', ctx.groupId]);
-  await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_role',     ctx.role]);
-  if (ctx.organizationId) {
-    await client.query('SELECT set_config($1, $2, TRUE)', ['app.current_organization_id', ctx.organizationId]);
-  }
+  //
+  // One round trip, not up to four: each set_config call still fires as part
+  // of computing this single output row, so all four side effects still
+  // happen — this only removes three extra network trips per tenant
+  // transaction (measured live: 6,409 set_config calls / 2,126 BEGINs =
+  // ~3 per transaction, docs/audits/optimization-2026-09).
+  // organizationId is now always passed ('' when absent) rather than
+  // conditionally skipped — app_current_organization_id() already treats ''
+  // the same as never-set (NULLIF(current_setting(...), '')::uuid), so this
+  // is not a behavior change, just one fewer branch.
+  await client.query(
+    `SELECT set_config('app.current_user_id', $1, TRUE),
+            set_config('app.current_group_id', $2, TRUE),
+            set_config('app.current_role', $3, TRUE),
+            set_config('app.current_organization_id', $4, TRUE)`,
+    [ctx.userId, ctx.groupId, ctx.role, ctx.organizationId ?? ''],
+  );
 }
 
 /**

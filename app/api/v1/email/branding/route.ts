@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth, withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 const BrandingSchema = z.object({
@@ -16,14 +16,21 @@ const BrandingSchema = z.object({
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const { rows } = await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      const result = await client.query(
         `SELECT id, sender_name, sender_email, reply_to_email, logo_url, primary_color, footer_text, website_url
          FROM group_email_branding WHERE group_id = $1`,
         [auth.groupId],
-      ),
-    );
-    return ok(rows[0] ?? null);
+      );
+      return ok(result.rows[0] ?? null);
+    });
   });
 }
 
@@ -31,8 +38,15 @@ export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.manage', async (auth) => {
     const body = BrandingSchema.parse(await req.json());
 
-    await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      await client.query(
         `INSERT INTO group_email_branding
            (group_id, sender_name, sender_email, reply_to_email, logo_url, primary_color, footer_text, website_url)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
@@ -55,9 +69,9 @@ export async function PUT(req: NextRequest): Promise<Response> {
           body.footerText ?? null,
           body.websiteUrl ?? null,
         ],
-      ),
-    );
+      );
 
-    return ok({ success: true });
+      return ok({ success: true });
+    });
   });
 }

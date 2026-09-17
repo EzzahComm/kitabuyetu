@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 /**
@@ -24,7 +24,8 @@ const UPCOMING_DAYS = 30;
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.view', async (auth) => {
-    const { upcoming, history } = await withAdminDb(async (db) => {
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const { upcoming, history } = await withDb(ctx, async (db) => {
       const [up, hist] = await Promise.all([
         db.query(
           // The next OCCURRENCE of each birthday, computed once in a LATERAL so

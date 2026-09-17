@@ -53,6 +53,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'mpesa_reconcile':
       return handleMpesaReconcile();
 
+    case 'mpesa_paybill_sweep':
+      return handleMpesaPaybillSweep();
+
     case 'mpesa_replay_callbacks':
       return handleMpesaReplayCallbacks();
 
@@ -133,6 +136,12 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 
     case 'organization_sms_allowance_grant':
       return handleOrganizationSmsAllowanceGrant();
+
+    case 'organization_report_export':
+      return handleOrganizationReportExport(job);
+
+    case 'organization_report_schedules_process':
+      return handleOrganizationReportSchedulesProcess();
 
     case "cleanup_old_jobs":
       return handleCleanupOldJobs();
@@ -255,6 +264,22 @@ async function handleMpesaReplayCallbacks(): Promise<HandlerResult> {
   const { replayUnprocessedCallbacks } = await import('@/lib/services/mpesa.service');
   const result = await replayUnprocessedCallbacks();
   return { message: 'M-Pesa callback DLQ replay complete', ...flattenResult(result) };
+}
+
+/**
+ * Detects completed inbound C2B paybill transactions with no domain record
+ * (contribution/loan repayment/invoice payment) and queues them into
+ * mpesa_unrouted for treasurer resolution. Before this, the only caller was
+ * a manual, authenticated HTTP endpoint — it had run exactly once in the
+ * platform's lifetime (2026-07-29, five and a half weeks before this job
+ * type was added). Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so
+ * hourly scheduling carries no correctness risk (docs/audits/
+ * optimization-2026-09).
+ */
+async function handleMpesaPaybillSweep(): Promise<HandlerResult> {
+  const { sweepPaybillTransactions } = await import('@/lib/services/mpesa.service');
+  const result = await sweepPaybillTransactions(null, null);
+  return { message: 'M-Pesa paybill sweep complete', ...flattenResult(result) };
 }
 
 async function handleMpesaReconcileCharges(): Promise<HandlerResult> {
@@ -1024,7 +1049,7 @@ async function handleSmsLowBalanceAlert(payload: Record<string, unknown>): Promi
       db.query<{ email: string }>(
         `SELECT m.email
          FROM organization_members om JOIN members m ON m.id = om.member_id
-         WHERE om.organization_id = $1 AND om.is_active
+         WHERE om.organization_id = $1 AND om.status = 'active'
            AND om.org_role = 'lead' AND m.email IS NOT NULL
          LIMIT 5`,
         [orgId],
@@ -1237,6 +1262,39 @@ async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
   const { grantDueOrganizationSmsAllowances } = await import('@/lib/services/organization-plan.service');
   const result = await grantDueOrganizationSmsAllowances();
   return { message: `SMS allowance granted for ${result.organizationsGranted} organization(s)`, ...result };
+}
+
+/**
+ * Render + upload one organization_report_exports row (Phase 5 gap analysis
+ * item 1 — async report export). `isFinalAttempt` tells the service whether
+ * to record a terminal 'failed' status on this exception, or leave the row
+ * for job_queue's own retry to pick up again a few minutes later — see
+ * processReportExport's own doc comment for why that distinction matters to
+ * a coordinator polling the status route.
+ */
+async function handleOrganizationReportExport(job: Job): Promise<HandlerResult> {
+  const exportId = job.payload.exportId ? String(job.payload.exportId) : '';
+  if (!exportId) return { message: 'Report export skipped: no exportId' };
+
+  const { processReportExport } = await import('@/lib/services/report-export.service');
+  const isFinalAttempt = job.attempts + 1 >= job.max_attempts;
+  const message = await processReportExport(exportId, { isFinalAttempt });
+  return { message, exportId };
+}
+
+/**
+ * Report-schedule sweep — the SAME idiom as handleSmsProcessSchedules: a
+ * payload-free, constantly-keyed 5-minute tick (see lib/jobs/index.ts) that
+ * finds due report_schedules rows and enqueues one organization_report_export
+ * job per row. Deliberately NOT a second pg_cron entry — this codebase's
+ * entire pg_cron footprint is the single 5-minute /api/cron tick; every
+ * other recurring behaviour is a job type dispatched from that one tick, and
+ * this follows the same shape rather than forking a new scheduling path.
+ */
+async function handleOrganizationReportSchedulesProcess(): Promise<HandlerResult> {
+  const { processDueReportSchedules } = await import('@/lib/services/report-export.service');
+  const result = await processDueReportSchedules();
+  return { message: `Report schedules processed (${result.processed} due)`, ...result };
 }
 
 /**

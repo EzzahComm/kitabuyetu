@@ -16,9 +16,11 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { Skeleton } from '@/components/ui/skeleton';
 import { organizationApi } from '@/lib/api/endpoints';
 import { adminApi } from '@/lib/api/client';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import type { OrganizationGroupSummary } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
+import type { OrgCountyAggregationRow } from '@/lib/services/organization-geography.service';
 
 interface OrgDashboard {
   /** null when the portfolio aggregate could not be read — NEVER zero-filled (R10). */
@@ -48,16 +50,24 @@ function ComingSoon({ title }: { title: string }) {
 
 export default function EnterpriseDashboardPage() {
   const { data: dash, isLoading: dashLoading, isError: dashError, error: dashErr } = useQuery<OrgDashboard>({
-    queryKey: ['enterprise', 'dashboard'],
+    queryKey: enterpriseKeys.dashboard(),
     queryFn:  () => adminApi.get('/organization/dashboard'),
   });
   const { data: healthResponse, isLoading: healthLoading, isError: healthError, error: healthErr } = useQuery({
-    queryKey: ['enterprise', 'health'],
+    queryKey: enterpriseKeys.health(),
     queryFn:  organizationApi.health,
   });
   const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
-    queryKey: ['enterprise', 'groups'],
+    queryKey: enterpriseKeys.groups(),
     queryFn:  () => organizationApi.groups(),
+  });
+  // Phase 5 gap analysis — geography, the last missing item on the
+  // organization axis. Server returns every county (including zero-coverage
+  // ones — a coverage gap is itself signal), so the card below filters to
+  // covered counties only and surfaces the ratio as the signal instead.
+  const { data: geoResponse, isLoading: geoLoading, isError: geoError, error: geoErr } = useQuery<{ counties: OrgCountyAggregationRow[] }>({
+    queryKey: ['enterprise', 'geography', 'counties'],
+    queryFn:  organizationApi.geographyCounties,
   });
 
   const p = dash?.portfolio;
@@ -83,6 +93,10 @@ export default function EnterpriseDashboardPage() {
     .sort((a, b) => parseFloat(b.totalContributions) - parseFloat(a.totalContributions))
     .slice(0, 5)
     .map((g) => ({ ...g, id: g.groupId }));
+
+  const allCounties    = geoResponse?.counties ?? [];
+  const coveredCounties = allCounties.filter((c) => parseInt(c.group_count, 10) > 0);
+  const topCounties = coveredCounties.slice(0, 6).map((c) => ({ ...c, id: c.county_id }));
 
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C5: this landing page had zero
   // loading/error handling on its KPI query — first paint and a fetch
@@ -204,10 +218,40 @@ export default function EnterpriseDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Charts — no historical-trend or demographic data exists yet */}
+      {/* Charts — no historical-trend data exists yet */}
       <div className="grid gap-6 lg:grid-cols-3">
         <ComingSoon title="Portfolio growth (savings vs loans, over time)" />
-        <ComingSoon title="Savings by region" />
+
+        {/* Geography — Phase 5 gap analysis: the last missing item on the
+            organization axis. Coverage by county, scoped to this org's own
+            linked groups (organization-geography.service.ts). A ward
+            drill-down exists server-side (GET .../counties/:id/wards) but
+            isn't wired into this compact card — same "backend-only for a
+            later focused pass" precedent as the programme-group drill-down. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Coverage by county</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {geoLoading ? 'Loading…' : `${coveredCounties.length} of ${allCounties.length || 47} counties covered`}
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <PaginatedTable
+              data={singlePage(topCounties)}
+              isLoading={geoLoading}
+              isError={geoError}
+              error={geoErr}
+              onPageChange={() => {}}
+              emptyMessage="No groups linked yet"
+              columns={[
+                { key: 'county', header: 'County', render: (c) => <span className="font-medium text-foreground">{c.county_name}</span> },
+                { key: 'groups', header: 'Groups', className: 'text-right', render: (c) => <span className="tabular-nums">{parseInt(c.group_count, 10).toLocaleString()}</span> },
+                { key: 'members', header: 'Members', className: 'hidden sm:table-cell text-right', render: (c) => <span className="tabular-nums">{parseInt(c.member_count, 10).toLocaleString()}</span> },
+                { key: 'contributions', header: 'Contributions', className: 'text-right', render: (c) => <MoneyDisplay amount={parseFloat(c.total_contributions)} size="sm" /> },
+              ]}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

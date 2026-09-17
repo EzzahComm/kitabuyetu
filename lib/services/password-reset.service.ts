@@ -42,6 +42,21 @@ export async function startPasswordReset(phone: string): Promise<void> {
        WHERE id = $1`,
       [rows[0].id, otpHash, OTP_TTL_MINUTES],
     );
+
+    // Record audit log for password reset initiation (system-triggered, no actor_id)
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        null, // system-triggered password reset flow
+        'member.password_reset_initiated',
+        'member',
+        rows[0].id,
+        JSON.stringify({ reset_otp_attempts: 0 }),
+        JSON.stringify({ reset_otp_attempts: 0 }), // not logging OTP hash for security
+      ],
+    );
+
     return rows[0];
   });
 
@@ -82,20 +97,54 @@ export async function resetPasswordWithOtp(phone: string, otp: string, newPasswo
     if (member.reset_otp_attempts >= MAX_OTP_ATTEMPTS) throw new ValidationError(GENERIC_ERROR);
 
     if (member.reset_otp_hash !== otpHash) {
+      const newAttempts = member.reset_otp_attempts + 1;
       await db.query(
         `UPDATE public.members SET reset_otp_attempts = reset_otp_attempts + 1 WHERE id = $1`,
         [member.id],
+      );
+
+      // Record audit log for failed OTP attempt
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          null, // system-triggered validation
+          'member.password_reset_attempt_failed',
+          'member',
+          member.id,
+          JSON.stringify({ reset_otp_attempts: member.reset_otp_attempts }),
+          JSON.stringify({ reset_otp_attempts: newAttempts }),
+        ],
       );
       throw new ValidationError(GENERIC_ERROR);
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    const oldSessionVersion = (await db.query<{ session_version: number }>(
+      `SELECT session_version FROM public.members WHERE id = $1`,
+      [member.id],
+    )).rows[0]?.session_version ?? 0;
+
     await db.query(
       `UPDATE public.members
        SET password_hash = $2, reset_otp_hash = NULL, reset_otp_expires_at = NULL, reset_otp_attempts = 0,
            session_version = session_version + 1
        WHERE id = $1`,
       [member.id, passwordHash],
+    );
+
+    // Record audit log for successful password reset
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        null, // system-triggered password change
+        'member.password_reset_completed',
+        'member',
+        member.id,
+        JSON.stringify({ reset_otp_attempts: member.reset_otp_attempts, session_version: oldSessionVersion }),
+        JSON.stringify({ reset_otp_attempts: 0, session_version: oldSessionVersion + 1 }),
+      ],
     );
   });
 }

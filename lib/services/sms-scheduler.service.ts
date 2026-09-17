@@ -159,7 +159,7 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
  * already holds the row or advanced it past due.
  */
 async function claimOccurrence(client: PoolClient, id: string): Promise<string | null> {
-  const { rows } = await client.query<{ occurrence: string; missed: string }>(
+  const { rows } = await client.query<{ occurrence: string; missed: string; schedule_type: string }>(
     // next_run_at advances to the next FUTURE occurrence, not to one period
     // after the occurrence just claimed.
     //
@@ -200,7 +200,7 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
                           END
      FROM   claimed c
      WHERE  s.id = c.id
-     RETURNING c.occurrence, c.missed`,
+     RETURNING c.occurrence, c.missed, c.schedule_type`,
     [id],
   );
 
@@ -208,6 +208,21 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
   if (!row) return null;
 
   const missed = Number(row.missed);
+
+  // Record audit log for schedule claim (system-triggered)
+  await client.query(
+    `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      null, // system-triggered schedule processing
+      'sms_schedule.occurrence_claimed',
+      'sms_schedule',
+      id,
+      JSON.stringify({ next_run_at: row.occurrence, is_active: true }),
+      JSON.stringify({ next_run_at: `advanced by ${missed + 1} periods`, is_active: row.schedule_type !== 'one_time' }),
+    ],
+  );
+
   if (missed > 0) {
     // Worth saying out loud: silently dropping sends a group expected is a
     // decision, and it should be visible when it happens rather than inferred
@@ -241,14 +256,28 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
     const phones = await resolveSmsRecipients(c.group_id, c.recipient_type, c.raw_recipients);
 
     if (phones.length === 0) {
-      await withAdminDb((db) =>
-        db.query(
+      await withAdminDb(async (db) => {
+        await db.query(
           `UPDATE sms_campaigns
            SET status='completed', completed_at=NOW(), sent_count=0, failed_count=0, updated_at=NOW()
            WHERE id=$1 AND status='scheduled'`,
           [c.id],
-        ),
-      );
+        );
+
+        // Record audit log for campaign completion (system-triggered, no recipients)
+        await db.query(
+          `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            null, // system-triggered
+            'sms_campaign.completed_no_recipients',
+            'sms_campaign',
+            c.id,
+            JSON.stringify({ status: 'scheduled' }),
+            JSON.stringify({ status: 'completed', sent_count: 0 }),
+          ],
+        );
+      });
       continue;
     }
 
@@ -271,14 +300,28 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
       { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${c.id}` },
     );
 
-    await withAdminDb((db) =>
-      db.query(
+    await withAdminDb(async (db) => {
+      await db.query(
         `UPDATE sms_campaigns
          SET status='sending', started_at=NOW(), recipient_count=$2, updated_at=NOW()
          WHERE id=$1 AND status='scheduled'`,
         [c.id, phones.length],
-      ),
-    );
+      );
+
+      // Record audit log for campaign start (system-triggered)
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          null, // system-triggered campaign processing
+          'sms_campaign.sending_started',
+          'sms_campaign',
+          c.id,
+          JSON.stringify({ status: 'scheduled', recipient_count: null }),
+          JSON.stringify({ status: 'sending', recipient_count: phones.length }),
+        ],
+      );
+    });
     processed++;
   }
 

@@ -26,7 +26,7 @@ import {
   type BillManagerInvoice,
 } from '@/lib/services/daraja.service';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
 
 const InvoiceSchema = z.object({
@@ -52,7 +52,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
     try {
       const status = req.nextUrl.searchParams.get('status');
-      const rows = await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT * FROM bill_manager_invoices
            WHERE group_id=$1 ${status ? 'AND status=$2' : ''}
@@ -119,7 +120,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         await sendSingleInvoice(input as BillManagerInvoice);
 
         // Persist locally
-        await withAdminDb((db) =>
+        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        await withTransaction(ctx, (db) =>
           db.query(
             `INSERT INTO bill_manager_invoices
                (group_id, external_reference, billed_full_name, billed_phone,
@@ -152,7 +154,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         await sendBulkInvoices(invoices as BillManagerInvoice[]);
 
         // Persist all locally
-        await withAdminDb(async (db) => {
+        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        await withTransaction(ctx, async (db) => {
           for (const inv of invoices) {
             await db.query(
               `INSERT INTO bill_manager_invoices
@@ -192,7 +195,8 @@ export async function POST(req: NextRequest): Promise<Response> {
           await cancelBulkInvoices(externalReferences);
         }
 
-        await withAdminDb((db) =>
+        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        await withTransaction(ctx, (db) =>
           db.query(
             `UPDATE bill_manager_invoices
              SET status='cancelled', cancelled_at=NOW()

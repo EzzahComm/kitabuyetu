@@ -125,6 +125,14 @@ export const organizationService = {
     await this.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
       await assertWhiteLabelAccess(client, orgId(ctx));
+
+      // Fetch current branding to capture old values
+      const { rows: current } = await client.query<OrganizationBranding>(
+        `SELECT logo_url AS "logoUrl", primary_color AS "primaryColor" FROM organizations WHERE id = $1`,
+        [ctx.organizationId],
+      );
+      const prev = current[0];
+
       const { rows } = await client.query<OrganizationBranding>(
         `UPDATE organizations
          SET logo_url = $2, primary_color = $3
@@ -132,8 +140,33 @@ export const organizationService = {
          RETURNING logo_url AS "logoUrl", primary_color AS "primaryColor"`,
         [ctx.organizationId, input.logoUrl ?? null, input.primaryColor ?? null],
       );
-      if (!rows[0]) throw new NotFoundError('Organization', ctx.organizationId ?? '');
-      return rows[0];
+      const updated = rows[0];
+
+      if (!updated) throw new NotFoundError('Organization', ctx.organizationId ?? '');
+
+      // Record audit log for branding update
+      // Note: organization_id is stored at org level, not group level for this action
+      await client.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.organizationId,
+          ctx.userId,
+          'organization.setBranding',
+          'organization',
+          ctx.organizationId,
+          JSON.stringify({
+            logo_url: prev?.logoUrl,
+            primary_color: prev?.primaryColor,
+          }),
+          JSON.stringify({
+            logo_url: updated.logoUrl,
+            primary_color: updated.primaryColor,
+          }),
+        ],
+      );
+
+      return updated;
     });
   },
 
@@ -370,78 +403,6 @@ export const organizationService = {
 
       const total = parseInt(countRows[0]?.n ?? '0', 10);
       return { items: rows, total, page, pageSize: limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
-    });
-  },
-
-  async getGroupDetail(ctx: TenantContext, groupId: string): Promise<OrganizationGroupSummary & { monthlyTrend: unknown[] }> {
-    await this.assertOrganizationCoordinator(ctx);
-
-    return withDb(ctx, async (client) => {
-      // Verify Organization has access to this specific group
-      const { rows: access } = await client.query<{ id: string }>(
-        `SELECT id FROM organization_group_access
-         WHERE organization_id = $1 AND group_id = $2 AND is_active = true`,
-        [ctx.organizationId, groupId],
-      );
-      if (!access[0]) throw new NotFoundError('Group access', groupId);
-
-      const { rows: summary } = await client.query<OrganizationGroupSummary>(
-        `SELECT
-           g.id          AS "groupId",
-           g.name        AS "groupName",
-           g.type        AS "groupType",
-           g.county,
-           COALESCE(mem.active_member_count, 0)         AS "activeMemberCount",
-           COALESCE(con.total_contributions, 0)::text   AS "totalContributions",
-           COALESCE(ln.active_loan_portfolio, 0)::text  AS "activeLoanPortfolio",
-           COALESCE(ln.defaulted_loan_count, 0)::int    AS "defaultedLoanCount",
-           sub.plan_type  AS "subscriptionPlan",
-           sub.status     AS "subscriptionStatus",
-           g.created_at::text AS "groupCreatedAt"
-         FROM groups g
-         -- Same LATERAL-per-child-table fix and same kitabu_yetu scoping as
-         -- the list query above — see its comment for why a flat join of
-         -- group_members/contributions/loans fans the aggregates out here.
-         LEFT JOIN LATERAL (
-           SELECT COUNT(*) AS active_member_count FROM group_members gm
-           WHERE gm.group_id = g.id AND gm.is_active
-         ) mem ON true
-         LEFT JOIN LATERAL (
-           SELECT COALESCE(SUM(c.amount) FILTER (WHERE c.status = 'completed'), 0) AS total_contributions
-           FROM contributions c WHERE c.group_id = g.id
-         ) con ON true
-         LEFT JOIN LATERAL (
-           SELECT COALESCE(SUM(l.outstanding_balance) FILTER (WHERE l.status IN ('disbursed','active')), 0) AS active_loan_portfolio,
-                  COUNT(*) FILTER (WHERE l.status = 'defaulted') AS defaulted_loan_count
-           FROM loans l WHERE l.group_id = g.id
-         ) ln ON true
-         LEFT JOIN LATERAL (
-           SELECT s.plan_type, s.status FROM subscriptions s
-           WHERE s.group_id = g.id AND s.status = 'active'
-             AND s.product = 'kitabu_yetu'
-           LIMIT 1
-         ) sub ON true
-         WHERE g.id = $1`,
-        [groupId],
-      );
-      if (!summary[0]) throw new NotFoundError('Group', groupId);
-
-      // Monthly contribution trend (last 12 months, anonymized)
-      const { rows: trend } = await client.query(
-        `SELECT
-           DATE_TRUNC('month', contribution_date)::date::text AS month,
-           COUNT(*)::int                                      AS count,
-           SUM(amount)::text                                  AS total
-         FROM contributions
-         WHERE group_id = $1
-           AND status = 'completed'
-           AND contribution_date >= NOW() - INTERVAL '12 months'
-         GROUP BY DATE_TRUNC('month', contribution_date)
-         ORDER BY month`,
-        [groupId],
-      );
-
-      return { ...summary[0], monthlyTrend: trend };
     });
   },
 

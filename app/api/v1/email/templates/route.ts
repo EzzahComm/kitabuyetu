@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 const CreateTemplateSchema = z.object({
@@ -14,18 +14,26 @@ const CreateTemplateSchema = z.object({
 
 // Was withAuth only (any authenticated member) — same gap the SMS templates
 // route already closed with messaging.templates.view (secretary+).
+// Refactored (2026-09-16) from withAdminDb to withDb for RLS enforcement.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.view', async (auth) => {
-    const { rows } = await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      const result = await client.query(
         `SELECT id, group_id, template_key, locale, name, subject, is_active, created_at, updated_at
          FROM email_templates
          WHERE group_id = $1 OR group_id IS NULL
          ORDER BY group_id NULLS LAST, template_key, locale`,
         [auth.groupId],
-      ),
-    );
-    return ok(rows);
+      );
+      return ok(result.rows);
+    });
   });
 }
 
@@ -33,8 +41,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
     const body = CreateTemplateSchema.parse(await req.json());
 
-    const { rows } = await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      const result = await client.query(
         `INSERT INTO email_templates (group_id, template_key, locale, name, subject, body)
          VALUES ($1,$2,$3,$4,$5,$6)
          ON CONFLICT (group_id, template_key, locale) DO UPDATE
@@ -48,9 +63,9 @@ export async function POST(req: NextRequest): Promise<Response> {
           body.subject,
           body.body,
         ],
-      ),
-    );
+      );
 
-    return ok({ id: rows[0].id }, 201);
+      return ok({ id: result.rows[0].id }, 201);
+    });
   });
 }

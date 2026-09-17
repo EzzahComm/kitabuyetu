@@ -98,6 +98,22 @@ export async function handleSettlementB2BResult(
          WHERE  id = $1`,
         [row.id, parsed.desc.slice(0, 500)],
       );
+
+      // Record audit log for settlement failure — system-triggered (Daraja callback)
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          row.group_id,
+          null, // system-triggered (Daraja callback)
+          'settlement.failed',
+          'settlement',
+          row.id,
+          JSON.stringify({ status: 'processing' }),
+          JSON.stringify({ status: 'failed', failure_reason: parsed.desc.slice(0, 500) }),
+        ],
+      );
+
       await db.query(
         `INSERT INTO failed_payment_logs
            (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
@@ -134,6 +150,22 @@ export async function handleSettlementB2BResult(
        WHERE  id = $1`,
       [row.id, fee.toFixed(2)],
     );
+
+    // Record audit log for settlement completion — system-triggered (Daraja callback)
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        row.group_id,
+        null, // system-triggered (Daraja callback)
+        'settlement.completed',
+        'settlement',
+        row.id,
+        JSON.stringify({ status: 'processing' }),
+        JSON.stringify({ status: 'completed', platform_fee: fee.toFixed(2), receipt: parsed.receipt }),
+      ],
+    );
+
     await releaseCashReservation(db, row.group_id, row.amount);
     return { rowId: row.id, eventData: { status: 'completed', receipt: parsed.receipt } };
   });
@@ -178,6 +210,22 @@ export async function handleVendorPaymentResult(
          WHERE  id = $1`,
         [row.id, parsed.desc.slice(0, 500)],
       );
+
+      // Record audit log for vendor payment failure — system-triggered (Daraja callback)
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          row.group_id,
+          null, // system-triggered (Daraja callback)
+          'vendorPayment.failed',
+          'vendor_payment',
+          row.id,
+          JSON.stringify({ status: 'processing' }),
+          JSON.stringify({ status: 'failed', failure_reason: parsed.desc.slice(0, 500) }),
+        ],
+      );
+
       await db.query(
         `INSERT INTO failed_payment_logs
            (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
@@ -215,6 +263,22 @@ export async function handleVendorPaymentResult(
        WHERE  id = $1`,
       [row.id, fee.toFixed(2)],
     );
+
+    // Record audit log for vendor payment completion — system-triggered (Daraja callback)
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        row.group_id,
+        null, // system-triggered (Daraja callback)
+        'vendorPayment.completed',
+        'vendor_payment',
+        row.id,
+        JSON.stringify({ status: 'processing' }),
+        JSON.stringify({ status: 'completed', platform_fee: fee.toFixed(2), receipt: parsed.receipt }),
+      ],
+    );
+
     await releaseCashReservation(db, row.group_id, row.amount);
     return { rowId: row.id, eventData: { status: 'completed', receipt: parsed.receipt } };
   });

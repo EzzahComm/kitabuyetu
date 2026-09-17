@@ -36,23 +36,45 @@ export async function processDueSchedules(): Promise<{
       });
 
       if (sched.schedule_type === "once") {
-        await withAdminDb((db) =>
-          db.query(
+        await withAdminDb(async (db) => {
+          await db.query(
             `UPDATE email_schedules SET is_active=false, last_run_at=NOW() WHERE id=$1`,
             [sched.id],
-          ),
-        );
+          );
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
+            [
+              sched.group_id,
+              'email_schedule.sent_once',
+              sched.id,
+              JSON.stringify({ is_active: true, schedule_type: 'once' }),
+              JSON.stringify({ is_active: false, status: 'completed' }),
+            ],
+          );
+        });
       } else {
         const nextRun = computeNextRun(
           sched.schedule_type,
           new Date(sched.next_run_at),
         );
-        await withAdminDb((db) =>
-          db.query(
+        await withAdminDb(async (db) => {
+          await db.query(
             `UPDATE email_schedules SET last_run_at=NOW(), next_run_at=$1 WHERE id=$2`,
             [nextRun.toISOString(), sched.id],
-          ),
-        );
+          );
+          await db.query(
+            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
+            [
+              sched.group_id,
+              'email_schedule.sent_recurring',
+              sched.id,
+              JSON.stringify({ next_run_at: sched.next_run_at }),
+              JSON.stringify({ next_run_at: nextRun.toISOString() }),
+            ],
+          );
+        });
       }
 
       processed++;
@@ -111,21 +133,55 @@ export async function retryFailedEmails(): Promise<{
     if (tickBudgetExhausted(35_000)) break;
     if (!log.template_key) continue;
 
+    // group_verification_link's retry can never be correct: this loop has
+    // no way to reconstruct the original vars (name/groupName/groupCode/
+    // verifyUrl), so a "retry" always sends with vars={}, which the
+    // DEFAULT_TEMPLATES fallback renders as a blank-name, blank-group email
+    // with an EMPTY verify link — confirmed live as the mechanism behind a
+    // real incident (one recipient received hundreds of broken verification
+    // emails). Bounding the retry count doesn't fix this — even one retry
+    // sends something unusable — so this template is excluded from retry
+    // entirely rather than merely rate-limited (docs/audits/
+    // optimization-2026-09).
+    if (log.template_key === "group_verification_link") {
+      skipped++;
+      continue;
+    }
+
     // Retry-count guard. Each attempt (success or failure) INSERTs a new
     // email_logs row rather than updating the original, so without this a
     // poison (recipient, template, reference) triple re-sends forever —
-    // confirmed live: one recipient received 163 duplicate verification
-    // emails in 24h before this guard existed.
-    const { rows: countRows } = await withAdminDb((db) =>
-      db.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM email_logs
-         WHERE "to" = $1 AND template_key = $2
-           AND COALESCE(reference_id, '') = COALESCE($3, '')
-           AND created_at >= NOW() - INTERVAL '24 hours'`,
-        [log.to, log.template_key, log.reference_id],
-      ),
-    );
-    if (Number(countRows[0]?.count ?? 0) >= 3) {
+    // confirmed live: one recipient received hundreds of duplicate emails
+    // in 24h before this guard existed. IS NOT DISTINCT FROM (not
+    // COALESCE(..., '')): reference_id is a uuid column, and an empty
+    // string is not a valid uuid literal — Postgres resolves COALESCE's
+    // common type at parse time, so `COALESCE(reference_id, '')` fails
+    // unconditionally, not just when reference_id happens to be null. This
+    // silently crashed the guard (and therefore this whole function) on
+    // every invocation since it was added — job_logs showed
+    // 'invalid input syntax for type uuid: ""' on every attempt, which
+    // also meant genuine transient failures for every OTHER template were
+    // never being retried either.
+    let guardCount = 0;
+    try {
+      const { rows: countRows } = await withAdminDb((db) =>
+        db.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM email_logs
+           WHERE "to" = $1 AND template_key = $2
+             AND reference_id IS NOT DISTINCT FROM $3
+             AND created_at >= NOW() - INTERVAL '24 hours'`,
+          [log.to, log.template_key, log.reference_id],
+        ),
+      );
+      guardCount = Number(countRows[0]?.count ?? 0);
+    } catch (err) {
+      // A guard-query failure must not crash the whole batch the way the
+      // COALESCE bug did — skip just this row.
+      logger.error("[scheduler] Retry-count guard failed, skipping row", err);
+      skipped++;
+      continue;
+    }
+    if (guardCount >= 3) {
       skipped++;
       continue;
     }

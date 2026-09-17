@@ -7,11 +7,12 @@
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
       const sp       = req.nextUrl.searchParams;
       const page     = Math.max(1, parseInt(sp.get('page') ?? '1', 10));
       const limit    = Math.min(100, Math.max(1, parseInt(sp.get('limit') ?? '25', 10)));
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
       const where = conditions.join(' AND ');
 
-      const [{ rows: items }, { rows: countRows }] = await withAdminDb(async (db) =>
+      const [{ rows: items }, { rows: countRows }] = await withDb(ctx, async (db) =>
         Promise.all([
           db.query(
             `SELECT id, transaction_type, direction, mpesa_receipt_number,

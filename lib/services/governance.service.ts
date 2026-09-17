@@ -351,6 +351,21 @@ export async function computeGroupGovernanceSnapshot(
       [groupId, asOf, m.code, m.value, m.numerator ?? null, m.denominator ?? null, rag, prior, trend],
     );
 
+    // Record audit log for governance snapshot — system-triggered
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered
+        'governanceSnapshot.compute',
+        'governance_snapshot',
+        `${groupId}:${asOf}:${m.code}`,
+        null,
+        JSON.stringify({ metric_code: m.code, value: m.value, rag }),
+      ],
+    );
+
     if ((HEALTH_SCORE_METRICS as readonly string[]).includes(m.code)) ragForHealthScore.push(rag);
 
     if (rag === 'amber' || rag === 'red') {
@@ -363,6 +378,23 @@ export async function computeGroupGovernanceSnapshot(
         [groupId, m.code, asOf, severity, m.value, `${m.code} is ${severity} (${m.value?.toFixed(1) ?? 'n/a'})`, dedupKey],
       );
       alertsRaised += rowCount ?? 0;
+
+      // Record audit log for governance alerts — system-triggered
+      if (rowCount) {
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            null, // system-triggered
+            'governanceAlert.raised',
+            'governance_alert',
+            `${groupId}:${m.code}:${asOf}`,
+            null,
+            JSON.stringify({ metric_code: m.code, severity, value: m.value }),
+          ],
+        );
+      }
     }
   }
 
@@ -380,11 +412,28 @@ export async function computeGroupGovernanceSnapshot(
        ON CONFLICT (group_id, as_of, period_type, metric_code) DO UPDATE SET value = EXCLUDED.value, rag = EXCLUDED.rag, computed_at = NOW()`,
       [groupId, asOf, healthScore, healthRag],
     );
+
+    // Record audit log for governance health score — system-triggered
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered
+        'governanceHealthScore.compute',
+        'governance_health_score',
+        `${groupId}:${asOf}`,
+        null,
+        JSON.stringify({ score: healthScore, category: healthRag }),
+      ],
+    );
+
+    const components = JSON.stringify(Object.fromEntries(metrics.filter((m) => HEALTH_SCORE_METRICS.includes(m.code as never)).map((m) => [m.code, m.value])));
     await client.query(
       `INSERT INTO governance_health_scores (group_id, as_of, period_type, score, category, components)
        VALUES ($1, $2, 'monthly', $3, $4, $5)
        ON CONFLICT (group_id, as_of, period_type) DO UPDATE SET score = EXCLUDED.score, category = EXCLUDED.category, components = EXCLUDED.components, computed_at = NOW()`,
-      [groupId, asOf, healthScore, healthRag, JSON.stringify(Object.fromEntries(metrics.filter((m) => HEALTH_SCORE_METRICS.includes(m.code as never)).map((m) => [m.code, m.value])))],
+      [groupId, asOf, healthScore, healthRag, components],
     );
   }
 
@@ -461,19 +510,52 @@ export async function listGovernanceAlerts(params: {
 
 export async function acknowledgeAlert(alertId: string, adminId: string) {
   return withAdminDb(async (db: PoolClient) => {
+    // Read prior state
+    const { rows: prior } = await db.query<{ group_id: string; status: string; severity: string; metric_code: string; as_of: string }>(
+      `SELECT group_id, status, severity, metric_code, as_of FROM public.governance_alerts WHERE id = $1 AND status = 'open'`,
+      [alertId],
+    );
+    if (!prior[0]) throw new NotFoundError('Open governance alert', alertId);
+
+    const priorAlert = prior[0];
     const { rowCount } = await db.query(
       `UPDATE public.governance_alerts
        SET status = 'acknowledged', acknowledged_by = $2, acknowledged_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND status = 'open'`,
       [alertId, adminId],
     );
-    if (!rowCount) throw new NotFoundError('Open governance alert', alertId);
+
+    if (rowCount) {
+      // Record audit log for alert acknowledgement — admin-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          priorAlert.group_id,
+          adminId,
+          'governanceAlert.acknowledge',
+          'governance_alert',
+          alertId,
+          JSON.stringify({ status: priorAlert.status }),
+          JSON.stringify({ status: 'acknowledged', acknowledged_by: adminId }),
+        ],
+      );
+    }
+
     return { success: true };
   });
 }
 
 export async function resolveAlert(alertId: string, adminId: string) {
   return withAdminDb(async (db: PoolClient) => {
+    // Read prior state
+    const { rows: prior } = await db.query<{ group_id: string; status: string; severity: string; metric_code: string; as_of: string }>(
+      `SELECT group_id, status, severity, metric_code, as_of FROM public.governance_alerts WHERE id = $1 AND status != 'resolved'`,
+      [alertId],
+    );
+    if (!prior[0]) throw new NotFoundError('Governance alert', alertId);
+
+    const priorAlert = prior[0];
     const { rowCount } = await db.query(
       `UPDATE public.governance_alerts
        SET status = 'resolved', acknowledged_by = COALESCE(acknowledged_by, $2),
@@ -481,7 +563,24 @@ export async function resolveAlert(alertId: string, adminId: string) {
        WHERE id = $1 AND status != 'resolved'`,
       [alertId, adminId],
     );
-    if (!rowCount) throw new NotFoundError('Governance alert', alertId);
+
+    if (rowCount) {
+      // Record audit log for alert resolution — admin-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          priorAlert.group_id,
+          adminId,
+          'governanceAlert.resolve',
+          'governance_alert',
+          alertId,
+          JSON.stringify({ status: priorAlert.status }),
+          JSON.stringify({ status: 'resolved', resolved_by: adminId }),
+        ],
+      );
+    }
+
     return { success: true };
   });
 }

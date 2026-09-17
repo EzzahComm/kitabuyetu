@@ -162,25 +162,26 @@ export const membersService = {
       const orderCol = validSortColumns[sortBy] ?? 'm.first_name';
       const orderDir = sortDir === 'desc' ? 'DESC' : 'ASC';
 
-      const countResult = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count
-         FROM group_members gm
-         JOIN members m ON m.id = gm.member_id
-         WHERE gm.group_id = $1 ${where}`,
-        values,
-      );
+      const [countResult, rows] = await Promise.all([
+        client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count
+           FROM group_members gm
+           JOIN members m ON m.id = gm.member_id
+           WHERE gm.group_id = $1 ${where}`,
+          values,
+        ),
+        client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
+          `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
+                  gm.membership_no
+           FROM group_members gm
+           JOIN members m ON m.id = gm.member_id
+           WHERE gm.group_id = $1 ${where}
+           ORDER BY ${orderCol} ${orderDir}
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...values, limit, offset],
+        ),
+      ]);
       const total = parseInt(countResult.rows[0].count, 10);
-
-      const rows = await client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
-        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
-                gm.membership_no
-         FROM group_members gm
-         JOIN members m ON m.id = gm.member_id
-         WHERE gm.group_id = $1 ${where}
-         ORDER BY ${orderCol} ${orderDir}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...values, limit, offset],
-      );
 
       const data = rows.rows.map((m) => stripSecrets(applyMemberMask(m, ctx.role) as typeof m));
 
@@ -188,17 +189,37 @@ export const membersService = {
     });
   },
 
-  async getById(ctx: TenantContext, memberId: string): Promise<SafeMember & { group_role: string; group_status: string; joined_at: Date }> {
+  async getById(ctx: TenantContext, memberId: string): Promise<
+    SafeMember & { group_role: string; group_status: string; joined_at: Date; total_contributed: string; active_loans_count: number }
+  > {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<Member & { group_role: string; group_status: string; joined_at: Date }>(
-        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at
+      // total_contributed/active_loans_count are computed here (correlated
+      // subqueries, same shared connection as the member row) rather than
+      // reduced client-side over the profile page's own 10-row contributions/
+      // loans pages — a lifetime SUM/count over a paginated slice silently
+      // understates once a member passes 11 contributions
+      // (docs/audits/optimization-2026-09).
+      const { rows } = await client.query<Member & {
+        group_role: string; group_status: string; joined_at: Date;
+        total_contributed: string; active_loans_count: string;
+      }>(
+        `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
+                COALESCE((
+                  SELECT SUM(c.amount) FROM contributions c
+                  WHERE c.member_id = m.id AND c.group_id = $2 AND c.status = 'completed'
+                ), 0) AS total_contributed,
+                (
+                  SELECT COUNT(*) FROM loans l
+                  WHERE l.member_id = m.id AND l.group_id = $2 AND l.status IN ('active', 'disbursed')
+                ) AS active_loans_count
          FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $2
          WHERE m.id = $1`,
         [memberId, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      const safe = stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      return { ...safe, active_loans_count: Number(safe.active_loans_count) };
     });
   },
 
@@ -291,7 +312,31 @@ export const membersService = {
         'SELECT * FROM members WHERE id = $1',
         [memberId],
       );
-      return { member: stripSecrets(rows[0]), membershipNo: link.membershipNo };
+      const member = rows[0];
+
+      // Record audit log for member creation
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'member.create',
+          'member',
+          memberId,
+          null,
+          JSON.stringify({
+            first_name: member.first_name,
+            last_name: member.last_name,
+            phone: member.phone,
+            email: member.email,
+            national_id: member.national_id,
+            status: 'created',
+          }),
+        ],
+      );
+
+      return { member: stripSecrets(member), membershipNo: link.membershipNo };
     });
 
     // After the commit, never inside it — see emitMemberRegisteredEvent.
@@ -306,6 +351,14 @@ export const membersService = {
 
   async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<SafeMember> {
     return withTransaction(ctx, async (client) => {
+      // Fetch the existing member to capture old values
+      const { rows: existing } = await client.query<Member>(
+        'SELECT * FROM members WHERE id = $1',
+        [memberId],
+      );
+      if (!existing[0]) throw new NotFoundError('Member', memberId);
+      const prev = existing[0];
+
       // Field mapping kept explicit so unknown fields can't be smuggled into
       // the SQL via a dynamic object spread.
       const fieldMap: Record<string, string> = {
@@ -344,21 +397,71 @@ export const membersService = {
         `UPDATE members SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
         values,
       );
-      if (!rows[0]) throw new NotFoundError('Member', memberId);
-      return stripSecrets(rows[0]);
+      const updated = rows[0];
+
+      // Record audit log
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'member.update',
+          'member',
+          memberId,
+          JSON.stringify({
+            first_name: prev.first_name,
+            last_name: prev.last_name,
+            email: prev.email,
+            national_id: prev.national_id,
+          }),
+          JSON.stringify({
+            first_name: updated.first_name,
+            last_name: updated.last_name,
+            email: updated.email,
+            national_id: updated.national_id,
+          }),
+        ],
+      );
+
+      return stripSecrets(updated);
     });
   },
 
   async updateRole(ctx: TenantContext, memberId: string, role: string): Promise<GroupMember> {
     return withTransaction(ctx, async (client) => {
+      // Fetch existing to capture old role
+      const { rows: existing } = await client.query<GroupMember>(
+        `SELECT * FROM group_members WHERE group_id = $1 AND member_id = $2`,
+        [ctx.groupId, memberId],
+      );
+      if (!existing[0]) throw new NotFoundError('Group membership for member', memberId);
+      const prev = existing[0];
+
       const { rows } = await client.query<GroupMember>(
         `UPDATE group_members SET role = $1
          WHERE group_id = $2 AND member_id = $3
          RETURNING *`,
         [role, ctx.groupId, memberId],
       );
-      if (!rows[0]) throw new NotFoundError('Group membership for member', memberId);
-      return rows[0];
+      const updated = rows[0];
+
+      // Record audit log
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'member.updateRole',
+          'member',
+          memberId,
+          JSON.stringify({ role: prev.role }),
+          JSON.stringify({ role: updated.role }),
+        ],
+      );
+
+      return updated;
     });
   },
 
@@ -449,7 +552,24 @@ export const membersService = {
          RETURNING *`,
         values,
       );
-      return rows[0];
+      const updated = rows[0];
+
+      // Record audit log for status transition
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          `member.${target}`,
+          'member',
+          memberId,
+          JSON.stringify({ status: current[0].status }),
+          JSON.stringify({ status: target, reason: reason ?? null }),
+        ],
+      );
+
+      return updated;
     });
   },
 
@@ -490,6 +610,21 @@ export const membersService = {
 
       const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
       await client.query('UPDATE members SET password_hash = $1 WHERE id = $2', [newHash, memberId]);
+
+      // Record audit log for password change (don't include actual hash values)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'member.changePassword',
+          'member',
+          memberId,
+          null,
+          JSON.stringify({ action: 'password_changed' }),
+        ],
+      );
     });
   },
 
@@ -543,7 +678,29 @@ export const membersService = {
             data.nationalId || null, data.priority, data.notes || null,
           ],
         );
-        return rows[0];
+        const kinRecord = rows[0];
+
+        // Record audit log for next-of-kin creation
+        await client.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'nextOfKin.create',
+            'next_of_kin',
+            kinRecord.id,
+            null,
+            JSON.stringify({
+              full_name: kinRecord.full_name,
+              relationship: kinRecord.relationship,
+              phone: kinRecord.phone,
+              priority: kinRecord.priority,
+            }),
+          ],
+        );
+
+        return kinRecord;
       } catch (e) {
         if (e instanceof DatabaseError && e.code === '23505' && e.constraint === 'uq_nok_one_primary_per_member') {
           throw new ConflictError(
@@ -562,6 +719,14 @@ export const membersService = {
     data: UpdateNextOfKinInput,
   ) {
     return withTransaction(ctx, async (client) => {
+      // Fetch existing to capture old values
+      const { rows: existing } = await client.query(
+        `SELECT * FROM next_of_kin WHERE group_id = $1 AND member_id = $2 AND id = $3`,
+        [ctx.groupId, memberId, kinId],
+      );
+      if (!existing[0]) throw new NotFoundError('Next of kin', kinId);
+      const prev = existing[0];
+
       const fieldMap: Record<string, string> = {
         fullName:         'full_name',
         relationship:     'relationship',
@@ -603,18 +768,69 @@ export const membersService = {
          RETURNING *`,
         values,
       );
-      if (!rows[0]) throw new NotFoundError('Next of kin', kinId);
-      return rows[0];
+      const updated = rows[0];
+
+      // Record audit log for next-of-kin update
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'nextOfKin.update',
+          'next_of_kin',
+          kinId,
+          JSON.stringify({
+            full_name: prev.full_name,
+            relationship: prev.relationship,
+            priority: prev.priority,
+          }),
+          JSON.stringify({
+            full_name: updated.full_name,
+            relationship: updated.relationship,
+            priority: updated.priority,
+          }),
+        ],
+      );
+
+      return updated;
     });
   },
 
   async deleteNextOfKin(ctx: TenantContext, memberId: string, kinId: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
+      // Fetch existing to capture old values before deletion
+      const { rows: existing } = await client.query(
+        `SELECT * FROM next_of_kin WHERE group_id = $1 AND member_id = $2 AND id = $3`,
+        [ctx.groupId, memberId, kinId],
+      );
+      if (!existing[0]) throw new NotFoundError('Next of kin', kinId);
+      const prev = existing[0];
+
       const { rowCount } = await client.query(
         `DELETE FROM next_of_kin WHERE group_id = $1 AND member_id = $2 AND id = $3`,
         [ctx.groupId, memberId, kinId],
       );
       if (!rowCount) throw new NotFoundError('Next of kin', kinId);
+
+      // Record audit log for next-of-kin deletion
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'nextOfKin.delete',
+          'next_of_kin',
+          kinId,
+          JSON.stringify({
+            full_name: prev.full_name,
+            relationship: prev.relationship,
+            phone: prev.phone,
+          }),
+          JSON.stringify({ deleted: true }),
+        ],
+      );
     });
   },
 };

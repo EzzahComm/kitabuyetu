@@ -57,7 +57,7 @@ const GROUP_STATUS_TONE: Record<string, Tone> = {
 };
 
 const PLAN_BADGE: Record<string, string> = {
-  starter:    'bg-gray-100 text-gray-700 border-gray-200',
+  starter:    'bg-muted text-muted-foreground border-border',
   growth:     'bg-blue-100 text-blue-700 border-blue-200',
   premium:    'bg-amber-100 text-amber-700 border-amber-200',
   enterprise: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -244,7 +244,7 @@ export default function GroupDetailPage({
               )}
               {grp.onboarding_status !== 'deactivated' && (
                 <DropdownMenuItem onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
-                  className="text-gray-600">
+                  className="text-muted-foreground">
                   <XCircle size={13} className="mr-2" /> Deactivate
                 </DropdownMenuItem>
               )}
@@ -254,7 +254,7 @@ export default function GroupDetailPage({
         }
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${grp.plan ? (PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-700 border-gray-200') : 'bg-red-50 text-red-600 border-red-200'}`}>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${grp.plan ? (PLAN_BADGE[grp.plan] ?? 'bg-muted text-muted-foreground border-border') : 'bg-red-50 text-red-600 border-red-200'}`}>
             {grp.plan ?? 'No plan'}
           </span>
           <StatusPill status={grp.onboarding_status} tone={GROUP_STATUS_TONE[grp.onboarding_status]} size="sm" />
@@ -295,7 +295,7 @@ export default function GroupDetailPage({
           title="Open Tickets"
           value={parseInt(stats.open_tickets ?? '0').toLocaleString()}
           icon={Headphones}
-          iconClass={parseInt(stats.open_tickets ?? '0') > 0 ? 'bg-amber-50' : 'bg-gray-100'}
+          iconClass={parseInt(stats.open_tickets ?? '0') > 0 ? 'bg-amber-50' : 'bg-muted'}
           className={parseInt(stats.open_tickets ?? '0') > 0 ? 'border-amber-200' : ''}
         />
       </div>
@@ -312,24 +312,24 @@ export default function GroupDetailPage({
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
               <div>
-                <p className="text-gray-400 mb-0.5">Type</p>
-                <p className="font-medium text-gray-900 capitalize">{TYPE_LABELS[grp.group_type] ?? grp.group_type}</p>
+                <p className="text-muted-foreground mb-0.5">Type</p>
+                <p className="font-medium text-foreground capitalize">{TYPE_LABELS[grp.group_type] ?? grp.group_type}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Subscription</p>
-                <p className="font-medium text-gray-900 capitalize">{grp.subscription_status ?? 'None'}</p>
+                <p className="text-muted-foreground mb-0.5">Subscription</p>
+                <p className="font-medium text-foreground capitalize">{grp.subscription_status ?? 'None'}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Plan Period End</p>
-                <p className="font-medium text-gray-900">{grp.current_period_end ? formatDate(grp.current_period_end) : '—'}</p>
+                <p className="text-muted-foreground mb-0.5">Plan Period End</p>
+                <p className="font-medium text-foreground">{grp.current_period_end ? formatDate(grp.current_period_end) : '—'}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Registered</p>
-                <p className="font-medium text-gray-900">{formatDate(grp.created_at)}</p>
+                <p className="text-muted-foreground mb-0.5">Registered</p>
+                <p className="font-medium text-foreground">{formatDate(grp.created_at)}</p>
               </div>
               {grp.kyc_verified_at && (
                 <div className="col-span-2">
-                  <p className="text-gray-400 mb-0.5">KYC Verified</p>
+                  <p className="text-muted-foreground mb-0.5">KYC Verified</p>
                   <p className="font-medium text-green-600 flex items-center gap-1">
                     <ShieldCheck size={12} /> {formatDate(grp.kyc_verified_at)}
                   </p>
@@ -340,20 +340,20 @@ export default function GroupDetailPage({
             {/* Governance health score — computed monthly by the health-
                 scoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) from
                 real liquidity/credit/profitability/growth metrics. */}
-            <div className="pt-2.5 border-t border-gray-100">
-              <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1.5"><Activity size={11} /> Governance Health Score</p>
+            <div className="pt-2.5 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5"><Activity size={11} /> Governance Health Score</p>
               {!snapshot?.healthScore ? (
-                <p className="text-xs text-gray-400">Not yet computed — runs monthly, or trigger it manually from Admin tools.</p>
+                <p className="text-xs text-muted-foreground">Not yet computed — runs monthly, or trigger it manually from Admin tools.</p>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${snapshot.healthScore.rag === 'red' ? 'bg-red-500' : snapshot.healthScore.rag === 'amber' ? 'bg-amber-500' : 'bg-green-500'}`}
                         style={{ width: `${snapshot.healthScore.score}%` }}
                       />
                     </div>
-                    <span className="text-xs font-semibold text-gray-700">{snapshot.healthScore.score}</span>
+                    <span className="text-xs font-semibold text-muted-foreground">{snapshot.healthScore.score}</span>
                     <StatusPill
                       status={snapshot.healthScore.rag}
                       tone={snapshot.healthScore.rag === 'red' ? 'negative' : snapshot.healthScore.rag === 'amber' ? 'warning' : 'positive'}
@@ -361,15 +361,15 @@ export default function GroupDetailPage({
                       size="sm"
                     />
                   </div>
-                  <p className="text-[11px] text-gray-400">As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}</p>
+                  <p className="text-[11px] text-muted-foreground">As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}</p>
                 </div>
               )}
             </div>
 
             {grp.admin_notes && (
-              <div className="pt-2.5 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-1">Admin Notes</p>
-                <p className="text-xs text-gray-700 bg-gray-50 rounded-lg p-2.5 leading-relaxed">{grp.admin_notes}</p>
+              <div className="pt-2.5 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-1">Admin Notes</p>
+                <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2.5 leading-relaxed">{grp.admin_notes}</p>
               </div>
             )}
           </CardContent>
@@ -392,20 +392,20 @@ export default function GroupDetailPage({
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{grp.admin_name}</p>
-                    <p className="text-xs text-gray-500">Chairperson</p>
+                    <p className="text-sm font-semibold text-foreground">{grp.admin_name}</p>
+                    <p className="text-xs text-muted-foreground">Chairperson</p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   {grp.admin_email && (
                     <a href={`mailto:${grp.admin_email}`}
-                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
                       <Mail size={12} /> {grp.admin_email}
                     </a>
                   )}
                   {grp.admin_phone && (
                     <a href={`tel:${grp.admin_phone}`}
-                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
                       <Phone size={12} /> {grp.admin_phone}
                     </a>
                   )}
@@ -415,15 +415,15 @@ export default function GroupDetailPage({
               <p className="text-sm text-muted-foreground py-6 text-center">No admin assigned</p>
             )}
 
-            <div className="mt-4 pt-3 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial Summary</p>
+            <div className="mt-4 pt-3 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Financial Summary</p>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Total Payments Collected</span>
-                  <span className="font-semibold text-gray-900">{formatKES(stats.total_payments ?? 0)}</span>
+                  <span className="text-muted-foreground">Total Payments Collected</span>
+                  <span className="font-semibold text-foreground">{formatKES(stats.total_payments ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Active Loan Portfolio</span>
+                  <span className="text-muted-foreground">Active Loan Portfolio</span>
                   <span className="font-semibold text-blue-600">{formatKES(stats.active_loans_amount ?? 0)}</span>
                 </div>
               </div>
@@ -458,14 +458,14 @@ export default function GroupDetailPage({
                 key: 'name', header: 'Name',
                 render: (m) => (
                   <div>
-                    <p className="font-medium text-gray-900">{m.first_name} {m.last_name}</p>
-                    {m.member_code && <p className="text-[11px] font-mono text-gray-400">{m.member_code}</p>}
+                    <p className="font-medium text-foreground">{m.first_name} {m.last_name}</p>
+                    {m.member_code && <p className="text-[11px] font-mono text-muted-foreground">{m.member_code}</p>}
                   </div>
                 ),
               },
-              { key: 'contact', header: 'Contact', render: (m) => <span className="text-xs text-gray-600">{m.phone}{m.email ? ` · ${m.email}` : ''}</span> },
-              { key: 'role', header: 'Role', render: (m) => <span className="text-xs text-gray-600 capitalize">{m.group_role?.replace('_', ' ')}</span> },
-              { key: 'joined', header: 'Joined', render: (m) => <span className="text-xs text-gray-500">{formatDate(m.joined_at)}</span> },
+              { key: 'contact', header: 'Contact', render: (m) => <span className="text-xs text-muted-foreground">{m.phone}{m.email ? ` · ${m.email}` : ''}</span> },
+              { key: 'role', header: 'Role', render: (m) => <span className="text-xs text-muted-foreground capitalize">{m.group_role?.replace('_', ' ')}</span> },
+              { key: 'joined', header: 'Joined', render: (m) => <span className="text-xs text-muted-foreground">{formatDate(m.joined_at)}</span> },
             ]}
           />
         </CardContent>
@@ -475,7 +475,7 @@ export default function GroupDetailPage({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity size={14} className="text-gray-500" /> Recent Activity
+            <Activity size={14} className="text-muted-foreground" /> Recent Activity
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -484,14 +484,14 @@ export default function GroupDetailPage({
           ) : (
             <div className="space-y-1">
               {activity.map((log, i) => (
-                <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
+                <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_DOT[log.action] ?? 'bg-gray-400'}`} />
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-gray-700">{log.action}</span>
-                    <span className="text-xs text-gray-400 mx-1.5">·</span>
-                    <span className="text-xs text-gray-600 font-mono">{log.table_name}</span>
+                    <span className="text-xs font-medium text-muted-foreground">{log.action}</span>
+                    <span className="text-xs text-muted-foreground mx-1.5">·</span>
+                    <span className="text-xs text-muted-foreground font-mono">{log.table_name}</span>
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">{formatDate(log.created_at)}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{formatDate(log.created_at)}</span>
                 </div>
               ))}
             </div>

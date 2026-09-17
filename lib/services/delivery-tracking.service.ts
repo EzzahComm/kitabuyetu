@@ -103,7 +103,16 @@ export async function getEmailAnalytics(groupId: string | null, days = 30): Prom
   byCategory: { category: string; count: number }[];
   byDay: { date: string; sent: number; failed: number }[];
 }> {
-  const groupFilter = groupId ? `AND group_id = '${groupId}'` : '';
+  // Was string-interpolated (`AND group_id = '${groupId}'`) directly into the
+  // SQL text instead of a parameterised placeholder — every other query in
+  // this file (and the codebase) passes values as $N params. Not currently
+  // exploitable (groupId here always comes from a verified JWT via
+  // app/api/v1/email/analytics/route.ts, never raw user input), but a
+  // fragile pattern that becomes a real injection the moment any future
+  // caller passes something less trusted. `days` was already parameterised
+  // as $1; groupId now takes $2 the same way, only appended when present.
+  const groupFilter = groupId ? `AND group_id = $2` : '';
+  const params: unknown[] = groupId ? [days, groupId] : [days];
 
   const [totals, byCategory, byDay] = await Promise.all([
     withAdminDb((db) =>
@@ -116,7 +125,7 @@ export async function getEmailAnalytics(groupId: string | null, days = 30): Prom
            COUNT(*)                                                              AS total
          FROM email_logs
          WHERE created_at >= NOW() - ($1 || ' days')::interval ${groupFilter}`,
-        [days],
+        params,
       ),
     ),
     withAdminDb((db) =>
@@ -125,7 +134,7 @@ export async function getEmailAnalytics(groupId: string | null, days = 30): Prom
          FROM email_logs
          WHERE created_at >= NOW() - ($1 || ' days')::interval ${groupFilter}
          GROUP BY category ORDER BY count DESC`,
-        [days],
+        params,
       ),
     ),
     withAdminDb((db) =>
@@ -136,7 +145,7 @@ export async function getEmailAnalytics(groupId: string | null, days = 30): Prom
          FROM email_logs
          WHERE created_at >= NOW() - ($1 || ' days')::interval ${groupFilter}
          GROUP BY DATE(created_at) ORDER BY date`,
-        [days],
+        params,
       ),
     ),
   ]);

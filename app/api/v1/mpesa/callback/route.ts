@@ -8,7 +8,7 @@ import {
   type StkCallbackBody,
 } from '@/lib/services/mpesa.service';
 import { billingService } from '@/lib/services/billing.service';
-import { isSafaricomIp } from '@/lib/services/daraja.service';
+import { isSafaricomIp, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -30,6 +30,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // We log the caller IP so the allow-list can be re-tightened with real values.
   if (!isSafaricomIp(callerIp)) {
     logger.warn('[mpesa/callback] caller IP not in Safaricom allow-list — processing anyway', { callerIp });
+  }
+
+  // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): the
+  // CallBackURL Daraja was given at STK-push time (initiateStkPush,
+  // daraja.service.ts) carries `?token=`. A forged/replayed POST that
+  // doesn't know the secret is dropped before it can touch any payment
+  // state. Acked (not rejected) so a prober learns nothing from the
+  // response, and logged so a real misconfiguration is visible.
+  if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+    logger.warn('[mpesa/callback] invalid or missing token — dropped', { callerIp });
+    return ack();
   }
 
   const rawBody  = await req.text();

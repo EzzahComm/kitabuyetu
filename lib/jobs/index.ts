@@ -77,11 +77,26 @@ export async function enqueueTimeBasedJobs(): Promise<
   // A CONSTANT dedup key makes the partial unique index on job_queue enforce
   // the real invariant (at most one non-terminal row per type), same fix
   // already applied to the SMS sweeps below.
-  queued.email_campaign_process = await safe(
-    "email_campaign_process",
-    {},
-    { priority: 5, dedup_key: "email_campaign_process" },
-  );
+  // Gated on real pending work existing, unlike every other type above and
+  // below: email_schedules (processDueSchedules' own source table) and
+  // email_campaign_recipients have held zero rows for as long as this
+  // feature has existed in production (docs/audits/optimization-2026-09) —
+  // both handlers still ran unconditionally every 5 minutes regardless,
+  // which is pure wasted work (a full SELECT/UPDATE against permanently
+  // empty tables, 288 times/day, forever). Genuinely dropping the enqueue
+  // entirely was considered and rejected: both tables have a real INSERT
+  // path (email.service.ts, campaign.service.ts) that's simply never been
+  // exercised yet, not dead code — an existence check costs far less than
+  // the handler it guards and does the right thing the moment either
+  // feature is actually used, with zero risk of silently orphaning future
+  // work the way removing the enqueue outright would.
+  queued.email_campaign_process = (await hasDueEmailSchedule())
+    ? await safe(
+        "email_campaign_process",
+        {},
+        { priority: 5, dedup_key: "email_campaign_process" },
+      )
+    : null;
 
   queued.email_retry_failed = await safe(
     "email_retry_failed",
@@ -92,12 +107,15 @@ export async function enqueueTimeBasedJobs(): Promise<
   // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
   // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's
-  // lib/queue + lib/jobs merge).
-  queued.email_campaign_drain = await safe(
-    "email_campaign_drain",
-    {},
-    { priority: 5, dedup_key: "email_campaign_drain" },
-  );
+  // lib/queue + lib/jobs merge). Gated — see comment above
+  // email_campaign_process.
+  queued.email_campaign_drain = (await hasPendingCampaignRecipients())
+    ? await safe(
+        "email_campaign_drain",
+        {},
+        { priority: 5, dedup_key: "email_campaign_drain" },
+      )
+    : null;
 
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
   //
@@ -166,6 +184,20 @@ export async function enqueueTimeBasedJobs(): Promise<
     {
       priority: 3,
       dedup_key: "sms_release_stale_reservations",
+    },
+  );
+
+  // Report-schedule sweep (Phase 5 gap analysis item 2). Same self-idempotent
+  // constant-dedup-key shape as the SMS sweeps above — at most one
+  // outstanding row, freed the moment it completes, so this "ensures one is
+  // queued" rather than minting a new one every 5 minutes regardless of
+  // whether the last run finished.
+  queued.organization_report_schedules_process = await safe(
+    'organization_report_schedules_process',
+    {},
+    {
+      priority: 2,
+      dedup_key: 'organization_report_schedules_process',
     },
   );
 
@@ -239,7 +271,35 @@ export async function enqueueTimeBasedJobs(): Promise<
         dedup_key: `sms_provider_health:${dateStr}T${hour}`,
       },
     );
+
+    // Paybill sweep — detects completed inbound C2B transactions with no
+    // domain record. Had no scheduler at all until now: only reachable via
+    // a manual authenticated endpoint, and had run exactly once in the
+    // platform's lifetime (2026-07-29) — meanwhile mpesa_reconcile above
+    // (which finds nothing 98%+ of the time) ran every 5 minutes forever.
+    // Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so hourly
+    // carries no correctness risk (docs/audits/optimization-2026-09).
+    queued.mpesa_paybill_sweep = await safe(
+      "mpesa_paybill_sweep",
+      {},
+      {
+        priority: 8, // detecting lost inbound money, same tier as outbox_dispatch
+        dedup_key: `mpesa_paybill_sweep:${dateStr}T${hour}`,
+      },
+    );
   }
+
+  // Every block below now carries `&& fiveMinBucket === 0`, matching the
+  // hourly block above. Without it, each ran on EVERY 5-minute tick of its
+  // target hour, not once: idx_job_queue_dedup's partial unique index only
+  // excludes non-terminal rows (`status <> ALL(['completed','failed'])`),
+  // so the moment a fast job completes (most of these do, well under 5
+  // minutes), its dedup_key falls out of the index and the next tick's
+  // enqueue call finds nothing blocking a fresh duplicate. Confirmed live:
+  // sms_birthday_reminders ran 7-8 times/day for 1 intended, mpesa_balance_
+  // snapshot (a real Daraja Account Balance call each time) 26 extra times
+  // over 7 days — a genuine external-API cost, not just DB churn
+  // (docs/audits/optimization-2026-09).
 
   // ── Daily 06:00 EAT — recurring invoices ──────────────────────
   // Gated on a due schedule actually existing — invoicing has never
@@ -247,7 +307,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // dead-weight finding #12), so this job has been running to completion
   // against zero rows every day. The WHERE clause mirrors
   // processRecurringInvoices' own query exactly.
-  if (hour === 6 && (await hasDueInvoiceSchedule())) {
+  if (hour === 6 && fiveMinBucket === 0 && (await hasDueInvoiceSchedule())) {
     queued.email_recurring_invoices = await safe(
       "email_recurring_invoices",
       {},
@@ -270,7 +330,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // built as a global job like notify_loan_due_alerts rather than a
   // per-group schedule row, since "who gets messaged" varies by the day
   // (today's birthdays), not a fixed recipient list on a fixed cadence.
-  if (hour === 7) {
+  if (hour === 7 && fiveMinBucket === 0) {
     queued.email_birthday = await safe(
       "email_birthday",
       {},
@@ -292,7 +352,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
   // Gated the same way as the recurring-invoice job above — mirrors
   // sendOverdueInvoiceReminders' own WHERE clause exactly.
-  if (hour === 9 && (await hasOverdueInvoice())) {
+  if (hour === 9 && fiveMinBucket === 0 && (await hasOverdueInvoice())) {
     queued.email_overdue_invoices = await safe(
       "email_overdue_invoices",
       {},
@@ -304,7 +364,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Monday 08:00 EAT — weekly summaries ───────────────────────
-  if (day === 1 && hour === 8) {
+  if (day === 1 && hour === 8 && fiveMinBucket === 0) {
     queued.email_weekly_summary = await safe(
       "email_weekly_summary",
       {},
@@ -316,7 +376,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
-  if (hour === 2) {
+  if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(
       "cleanup_expired_tokens",
       {},
@@ -351,7 +411,7 @@ export async function enqueueTimeBasedJobs(): Promise<
 
   // ── Daily 03:00 EAT — M-Pesa charge backfill ──────
   // Catches B2C transactions that completed without an mpesa_charges row.
-  if (hour === 3) {
+  if (hour === 3 && fiveMinBucket === 0) {
     queued.mpesa_reconcile_charges = await safe(
       "mpesa_reconcile_charges",
       {},
@@ -365,7 +425,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 04:00 EAT — accounts.balance drift audit ─
   // Compares the denormalized balance column against journal_lines sums
   // and records any drift for finance review (detection only, no rewrite).
-  if (hour === 4) {
+  if (hour === 4 && fiveMinBucket === 0) {
     queued.accounting_balance_drift = await safe(
       "accounting_balance_drift",
       {},
@@ -377,7 +437,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 05:00 EAT — sub-account balance snapshot ─
-  if (hour === 5) {
+  if (hour === 5 && fiveMinBucket === 0) {
     queued.mpesa_balance_snapshot = await safe(
       "mpesa_balance_snapshot",
       {},
@@ -391,7 +451,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 06:00 EAT — GL-to-real-cash reconciliation ─
   // One hour after the balance snapshot trigger above, so its async Daraja
   // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
-  if (hour === 6) {
+  if (hour === 6 && fiveMinBucket === 0) {
     queued.gl_cash_reconciliation = await safe(
       "gl_cash_reconciliation",
       {},
@@ -403,7 +463,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── Daily 20:00 EAT — M-Pesa daily report email ───
-  if (hour === 20) {
+  if (hour === 20 && fiveMinBucket === 0) {
     queued.mpesa_daily_report = await safe(
       "mpesa_daily_report",
       {},
@@ -417,7 +477,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 06:00 EAT — loan-due alerts ─────────────
   // Members in Kenya are most likely to act on a reminder mid-morning;
   // 09:00 EAT lands their notification just before they head to work.
-  if (hour === 6) {
+  if (hour === 6 && fiveMinBucket === 0) {
     queued.notify_loan_due_alerts = await safe(
       "notify_loan_due_alerts",
       {},
@@ -445,7 +505,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // that day's first billed sends see a freshly-reset allowance rather than
   // the previous period's. Hour 1 remains otherwise unused across this file
   // (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
-  if (hour === 1) {
+  if (hour === 1 && fiveMinBucket === 0) {
     queued.sms_allowance_monthly_reset = await safe(
       "sms_allowance_monthly_reset",
       {},
@@ -469,7 +529,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   }
 
   // ── 1st of month 08:00 EAT — prune old jobs ───────────────────
-  if (date === 1 && hour === 8) {
+  if (date === 1 && hour === 8 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
 
     // Was a bare direct `await pruneOldJobs(30)` call, bypassing the
@@ -500,7 +560,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── 1st of month 10:00 EAT — per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
-  if (date === 1 && hour === 10) {
+  if (date === 1 && hour === 10 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.email_member_statements = await safe(
       "email_member_statements",
@@ -516,7 +576,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
   // unused across this file, so this never competes with an existing
   // monthly/daily bucket within the same tick.
-  if (date === 1 && hour === 11) {
+  if (date === 1 && hour === 11 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.governance_compute_metrics = await safe(
       "governance_compute_metrics",
@@ -573,6 +633,39 @@ async function hasDueInvoiceSchedule(): Promise<boolean> {
     );
     return rows[0]?.due === true;
   }).catch(() => true);
+}
+
+// Existence-check gates for the two campaign job types above — mirrors each
+// handler's own claim condition exactly (scheduler.service.ts's
+// processDueSchedules, campaign.service.ts's drainCampaignRecipients) so a
+// "yes" here always means the handler would find real work.
+async function hasDueEmailSchedule(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM email_schedules WHERE is_active = true AND next_run_at <= NOW() LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function hasPendingCampaignRecipients(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM email_campaign_recipients ecr
+         JOIN email_campaigns ec ON ec.id = ecr.campaign_id
+         WHERE ecr.status = 'pending' AND ec.status = 'sending'
+         LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 // ── Date helpers ──────────────────────────────────────────────

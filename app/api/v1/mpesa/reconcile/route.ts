@@ -17,7 +17,7 @@ import crypto from 'crypto';
 import { withPermission } from '@/lib/auth/middleware';
 import { runReconciliation, sweepPaybillTransactions } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
     try {
-      const rows = await withAdminDb(async (db) => {
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT r.*, m.first_name||' '||m.last_name AS initiated_by_name
            FROM mpesa_reconciliations r

@@ -13,12 +13,15 @@ import {
 import { Hero } from "@/components/Hero";
 import { Container } from "@/components/Container";
 import { SectionTitle } from "@/components/SectionTitle";
+import { WhoItsFor } from "@/components/WhoItsFor";
+import { ProblemSolution } from "@/components/ProblemSolution";
 import { Benefits } from "@/components/Benefits";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Testimonials } from "@/components/Testimonials";
 import { Cta } from "@/components/Cta";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { fraunces } from "@/components/marketing/fraunces-font";
 import { signUpUrl } from "@/lib/app-links";
 
 import benefitOneImg from "../public/img/benefit-one.jpg";
@@ -35,10 +38,32 @@ const Emphasis = ({ children }: { children: React.ReactNode }) => (
 
 export default function Home() {
   return (
-    <>
+    <div className={fraunces.variable}>
       <SiteHeader variant="overlay" />
 
       <Hero />
+
+      <SectionTitle
+        preTitle="Who it's for"
+        title="Built for the groups Kenyans already organize."
+      >
+        Chamas, SACCOs, welfare groups, investment groups, CBOs and the
+        organizations that support them — not a generic business tool
+        adapted to fit.
+      </SectionTitle>
+
+      <WhoItsFor />
+
+      <SectionTitle
+        preTitle="The problem"
+        title="Your group already keeps records. They just aren't reliable."
+      >
+        Every group tracks its money somehow. The problem is never effort —
+        it's that notebooks, spreadsheets and scattered M-Pesa messages
+        don't add up the same way twice.
+      </SectionTitle>
+
+      <ProblemSolution />
 
       <SectionTitle
         preTitle="The whole picture"
@@ -132,7 +157,7 @@ export default function Home() {
       />
 
       <SiteFooter />
-    </>
+    </div>
   );
 }
 

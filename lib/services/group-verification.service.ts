@@ -61,7 +61,7 @@ export async function startGroupVerification(
   const secret     = channel === 'email' ? generateEmailToken() : generateOtp();
   const secretHash = hashSecret(secret);
 
-  const { expires_at: expiresAt } = await withAdminDb(async (client) => {
+  const { id: attemptId, expires_at: expiresAt } = await withAdminDb(async (client) => {
     const { rows } = await client.query<{ result: { id: string; expires_at: string } }>(
       'SELECT start_registrant_verification($1, $2, $3, $4) AS result',
       [info.groupId, channel, destination, secretHash],
@@ -70,6 +70,12 @@ export async function startGroupVerification(
   });
 
   if (channel === 'email') {
+    // referenceType/referenceId identify this specific verification attempt
+    // (start_registrant_verification's own row id) so the Resend adapter's
+    // application-level dedup (lib/email/adapters/resend.ts) and idempotency
+    // key actually engage for this template — previously both were null
+    // here, so a retried send for this exact attempt was indistinguishable
+    // from a brand-new one (docs/audits/optimization-2026-09).
     await sendTemplatedEmail({
       templateKey: 'group_verification_link',
       to:          destination,
@@ -80,6 +86,8 @@ export async function startGroupVerification(
         verifyUrl: verifyUrlFor(secret),
       },
       groupId: info.groupId,
+      referenceType: 'group_verification',
+      referenceId:   attemptId,
     });
   } else {
     // sendServiceSms NEVER throws and NEVER returns void — it reports the

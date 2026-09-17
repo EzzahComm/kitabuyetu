@@ -62,8 +62,10 @@ export type PostingEvent =
   | 'loan_writeoff'
   | 'loan_disbursement'
   | 'loan_repayment'
+  | 'loan_charge'
   | 'settlement_sweep'
-  | 'vendor_payment';
+  | 'vendor_payment'
+  | 'fine_collection';
 
 export interface TemplateLine {
   accountCode: string;
@@ -130,6 +132,26 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1001', side: 'debit',  amount: 'interest' },
     { accountCode: '4002', side: 'credit', amount: 'interest' },
   ]},
+  // A configured loan charge (migration 179: loan_charge_types /
+  // loan_charges) — a processing fee, insurance fee, or automatic late
+  // charge — is added to what the borrower owes and recognized as revenue
+  // immediately, the moment it is applied (not deferred to when it is
+  // eventually collected). DR Loans Receivable / CR revenue.
+  //
+  // Reuses 4004 'Other Income' rather than introducing a new default account
+  // code: every group's chart of accounts already carries it (seeded since
+  // DEFAULT_ACCOUNTS' introduction), so posting works immediately for every
+  // existing group with no backfill migration needed, unlike a brand-new code
+  // which would only reach groups created after one. A group that wants a
+  // dedicated 'Loan Fee Income' line can remap this event to its own account
+  // via postingTemplatesService.setGroupOverride — exactly what the override
+  // mechanism exists for. Waiving a charge posts the same event inverted
+  // (loan-charges.service.ts's waiveCharge), which correctly reverses
+  // whichever account the group has it mapped to.
+  loan_charge: { lines: [
+    { accountCode: '1101', side: 'debit',  amount: 'amount' },
+    { accountCode: '4004', side: 'credit', amount: 'amount' },
+  ]},
   // Bank Accounts / Settlements / Vendor Payments rebuild. Matches migration
   // 134's policies seed exactly — see postSettlementSweepJournal/
   // postVendorPaymentJournal below for the wrapper functions.
@@ -147,6 +169,15 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     { accountCode: '1001', side: 'credit', amount: 'amount' },
     { accountCode: '5001', side: 'debit',  amount: 'fee' },
     { accountCode: '1001', side: 'credit', amount: 'fee' },
+  ]},
+  // Phase 3 (migration 180): a fine actually collected is realized revenue
+  // for the group, not a liability held in trust like welfare_pool_contribution
+  // — credited to 4004 (Other Income), the standard chart's only generic
+  // income account, rather than adding a new account code to every group's
+  // seeded chart of accounts.
+  fine_collection: { lines: [
+    { accountCode: '1001', side: 'debit',  amount: 'amount' },
+    { accountCode: '4004', side: 'credit', amount: 'amount' },
   ]},
 };
 
@@ -276,6 +307,22 @@ export async function postLoanDisbursementJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE loans SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.loanId]);
+
+  // Record audit log for loan-journal linkage
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'loan.journal_entry_posted',
+      'loan',
+      args.loanId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return { journalEntryId: jeId, chargePosted: postCharge };
 }
 
@@ -317,6 +364,22 @@ export async function postLoanRepaymentJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE loan_repayments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.repaymentId]);
+
+  // Record audit log for loan-repayment journal linkage
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'loan_repayment.journal_entry_posted',
+      'loan_repayment',
+      args.repaymentId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 
@@ -360,6 +423,22 @@ export async function postSettlementSweepJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE settlement_requests SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.settlementId]);
+
+  // Record audit log for settlement-journal linkage (system-triggered)
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'settlement_request.journal_entry_posted',
+      'settlement_request',
+      args.settlementId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 
@@ -415,6 +494,22 @@ export async function postVendorPaymentJournal(
   if (!jeId) return null;
 
   await client.query(`UPDATE vendor_payments SET journal_entry_id = $1 WHERE id = $2`, [jeId, args.vendorPaymentId]);
+
+  // Record audit log for vendor-payment journal linkage (system-triggered)
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'vendor_payment.journal_entry_posted',
+      'vendor_payment',
+      args.vendorPaymentId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
   return jeId;
 }
 

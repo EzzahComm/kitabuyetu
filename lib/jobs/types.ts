@@ -12,6 +12,7 @@ export type JobType =
   | "email_weekly_summary" // Member weekly summary (Monday 08:00 UTC)
   | "email_member_statements" // Per-member account statements, all active groups (1st of month, 10:00 UTC)
   | "mpesa_reconcile" // Reconcile stuck M-Pesa transactions (every 5 min)
+  | "mpesa_paybill_sweep" // Detect completed inbound C2B paybill transactions with no domain record (hourly)
   | "mpesa_replay_callbacks" // DLQ replay of unprocessed inbound callbacks (every 5 min)
   | "mpesa_reconcile_charges" // Backfill missing B2C charge rows + journals (daily 03:00 UTC)
   | "mpesa_daily_report" // Daily M-Pesa reconciliation email to officers (daily 20:00 UTC / 23:00 EAT)
@@ -39,6 +40,8 @@ export type JobType =
   | "sms_message_retention" // Redact SMS bodies past the retention window (daily 02:00 EAT)
   | "sms_allowance_monthly_reset" // Zero the bundled SMS allowance for every active-subscription group (1st of month, 01:00 UTC)
   | "organization_sms_allowance_grant" // Grant each org's bundled SMS allowance on its plan's monthly anniversary (daily)
+  | "organization_report_export" // Ad-hoc: render + upload one organization report export (enqueued on demand or by a due schedule)
+  | "organization_report_schedules_process" // Fire due report_schedules rows (every 5 min, mirrors sms_process_schedules)
   | "cleanup_old_jobs"; // Prune completed/failed job_queue + stale job_logs rows (1st of month, 08:00 UTC)
 
 export interface Job {

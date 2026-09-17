@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { createCampaign } from '@/lib/services/campaign.service';
 import { enqueueJob } from '@/lib/jobs';
 import { ok } from '@/lib/utils/response';
@@ -21,7 +21,8 @@ const CreateCampaignSchema = z.object({
 // existing messaging.send gate on its equivalent GET (list) route.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
-    const { rows } = await withAdminDb((db) =>
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const { rows } = await withDb(ctx, (db) =>
       db.query(
         `SELECT id, name, subject, status, total_recipients, sent_count, failed_count,
                 opened_count, scheduled_at, started_at, completed_at, created_at

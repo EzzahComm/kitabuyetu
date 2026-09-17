@@ -26,8 +26,13 @@ export interface FiscalPeriod {
 export const fiscalPeriodsService = {
   async list(ctx: TenantContext): Promise<FiscalPeriod[]> {
     return withDb(ctx, async (client) => {
+      // A row only exists once a period is closed, so this is naturally
+      // small — the cap is defensive (every other list query on this
+      // surface has one; this was the one exception, docs/audits/
+      // optimization-2026-09), generous enough that no real group closing
+      // periods monthly would ever hit it (100 months = 8+ years).
       const { rows } = await client.query<FiscalPeriod>(
-        `SELECT * FROM fiscal_periods WHERE group_id = $1 ORDER BY period_start DESC`,
+        `SELECT * FROM fiscal_periods WHERE group_id = $1 ORDER BY period_start DESC LIMIT 100`,
         [ctx.groupId],
       );
       return rows;

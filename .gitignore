@@ -52,3 +52,5 @@ coverage/
 !.env.test
 # Generated optimization backups — never lint these
 .optimization/
+
+.optimize/

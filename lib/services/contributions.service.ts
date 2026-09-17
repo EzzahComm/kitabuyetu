@@ -26,33 +26,38 @@ export const contributionsService = {
       const where   = conditions.join(' AND ');
       const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
 
-      const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
-      );
+      const [{ rows: countRows }, { rows }] = await Promise.all([
+        client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
+        ),
+        client.query<Contribution & { member_name: string }>(
+          `SELECT c.*,
+                  m.first_name || ' ' || m.last_name AS member_name
+           FROM contributions c
+           JOIN members m ON m.id = c.member_id
+           WHERE ${where}
+           ORDER BY c.contribution_date ${orderDir}
+           LIMIT $${idx} OFFSET $${idx + 1}`,
+          [...values, limit, offset],
+        ),
+      ]);
       const total = parseInt(countRows[0].count, 10);
-
-      const { rows } = await client.query<Contribution & { member_name: string }>(
-        `SELECT c.*,
-                m.first_name || ' ' || m.last_name AS member_name
-         FROM contributions c
-         JOIN members m ON m.id = c.member_id
-         WHERE ${where}
-         ORDER BY c.contribution_date ${orderDir}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...values, limit, offset],
-      );
 
       return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
     });
   },
 
   // Active members with no completed contribution in the current calendar month.
-  // Powers the treasurer home "needs you now" list — small per group, so we
-  // return the full set and let the caller cap the preview.
+  // Powers the treasurer home "needs you now" list. Only ever returns a
+  // 5-row sample + a count — COUNT(*) OVER () computes the true total over
+  // every matching row before LIMIT trims the output, so this needs one
+  // query and one round trip instead of materializing the full non-
+  // contributor set to then slice it in JS (docs/audits/optimization-2026-09).
   async nonContributors(ctx: TenantContext): Promise<{ count: number; sample: { id: string; name: string }[] }> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<{ id: string; name: string }>(
-        `SELECT m.id, m.first_name || ' ' || m.last_name AS name
+      const { rows } = await client.query<{ id: string; name: string; total_count: string }>(
+        `SELECT m.id, m.first_name || ' ' || m.last_name AS name,
+                COUNT(*) OVER () AS total_count
          FROM group_members gm
          JOIN members m ON m.id = gm.member_id
          WHERE gm.group_id = $1
@@ -64,10 +69,14 @@ export const contributionsService = {
                AND c.status = 'completed'
                AND c.contribution_date >= date_trunc('month', CURRENT_DATE)
            )
-         ORDER BY m.first_name, m.last_name`,
+         ORDER BY m.first_name, m.last_name
+         LIMIT 5`,
         [ctx.groupId],
       );
-      return { count: rows.length, sample: rows.slice(0, 5) };
+      return {
+        count: rows.length ? parseInt(rows[0].total_count, 10) : 0,
+        sample: rows.map(({ id, name }) => ({ id, name })),
+      };
     });
   },
 
@@ -215,6 +224,28 @@ export const contributionsService = {
 
       const contribution = rows[0];
 
+      // Record audit log entry (atomic with the contribution insert)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.create',
+          'contribution',
+          contribution.id,
+          null,
+          JSON.stringify({
+            id: contribution.id,
+            amount: contribution.amount,
+            contribution_date: contribution.contribution_date,
+            status: contribution.status,
+            payment_method: contribution.payment_method,
+            mpesa_receipt_number: contribution.mpesa_receipt_number,
+          }),
+        ],
+      );
+
       // Auto-post a journal entry when the contribution is completed on creation
       if (contribution.status === 'completed') {
         await postContributionJournal(client, {
@@ -304,6 +335,31 @@ export const contributionsService = {
       );
       const updated = rows[0];
 
+      // Record audit log entry for the update (atomic with the update)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.update',
+          'contribution',
+          updated.id,
+          JSON.stringify({
+            status: prev.status,
+            payment_method: prev.payment_method,
+            mpesa_receipt_number: prev.mpesa_receipt_number,
+            notes: prev.notes,
+          }),
+          JSON.stringify({
+            status: updated.status,
+            payment_method: updated.payment_method,
+            mpesa_receipt_number: updated.mpesa_receipt_number,
+            notes: updated.notes,
+          }),
+        ],
+      );
+
       // Post journal when status transitions to completed
       if (updated.status === 'completed' && prev.status !== 'completed') {
         await postContributionJournal(client, {
@@ -320,11 +376,33 @@ export const contributionsService = {
   // Only pending contributions can be cancelled; completed ones are immutable.
   async delete(ctx: TenantContext, id: string): Promise<void> {
     return withTransaction(ctx, async (client) => {
-      const { rowCount } = await client.query(
-        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
+      const { rows: existing } = await client.query<Contribution>(
+        `SELECT * FROM contributions WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
         [id, ctx.groupId],
       );
-      if (!rowCount) throw new NotFoundError('Pending contribution', id);
+      if (!existing[0]) throw new NotFoundError('Pending contribution', id);
+
+      const prev = existing[0];
+
+      await client.query(
+        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2`,
+        [id, ctx.groupId],
+      );
+
+      // Record audit log entry for the soft delete (atomic with the update)
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.delete',
+          'contribution',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: 'cancelled' }),
+        ],
+      );
     });
   },
 };

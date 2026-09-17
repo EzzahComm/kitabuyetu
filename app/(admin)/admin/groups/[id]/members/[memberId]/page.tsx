@@ -129,31 +129,31 @@ export default function AdminMemberDetailPage({
           </CardHeader>
           <CardContent className="space-y-2.5 text-xs">
             {profile.email && (
-              <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+              <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
                 <Mail size={12} /> {profile.email}
               </a>
             )}
             {profile.phone && (
-              <a href={`tel:${profile.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+              <a href={`tel:${profile.phone}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
                 <Phone size={12} /> {profile.phone}
               </a>
             )}
-            <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
+            <div className="pt-2 border-t border-border grid grid-cols-2 gap-y-2">
               <div>
-                <p className="text-gray-400 mb-0.5">Organization</p>
-                <p className="font-medium text-gray-900">{profile.organization_name ?? '—'}</p>
+                <p className="text-muted-foreground mb-0.5">Organization</p>
+                <p className="font-medium text-foreground">{profile.organization_name ?? '—'}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Group role</p>
-                <p className="font-medium text-gray-900 capitalize">{profile.group_role?.replace('_', ' ') ?? '—'}</p>
+                <p className="text-muted-foreground mb-0.5">Group role</p>
+                <p className="font-medium text-foreground capitalize">{profile.group_role?.replace('_', ' ') ?? '—'}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5 flex items-center gap-1"><Calendar size={10} /> Joined</p>
-                <p className="font-medium text-gray-900">{profile.joined_at ? formatDate(profile.joined_at) : '—'}</p>
+                <p className="text-muted-foreground mb-0.5 flex items-center gap-1"><Calendar size={10} /> Joined</p>
+                <p className="font-medium text-foreground">{profile.joined_at ? formatDate(profile.joined_at) : '—'}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Last login</p>
-                <p className="font-medium text-gray-900">{profile.last_login_at ? formatDate(profile.last_login_at) : 'Never'}</p>
+                <p className="text-muted-foreground mb-0.5">Last login</p>
+                <p className="font-medium text-foreground">{profile.last_login_at ? formatDate(profile.last_login_at) : 'Never'}</p>
               </div>
             </div>
           </CardContent>
@@ -170,7 +170,7 @@ export default function AdminMemberDetailPage({
             {creditScore ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-gray-900">{Number(creditScore.overall_score).toFixed(0)}</span>
+                  <span className="text-2xl font-bold text-foreground">{Number(creditScore.overall_score).toFixed(0)}</span>
                   <StatusPill
                     status={creditScore.reliability_tier}
                     tone={TIER_TONE[creditScore.reliability_tier as CreditTier]}
@@ -179,19 +179,19 @@ export default function AdminMemberDetailPage({
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <p className="text-gray-400">Financial</p>
-                    <p className="font-medium text-gray-900">{Number(creditScore.financial_score).toFixed(0)}</p>
+                    <p className="text-muted-foreground">Financial</p>
+                    <p className="font-medium text-foreground">{Number(creditScore.financial_score).toFixed(0)}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400">Social</p>
-                    <p className="font-medium text-gray-900">{Number(creditScore.social_score).toFixed(0)}</p>
+                    <p className="text-muted-foreground">Social</p>
+                    <p className="font-medium text-foreground">{Number(creditScore.social_score).toFixed(0)}</p>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-gray-100 flex justify-between text-xs">
-                  <span className="text-gray-500">Loan eligibility limit</span>
-                  <span className="font-semibold text-gray-900">{formatKES(creditScore.loan_eligibility_limit)}</span>
+                <div className="pt-2 border-t border-border flex justify-between text-xs">
+                  <span className="text-muted-foreground">Loan eligibility limit</span>
+                  <span className="font-semibold text-foreground">{formatKES(creditScore.loan_eligibility_limit)}</span>
                 </div>
-                <p className="text-[11px] text-gray-400">Computed {formatDate(creditScore.computed_at)}</p>
+                <p className="text-[11px] text-muted-foreground">Computed {formatDate(creditScore.computed_at)}</p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-6">No credit score computed yet</p>
@@ -204,7 +204,7 @@ export default function AdminMemberDetailPage({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity size={14} className="text-gray-500" /> Recent activity
+            <Activity size={14} className="text-muted-foreground" /> Recent activity
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -213,11 +213,11 @@ export default function AdminMemberDetailPage({
           ) : (
             <div className="space-y-1">
               {recentActivity.map((row) => (
-                <div key={row.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-gray-50 last:border-0 text-xs">
-                  <span className="font-medium text-gray-700">{ACTIVITY_LABEL[row.type] ?? row.type}</span>
+                <div key={row.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0 text-xs">
+                  <span className="font-medium text-muted-foreground">{ACTIVITY_LABEL[row.type] ?? row.type}</span>
                   <StatusPill status={row.status} size="sm" />
-                  <span className="font-mono text-gray-900">{formatKES(row.amount)}</span>
-                  <span className="text-gray-400 shrink-0">{formatDate(row.date)}</span>
+                  <span className="font-mono text-foreground">{formatKES(row.amount)}</span>
+                  <span className="text-muted-foreground shrink-0">{formatDate(row.date)}</span>
                 </div>
               ))}
             </div>

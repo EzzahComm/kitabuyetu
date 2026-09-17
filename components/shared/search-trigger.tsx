@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils';
  */
 const V = {
   admin: {
-    btn:  'group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors',
-    icon: 'absolute left-3 top-1/2 -translate-y-1/2 text-gray-400',
-    text: 'text-gray-400 truncate',
-    kbd:  'ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-gray-200 bg-white px-1 text-[10px] font-mono text-gray-400',
+    btn:  'group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-muted border border-border rounded-lg hover:bg-accent transition-colors',
+    icon: 'absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground',
+    text: 'text-muted-foreground truncate',
+    kbd:  'ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-background px-1 text-[10px] font-mono text-muted-foreground',
   },
   dashboard: {
     btn:  'group relative flex h-9 w-full items-center rounded-lg border bg-muted/40 pl-8 pr-2 text-sm hover:bg-muted transition-colors',

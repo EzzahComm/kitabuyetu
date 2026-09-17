@@ -52,7 +52,7 @@ const GROUP_STATUS_TONE: Record<string, Tone> = {
 };
 
 const PLAN_BADGE: Record<string, string> = {
-  starter:    'bg-gray-100 text-gray-600',
+  starter:    'bg-muted text-muted-foreground',
   growth:     'bg-blue-100 text-blue-700',
   premium:    'bg-amber-100 text-amber-700',
   enterprise: 'bg-purple-100 text-purple-700',
@@ -63,7 +63,7 @@ const PLAN_BADGE: Record<string, string> = {
 // monthly computation run has happened, not a fake zero.
 function HealthBadge({ score, rag }: { score: number | null; rag: 'green' | 'amber' | 'red' | null }) {
   if (score === null || rag === null) {
-    return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">Not yet scored</span>;
+    return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Not yet scored</span>;
   }
   const color = rag === 'red' ? 'text-red-600 bg-red-50' :
                 rag === 'amber' ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50';
@@ -124,7 +124,7 @@ export default function GroupsPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -201,8 +201,8 @@ export default function GroupsPage() {
                   <Building2 size={13} className="text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{grp.name}</p>
-                  <p className="text-xs text-gray-400 capitalize">{grp.group_type?.replace('_', ' ')}</p>
+                  <p className="font-medium text-foreground">{grp.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{grp.group_type?.replace('_', ' ')}</p>
                 </div>
               </div>
             ),
@@ -211,7 +211,7 @@ export default function GroupsPage() {
             key: 'plan', header: 'Plan',
             render: (grp) => (
               grp.plan ? (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[grp.plan] ?? 'bg-muted text-muted-foreground'}`}>
                   {grp.plan}
                 </span>
               ) : (
@@ -237,7 +237,7 @@ export default function GroupsPage() {
             render: (grp) => <span className="text-blue-600 font-medium">{formatKES(grp.active_loans)}</span>,
           },
           { key: 'health_score', header: 'Health', render: (grp) => <HealthBadge score={grp.health_score} rag={grp.health_rag} /> },
-          { key: 'created_at', header: 'Joined', render: (grp) => <span className="text-xs text-gray-500">{formatDate(grp.created_at)}</span> },
+          { key: 'created_at', header: 'Joined', render: (grp) => <span className="text-xs text-muted-foreground">{formatDate(grp.created_at)}</span> },
           {
             key: 'actions', header: '',
             render: (grp) => (

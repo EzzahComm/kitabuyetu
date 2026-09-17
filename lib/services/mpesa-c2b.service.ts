@@ -283,7 +283,7 @@ async function recordC2BInbound(
   amount:  number,
   rawBody: string,
 ): Promise<void> {
-  await db.query(
+  const { rowCount: txnCount } = await db.query(
     `INSERT INTO mpesa_transactions
        (group_id, transaction_type, direction, mpesa_receipt_number,
         phone_number, amount, status, reference, raw_response, completed_at, is_test)
@@ -291,6 +291,23 @@ async function recordC2BInbound(
      ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
     [groupId, body.TransID, phone, amount.toFixed(2), body.BillRefNumber, rawBody, IS_SANDBOX],
   );
+
+  // Record audit log for C2B inbound transaction — system-triggered (Safaricom callback)
+  if (txnCount) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered (Safaricom callback)
+        'payment.c2bInbound',
+        'mpesa_transaction',
+        body.TransID,
+        null,
+        JSON.stringify({ transaction_type: 'c2b', direction: 'inbound', amount, phone }),
+      ],
+    );
+  }
 
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO payments
@@ -305,6 +322,21 @@ async function recordC2BInbound(
   // First arrival appends 'received' + announces on the outbox; a Safaricom
   // retry (conflict → no row) is recorded as 'replayed' instead.
   if (rows[0]) {
+    // Record audit log for payment creation — system-triggered
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered (Safaricom callback)
+        'payment.create',
+        'payment',
+        rows[0].id,
+        null,
+        JSON.stringify({ amount, payment_method: 'mpesa', status: 'completed', channel: 'paybill' }),
+      ],
+    );
+
     await logPaymentEvent(db, rows[0].id, 'received', { billRef: body.BillRefNumber });
     await emitOutbox(db, 'payment.received', rows[0].id, {
       receipt: body.TransID, amount, groupId,

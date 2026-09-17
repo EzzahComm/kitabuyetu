@@ -50,7 +50,7 @@ const PRIORITY_CLASS: Record<string, string> = {
   urgent: 'text-red-700 bg-red-50 border-red-200',
   high:   'text-amber-700 bg-amber-50 border-amber-200',
   normal: 'text-blue-700 bg-blue-50 border-blue-200',
-  low:    'text-gray-600 bg-gray-50 border-gray-200',
+  low:    'text-muted-foreground bg-muted border-border',
 };
 
 function SlaChip({ breachAt }: { breachAt?: string }) {
@@ -133,7 +133,7 @@ export default function SupportPage() {
           value={slaBreached}
           icon={AlertTriangle}
           className={slaBreached > 0 ? 'border-red-200 bg-red-50/40' : ''}
-          iconClass={slaBreached > 0 ? 'bg-red-50' : 'bg-gray-100'}
+          iconClass={slaBreached > 0 ? 'bg-red-50' : 'bg-muted'}
         />
       </div>
 
@@ -142,7 +142,7 @@ export default function SupportPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -172,7 +172,7 @@ export default function SupportPage() {
                 Clear
               </Button>
             )}
-            <span className="ml-auto text-xs text-gray-400">{total} tickets</span>
+            <span className="ml-auto text-xs text-muted-foreground">{total} tickets</span>
           </div>
         </CardContent>
       </Card>
@@ -190,12 +190,12 @@ export default function SupportPage() {
             key: 'ticket', header: 'Ticket',
             render: (ticket) => (
               <div>
-                <p className="font-medium text-gray-900 max-w-[280px] truncate">{ticket.subject}</p>
-                <p className="text-xs text-gray-400 font-mono mt-0.5">{ticket.ticket_number}</p>
+                <p className="font-medium text-foreground max-w-[280px] truncate">{ticket.subject}</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{ticket.ticket_number}</p>
               </div>
             ),
           },
-          { key: 'org', header: 'Organization', render: (ticket) => <span className="text-sm text-gray-600">{ticket.group_name ?? ticket.member_name ?? '—'}</span> },
+          { key: 'org', header: 'Organization', render: (ticket) => <span className="text-sm text-muted-foreground">{ticket.group_name ?? ticket.member_name ?? '—'}</span> },
           {
             key: 'priority', header: 'Priority',
             render: (ticket) => (
@@ -211,8 +211,8 @@ export default function SupportPage() {
             ),
           },
           { key: 'sla', header: 'SLA', render: (ticket) => <SlaChip breachAt={ticket.sla_breach_at} /> },
-          { key: 'replies', header: 'Replies', className: 'text-center', render: (ticket) => <span className="text-xs text-gray-500">{ticket.comment_count ?? 0}</span> },
-          { key: 'created', header: 'Created', render: (ticket) => <span className="text-xs text-gray-500">{formatDate(ticket.created_at)}</span> },
+          { key: 'replies', header: 'Replies', className: 'text-center', render: (ticket) => <span className="text-xs text-muted-foreground">{ticket.comment_count ?? 0}</span> },
+          { key: 'created', header: 'Created', render: (ticket) => <span className="text-xs text-muted-foreground">{formatDate(ticket.created_at)}</span> },
           {
             key: 'actions', header: '',
             render: (ticket) => (

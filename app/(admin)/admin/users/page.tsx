@@ -125,7 +125,7 @@ export default function UsersPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -148,7 +148,7 @@ export default function UsersPage() {
                 Clear
               </Button>
             )}
-            <span className="ml-auto text-xs text-gray-400">{total} users</span>
+            <span className="ml-auto text-xs text-muted-foreground">{total} users</span>
           </div>
         </CardContent>
       </Card>
@@ -175,8 +175,8 @@ export default function UsersPage() {
                   </span>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{u.first_name} {u.last_name}</p>
-                  {u.member_code && <p className="text-[11px] font-mono text-gray-400">{u.member_code}</p>}
+                  <p className="font-medium text-foreground">{u.first_name} {u.last_name}</p>
+                  {u.member_code && <p className="text-[11px] font-mono text-muted-foreground">{u.member_code}</p>}
                 </div>
               </div>
             ),
@@ -185,17 +185,17 @@ export default function UsersPage() {
             key: 'contact', header: 'Contact', hideBelow: 'lg' as const,
             render: (u) => (
               <>
-                <p className="text-xs text-gray-600">{u.email ?? '—'}</p>
-                <p className="text-xs text-gray-400">{u.phone_number ?? '—'}</p>
+                <p className="text-xs text-muted-foreground">{u.email ?? '—'}</p>
+                <p className="text-xs text-muted-foreground">{u.phone_number ?? '—'}</p>
               </>
             ),
           },
-          { key: 'org', header: 'Organization', hideBelow: 'lg' as const, render: (u) => <span className="text-sm text-gray-600">{u.organization_name ?? '—'}</span> },
-          { key: 'group', header: 'Group', hideBelow: 'md' as const, render: (u) => <span className="text-sm text-gray-600">{u.group_name ?? '—'}</span> },
+          { key: 'org', header: 'Organization', hideBelow: 'lg' as const, render: (u) => <span className="text-sm text-muted-foreground">{u.organization_name ?? '—'}</span> },
+          { key: 'group', header: 'Group', hideBelow: 'md' as const, render: (u) => <span className="text-sm text-muted-foreground">{u.group_name ?? '—'}</span> },
           {
             key: 'groupRole', header: 'Group Role', hideBelow: 'lg' as const,
             render: (u) => (
-              <span className="text-xs text-gray-600 capitalize">
+              <span className="text-xs text-muted-foreground capitalize">
                 {u.role_name ?? u.group_role?.replace('_', ' ') ?? '—'}
               </span>
             ),
@@ -207,7 +207,7 @@ export default function UsersPage() {
                 {ROLE_LABELS[u.platform_role] ?? u.platform_role}
               </Badge>
             ) : (
-              <span className="text-xs text-gray-400">—</span>
+              <span className="text-xs text-muted-foreground">—</span>
             ),
           },
           {
@@ -216,7 +216,7 @@ export default function UsersPage() {
               <StatusPill status={u.status === 'active' ? 'active' : 'inactive'} size="sm" />
             ),
           },
-          { key: 'joined', header: 'Joined', hideBelow: 'md' as const, render: (u) => <span className="text-xs text-gray-500">{formatDate(u.joined_at ?? u.created_at)}</span> },
+          { key: 'joined', header: 'Joined', hideBelow: 'md' as const, render: (u) => <span className="text-xs text-muted-foreground">{formatDate(u.joined_at ?? u.created_at)}</span> },
           {
             key: 'actions', header: '',
             render: (u) => (
@@ -278,12 +278,12 @@ export default function UsersPage() {
           <DialogHeader><DialogTitle>Assign group role</DialogTitle></DialogHeader>
 
           {roleUser && (
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">Name</span><span className="font-medium text-gray-900">{roleUser.first_name} {roleUser.last_name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Member No.</span><span className="font-mono text-xs text-gray-700">{roleUser.member_code ?? '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Organization</span><span className="text-gray-700">{roleUser.organization_name ?? '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Group</span><span className="text-gray-700">{roleUser.group_name ?? '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Current role</span><span className="text-gray-700 capitalize">{roleUser.role_name ?? roleUser.group_role?.replace('_', ' ') ?? '—'}</span></div>
+            <div className="rounded-lg border border-border bg-muted p-3 text-sm space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium text-foreground">{roleUser.first_name} {roleUser.last_name}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Member No.</span><span className="font-mono text-xs text-muted-foreground">{roleUser.member_code ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Organization</span><span className="text-muted-foreground">{roleUser.organization_name ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Group</span><span className="text-muted-foreground">{roleUser.group_name ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Current role</span><span className="text-muted-foreground capitalize">{roleUser.role_name ?? roleUser.group_role?.replace('_', ' ') ?? '—'}</span></div>
             </div>
           )}
 

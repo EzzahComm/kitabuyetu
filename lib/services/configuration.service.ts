@@ -103,8 +103,8 @@ export async function setPolicy(
   const organizationId = scope.organizationId ?? null;
   const groupId         = scope.groupId ?? null;
 
-  const { rows: existing } = await client.query<{ id: string; version: number }>(
-    `SELECT id, version FROM policies
+  const { rows: existing } = await client.query<{ id: string; version: number; value: unknown }>(
+    `SELECT id, version, value FROM policies
      WHERE is_active AND domain = $1 AND policy_key = $2
        AND organization_id IS NOT DISTINCT FROM $3
        AND group_id        IS NOT DISTINCT FROM $4
@@ -125,5 +125,30 @@ export async function setPolicy(
      RETURNING id, version`,
     [domain, policyKey, organizationId, groupId, JSON.stringify(value), (existing[0]?.version ?? 0) + 1, createdBy],
   );
+
+  // Record audit log entry — determine scope for audit log
+  const auditGroupId = groupId;
+  const auditOrganizationId = !groupId ? organizationId : null;
+
+  // For scope that has neither group nor organization (platform-wide),
+  // we need to audit at platform level. Platform audits go into audit_logs
+  // with null both organization_id and group_id to track platform changes.
+  if (auditGroupId || auditOrganizationId || (!auditGroupId && !auditOrganizationId)) {
+    await client.query(
+      `INSERT INTO audit_logs (group_id, organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        auditGroupId,
+        auditOrganizationId,
+        createdBy,
+        `policy.${domain}.${policyKey}.create`,
+        'policy',
+        rows[0].id,
+        existing[0] ? JSON.stringify({ value: existing[0].value, version: existing[0].version }) : null,
+        JSON.stringify({ value, version: rows[0].version }),
+      ],
+    );
+  }
+
   return rows[0];
 }

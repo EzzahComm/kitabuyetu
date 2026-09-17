@@ -108,9 +108,32 @@ async function syncJournalThresholdColumn(
 
   for (const groupId of affectedGroupIds) {
     const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId });
+
+    // Read prior value for audit log
+    const { rows: priorRows } = await client.query<{ journal_approval_threshold: string }>(
+      `SELECT journal_approval_threshold FROM groups WHERE id = $1`,
+      [groupId],
+    );
+    const priorValue = priorRows[0]?.journal_approval_threshold;
+
     await client.query(
       `UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`,
       [threshold.toFixed(2), groupId],
+    );
+
+    // Record audit log for journal threshold sync — system-triggered
+    await client.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        groupId,
+        null, // system-triggered sync
+        'approvalPolicy.syncJournalThreshold',
+        'group',
+        groupId,
+        priorValue ? JSON.stringify({ journal_approval_threshold: priorValue }) : null,
+        JSON.stringify({ journal_approval_threshold: threshold.toFixed(2) }),
+      ],
     );
   }
 }

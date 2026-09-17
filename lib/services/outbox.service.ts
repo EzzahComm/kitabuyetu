@@ -53,6 +53,21 @@ export async function dispatchOutboxEvents(): Promise<{
           `UPDATE event_outbox SET processed_at = NOW(), attempts = attempts + 1 WHERE id = $1`,
           [row.id],
         );
+
+        // Record audit log for successful event processing
+        await db.query(
+          `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            null, // system-triggered outbox processing
+            'event_outbox.processed',
+            'event_outbox',
+            row.id,
+            JSON.stringify({ processed_at: null, attempts: row.attempts }),
+            JSON.stringify({ processed_at: new Date().toISOString(), attempts: row.attempts + 1 }),
+          ],
+        );
+
         processed++;
       } catch (err) {
         const attempts = row.attempts + 1;
@@ -63,6 +78,21 @@ export async function dispatchOutboxEvents(): Promise<{
             `UPDATE event_outbox SET processed_at = NOW(), attempts = $2 WHERE id = $1`,
             [row.id, attempts],
           );
+
+          // Record audit log for dead letter (max attempts exceeded)
+          await db.query(
+            `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              null, // system-triggered failure handling
+              'event_outbox.dead_lettered',
+              'event_outbox',
+              row.id,
+              JSON.stringify({ processed_at: null, attempts: row.attempts }),
+              JSON.stringify({ processed_at: new Date().toISOString(), attempts, status: 'dead' }),
+            ],
+          );
+
           logger.error('[outbox] event dead after max attempts', {
             id: row.id, eventType: row.event_type, aggregateId: row.aggregate_id, err: String(err),
           });
@@ -72,6 +102,21 @@ export async function dispatchOutboxEvents(): Promise<{
             `UPDATE event_outbox SET attempts = $2 WHERE id = $1`,
             [row.id, attempts],
           );
+
+          // Record audit log for failed attempt (retryable)
+          await db.query(
+            `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              null, // system-triggered retry
+              'event_outbox.retry_needed',
+              'event_outbox',
+              row.id,
+              JSON.stringify({ attempts: row.attempts }),
+              JSON.stringify({ attempts }),
+            ],
+          );
+
           failed++;
         }
       }

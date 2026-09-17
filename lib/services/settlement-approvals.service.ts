@@ -50,10 +50,30 @@ export async function recordApproval(
       `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,
     );
   }
-  await db.query(
+  const { rows } = await db.query<{ id: string }>(
     `INSERT INTO settlement_approvals
        (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason)
-     VALUES ($1,$2,$3,$4,'officer',$5,$6)`,
+     VALUES ($1,$2,$3,$4,'officer',$5,$6)
+     RETURNING id`,
     [args.subjectType, args.subjectId, ctx.groupId, ctx.userId, args.decision, args.reason ?? null],
   );
+
+  if (rows[0]) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, 'settlement_approval', $4, NULL, $5)`,
+      [
+        ctx.groupId,
+        ctx.userId,
+        `approval.${args.decision}`,
+        rows[0].id,
+        JSON.stringify({
+          subject_type: args.subjectType,
+          subject_id: args.subjectId,
+          decision: args.decision,
+          reason: args.reason,
+        }),
+      ],
+    );
+  }
 }

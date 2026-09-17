@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Search table name…" className="pl-8 h-8 text-sm" />
             </div>
@@ -81,7 +81,7 @@ export default function AuditLogsPage() {
             <div className="flex items-center gap-2">
               <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }}
                 className="h-8 text-sm w-36" />
-              <span className="text-xs text-gray-400">to</span>
+              <span className="text-xs text-muted-foreground">to</span>
               <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }}
                 className="h-8 text-sm w-36" />
             </div>
@@ -91,7 +91,7 @@ export default function AuditLogsPage() {
                 Clear
               </Button>
             )}
-            <span className="ml-auto text-xs text-gray-400">{total} entries</span>
+            <span className="ml-auto text-xs text-muted-foreground">{total} entries</span>
           </div>
         </CardContent>
       </Card>
@@ -108,20 +108,20 @@ export default function AuditLogsPage() {
           {
             key: 'action', header: 'Action',
             render: (log) => (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ACTION_STYLE[log.action] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ACTION_STYLE[log.action] ?? 'bg-muted text-muted-foreground border-border'}`}>
                 {log.action}
               </span>
             ),
           },
-          { key: 'table_name', header: 'Table', render: (log) => <span className="font-mono text-xs text-gray-700 font-medium">{log.table_name}</span> },
-          { key: 'actor_name', header: 'Actor', render: (log) => <span className="font-mono text-xs text-gray-600">{log.actor_name ?? 'System'}</span> },
-          { key: 'group_name', header: 'Group', render: (log) => <span className="font-mono text-xs text-gray-500">{log.group_name ?? '—'}</span> },
+          { key: 'table_name', header: 'Table', render: (log) => <span className="font-mono text-xs text-muted-foreground font-medium">{log.table_name}</span> },
+          { key: 'actor_name', header: 'Actor', render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.actor_name ?? 'System'}</span> },
+          { key: 'group_name', header: 'Group', render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.group_name ?? '—'}</span> },
           {
             key: 'record_id', header: 'Record ID',
-            render: (log) => <span className="font-mono text-xs text-gray-400 truncate max-w-[120px] inline-block align-bottom">{log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}</span>,
+            render: (log) => <span className="font-mono text-xs text-muted-foreground truncate max-w-[120px] inline-block align-bottom">{log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}</span>,
           },
-          { key: 'ip_address', header: 'IP Address', render: (log) => <span className="font-mono text-xs text-gray-500">{log.ip_address ?? '—'}</span> },
-          { key: 'created_at', header: 'Timestamp', render: (log) => <span className="font-mono text-xs text-gray-500">{formatDate(log.created_at)}</span> },
+          { key: 'ip_address', header: 'IP Address', render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.ip_address ?? '—'}</span> },
+          { key: 'created_at', header: 'Timestamp', render: (log) => <span className="font-mono text-xs text-muted-foreground">{formatDate(log.created_at)}</span> },
         ]}
       />
     </div>

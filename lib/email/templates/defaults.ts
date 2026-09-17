@@ -48,6 +48,17 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     `,
   },
 
+  // ─── Organization report scheduling (Phase 5) ──────────────────────────────
+  organization_report_ready: {
+    subject: '{{reportName}} is ready — {{organizationName}}',
+    body: `
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Your scheduled report is ready</h2>
+      <p style="margin:0 0 12px;color:#374151;"><strong>{{reportName}}</strong> for <strong>{{organizationName}}</strong> has finished generating.</p>
+      <a href="{{downloadUrl}}" style="display:inline-block;background:#3CB043;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Download report ({{format}})</a>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 24 hours. Generated {{generatedAt}}.</p>
+    `,
+  },
+
   password_reset: {
     subject: 'Reset your Kitabu Yetu password',
     body: `

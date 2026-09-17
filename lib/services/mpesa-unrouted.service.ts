@@ -73,6 +73,22 @@ export async function resolveUnrouted(
          WHERE id=$1`,
         [id, ctx.userId, ctx.groupId, opts.notes ?? 'Dismissed'],
       );
+
+      // Record audit log for dismissed unrouted receipt
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'mpesa_unrouted.dismissed',
+          'mpesa_unrouted',
+          id,
+          JSON.stringify({ resolved: false }),
+          JSON.stringify({ resolved: true, resolution_type: 'dismissed' }),
+        ],
+      );
+
       return;
     }
 
@@ -98,6 +114,28 @@ export async function resolveUnrouted(
       ],
     );
     const contributionId = contribRows[0]?.id ?? null;
+
+    // Record audit log for unrouted allocation contribution
+    if (contributionId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.from_unrouted',
+          'contribution',
+          contributionId,
+          null,
+          JSON.stringify({
+            amount: amount.toFixed(2),
+            payment_method: 'mpesa',
+            mpesa_receipt_number: row.receipt,
+            status: 'completed',
+          }),
+        ],
+      );
+    }
     if (contributionId) {
       await postContributionJournal(db, {
         groupId: ctx.groupId, contributionId, amount,
@@ -112,6 +150,22 @@ export async function resolveUnrouted(
          WHERE  id = $2 AND payment_id IS NULL`,
         [row.receipt, contributionId],
       );
+
+      // Record audit log for contribution-payment linkage
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'contribution.payment_linked',
+          'contribution',
+          contributionId,
+          JSON.stringify({ payment_id: null }),
+          JSON.stringify({ payment_id: `(SELECT id FROM payments WHERE mpesa_receipt_number = '${row.receipt}')` }),
+        ],
+      );
+
       await markSpineAllocated(db, row.receipt, {
         actor:  ctx.userId,
         detail: { product: 'savings', contributionId, groupId: ctx.groupId, via: 'unrouted_resolution' },
@@ -125,6 +179,21 @@ export async function resolveUnrouted(
            resolution_notes=$5
        WHERE id=$1`,
       [id, ctx.userId, ctx.groupId, contributionId, opts.notes ?? 'Allocated to member'],
+    );
+
+    // Record audit log for allocated unrouted receipt
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        ctx.groupId,
+        ctx.userId,
+        'mpesa_unrouted.allocated',
+        'mpesa_unrouted',
+        id,
+        JSON.stringify({ resolved: false }),
+        JSON.stringify({ resolved: true, resolution_type: 'allocated', resolved_to_contribution: contributionId }),
+      ],
     );
   });
 }

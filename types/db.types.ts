@@ -90,6 +90,7 @@ export interface Loan {
   /** How often an instalment falls due (migration 149). NOT NULL, defaults to
    *  'monthly' — the only cadence that existed before. */
   repayment_frequency:  'weekly' | 'biweekly' | 'monthly' | 'quarterly';
+  interest_method:      'flat' | 'reducing_balance';
   disbursement_date:    Date | null;
   status:               LoanStatus;
   purpose:              string | null;
@@ -140,6 +141,37 @@ export interface LoanRepayment {
   journal_entry_id:     string | null;
   created_at:           Date;
   updated_at:           Date;
+}
+
+// Configurable loan charges/fees engine (migration 174).
+export interface LoanChargeType {
+  id:               string;
+  organization_id:  string | null;
+  group_id:         string | null;
+  name:             string;
+  calculation_type: 'fixed' | 'percentage';
+  amount:           string;
+  trigger_event:    'on_disburse' | 'on_overdue';
+  is_active:        boolean;
+  created_by:       string | null;
+  created_at:       Date;
+  updated_at:       Date;
+}
+
+export interface LoanCharge {
+  id:                string;
+  group_id:          string;
+  loan_id:           string;
+  charge_type_id:    string;
+  loan_repayment_id: string | null;
+  amount:            string;
+  status:            'pending' | 'paid' | 'waived';
+  applied_at:        Date;
+  journal_entry_id:  string | null;
+  waived_by:         string | null;
+  waived_at:         Date | null;
+  waived_reason:     string | null;
+  created_at:        Date;
 }
 
 export interface Account {
@@ -315,6 +347,8 @@ export interface SmsUsageLog {
   billing_state:     SmsBillingState;
   reserved_at:       Date | null;
   settled_at:        Date | null;
+  /** Provider-billable parts for this message (migration 160). Default 1. */
+  segments:          number;
   created_at:       Date;
   updated_at:       Date;
 }

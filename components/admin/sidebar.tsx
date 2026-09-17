@@ -82,7 +82,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
           <Link href="/admin" className="flex items-center gap-2.5 min-w-0" aria-label="Kitabu Yetu admin home">
             <BrandLogo size={28} alt="Kitabu Yetu" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate leading-none">Kitabu Yetu</p>
+              <p className="text-sm font-semibold text-foreground truncate leading-none">Kitabu Yetu</p>
               <p className="text-[10px] text-brand-blue-500 font-medium tracking-wide mt-0.5">ADMIN CONSOLE</p>
             </div>
           </Link>
@@ -90,7 +90,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       }
       footer={(collapsed) =>
         user && !collapsed ? (
-          <div className="px-2 py-1.5 mb-1.5 rounded-md bg-gray-50">
+          <div className="px-2 py-1.5 mb-1.5 rounded-md bg-muted">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
                 <span className="text-[10px] font-bold text-white">
@@ -98,7 +98,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-900 truncate">
+                <p className="text-xs font-semibold text-foreground truncate">
                   {user.firstName} {user.lastName}
                 </p>
                 <p className="text-[10px] text-blue-600 font-medium capitalize">

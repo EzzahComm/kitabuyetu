@@ -37,6 +37,7 @@ export interface DisbursementRow {
   id:                string;
   group_id:          string;
   loan_id:           string | null;
+  cash_account_id:   string;
   phone:             string;
   amount:            string;
   status:            string;
@@ -135,7 +136,29 @@ export const disbursementsService = {
           requiresApproval, ctx.userId,
         ],
       );
-      return { row: inserted[0], alreadyExisted: false };
+      const disbursement = inserted[0];
+
+      // Record audit log for disbursement initiation
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'disbursement.initiate',
+          'disbursement',
+          disbursement.id,
+          null,
+          JSON.stringify({
+            amount: disbursement.amount,
+            status: disbursement.status,
+            requires_approval: disbursement.requires_approval,
+            loan_id: disbursement.loan_id,
+          }),
+        ],
+      );
+
+      return { row: disbursement, alreadyExisted: false };
     });
 
     // Dispatch happens OUTSIDE the transaction — the Daraja call is a network
@@ -161,13 +184,32 @@ export const disbursementsService = {
       if (rows[0].initiated_by === ctx.userId) {
         throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
       }
+
+      const prev = rows[0];
       const { rows: updated } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
          SET    status = 'approved', approved_by = $2, approved_at = NOW()
          WHERE  id = $1 RETURNING *`,
         [id, ctx.userId],
       );
-      return updated[0];
+      const disbursement = updated[0];
+
+      // Record audit log for disbursement approval
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'disbursement.approve',
+          'disbursement',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: disbursement.status }),
+        ],
+      );
+
+      return disbursement;
     });
 
     await dispatchDisbursement(row.id);
@@ -177,19 +219,21 @@ export const disbursementsService = {
   /** Reject a pending disbursement — releases the reservation. */
   async reject(ctx: TenantContext, id: string, reason: string): Promise<DisbursementRow> {
     return withTransaction(ctx, async (db) => {
-      const { rows } = await db.query<{ cash_account_id: string; amount: string }>(
-        `SELECT cash_account_id, amount FROM disbursement_requests
+      const { rows: existing } = await db.query<DisbursementRow>(
+        `SELECT * FROM disbursement_requests
          WHERE  id = $1 AND group_id = $2 AND status = 'pending_approval'
          FOR UPDATE`,
         [id, ctx.groupId],
       );
-      if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+      if (!existing[0]) throw new NotFoundError('Pending disbursement', id);
+
+      const prev = existing[0];
 
       await db.query(
         // String-negate rather than parseFloat/re-serialize, to avoid any
         // float round-trip on a currency value.
         `SELECT adjust_account_reserved_amount($1, $2)`,
-        [rows[0].cash_account_id, `-${rows[0].amount}`],
+        [prev.cash_account_id, `-${prev.amount}`],
       );
       const { rows: updated } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
@@ -197,7 +241,24 @@ export const disbursementsService = {
          WHERE  id = $1 RETURNING *`,
         [id, ctx.userId, reason],
       );
-      return updated[0];
+      const disbursement = updated[0];
+
+      // Record audit log for disbursement rejection
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'disbursement.reject',
+          'disbursement',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: disbursement.status, reason }),
+        ],
+      );
+
+      return disbursement;
     });
   },
 
@@ -333,6 +394,24 @@ async function dispatchDisbursement(id: string): Promise<void> {
       disbursedBy: claimed.initiated_by,
       disbursementRequestId: claimed.id,
     });
+
+    // Record audit log for disbursement dispatch
+    await withAdminDb((db) =>
+      db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          claimed.group_id,
+          null, // System-triggered dispatch, no user actor
+          'disbursement.dispatch',
+          'disbursement',
+          claimed.id,
+          JSON.stringify({ status: 'approved' }),
+          JSON.stringify({ status: 'dispatched' }),
+        ],
+      ),
+    );
+
     // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5): if Safaricom's
     // result callback never lands, this bounds how long the row can sit
     // 'dispatched' before being surfaced as 'timed_out' instead of silently
@@ -345,6 +424,7 @@ async function dispatchDisbursement(id: string): Promise<void> {
     logger.error('[disbursements] dispatch failed before Daraja accepted the request', {
       disbursementId: id, err: String(err),
     });
+    const failureReason = `Dispatch error: ${String(err).slice(0, 500)}`;
     await withAdminDb(async (db) => {
       await db.query(
         `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,
@@ -354,7 +434,22 @@ async function dispatchDisbursement(id: string): Promise<void> {
         `UPDATE disbursement_requests
          SET    status = 'failed', failure_reason = $2
          WHERE  id = $1 AND status = 'dispatched'`,
-        [id, `Dispatch error: ${String(err).slice(0, 500)}`],
+        [id, failureReason],
+      );
+
+      // Record audit log for disbursement failure
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          claimed.group_id,
+          null, // System-triggered failure, no user actor
+          'disbursement.failed',
+          'disbursement',
+          claimed.id,
+          JSON.stringify({ status: 'dispatched' }),
+          JSON.stringify({ status: 'failed', failure_reason: failureReason }),
+        ],
       );
     });
   }

@@ -56,12 +56,29 @@ export const organizationAccountingService = {
   /** Participates in the caller's own transaction — used when provisioning a new organization. */
   async seedDefaultAccountsInTx(client: PoolClient, organizationId: string): Promise<void> {
     for (const acct of DEFAULT_ORG_ACCOUNTS) {
-      await client.query(
+      const { rows } = await client.query<{ id: string }>(
         `INSERT INTO organization_accounts (organization_id, account_code, name, type, is_system)
          VALUES ($1,$2,$3,$4,true)
-         ON CONFLICT (organization_id, account_code) DO NOTHING`,
+         ON CONFLICT (organization_id, account_code) DO NOTHING
+         RETURNING id`,
         [organizationId, acct.code, acct.name, acct.type],
       );
+      if (rows[0]) {
+        await client.query(
+          `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, NULL, $2, 'organization_account', $3, NULL, $4)`,
+          [
+            organizationId,
+            'org_account.seed',
+            rows[0].id,
+            JSON.stringify({
+              account_code: acct.code,
+              name: acct.name,
+              type: acct.type,
+            }),
+          ],
+        );
+      }
     }
   },
 
@@ -137,12 +154,34 @@ export async function postOrgSystemJournal(
   const jeId = je[0]?.id;
   if (!jeId) return null;
 
+  // Audit journal entry
+  await client.query(
+    `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, 'organization_journal_entry', $4, NULL, $5)`,
+    [
+      organizationId,
+      userId ?? null,
+      'org_journal.posted',
+      jeId,
+      JSON.stringify({
+        description,
+        reference: opts?.reference,
+        entry_date: opts?.entryDate ?? 'CURRENT_DATE',
+        line_count: lines.length,
+        total_debit: lines.reduce((s, l) => s + (l.debit ?? 0), 0).toFixed(2),
+      }),
+    ],
+  );
+
+  let totalLines = 0;
   for (const line of lines) {
-    await client.query(
+    const { rows: jlRows } = await client.query<{ id: string }>(
       `INSERT INTO organization_journal_lines (organization_id, journal_entry_id, account_id, debit, credit)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
       [organizationId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2)],
     );
+    if (jlRows[0]) totalLines++;
   }
 
   return jeId;

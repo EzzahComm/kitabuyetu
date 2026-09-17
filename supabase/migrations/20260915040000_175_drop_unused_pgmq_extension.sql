@@ -1,0 +1,28 @@
+-- =============================================================================
+-- 175_drop_unused_pgmq_extension.sql
+-- From the 2026-09 optimization audit's cron-scheduling-and-pg-net-egress
+-- dimension (docs/audits/optimization-2026-09/verified/
+-- cron-scheduling-and-pg-net-egress.json). That audit's own session had no
+-- live database access and could only confirm the code-side half of this
+-- finding (zero references to `pgmq` anywhere in the repo) — it marked the
+-- live-database half REFUTED per its own "default to REFUTED when
+-- unreproducible" rule, not because the claim was checked and found false.
+--
+-- Verified live before writing this file:
+--   SELECT extname, extversion FROM pg_extension WHERE extname='pgmq'
+--     -> installed, version 1.5.1
+--   SELECT table_name FROM information_schema.tables WHERE table_schema='pgmq'
+--     -> only 'meta' (pgmq's own bookkeeping table; a real queue would add
+--        its own q_<name>/a_<name> tables, none exist)
+--   SELECT count(*) FROM pgmq.meta -> 0 (zero queues ever created)
+-- Combined with the code-side check (also re-run, still zero references),
+-- both halves of the original finding are now confirmed: pgmq is installed,
+-- unused, and has never had a queue created on it.
+--
+-- DROP EXTENSION IF EXISTS needs no pg_available_extensions guard (unlike
+-- CREATE EXTENSION in migration 042) — it only checks pg_extension's
+-- catalog entry, so it is a safe no-op on any environment that never
+-- installed pgmq at all, CI's plain Postgres included.
+-- =============================================================================
+
+DROP EXTENSION IF EXISTS pgmq CASCADE;

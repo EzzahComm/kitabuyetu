@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 const VALID_CATEGORIES = [
@@ -19,23 +19,31 @@ const PreferencesSchema = z.array(z.object({
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const { rows } = await withAdminDb((db) =>
-      db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      const result = await client.query(
         `SELECT id, category, enabled, frequency, group_id
          FROM email_preferences
          WHERE member_id = $1
          ORDER BY category`,
         [auth.userId],
-      ),
-    );
+      );
+      const { rows } = result;
 
-    // Merge with defaults (all enabled)
-    const existing = new Map(rows.map((r: { category: string }) => [r.category, r]));
-    const merged = VALID_CATEGORIES.map((cat) => existing.get(cat) ?? {
-      category: cat, enabled: true, frequency: 'immediate', group_id: null,
+      // Merge with defaults (all enabled)
+      const existing = new Map(rows.map((r: { category: string }) => [r.category, r]));
+      const merged = VALID_CATEGORIES.map((cat) => existing.get(cat) ?? {
+        category: cat, enabled: true, frequency: 'immediate', group_id: null,
+      });
+
+      return ok(merged);
     });
-
-    return ok(merged);
   });
 }
 
@@ -43,33 +51,40 @@ export async function PUT(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const prefs = PreferencesSchema.parse(await req.json());
 
-    for (const pref of prefs) {
-      await withAdminDb((db) =>
-        db.query(
-          `INSERT INTO email_preferences (member_id, group_id, category, enabled, frequency)
-           VALUES ($1,$2,$3,$4,$5)
-           ON CONFLICT ON CONSTRAINT idx_email_pref_global DO UPDATE
-             SET enabled=$4, frequency=$5, updated_at=NOW()`,
-          [
-            auth.userId,
-            pref.groupId ?? null,
-            pref.category,
-            pref.enabled,
-            pref.frequency ?? 'immediate',
-          ],
-        ),
-      ).catch(() =>
-        withAdminDb((db) =>
-          db.query(
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
+
+    return withDb(ctx, async (client) => {
+      for (const pref of prefs) {
+        try {
+          await client.query(
+            `INSERT INTO email_preferences (member_id, group_id, category, enabled, frequency)
+             VALUES ($1,$2,$3,$4,$5)
+             ON CONFLICT ON CONSTRAINT idx_email_pref_global DO UPDATE
+               SET enabled=$4, frequency=$5, updated_at=NOW()`,
+            [
+              auth.userId,
+              pref.groupId ?? null,
+              pref.category,
+              pref.enabled,
+              pref.frequency ?? 'immediate',
+            ],
+          );
+        } catch {
+          await client.query(
             `UPDATE email_preferences
              SET enabled=$1, frequency=$2, updated_at=NOW()
              WHERE member_id=$3 AND category=$4`,
             [pref.enabled, pref.frequency ?? 'immediate', auth.userId, pref.category],
-          ),
-        ),
-      );
-    }
+          );
+        }
+      }
 
-    return ok({ success: true });
+      return ok({ success: true });
+    });
   });
 }

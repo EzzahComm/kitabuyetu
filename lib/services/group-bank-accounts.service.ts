@@ -37,7 +37,29 @@ export const groupBankAccountsService = {
         [ctx.groupId, input.bankName, input.shortcode, input.accountNumber,
          input.label ?? null, input.notes ?? null, ctx.userId],
       );
-      return rows[0];
+      const account = rows[0];
+
+      // Record audit log for bank account creation
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'bankAccount.create',
+          'bank_account',
+          account.id,
+          null,
+          JSON.stringify({
+            bank_name: account.bank_name,
+            shortcode: account.shortcode,
+            account_number: account.account_number,
+            status: account.status,
+          }),
+        ],
+      );
+
+      return account;
     });
   },
 
@@ -52,9 +74,11 @@ export const groupBankAccountsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending bank account', id);
 
+      const prev = rows[0];
+
       await recordApproval(db, ctx, {
         subjectType: 'bank_account', subjectId: id,
-        initiatedBy: rows[0].created_by ?? '', decision: 'approved',
+        initiatedBy: prev.created_by ?? '', decision: 'approved',
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
@@ -63,7 +87,24 @@ export const groupBankAccountsService = {
          WHERE  id = $1 RETURNING *`,
         [id],
       );
-      return updated[0];
+      const account = updated[0];
+
+      // Record audit log for bank account activation
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'bankAccount.activate',
+          'bank_account',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: account.status }),
+        ],
+      );
+
+      return account;
     });
   },
 
@@ -77,16 +118,35 @@ export const groupBankAccountsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending bank account', id);
 
+      const prev = rows[0];
+
       await recordApproval(db, ctx, {
         subjectType: 'bank_account', subjectId: id,
-        initiatedBy: rows[0].created_by ?? '', decision: 'rejected', reason,
+        initiatedBy: prev.created_by ?? '', decision: 'rejected', reason,
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
         `UPDATE group_bank_accounts SET status = 'rejected' WHERE id = $1 RETURNING *`,
         [id],
       );
-      return updated[0];
+      const account = updated[0];
+
+      // Record audit log for bank account rejection
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'bankAccount.reject',
+          'bank_account',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: account.status, reason }),
+        ],
+      );
+
+      return account;
     });
   },
 
@@ -101,13 +161,32 @@ export const groupBankAccountsService = {
       );
       if (!rows[0]) throw new NotFoundError('Active bank account', id);
 
+      const prev = rows[0];
+
       const { rows: updated } = await db.query<GroupBankAccountRow>(
         `UPDATE group_bank_accounts
          SET    status = 'disabled', notes = COALESCE($2, notes)
          WHERE  id = $1 RETURNING *`,
         [id, reason ?? null],
       );
-      return updated[0];
+      const account = updated[0];
+
+      // Record audit log for bank account disabling
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'bankAccount.disable',
+          'bank_account',
+          id,
+          JSON.stringify({ status: prev.status }),
+          JSON.stringify({ status: account.status, reason: reason ?? null }),
+        ],
+      );
+
+      return account;
     });
   },
 

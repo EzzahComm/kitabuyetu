@@ -120,6 +120,28 @@ export const vendorPaymentsService = {
           ctx.userId, input.idempotencyKey,
         ],
       );
+
+      // Record audit log for vendor payment creation — user-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'vendorPayment.create',
+          'vendor_payment',
+          inserted[0].id,
+          null,
+          JSON.stringify({
+            channel: input.channel,
+            payee_name: input.payeeName,
+            amount: input.amount.toFixed(2),
+            expense_account_code: expenseCode,
+            status: 'pending_approval',
+          }),
+        ],
+      );
+
       return inserted[0];
     });
   },
@@ -134,15 +156,32 @@ export const vendorPaymentsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending vendor payment', id);
 
+      const prior = rows[0];
       await recordApproval(db, ctx, {
         subjectType: 'vendor_payment', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'approved',
+        initiatedBy: prior.requested_by ?? '', decision: 'approved',
       });
 
       const { rows: updated } = await db.query<VendorPaymentRow>(
         `UPDATE vendor_payments SET status = 'approved' WHERE id = $1 RETURNING *`,
         [id],
       );
+
+      // Record audit log for vendor payment approval — user-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'vendorPayment.approve',
+          'vendor_payment',
+          id,
+          JSON.stringify({ status: prior.status }),
+          JSON.stringify({ status: 'approved' }),
+        ],
+      );
+
       return updated[0];
     });
 
@@ -160,16 +199,17 @@ export const vendorPaymentsService = {
       );
       if (!rows[0]) throw new NotFoundError('Pending vendor payment', id);
 
+      const prior = rows[0];
       await recordApproval(db, ctx, {
         subjectType: 'vendor_payment', subjectId: id,
-        initiatedBy: rows[0].requested_by ?? '', decision: 'rejected', reason,
+        initiatedBy: prior.requested_by ?? '', decision: 'rejected', reason,
       });
 
       const { rows: acctRows } = await db.query<{ id: string }>(
         `SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId],
       );
       if (acctRows[0]) {
-        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${rows[0].amount}`]);
+        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${prior.amount}`]);
       }
 
       const { rows: updated } = await db.query<VendorPaymentRow>(
@@ -178,6 +218,22 @@ export const vendorPaymentsService = {
          WHERE  id = $1 RETURNING *`,
         [id, reason],
       );
+
+      // Record audit log for vendor payment rejection — user-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'vendorPayment.reject',
+          'vendor_payment',
+          id,
+          JSON.stringify({ status: prior.status }),
+          JSON.stringify({ status: 'rejected', failure_reason: reason }),
+        ],
+      );
+
       return updated[0];
     });
   },
@@ -257,6 +313,24 @@ async function dispatchVendorPayment(id: string): Promise<void> {
                  payee_shortcode, payee_account`,
       [id],
     );
+
+    // Record audit log for vendor payment dispatch — system-triggered
+    if (rows[0]) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          rows[0].group_id,
+          null, // system-triggered (background job)
+          'vendorPayment.dispatch',
+          'vendor_payment',
+          id,
+          JSON.stringify({ status: 'approved' }),
+          JSON.stringify({ status: 'processing' }),
+        ],
+      );
+    }
+
     return rows[0] ?? null;
   });
   if (!claimed) return;

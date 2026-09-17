@@ -2,7 +2,7 @@ import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/li
 import { renderTemplate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { enqueueJob } from '@/lib/jobs';
-import { withAdminDb } from '@/lib/db';
+import { withAdminDb, withTransaction, type TenantContext } from '@/lib/db';
 
 export interface SendTemplatedOptions {
   templateKey: string;
@@ -28,6 +28,7 @@ export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<Em
     opts.groupId ?? null,
     opts.locale ?? 'en',
     fallbackTpl?.body,
+    fallbackTpl?.subject,
   ).catch(async () => {
     // If no DB template AND no inline fallback, build a minimal email
     const branding = await loadBranding(opts.groupId ?? null);
@@ -81,8 +82,8 @@ export async function scheduleEmail(opts: {
   referenceId?: string;
   referenceType?: string;
 }): Promise<string> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(
+  const insert = async (db: import('pg').PoolClient) => {
+    const result = await db.query<{ id: string }>(
       `INSERT INTO email_schedules
          (group_id, name, template_key, recipient_email, variables,
           schedule_type, next_run_at, is_active, created_by, reference_id, reference_type)
@@ -98,9 +99,44 @@ export async function scheduleEmail(opts: {
         opts.referenceId ?? null,
         opts.referenceType ?? null,
       ],
-    ),
-  );
-  return rows[0].id;
+    );
+
+    if (result.rows[0] && opts.groupId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, 'email_schedule', $4, NULL, $5)`,
+        [
+          opts.groupId,
+          opts.userId ?? null,
+          'email.schedule',
+          result.rows[0].id,
+          JSON.stringify({
+            template_key: opts.templateKey,
+            recipient_email: Array.isArray(opts.to) ? opts.to[0] : opts.to,
+            schedule_type: 'once',
+            next_run_at: opts.sendAt.toISOString(),
+            reference_type: opts.referenceType,
+          }),
+        ],
+      );
+    }
+    return result;
+  };
+
+  // Route through the RLS-enforced tenant pool whenever a real group is known
+  // — the only current caller (POST /api/v1/email/schedules) always supplies
+  // one, taken from a validated tenant JWT. A hypothetical future caller with
+  // no group (a platform-level schedule not tied to any tenant) falls back to
+  // the admin pool, same as before this change — RLS's group-scoped policy
+  // would otherwise reject a NULL group_id row outright.
+  const result = opts.groupId
+    ? await withTransaction<{ rows: { id: string }[] }>(
+        { userId: opts.userId ?? '', groupId: opts.groupId, role: '' } as TenantContext,
+        insert,
+      )
+    : await withAdminDb<{ rows: { id: string }[] }>(insert);
+
+  return result.rows[0].id;
 }
 
 // Send a financial report — restricted to treasurer / chairperson roles

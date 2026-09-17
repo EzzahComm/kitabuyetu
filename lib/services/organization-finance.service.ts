@@ -203,6 +203,26 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
      RETURNING *`,
     [organizationId],
   );
+
+  // Audit: wallet bootstrap (system-initiated, no actor)
+  await db.query(
+    `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [
+      organizationId,
+      null, // system-initiated
+      'wallet.create',
+      'wallet',
+      created[0].id,
+      null,
+      JSON.stringify({
+        currency: created[0].currency,
+        available_balance: created[0].available_balance,
+        committed_balance: created[0].committed_balance,
+      }),
+    ],
+  );
+
   return created[0];
 }
 
@@ -360,13 +380,52 @@ async function createAllocationFundingSource(
   const orgName = rows[0]?.org_name ?? 'Organization';
   const label   = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
 
-  await db.query(
-    `INSERT INTO group_funding_sources
-       (group_id, source_type, allocation_id, organization_id, label, is_repayable)
-     VALUES ($1, 'organization_allocation', $2, $3, $4, $5)
-     ON CONFLICT DO NOTHING`,
-    [allocation.group_id, allocation.id, allocation.organization_id, label, allocation.is_repayable],
+  const { rows: existingRows } = await db.query<{ id: string }>(
+    `SELECT id FROM group_funding_sources
+     WHERE allocation_id = $1`,
+    [allocation.id],
   );
+
+  // Only log if this is a new creation (not an idempotent no-op)
+  if (!existingRows[0]) {
+    await db.query(
+      `INSERT INTO group_funding_sources
+         (group_id, source_type, allocation_id, organization_id, label, is_repayable)
+       VALUES ($1, 'organization_allocation', $2, $3, $4, $5)
+       ON CONFLICT DO NOTHING`,
+      [allocation.group_id, allocation.id, allocation.organization_id, label, allocation.is_repayable],
+    );
+
+    // Audit: funding source creation
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        allocation.organization_id,
+        null, // system-initiated
+        'funding_source.create',
+        'funding_source',
+        allocation.id,
+        null,
+        JSON.stringify({
+          allocation_id: allocation.id,
+          group_id: allocation.group_id,
+          source_type: 'organization_allocation',
+          label: label,
+          is_repayable: allocation.is_repayable,
+        }),
+      ],
+    );
+  } else {
+    // Idempotent case: insert without logging
+    await db.query(
+      `INSERT INTO group_funding_sources
+         (group_id, source_type, allocation_id, organization_id, label, is_repayable)
+       VALUES ($1, 'organization_allocation', $2, $3, $4, $5)
+       ON CONFLICT DO NOTHING`,
+      [allocation.group_id, allocation.id, allocation.organization_id, label, allocation.is_repayable],
+    );
+  }
 }
 
 async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisbursement> {
@@ -409,9 +468,29 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     await createAllocationFundingSource(db, disb);
 
     if (disb.funding_program_id) {
-      await db.query(
-        `UPDATE funding_programs SET disbursed_total = disbursed_total + $1 WHERE id = $2`,
+      const { rows: programBefore } = await db.query<{ disbursed_total: string }>(
+        `SELECT disbursed_total FROM funding_programs WHERE id = $1`,
+        [disb.funding_program_id],
+      );
+
+      const { rows: programAfter } = await db.query<{ disbursed_total: string }>(
+        `UPDATE funding_programs SET disbursed_total = disbursed_total + $1 WHERE id = $2 RETURNING disbursed_total`,
         [disb.amount, disb.funding_program_id],
+      );
+
+      // Audit: program settlement (disbursed_total increment)
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          disb.organization_id,
+          null, // system-initiated
+          'program.settle_disbursement',
+          'funding_program',
+          disb.funding_program_id,
+          JSON.stringify({ disbursed_total: programBefore[0].disbursed_total }),
+          JSON.stringify({ disbursed_total: programAfter[0].disbursed_total }),
+        ],
       );
     }
 
@@ -436,9 +515,32 @@ async function settleOrgDisbursement(id: string): Promise<void> {
         [disb.group_id, disb.reference, `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`],
       );
       groupJournalId = je[0].id;
-      // entry_date is supplied directly as the same CURRENT_DATE literal used
-      // for the parent journal_entries row above (matching
-      // accounting.service.ts's postSystemJournal convention).
+
+      // Audit: journal entry creation
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          disb.organization_id,
+          null, // system-initiated
+          'journal_entry.create',
+          'journal_entry',
+          groupJournalId,
+          null,
+          JSON.stringify({
+            group_id: disb.group_id,
+            reference: disb.reference,
+            description: `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`,
+            status: 'posted',
+            amount: disb.net_disbursed_amount,
+          }),
+        ],
+      );
+
+      // entry_date is the journal_lines partition key — supplied directly as
+      // the same CURRENT_DATE literal used for the parent journal_entries row
+      // above (a BEFORE INSERT trigger deriving it after Postgres has already
+      // routed the row to a partition is unsupported).
       // net_disbursed_amount (migration 125), not the gross amount — the
       // group's own cash account must reflect what it actually received; a
       // processing fee never reaches the group.
@@ -446,6 +548,28 @@ async function settleOrgDisbursement(id: string): Promise<void> {
         `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
          VALUES ($1,$2,$3,$4,0,CURRENT_DATE), ($1,$2,$5,0,$4,CURRENT_DATE)`,
         [disb.group_id, groupJournalId, cashId, disb.net_disbursed_amount, incomeId],
+      );
+
+      // Audit: journal lines creation (dual posting)
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          disb.organization_id,
+          null, // system-initiated
+          'journal_lines.create',
+          'journal_lines',
+          groupJournalId,
+          null,
+          JSON.stringify({
+            journal_entry_id: groupJournalId,
+            group_id: disb.group_id,
+            line_count: 2,
+            debit_account: '1001',
+            credit_account: '4005',
+            amount: disb.net_disbursed_amount,
+          }),
+        ],
       );
     } else {
       // Never lose the money trail: the disbursement + org ledger still
@@ -463,14 +587,43 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     //   - total_disbursed (lifetime counter) only counts the NET cash that
     //     really went out the door
     // Net effect on available_balance across request+settle: -gross+fee = -net.
-    const { rows: walletAfter } = await db.query<{ available_balance: string }>(
+    const { rows: walletBefore } = await db.query<OrgWallet>(
+      `SELECT * FROM organization_wallets WHERE id = $1`,
+      [disb.wallet_id],
+    );
+    const walletBeforeUpdate = walletBefore[0];
+
+    const { rows: walletAfter } = await db.query<{ available_balance: string; committed_balance: string; total_disbursed: string }>(
       `UPDATE organization_wallets
        SET    committed_balance = committed_balance - $1,
               available_balance = available_balance + $2,
               total_disbursed   = total_disbursed   + $3
        WHERE  id = $4
-       RETURNING available_balance`,
+       RETURNING available_balance, committed_balance, total_disbursed`,
       [disb.amount, disb.processing_fee_amount, disb.net_disbursed_amount, disb.wallet_id],
+    );
+
+    // Audit: wallet settlement (reservation release + fee retention + total disbursed increment)
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        disb.organization_id,
+        null, // system-initiated settlement
+        'wallet.settle_disbursement',
+        'wallet',
+        disb.wallet_id,
+        JSON.stringify({
+          available_balance: walletBeforeUpdate.available_balance,
+          committed_balance: walletBeforeUpdate.committed_balance,
+          total_disbursed: walletBeforeUpdate.total_disbursed,
+        }),
+        JSON.stringify({
+          available_balance: walletAfter[0].available_balance,
+          committed_balance: walletAfter[0].committed_balance,
+          total_disbursed: walletAfter[0].total_disbursed,
+        }),
+      ],
     );
 
     // Organization's own side of the same transfer: DR 5001 Program
@@ -504,11 +657,31 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       );
     }
 
+    const { rows: beforeComplete } = await db.query<{ status: string }>(
+      `SELECT status FROM organization_disbursements WHERE id = $1`,
+      [id],
+    );
+
     await db.query(
       `UPDATE organization_disbursements
        SET    status = 'completed', completed_at = NOW(), group_journal_entry_id = $2
        WHERE  id = $1`,
       [id, groupJournalId],
+    );
+
+    // Audit: disbursement settlement (status change to completed)
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        disb.organization_id,
+        null, // system-initiated
+        'disbursement.settle',
+        'disbursement',
+        id,
+        JSON.stringify({ status: beforeComplete[0]?.status ?? 'approved' }),
+        JSON.stringify({ status: 'completed' }),
+      ],
     );
   });
 }
@@ -559,6 +732,27 @@ export const organizationFinanceService = {
              total_deposited   = total_deposited   + $1
          WHERE id = $2 RETURNING *`,
         [input.amount.toFixed(2), wallet.id],
+      );
+
+      // Audit: wallet deposit
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          orgId(ctx),
+          ctx.userId,
+          'wallet.deposit',
+          'wallet',
+          wallet.id,
+          JSON.stringify({
+            available_balance: wallet.available_balance,
+            total_deposited: wallet.total_deposited,
+          }),
+          JSON.stringify({
+            available_balance: updated[0].available_balance,
+            total_deposited: updated[0].total_deposited,
+          }),
+        ],
       );
 
       const { rows: ledger } = await db.query<{ id: string }>(
@@ -925,7 +1119,34 @@ export const organizationFinanceService = {
           input.processingFeePct ?? null,
         ],
       );
-      return rows[0];
+
+      const program = rows[0];
+
+      // Audit: program creation
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          orgId(ctx),
+          ctx.userId,
+          'program.create',
+          'funding_program',
+          program.id,
+          null,
+          JSON.stringify({
+            name: program.name,
+            program_type: program.program_type,
+            budget: program.budget,
+            funding_source: program.funding_source,
+            status: program.status,
+            is_repayable: program.is_repayable,
+            starts_on: program.starts_on,
+            ends_on: program.ends_on,
+          }),
+        ],
+      );
+
+      return program;
     });
   },
 
@@ -959,8 +1180,25 @@ export const organizationFinanceService = {
         [input.amount.toFixed(2), programId, orgId(ctx)],
       );
 
+      const updated = rows[0];
+
+      // Audit: program capitalization
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          orgId(ctx),
+          ctx.userId,
+          'program.capitalize',
+          'funding_program',
+          programId,
+          JSON.stringify({ budget: program.budget }),
+          JSON.stringify({ budget: updated.budget }),
+        ],
+      );
+
       await recordCapitalLedgerEntry(db, ctx, program, 'capitalization', input);
-      return rows[0];
+      return updated;
     });
   },
 
@@ -997,8 +1235,25 @@ export const organizationFinanceService = {
         [input.amount.toFixed(2), programId, orgId(ctx)],
       );
 
+      const updated = rows[0];
+
+      // Audit: program decapitalization
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          orgId(ctx),
+          ctx.userId,
+          'program.decapitalize',
+          'funding_program',
+          programId,
+          JSON.stringify({ budget: program.budget }),
+          JSON.stringify({ budget: updated.budget }),
+        ],
+      );
+
       await recordCapitalLedgerEntry(db, ctx, program, 'decapitalization', input);
-      return rows[0];
+      return updated;
     });
   },
 
@@ -1041,13 +1296,34 @@ export const organizationFinanceService = {
   ): Promise<FundingProgram> {
     await organizationService.assertOrganizationCoordinator(ctx);
     return withTransaction(ctx, async (db) => {
+      const { rows: beforeUpdate } = await db.query<FundingProgram>(
+        `SELECT * FROM funding_programs WHERE id = $1 AND organization_id = $2`,
+        [programId, orgId(ctx)],
+      );
+      if (!beforeUpdate[0]) throw new NotFoundError('Funding program', programId);
+
       const { rows } = await db.query<FundingProgram>(
         `UPDATE funding_programs SET status = $1
          WHERE id = $2 AND organization_id = $3
          RETURNING *`,
         [status, programId, orgId(ctx)],
       );
-      if (!rows[0]) throw new NotFoundError('Funding program', programId);
+
+      // Audit: program status change
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          orgId(ctx),
+          ctx.userId,
+          'program.update_status',
+          'funding_program',
+          programId,
+          JSON.stringify({ status: beforeUpdate[0].status }),
+          JSON.stringify({ status: rows[0].status }),
+        ],
+      );
+
       return rows[0];
     });
   },
@@ -1129,12 +1405,35 @@ export const organizationFinanceService = {
       //    reversing credit.
       const reference  = `ODB-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
       const newBalance = available - input.amount;
-      await db.query(
+
+      const { rows: walletAfterReserve } = await db.query<OrgWallet>(
         `UPDATE organization_wallets
          SET available_balance = available_balance - $1,
              committed_balance = committed_balance + $1
-         WHERE id = $2`,
+         WHERE id = $2
+         RETURNING *`,
         [input.amount.toFixed(2), wallet.id],
+      );
+
+      // Audit: wallet reservation
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          organizationId,
+          ctx.userId,
+          'wallet.reserve',
+          'wallet',
+          wallet.id,
+          JSON.stringify({
+            available_balance: wallet.available_balance,
+            committed_balance: wallet.committed_balance,
+          }),
+          JSON.stringify({
+            available_balance: walletAfterReserve[0].available_balance,
+            committed_balance: walletAfterReserve[0].committed_balance,
+          }),
+        ],
       );
 
       // 5b. SNAPSHOT the product's terms onto the allocation (migration 117).
@@ -1179,6 +1478,30 @@ export const organizationFinanceService = {
         ],
       );
 
+      const disbursement = disbRows[0];
+
+      // Audit: disbursement creation
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          organizationId,
+          ctx.userId,
+          'disbursement.create',
+          'disbursement',
+          disbursement.id,
+          null,
+          JSON.stringify({
+            group_id: disbursement.group_id,
+            funding_program_id: disbursement.funding_program_id,
+            amount: disbursement.amount,
+            status: disbursement.status,
+            reference: disbursement.reference,
+            net_disbursed_amount: disbursement.net_disbursed_amount,
+          }),
+        ],
+      );
+
       const { rows: ledger } = await db.query<{ id: string }>(
         `INSERT INTO organization_ledger
            (organization_id, wallet_id, entry_type, direction, amount, balance_after,
@@ -1187,14 +1510,14 @@ export const organizationFinanceService = {
          RETURNING id`,
         [
           organizationId, wallet.id, input.amount.toFixed(2), newBalance.toFixed(2),
-          input.fundingProgramId ?? null, input.groupId, disbRows[0].id, reference,
+          input.fundingProgramId ?? null, input.groupId, disbursement.id, reference,
           input.notes ?? (requiresApproval ? 'Disbursement — reserved, pending approval' : 'Disbursement to group'),
           ctx.userId,
         ],
       );
       await db.query(
         `UPDATE organization_disbursements SET ledger_entry_id = $1 WHERE id = $2`,
-        [ledger[0].id, disbRows[0].id],
+        [ledger[0].id, disbursement.id],
       );
 
       return disbRows[0];
@@ -1214,8 +1537,8 @@ export const organizationFinanceService = {
     const organizationId = orgId(ctx);
 
     await withTransaction(ctx, async (db) => {
-      const { rows } = await db.query<{ id: string; created_by: string }>(
-        `SELECT id, created_by FROM organization_disbursements
+      const { rows } = await db.query<{ id: string; created_by: string; status: string }>(
+        `SELECT id, created_by, status FROM organization_disbursements
          WHERE id = $1 AND organization_id = $2 AND status = 'pending_approval'
          FOR UPDATE`,
         [id, organizationId],
@@ -1224,11 +1547,27 @@ export const organizationFinanceService = {
       if (rows[0].created_by === ctx.userId) {
         throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
       }
+
       await db.query(
         `UPDATE organization_disbursements
          SET    status = 'approved', approved_by = $2
          WHERE  id = $1`,
         [id, ctx.userId],
+      );
+
+      // Audit: disbursement approval
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          organizationId,
+          ctx.userId,
+          'disbursement.approve',
+          'disbursement',
+          id,
+          JSON.stringify({ status: rows[0].status }),
+          JSON.stringify({ status: 'approved' }),
+        ],
       );
     });
 
@@ -1242,21 +1581,44 @@ export const organizationFinanceService = {
     const organizationId = orgId(ctx);
 
     return withTransaction(ctx, async (db) => {
-      const { rows } = await db.query<{ wallet_id: string; amount: string }>(
-        `SELECT wallet_id, amount FROM organization_disbursements
+      const { rows } = await db.query<{ wallet_id: string; amount: string; status: string }>(
+        `SELECT wallet_id, amount, status FROM organization_disbursements
          WHERE id = $1 AND organization_id = $2 AND status = 'pending_approval'
          FOR UPDATE`,
         [id, organizationId],
       );
       if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
 
-      const { rows: walletRows } = await db.query<{ available_balance: string }>(
+      const prevStatus = rows[0].status;
+
+      const { rows: walletRows } = await db.query<{ available_balance: string; committed_balance: string }>(
         `UPDATE organization_wallets
          SET    available_balance = available_balance + $1,
                 committed_balance = committed_balance - $1
          WHERE  id = $2
-         RETURNING available_balance`,
+         RETURNING available_balance, committed_balance`,
         [rows[0].amount, rows[0].wallet_id],
+      );
+
+      // Audit: wallet release
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          organizationId,
+          ctx.userId,
+          'wallet.release_reservation',
+          'wallet',
+          rows[0].wallet_id,
+          JSON.stringify({
+            available_balance: (parseFloat(walletRows[0].available_balance) - parseFloat(rows[0].amount)).toFixed(2),
+            committed_balance: (parseFloat(walletRows[0].committed_balance) + parseFloat(rows[0].amount)).toFixed(2),
+          }),
+          JSON.stringify({
+            available_balance: walletRows[0].available_balance,
+            committed_balance: walletRows[0].committed_balance,
+          }),
+        ],
       );
 
       await db.query(
@@ -1275,6 +1637,22 @@ export const organizationFinanceService = {
          WHERE  id = $1 RETURNING *`,
         [id, ctx.userId, reason],
       );
+
+      // Audit: disbursement rejection
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          organizationId,
+          ctx.userId,
+          'disbursement.reject',
+          'disbursement',
+          id,
+          JSON.stringify({ status: prevStatus }),
+          JSON.stringify({ status: 'rejected', rejection_reason: reason }),
+        ],
+      );
+
       return updated[0];
     });
   },

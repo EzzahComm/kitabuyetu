@@ -1,5 +1,6 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
+import { cached, keys } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
@@ -392,8 +393,13 @@ export const accountingService = {
     });
   },
 
+  // Every report below: cached 60s (analytics.service.ts:119's pattern —
+  // fail-open, no manual invalidation, short TTL traded for minimal
+  // staleness risk). None of these 5 was cached before — every /accounting
+  // load recomputed a full-year journal_lines x journal_entries x accounts
+  // aggregate from scratch (docs/audits/optimization-2026-09).
   async getTrialBalance(ctx: TenantContext): Promise<TrialBalanceLine[]> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('trial-balance', ctx.groupId), 60, () => withDb(ctx, async (client) => {
       // netBalance: asset/expense accounts are debit-normal (positive balance stored as-is).
       // Credit-normal accounts (liability, equity, income) are stored as negative; negate for display.
       const { rows } = await client.query<TrialBalanceLine>(
@@ -416,11 +422,11 @@ export const accountingService = {
         [ctx.groupId],
       );
       return rows;
-    });
+    }));
   },
 
   async getProfitAndLoss(ctx: TenantContext, from: string, to: string): Promise<ProfitAndLoss> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('profit-and-loss', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
       const { rows } = await client.query<{
         account_code: string; account_name: string; type: string; total: string;
       }>(
@@ -471,11 +477,11 @@ export const accountingService = {
         totalExpenses: totalExpenses.toFixed(2),
         netProfit:     (totalIncome - totalExpenses).toFixed(2),
       };
-    });
+    }));
   },
 
   async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('balance-sheet', `${ctx.groupId}:${asOf}`), 60, () => withDb(ctx, async (client) => {
       // Computed from journal_lines as of the requested date — NOT the
       // denormalized accounts.balance column, which is always the *current*
       // running total and has no notion of "as of a past date". Same
@@ -515,7 +521,7 @@ export const accountingService = {
         totalLiabilities: liabilities.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
         totalEquity:      equity.reduce((s, r)       => s + parseFloat(r.balance), 0).toFixed(2),
       };
-    });
+    }));
   },
 
   /**
@@ -537,7 +543,7 @@ export const accountingService = {
    *  - financing: equity accounts (share capital) and 2103 Dividends Payable.
    */
   async getCashFlowStatement(ctx: TenantContext, from: string, to: string): Promise<CashFlowStatement> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('cash-flow', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
       const CASH_CODES = ['1001', '1002'];
 
       const { rows: movements } = await client.query<{
@@ -609,7 +615,7 @@ export const accountingService = {
         closingCash:  closingCash.toFixed(2),
         reconciles:   Math.abs(openingCash + netChange - closingCash) < 0.01,
       };
-    });
+    }));
   },
 
   /**
@@ -620,7 +626,7 @@ export const accountingService = {
    * Retained Surplus, and this platform has no automated year-end close.
    */
   async getEquityChanges(ctx: TenantContext, from: string, to: string): Promise<EquityChanges> {
-    return withDb(ctx, async (client) => {
+    return cached(keys.cache('equity-changes', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
       const { rows } = await client.query<{
         account_code: string; account_name: string;
         opening: string; increases: string; decreases: string;
@@ -668,7 +674,7 @@ export const accountingService = {
         totalClosing: lines.reduce((s, l) => s + parseFloat(l.closing), 0).toFixed(2),
         periodNetProfit: parseFloat(pnl[0]?.net ?? '0').toFixed(2),
       };
-    });
+    }));
   },
 };
 

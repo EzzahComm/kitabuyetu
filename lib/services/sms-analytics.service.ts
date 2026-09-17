@@ -1,4 +1,4 @@
-import { withAdminDb } from '@/lib/db';
+import { withDb, type TenantContext } from '@/lib/db';
 
 /**
  * Tenant-facing SMS usage analytics (spec §8).
@@ -61,7 +61,14 @@ export interface SmsUsageAnalytics {
 const PROJECTION_WINDOW_DAYS = 30;
 
 export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalytics> {
-  return withAdminDb(async (db) => {
+  // Billing/credits data — RLS-enforced (group_id = app_current_group_id())
+  // rather than the admin pool, matching the rest of the Phase 1 tenant-pool
+  // migration. No per-request session is threaded this deep (the route only
+  // has a groupId), so this uses the same "unset" sentinel TenantContext as
+  // sms.service.ts's systemCtx(): RLS on billing_accounts/subscriptions/
+  // sms_usage_logs/sms_campaigns keys off group_id alone.
+  const ctx: TenantContext = { userId: '', groupId, role: '' };
+  return withDb(ctx, async (db) => {
     const [balance, purchased, consumption, byFeature, byCampaign, rate] = await Promise.all([
       // SUM the allowance across ACTIVE subscriptions only, mirroring
       // smsService.getBalance() and reserve_sms_credits — a group holding both

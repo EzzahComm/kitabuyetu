@@ -1,7 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { withDb, withAdminDb } from '@/lib/db';
+import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { ScheduleCreateSchema, ScheduleUpdateSchema } from '@/lib/validators/sms.schema';
 import { ok, notFound } from '@/lib/utils/response';
 
@@ -28,8 +28,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const body  = await req.json();
     const input = ScheduleCreateSchema.parse(body);
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows: [schedule] } = await withAdminDb((db) =>
+    const { rows: [schedule] } = await withTransaction(ctx, (db) =>
       db.query(
         `INSERT INTO sms_schedules
            (group_id, name, description, schedule_type, template_id, message,
@@ -65,6 +66,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     if (!id) return notFound();
     const body  = await req.json();
     const input = ScheduleUpdateSchema.parse(body);
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     const sets: string[] = ['updated_at=NOW()'];
     const vals: unknown[] = [id, auth.groupId];
@@ -92,7 +94,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       }
     }
 
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withTransaction(ctx, (db) =>
       db.query(
         `UPDATE sms_schedules SET ${sets.join(',')}
          WHERE id=$1 AND group_id=$2 RETURNING *`,
@@ -109,8 +111,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
+    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows } = await withAdminDb((db) =>
+    const { rows } = await withTransaction(ctx, (db) =>
       db.query(
         `DELETE FROM sms_schedules WHERE id=$1 AND group_id=$2 RETURNING id`,
         [id, auth.groupId],

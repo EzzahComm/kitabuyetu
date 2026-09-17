@@ -102,14 +102,37 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
     );
     const txId = txRows[0]?.id ?? null;
 
+    // Audit: mpesa_transaction created
+    if (txId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          params.groupId,
+          params.initiatedBy ?? null,
+          'mpesa_transaction.create',
+          'mpesa_transaction',
+          txId,
+          JSON.stringify({
+            transaction_type: 'stk_push',
+            direction: 'inbound',
+            amount: amountStr,
+            status: 'pending',
+            reference: params.accountReference,
+          }),
+        ],
+      );
+    }
+
     // 2. STK-specific tracking
-    await db.query(
+    const { rows: stkRows } = await db.query<{ id: string }>(
       `INSERT INTO mpesa_stk_requests
          (group_id, mpesa_transaction_id, checkout_request_id, merchant_request_id,
           phone, amount, account_reference, description, purpose,
           status, invoice_id, initiated_by, plan_type, product, billing_cycle)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14)
-       ON CONFLICT (checkout_request_id) DO NOTHING`,
+       ON CONFLICT (checkout_request_id) DO NOTHING
+       RETURNING id`,
       [
         params.groupId, txId,
         res.checkoutRequestId, res.merchantRequestId,
@@ -124,22 +147,71 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
         params.billingCycle ?? null,
       ],
     );
+    const stkId = stkRows[0]?.id ?? null;
+
+    // Audit: stk_request created
+    if (stkId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          params.groupId,
+          params.initiatedBy ?? null,
+          'stk_request.initiate',
+          'mpesa_stk_request',
+          stkId,
+          JSON.stringify({
+            checkout_request_id: res.checkoutRequestId,
+            amount: amountStr,
+            status: 'pending',
+            purpose: params.purpose ?? null,
+            initiated_by: params.initiatedBy ?? null,
+            plan_type: params.planType ?? null,
+            product: params.product ?? null,
+          }),
+        ],
+      );
+    }
 
     // 3. Payment spine (accounting / billing side) — channel + initiator
     //    recorded at initiation (payment architecture §7).
-    await db.query(
+    const { rows: payRows } = await db.query<{ id: string }>(
       `INSERT INTO payments
          (group_id, invoice_id, amount, payment_method, status,
           mpesa_checkout_request_id, mpesa_merchant_request_id, mpesa_phone,
           channel, initiated_by)
        VALUES ($1,$2,$3,'mpesa','pending',$4,$5,$6,'stk',$7)
-       ON CONFLICT (mpesa_checkout_request_id) DO NOTHING`,
+       ON CONFLICT (mpesa_checkout_request_id) DO NOTHING
+       RETURNING id`,
       [
         params.groupId, params.invoiceId ?? null, amountStr,
         res.checkoutRequestId, res.merchantRequestId, phone,
         params.initiatedBy ?? null,
       ],
     );
+    const paymentId = payRows[0]?.id ?? null;
+
+    // Audit: payment created
+    if (paymentId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          params.groupId,
+          params.initiatedBy ?? null,
+          'payment.create',
+          'payment',
+          paymentId,
+          JSON.stringify({
+            amount: amountStr,
+            payment_method: 'mpesa',
+            status: 'pending',
+            channel: 'stk',
+            checkout_request_id: res.checkoutRequestId,
+          }),
+        ],
+      );
+    }
   });
 
   // §3.6: STK initiation records a payment request so a member who ignores
@@ -218,16 +290,18 @@ export async function handleSTKCallback(
     // so a duplicate/ replayed failure callback won't re-send the SMS.
     const failed = await withAdminDb(async (db) => {
       const { rows: stkRows } = await db.query<{
+        id:                string;
         group_id:          string;
         phone:             string;
         amount:            string;
         account_reference: string;
         purpose:           string | null;
+        status:            string;
       }>(
         `UPDATE mpesa_stk_requests
          SET    status='failed', completed_at=NOW(), raw_callback=$2
          WHERE  checkout_request_id=$1 AND status NOT IN ('failed','completed')
-         RETURNING group_id, phone, amount, account_reference, purpose`,
+         RETURNING id, group_id, phone, amount, account_reference, purpose, status`,
         [cb.CheckoutRequestID, rawBody],
       );
       const stk = stkRows[0] ?? null;
@@ -239,24 +313,101 @@ export async function handleSTKCallback(
         [cb.CheckoutRequestID],
       )).rows[0]?.group_id ?? null;
 
-      await db.query(
+      // Audit: stk_request transitioned to failed (only on first transition)
+      if (stk) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            stk.group_id,
+            null, // system-triggered via M-Pesa callback
+            'stk_request.confirm_failure',
+            'mpesa_stk_request',
+            stk.id,
+            JSON.stringify({ status: 'pending' }),
+            JSON.stringify({ status: 'failed', failure_code: String(cb.ResultCode), failure_reason: cb.ResultDesc }),
+          ],
+        );
+      }
+
+      const { rows: payRows } = await db.query<{ id: string; status: string }>(
         `UPDATE payments SET status='failed'
-         WHERE mpesa_checkout_request_id=$1 AND status='pending'`,
+         WHERE mpesa_checkout_request_id=$1 AND status='pending'
+         RETURNING id, status`,
         [cb.CheckoutRequestID],
       );
-      await db.query(
+
+      // Audit: payment transitioned to failed (only on first transition)
+      if (payRows[0]) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            null, // system-triggered
+            'payment.confirm_failure',
+            'payment',
+            payRows[0].id,
+            JSON.stringify({ status: 'pending' }),
+            JSON.stringify({ status: 'failed' }),
+          ],
+        );
+      }
+
+      const { rows: txRows } = await db.query<{ id: string; status: string }>(
         `UPDATE mpesa_transactions t
          SET status='failed', failure_reason=$2, raw_response=$3, completed_at=NOW()
          FROM mpesa_stk_requests s
-         WHERE s.mpesa_transaction_id=t.id AND s.checkout_request_id=$1`,
+         WHERE s.mpesa_transaction_id=t.id AND s.checkout_request_id=$1
+         RETURNING t.id, t.status`,
         [cb.CheckoutRequestID, cb.ResultDesc, rawBody],
       );
-      await db.query(
+
+      // Audit: mpesa_transaction transitioned to failed (only on first transition)
+      if (txRows[0]) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            null, // system-triggered
+            'mpesa_transaction.confirm_failure',
+            'mpesa_transaction',
+            txRows[0].id,
+            JSON.stringify({ status: 'pending' }),
+            JSON.stringify({ status: 'failed', failure_reason: cb.ResultDesc, failure_code: String(cb.ResultCode) }),
+          ],
+        );
+      }
+
+      const { rows: logRows } = await db.query<{ id: string }>(
         `INSERT INTO failed_payment_logs
            (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
-         VALUES ($1,'stk_push',$2,$3,$4,$5)`,
+         VALUES ($1,'stk_push',$2,$3,$4,$5)
+         RETURNING id`,
         [groupId, cb.CheckoutRequestID, cb.ResultDesc, String(cb.ResultCode), rawBody],
       );
+
+      // Audit: failure log recorded
+      if (logRows[0]) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            groupId,
+            null, // system-triggered
+            'failed_payment_log.create',
+            'failed_payment_log',
+            logRows[0].id,
+            JSON.stringify({
+              transaction_type: 'stk_push',
+              failure_code: String(cb.ResultCode),
+              failure_reason: cb.ResultDesc,
+              reference_id: cb.CheckoutRequestID,
+            }),
+          ],
+        );
+      }
 
       return stk; // null when this is a duplicate/replayed failure
     });
@@ -329,15 +480,37 @@ export async function handleSTKCallback(
     const stkReq = stkRows[0] ?? null;
 
     // 3. Mark payments / invoices / m-pesa rows completed.
-    const { rows: payRows } = await db.query<{ id: string; invoice_id: string | null }>(
+    const { rows: payRows } = await db.query<{ id: string; invoice_id: string | null; status: string }>(
       `UPDATE payments
        SET    status='completed', mpesa_receipt_number=$1,
               mpesa_raw_callback=$2, payment_date=NOW()
        WHERE  mpesa_checkout_request_id=$3 AND status='pending'
-       RETURNING id, invoice_id`,
+       RETURNING id, invoice_id, status`,
       [receipt, rawBody, cb.CheckoutRequestID],
     );
     const paymentId = payRows[0]?.id ?? null;
+
+    // Audit: payment transitioned to completed (only on first transition)
+    if (paymentId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          stkReq?.group_id ?? null,
+          null, // system-triggered via M-Pesa callback
+          'payment.confirm_success',
+          'payment',
+          paymentId,
+          JSON.stringify({ status: 'pending' }),
+          JSON.stringify({
+            status: 'completed',
+            mpesa_receipt_number: receipt,
+            received_at: new Date().toISOString(),
+            amount: amount.toFixed(2),
+          }),
+        ],
+      );
+    }
 
     // Spine: money landed (first transition only — the status='pending' guard
     // means a replayed callback returns no row and skips this).
@@ -347,14 +520,36 @@ export async function handleSTKCallback(
     }
 
     if (payRows[0]?.invoice_id) {
-      await db.query(
+      const { rows: invRows } = await db.query<{ id: string; total_amount: string }>(
         `UPDATE invoices
          SET paid_amount=paid_amount+$1,
              status=CASE WHEN paid_amount+$1>=total_amount THEN 'completed'::payment_status
                          ELSE status END
-         WHERE id=$2`,
+         WHERE id=$2
+         RETURNING id, total_amount`,
         [amount.toFixed(2), payRows[0].invoice_id],
       );
+
+      // Audit: invoice paid amount updated
+      if (invRows[0]) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            stkReq?.group_id ?? null,
+            null, // system-triggered
+            'invoice.payment_received',
+            'invoice',
+            invRows[0].id,
+            JSON.stringify({
+              paid_amount_delta: amount.toFixed(2),
+              payment_receipt: receipt,
+              via_mpesa_receipt: receipt,
+            }),
+          ],
+        );
+      }
+
       // Invoice-bound payments (registration/subscription/sms_topup) allocate
       // to the billing pipeline right here (§3.5 dispatch table).
       await markSpineAllocated(db, receipt, {
@@ -376,22 +571,66 @@ export async function handleSTKCallback(
       }
     }
 
-    await db.query(
+    const { rows: stkUpdateRows } = await db.query<{ id: string; status: string }>(
       `UPDATE mpesa_stk_requests
        SET    status='completed', raw_callback=$1, completed_at=NOW()
-       WHERE  checkout_request_id=$2`,
+       WHERE  checkout_request_id=$2 AND status='pending'
+       RETURNING id, status`,
       [rawBody, cb.CheckoutRequestID],
     );
 
-    await db.query(
+    // Audit: stk_request transitioned to completed (only on first transition)
+    if (stkUpdateRows[0]) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          stkReq?.group_id ?? null,
+          null, // system-triggered
+          'stk_request.confirm_success',
+          'mpesa_stk_request',
+          stkUpdateRows[0].id,
+          JSON.stringify({ status: 'pending' }),
+          JSON.stringify({
+            status: 'completed',
+            mpesa_receipt_number: receipt,
+            completed_at: new Date().toISOString(),
+          }),
+        ],
+      );
+    }
+
+    const { rows: txUpdateRows } = await db.query<{ id: string; status: string }>(
       `UPDATE mpesa_transactions t
        SET    status='completed', mpesa_receipt_number=$1,
               raw_response=$2, completed_at=NOW(), phone_number=$3,
               is_test=$5
        FROM   mpesa_stk_requests s
-       WHERE  s.mpesa_transaction_id=t.id AND s.checkout_request_id=$4`,
+       WHERE  s.mpesa_transaction_id=t.id AND s.checkout_request_id=$4
+       RETURNING t.id, t.status`,
       [receipt, rawBody, phone, cb.CheckoutRequestID, IS_SANDBOX],
     );
+
+    // Audit: mpesa_transaction transitioned to completed
+    if (txUpdateRows[0]) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          stkReq?.group_id ?? null,
+          null, // system-triggered
+          'mpesa_transaction.confirm_success',
+          'mpesa_transaction',
+          txUpdateRows[0].id,
+          JSON.stringify({ status: 'pending' }),
+          JSON.stringify({
+            status: 'completed',
+            mpesa_receipt_number: receipt,
+            phone_number: phone !== UNKNOWN_PAYER_PHONE ? '[redacted]' : phone,
+          }),
+        ],
+      );
+    }
 
     // 4. Domain-level fulfilment (the new wiring).
     if (stkReq) {
@@ -469,6 +708,23 @@ async function activateSubscriptionFromSTK(
     logger.error('[mpesa] subscription payment with no plan recorded — not activating', {
       stkRequestId: stkReq.id, groupId: stkReq.group_id, receipt: in_.receipt,
     });
+
+    // Audit: subscription activation skipped due to missing plan metadata
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stkReq.group_id,
+        null, // system-triggered
+        'subscription.activate_skipped_missing_plan',
+        'mpesa_stk_request',
+        stkReq.id,
+        JSON.stringify({
+          reason: 'missing_plan_metadata',
+          mpesa_receipt: in_.receipt,
+        }),
+      ],
+    );
     return;
   }
 
@@ -480,6 +736,23 @@ async function activateSubscriptionFromSTK(
     logger.error('[mpesa] subscription payment row not found — not activating', {
       stkRequestId: stkReq.id, receipt: in_.receipt,
     });
+
+    // Audit: subscription activation skipped due to missing payment record
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stkReq.group_id,
+        null, // system-triggered
+        'subscription.activate_skipped_payment_not_found',
+        'mpesa_stk_request',
+        stkReq.id,
+        JSON.stringify({
+          reason: 'payment_row_not_found',
+          mpesa_receipt: in_.receipt,
+        }),
+      ],
+    );
     return;
   }
 
@@ -499,6 +772,27 @@ async function activateSubscriptionFromSTK(
         groupId: stkReq.group_id, product: stkReq.product,
         planType: stkReq.plan_type, paymentId: pay[0].id,
       });
+
+      // Audit: subscription successfully activated
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          stkReq.group_id,
+          null, // system-triggered via M-Pesa callback
+          'subscription.activate_from_stk',
+          'subscription',
+          typeof sub === 'object' && 'id' in sub ? (sub as { id?: string }).id ?? stkReq.id : stkReq.id,
+          JSON.stringify({
+            plan_type: stkReq.plan_type,
+            product: stkReq.product,
+            billing_cycle: stkReq.billing_cycle ?? 'monthly',
+            payment_id: pay[0].id,
+            mpesa_receipt: in_.receipt,
+            amount_paid: in_.amount.toFixed(2),
+          }),
+        ],
+      );
     }
   } catch (err) {
     // Underpayment or a non-self-serve tier. Deliberately not rethrown: the
@@ -508,6 +802,27 @@ async function activateSubscriptionFromSTK(
       groupId: stkReq.group_id, product: stkReq.product, planType: stkReq.plan_type,
       paymentId: pay[0].id, amount: in_.amount, err: String(err),
     });
+
+    // Audit: subscription activation failed with error
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stkReq.group_id,
+        null, // system-triggered
+        'subscription.activate_failed',
+        'mpesa_stk_request',
+        stkReq.id,
+        JSON.stringify({
+          plan_type: stkReq.plan_type,
+          product: stkReq.product,
+          reason: 'activation_error',
+          error_msg: String(err),
+          mpesa_receipt: in_.receipt,
+          payment_id: pay[0]?.id,
+        }),
+      ],
+    );
   }
 }
 
@@ -585,6 +900,27 @@ async function applyContributionFromSTK(
   const contributionId = contribRows[0]?.id ?? null;
   if (!contributionId) return; // duplicate — nothing more to do
 
+  // Audit: contribution created from STK payment
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      stkReq.group_id,
+      null, // system-triggered via M-Pesa callback
+      'contribution.allocate_from_stk',
+      'contribution',
+      contributionId,
+      JSON.stringify({
+        member_id: memberId,
+        amount: in_.amount.toFixed(2),
+        status: 'completed',
+        payment_method: 'mpesa',
+        mpesa_receipt_number: in_.receipt,
+        auto_routed_from_account_ref: stkReq.account_reference,
+      }),
+    ],
+  );
+
   // Post the matching journal entry (DR cash / CR member savings, split
   // across whatever income accounts the group has configured).
   await postContributionJournal(db, {
@@ -594,18 +930,53 @@ async function applyContributionFromSTK(
   });
 
   // Stamp the back-pointer on the STK request for traceability.
-  await db.query(
-    `UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2`,
+  const { rows: stkUpdateRows } = await db.query<{ id: string }>(
+    `UPDATE mpesa_stk_requests SET contribution_id=$1 WHERE id=$2
+     RETURNING id`,
     [contributionId, stkReq.id],
   );
 
+  // Audit: stk_request linked to contribution
+  if (stkUpdateRows[0]) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stkReq.group_id,
+        null, // system-triggered
+        'stk_request.link_contribution',
+        'mpesa_stk_request',
+        stkReq.id,
+        JSON.stringify({ contribution_id: contributionId }),
+      ],
+    );
+  }
+
   // Spine: link the domain row and flip received → allocated (§3.4).
-  await db.query(
+  const { rows: contribLinkRows } = await db.query<{ id: string }>(
     `UPDATE contributions
      SET    payment_id = (SELECT id FROM payments WHERE mpesa_receipt_number = $1)
-     WHERE  id = $2 AND payment_id IS NULL`,
+     WHERE  id = $2 AND payment_id IS NULL
+     RETURNING id`,
     [in_.receipt, contributionId],
   );
+
+  // Audit: contribution linked to payment
+  if (contribLinkRows[0]) {
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stkReq.group_id,
+        null, // system-triggered
+        'contribution.link_payment',
+        'contribution',
+        contributionId,
+        JSON.stringify({ mpesa_receipt: in_.receipt }),
+      ],
+    );
+  }
+
   await markSpineAllocated(db, in_.receipt, {
     detail: { product: 'savings', contributionId, groupId: stkReq.group_id },
   });
@@ -674,6 +1045,30 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
     `Your M-Pesa payment of KES ${amount} ${stkFailureReason(resultCode)}. ` +
     `To complete it, pay via PayBill ${paybill}, Account ${stk.account_reference}. ` +
     `Reply HELP for support.`;
+
+  // Log the fallback notification send attempt
+  await withAdminDb((db) =>
+    db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        stk.group_id,
+        null, // system-triggered
+        'notification.send_stk_fallback',
+        'notification',
+        null, // notification doesn't have a persistent ID at this point
+        JSON.stringify({
+          member_id: member.id,
+          phone: '[redacted]',
+          purpose: stk.purpose,
+          stk_failure_code: resultCode,
+          amount: amount,
+          fallback_paybill: paybill,
+          fallback_account_ref: stk.account_reference,
+        }),
+      ],
+    ),
+  );
 
   await notifyMember({
     groupId:       stk.group_id,

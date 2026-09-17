@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/auth/middleware';
 import { generateDynamicQr } from '@/lib/services/daraja.service';
-import { withAdminDb } from '@/lib/db';
+import { withTransaction, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { ok, handleError } from '@/lib/utils/response';
 
@@ -44,7 +44,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // Persist for audit / reprint. Non-blocking — a logging failure must not
       // deny the caller the QR they successfully generated.
-      const qrId = await withAdminDb((db) =>
+      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const qrId = await withTransaction(ctx, (db) =>
         db.query<{ id: string }>(
           `INSERT INTO mpesa_qr_codes
              (group_id, merchant_name, ref_no, amount, trx_code, cpi, size_px,

@@ -162,8 +162,29 @@ export async function addOrgStaff(
       [organizationId, memberId, input.orgRole, input.invitedBy],
     );
 
+    const staffId = omRows[0].id;
+
+    // Record audit log for staff addition
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        organizationId,
+        input.invitedBy,
+        'organizationMember.add',
+        'organization_member',
+        staffId,
+        null,
+        JSON.stringify({
+          member_id: memberId,
+          org_role: input.orgRole,
+          status: 'active',
+        }),
+      ],
+    );
+
     return {
-      id: omRows[0].id, memberId, firstName: input.firstName, lastName: input.lastName,
+      id: staffId, memberId, firstName: input.firstName, lastName: input.lastName,
       phone, email: null, orgRole: input.orgRole, status: 'active', joinedAt: omRows[0].joined_at,
     };
   });
@@ -173,12 +194,38 @@ export async function changeOrgStaffRole(
   organizationId: string, memberId: string, orgRole: OrgRole,
 ): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
+    // Fetch existing to capture old role
+    const { rows: existing } = await db.query<{ id: string; org_role: OrgRole }>(
+      `SELECT id, org_role FROM public.organization_members
+       WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
+      [organizationId, memberId],
+    );
+    if (!existing[0]) throw new NotFoundError('Active organization staff member', memberId);
+
+    const prev = existing[0];
+
     const { rowCount } = await db.query(
       `UPDATE public.organization_members SET org_role = $1
        WHERE organization_id = $2 AND member_id = $3 AND status = 'active'`,
       [orgRole, organizationId, memberId],
     );
-    if (!rowCount) throw new NotFoundError('Active organization staff member', memberId);
+
+    // Record audit log for role change
+    if (rowCount) {
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          organizationId,
+          null, // Admin-triggered, via super_admin backoffice
+          'organizationMember.changeRole',
+          'organization_member',
+          prev.id,
+          JSON.stringify({ org_role: prev.org_role }),
+          JSON.stringify({ org_role: orgRole }),
+        ],
+      );
+    }
   });
 }
 
@@ -201,13 +248,37 @@ export async function removeOrgStaff(
       throw new ValidationError('Cannot remove the last lead — assign another lead first');
     }
 
+    const { rows: staffRow } = await db.query<{ id: string; org_role: OrgRole }>(
+      `SELECT id, org_role FROM public.organization_members
+       WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
+      [organizationId, memberId],
+    );
+    if (!staffRow[0]) throw new NotFoundError('Active organization staff member', memberId);
+
+    const staffId = staffRow[0].id;
     const { rowCount } = await db.query(
       `UPDATE public.organization_members
        SET status = 'archived', archived_at = NOW(), archived_by = $3
        WHERE organization_id = $1 AND member_id = $2 AND status = 'active'`,
       [organizationId, memberId, removedBy],
     );
-    if (!rowCount) throw new NotFoundError('Active organization staff member', memberId);
+
+    // Record audit log for staff removal
+    if (rowCount) {
+      await db.query(
+        `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          organizationId,
+          removedBy,
+          'organizationMember.remove',
+          'organization_member',
+          staffId,
+          JSON.stringify({ status: 'active', org_role: staffRow[0].org_role }),
+          JSON.stringify({ status: 'archived' }),
+        ],
+      );
+    }
   });
 }
 
@@ -284,7 +355,29 @@ export async function createOrgInvitation(
        RETURNING id, expires_at`,
       [organizationId, input.email, phone, input.firstName, input.lastName, input.orgRole, input.invitedBy, tokenHash],
     );
-    return { id: rows[0].id, expiresAt: rows[0].expires_at, organizationName: org.rows[0].name };
+
+    const invitationId = rows[0].id;
+
+    // Record audit log for invitation creation
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        organizationId,
+        input.invitedBy,
+        'orgInvitation.create',
+        'organization_invitation',
+        invitationId,
+        null,
+        JSON.stringify({
+          email: input.email,
+          org_role: input.orgRole,
+          status: 'invited',
+        }),
+      ],
+    );
+
+    return { id: invitationId, expiresAt: rows[0].expires_at, organizationName: org.rows[0].name };
   });
 
   await sendTemplatedEmail({
@@ -337,6 +430,22 @@ export async function confirmOrgInvitationEmail(token: string): Promise<{ phone:
        WHERE id = $1`,
       [inv.id, otpHash, OTP_TTL_MINUTES],
     );
+
+    // Record audit log for email confirmation
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        inv.organization_id,
+        null, // Self-service invite acceptance, no actor_id
+        'orgInvitation.emailConfirmed',
+        'organization_invitation',
+        inv.id,
+        JSON.stringify({ status: inv.status }),
+        JSON.stringify({ status: 'otp_sent' }),
+      ],
+    );
+
     return inv.phone;
   });
 
@@ -375,6 +484,21 @@ export async function verifyOrgInvitationOtp(token: string, otp: string): Promis
     }
 
     await db.query(`UPDATE public.organization_invitations SET status = 'verified' WHERE id = $1`, [inv.id]);
+
+    // Record audit log for OTP verification
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        inv.organization_id,
+        null, // Self-service OTP verification, no actor_id
+        'orgInvitation.otpVerified',
+        'organization_invitation',
+        inv.id,
+        JSON.stringify({ status: 'otp_sent' }),
+        JSON.stringify({ status: 'verified' }),
+      ],
+    );
   });
 }
 
@@ -434,9 +558,9 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
 
   const result = await withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{
-      status: string; email: string; first_name: string; organization_name: string;
+      status: string; email: string; first_name: string; organization_name: string; organization_id: string;
     }>(
-      `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name
+      `SELECT oi.status, oi.email, oi.first_name, o.name AS organization_name, oi.organization_id
        FROM public.organization_invitations oi
        JOIN public.organizations o ON o.id = oi.organization_id
        WHERE oi.id = $1`,
@@ -456,6 +580,22 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
        RETURNING expires_at`,
       [id, tokenHash],
     );
+
+    // Record audit log for invitation resend
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        inv.organization_id,
+        null, // Admin action but not tied to specific user context in this flow
+        'orgInvitation.resend',
+        'organization_invitation',
+        id,
+        JSON.stringify({ status: inv.status }),
+        JSON.stringify({ status: 'invited' }),
+      ],
+    );
+
     return { expiresAt: updated[0].expires_at, email: inv.email, firstName: inv.first_name, organizationName: inv.organization_name };
   });
 
@@ -475,15 +615,31 @@ export async function resendOrgInvitation(id: string): Promise<{ expiresAt: Date
 /** Lead/super_admin-only. */
 export async function cancelOrgInvitation(id: string): Promise<void> {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query<{ status: string }>(
-      `SELECT status FROM public.organization_invitations WHERE id = $1`, [id],
+    const { rows } = await db.query<{ status: string; organization_id: string }>(
+      `SELECT status, organization_id FROM public.organization_invitations WHERE id = $1`, [id],
     );
     const inv = rows[0];
     if (!inv) throw new NotFoundError('Invitation', id);
     if (TERMINAL_INVITATION_STATUSES.includes(inv.status as never)) {
       throw new ValidationError(`Cannot cancel a ${inv.status} invitation`);
     }
+
     await db.query(`UPDATE public.organization_invitations SET status = 'cancelled' WHERE id = $1`, [id]);
+
+    // Record audit log for invitation cancellation
+    await db.query(
+      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        inv.organization_id,
+        null, // Admin action
+        'orgInvitation.cancel',
+        'organization_invitation',
+        id,
+        JSON.stringify({ status: inv.status }),
+        JSON.stringify({ status: 'cancelled' }),
+      ],
+    );
   });
 }
 

@@ -54,23 +54,47 @@ export async function fulfilMatchingRequest(
   amount:   number,
   receipt:  string,
 ): Promise<void> {
+  // Get the matching request before updating so we can audit it
+  const { rows: matches } = await db.query<{ id: string }>(
+    `SELECT pr2.id FROM payment_requests pr2
+     JOIN   group_members gm ON gm.id = pr2.group_membership_id
+     WHERE  gm.group_id = $1 AND gm.member_id = $2
+       AND  pr2.product = $3::payment_product
+       AND  pr2.status = 'open'
+       AND  pr2.amount = $4
+       AND  (pr2.expires_at IS NULL OR pr2.expires_at > NOW())
+     ORDER  BY pr2.created_at
+     LIMIT  1`,
+    [groupId, memberId, product, amount.toFixed(2)],
+  );
+
+  if (!matches[0]) return; // No matching request found
+
   await db.query(
     `UPDATE payment_requests pr
      SET    status = 'fulfilled',
             fulfilled_by_payment = (SELECT id FROM payments WHERE mpesa_receipt_number = $5)
-     WHERE  pr.id = (
-       SELECT pr2.id FROM payment_requests pr2
-       JOIN   group_members gm ON gm.id = pr2.group_membership_id
-       WHERE  gm.group_id = $1 AND gm.member_id = $2
-         AND  pr2.product = $3::payment_product
-         AND  pr2.status = 'open'
-         AND  pr2.amount = $4
-         AND  (pr2.expires_at IS NULL OR pr2.expires_at > NOW())
-       ORDER  BY pr2.created_at
-       LIMIT  1
-     )`,
-    [groupId, memberId, product, amount.toFixed(2), receipt],
+     WHERE  pr.id = $1`,
+    [matches[0].id, groupId, memberId, product, receipt],
   );
+
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [
+      groupId,
+      'mpesa_allocation.fulfil_payment_request',
+      'payment_requests',
+      matches[0].id,
+      JSON.stringify({
+        status: 'fulfilled',
+        product,
+        amount: amount.toFixed(2),
+        mpesa_receipt: receipt,
+      }),
+    ],
+  ).catch(() => {});
 }
 
 export async function applyLoanRepayment(
@@ -143,6 +167,26 @@ export async function routeToUnrouted(
       stkReq?.id ?? null,
     ],
   );
+
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [
+      opts.candidateGroupId ?? null,
+      'mpesa_allocation.route_to_unrouted',
+      'mpesa_unrouted',
+      in_.receipt,
+      JSON.stringify({
+        receipt: in_.receipt,
+        phone: in_.phone,
+        amount: in_.amount.toFixed(2),
+        bill_ref: opts.billRef ?? stkReq?.account_reference ?? null,
+        reason: opts.reason,
+      }),
+    ],
+  ).catch(() => {}); // Non-critical audit logging
+
   logger.warn('[mpesa] routed to unrouted queue', {
     receipt: in_.receipt,
     reason:  opts.reason,
@@ -316,6 +360,25 @@ export async function applyWelfareFromC2B(db: PoolClient, args: DispatchArgs): P
   );
   if (!rows[0]) return; // replay — already recorded
 
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [
+      args.groupId,
+      'mpesa_allocation.welfare_contribution',
+      'welfare_pool_contributions',
+      rows[0].id,
+      JSON.stringify({
+        member_id: args.memberId,
+        amount: fulfil.amount.toFixed(2),
+        mpesa_receipt_number: fulfil.receipt,
+        tier: args.tier,
+        is_third_party: !!args.thirdPartyPhone,
+      }),
+    ],
+  ).catch(() => {});
+
   // Parity note: the manual welfare-recording path posts no journal either;
   // welfare ledger integration is tracked with the welfare module itself.
   await markSpineAllocated(db, fulfil.receipt, {
@@ -340,9 +403,9 @@ export async function applyPartialRepayment(
 ): Promise<{ applied: number; loanId: string; principalPortion: number; interestPortion: number } | null> {
   const { rows } = await db.query<{
     id: string; loan_id: string; total_due: string; amount_paid: string;
-    principal_component: string; interest_component: string;
+    principal_component: string; interest_component: string; group_id: string;
   }>(
-    `SELECT id, loan_id, total_due, amount_paid, principal_component, interest_component
+    `SELECT id, loan_id, total_due, amount_paid, principal_component, interest_component, group_id
      FROM   loan_repayments
      WHERE  id = $1 AND status IN ('pending','partially_paid','overdue')
      FOR UPDATE`,
@@ -354,6 +417,9 @@ export async function applyPartialRepayment(
   const remaining = parseFloat(row.total_due) - parseFloat(row.amount_paid);
   const applied   = Math.min(amount, remaining);
   if (applied <= 0) return null;
+
+  const oldStatus = row.amount_paid;
+  const newStatus = parseFloat(row.amount_paid) + applied;
 
   await db.query(
     `UPDATE loan_repayments
@@ -368,6 +434,27 @@ export async function applyPartialRepayment(
      WHERE  id = $1`,
     [repaymentId, applied.toFixed(2), receipt, stampReceipt],
   );
+
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5, $6)`,
+    [
+      row.group_id,
+      'mpesa_allocation.loan_repayment',
+      'loan_repayments',
+      repaymentId,
+      JSON.stringify({
+        amount_paid: oldStatus,
+        status: parseFloat(row.amount_paid) + applied + 0.005 >= parseFloat(row.total_due) ? 'completed' : 'partially_paid',
+      }),
+      JSON.stringify({
+        amount_paid: newStatus.toFixed(2),
+        status: parseFloat(row.amount_paid) + applied + 0.005 >= parseFloat(row.total_due) ? 'completed' : 'partially_paid',
+        mpesa_receipt_number: receipt,
+      }),
+    ],
+  ).catch(() => {});
 
   // This installment's cash may be a partial amount (waterfall segments can
   // split across installments), so the GL split is proportional to this
@@ -512,6 +599,26 @@ export async function insertSavingsContribution(
   const contributionId = rows[0]?.id ?? null;
   if (!contributionId) return null;
 
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [
+      args.groupId,
+      'mpesa_allocation.savings_contribution',
+      'contributions',
+      contributionId,
+      JSON.stringify({
+        member_id: args.memberId,
+        amount: args.amount.toFixed(2),
+        status: 'completed',
+        payment_method: 'mpesa',
+        mpesa_receipt_number: args.receipt,
+        notes: args.note,
+      }),
+    ],
+  ).catch(() => {});
+
   await postContributionJournal(db, {
     groupId: args.groupId, contributionId, amount: args.amount,
     entryDate: new Date().toISOString().slice(0, 10), reference: args.receipt,
@@ -598,6 +705,26 @@ export async function c2bToUnrouted(
       in_.billRef, reason, in_.rawBody, in_.groupId,
     ],
   );
+
+  // Audit log entry (system-triggered, actor_id=null)
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [
+      in_.groupId,
+      'mpesa_allocation.c2b_unrouted',
+      'mpesa_unrouted',
+      in_.receipt,
+      JSON.stringify({
+        receipt: in_.receipt,
+        phone: in_.phone,
+        amount: in_.amount.toFixed(2),
+        bill_ref: in_.billRef,
+        reason,
+      }),
+    ],
+  ).catch(() => {});
+
   logger.warn('[mpesa/c2b] routed to unrouted queue', {
     receipt: in_.receipt,
     reason,

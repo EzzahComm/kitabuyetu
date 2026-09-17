@@ -122,6 +122,27 @@ export const reallocationsService = {
         ],
       );
 
+      // Record audit log for reallocation creation — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'reallocation.create',
+          'reallocation',
+          realloc.id,
+          null,
+          JSON.stringify({
+            from_member_id: contrib.member_id,
+            to_member_id: data.toMemberId,
+            amount: contrib.amount,
+            reason: data.reason,
+            status: needsApproval ? 'pending_approval' : 'executed',
+          }),
+        ],
+      );
+
       if (!needsApproval) {
         await executeReallocation(client, realloc, ctx.userId);
       }
@@ -151,6 +172,22 @@ export const reallocationsService = {
          RETURNING *`,
         [id, ctx.userId],
       );
+
+      // Record audit log for reallocation approval — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'reallocation.approve',
+          'reallocation',
+          id,
+          JSON.stringify({ status: realloc.status }),
+          JSON.stringify({ status: 'executed' }),
+        ],
+      );
+
       await executeReallocation(client, updated, ctx.userId);
       return updated;
     });
@@ -167,6 +204,22 @@ export const reallocationsService = {
         [id, ctx.userId, reason, ctx.groupId],
       );
       if (!updated) throw new NotFoundError('Pending reallocation', id);
+
+      // Record audit log for reallocation rejection — user-triggered
+      await client.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'reallocation.reject',
+          'reallocation',
+          id,
+          JSON.stringify({ status: 'pending_approval' }),
+          JSON.stringify({ status: 'rejected', rejection_reason: reason }),
+        ],
+      );
+
       return updated;
     });
   },

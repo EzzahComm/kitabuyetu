@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Bell, Menu, ChevronDown,
   CircleCheck, CircleAlert, Activity,
-  LogOut, Settings,
+  LogOut, Settings, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
@@ -29,6 +31,12 @@ interface AdminTopbarProps {
 export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const router = useRouter();
   const { user, logout, refreshToken } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
+  // next-themes can't know the resolved theme until after hydration (it
+  // reads localStorage/matchMedia client-side) — rendering the icon before
+  // that would mismatch server vs. client markup.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const handleLogout = async () => {
     try { await authApi.logout(refreshToken ?? undefined); } catch {}
@@ -36,12 +44,12 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   };
 
   return (
-    <header className="h-14 border-b border-gray-200 bg-white flex items-center px-4 gap-4 shrink-0">
+    <header className="h-14 border-b border-border bg-background flex items-center px-4 gap-4 shrink-0">
       {/* Mobile hamburger */}
       <button
         type="button"
         onClick={onMenuClick}
-        className="lg:hidden p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
+        className="lg:hidden p-1.5 rounded-md text-muted-foreground hover:bg-accent"
       >
         <Menu size={18} />
       </button>
@@ -68,10 +76,20 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
           {STATUS.label}
         </div>
 
+        {/* Theme toggle */}
+        <button
+          type="button"
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-accent"
+          title={mounted && resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {mounted && resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+
         {/* Notifications */}
         <button
           type="button"
-          className="relative p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
+          className="relative p-1.5 rounded-md text-muted-foreground hover:bg-accent"
         >
           <Bell size={17} />
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
@@ -81,7 +99,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
         <button
           type="button"
           onClick={() => router.push('/admin/audit-logs')}
-          className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-accent"
           title="Activity logs"
         >
           <Activity size={17} />
@@ -92,7 +110,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent transition-colors"
             >
               <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-[11px] font-bold text-white">
@@ -100,19 +118,19 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
                 </span>
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-gray-900 leading-none">
+                <p className="text-xs font-semibold text-foreground leading-none">
                   {user?.firstName} {user?.lastName}
                 </p>
                 <p className="text-[10px] text-blue-600 font-medium capitalize leading-none mt-0.5">
                   {user?.platformRole?.replace('_', ' ')}
                 </p>
               </div>
-              <ChevronDown size={13} className="text-gray-400 hidden sm:block" />
+              <ChevronDown size={13} className="text-muted-foreground hidden sm:block" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel className="text-xs text-gray-500">Signed in as</DropdownMenuLabel>
-            <DropdownMenuLabel className="text-sm font-semibold text-gray-900 pt-0">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Signed in as</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-sm font-semibold text-foreground pt-0">
               {user?.firstName} {user?.lastName}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

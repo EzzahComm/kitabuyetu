@@ -69,6 +69,21 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
       ],
     );
 
+    // Record audit log for B2C transaction initiation — system-triggered (user request routed through system)
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        params.groupId,
+        params.disbursedBy ?? null, // user-triggered if disbursedBy is set, otherwise system
+        'b2cTransaction.initiate',
+        'mpesa_transaction',
+        txRows[0]?.id ?? '',
+        null,
+        JSON.stringify({ transaction_type: 'b2c', direction: 'outbound', amount: amountStr, phone }),
+      ],
+    );
+
     const { rows: b2cRows } = await db.query<{ id: string }>(
       `INSERT INTO mpesa_b2c_transactions
          (group_id, mpesa_transaction_id, conversation_id,
@@ -87,10 +102,40 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
       ],
     );
 
+    // Record audit log for B2C request — system-triggered
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        params.groupId,
+        params.disbursedBy ?? null,
+        'b2cRequest.create',
+        'mpesa_b2c_transaction',
+        b2cRows[0]?.id ?? '',
+        null,
+        JSON.stringify({ command_id: params.commandId, amount: amountStr, phone, occasion: params.occasion }),
+      ],
+    );
+
     if (params.disbursementRequestId) {
       await db.query(
         `UPDATE disbursement_requests SET b2c_transaction_id = $1 WHERE id = $2`,
         [b2cRows[0].id, params.disbursementRequestId],
+      );
+
+      // Record audit log for disbursement linkage — system-triggered
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          params.groupId,
+          params.disbursedBy ?? null,
+          'disbursementRequest.linkB2C',
+          'disbursement_request',
+          params.disbursementRequestId,
+          null,
+          JSON.stringify({ b2c_transaction_id: b2cRows[0]?.id }),
+        ],
       );
     }
   });
@@ -165,6 +210,24 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
          WHERE  originator_conversation_id=$2`,
         [rawBody, r.OriginatorConversationID],
       );
+
+      // Record audit log for B2C failure — system-triggered (Daraja callback)
+      if (groupId) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            groupId,
+            null, // system-triggered (Daraja callback)
+            'b2cTransaction.failed',
+            'mpesa_b2c_transaction',
+            b2c?.id ?? '',
+            JSON.stringify({ status: 'initiated' }),
+            JSON.stringify({ status: 'failed', failure_reason: r.ResultDesc }),
+          ],
+        );
+      }
+
       await db.query(
         `UPDATE mpesa_transactions
          SET    status='failed', failure_reason=$1, raw_response=$2,
@@ -200,6 +263,24 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
        WHERE  originator_conversation_id=$3`,
       [receipt, rawBody, r.OriginatorConversationID],
     );
+
+    // Record audit log for B2C completion — system-triggered (Daraja callback)
+    if (groupId) {
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          groupId,
+          null, // system-triggered (Daraja callback)
+          'b2cTransaction.completed',
+          'mpesa_b2c_transaction',
+          b2c?.id ?? '',
+          JSON.stringify({ status: 'initiated' }),
+          JSON.stringify({ status: 'completed', mpesa_receipt_number: receipt }),
+        ],
+      );
+    }
+
     await db.query(
       `UPDATE mpesa_transactions
        SET    status='completed', mpesa_receipt_number=$1,

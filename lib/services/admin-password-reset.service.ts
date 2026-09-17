@@ -59,6 +59,21 @@ export async function startAdminPasswordReset(email: string): Promise<void> {
        WHERE id = $1`,
       [rows[0].id, tokenHash, RESET_TTL_MINUTES],
     );
+
+    // Audit log for password reset initiation (system-triggered, no actor context)
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES (NULL, $1, 'admin_member', $2, NULL, $3)`,
+      [
+        'admin_password.reset_initiated',
+        rows[0].id,
+        JSON.stringify({
+          action: 'password reset link generated',
+          expires_in_minutes: RESET_TTL_MINUTES,
+        }),
+      ],
+    );
+
     return rows[0];
   });
 
@@ -99,6 +114,19 @@ export async function resetAdminPasswordWithToken(token: string, newPassword: st
            session_version = session_version + 1
        WHERE id = $1`,
       [staff.id, passwordHash],
+    );
+
+    // Audit log for password change (user-triggered, but no user context available in this flow)
+    await db.query(
+      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, 'admin_member', $3, $4, $5)`,
+      [
+        staff.id, // Self-service password change, actor is the member resetting their own password
+        'admin_password.reset_completed',
+        staff.id,
+        JSON.stringify({ password_hash: 'redacted', session_version: 'incremented' }),
+        JSON.stringify({ status: 'password changed', session_invalidated: true }),
+      ],
     );
   });
 }

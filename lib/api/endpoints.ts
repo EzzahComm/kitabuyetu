@@ -23,6 +23,7 @@ import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validat
 import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput, TopUpSmsCreditsPayload } from '@/lib/validators/organization.schema';
 import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
 import type { PortfolioHealth } from '@/lib/services/organization-health.service';
+import type { OrgCountyAggregationRow, OrgWardAggregationRow } from '@/lib/services/organization-geography.service';
 import type { EffectiveTemplate } from '@/lib/services/posting-templates.service';
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
@@ -581,7 +582,6 @@ export const organizationApi = {
   profile: () => adminApi.get<OrganizationProfile>('/organization/profile'),
   groups:  (params?: { page?: number; limit?: number }) =>
     adminApi.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),
-  detail:  (groupId: string) => adminApi.get<unknown>(`/organization/reports?groupId=${groupId}`),
   policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: SetApprovalPolicyInput) =>
     adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
@@ -675,6 +675,16 @@ export const organizationApi = {
   branding: () => adminApi.get<OrganizationBranding>('/organization/branding'),
   setBranding: (body: BrandingPayload) =>
     adminApi.put<OrganizationBranding>('/organization/branding', body),
+
+  // Phase 5 gap analysis — geography rollup, the last missing item on the
+  // organization axis. Typed against organization-geography.service.ts's own
+  // return shape, per the PortfolioHealth precedent above.
+  geographyCounties: () => adminApi.get<{ counties: OrgCountyAggregationRow[] }>(
+    '/organization/geography/counties',
+  ),
+  geographyWards: (countyId: string) => adminApi.get<{ wards: OrgWardAggregationRow[] }>(
+    `/organization/geography/counties/${countyId}/wards`,
+  ),
 };
 
 // ------------------------------------------------------------------

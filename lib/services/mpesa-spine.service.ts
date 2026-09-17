@@ -63,6 +63,15 @@ export async function markSpineAllocated(
   receipt: string,
   opts?:   { isThirdParty?: boolean; actor?: string | null; detail?: Record<string, unknown> },
 ): Promise<void> {
+  // Fetch existing payment to capture old values
+  const { rows: existing } = await db.query<{ id: string; allocation_status: string }>(
+    `SELECT id, allocation_status FROM payments WHERE mpesa_receipt_number = $1`,
+    [receipt],
+  );
+  if (!existing[0]) return;
+
+  const prev = existing[0];
+
   const { rows } = await db.query<{ id: string }>(
     `UPDATE payments
      SET    allocation_status = 'allocated',
@@ -74,6 +83,21 @@ export async function markSpineAllocated(
   );
   const paymentId = rows[0]?.id;
   if (!paymentId) return;
+
+  // Record audit log for payment allocation (system-triggered)
+  await db.query(
+    `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      opts?.actor ?? null,
+      'payment.allocated',
+      'payment',
+      paymentId,
+      JSON.stringify({ allocation_status: prev.allocation_status }),
+      JSON.stringify({ allocation_status: 'allocated' }),
+    ],
+  );
+
   await logPaymentEvent(db, paymentId, 'allocated', opts?.detail, opts?.actor);
   await emitOutbox(db, 'payment.allocated', paymentId, {
     receipt, ...(opts?.detail ?? {}),
@@ -86,6 +110,15 @@ export async function markSpineUnrouted(
   receipt: string,
   reason:  string,
 ): Promise<void> {
+  // Fetch existing payment to capture old values
+  const { rows: existing } = await db.query<{ id: string; allocation_status: string }>(
+    `SELECT id, allocation_status FROM payments WHERE mpesa_receipt_number = $1 AND allocation_status = 'received'`,
+    [receipt],
+  );
+  if (!existing[0]) return; // surrogate receipts (reconciliation) have no spine row
+
+  const prev = existing[0];
+
   const { rows } = await db.query<{ id: string }>(
     `UPDATE payments
      SET    allocation_status = 'unrouted'
@@ -95,6 +128,21 @@ export async function markSpineUnrouted(
   );
   const paymentId = rows[0]?.id;
   if (!paymentId) return; // surrogate receipts (reconciliation) have no spine row
+
+  // Record audit log for unrouted payment (system-triggered)
+  await db.query(
+    `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      null, // system-triggered routing failure
+      'payment.unrouted',
+      'payment',
+      paymentId,
+      JSON.stringify({ allocation_status: prev.allocation_status }),
+      JSON.stringify({ allocation_status: 'unrouted', unrouted_reason: reason }),
+    ],
+  );
+
   await logPaymentEvent(db, paymentId, 'unrouted', { reason });
   await emitOutbox(db, 'payment.unrouted', paymentId, { receipt, reason });
 }

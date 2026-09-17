@@ -73,21 +73,21 @@ export default function AnalyticsPage() {
                   ].map(({ label, value, color }) => (
                     <div key={label} className={`rounded-xl p-3 text-center ${color.split(' ')[1]}`}>
                       <p className={`text-xl font-bold ${color.split(' ')[0]}`}>{parseInt(value).toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
                     </div>
                   ))}
                 </div>
-                <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                <div className="pt-2 border-t border-border space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Total Outstanding</span>
-                    <span className="font-semibold text-gray-900">{formatKES(loanHealth.total_outstanding ?? 0)}</span>
+                    <span className="text-muted-foreground">Total Outstanding</span>
+                    <span className="font-semibold text-foreground">{formatKES(loanHealth.total_outstanding ?? 0)}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Avg Interest Rate</span>
-                    <span className="font-semibold text-gray-900">{parseFloat(loanHealth.avg_interest_rate ?? '0').toFixed(1)}%</span>
+                    <span className="text-muted-foreground">Avg Interest Rate</span>
+                    <span className="font-semibold text-foreground">{parseFloat(loanHealth.avg_interest_rate ?? '0').toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Default Rate</span>
+                    <span className="text-muted-foreground">Default Rate</span>
                     <span className={`font-semibold ${parseInt(loanHealth.defaulted ?? '0') > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {(parseInt(loanHealth.active ?? '1') > 0
                         ? (parseInt(loanHealth.defaulted ?? '0') / (parseInt(loanHealth.active ?? '1') + parseInt(loanHealth.defaulted ?? '0'))) * 100
@@ -117,22 +117,22 @@ export default function AnalyticsPage() {
                     <p className="text-xl font-bold text-red-600">
                       {parseInt(welfare.total_requests ?? '0').toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">Total Requests</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Total Requests</p>
                   </div>
                   <div className="rounded-xl bg-amber-50 p-3 text-center">
                     <p className="text-xl font-bold text-amber-600">
                       {parseInt(welfare.pending_requests ?? '0').toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">Pending</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pending</p>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                <div className="pt-2 border-t border-border space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Total Requested</span>
+                    <span className="text-muted-foreground">Total Requested</span>
                     <span className="font-semibold">{formatKES(welfare.total_requested ?? 0)}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Total Disbursed</span>
+                    <span className="text-muted-foreground">Total Disbursed</span>
                     <span className="font-semibold text-green-600">{formatKES(welfare.total_disbursed ?? 0)}</span>
                   </div>
                 </div>

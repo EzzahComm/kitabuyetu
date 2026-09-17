@@ -377,12 +377,12 @@ export default function OrganizationDetailPage({
                 {assigned.map((g) => (
                   <div key={g.group_id} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{g.group_name}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-sm font-medium text-foreground truncate">{g.group_name}</p>
+                      <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{g.group_code}</span>
                         {' · '}{parseInt(g.member_count ?? '0').toLocaleString()} members
                         {' · '}{formatKES(g.total_contributions)} contributions
-                        <span className="ml-1 uppercase text-[10px] text-gray-400">({g.access_level})</span>
+                        <span className="ml-1 uppercase text-[10px] text-muted-foreground">({g.access_level})</span>
                       </p>
                     </div>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 shrink-0"
@@ -420,16 +420,16 @@ export default function OrganizationDetailPage({
                 </p>
               ) : (
                 staff.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-gray-100 px-2.5 py-2">
+                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-gray-900">{s.firstName} {s.lastName}</p>
-                      <p className="truncate text-[11px] text-gray-400">{s.phone}{s.email ? ` · ${s.email}` : ''}</p>
+                      <p className="truncate font-medium text-foreground">{s.firstName} {s.lastName}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{s.phone}{s.email ? ` · ${s.email}` : ''}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => doChangeStaffRole(s.memberId, s.orgRole === 'lead' ? 'staff' : 'lead')}
-                        className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-600 hover:bg-gray-200"
+                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent"
                         title="Click to toggle role"
                       >
                         {s.orgRole}
@@ -442,7 +442,7 @@ export default function OrganizationDetailPage({
                   </div>
                 ))
               )}
-              <p className="flex items-start gap-1.5 rounded-md bg-gray-50 px-2 py-1.5 text-[11px] leading-snug text-gray-500">
+              <p className="flex items-start gap-1.5 rounded-md bg-muted px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
                 <Info size={12} className="mt-0.5 shrink-0" />
                 Staff sign in and manage this organization (wallet, programs,
                 disbursements) through the separate Kitabu Enterprise portal —
@@ -469,15 +469,15 @@ export default function OrganizationDetailPage({
                     <Skeleton className="h-16 w-full" />
                   ) : (
                     pending.map((inv) => (
-                      <div key={inv.id} className="flex items-center justify-between gap-2 rounded-md border border-gray-100 px-2.5 py-2">
+                      <div key={inv.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2">
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-gray-900">{inv.firstName} {inv.lastName}</p>
-                          <p className="truncate text-[11px] text-gray-400">{inv.email}</p>
+                          <p className="truncate font-medium text-foreground">{inv.firstName} {inv.lastName}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">{inv.email}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           <StatusPill status={inv.status} size="sm" />
                           <Button
-                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                             title="Resend invitation"
                             disabled={resendInvitation.isPending}
                             onClick={() => doResendInvitation(inv.id)}
@@ -510,31 +510,31 @@ export default function OrganizationDetailPage({
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               {org.phone && (
-                <a href={`tel:${org.phone}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <a href={`tel:${org.phone}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
                   <Phone size={12} /> {org.phone}
                 </a>
               )}
               {org.email && (
-                <a href={`mailto:${org.email}`} className="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+                <a href={`mailto:${org.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
                   <Mail size={12} /> {org.email}
                 </a>
               )}
-              <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-y-2">
+              <div className="pt-2 border-t border-border grid grid-cols-2 gap-y-2">
                 <div>
-                  <p className="text-gray-400 mb-0.5">Onboarded</p>
-                  <p className="font-medium text-gray-900">{formatDate(org.created_at)}</p>
+                  <p className="text-muted-foreground mb-0.5">Onboarded</p>
+                  <p className="font-medium text-foreground">{formatDate(org.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 mb-0.5">Committed</p>
-                  <p className="font-medium text-gray-900">{formatKES(walletKES?.committed_balance ?? 0)}</p>
+                  <p className="text-muted-foreground mb-0.5">Committed</p>
+                  <p className="font-medium text-foreground">{formatKES(walletKES?.committed_balance ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 mb-0.5">Deposited</p>
-                  <p className="font-medium text-gray-900">{formatKES(walletKES?.total_deposited ?? 0)}</p>
+                  <p className="text-muted-foreground mb-0.5">Deposited</p>
+                  <p className="font-medium text-foreground">{formatKES(walletKES?.total_deposited ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 mb-0.5">Returned</p>
-                  <p className="font-medium text-gray-900">{formatKES(walletKES?.total_returned ?? 0)}</p>
+                  <p className="text-muted-foreground mb-0.5">Returned</p>
+                  <p className="font-medium text-foreground">{formatKES(walletKES?.total_returned ?? 0)}</p>
                 </div>
               </div>
             </CardContent>

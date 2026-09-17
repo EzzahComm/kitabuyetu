@@ -62,7 +62,7 @@ const TYPE_BADGE: Record<string, string> = {
   government:  'bg-slate-100 text-slate-700',
   cooperative: 'bg-teal-100 text-teal-700',
   faith_based: 'bg-rose-100 text-rose-700',
-  other:       'bg-gray-100 text-gray-600',
+  other:       'bg-muted text-muted-foreground',
 };
 
 const EMPTY_FORM = {
@@ -180,7 +180,7 @@ export default function OrganizationsPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -242,9 +242,9 @@ export default function OrganizationsPage() {
                   <Landmark size={13} className="text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{org.name}</p>
+                  <p className="font-medium text-foreground">{org.name}</p>
                   {org.registration_number && (
-                    <p className="text-xs text-gray-400 font-mono">{org.registration_number}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{org.registration_number}</p>
                   )}
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function OrganizationsPage() {
           {
             key: 'type', header: 'Type',
             render: (org) => (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[org.type] ?? 'bg-gray-100 text-gray-600'}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[org.type] ?? 'bg-muted text-muted-foreground'}`}>
                 {TYPE_LABEL[org.type] ?? org.type}
               </span>
             ),
@@ -265,7 +265,7 @@ export default function OrganizationsPage() {
             key: 'status', header: 'Status',
             render: (org) => <StatusPill status={org.is_active ? 'active' : 'inactive'} size="sm" />,
           },
-          { key: 'onboarded', header: 'Onboarded', render: (org) => <span className="text-xs text-gray-500">{formatDate(org.created_at)}</span> },
+          { key: 'onboarded', header: 'Onboarded', render: (org) => <span className="text-xs text-muted-foreground">{formatDate(org.created_at)}</span> },
           {
             key: 'actions', header: '', className: 'text-right',
             render: (org) => (
