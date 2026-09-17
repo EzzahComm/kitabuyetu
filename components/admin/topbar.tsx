@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Bell, Menu, ChevronDown,
   CircleCheck, CircleAlert, Activity,
-  LogOut, Settings,
+  LogOut, Settings, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
@@ -29,6 +31,12 @@ interface AdminTopbarProps {
 export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const router = useRouter();
   const { user, logout, refreshToken } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
+  // next-themes can't know the resolved theme until after hydration (it
+  // reads localStorage/matchMedia client-side) — rendering the icon before
+  // that would mismatch server vs. client markup.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const handleLogout = async () => {
     try { await authApi.logout(refreshToken ?? undefined); } catch {}
@@ -67,6 +75,16 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
           }
           {STATUS.label}
         </div>
+
+        {/* Theme toggle */}
+        <button
+          type="button"
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-accent"
+          title={mounted && resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {mounted && resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
 
         {/* Notifications */}
         <button
