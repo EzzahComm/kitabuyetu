@@ -4,7 +4,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
 import { ProgramDonateForm } from '@/components/ecosystem/program-donate-form';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 
 interface ProgramDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -12,29 +12,31 @@ interface ProgramDetailPageProps {
 
 export async function generateMetadata({ params }: ProgramDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const program = await db.from('programs').select('*').eq('slug', slug).single();
+  const supabase = await createClient();
+  const { data: program } = await supabase.from('programs').select('*').eq('slug', slug).single();
 
-  if (program.error || !program.data) {
+  if (!program) {
     return { title: 'Program not found' };
   }
 
   return {
-    title: `${program.data.name} — Support`,
-    description: program.data.description || 'Support this program and make an impact.',
+    title: `${program.name} — Support`,
+    description: program.description || 'Support this program and make an impact.',
   };
 }
 
 async function ProgramDetailPage({ params }: ProgramDetailPageProps) {
   const { slug } = await params;
+  const supabase = await createClient();
 
-  const program = await db
+  const { data: program, error } = await supabase
     .from('programs')
     .select('*')
     .eq('slug', slug)
     .eq('status', 'active')
     .single();
 
-  if (program.error || !program.data) {
+  if (error || !program) {
     notFound();
   }
 

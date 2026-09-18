@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Top Supporters — Ecosystem',
@@ -9,14 +9,15 @@ export const metadata: Metadata = {
 };
 
 async function EcosystemDonorsPage() {
+  const supabase = await createClient();
   // Get organizations with active programs for context
-  const orgs = await db
+  const { data: orgs } = await supabase
     .from('organizations')
     .select('id, name')
     .eq('status', 'active')
     .limit(10);
 
-  const activeOrgs = orgs.data || [];
+  const activeOrgs = orgs || [];
 
   return (
     <PageShell

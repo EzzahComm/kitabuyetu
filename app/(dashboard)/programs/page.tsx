@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ProgramForm } from '@/components/ecosystem/program-form';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { createClient } from '@/lib/supabase/server';
-import { getOrgContext } from '@/lib/auth/org-context';
+import { getSession } from '@/lib/auth/session';
 
 export const metadata: Metadata = {
   title: 'Programs — Kitabu Yetu',
@@ -14,7 +14,9 @@ export const metadata: Metadata = {
 };
 
 async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }) {
-  const org = await getOrgContext();
+  const session = await getSession();
+  const orgId = session?.user?.org_id || '';
+  if (!orgId) return <div>Not authorized</div>;
   const supabase = await createClient();
   const tab = searchParams.tab || 'active';
 
@@ -22,7 +24,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
   const query = supabase
     .from('programs')
     .select('*')
-    .eq('organization_id', org.organization_id);
+    .eq('organization_id', orgId);
 
   if (tab !== 'all') {
     query.eq('status', tab);
@@ -82,7 +84,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
         <div id="create" className="mt-16 border-t pt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Program</h2>
           <div className="max-w-2xl">
-            <ProgramForm organizationId={org.organization_id} />
+            <ProgramForm organizationId={orgId} />
           </div>
         </div>
       </div>

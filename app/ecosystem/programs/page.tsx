@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import Link from 'next/link';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Programs — Ecosystem',
@@ -10,13 +10,14 @@ export const metadata: Metadata = {
 };
 
 async function EcosystemProgramsPage() {
-  const programs = await db
+  const supabase = await createClient();
+  const { data: programs } = await supabase
     .from('programs')
     .select('*')
     .eq('status', 'active')
     .order('created_at', { ascending: false });
 
-  const activePrograms = programs.data || [];
+  const activePrograms = programs || [];
 
   return (
     <PageShell
