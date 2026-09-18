@@ -4,13 +4,12 @@
  */
 
 import { PoolClient } from 'pg';
-import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
+import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { NotFoundError } from '@/lib/utils/errors';
 
 export interface Partner {
   id: string;
-  organization_id: string;
   name: string;
   type: 'donor' | 'lender' | 'insurer' | 'trainer' | 'service_provider' | 'investor';
   description?: string;
@@ -85,12 +84,22 @@ export interface EligibilityResult {
   failed_rules: string[];
 }
 
+/**
+ * Backoffice actions here go through withAdminDb (no RLS, no tenant GUCs),
+ * so they need only who performed the action — not the full TenantContext
+ * shape (groupId/role) that RLS-scoped tenant calls require.
+ */
+export interface AdminActionContext {
+  userId: string;
+  groupId?: string;
+}
+
 // ============================================================================
 // PARTNER MANAGEMENT
 // ============================================================================
 
 export async function createPartner(
-  ctx: TenantContext,
+  ctx: AdminActionContext,
   data: {
     name: string;
     type: 'donor' | 'lender' | 'insurer' | 'trainer' | 'service_provider' | 'investor';
@@ -104,10 +113,10 @@ export async function createPartner(
   return withAdminDb(async (db) => {
     const result = await db.query<Partner>(
       `INSERT INTO ecosystem_partners
-        (organization_id, name, type, description, logo_url, website_url, contact_email, contact_phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (name, type, description, logo_url, website_url, contact_email, contact_phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [ctx.organizationId, data.name, data.type, data.description, data.logo_url, data.website_url, data.contact_email, data.contact_phone],
+      [data.name, data.type, data.description, data.logo_url, data.website_url, data.contact_email, data.contact_phone],
     );
 
     if (!result.rows.length) throw new Error('Failed to create partner');
@@ -122,7 +131,7 @@ export async function createPartner(
 }
 
 export async function updatePartner(
-  ctx: TenantContext,
+  ctx: AdminActionContext,
   partnerId: string,
   updates: Partial<Partner>,
 ) {
@@ -130,39 +139,36 @@ export async function updatePartner(
     const keys = Object.keys(updates).filter((k) => k !== 'id');
     if (!keys.length) return null;
 
-    const setClause = keys.map((_, i) => `${keys[i]} = $${i + 3}`).join(', ');
+    const setClause = keys.map((_, i) => `${keys[i]} = $${i + 2}`).join(', ');
     const values = keys.map((k) => updates[k as keyof Partner]);
 
     const result = await db.query<Partner>(
-      `UPDATE ecosystem_partners SET ${setClause}, updated_at = NOW() WHERE id = $1 AND organization_id = $2 RETURNING *`,
-      [partnerId, ctx.organizationId, ...values],
+      `UPDATE ecosystem_partners SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [partnerId, ...values],
     );
 
     if (!result.rows.length) throw new NotFoundError('Partner not found');
+
+    await logAudit(db, ctx, 'partner_updated', 'ecosystem_partner', partnerId, updates);
+
     return result.rows[0];
   });
 }
 
-export async function getPartnerById(ctx: TenantContext, partnerId: string): Promise<Partner | null> {
-  return withDb(ctx, async (db) => {
-    const result = await db.query<Partner>(
-      `SELECT * FROM ecosystem_partners WHERE id = $1 AND organization_id = $2`,
-      [partnerId, ctx.organizationId],
-    );
+export async function getPartnerById(partnerId: string): Promise<Partner | null> {
+  return withAdminDb(async (db) => {
+    const result = await db.query<Partner>(`SELECT * FROM ecosystem_partners WHERE id = $1`, [partnerId]);
     return result.rows.length ? result.rows[0] : null;
   });
 }
 
-export async function listPartners(
-  ctx: TenantContext,
-  filters?: { is_active?: boolean },
-): Promise<Partner[]> {
-  return withDb(ctx, async (db) => {
-    let query = `SELECT * FROM ecosystem_partners WHERE organization_id = $1`;
-    const params: any[] = [ctx.organizationId];
+export async function listPartners(filters?: { is_active?: boolean }): Promise<Partner[]> {
+  return withAdminDb(async (db) => {
+    let query = `SELECT * FROM ecosystem_partners`;
+    const params: any[] = [];
 
     if (filters?.is_active !== undefined) {
-      query += ` AND is_active = $${params.length + 1}`;
+      query += ` WHERE is_active = $1`;
       params.push(filters.is_active);
     }
 
@@ -178,7 +184,7 @@ export async function listPartners(
 // ============================================================================
 
 export async function createOpportunity(
-  ctx: TenantContext,
+  ctx: AdminActionContext,
   partnerId: string,
   data: {
     title: string;
@@ -229,7 +235,7 @@ export async function createOpportunity(
   });
 }
 
-export async function publishOpportunity(ctx: TenantContext, opportunityId: string) {
+export async function publishOpportunity(ctx: AdminActionContext, opportunityId: string) {
   return withAdminDb(async (db) => {
     const result = await db.query<Opportunity>(
       `UPDATE ecosystem_opportunities SET status = $1, published_at = NOW(), updated_at = NOW()
@@ -245,7 +251,7 @@ export async function publishOpportunity(ctx: TenantContext, opportunityId: stri
   });
 }
 
-export async function closeOpportunity(ctx: TenantContext, opportunityId: string) {
+export async function closeOpportunity(ctx: AdminActionContext, opportunityId: string) {
   return withAdminDb(async (db) => {
     const result = await db.query<Opportunity>(
       `UPDATE ecosystem_opportunities SET status = $1, closed_at = NOW(), updated_at = NOW()
@@ -268,6 +274,16 @@ export async function getOpportunityById(db: PoolClient, opportunityId: string):
   );
 
   return result.rows.length ? result.rows[0] : null;
+}
+
+/** Admin management view — every status, not just published. */
+export async function listAllOpportunities(): Promise<Opportunity[]> {
+  return withAdminDb(async (db) => {
+    const result = await db.query<Opportunity>(
+      `SELECT * FROM ecosystem_opportunities ORDER BY created_at DESC`,
+    );
+    return result.rows;
+  });
 }
 
 export async function listPublishedOpportunities(
@@ -455,8 +471,27 @@ export async function listApplicationsForOpportunity(
   return result.rows;
 }
 
+export async function listAllApplications(filters?: {
+  status?: 'submitted' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
+}): Promise<Application[]> {
+  return withAdminDb(async (db) => {
+    let query = `SELECT * FROM ecosystem_opportunity_applications`;
+    const params: any[] = [];
+
+    if (filters?.status) {
+      query += ` WHERE application_status = $1`;
+      params.push(filters.status);
+    }
+
+    query += ` ORDER BY created_at DESC`;
+
+    const result = await db.query<Application>(query, params);
+    return result.rows;
+  });
+}
+
 export async function updateApplicationStatus(
-  ctx: TenantContext,
+  ctx: AdminActionContext,
   applicationId: string,
   status: 'submitted' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn',
   responseMessage?: string,
@@ -485,20 +520,15 @@ export async function updateApplicationStatus(
 
 async function logAudit(
   db: PoolClient,
-  ctx: TenantContext,
+  ctx: TenantContext | AdminActionContext,
   action: string,
   resourceType: string,
   resourceId: string,
-  details: any,
+  newValues: any,
 ) {
-  try {
-    await db.query(
-      `INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, details, ip_address)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [ctx.organizationId, ctx.userId, action, resourceType, resourceId, JSON.stringify(details), null],
-    );
-  } catch (err) {
-    logger.error('Failed to log audit', { action, error: err });
-    // Don't throw — audit logging failure shouldn't block operations
-  }
+  await db.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [ctx.groupId || null, ctx.userId, action, resourceType, resourceId, JSON.stringify(newValues)],
+  );
 }

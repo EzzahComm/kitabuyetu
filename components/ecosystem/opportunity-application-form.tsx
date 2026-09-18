@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface OpportunityApplicationFormProps {
   opportunityId: string;
-  groupName: string;
+  groupName?: string;
   groupMemberCount?: number;
   onSuccess?: () => void;
 }
@@ -20,7 +20,11 @@ export function OpportunityApplicationForm({
   onSuccess,
 }: OpportunityApplicationFormProps) {
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
+    group_name: groupName || '',
+    group_member_count: groupMemberCount ? String(groupMemberCount) : '',
+    group_registration_number: '',
     contact_member_name: '',
     contact_member_phone: '',
     contact_member_email: '',
@@ -43,11 +47,19 @@ export function OpportunityApplicationForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          group_name: groupName,
-          group_member_count: groupMemberCount,
           ...formData,
+          group_member_count: formData.group_member_count ? Number(formData.group_member_count) : undefined,
         }),
       });
+
+      if (response.status === 401) {
+        toast({
+          title: 'Log in required',
+          description: 'Log in as a group official to submit this application.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (!response.ok) throw new Error('Failed to submit application');
 
@@ -56,7 +68,7 @@ export function OpportunityApplicationForm({
         description: 'The partner will review your application and get back to you.',
       });
 
-      setFormData({ contact_member_name: '', contact_member_phone: '', contact_member_email: '', message: '' });
+      setSubmitted(true);
       onSuccess?.();
     } catch (error) {
       toast({
@@ -69,8 +81,28 @@ export function OpportunityApplicationForm({
     }
   };
 
+  if (submitted) {
+    return (
+      <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        Application submitted. The partner will review it and respond.
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-900">Group Name *</label>
+        <Input
+          name="group_name"
+          value={formData.group_name}
+          onChange={handleChange}
+          required
+          placeholder="Your group's registered name"
+          className="mt-1"
+        />
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-900">Contact Person Name *</label>
         <Input

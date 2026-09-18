@@ -9,7 +9,7 @@ interface OpportunityCardProps {
   failedRules?: string[];
 }
 
-export function OpportunityCard({ opportunity, matches = true, failedRules = [] }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, matches, failedRules = [] }: OpportunityCardProps) {
   const typeColors: Record<string, string> = {
     grant: 'bg-green-100 text-green-800',
     loan: 'bg-blue-100 text-blue-800',
@@ -25,7 +25,7 @@ export function OpportunityCard({ opportunity, matches = true, failedRules = [] 
       : 'Variable amount';
 
   return (
-    <Link href={`/ecosystem/opportunities/${opportunity.id}`}>
+    <Link href={`/ecosystem/marketplace/${opportunity.id}`}>
       <div className="rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
         <div className="flex items-start justify-between mb-4">
           <div>

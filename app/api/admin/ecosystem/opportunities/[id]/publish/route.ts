@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
+import { withPlatformRole } from '@/lib/auth/middleware';
 import { publishOpportunity } from '@/lib/services/ecosystem.service';
 import { ok } from '@/lib/utils/response';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
-  return withPermission(request, 'admin', async (auth) => {
-    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
-    const opportunity = await publishOpportunity(ctx, params.id);
+  return withPlatformRole(request, 'super_admin', async (ctx) => {
+    const opportunity = await publishOpportunity({ userId: ctx.userId }, params.id);
     return ok(opportunity);
   });
 }

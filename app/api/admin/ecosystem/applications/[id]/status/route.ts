@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withPermission } from '@/lib/auth/middleware';
+import { withPlatformRole } from '@/lib/auth/middleware';
 import { updateApplicationStatus } from '@/lib/services/ecosystem.service';
 import { ok, badRequest } from '@/lib/utils/response';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
-  return withPermission(request, 'admin', async (auth) => {
+  return withPlatformRole(request, 'super_admin', async (ctx) => {
     const body = await request.json();
     const { status, response_message } = body;
 
@@ -13,8 +13,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return badRequest('Invalid status');
     }
 
-    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
-    const application = await updateApplicationStatus(ctx, params.id, status, response_message);
+    const application = await updateApplicationStatus({ userId: ctx.userId }, params.id, status, response_message);
 
     return ok(application);
   });

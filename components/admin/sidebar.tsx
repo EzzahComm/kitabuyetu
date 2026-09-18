@@ -7,6 +7,7 @@ import {
   Headphones, ScrollText,
   BarChart3, Flag, ShieldAlert, Activity, MapPin,
   Settings, Coins, Wallet,
+  Store, Handshake, ClipboardList, HeartHandshake,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -31,6 +32,15 @@ const NAV: PortalNavSection[] = [
     items: [
       { href: '/admin/risk',        label: 'Risk & Fraud',   icon: ShieldAlert },
       { href: '/admin/monitoring',  label: 'Monitoring',     icon: Activity },
+    ],
+  },
+  {
+    title: 'Ecosystem',
+    items: [
+      { href: '/admin/ecosystem/partners',      label: 'Partners',      icon: Handshake },
+      { href: '/admin/ecosystem/opportunities', label: 'Opportunities', icon: Store },
+      { href: '/admin/ecosystem/applications',  label: 'Applications',  icon: ClipboardList },
+      { href: '/admin/campaigns',               label: "Changi$ha",     icon: HeartHandshake },
     ],
   },
   {
