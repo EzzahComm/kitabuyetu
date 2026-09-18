@@ -219,10 +219,10 @@ describe('multi-product subscriptions (migration 127)', () => {
     expect(await accountCount(groupId)).toBe(0);
   });
 
-  it('a Kitabu Yetu signup still gets all 16 accounts', async () => {
+  it('a Kitabu Yetu signup still gets all 17 accounts', async () => {
     await resetDatabase();
     const { groupId } = await createTestGroup('chairperson', { subscribed: false });
-    expect(await accountCount(groupId)).toBe(16);
+    expect(await accountCount(groupId)).toBe(17);
   });
 
   it('buying Kitabu Yetu later seeds the ledger the group never had', async () => {
@@ -238,7 +238,7 @@ describe('multi-product subscriptions (migration 127)', () => {
 
     await billingService.activatePlanWithoutPayment(ctxFor(groupId, officerId), 'starter');
 
-    expect(await accountCount(groupId)).toBe(16);
+    expect(await accountCount(groupId)).toBe(17);
   });
 
   it('seeding is idempotent, so a second purchase does not duplicate accounts', async () => {
@@ -246,10 +246,10 @@ describe('multi-product subscriptions (migration 127)', () => {
     const { groupId, officerId } = await createTestGroup('chairperson', { subscribed: false });
     const ctx = ctxFor(groupId, officerId);
 
-    // Already has 16 from registration; activating twice more must not add any.
+    // Already has 17 from registration; activating twice more must not add any.
     await billingService.activatePlanWithoutPayment(ctx, 'starter');
     await billingService.activatePlanWithoutPayment(ctx, 'growth');
 
-    expect(await accountCount(groupId)).toBe(16);
+    expect(await accountCount(groupId)).toBe(17);
   });
 });

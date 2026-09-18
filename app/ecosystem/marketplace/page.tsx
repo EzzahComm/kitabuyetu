@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { OpportunityCard } from '@/components/ecosystem/opportunity-card';
