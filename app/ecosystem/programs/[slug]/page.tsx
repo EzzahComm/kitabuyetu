@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
+import { ProgramDonateForm } from '@/components/ecosystem/program-donate-form';
 import { db } from '@/lib/db';
 
 interface ProgramDetailPageProps {
@@ -72,7 +73,8 @@ async function ProgramDetailPage({ params }: ProgramDetailPageProps) {
 
         <div className="lg:col-span-1">
           <div className="sticky top-4 space-y-6">
-            <ProgramProgressCard program={program.data} showCta={true} />
+            <ProgramProgressCard program={program.data} showCta={false} />
+            <ProgramDonateForm programId={program.data.id} programName={program.data.name} />
             <DonorLeaderboard organizationId={program.data.organization_id} limit={5} />
           </div>
         </div>
