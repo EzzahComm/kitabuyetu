@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
-import { campaignsService } from '@/lib/services/campaigns.service';
+import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 
 const TITLE = 'Changi$ha — Fundraising';
 const DESCRIPTION =
@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic';
  * Marked dynamic to avoid prerender failures when DB is unavailable at build time.
  */
 export default async function FundraisePage() {
-  let campaigns = [];
+  let campaigns: Campaign[] = [];
   try {
     campaigns = await campaignsService.listActiveCampaigns();
   } catch (err) {
