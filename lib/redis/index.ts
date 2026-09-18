@@ -21,11 +21,11 @@ function buildRedisClient(): Redis {
 
 const globalWithRedis = globalThis as typeof globalThis & { _kyRedis?: Redis };
 
-if (!globalWithRedis._kyRedis) {
+if (process.env.REDIS_URL && !globalWithRedis._kyRedis) {
   globalWithRedis._kyRedis = buildRedisClient();
 }
 
-export const redis = globalWithRedis._kyRedis;
+export const redis = globalWithRedis._kyRedis as Redis;
 
 // ------------------------------------------------------------------
 // Typed key namespaces — prevents key collisions across modules
