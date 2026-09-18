@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';

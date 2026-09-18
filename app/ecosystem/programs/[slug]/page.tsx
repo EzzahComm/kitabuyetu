@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageShell } from '@/components/marketing/page-shell';
