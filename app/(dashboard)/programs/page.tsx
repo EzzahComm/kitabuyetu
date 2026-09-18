@@ -38,7 +38,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
       <div className="py-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Programs</h1>
-          <p className="text-gray-600">Create and manage your organization's programs.</p>
+          <p className="text-gray-600">Create and manage your organization&rsquo;s programs.</p>
         </div>
 
         <Tabs value={tab} className="w-full">
