@@ -1081,7 +1081,7 @@ async function applyCampaignDonationFromSTK(
   const journalEntryId = await postSystemJournal(
     db, stkReq.group_id, null,
     `Changi$ha donation — ${campaignTitle}`,
-    [{ accountCode: '1001', debit: in_.amount }, { accountCode: '4001', credit: in_.amount }],
+    [{ accountCode: '1001', debit: in_.amount }, { accountCode: '4006', credit: in_.amount }],
     { reference: in_.receipt, isTest: IS_SANDBOX },
   );
   if (journalEntryId) {

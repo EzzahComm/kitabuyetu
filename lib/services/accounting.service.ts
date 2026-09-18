@@ -30,6 +30,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '4003', name: 'Registration Fees',         type: 'income' },
   { code: '4004', name: 'Other Income',              type: 'income' },
   { code: '4005', name: 'External Funding',          type: 'income' },
+  { code: '4006', name: 'Changi$ha Donations',       type: 'income' },
   { code: '5001', name: 'Administrative Expenses',   type: 'expense' },
   { code: '5002', name: 'SMS Expenses',              type: 'expense' },
   { code: '5003', name: 'Platform Subscription',     type: 'expense' },
