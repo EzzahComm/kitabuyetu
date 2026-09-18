@@ -1,12 +1,12 @@
 import { Metadata } from 'next';
-import { withAuth } from '@/lib/auth/middleware';
 import { Container } from '@/components/Container';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { ProgramForm } from '@/components/ecosystem/program-form';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
-import * as ecosystemService from '@/lib/services/ecosystem.service';
+import { createClient } from '@/lib/supabase/server';
+import { getOrgContext } from '@/lib/auth/org-context';
 
 export const metadata: Metadata = {
   title: 'Programs — Kitabu Yetu',
@@ -14,15 +14,23 @@ export const metadata: Metadata = {
 };
 
 async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }) {
-  const ctx = await withAuth(async (req, ctx) => ctx)(new Request(''), {} as any);
+  const org = await getOrgContext();
+  const supabase = await createClient();
   const tab = searchParams.tab || 'active';
 
   // Fetch programs
-  const programsResult = await ecosystemService.listProgramsByOrg(ctx, {
-    status: tab === 'all' ? undefined : tab,
-  });
+  const query = supabase
+    .from('programs')
+    .select('*')
+    .eq('organization_id', org.organization_id);
 
-  const programs = programsResult.data || [];
+  if (tab !== 'all') {
+    query.eq('status', tab);
+  }
+
+  const { data: programs } = await query.order('created_at', { ascending: false });
+
+  const programsList = programs || [];
 
   return (
     <Container>
@@ -42,9 +50,9 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
 
           <TabsContent value={tab} className="space-y-8">
             {/* Programs Grid */}
-            {programs.length > 0 ? (
+            {programsList.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {programs.map(program => (
+                {programsList.map((program: any) => (
                   <div key={program.id}>
                     <ProgramProgressCard
                       program={program}
@@ -74,7 +82,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
         <div id="create" className="mt-16 border-t pt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Program</h2>
           <div className="max-w-2xl">
-            <ProgramForm organizationId={ctx.organization_id} />
+            <ProgramForm organizationId={org.organization_id} />
           </div>
         </div>
       </div>

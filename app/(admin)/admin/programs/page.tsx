@@ -1,10 +1,9 @@
 import { Metadata } from 'next';
-import { withAuth } from '@/lib/auth/middleware';
 import { Container } from '@/components/Container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Program Review — Admin',
@@ -12,16 +11,16 @@ export const metadata: Metadata = {
 };
 
 async function AdminProgramsPage() {
-  const ctx = await withAuth(async (req, ctx) => ctx)(new Request(''), {} as any);
+  const supabase = await createClient();
 
   // Fetch pending programs
-  const programs = await db
+  const { data: programs } = await supabase
     .from('programs')
     .select('*, organizations(name)')
     .eq('status', 'pending_review')
     .order('created_at', { ascending: true });
 
-  const pendingPrograms = programs.data || [];
+  const pendingPrograms = programs || [];
 
   return (
     <Container>
@@ -81,8 +80,31 @@ async function AdminProgramsPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <AdminApproveButton programId={program.id} />
-                    <AdminRejectButton programId={program.id} />
+                    <button
+                      formAction={async () => {
+                        'use server';
+                        await fetch(`/api/admin/programs/${program.id}/approve`, { method: 'POST' });
+                      }}
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      formAction={async () => {
+                        'use server';
+                        const reason = prompt('Rejection reason:');
+                        if (reason) {
+                          await fetch(`/api/admin/programs/${program.id}/reject`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reason }),
+                          });
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded font-medium transition"
+                    >
+                      Reject
+                    </button>
                   </div>
                 </CardContent>
               </Card>
@@ -91,59 +113,6 @@ async function AdminProgramsPage() {
         )}
       </div>
     </Container>
-  );
-}
-
-function AdminApproveButton({ programId }: { programId: string }) {
-  return (
-    <form
-      action={async () => {
-        'use server';
-        await fetch(`/api/admin/programs/${programId}/approve`, { method: 'POST' });
-      }}
-      className="flex-1"
-    >
-      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
-        Approve
-      </Button>
-    </form>
-  );
-}
-
-function AdminRejectButton({ programId }: { programId: string }) {
-  return (
-    <details className="flex-1">
-      <summary asChild>
-        <Button variant="outline" className="w-full">
-          Reject
-        </Button>
-      </summary>
-      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
-        <form
-          action={async (formData: FormData) => {
-            'use server';
-            const reason = formData.get('reason');
-            await fetch(`/api/admin/programs/${programId}/reject`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reason }),
-            });
-          }}
-          className="space-y-2"
-        >
-          <textarea
-            name="reason"
-            placeholder="Rejection reason..."
-            className="w-full p-2 border rounded text-sm"
-            rows={2}
-            required
-          />
-          <Button type="submit" size="sm" className="w-full bg-red-600 hover:bg-red-700">
-            Submit Rejection
-          </Button>
-        </form>
-      </div>
-    </details>
   );
 }
 
