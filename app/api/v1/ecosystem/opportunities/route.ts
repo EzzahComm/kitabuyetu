@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withDb } from '@/lib/db';
+import { withAdminDb } from '@/lib/db';
 import { listPublishedOpportunities } from '@/lib/services/ecosystem.service';
 import { ok } from '@/lib/utils/response';
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const category = searchParams.get('category');
   const featured = searchParams.get('featured') === 'true';
 
-  return withDb(null, async (db) => {
+  return withAdminDb(async (db) => {
     const opportunities = await listPublishedOpportunities(db, {
       type: type || undefined,
       category: category || undefined,

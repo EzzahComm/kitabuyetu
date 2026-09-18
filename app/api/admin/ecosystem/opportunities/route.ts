@@ -13,7 +13,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return badRequest('Missing required fields');
     }
 
-    const ctx = { organizationId: auth.organizationId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
     const opportunity = await createOpportunity(ctx, partner_id, {
       title,
       description,

@@ -6,7 +6,7 @@ import { ok, created, badRequest } from '@/lib/utils/response';
 
 export async function GET(request: NextRequest): Promise<Response> {
   return withPermission(request, 'admin', async (auth) => {
-    const ctx = { organizationId: auth.organizationId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
     const partners = await listPartners(ctx);
     return ok({ partners, count: partners.length });
   });
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (!name || !type) return badRequest('Missing required fields');
 
-    const ctx = { organizationId: auth.organizationId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
     const partner = await createPartner(ctx, { name, type, description, logo_url, website_url, contact_email, contact_phone });
 
     return created(partner);

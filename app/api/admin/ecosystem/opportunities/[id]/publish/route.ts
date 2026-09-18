@@ -6,7 +6,7 @@ import { ok } from '@/lib/utils/response';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
   return withPermission(request, 'admin', async (auth) => {
-    const ctx = { organizationId: auth.organizationId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
     const opportunity = await publishOpportunity(ctx, params.id);
     return ok(opportunity);
   });

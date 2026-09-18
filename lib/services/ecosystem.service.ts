@@ -495,7 +495,7 @@ async function logAudit(
     await db.query(
       `INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, details, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [ctx.organizationId, ctx.userId, action, resourceType, resourceId, JSON.stringify(details), ctx.ipAddress || null],
+      [ctx.organizationId, ctx.userId, action, resourceType, resourceId, JSON.stringify(details), null],
     );
   } catch (err) {
     logger.error('Failed to log audit', { action, error: err });

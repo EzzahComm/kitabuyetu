@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return badRequest('Invalid status');
     }
 
-    const ctx = { organizationId: auth.organizationId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: '', role: auth.role, organizationId: auth.organizationId };
     const application = await updateApplicationStatus(ctx, params.id, status, response_message);
 
     return ok(application);

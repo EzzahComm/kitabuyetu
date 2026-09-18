@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return badRequest('Missing required fields');
     }
 
-    const ctx = { organizationId: auth.organizationId, groupId: auth.groupId, userId: auth.userId, ipAddress: request.ip };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
 
     const application = await submitApplication(ctx, params.id, auth.groupId, {
       group_name,
