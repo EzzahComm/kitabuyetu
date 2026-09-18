@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
 
 interface Donor {
   id: string;
@@ -99,7 +98,7 @@ export function DonorLeaderboard({ organizationId, limit = 10 }: DonorLeaderboar
               </div>
 
               <div className="text-right flex-shrink-0">
-                <p className="font-bold text-green-600">{formatCurrency(donor.total_donated, 'KES')}</p>
+                <p className="font-bold text-green-600">KES {donor.total_donated.toLocaleString()}</p>
               </div>
             </div>
           ))}

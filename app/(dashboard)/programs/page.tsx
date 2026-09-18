@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ProgramForm } from '@/components/ecosystem/program-form';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { createClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth/session';
 
 export const metadata: Metadata = {
   title: 'Programs — Kitabu Yetu',
@@ -14,8 +13,9 @@ export const metadata: Metadata = {
 };
 
 async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }) {
-  const session = await getSession();
-  const orgId = session?.user?.org_id || '';
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const orgId = user?.user_metadata?.org_id || '';
   if (!orgId) return <div>Not authorized</div>;
   const supabase = await createClient();
   const tab = searchParams.tab || 'active';

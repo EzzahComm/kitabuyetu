@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProgramDonateFormProps {
   programId: string;
@@ -13,6 +13,7 @@ interface ProgramDonateFormProps {
 }
 
 export function ProgramDonateForm({ programId, programName, onSuccess }: ProgramDonateFormProps) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [checking, setChecking] = useState(false);

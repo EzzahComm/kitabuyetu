@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Stat } from '@/components/ui/stat';
-import { formatCurrency } from '@/lib/utils';
 
 interface ImpactMetric {
   metric_name: string;
@@ -59,7 +58,7 @@ export function ImpactDashboard({ organizationId }: ImpactDashboardProps) {
           <CardContent className="pt-6">
             <Stat
               label="Total Donated"
-              value={formatCurrency(impact.totalDonated, 'KES')}
+              value={`KES ${impact.totalDonated.toLocaleString()}`}
               icon="💰"
             />
           </CardContent>

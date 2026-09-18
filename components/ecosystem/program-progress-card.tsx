@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
 
 interface ProgramProgressCardProps {
   program: {
@@ -61,13 +60,13 @@ export function ProgramProgressCard({
             <div className="flex items-baseline justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Funding</span>
               <span className="text-lg font-bold text-green-600">
-                {formatCurrency(program.current_amount, 'KES')}
+                KES {program.current_amount.toLocaleString()}
               </span>
             </div>
             <Progress value={fundingProgress} className="h-2 mb-1" />
             <div className="flex justify-between text-xs text-gray-500">
               <span>{fundingProgress}% funded</span>
-              <span>{formatCurrency(program.target_amount, 'KES')} target</span>
+              <span>KES {program.target_amount.toLocaleString()} target</span>
             </div>
           </div>
         )}
