@@ -1,51 +1,46 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
-import { ROUTES } from '@/components/marketing/routes';
+import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
+import Link from 'next/link';
+import { db } from '@/lib/db';
 
 export const metadata: Metadata = {
-  title: 'Programs',
-  description: 'Grants, opportunities and interventions for qualifying groups. Coming soon.',
+  title: 'Programs — Ecosystem',
+  description: 'Browse active programs and support causes that matter to you.',
 };
 
-export default function ProgramsPage() {
+async function EcosystemProgramsPage() {
+  const programs = await db
+    .from('programs')
+    .select('*')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  const activePrograms = programs.data || [];
+
   return (
     <PageShell
-      title="Programs"
-      description="A place for enterprises, NGOs and donors to announce and manage programs for qualifying groups — coming soon."
+      title="Support Programs"
+      description="Browse active programs and support causes that matter to you."
     >
-      <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
-        Coming soon. This part of the ecosystem is not available yet.
-      </div>
-
-      <p>
-        Grants, training, matched-savings schemes and other interventions aimed at
-        community groups usually reach them through word of mouth, if they reach them
-        at all. Programs is where an enterprise, NGO or donor will be able to announce
-        an opportunity directly to the groups already using the platform — and where a
-        group&apos;s own record can help show it qualifies.
-      </p>
-
-      <h2>What we are building towards</h2>
-      <ul className="ml-5 list-disc space-y-2">
-        <li>Programs and grants listed by the organizations running them.</li>
-        <li>Eligibility a group can demonstrate from its own real record, not a paper application alone.</li>
-        <li>A clear path from a group&apos;s book to the opportunities it qualifies for.</li>
-      </ul>
-
-      <p>
-        Organizations ready to reach the groups on Kitabu Yetu today can start with{' '}
-        <Link href={ROUTES.enterprise}>Enterprise</Link>.
-      </p>
-
-      <div className="flex flex-wrap gap-3 pt-4">
-        <Link
-          href={ROUTES.contact}
-          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper-deep"
-        >
-          Talk to us about a program
-        </Link>
-      </div>
+      {activePrograms.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-600 mb-4">No active programs yet.</p>
+          <p className="text-sm text-gray-500">Check back soon for new opportunities to make an impact.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activePrograms.map(program => (
+            <Link key={program.id} href={`/ecosystem/programs/${program.slug}`}>
+              <div className="cursor-pointer">
+                <ProgramProgressCard program={program} showCta={true} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </PageShell>
   );
 }
+
+export default EcosystemProgramsPage;
