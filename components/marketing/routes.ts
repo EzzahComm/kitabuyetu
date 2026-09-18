@@ -51,6 +51,9 @@ export const ROUTES = {
   legalPrivacy:          '/legal/privacy',
   legalDataProtection:   '/legal/data-protection',
 
+  // Careers
+  careers:       '/careers',
+
   memberApp:     '/me',
   orgPortal:     '/enterprise',
   backoffice:    '/admin-login',
@@ -99,35 +102,24 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
   { label: 'Programs',                href: ROUTES.ecosystemPrograms, description: 'Grants, opportunities and interventions for qualifying groups.' },
 ];
 
+export const PRICING_ITEMS: NavLink[] = [
+  { label: 'Kitabu Yetu',      href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
+  { label: 'Chama Reminder',   href: ROUTES.pricing, description: 'SMS reminders and group announcements.' },
+];
+
 /**
- * Primary navigation. About / Products / Ecosystem are dropdowns
+ * Primary navigation. About, Products, Ecosystem, and Pricing are dropdowns
  * (`NavGroup`); everything else is a direct link. `isNavGroup` narrows which
  * is which in the header, so it stays a single typed array rather than two
  * parallel lists that can drift apart.
- */
-/**
- * Primary navigation. About and Products are dropdowns (`NavGroup`);
- * everything else is a direct link. `isNavGroup` narrows which is which in the
- * header, so it stays a single typed array rather than two parallel lists that
- * can drift apart.
- *
- * ENTERPRISE IS TOP-LEVEL, not buried in the Products dropdown: it is a
- * shipped product with its own buyer, and an institution evaluating it should
- * not have to open a menu to find out it exists.
- *
- * ECOSYSTEM IS DELIBERATELY ABSENT HERE. It is the vision layer, not a product
- * anyone can buy today, and putting it beside Pricing implied otherwise. Its
- * four pages stay reachable — from the footer's Ecosystem column and from the
- * homepage section — so nothing is orphaned by the demotion.
  */
 export const NAV_ITEMS: NavEntry[] = [
   { label: 'Home',          href: ROUTES.home },
   { label: 'About',         items: ABOUT_ITEMS },
   { label: 'Products',      items: PRODUCT_ITEMS },
-  { label: 'Enterprise',    href: ROUTES.enterprise },
+  { label: 'Ecosystem',     items: ECOSYSTEM_ITEMS },
   { label: 'How it works',  href: `/#${SECTION_IDS.howItWorks}` },
-  { label: 'Pricing',       href: ROUTES.pricing },
-  { label: 'Resources',     href: ROUTES.resources },
+  { label: 'Pricing',       items: PRICING_ITEMS },
   { label: 'Contact',       href: ROUTES.contact },
 ];
 
@@ -171,6 +163,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Our Story',    href: ROUTES.about },
       { label: 'Team',         href: ROUTES.aboutTeam },
       { label: 'Impact',       href: ROUTES.aboutImpact },
+      { label: 'Careers',      href: ROUTES.careers },
       { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
       { label: 'Pricing',      href: ROUTES.pricing },
       { label: 'Contact',      href: ROUTES.contact },
