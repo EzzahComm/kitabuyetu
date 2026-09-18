@@ -5,24 +5,25 @@ import { logger } from '@/lib/logger';
 // Both formats are accepted:
 //   rediss://default:TOKEN@host.upstash.io:6380  (Upstash Redis URL)
 //   https://host.upstash.io                      (Upstash REST URL — token via REDIS_TOKEN)
-function buildRedisClient(): Redis {
+function buildRedisClient(): Redis | null {
   const raw = process.env.REDIS_URL;
-  if (!raw) throw new Error('REDIS_URL environment variable is not set');
+  if (!raw) return null;
 
   try {
     const u = new URL(raw);
     const token = u.password || process.env.REDIS_TOKEN || '';
     const restUrl = `https://${u.hostname}`;
     return new Redis({ url: restUrl, token });
-  } catch {
-    throw new Error(`REDIS_URL is not a valid URL: ${raw}`);
+  } catch (err) {
+    console.warn('[redis] Failed to initialize:', err);
+    return null;
   }
 }
 
-const globalWithRedis = globalThis as typeof globalThis & { _kyRedis?: Redis };
+const globalWithRedis = globalThis as typeof globalThis & { _kyRedis?: Redis | null };
 
-if (process.env.REDIS_URL && !globalWithRedis._kyRedis) {
-  globalWithRedis._kyRedis = buildRedisClient();
+if (!globalWithRedis._kyRedis) {
+  globalWithRedis._kyRedis = buildRedisClient() ?? undefined;
 }
 
 export const redis = globalWithRedis._kyRedis as Redis;
