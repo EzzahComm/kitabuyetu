@@ -11,6 +11,12 @@ import type { PortableTextBlock } from '@portabletext/react';
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
 
+// Validate projectId format: only a-z, 0-9, and dashes allowed
+function isValidProjectId(id: string | undefined): id is string {
+  if (!id) return false;
+  return /^[a-z0-9-]+$/.test(id);
+}
+
 /** Revalidate published posts every 5 minutes — content is edited by hand
  *  in Sanity Studio, not on every request. */
 const REVALIDATE_SECONDS = 300;
@@ -29,7 +35,7 @@ export interface Post {
   publishedAt: string | null;
 }
 
-const client: SanityClient | null = projectId
+const client: SanityClient | null = isValidProjectId(projectId)
   ? createClient({
       projectId,
       dataset,
