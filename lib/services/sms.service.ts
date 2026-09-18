@@ -1395,10 +1395,20 @@ export const smsService = {
       }
 
       // One row per provider message; refresh it on each poll.
+      //
+      // group_id must be set: sms_delivery_reports carries a group-scoped RLS
+      // policy (group_id = app_current_group_id(), no separate WITH CHECK, so
+      // Postgres reuses USING for INSERT/UPDATE too), and this INSERT used to
+      // omit the column entirely — group_id defaulted to NULL, and NULL never
+      // equals the GUC, so every request-driven getDlr() call (the 'groupId'
+      // scope — an officer manually checking a message) threw "new row
+      // violates row-level security policy" here, unconditionally. The
+      // system-cron path ('system: true') runs on withAdminDb, which bypasses
+      // RLS, so it was never affected and NULL there is fine.
       const { rows: reportRows } = await db.query<{ id: string }>(
         `INSERT INTO sms_delivery_reports
-           (provider_message_id, phone, status, network_id, delivered_at, raw_response)
-         VALUES ($1,$2,$3,$4,$5,$6)
+           (group_id, provider_message_id, phone, status, network_id, delivered_at, raw_response)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (provider_message_id) DO UPDATE
            SET status       = EXCLUDED.status,
                network_id   = EXCLUDED.network_id,
@@ -1409,7 +1419,10 @@ export const smsService = {
                -- and the ordering degenerates back to "oldest first forever".
                poll_count   = sms_delivery_reports.poll_count + 1
          RETURNING id`,
-        [messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw)],
+        [
+          'groupId' in scope ? scope.groupId : null,
+          messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw),
+        ],
       );
 
       // Audit: delivery report recorded
