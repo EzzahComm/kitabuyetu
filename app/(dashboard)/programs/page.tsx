@@ -17,7 +17,6 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = user?.user_metadata?.org_id || '';
   if (!orgId) return <div>Not authorized</div>;
-  const supabase = await createClient();
   const tab = searchParams.tab || 'active';
 
   // Fetch programs
