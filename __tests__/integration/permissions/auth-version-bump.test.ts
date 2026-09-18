@@ -51,7 +51,7 @@ describe('permissions claim tracks live role via auth_version (Batch 1 plumbing)
         groupName: `Auth Version Bump Test ${phone}`,
         groupType: 'chama',
         firstName: 'Test', lastName: 'Treasurer',
-        phone, passwordHash, creatorRole: 'treasurer',
+        phone, passwordHash, creatorRole: 'treasurer', primaryObjective: 'savings',
       })],
     );
     const { group_id: groupId, member_id: memberId } = result;

@@ -86,7 +86,7 @@ export default function AdminEcosystemApplicationsPage() {
                     Contact: {a.contact_member_name} · {a.contact_member_phone}
                     {a.contact_member_email ? ` · ${a.contact_member_email}` : ''}
                   </p>
-                  {a.message && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">"{a.message}"</p>}
+                  {a.message && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">&ldquo;{a.message}&rdquo;</p>}
                   <p className="mt-2 text-xs text-muted-foreground">Submitted {formatDate(a.created_at)}</p>
                 </div>
                 {a.application_status === 'submitted' && (

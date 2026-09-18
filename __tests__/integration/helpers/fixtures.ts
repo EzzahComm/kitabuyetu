@@ -64,6 +64,7 @@ export async function createTestGroup(
       phone,
       passwordHash: DUMMY_PASSWORD_HASH,
       creatorRole,
+      primaryObjective: 'savings',
       product,
     })],
   );

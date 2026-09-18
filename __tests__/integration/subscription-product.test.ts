@@ -69,7 +69,7 @@ describe('multi-product subscriptions (migration 127)', () => {
         groupName: 'Reminder Only Group', groupType: 'chama',
         firstName: 'Asha', lastName: 'Mwangi', phone: '254798000123',
         passwordHash: 'integration_test_password_hash_placeholder',
-        creatorRole: 'treasurer', product: 'chama_reminder',
+        creatorRole: 'treasurer', primaryObjective: 'savings', product: 'chama_reminder',
       })],
     );
     const crGroupId = row.result.group_id;
