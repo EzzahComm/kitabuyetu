@@ -57,7 +57,7 @@ export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {
       }
 
       const { program } = await response.json();
-      toast.success('Program created successfully');
+      toast({ title: 'Program created successfully' });
 
       setFormData({
         name: '',
@@ -72,7 +72,7 @@ export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {
 
       onSuccess?.(program);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create program');
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to create program' });
     } finally {
       setLoading(false);
     }

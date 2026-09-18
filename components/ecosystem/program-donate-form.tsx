@@ -58,7 +58,7 @@ export function ProgramDonateForm({ programId, programName, onSuccess }: Program
       }
 
       const { donation } = await response.json();
-      toast.success('M-Pesa prompt sent! Complete the payment on your phone.');
+      toast({ title: 'M-Pesa prompt sent!', description: 'Complete the payment on your phone.' });
 
       // Poll for completion
       setChecking(true);
@@ -74,7 +74,7 @@ export function ProgramDonateForm({ programId, programName, onSuccess }: Program
           if (checkResponse.ok) {
             const updated = await checkResponse.json();
             if (updated.donation.status === 'completed') {
-              toast.success('Donation received! Thank you for your support.');
+              toast({ title: 'Donation received!', description: 'Thank you for your support.' });
               setFormData({ phone: '', amount: '', donorName: '', message: '', isAnonymous: false });
               setShowForm(false);
               setChecking(false);
@@ -85,13 +85,13 @@ export function ProgramDonateForm({ programId, programName, onSuccess }: Program
         }
 
         setChecking(false);
-        toast.info('Waiting for payment confirmation. You can close this window.');
+        toast({ title: 'Waiting for confirmation', description: 'You can close this window.' });
       };
 
       pollCompletion();
     } catch (error) {
       setChecking(false);
-      toast.error(error instanceof Error ? error.message : 'Failed to process donation');
+      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to process donation' });
     } finally {
       setLoading(false);
     }

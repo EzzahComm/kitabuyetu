@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Stat } from '@/components/ui/stat';
 
 interface ImpactMetric {
   metric_name: string;
@@ -56,31 +55,31 @@ export function ImpactDashboard({ organizationId }: ImpactDashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <Stat
-              label="Total Donated"
-              value={`KES ${impact.totalDonated.toLocaleString()}`}
-              icon="💰"
-            />
+            <div className="text-center">
+              <p className="text-3xl mb-2">💰</p>
+              <p className="text-sm text-gray-600">Total Donated</p>
+              <p className="text-xl font-bold text-gray-900">KES {impact.totalDonated.toLocaleString()}</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-6">
-            <Stat
-              label="Supporters"
-              value={impact.totalDonors.toString()}
-              icon="👥"
-            />
+            <div className="text-center">
+              <p className="text-3xl mb-2">👥</p>
+              <p className="text-sm text-gray-600">Supporters</p>
+              <p className="text-xl font-bold text-gray-900">{impact.totalDonors}</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-6">
-            <Stat
-              label="Impact Metrics"
-              value={impact.metrics.length.toString()}
-              icon="📊"
-            />
+            <div className="text-center">
+              <p className="text-3xl mb-2">📊</p>
+              <p className="text-sm text-gray-600">Impact Metrics</p>
+              <p className="text-xl font-bold text-gray-900">{impact.metrics.length}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
