@@ -66,12 +66,13 @@ describe('reallocationsService.initiate', () => {
     mockQuery.mockResolvedValueOnce(paymentAllocated);
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'realloc-1', status: 'pending_approval' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reallocation.create
 
     const result = await reallocationsService.initiate(ctx, input);
 
     expect(result.needsApproval).toBe(true);
-    // INSERT was the last query — no execution steps followed.
-    expect(mockQuery).toHaveBeenCalledTimes(5);
+    // INSERT + its audit log were the last queries — no execution steps followed.
+    expect(mockQuery).toHaveBeenCalledTimes(6);
     expect(mockQuery.mock.calls[4][1]).toContain('pending_approval');
   });
 
@@ -88,6 +89,7 @@ describe('reallocationsService.initiate', () => {
         reason: input.reason, initiated_by: 'treasurer-1',
       }],
     });
+    mockQuery.mockResolvedValueOnce({ rows: [] });                    // audit log: reallocation.create
     // executeReallocation (original had no journal → mirrors skipped):
     mockQuery.mockResolvedValueOnce(contribution());                  // void original RETURNING
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] }); // corrected insert
@@ -99,11 +101,11 @@ describe('reallocationsService.initiate', () => {
     const result = await reallocationsService.initiate(ctx, input);
 
     expect(result.needsApproval).toBe(false);
-    expect(mockQuery).toHaveBeenCalledTimes(11);
+    expect(mockQuery).toHaveBeenCalledTimes(12);
     // Void step targets only completed rows (double-execution latch).
-    expect(mockQuery.mock.calls[5][0]).toContain("status = 'completed'");
+    expect(mockQuery.mock.calls[6][0]).toContain("status = 'completed'");
     // Spine flips to reallocated.
-    expect(mockQuery.mock.calls[7][0]).toContain("allocation_status = 'reallocated'");
+    expect(mockQuery.mock.calls[8][0]).toContain("allocation_status = 'reallocated'");
   });
 });
 
@@ -128,6 +130,7 @@ describe('reallocationsService.approve', () => {
     };
     mockQuery.mockResolvedValueOnce({ rows: [realloc] });                        // FOR UPDATE
     mockQuery.mockResolvedValueOnce({ rows: [{ ...realloc, status: 'executed' }] }); // approve UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [] });                               // audit log: reallocation.approve
     mockQuery.mockResolvedValueOnce(                                             // void original
       { rows: [{ id: 'contrib-1', group_id: 'grp-1', member_id: 'member-a',
                  group_membership_id: 'gm-from', amount: '50000.00',

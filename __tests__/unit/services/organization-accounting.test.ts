@@ -61,6 +61,7 @@ describe('postOrgSystemJournal', () => {
       rows: [{ id: 'acct-1001', account_code: '1001' }, { id: 'acct-4001', account_code: '4001' }],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'je-1' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: org_journal.posted
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
@@ -71,10 +72,10 @@ describe('postOrgSystemJournal', () => {
     );
 
     expect(jeId).toBe('je-1');
-    expect(mockQuery).toHaveBeenCalledTimes(4);
-    const lineInsert1 = mockQuery.mock.calls[2];
+    expect(mockQuery).toHaveBeenCalledTimes(5);
+    const lineInsert1 = mockQuery.mock.calls[3];
     expect(lineInsert1[1]).toEqual(['org-1', 'je-1', 'acct-1001', '1000.00', '0.00']);
-    const lineInsert2 = mockQuery.mock.calls[3];
+    const lineInsert2 = mockQuery.mock.calls[4];
     expect(lineInsert2[1]).toEqual(['org-1', 'je-1', 'acct-4001', '0.00', '1000.00']);
   });
 

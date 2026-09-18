@@ -37,24 +37,26 @@ describe('organizationFinanceService.deposit', () => {
   it('posts DR 1001 / CR 4001 to the organization ledger after recording the deposit', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '10000.00' }] }); // wallet lock
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '15000.00' }] }); // wallet UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                                  // audit log: wallet.deposit
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'ledger-1' }] });                                // organization_ledger INSERT
     mockQuery.mockResolvedValueOnce({                                                              // postOrgSystemJournal: accounts
       rows: [{ id: 'acct-1001', account_code: '1001' }, { id: 'acct-4001', account_code: '4001' }],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'org-je-1' }] });                                // organization_journal_entries INSERT
+    mockQuery.mockResolvedValueOnce({ rows: [] });                                                  // audit log: org_journal.posted
     mockQuery.mockResolvedValueOnce({ rows: [] });                                                  // journal_lines INSERT (debit)
     mockQuery.mockResolvedValueOnce({ rows: [] });                                                  // journal_lines INSERT (credit)
 
     const result = await organizationFinanceService.deposit(ctx, { amount: 5000, source: 'World Bank' });
 
     expect(result.ledgerEntryId).toBe('ledger-1');
-    expect(mockQuery).toHaveBeenCalledTimes(7);
+    expect(mockQuery).toHaveBeenCalledTimes(9);
 
-    const acctsCall = mockQuery.mock.calls[3];
+    const acctsCall = mockQuery.mock.calls[4];
     expect(acctsCall[1]).toEqual(['org-1', ['1001', '4001']]);
 
-    const debitLine  = mockQuery.mock.calls[5][1];
-    const creditLine = mockQuery.mock.calls[6][1];
+    const debitLine  = mockQuery.mock.calls[7][1];
+    const creditLine = mockQuery.mock.calls[8][1];
     expect(debitLine).toEqual(['org-1', 'org-je-1', 'acct-1001', '5000.00', '0.00']);
     expect(creditLine).toEqual(['org-1', 'org-je-1', 'acct-4001', '0.00', '5000.00']);
   });

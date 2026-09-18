@@ -98,9 +98,20 @@ if (!globalWithPool._kyTenantPool) {
   // pool-build-time.test.ts guards against for DATABASE_URL. Real
   // enforcement happens at cold-start in the deployed runtime, same as
   // lib/env.ts's validateEnv().
+  //
+  // Also treats a Jest run as non-production: CI's Quality Gate job sets
+  // NODE_ENV=production workflow-wide (so `npm run build` behaves like a
+  // real production build), which the earlier `npm run test:ci` step
+  // inherits too — any unit test that imports lib/db transitively (e.g.
+  // through lib/auth/middleware.ts) hit this throw despite never having
+  // TENANT_DATABASE_URL configured, since no unit test needs a real
+  // Postgres connection. JEST_WORKER_ID is set by Jest itself for every
+  // worker process and is never present in the deployed runtime, so this
+  // narrows nothing about real production enforcement.
   const isBuildTime =
     process.env.SKIP_ENV_VALIDATION === '1' ||
-    process.env.NEXT_PHASE === 'phase-production-build';
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.JEST_WORKER_ID !== undefined;
 
   if (!env.TENANT_DATABASE_URL) {
     if (env.NODE_ENV === 'production' && !isBuildTime) {

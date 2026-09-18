@@ -10,14 +10,6 @@ export interface ResendWebhookEvent {
   };
 }
 
-export interface SendGridWebhookEvent {
-  event: string;
-  sg_message_id?: string;
-  email?: string;
-  timestamp?: number;
-  [key: string]: unknown;
-}
-
 // Process Resend webhook events
 export async function processResendEvent(event: ResendWebhookEvent): Promise<void> {
   const messageId = event.data.email_id;
@@ -79,64 +71,6 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
         ),
       ).catch(() => {});
       break;
-  }
-}
-
-// Process SendGrid event array
-export async function processSendGridEvents(events: SendGridWebhookEvent[]): Promise<void> {
-  for (const event of events) {
-    const messageId = event.sg_message_id?.split('.')[0];
-    if (!messageId) continue;
-
-    switch (event.event) {
-      case 'delivered':
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET status='sent', sent_at=COALESCE(sent_at, NOW()) WHERE provider_message_id=$1`,
-            [messageId],
-          ),
-        ).catch(() => {});
-        break;
-
-      case 'open':
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET opened_at=COALESCE(opened_at, NOW()) WHERE provider_message_id=$1`,
-            [messageId],
-          ),
-        ).catch(() => {});
-        await updateCampaignOpenCount(messageId);
-        break;
-
-      case 'click':
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET clicked_at=COALESCE(clicked_at, NOW()) WHERE provider_message_id=$1`,
-            [messageId],
-          ),
-        ).catch(() => {});
-        break;
-
-      case 'bounce':
-      case 'blocked':
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET status='bounced', bounced_at=NOW() WHERE provider_message_id=$1`,
-            [messageId],
-          ),
-        ).catch(() => {});
-        break;
-
-      case 'unsubscribe':
-      case 'spamreport':
-        await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET unsubscribed_at=NOW() WHERE provider_message_id=$1`,
-            [messageId],
-          ),
-        ).catch(() => {});
-        break;
-    }
   }
 }
 

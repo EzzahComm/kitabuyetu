@@ -86,9 +86,6 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'gl_cash_reconciliation':
       return handleGLCashReconciliation();
 
-    case 'journal_lines_partition_maintenance':
-      return handleJournalLinesPartitionMaintenance();
-
     case 'governance_compute_metrics':
       return handleGovernanceComputeMetrics(job.payload);
 
@@ -476,15 +473,6 @@ async function handleGLCashReconciliation(): Promise<HandlerResult> {
   }
 
   return { message, ...result, alerted };
-}
-
-async function handleJournalLinesPartitionMaintenance(): Promise<HandlerResult> {
-  const { ensureJournalLinesPartitions } = await import('@/lib/services/journal-lines-partitions.service');
-  const result = await ensureJournalLinesPartitions();
-  return {
-    message: `journal_lines partitions ensured through 3 months ahead (${result.created.length} checked)`,
-    ...result,
-  };
 }
 
 // ── Governance handler ────────────────────────────────────────

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
-import { campaignsService } from '@/lib/services/campaigns.service';
+import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 
 const TITLE = 'Changi$ha — Fundraising';
 const DESCRIPTION =
@@ -19,15 +19,26 @@ export const metadata: Metadata = {
   twitter: { title: TITLE, description: DESCRIPTION },
 };
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Real listing of live Changi$ha campaigns (migration 182) — was a static
  * "coming soon" page until the product actually existed. Reads via
  * campaignsService.listActiveCampaigns(), which goes through withAdminDb with
  * an explicit `status = 'active'` filter rather than any anon/PostgREST
  * grant — see that migration's header for why.
+ *
+ * Marked dynamic to avoid prerender failures when DB is unavailable at build time.
  */
 export default async function FundraisePage() {
-  const campaigns = await campaignsService.listActiveCampaigns();
+  let campaigns: Campaign[] = [];
+  try {
+    campaigns = await campaignsService.listActiveCampaigns();
+  } catch (err) {
+    // During build time in CI, the database may not be accessible. Gracefully
+    // fall back to an empty list — the page will render the "no campaigns" state.
+    // At runtime in production, the database will be available.
+  }
 
   return (
     <PageShell

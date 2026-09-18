@@ -30,6 +30,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '4003', name: 'Registration Fees',         type: 'income' },
   { code: '4004', name: 'Other Income',              type: 'income' },
   { code: '4005', name: 'External Funding',          type: 'income' },
+  { code: '4006', name: 'Changi$ha Donations',       type: 'income' },
   { code: '5001', name: 'Administrative Expenses',   type: 'expense' },
   { code: '5002', name: 'SMS Expenses',              type: 'expense' },
   { code: '5003', name: 'Platform Subscription',     type: 'expense' },
@@ -104,11 +105,13 @@ export async function postSystemJournal(
 
   for (const line of lines) {
     await client.query(
-      // entry_date is the journal_lines partition key (migrations 094/095) — a
-      // BEFORE INSERT trigger deriving it after Postgres has already routed the
-      // row to a partition is unsupported, so it must be supplied here directly,
-      // matching the identical COALESCE(..., CURRENT_DATE) used for the parent
-      // journal_entries row above (same transaction, same resolved date).
+      // entry_date is supplied directly rather than left to a trigger,
+      // matching the identical COALESCE(..., CURRENT_DATE) used for the
+      // parent journal_entries row above (same transaction, same resolved
+      // date). journal_lines is a plain table in production, not the
+      // partitioned one migrations 094/095 would have created (never
+      // applied — docs/audits/optimization-2026-09) — this comment
+      // previously asserted otherwise.
       `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
        VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE))`,
       [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2), opts?.entryDate ?? null],
@@ -193,9 +196,8 @@ export async function postContributionJournal(
   const jeId = jeRows[0]?.id;
   if (!jeId) return null;
 
-  // entry_date is the journal_lines partition key — supplied directly (see
-  // postSystemJournal's comment above) rather than left to the now-unsafe
-  // derive trigger, matching args.entryDate already bound to the parent
+  // entry_date is supplied directly (see postSystemJournal's comment
+  // above), matching args.entryDate already bound to the parent
   // journal_entries row above.
   await client.query(
     `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date) VALUES ($1,$2,$3,$4,0,$5)`,
@@ -299,9 +301,9 @@ export const accountingService = {
       const lineRows: JournalLine[] = [];
       for (const line of data.lines) {
         const { rows } = await client.query<JournalLine>(
-          // entry_date is the journal_lines partition key — supplied directly
-          // (see postSystemJournal's comment above), matching data.entryDate
-          // already bound to the parent journal_entries row above.
+          // entry_date is supplied directly (see postSystemJournal's comment
+          // above), matching data.entryDate already bound to the parent
+          // journal_entries row above.
           `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description, entry_date)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
           [ctx.groupId, je.id, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2), line.description ?? null, data.entryDate],

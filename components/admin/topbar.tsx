@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 import {
   Bell, Menu, ChevronDown,
@@ -34,9 +34,14 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   // next-themes can't know the resolved theme until after hydration (it
   // reads localStorage/matchMedia client-side) — rendering the icon before
-  // that would mismatch server vs. client markup.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // that would mismatch server vs. client markup. useSyncExternalStore's
+  // getServerSnapshot/getSnapshot split gives an SSR-safe "have we mounted
+  // yet" read without a setState-in-an-effect render round-trip.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const handleLogout = async () => {
     try { await authApi.logout(refreshToken ?? undefined); } catch {}

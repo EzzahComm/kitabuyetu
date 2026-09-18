@@ -58,7 +58,6 @@ TRUNCATE TABLE
   public.subscriptions,
   public.invoices,
   public.invoice_items,
-  public.invoice_line_items,
   public.invoice_schedules,
   public.invoice_sequences,
   public.payments,
@@ -81,8 +80,6 @@ TRUNCATE TABLE
 
   -- Comms — Email (system templates kept via WHERE clause below)
   public.email_logs,
-  public.email_failures,
-  public.email_delivery_reports,
   public.email_campaigns,
   public.email_campaign_recipients,
   public.email_preferences,
@@ -104,14 +101,12 @@ TRUNCATE TABLE
   public.meeting_resolutions,
   public.welfare_requests,
   public.welfare_pool_contributions,
-  public.welfare_votes,
   public.investments,
   public.investment_returns,
   public.member_investment_shares,
 
   -- Notifications + audit
   public.notifications,
-  public.notification_rules,
   public.audit_logs,
 
   -- Organization links (organization accounts themselves preserved)

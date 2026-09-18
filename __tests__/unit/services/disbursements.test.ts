@@ -89,6 +89,7 @@ describe('disbursementsService.initiateDisbursement', () => {
         initiated_by: 'treasurer-1', amount: '5000.00',
       }],
     });
+    mockQuery.mockResolvedValueOnce({ rows: [] });                 // audit log: disbursement.initiate
     // dispatchDisbursement: claim (UPDATE ... RETURNING)
     mockQuery.mockResolvedValueOnce({
       rows: [{
@@ -97,6 +98,7 @@ describe('disbursementsService.initiateDisbursement', () => {
         cash_account_id: 'acct-1',
       }],
     });
+    mockQuery.mockResolvedValueOnce({ rows: [] });                 // audit log: disbursement.dispatch
     mockQuery.mockResolvedValueOnce({ // getById refresh
       rows: [{
         id: 'disb-2', group_id: 'grp-1', status: 'dispatched', requires_approval: false,
@@ -122,6 +124,7 @@ describe('disbursementsService.initiateDisbursement', () => {
         initiated_by: 'treasurer-1', amount: '5000.00',
       }],
     });
+    mockQuery.mockResolvedValueOnce({ rows: [] });                  // audit log: disbursement.initiate
     mockQuery.mockResolvedValueOnce({ // getById refresh
       rows: [{
         id: 'disb-3', group_id: 'grp-1', status: 'pending_approval', requires_approval: true,

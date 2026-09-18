@@ -5,6 +5,8 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
 import { campaignsService } from '@/lib/services/campaigns.service';
 
+export const dynamic = 'force-dynamic';
+
 interface CampaignPageProps {
   params: Promise<{ slug: string }>;
 }
