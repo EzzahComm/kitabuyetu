@@ -38,6 +38,18 @@ regexes = [
   # commit+line fingerprint gitleaks had never seen). Same lesson as the
   # CAPITAL POINT UUID above, generalized: pin the value, not a commit.
   '''b2cIdempotencyKey''',
+
+  # Supabase anon (publishable) key for project qztcgryhoanennsizcll, in
+  # Kitabu_Yetu_Production.postman_environment.json (commit 1da41ded).
+  # gitleaks' generic `jwt` rule flags any JWT-shaped string on sight, with
+  # no way to distinguish a sensitive token from a key that is DESIGNED to be
+  # public: this is the exact same value already shipped in the site's
+  # client-side JS bundle as NEXT_PUBLIC_SUPABASE_ANON_KEY, and Supabase's
+  # entire security model is built on that — anon-key requests are subject to
+  # RLS, never bypass it. Rotating it would fix nothing (a fresh anon key
+  # would be just as public) and would only break every existing client. Pin
+  # by value, not commit, per the lesson above.
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6dGNncnlob2FuZW5uc2l6Y2xsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMTUzNzUsImV4cCI6MjA5MzY5MTM3NX0\.eC5nLIn9DqLwUd4CNALq9SREUq67cWq4DrcSBAtXLak''',
 ]
 # generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the
 # loan disbursement dialog (app/(dashboard)/loans/[id]/page.tsx:238). The
