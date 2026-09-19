@@ -64,7 +64,11 @@ export default function CrmContactsPage() {
         title="Contacts"
         description="Donors, lenders, insurers, trainers, professionals and other relationships outside your membership."
         actions={
-          canManage ? (
+          <div className="flex gap-2">
+            <Link href="/crm/pipeline">
+              <Button variant="outline">View pipeline</Button>
+            </Link>
+            {canManage && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>Add contact</Button>
@@ -124,7 +128,8 @@ export default function CrmContactsPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          ) : undefined
+            )}
+          </div>
         }
       />
 

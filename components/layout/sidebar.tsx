@@ -7,7 +7,7 @@ import {
   IconMessage, IconChartBar, IconSettings,
   IconReceipt, IconMail, IconHeart, IconTrendingUp, IconCalendar, IconVault,
   IconCoins, IconGauge, IconUpload, IconDeviceMobile, IconWallet, IconDots,
-  IconAddressBook, IconSpeakerphone, IconBolt,
+  IconAddressBook, IconSpeakerphone, IconBolt, IconTimeline,
 } from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -43,6 +43,7 @@ const NAV: PortalNavSection[] = [
         children: [
           { href: '/meetings',      label: 'Meetings',      icon: IconCalendar },
           { href: '/crm',           label: 'Contacts',      icon: IconAddressBook },
+          { href: '/crm/pipeline',  label: 'Pipeline',      icon: IconTimeline },
           { href: '/marketing',     label: 'Marketing',     icon: IconSpeakerphone },
           { href: '/marketing/automation', label: 'Automation', icon: IconBolt },
           { href: '/sms',           label: 'SMS',           icon: IconMessage },

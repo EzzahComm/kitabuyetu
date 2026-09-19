@@ -228,24 +228,39 @@ export async function createOpportunity(
   });
 }
 
-export async function updateOpportunityStage(
+/**
+ * Partial update, including a stage move — the core "workflow" action a
+ * pipeline board performs. Any stage is reachable from any other (a card can
+ * move backward, e.g. 'proposal' back to 'qualified'); nothing in this schema
+ * enforces a one-way funnel, and CRM boards conventionally don't either.
+ */
+export async function updateOpportunity(
   ctx: TenantContext,
   opportunityId: string,
-  stage: OpportunityStage,
+  updates: Partial<Pick<Opportunity, 'title' | 'stage' | 'amount' | 'notes'>>,
 ): Promise<Opportunity> {
+  const keys = Object.keys(updates) as (keyof typeof updates)[];
+  if (!keys.length) throw new ValidationError('No fields to update');
+  if (updates.title !== undefined && !updates.title.trim()) throw new ValidationError('Opportunity title cannot be blank');
+
   return withDb(ctx, async (db) => {
+    const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+    const values = keys.map((k) => updates[k]);
+
     const result = await db.query<Opportunity>(
-      `UPDATE crm_opportunities SET stage = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [stage, opportunityId],
+      `UPDATE crm_opportunities SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [opportunityId, ...values],
     );
 
     if (!result.rows.length) throw new NotFoundError('Opportunity not found');
 
-    await logActivity(ctx, db, {
-      opportunity_id: opportunityId,
-      activity_type: 'note',
-      body: `Stage changed to ${stage}`,
-    });
+    if (updates.stage !== undefined) {
+      await logActivity(ctx, db, {
+        opportunity_id: opportunityId,
+        activity_type: 'note',
+        body: `Stage changed to ${updates.stage}`,
+      });
+    }
 
     return result.rows[0];
   });
@@ -257,6 +272,41 @@ export async function listOpportunitiesForContact(ctx: TenantContext, contactId:
       `SELECT * FROM crm_opportunities WHERE contact_id = $1 ORDER BY created_at DESC`,
       [contactId],
     );
+    return result.rows;
+  });
+}
+
+export interface OpportunityWithContact extends Opportunity {
+  contact_name: string;
+  contact_type: ContactType;
+}
+
+/**
+ * Every opportunity in scope, joined with its contact — the pipeline board's
+ * data source. RLS on crm_opportunities already scopes rows to contacts this
+ * caller can see (migration 192), so no explicit group/org filter is needed
+ * here beyond the JOIN itself.
+ */
+export async function listOpportunities(
+  ctx: TenantContext,
+  filters?: { stage?: OpportunityStage },
+): Promise<OpportunityWithContact[]> {
+  return withDb(ctx, async (db) => {
+    const params: unknown[] = [];
+    let query = `
+      SELECT o.*, c.name AS contact_name, c.contact_type AS contact_type
+      FROM crm_opportunities o
+      JOIN crm_contacts c ON c.id = o.contact_id
+      WHERE 1=1`;
+
+    if (filters?.stage) {
+      params.push(filters.stage);
+      query += ` AND o.stage = $${params.length}`;
+    }
+
+    query += ` ORDER BY o.stage, o.updated_at DESC`;
+
+    const result = await db.query<OpportunityWithContact>(query, params);
     return result.rows;
   });
 }
@@ -290,11 +340,52 @@ async function logActivity(
   return result.rows[0];
 }
 
+/**
+ * A contact's full relationship timeline: activities logged directly against
+ * it, PLUS activities logged against any of its opportunities (e.g. the
+ * "Stage changed to X" entries updateOpportunity() writes with only an
+ * opportunity_id, no contact_id) — otherwise a stage move would be invisible
+ * on the contact page that motivated it.
+ */
 export async function listActivitiesForContact(ctx: TenantContext, contactId: string): Promise<Activity[]> {
   return withDb(ctx, async (db) => {
     const result = await db.query<Activity>(
-      `SELECT * FROM crm_activities WHERE contact_id = $1 ORDER BY occurred_at DESC`,
+      `SELECT * FROM crm_activities
+       WHERE contact_id = $1
+          OR opportunity_id IN (SELECT id FROM crm_opportunities WHERE contact_id = $1)
+       ORDER BY occurred_at DESC`,
       [contactId],
+    );
+    return result.rows;
+  });
+}
+
+export interface ActivityWithSubject extends Activity {
+  contact_name: string | null;
+  opportunity_title: string | null;
+}
+
+/**
+ * The CRM-wide activity feed — every call/email/meeting/note/stage-change
+ * across every contact and opportunity in scope, newest first. RLS on
+ * crm_activities already restricts rows to this caller's contacts/
+ * opportunities (migration 192).
+ */
+export async function listRecentActivity(ctx: TenantContext, limit = 30): Promise<ActivityWithSubject[]> {
+  const cappedLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 30;
+
+  return withDb(ctx, async (db) => {
+    const result = await db.query<ActivityWithSubject>(
+      `SELECT a.*,
+              COALESCE(c.name, oc.name) AS contact_name,
+              o.title AS opportunity_title
+       FROM crm_activities a
+       LEFT JOIN crm_contacts      c  ON c.id = a.contact_id
+       LEFT JOIN crm_opportunities o  ON o.id = a.opportunity_id
+       LEFT JOIN crm_contacts      oc ON oc.id = o.contact_id
+       ORDER BY a.occurred_at DESC
+       LIMIT $1`,
+      [cappedLimit],
     );
     return result.rows;
   });

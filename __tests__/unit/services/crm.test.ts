@@ -5,7 +5,8 @@
  */
 import { withDb } from '@/lib/db';
 import {
-  createContact, recordOptIn, recordOptOut, createOpportunity,
+  createContact, recordOptIn, recordOptOut, createOpportunity, updateOpportunity,
+  listOpportunities, listActivitiesForContact, listRecentActivity,
   logActivityForContact, isEmailSuppressed,
 } from '@/lib/services/crm.service';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -109,6 +110,92 @@ describe('createOpportunity', () => {
     await createOpportunity(ctx, { contact_id: 'c1', title: 'Grant application' });
 
     expect(mockQuery.mock.calls[0][1][2]).toBe('draft');
+  });
+});
+
+describe('updateOpportunity — Phase 9.5 pipeline moves', () => {
+  it('rejects an update with no fields before any query runs', async () => {
+    await expect(updateOpportunity(ctx, 'o1', {})).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('rejects a blank title before any query runs', async () => {
+    await expect(updateOpportunity(ctx, 'o1', { title: '   ' })).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundError when the opportunity does not exist', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(updateOpportunity(ctx, 'missing', { stage: 'won' })).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('logs a stage-change activity when stage is part of the update', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'o1', stage: 'won' }] }); // UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1' }] }); // activity log insert
+
+    const result = await updateOpportunity(ctx, 'o1', { stage: 'won' });
+
+    expect(result.stage).toBe('won');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const activityCall = mockQuery.mock.calls[1];
+    expect(String(activityCall[0])).toContain('INSERT INTO crm_activities');
+    expect(activityCall[1]).toEqual([undefined, 'o1', 'note', 'Stage changed to won', 'member-1']);
+  });
+
+  it('does not log an activity when only title/amount/notes change (no stage in the update)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'o1', title: 'Renamed' }] });
+
+    await updateOpportunity(ctx, 'o1', { title: 'Renamed' });
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('listOpportunities — pipeline board data source', () => {
+  it('joins contact name/type and orders by stage', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'o1', stage: 'draft', contact_name: 'Jane' }] });
+    const result = await listOpportunities(ctx);
+    expect(result).toHaveLength(1);
+    expect(String(mockQuery.mock.calls[0][0])).toContain('JOIN crm_contacts');
+  });
+
+  it('filters by stage when given', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await listOpportunities(ctx, { stage: 'won' });
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(String(sql)).toContain('AND o.stage = $1');
+    expect(params).toEqual(['won']);
+  });
+});
+
+describe('listActivitiesForContact — includes opportunity-only activities', () => {
+  it('queries by contact_id OR an opportunity owned by that contact', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await listActivitiesForContact(ctx, 'c1');
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(String(sql)).toContain('opportunity_id IN (SELECT id FROM crm_opportunities WHERE contact_id = $1)');
+    expect(params).toEqual(['c1']);
+  });
+});
+
+describe('listRecentActivity — cross-CRM feed', () => {
+  it('caps an out-of-range limit and falls back to 30 for a non-numeric one', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await listRecentActivity(ctx, NaN);
+    expect(mockQuery.mock.calls[0][1]).toEqual([30]);
+
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await listRecentActivity(ctx, 500);
+    expect(mockQuery.mock.calls[1][1]).toEqual([100]);
+  });
+
+  it('resolves contact_name from either the direct contact or the opportunity\'s contact', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'a1', contact_name: 'Jane', opportunity_title: null }],
+    });
+    const result = await listRecentActivity(ctx);
+    expect(result[0].contact_name).toBe('Jane');
+    expect(String(mockQuery.mock.calls[0][0])).toContain('COALESCE(c.name, oc.name)');
   });
 });
 
