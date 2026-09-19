@@ -52,6 +52,7 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
         ),
       ).catch(() => {});
       await updateCampaignOpenCount(messageId);
+      await suppressFromLog(messageId, 'bounce').catch(() => {});
       break;
 
     case 'email.complained':
@@ -61,6 +62,7 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
           [messageId],
         ),
       ).catch(() => {});
+      await suppressFromLog(messageId, 'complaint').catch(() => {});
       break;
 
     case 'email.delivery_delayed':
@@ -72,6 +74,32 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
       ).catch(() => {});
       break;
   }
+}
+
+/**
+ * Phase 9.1: record a real, enforced suppression on bounce/complaint. Looks
+ * up the recipient + group from the email_logs row this webhook already
+ * updated (no new lookup path). Only group-scoped log rows produce a
+ * suppression — email_suppressions requires exactly one of group_id/
+ * organization_id (migration 192), and there is no org-level email send yet
+ * for a scopeless row to meaningfully attach to.
+ */
+async function suppressFromLog(providerMessageId: string, source: 'bounce' | 'complaint'): Promise<void> {
+  await withAdminDb(async (db) => {
+    const { rows } = await db.query<{ to: string; group_id: string | null }>(
+      `SELECT "to", group_id FROM email_logs WHERE provider_message_id = $1 LIMIT 1`,
+      [providerMessageId],
+    );
+    const log = rows[0];
+    if (!log || !log.group_id) return;
+
+    await db.query(
+      `INSERT INTO email_suppressions (group_id, email, source)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (group_id, email) WHERE group_id IS NOT NULL DO NOTHING`,
+      [log.group_id, log.to, source],
+    );
+  });
 }
 
 // Increment campaign opened_count when a campaign email is opened
