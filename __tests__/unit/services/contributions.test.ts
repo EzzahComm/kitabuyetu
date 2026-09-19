@@ -23,6 +23,14 @@ jest.mock('@/lib/services/accounting.service', () => ({
   postContributionJournal: jest.fn().mockResolvedValue('je-1'),
 }));
 
+// contributionsService.create() dynamically imports this on the completed-
+// contribution path (Phase 9.4.1 event emission) — mock it like every other
+// dependency here so a completed-contribution test exercises this service in
+// isolation, not the real trigger engine.
+jest.mock('@/lib/sms/trigger-engine', () => ({
+  emitBusinessEvent: jest.fn().mockResolvedValue({ evaluated: 0, matched: 0, dispatched: 0, deferred: 0, skipped: 0 }),
+}));
+
 const mockQuery  = jest.fn();
 const mockClient = { query: mockQuery };
 
@@ -95,7 +103,7 @@ describe('contributionsService.create', () => {
   it('creates a completed contribution when payment method is provided', async () => {
     const completedContribution = {
       id: 'c-2', group_id: 'grp-1', member_id: 'mem-1',
-      amount: '1000.00', status: 'completed',
+      amount: '1000.00', status: 'completed', contribution_date: new Date('2025-06-01'),
       payment_method: 'mpesa', mpesa_receipt_number: 'QDE456UVW',
     };
 

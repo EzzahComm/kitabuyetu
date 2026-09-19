@@ -16,7 +16,7 @@
 
 import { PoolClient } from 'pg';
 import { withAdminDb, type TenantContext } from '@/lib/db';
-import { renderTemplate } from '@/lib/sms/templates';
+import { renderTemplate, stripUnresolved } from '@/lib/sms/templates';
 import { evaluateCondition } from '@/lib/sms/conditions';
 import { getCampaignRecipients } from './campaign.service';
 import { logger } from '@/lib/logger';
@@ -196,19 +196,30 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
             continue;
           }
 
-          // Render template (filter payload to strings/numbers only for template engine).
+          // Look up the email_templates row for this key (group override, then
+          // platform default), then render {{vars}} into its subject + body.
+          // NOTE: this used to call renderTemplate(rule.template_key, ...) —
+          // substituting into the KEY STRING itself instead of a template body,
+          // since renderTemplate() takes template text, not a lookup key (see
+          // lib/sms/trigger-engine.ts's loadTemplateBody for the pattern this
+          // mirrors). Every email trigger send since Phase 9.4.2 shipped would
+          // have mailed the literal template_key as the body. Caught while
+          // building the automation rules UI, before any rule went live.
+          const template = await loadEmailTemplate(db, event.groupId, rule.template_key);
+          if (!template) {
+            logger.warn('[email-trigger] no template found for key', { templateKey: rule.template_key, ruleId: rule.id });
+            summary.skipped++;
+            continue;
+          }
+
           const templateVars: Record<string, string | number | null> = {};
           for (const [k, v] of Object.entries(event.payload)) {
             if (v === null || typeof v === 'string' || typeof v === 'number') {
               templateVars[k] = v;
             }
           }
-          const body = renderTemplate(rule.template_key, templateVars);
-          if (!body) {
-            logger.warn('[email-trigger] template render failed', { templateKey: rule.template_key, ruleId: rule.id });
-            summary.skipped++;
-            continue;
-          }
+          const subject = stripUnresolved(renderTemplate(template.subject, templateVars));
+          const body = stripUnresolved(renderTemplate(template.body, templateVars));
 
           // Insert execution record (idempotency key).
           const { rows: execRows } = await db.query<{ id: string }>(
@@ -231,7 +242,7 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
                (group_id, name, subject, html_body, status, started_at, total_recipients, created_by)
              VALUES ($1, $2, $3, $4, 'sending', NOW(), $5, $6)
              RETURNING id`,
-            [event.groupId, rule.name, rule.name, body, uncapped.length, rule.created_by],
+            [event.groupId, rule.name, subject, body, uncapped.length, rule.created_by],
           );
 
           const campaignId = campaignRows[0].id;
@@ -267,6 +278,30 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
   return summary;
 }
 
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+interface EmailTemplateBody {
+  subject: string;
+  body: string;
+}
+
+/**
+ * Group override first, then a platform-wide (group_id IS NULL) template.
+ * Mirrors lib/sms/trigger-engine.ts's loadTemplateBody, but email has no
+ * compiled-in DEFAULT_TEMPLATES fallback — an unknown key here means the
+ * rule's author never created the template, so skip loudly (caller logs)
+ * rather than mailing something.
+ */
+async function loadEmailTemplate(db: PoolClient, groupId: string, key: string): Promise<EmailTemplateBody | null> {
+  const { rows } = await db.query<EmailTemplateBody>(
+    `SELECT subject, body FROM email_templates
+     WHERE (group_id = $1 OR group_id IS NULL) AND template_key = $2 AND locale = 'en' AND is_active
+     ORDER BY group_id NULLS LAST LIMIT 1`,
+    [groupId, key],
+  );
+  return rows[0] ?? null;
+}
+
 // ─── Recipient Resolution ────────────────────────────────────────────────────
 
 interface EmailRecipient {
@@ -276,7 +311,7 @@ interface EmailRecipient {
   memberId?: string; // for member rows
 }
 
-type EmailRecipientSpec =
+export type EmailRecipientSpec =
   | { type: 'all_members' }
   | { type: 'active_members' }
   | { type: 'roles'; roles: string[] }
@@ -284,8 +319,10 @@ type EmailRecipientSpec =
 
 /**
  * Parse and validate email recipient spec (subset of SMS spec; event_phone excluded since we need emails).
+ * Exported for reuse by automation-rules.service.ts, which validates a
+ * proposed recipient_spec at rule-creation time using the same grammar.
  */
-function parseRecipientEmailSpec(raw: unknown): EmailRecipientSpec | null {
+export function parseRecipientEmailSpec(raw: unknown): EmailRecipientSpec | null {
   if (!raw || typeof raw !== 'object') return null;
   const spec = raw as Record<string, unknown>;
 
