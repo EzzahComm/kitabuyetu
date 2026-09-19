@@ -5,6 +5,8 @@ import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJou
 import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
+import { SMS_EVENTS } from '@/lib/sms/events';
+import { logger } from '@/lib/logger';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
   ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
@@ -204,6 +206,21 @@ export const loansService = {
       const updated = rows[0];
       await writeAuditLog(client, ctx, 'loan.approve', id, { status: prev.status }, { status: updated.status });
 
+      // Emit event for trigger engine (best-effort, never throws)
+      const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+      await emitBusinessEvent({
+        eventType: SMS_EVENTS.LOAN_APPROVED,
+        eventId: updated.id,
+        groupId: ctx.groupId,
+        payload: {
+          amount: parseFloat(updated.principal_amount),
+          memberId: updated.member_id,
+          principalAmount: parseFloat(updated.principal_amount),
+          termMonths: String(updated.loan_term_months),
+        },
+        actorId: ctx.userId,
+      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
+
       return updated;
     });
   },
@@ -228,6 +245,20 @@ export const loansService = {
 
       const updated = rows[0];
       await writeAuditLog(client, ctx, 'loan.reject', id, { status: prev.status }, { status: updated.status, reason: data.reason });
+
+      // Emit event for trigger engine (best-effort, never throws)
+      const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+      await emitBusinessEvent({
+        eventType: SMS_EVENTS.LOAN_DECLINED,
+        eventId: updated.id,
+        groupId: ctx.groupId,
+        payload: {
+          amount: parseFloat(updated.principal_amount),
+          memberId: updated.member_id,
+          reason: data.reason,
+        },
+        actorId: ctx.userId,
+      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
 
       return updated;
     });
@@ -302,6 +333,21 @@ export const loansService = {
 
       // Record audit log
       await writeAuditLog(client, ctx, 'loan.disburse', id, { status: prev.status }, { status: updated.status, principal_amount: updated.principal_amount });
+
+      // Emit event for trigger engine (best-effort, never throws)
+      const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+      await emitBusinessEvent({
+        eventType: SMS_EVENTS.LOAN_DISBURSED,
+        eventId: updated.id,
+        groupId: ctx.groupId,
+        payload: {
+          amount: parseFloat(updated.principal_amount),
+          memberId: updated.member_id,
+          principalAmount: parseFloat(updated.principal_amount),
+          disbursementDate: updated.disbursement_date!.toISOString().split('T')[0],
+        },
+        actorId: ctx.userId,
+      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
 
       return updated;
     });

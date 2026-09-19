@@ -5,6 +5,7 @@ import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
 import { postContributionJournal } from './accounting.service';
 import { sendContributionConfirmation } from './notification-email.service';
+import { SMS_EVENTS } from '@/lib/sms/events';
 import { logger } from '@/lib/logger';
 
 export const contributionsService = {
@@ -252,6 +253,21 @@ export const contributionsService = {
           groupId: ctx.groupId, contributionId: contribution.id, amount: parseFloat(contribution.amount),
           entryDate: contribution.contribution_date, reference: contribution.mpesa_receipt_number, createdBy: ctx.userId,
         });
+
+        // Emit event for trigger engine (best-effort, never throws)
+        const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+        await emitBusinessEvent({
+          eventType: SMS_EVENTS.CONTRIBUTION_RECORDED,
+          eventId: contribution.id,
+          groupId: ctx.groupId,
+          payload: {
+            amount: parseFloat(contribution.amount),
+            memberId: data.memberId,
+            contributionDate: contribution.contribution_date.toISOString().split('T')[0],
+            paymentMethod: contribution.payment_method ?? 'manual',
+          },
+          actorId: ctx.userId,
+        }).catch((err) => logger.warn('[contributions] event emit failed', { contributionId: contribution.id, error: (err as Error).message }));
       }
 
       return contribution;
@@ -366,6 +382,21 @@ export const contributionsService = {
           groupId: ctx.groupId, contributionId: updated.id, amount: parseFloat(updated.amount),
           entryDate: updated.contribution_date, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
         });
+
+        // Emit event for trigger engine (best-effort, never throws)
+        const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
+        await emitBusinessEvent({
+          eventType: SMS_EVENTS.CONTRIBUTION_RECORDED,
+          eventId: updated.id,
+          groupId: ctx.groupId,
+          payload: {
+            amount: parseFloat(updated.amount),
+            memberId: updated.member_id,
+            contributionDate: updated.contribution_date.toISOString().split('T')[0],
+            paymentMethod: updated.payment_method ?? 'manual',
+          },
+          actorId: ctx.userId,
+        }).catch((err) => logger.warn('[contributions] event emit failed', { contributionId: updated.id, error: (err as Error).message }));
       }
 
       return updated;
