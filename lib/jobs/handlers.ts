@@ -104,6 +104,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'sms_bulk_send':
       return handleSmsBulkSend(job.payload, job.id);
 
+    case 'marketing_campaign_sms_send':
+      return handleMarketingCampaignSmsSend(job.payload, job.id);
+
     case 'sms_retry_failed':
       return handleSmsRetryFailed();
 
@@ -955,6 +958,52 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
   });
 
   return { message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
+}
+
+/**
+ * Phase 9.2 — dispatch an approved marketing_campaigns SMS leg.
+ *
+ * Deliberately a separate handler from handleSmsBulkSend above rather than an
+ * extension of it: that handler's completion-sync (syncCampaignCompletion)
+ * targets sms_campaigns specifically by id, and marketing_campaigns is a
+ * different table with its own status machine (draft/pending_review/
+ * approved/rejected/sending/completed/cancelled, see migration 193) — reusing
+ * the wrapper would mean either a silent no-op UPDATE against a nonexistent
+ * sms_campaigns row (if campaignId were passed) or touching hardened,
+ * production-scarred code to teach it a second completion target. Calling
+ * smsService.sendBulkCampaign() directly — the same underlying function,
+ * new orchestration on top — avoids both.
+ *
+ * Known scope limit: unlike handleSmsBulkSend, this does not fan out via
+ * QStash above QSTASH_CHUNK_THRESHOLD — a marketing campaign to more than a
+ * few hundred recipients could approach the function timeout. Safe for
+ * typical group sizes; real QStash chunking for marketing_campaigns is a
+ * follow-up, not this increment.
+ */
+async function handleMarketingCampaignSmsSend(payload: Record<string, unknown>, jobId: string): Promise<HandlerResult> {
+  const { smsService } = await import('@/lib/services/sms.service');
+  const { completeMarketingCampaignSend } = await import('@/lib/services/marketing-campaigns.service');
+
+  const campaignId = String(payload.campaignId ?? '');
+  const groupId     = String(payload.groupId ?? '');
+  const sentBy      = String(payload.sentBy ?? '');
+  const message     = String(payload.message ?? '');
+  const phones      = Array.isArray(payload.phones) ? (payload.phones as string[]) : [];
+
+  if (!campaignId || !groupId || phones.length === 0) {
+    return { message: 'Marketing campaign SMS send skipped: missing campaign, group, or recipients', sent: 0, failed: 0 };
+  }
+
+  const result = await smsService.sendBulkCampaign({
+    phones, message, groupId, sentBy,
+    referenceType: 'marketing_campaign',
+    referenceId:   campaignId,
+    dispatchBatchId: jobId,
+  });
+
+  await completeMarketingCampaignSend(campaignId, result.sent, result.failed);
+
+  return { message: `Marketing campaign SMS dispatched (${result.sent} sent, ${result.failed} failed)`, ...flattenResult(result) };
 }
 
 async function handleSmsRetryFailed(): Promise<HandlerResult> {
