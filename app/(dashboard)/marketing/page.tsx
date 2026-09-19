@@ -145,7 +145,7 @@ export default function MarketingCampaignsPage() {
                       <Input id="aud_name" value={audienceForm.name} onChange={(e) => setAudienceForm((f) => ({ ...f, name: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="aud_source">Who's in it *</Label>
+                      <Label htmlFor="aud_source">Who&rsquo;s in it *</Label>
                       <Select value={audienceForm.source} onValueChange={(v) => setAudienceForm((f) => ({ ...f, source: v as AudienceSource }))}>
                         <SelectTrigger id="aud_source"><SelectValue /></SelectTrigger>
                         <SelectContent>
