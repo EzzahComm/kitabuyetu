@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { Audience, Campaign, AudienceSource } from '@/lib/services/marketing-campaigns.service';
+import type { Audience, Campaign, AudienceSource, Channel } from '@/lib/services/marketing-campaigns.service';
 
 const AUDIENCES_BASE = '/marketing/audiences';
 const CAMPAIGNS_BASE = '/marketing/campaigns';
@@ -49,7 +49,7 @@ export function useCampaign(id: string) {
 export function useCreateCampaign() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { title: string; message: string; audience_id: string }) =>
+    mutationFn: (data: { title: string; message: string; audience_id: string; channel?: Channel; subject?: string }) =>
       api.post<Campaign>(CAMPAIGNS_BASE, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.campaigns }),
   });

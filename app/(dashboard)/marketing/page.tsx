@@ -22,12 +22,17 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import type { AudienceSource, Campaign } from '@/lib/services/marketing-campaigns.service';
+import type { AudienceSource, Campaign, Channel } from '@/lib/services/marketing-campaigns.service';
 
 const SOURCES: { value: AudienceSource; label: string }[] = [
   { value: 'all_members', label: 'All members' },
   { value: 'active_members', label: 'Active members only' },
   { value: 'crm_contacts_opted_in', label: 'Opted-in contacts (CRM)' },
+];
+
+const CHANNELS: { value: Channel; label: string }[] = [
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
 ];
 
 const STATUS_VARIANT: Record<Campaign['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -59,7 +64,9 @@ export default function MarketingCampaignsPage() {
   const [audienceForm, setAudienceForm] = useState({ name: '', source: 'all_members' as AudienceSource });
 
   const [campaignOpen, setCampaignOpen] = useState(false);
-  const [campaignForm, setCampaignForm] = useState({ title: '', message: '', audience_id: '' });
+  const [campaignForm, setCampaignForm] = useState({
+    title: '', message: '', audience_id: '', channel: 'sms' as Channel, subject: '',
+  });
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -77,9 +84,12 @@ export default function MarketingCampaignsPage() {
 
   const onCreateCampaign = async () => {
     try {
-      await createCampaign.mutateAsync(campaignForm);
+      await createCampaign.mutateAsync({
+        ...campaignForm,
+        subject: campaignForm.channel === 'email' ? campaignForm.subject : undefined,
+      });
       toast({ title: 'Campaign created as draft' });
-      setCampaignForm({ title: '', message: '', audience_id: '' });
+      setCampaignForm({ title: '', message: '', audience_id: '', channel: 'sms', subject: '' });
       setCampaignOpen(false);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
@@ -129,7 +139,7 @@ export default function MarketingCampaignsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Marketing campaigns"
-        description="SMS campaigns to your members or opted-in contacts. Every campaign needs chairperson approval before it sends."
+        description="SMS and email campaigns to your members or opted-in contacts. Every campaign needs chairperson approval before it sends."
         actions={
           canManage ? (
             <div className="flex gap-2">
@@ -167,11 +177,20 @@ export default function MarketingCampaignsPage() {
                   <Button disabled={!audiences || audiences.length === 0}>New campaign</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>New SMS campaign</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>New campaign</DialogTitle></DialogHeader>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="c_title">Title *</Label>
                       <Input id="c_title" value={campaignForm.title} onChange={(e) => setCampaignForm((f) => ({ ...f, title: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c_channel">Channel *</Label>
+                      <Select value={campaignForm.channel} onValueChange={(v) => setCampaignForm((f) => ({ ...f, channel: v as Channel }))}>
+                        <SelectTrigger id="c_channel"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CHANNELS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="c_audience">Audience *</Label>
@@ -182,6 +201,12 @@ export default function MarketingCampaignsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {campaignForm.channel === 'email' && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="c_subject">Subject *</Label>
+                        <Input id="c_subject" value={campaignForm.subject} onChange={(e) => setCampaignForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Email subject line" />
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <Label htmlFor="c_message">Message *</Label>
                       <Textarea id="c_message" rows={4} value={campaignForm.message} onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))} placeholder="What should this message say?" />
@@ -190,7 +215,13 @@ export default function MarketingCampaignsPage() {
                   <DialogFooter>
                     <Button
                       onClick={onCreateCampaign}
-                      disabled={!campaignForm.title.trim() || !campaignForm.message.trim() || !campaignForm.audience_id || createCampaign.isPending}
+                      disabled={
+                        !campaignForm.title.trim() ||
+                        !campaignForm.message.trim() ||
+                        !campaignForm.audience_id ||
+                        (campaignForm.channel === 'email' && !campaignForm.subject.trim()) ||
+                        createCampaign.isPending
+                      }
                     >
                       {createCampaign.isPending ? 'Creating…' : 'Create draft'}
                     </Button>
@@ -207,7 +238,7 @@ export default function MarketingCampaignsPage() {
       ) : !campaigns || campaigns.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            No campaigns yet. Create an audience, then a campaign, to reach your members or opted-in contacts by SMS.
+            No campaigns yet. Create an audience, then a campaign, to reach your members or opted-in contacts by SMS or email.
           </CardContent>
         </Card>
       ) : (
@@ -218,8 +249,12 @@ export default function MarketingCampaignsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{c.title}</p>
+                    <Badge variant="outline">{c.channel === 'email' ? 'Email' : 'SMS'}</Badge>
                     <Badge variant={STATUS_VARIANT[c.status]}>{c.status.replace('_', ' ')}</Badge>
                   </div>
+                  {c.channel === 'email' && c.subject && (
+                    <p className="mt-1 text-sm font-medium">{c.subject}</p>
+                  )}
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.message}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {c.status === 'completed' || c.status === 'sending'

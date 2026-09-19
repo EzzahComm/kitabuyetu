@@ -38,6 +38,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.plan.view',
   'organization.accounting.view',
   'organization.policies.manage',
+  'organization.marketing.manage',
   // Capital & Investment Layer (docs/capital-layer/). These live here, on the
   // code-level org axis, and NOT in roles.permissions — per the note above,
   // roles.base_role is typed member_role and cannot represent org roles.
