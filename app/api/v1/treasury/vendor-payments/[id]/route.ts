@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');
 
       const input = VendorPaymentActionSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
       if (input.action === 'approve') return ok(await vendorPaymentsService.approve(ctx, id));
       return ok(await vendorPaymentsService.reject(ctx, id, input.reason));

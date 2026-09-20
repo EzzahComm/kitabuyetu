@@ -16,15 +16,19 @@ function getAdapter(): IEmailAdapter {
   if (_adapter) return _adapter;
   const provider = process.env.EMAIL_PROVIDER ?? 'resend';
   switch (provider) {
-    case 'smtp':     _adapter = new SmtpAdapter();     break;
-    default:         _adapter = new ResendAdapter();   break;
+    case 'smtp':
+      _adapter = new SmtpAdapter();
+      break;
+    default:
+      _adapter = new ResendAdapter();
+      break;
   }
   return _adapter;
 }
 
 async function logDryRun(payload: EmailPayload): Promise<void> {
   const from = payload.from ?? env.EMAIL_FROM;
-  const to   = Array.isArray(payload.to) ? payload.to[0] : payload.to;
+  const to = Array.isArray(payload.to) ? payload.to[0] : payload.to;
   await withAdminDb((db) =>
     db.query(
       `INSERT INTO email_logs
@@ -33,14 +37,14 @@ async function logDryRun(payload: EmailPayload): Promise<void> {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'dry_run',$9,$10)`,
       [
         payload.groupId ?? null,
-        payload.userId  ?? null,
+        payload.userId ?? null,
         payload.templateKey ?? null,
-        payload.category    ?? 'transactional',
+        payload.category ?? 'transactional',
         to,
         from,
         payload.subject,
         process.env.EMAIL_PROVIDER ?? 'resend',
-        payload.referenceId   ?? null,
+        payload.referenceId ?? null,
         payload.referenceType ?? null,
       ],
     ),
@@ -54,12 +58,15 @@ export async function sendEmailWithFallback(payload: EmailPayload): Promise<Emai
   }
 
   const primary = getAdapter();
-  const result  = await primary.send(payload);
+  const result = await primary.send(payload);
   if (result.success) return result;
 
   // Fall back to SMTP when primary is not SMTP and SMTP is configured
   if (primary.name !== 'smtp' && process.env.SMTP_HOST) {
-    logger.warn(`[email] ${primary.name} failed, falling back to SMTP`, { provider: primary.name, error: result.error });
+    logger.warn(`[email] ${primary.name} failed, falling back to SMTP`, {
+      provider: primary.name,
+      error: result.error,
+    });
     return new SmtpAdapter().send(payload);
   }
 

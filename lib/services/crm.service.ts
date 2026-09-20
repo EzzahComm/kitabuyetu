@@ -12,8 +12,17 @@ import { withDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 export type ContactType =
-  | 'donor' | 'lender' | 'insurer' | 'trainer' | 'service_provider'
-  | 'professional' | 'partner_rep' | 'lead' | 'media' | 'government' | 'other';
+  | 'donor'
+  | 'lender'
+  | 'insurer'
+  | 'trainer'
+  | 'service_provider'
+  | 'professional'
+  | 'partner_rep'
+  | 'lead'
+  | 'media'
+  | 'government'
+  | 'other';
 
 export interface Contact {
   id: string;
@@ -241,7 +250,8 @@ export async function updateOpportunity(
 ): Promise<Opportunity> {
   const keys = Object.keys(updates) as (keyof typeof updates)[];
   if (!keys.length) throw new ValidationError('No fields to update');
-  if (updates.title !== undefined && !updates.title.trim()) throw new ValidationError('Opportunity title cannot be blank');
+  if (updates.title !== undefined && !updates.title.trim())
+    throw new ValidationError('Opportunity title cannot be blank');
 
   return withDb(ctx, async (db) => {
     const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');

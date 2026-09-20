@@ -32,7 +32,8 @@ async function drift(groupId: string): Promise<number> {
 
 async function balance(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
@@ -128,7 +129,7 @@ describe('SMS credit ledger', () => {
     const rows = await entries(groupId);
     const consume = rows.find((r) => r.entry_type === 'consume');
     expect(consume).toBeDefined();
-    expect(Number(consume!.amount)).toBe(0);              // no money moved
+    expect(Number(consume!.amount)).toBe(0); // no money moved
     expect(Number(consume!.allowance_amount)).toBeCloseTo(0.9, 4); // but it happened
     expect(await drift(groupId)).toBe(0);
   });
@@ -136,13 +137,13 @@ describe('SMS credit ledger', () => {
   it('is append-only', async () => {
     await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
 
-    await expect(
-      rawQuery(`UPDATE sms_credit_ledger SET amount = 999 WHERE group_id = $1`, [groupId]),
-    ).rejects.toThrow(/append-only/);
+    await expect(rawQuery(`UPDATE sms_credit_ledger SET amount = 999 WHERE group_id = $1`, [groupId])).rejects.toThrow(
+      /append-only/,
+    );
 
-    await expect(
-      rawQuery(`DELETE FROM sms_credit_ledger WHERE group_id = $1`, [groupId]),
-    ).rejects.toThrow(/append-only/);
+    await expect(rawQuery(`DELETE FROM sms_credit_ledger WHERE group_id = $1`, [groupId])).rejects.toThrow(
+      /append-only/,
+    );
   });
 
   it('does not double-record a replayed top-up callback', async () => {
@@ -168,9 +169,7 @@ describe('SMS credit ledger', () => {
     // it the ledger could never reconcile against balances that predate it,
     // and the whole phase would prove nothing. Simulated here by crediting
     // outside the ledger, then re-seeding the way the migration does.
-    await rawQuery(
-      `UPDATE billing_accounts SET sms_credits = 55 WHERE group_id = $1`, [groupId],
-    );
+    await rawQuery(`UPDATE billing_accounts SET sms_credits = 55 WHERE group_id = $1`, [groupId]);
     expect(await drift(groupId)).toBe(55);
 
     await rawQuery(
@@ -198,7 +197,8 @@ describe('SMS credit ledger', () => {
     expect(await drift(groupId)).toBe(0);
 
     const [row] = await rawQuery<{ created_by: string | null }>(
-      `SELECT created_by FROM sms_credit_ledger WHERE group_id = $1`, [groupId],
+      `SELECT created_by FROM sms_credit_ledger WHERE group_id = $1`,
+      [groupId],
     );
     expect(row.created_by).toBeNull();
   });

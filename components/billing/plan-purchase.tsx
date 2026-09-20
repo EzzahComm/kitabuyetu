@@ -12,8 +12,13 @@ import { cn, getErrorMessage } from '@/lib/utils';
 import { MpesaPayDialog } from './mpesa-pay-dialog';
 import type { UpgradePlanInput } from '@/lib/validators/billing.schema';
 import {
-  PLAN_COPY, BILLING_CYCLES, BILLING_CYCLE_MONTHS, BILLING_CYCLE_LABELS,
-  type PlanType, type SubscriptionProduct, type BillingCycle,
+  PLAN_COPY,
+  BILLING_CYCLES,
+  BILLING_CYCLE_MONTHS,
+  BILLING_CYCLE_LABELS,
+  type PlanType,
+  type SubscriptionProduct,
+  type BillingCycle,
 } from '@/types/enums';
 
 type PurchasablePlan = UpgradePlanInput['planType'];
@@ -25,7 +30,7 @@ type PurchasablePlan = UpgradePlanInput['planType'];
 // the full rationale — this used to be a private const here.
 
 const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
-  kitabu_yetu:    'SUBSCRIPT',
+  kitabu_yetu: 'SUBSCRIPT',
   chama_reminder: 'REMINDER',
 };
 
@@ -56,7 +61,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
   // hold no plan, and defaulting the display to starter told a locked group it
   // was on the very plan it has not paid for — while marking that card
   // "Current plan" and disabling the button that would let it pay.
-  const current         = billingData?.current;
+  const current = billingData?.current;
   const currentPlanType = current?.planType ?? null;
 
   // Narrower than PlanType on purpose: enterprise is displayed but negotiated,
@@ -73,7 +78,8 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     if (!pendingPlan) return;
     upgradePlan.mutate(pendingPlan, {
       onSuccess: () => toast({ title: 'Plan activated!', description: `Now on the ${pendingPlan} plan` }),
-      onError:   (err) => toast({ variant: 'destructive', title: 'Activation failed', description: getErrorMessage(err) }),
+      onError: (err) =>
+        toast({ variant: 'destructive', title: 'Activation failed', description: getErrorMessage(err) }),
     });
   });
 
@@ -96,13 +102,13 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     // against exactly that, and a monthly-only amount would fail the check
     // for anything but a monthly purchase.
     checkout.start({
-      amount:           price * cycleMonths,
+      amount: price * cycleMonths,
       accountReference: PRODUCT_REFERENCE[product],
-      description:      `${planCopy.find((p) => p.type === planType)!.label} plan`.slice(0, 20),
-      purpose:          'subscription' as const,
-      planType:         purchasable,
+      description: `${planCopy.find((p) => p.type === planType)!.label} plan`.slice(0, 20),
+      purpose: 'subscription' as const,
+      planType: purchasable,
       product,
-      billingCycle:     cycle,
+      billingCycle: cycle,
     });
   };
 
@@ -134,8 +140,8 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {planCopy.map((plan) => {
-          const isCurrent  = plan.type === currentPlanType;
-          const price      = priceOf(plan.type);
+          const isCurrent = plan.type === currentPlanType;
+          const price = priceOf(plan.type);
           const negotiated = isNegotiated(plan.type);
           return (
             <Card key={plan.type} className={cn('relative', isCurrent && 'ring-2 ring-brand-500')}>
@@ -160,7 +166,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
                 <ul className="space-y-2">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm">
-                      <Check size={14} className="text-brand-500 shrink-0"/> {f}
+                      <Check size={14} className="text-brand-500 shrink-0" /> {f}
                     </li>
                   ))}
                 </ul>
@@ -188,11 +194,9 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
 /** The current plan line the page header shows above the grid. */
 export function useCurrentPlanSummary(product: SubscriptionProduct): string {
   const { data } = useBillingPlans(product);
-  const current  = data?.current;
+  const current = data?.current;
   if (!current?.planType) return 'No active plan — choose one below to restore access.';
   const label = `${current.planType.charAt(0).toUpperCase()}${current.planType.slice(1)}`;
-  const expiry = current.expiresAt
-    ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}`
-    : '';
+  const expiry = current.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : '';
   return `Current plan: ${label}${expiry}`;
 }

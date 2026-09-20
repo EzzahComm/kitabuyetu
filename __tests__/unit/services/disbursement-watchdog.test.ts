@@ -14,7 +14,7 @@ jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -27,19 +27,22 @@ describe('resolveWatchdogTimeout', () => {
     ['disbursement', 'disbursement_requests', 'dispatched'],
     ['settlement', 'settlement_requests', 'processing'],
     ['vendor_payment', 'vendor_payments', 'processing'],
-  ] as const)('flips a stuck %s row to timed_out (table %s, in-flight status %s)', async (kind, table, inProgressStatus) => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'row-1', group_id: 'grp-1', amount: '5000.00' }],
-    });
+  ] as const)(
+    'flips a stuck %s row to timed_out (table %s, in-flight status %s)',
+    async (kind, table, inProgressStatus) => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 'row-1', group_id: 'grp-1', amount: '5000.00' }],
+      });
 
-    const result = await resolveWatchdogTimeout(kind, 'row-1');
+      const result = await resolveWatchdogTimeout(kind, 'row-1');
 
-    expect(result).toEqual({ resolved: true });
-    const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toContain(table);
-    expect(sql).toContain("status = 'timed_out'");
-    expect(params).toEqual(['row-1', inProgressStatus]);
-  });
+      expect(result).toEqual({ resolved: true });
+      const [sql, params] = mockQuery.mock.calls[0];
+      expect(sql).toContain(table);
+      expect(sql).toContain("status = 'timed_out'");
+      expect(params).toEqual(['row-1', inProgressStatus]);
+    },
+  );
 
   it('is a safe no-op when the real callback handler already resolved the row', async () => {
     // WHERE status = inProgressStatus matches nothing once the row is

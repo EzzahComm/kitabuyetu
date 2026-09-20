@@ -68,7 +68,9 @@ export const { POST } = serve<DisbursementWatchdogPayload>(
       // outage, a code bug) — this is a visibility log, not the payout's
       // only safety net.
       logger.error('[disbursement-watchdog] workflow run failed permanently', {
-        workflowRunId: context.workflowRunId, failStatus, failResponse,
+        workflowRunId: context.workflowRunId,
+        failStatus,
+        failResponse,
       });
     },
   },

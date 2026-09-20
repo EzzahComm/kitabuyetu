@@ -17,51 +17,50 @@ import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
 
-export type CampaignStatus =
-  | 'draft' | 'pending_review' | 'active' | 'completed' | 'cancelled' | 'rejected';
+export type CampaignStatus = 'draft' | 'pending_review' | 'active' | 'completed' | 'cancelled' | 'rejected';
 
 export interface Campaign {
-  id:               string;
-  group_id:         string;
-  title:            string;
-  slug:             string;
-  story:            string;
+  id: string;
+  group_id: string;
+  title: string;
+  slug: string;
+  story: string;
   beneficiary_name: string | null;
-  target_amount:    string;
-  amount_raised:    string;
-  currency:         string;
-  cover_image_url:  string | null;
-  status:           CampaignStatus;
+  target_amount: string;
+  amount_raised: string;
+  currency: string;
+  cover_image_url: string | null;
+  status: CampaignStatus;
   rejection_reason: string | null;
-  created_by:       string;
-  reviewed_by:      string | null;
-  reviewed_at:      string | null;
-  ends_at:          string | null;
-  created_at:       string;
-  updated_at:       string;
+  created_by: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CampaignDonation {
-  id:                   string;
-  campaign_id:          string;
-  group_id:             string;
-  donor_name:           string | null;
-  donor_phone:          string;
-  amount:               string;
-  message:              string | null;
-  is_anonymous:         boolean;
+  id: string;
+  campaign_id: string;
+  group_id: string;
+  donor_name: string | null;
+  donor_phone: string;
+  amount: string;
+  message: string | null;
+  is_anonymous: boolean;
   mpesa_receipt_number: string | null;
-  status:               'pending' | 'completed' | 'failed';
-  created_at:           string;
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
 }
 
 export interface CreateCampaignInput {
-  title:            string;
-  story:            string;
-  targetAmount:     number;
+  title: string;
+  story: string;
+  targetAmount: number;
   beneficiaryName?: string;
-  coverImageUrl?:   string;
-  endsAt?:          string;
+  coverImageUrl?: string;
+  endsAt?: string;
 }
 
 const OFFICER_ROLES = ['chairperson', 'treasurer', 'secretary'];
@@ -77,7 +76,8 @@ function assertOfficer(ctx: TenantContext): void {
 function slugify(title: string): string {
   return title
     .toLowerCase()
-    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
@@ -109,8 +109,14 @@ export const campaignsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft')
          RETURNING *`,
         [
-          ctx.groupId, data.title, slug, data.story, data.beneficiaryName ?? null,
-          data.targetAmount.toFixed(2), data.coverImageUrl ?? null, data.endsAt ?? null,
+          ctx.groupId,
+          data.title,
+          slug,
+          data.story,
+          data.beneficiaryName ?? null,
+          data.targetAmount.toFixed(2),
+          data.coverImageUrl ?? null,
+          data.endsAt ?? null,
           ctx.userId,
         ],
       );
@@ -120,7 +126,12 @@ export const campaignsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
-          ctx.groupId, ctx.userId, 'campaign.create', 'campaign', campaign.id, null,
+          ctx.groupId,
+          ctx.userId,
+          'campaign.create',
+          'campaign',
+          campaign.id,
+          null,
           JSON.stringify({ title: campaign.title, target_amount: campaign.target_amount, status: 'draft' }),
         ],
       );
@@ -138,7 +149,9 @@ export const campaignsService = {
       );
       if (!existing[0]) throw new NotFoundError('Campaign', campaignId);
       if (existing[0].status !== 'draft') {
-        throw new ValidationError(`Only a draft campaign can be submitted for review (current status: ${existing[0].status})`);
+        throw new ValidationError(
+          `Only a draft campaign can be submitted for review (current status: ${existing[0].status})`,
+        );
       }
 
       const { rows: updated } = await db.query<Campaign>(
@@ -151,8 +164,13 @@ export const campaignsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
-          ctx.groupId, ctx.userId, 'campaign.submit_for_review', 'campaign', campaignId,
-          JSON.stringify({ status: 'draft' }), JSON.stringify({ status: 'pending_review' }),
+          ctx.groupId,
+          ctx.userId,
+          'campaign.submit_for_review',
+          'campaign',
+          campaignId,
+          JSON.stringify({ status: 'draft' }),
+          JSON.stringify({ status: 'pending_review' }),
         ],
       );
 
@@ -184,10 +202,10 @@ export const campaignsService = {
 
   async getGroupCampaignById(ctx: TenantContext, id: string): Promise<Campaign> {
     return withDb(ctx, async (db) => {
-      const { rows } = await db.query<Campaign>(
-        `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2`,
-        [id, ctx.groupId],
-      );
+      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE id = $1 AND group_id = $2`, [
+        id,
+        ctx.groupId,
+      ]);
       if (!rows[0]) throw new NotFoundError('Campaign', id);
       return rows[0];
     });
@@ -206,10 +224,9 @@ export const campaignsService = {
 
   async getPublicCampaignBySlug(slug: string): Promise<Campaign | null> {
     return withAdminDb(async (db) => {
-      const { rows } = await db.query<Campaign>(
-        `SELECT * FROM campaigns WHERE slug = $1 AND status = 'active'`,
-        [slug],
-      );
+      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE slug = $1 AND status = 'active'`, [
+        slug,
+      ]);
       return rows[0] ?? null;
     });
   },
@@ -254,8 +271,13 @@ export const campaignsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
-          existing[0].group_id, adminUserId, 'campaign.approve', 'campaign', campaignId,
-          JSON.stringify({ status: 'pending_review' }), JSON.stringify({ status: 'active' }),
+          existing[0].group_id,
+          adminUserId,
+          'campaign.approve',
+          'campaign',
+          campaignId,
+          JSON.stringify({ status: 'pending_review' }),
+          JSON.stringify({ status: 'active' }),
         ],
       );
 
@@ -283,8 +305,13 @@ export const campaignsService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
-          existing[0].group_id, adminUserId, 'campaign.reject', 'campaign', campaignId,
-          JSON.stringify({ status: 'pending_review' }), JSON.stringify({ status: 'rejected', rejection_reason: reason }),
+          existing[0].group_id,
+          adminUserId,
+          'campaign.reject',
+          'campaign',
+          campaignId,
+          JSON.stringify({ status: 'pending_review' }),
+          JSON.stringify({ status: 'rejected', rejection_reason: reason }),
         ],
       );
 

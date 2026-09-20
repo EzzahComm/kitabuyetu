@@ -1,10 +1,26 @@
 import { api, adminApi } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
-  LoginResponse, LoginResult, RefreshResponse, AdminLoginResult, AdminLoginVerifyResult,
-  GroupMemberRow, SubscriptionPublic, OrganizationGroupSummary, OrganizationProfile, MembershipSwitcherItem,
-  TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges, JournalEntry,
-  SmsTemplate, SmsCampaign, SmsSchedule, SmsProviderBalance,
+  LoginResponse,
+  LoginResult,
+  RefreshResponse,
+  AdminLoginResult,
+  AdminLoginVerifyResult,
+  GroupMemberRow,
+  SubscriptionPublic,
+  OrganizationGroupSummary,
+  OrganizationProfile,
+  MembershipSwitcherItem,
+  TrialBalanceLine,
+  ProfitAndLoss,
+  BalanceSheet,
+  CashFlowStatement,
+  EquityChanges,
+  JournalEntry,
+  SmsTemplate,
+  SmsCampaign,
+  SmsSchedule,
+  SmsProviderBalance,
 } from '@/types/api.types';
 import type { PaginatedResult, Account, SmsUsageLog, Contribution, Loan, LoanRepayment } from '@/types/db.types';
 import type { PlanType, SubscriptionProduct, PlanFeatures } from '@/types/enums';
@@ -12,15 +28,58 @@ import type { SmsUsageSummary } from '@/lib/sms/analytics';
 import type { SmsUsageAnalytics } from '@/lib/services/sms-analytics.service';
 import type { FiscalPeriod } from '@/lib/services/fiscal-periods.service';
 import type { EffectiveThreshold } from '@/lib/services/approval-policy.service';
-import type { CreateJournalPayload , CreateAccountPayload, SetPostingTemplatePayload, SetApprovalPolicyInput, ClosePeriodInput, ReopenPeriodInput } from '@/lib/validators/accounting.schema';
-import type { StkPushInput , B2CInput } from '@/lib/validators/mpesa.schema';
-import type { RegisterPayload, ChangePasswordPayload, CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema';
-import type { CreateMemberPayload, UpdateMemberPayload, CreateNextOfKinPayload, UpdateNextOfKinPayload, UpdateMemberRoleInput, MemberStatusTransitionInput } from '@/lib/validators/member.schema';
-import type { CreateContributionPayload, UpdateContributionPayload, SetSavingsLimitsPayload } from '@/lib/validators/contribution.schema';
-import type { ApplyLoanPayload, LoanActionInput, RecordRepaymentPayload, SetLoanTermsPayload } from '@/lib/validators/loan.schema';
-import type { SendSmsPayload, BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, TemplateUpdatePayload, ScheduleCreatePayload, SmsGroupSettingsUpdateInput } from '@/lib/validators/sms.schema';
+import type {
+  CreateJournalPayload,
+  CreateAccountPayload,
+  SetPostingTemplatePayload,
+  SetApprovalPolicyInput,
+  ClosePeriodInput,
+  ReopenPeriodInput,
+} from '@/lib/validators/accounting.schema';
+import type { StkPushInput, B2CInput } from '@/lib/validators/mpesa.schema';
+import type {
+  RegisterPayload,
+  ChangePasswordPayload,
+  CreateAdditionalGroupPayload,
+} from '@/lib/validators/auth.schema';
+import type {
+  CreateMemberPayload,
+  UpdateMemberPayload,
+  CreateNextOfKinPayload,
+  UpdateNextOfKinPayload,
+  UpdateMemberRoleInput,
+  MemberStatusTransitionInput,
+} from '@/lib/validators/member.schema';
+import type {
+  CreateContributionPayload,
+  UpdateContributionPayload,
+  SetSavingsLimitsPayload,
+} from '@/lib/validators/contribution.schema';
+import type {
+  ApplyLoanPayload,
+  LoanActionInput,
+  RecordRepaymentPayload,
+  SetLoanTermsPayload,
+} from '@/lib/validators/loan.schema';
+import type {
+  SendSmsPayload,
+  BulkSmsPayload,
+  CampaignCreatePayload,
+  TemplateCreatePayload,
+  TemplateUpdatePayload,
+  ScheduleCreatePayload,
+  SmsGroupSettingsUpdateInput,
+} from '@/lib/validators/sms.schema';
 import type { RecordManualPaymentPayload, UpgradePlanInput } from '@/lib/validators/billing.schema';
-import type { DepositPayload, CreateProgramPayload, DisbursePayload, DisbursementActionInput, BrandingPayload, UpdateProgramStatusInput, TopUpSmsCreditsPayload } from '@/lib/validators/organization.schema';
+import type {
+  DepositPayload,
+  CreateProgramPayload,
+  DisbursePayload,
+  DisbursementActionInput,
+  BrandingPayload,
+  UpdateProgramStatusInput,
+  TopUpSmsCreditsPayload,
+} from '@/lib/validators/organization.schema';
 import type { OrgTrialBalanceLine } from '@/lib/services/organization-accounting.service';
 import type { PortfolioHealth } from '@/lib/services/organization-health.service';
 import type { OrgCountyAggregationRow, OrgWardAggregationRow } from '@/lib/services/organization-geography.service';
@@ -34,12 +93,23 @@ import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.
 import type { MemberNotification } from '@/lib/services/member-notifications.service';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
 import type {
-  OrgWallet, FundingProgram, OrgDisbursement, ProgramBudgetLine, DonorSpendLine, ProgramGroupLine,
+  OrgWallet,
+  FundingProgram,
+  OrgDisbursement,
+  ProgramBudgetLine,
+  DonorSpendLine,
+  ProgramGroupLine,
 } from '@/lib/services/organization-finance.service';
 import type {
-  OrganizationMemberRow, OrganizationAuditLogRow, OrganizationBranding,
+  OrganizationMemberRow,
+  OrganizationAuditLogRow,
+  OrganizationBranding,
 } from '@/lib/services/organization.service';
-import type { CreateMemberGoalInput, UpdateMemberGoalInput, LogGoalProgressInput } from '@/lib/validators/member-goal.schema';
+import type {
+  CreateMemberGoalInput,
+  UpdateMemberGoalInput,
+  LogGoalProgressInput,
+} from '@/lib/validators/member-goal.schema';
 
 // ------------------------------------------------------------------
 // Auth
@@ -51,52 +121,46 @@ export const authApi = {
   login: (body: { identifier: string; password: string; groupCode?: string }) =>
     api.post<LoginResult>('/auth/login', body),
 
-  changePassword: (body: ChangePasswordPayload) =>
-    api.post<{ changed: boolean }>('/auth/change-password', body),
+  changePassword: (body: ChangePasswordPayload) => api.post<{ changed: boolean }>('/auth/change-password', body),
   register: (body: RegisterPayload) =>
-    api.post<LoginResponse & {
-      registrationFee: number;
-      groupCode?:      string;
-      memberCode?:     string;
-    }>('/auth/register', body),
+    api.post<
+      LoginResponse & {
+        registrationFee: number;
+        groupCode?: string;
+        memberCode?: string;
+      }
+    >('/auth/register', body),
 
-  refresh: (refreshToken: string) =>
-    api.post<RefreshResponse>('/auth/refresh', { refreshToken }),
+  refresh: (refreshToken: string) => api.post<RefreshResponse>('/auth/refresh', { refreshToken }),
 
   // Group switcher (payment architecture §8)
-  memberships: () =>
-    api.get<{ items: MembershipSwitcherItem[] }>('/auth/memberships'),
+  memberships: () => api.get<{ items: MembershipSwitcherItem[] }>('/auth/memberships'),
 
-  switchGroup: (groupId: string) =>
-    api.post<LoginResponse>('/auth/switch-group', { groupId }),
+  switchGroup: (groupId: string) => api.post<LoginResponse>('/auth/switch-group', { groupId }),
 
   // Found an additional group under the caller's EXISTING identity — the
   // authenticated counterpart to `register`, for a member who already has an
   // account and would otherwise 409 on their own phone number.
   createGroup: (body: CreateAdditionalGroupPayload) =>
-    api.post<LoginResponse & { groupCode: string; memberCode: string; groupStatus: string; signupProduct: SubscriptionProduct }>(
-      '/auth/create-group', body,
-    ),
+    api.post<
+      LoginResponse & { groupCode: string; memberCode: string; groupStatus: string; signupProduct: SubscriptionProduct }
+    >('/auth/create-group', body),
 
-  logout:  (refreshToken?: string) =>
-    api.post<void>('/auth/logout', { refreshToken }),
+  logout: (refreshToken?: string) => api.post<void>('/auth/logout', { refreshToken }),
 
   // Registrant verification (§4A) — pending_verification groups only.
   verifyStart: (channel: 'email' | 'sms') =>
     api.post<{ channel: 'email' | 'sms'; expiresAt: string }>('/auth/verify/start', { channel }),
 
-  verifyComplete: (code: string) =>
-    api.post<LoginResponse>('/auth/verify/complete', { code }),
+  verifyComplete: (code: string) => api.post<LoginResponse>('/auth/verify/complete', { code }),
 
   // Public — no access token required (the token param IS the proof).
-  verifyEmailToken: (token: string) =>
-    api.post<{ status: string; groupId: string }>('/auth/verify/email', { token }),
+  verifyEmailToken: (token: string) => api.post<{ status: string; groupId: string }>('/auth/verify/email', { token }),
 
   // Self-service forgot-password — public, phone-only (mirrors the pattern
   // above). start() always resolves the same way regardless of whether the
   // phone belongs to an account.
-  forgotPasswordStart: (phone: string) =>
-    api.post<{ status: string }>('/auth/forgot-password/start', { phone }),
+  forgotPasswordStart: (phone: string) => api.post<{ status: string }>('/auth/forgot-password/start', { phone }),
 
   forgotPasswordReset: (body: { phone: string; otp: string; password: string }) =>
     api.post<{ status: string }>('/auth/forgot-password/reset', body),
@@ -119,13 +183,12 @@ export const authApi = {
   // NeedsOrgSelection (multi-staff organizations, migration 101) — the
   // client shows an org chooser and re-submits with `organizationId`.
   adminLoginVerify: (body: {
-    challenge:      string;
-    code:           string;
-    label?:         string;
+    challenge: string;
+    code: string;
+    label?: string;
     recoveryCodes?: string[];
     organizationId?: string;
-  }) =>
-    api.post<AdminLoginVerifyResult>('/auth/admin/login/verify', body),
+  }) => api.post<AdminLoginVerifyResult>('/auth/admin/login/verify', body),
 
   // Staff/backoffice forgot-password — public, email-link based (mirrors
   // forgotPasswordStart/Reset above, but for super_admin/support/
@@ -143,22 +206,20 @@ export const authApi = {
 // authApi.verifyEmailToken's shape: token-in-body, no access token.
 // ------------------------------------------------------------------
 export interface OrgInvitationLookup {
-  id:               string;
-  organizationId:   string;
+  id: string;
+  organizationId: string;
   organizationName: string;
-  email:            string;
-  firstName:        string;
-  lastName:         string;
-  orgRole:          'lead' | 'staff';
-  status:           string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  orgRole: 'lead' | 'staff';
+  status: string;
 }
 
 export const orgInvitationApi = {
-  lookup: (token: string) =>
-    api.post<OrgInvitationLookup>('/organization-invitations/lookup', { token }),
+  lookup: (token: string) => api.post<OrgInvitationLookup>('/organization-invitations/lookup', { token }),
 
-  confirmEmail: (token: string) =>
-    api.post<{ phone: string }>('/organization-invitations/confirm-email', { token }),
+  confirmEmail: (token: string) => api.post<{ phone: string }>('/organization-invitations/confirm-email', { token }),
 
   verifyOtp: (token: string, otp: string) =>
     api.post<{ status: string }>('/organization-invitations/verify-otp', { token, otp }),
@@ -166,8 +227,7 @@ export const orgInvitationApi = {
   complete: (token: string, password: string) =>
     api.post<{ status: string }>('/organization-invitations/complete', { token, password }),
 
-  decline: (token: string) =>
-    api.post<{ status: string }>('/organization-invitations/decline', { token }),
+  decline: (token: string) => api.post<{ status: string }>('/organization-invitations/decline', { token }),
 };
 
 // ------------------------------------------------------------------
@@ -176,32 +236,26 @@ export const orgInvitationApi = {
 // authApi's shape but under /me/*.
 // ------------------------------------------------------------------
 export const meApi = {
-  wallet: () =>
-    api.get<MemberWalletSummary>('/me/wallet'),
+  wallet: () => api.get<MemberWalletSummary>('/me/wallet'),
 
   passbook: (params?: Partial<MemberPassbookQueryInput>) =>
     api.get<PaginatedResult<PassbookEntry>>(`/me/passbook${buildQuery(params ?? {})}`),
 
   notifications: {
     list: (params?: { page?: number; limit?: number }) =>
-      api.get<PaginatedResult<MemberNotification> & { unreadCount: number }>(`/me/notifications${buildQuery(params ?? {})}`),
-    markRead: (id: string) =>
-      api.patch<{ id: string }>(`/me/notifications/${id}`, {}),
-    markAllRead: () =>
-      api.post<{ status: string }>('/me/notifications/mark-all-read', {}),
+      api.get<PaginatedResult<MemberNotification> & { unreadCount: number }>(
+        `/me/notifications${buildQuery(params ?? {})}`,
+      ),
+    markRead: (id: string) => api.patch<{ id: string }>(`/me/notifications/${id}`, {}),
+    markAllRead: () => api.post<{ status: string }>('/me/notifications/mark-all-read', {}),
   },
 
   goals: {
-    list: () =>
-      api.get<MemberGoal[]>('/me/goals'),
-    create: (body: CreateMemberGoalInput) =>
-      api.post<MemberGoal>('/me/goals', body),
-    update: (id: string, body: UpdateMemberGoalInput) =>
-      api.patch<MemberGoal>(`/me/goals/${id}`, body),
-    delete: (id: string) =>
-      api.delete<void>(`/me/goals/${id}`),
-    logProgress: (id: string, body: LogGoalProgressInput) =>
-      api.post<MemberGoal>(`/me/goals/${id}/progress`, body),
+    list: () => api.get<MemberGoal[]>('/me/goals'),
+    create: (body: CreateMemberGoalInput) => api.post<MemberGoal>('/me/goals', body),
+    update: (id: string, body: UpdateMemberGoalInput) => api.patch<MemberGoal>(`/me/goals/${id}`, body),
+    delete: (id: string) => api.delete<void>(`/me/goals/${id}`),
+    logProgress: (id: string, body: LogGoalProgressInput) => api.post<MemberGoal>(`/me/goals/${id}/progress`, body),
   },
 };
 
@@ -209,18 +263,13 @@ export const meApi = {
 // Members
 // ------------------------------------------------------------------
 export const membersApi = {
-  list:   (params?: Record<string, unknown>) =>
+  list: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<GroupMemberRow>>(`/members${buildQuery(params ?? {})}`),
-  getById: (id: string) =>
-    api.get<GroupMemberRow>(`/members/${id}`),
-  create:  (body: CreateMemberPayload) =>
-    api.post<GroupMemberRow>('/members', body),
-  update:  (id: string, body: UpdateMemberPayload) =>
-    api.patch<GroupMemberRow>(`/members/${id}`, body),
-  updateRole: (id: string, role: UpdateMemberRoleInput['role']) =>
-    api.put<unknown>(`/members/${id}`, { role }),
-  deactivate: (id: string) =>
-    api.delete<void>(`/members/${id}`),
+  getById: (id: string) => api.get<GroupMemberRow>(`/members/${id}`),
+  create: (body: CreateMemberPayload) => api.post<GroupMemberRow>('/members', body),
+  update: (id: string, body: UpdateMemberPayload) => api.patch<GroupMemberRow>(`/members/${id}`, body),
+  updateRole: (id: string, role: UpdateMemberRoleInput['role']) => api.put<unknown>(`/members/${id}`, { role }),
+  deactivate: (id: string) => api.delete<void>(`/members/${id}`),
   // Phase E2 — explicit state-machine transition with optional reason.
   // Use this instead of `deactivate()` so the audit columns are stamped.
   transitionStatus: (id: string, status: MemberStatusTransitionInput['status'], reason?: string) =>
@@ -229,56 +278,47 @@ export const membersApi = {
 
 // Phase E2 — next-of-kin emergency contacts, scoped to a member.
 export const nextOfKinApi = {
-  list:   (memberId: string) =>
-    api.get<unknown[]>(`/members/${memberId}/next-of-kin`),
+  list: (memberId: string) => api.get<unknown[]>(`/members/${memberId}/next-of-kin`),
   create: (memberId: string, body: CreateNextOfKinPayload) =>
     api.post<unknown>(`/members/${memberId}/next-of-kin`, body),
   update: (memberId: string, kinId: string, body: UpdateNextOfKinPayload) =>
     api.patch<unknown>(`/members/${memberId}/next-of-kin/${kinId}`, body),
-  remove: (memberId: string, kinId: string) =>
-    api.delete<void>(`/members/${memberId}/next-of-kin/${kinId}`),
+  remove: (memberId: string, kinId: string) => api.delete<void>(`/members/${memberId}/next-of-kin/${kinId}`),
 };
 
 // ------------------------------------------------------------------
 // Contributions
 // ------------------------------------------------------------------
 export const contributionsApi = {
-  list:   (params?: Record<string, unknown>) =>
+  list: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<Contribution & { member_name: string }>>(`/contributions${buildQuery(params ?? {})}`),
-  getById: (id: string) =>
-    api.get<Contribution & { member_name: string }>(`/contributions/${id}`),
-  create:  (body: CreateContributionPayload) =>
-    api.post<Contribution>('/contributions', body),
-  update:  (id: string, body: UpdateContributionPayload) =>
-    api.patch<Contribution>(`/contributions/${id}`, body),
-  delete:  (id: string) =>
-    api.delete<void>(`/contributions/${id}`),
-  policy: () =>
-    api.get<EffectiveSavingsLimits>('/contributions/policy'),
-  setPolicy: (body: SetSavingsLimitsPayload) =>
-    api.put<EffectiveSavingsLimits>('/contributions/policy', body),
+  getById: (id: string) => api.get<Contribution & { member_name: string }>(`/contributions/${id}`),
+  create: (body: CreateContributionPayload) => api.post<Contribution>('/contributions', body),
+  update: (id: string, body: UpdateContributionPayload) => api.patch<Contribution>(`/contributions/${id}`, body),
+  delete: (id: string) => api.delete<void>(`/contributions/${id}`),
+  policy: () => api.get<EffectiveSavingsLimits>('/contributions/policy'),
+  setPolicy: (body: SetSavingsLimitsPayload) => api.put<EffectiveSavingsLimits>('/contributions/policy', body),
   remindNonContributors: () =>
-    api.post<{ attempted: number; sent: number; skipped: number; failed: number }>('/contributions/remind-non-contributors', {}),
+    api.post<{ attempted: number; sent: number; skipped: number; failed: number }>(
+      '/contributions/remind-non-contributors',
+      {},
+    ),
 };
 
 // ------------------------------------------------------------------
 // Loans
 // ------------------------------------------------------------------
 export const loansApi = {
-  list:   (params?: Record<string, unknown>) =>
+  list: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<Loan & { member_name: string }>>(`/loans${buildQuery(params ?? {})}`),
   getById: (id: string) =>
     api.get<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }>(`/loans/${id}`),
-  apply:   (body: ApplyLoanPayload) =>
-    api.post<Loan>('/loans', body),
-  action:  (id: string, body: LoanActionInput) =>
-    api.patch<Loan>(`/loans/${id}`, body),
+  apply: (body: ApplyLoanPayload) => api.post<Loan>('/loans', body),
+  action: (id: string, body: LoanActionInput) => api.patch<Loan>(`/loans/${id}`, body),
   recordRepayment: (id: string, body: RecordRepaymentPayload) =>
     api.post<LoanRepayment>(`/loans/${id}/repayments`, body),
-  policy: () =>
-    api.get<EffectiveLoanTerms>('/loans/policy'),
-  setPolicy: (body: SetLoanTermsPayload) =>
-    api.put<EffectiveLoanTerms>('/loans/policy', body),
+  policy: () => api.get<EffectiveLoanTerms>('/loans/policy'),
+  setPolicy: (body: SetLoanTermsPayload) => api.put<EffectiveLoanTerms>('/loans/policy', body),
   // SIMPLIFICATION_AND_RBAC_AUDIT.md §4 — dashboard's "Upcoming Loan Repayments" card.
   upcomingRepayments: (limit = 5) =>
     api.get<(LoanRepayment & { member_name: string })[]>(`/loans/upcoming-repayments?limit=${limit}`),
@@ -288,46 +328,34 @@ export const loansApi = {
 // Fines
 // ------------------------------------------------------------------
 export const finesApi = {
-  policy: () =>
-    api.get<EffectiveFineSchedule>('/fines/policy'),
-  setPolicy: (body: { schedule: Record<string, number> }) =>
-    api.put<EffectiveFineSchedule>('/fines/policy', body),
+  policy: () => api.get<EffectiveFineSchedule>('/fines/policy'),
+  setPolicy: (body: { schedule: Record<string, number> }) => api.put<EffectiveFineSchedule>('/fines/policy', body),
 };
 
 // ------------------------------------------------------------------
 // Accounting
 // ------------------------------------------------------------------
 export const accountingApi = {
-  listAccounts: () =>
-    api.get<Account[]>('/accounting/accounts'),
-  createAccount: (body: CreateAccountPayload) =>
-    api.post<Account>('/accounting/accounts', body),
+  listAccounts: () => api.get<Account[]>('/accounting/accounts'),
+  createAccount: (body: CreateAccountPayload) => api.post<Account>('/accounting/accounts', body),
   journals: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<JournalEntry>>(`/accounting/journals${buildQuery(params ?? {})}`),
-  createJournal: (body: CreateJournalPayload) =>
-    api.post<unknown>('/accounting/journals', body),
-  trialBalance: () =>
-    api.get<TrialBalanceLine[]>('/accounting/reports?type=trial_balance'),
+  createJournal: (body: CreateJournalPayload) => api.post<unknown>('/accounting/journals', body),
+  trialBalance: () => api.get<TrialBalanceLine[]>('/accounting/reports?type=trial_balance'),
   profitAndLoss: (from: string, to: string) =>
     api.get<ProfitAndLoss>(`/accounting/reports?type=profit_and_loss&from=${from}&to=${to}`),
-  balanceSheet:  (asOf?: string) =>
+  balanceSheet: (asOf?: string) =>
     api.get<BalanceSheet>(`/accounting/reports?type=balance_sheet${asOf ? `&asOf=${asOf}` : ''}`),
-  fiscalPeriods: () =>
-    api.get<FiscalPeriod[]>('/accounting/fiscal-periods'),
-  closePeriod: (body: ClosePeriodInput) =>
-    api.post<unknown>('/accounting/fiscal-periods', body),
-  reopenPeriod: (id: string, body: ReopenPeriodInput) =>
-    api.post<unknown>(`/accounting/fiscal-periods/${id}`, body),
-  policies: () =>
-    api.get<EffectiveThreshold[]>('/accounting/policies'),
-  setPolicy: (body: SetApprovalPolicyInput) =>
-    api.put<EffectiveThreshold[]>('/accounting/policies', body),
+  fiscalPeriods: () => api.get<FiscalPeriod[]>('/accounting/fiscal-periods'),
+  closePeriod: (body: ClosePeriodInput) => api.post<unknown>('/accounting/fiscal-periods', body),
+  reopenPeriod: (id: string, body: ReopenPeriodInput) => api.post<unknown>(`/accounting/fiscal-periods/${id}`, body),
+  policies: () => api.get<EffectiveThreshold[]>('/accounting/policies'),
+  setPolicy: (body: SetApprovalPolicyInput) => api.put<EffectiveThreshold[]>('/accounting/policies', body),
   cashFlow: (from: string, to: string) =>
     api.get<CashFlowStatement>(`/accounting/reports?type=cash_flow&from=${from}&to=${to}`),
   equityChanges: (from: string, to: string) =>
     api.get<EquityChanges>(`/accounting/reports?type=equity_changes&from=${from}&to=${to}`),
-  postingTemplates: () =>
-    api.get<EffectiveTemplate[]>('/accounting/posting-templates'),
+  postingTemplates: () => api.get<EffectiveTemplate[]>('/accounting/posting-templates'),
   setPostingTemplate: (body: SetPostingTemplatePayload) =>
     api.put<EffectiveTemplate[]>('/accounting/posting-templates', body),
 };
@@ -341,45 +369,47 @@ export interface SmsUsageResult extends PaginatedResult<SmsUsageLog> {
 }
 
 export const smsApi = {
-  send:       (body: SendSmsPayload) => api.post<unknown>('/sms/send', body),
-  usage:      (params?: Record<string, unknown>) =>
-    api.get<SmsUsageResult>(`/sms/usage${buildQuery(params ?? {})}`),
+  send: (body: SendSmsPayload) => api.post<unknown>('/sms/send', body),
+  usage: (params?: Record<string, unknown>) => api.get<SmsUsageResult>(`/sms/usage${buildQuery(params ?? {})}`),
   // Bulk / Campaign
-  bulk:       (body: BulkSmsPayload) => api.post<{ queued: number }>('/sms/bulk', body),
-  campaigns:  (params?: Record<string, unknown>) =>
+  bulk: (body: BulkSmsPayload) => api.post<{ queued: number }>('/sms/bulk', body),
+  campaigns: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<SmsCampaign>>(`/sms/campaign${buildQuery(params ?? {})}`),
   createCampaign: (body: CampaignCreatePayload) => api.post<SmsCampaign>('/sms/campaign', body),
-  cancelCampaign: (id: string)    => api.delete<void>(`/sms/campaign?id=${id}`),
+  cancelCampaign: (id: string) => api.delete<void>(`/sms/campaign?id=${id}`),
   // Templates
-  templates:       (params?: Record<string, unknown>) =>
-    api.get<SmsTemplate[]>(`/sms/templates${buildQuery(params ?? {})}`),
-  createTemplate:  (body: TemplateCreatePayload) => api.post<SmsTemplate>('/sms/templates', body),
-  updateTemplate:  (id: string, body: TemplateUpdatePayload) => api.patch<SmsTemplate>(`/sms/templates?id=${id}`, body),
-  deleteTemplate:  (id: string)    => api.delete<void>(`/sms/templates?id=${id}`),
+  templates: (params?: Record<string, unknown>) => api.get<SmsTemplate[]>(`/sms/templates${buildQuery(params ?? {})}`),
+  createTemplate: (body: TemplateCreatePayload) => api.post<SmsTemplate>('/sms/templates', body),
+  updateTemplate: (id: string, body: TemplateUpdatePayload) => api.patch<SmsTemplate>(`/sms/templates?id=${id}`, body),
+  deleteTemplate: (id: string) => api.delete<void>(`/sms/templates?id=${id}`),
   // Schedules
-  schedules:       (params?: Record<string, unknown>) =>
-    api.get<SmsSchedule[]>(`/sms/schedules${buildQuery(params ?? {})}`),
-  createSchedule:  (body: ScheduleCreatePayload) => api.post<SmsSchedule>('/sms/schedules', body),
-  updateSchedule:  (id: string, body: Partial<ScheduleCreatePayload>) => api.patch<SmsSchedule>(`/sms/schedules?id=${id}`, body),
-  deleteSchedule:  (id: string)    => api.delete<void>(`/sms/schedules?id=${id}`),
+  schedules: (params?: Record<string, unknown>) => api.get<SmsSchedule[]>(`/sms/schedules${buildQuery(params ?? {})}`),
+  createSchedule: (body: ScheduleCreatePayload) => api.post<SmsSchedule>('/sms/schedules', body),
+  updateSchedule: (id: string, body: Partial<ScheduleCreatePayload>) =>
+    api.patch<SmsSchedule>(`/sms/schedules?id=${id}`, body),
+  deleteSchedule: (id: string) => api.delete<void>(`/sms/schedules?id=${id}`),
   // Provider balance
   // super_admin only. This is the PLATFORM's own float with TextSMS, not a
   // tenant's credit balance — that is `credits` below, which is what the
   // group-facing panels show. Calling either of these from a tenant surface
   // 403s by design.
   providerBalance: () => api.get<SmsProviderBalance>('/sms/balance'),
-  checkBalance:    () => api.post<SmsProviderBalance>('/sms/balance', {}),
+  checkBalance: () => api.post<SmsProviderBalance>('/sms/balance', {}),
   // Tenant's own credit balance (distinct from the provider-wide balance above)
-  creditBalance:   () => api.get<{
-    credits: string; rate: string;
-    allowanceIncluded: number; allowanceUsed: number; allowanceRemaining: number;
-  }>('/sms/credits'),
+  creditBalance: () =>
+    api.get<{
+      credits: string;
+      rate: string;
+      allowanceIncluded: number;
+      allowanceUsed: number;
+      allowanceRemaining: number;
+    }>('/sms/credits'),
   // DLR
   dlr: (messageId: string) => api.get<unknown>(`/sms/dlr?messageId=${messageId}`),
   // Self-service opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — scoped to the
   // caller's own phone + active group.
-  preferences:       () => api.get<{ optedOut: boolean }>('/sms/preferences'),
-  setPreferences:    (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
+  preferences: () => api.get<{ optedOut: boolean }>('/sms/preferences'),
+  setPreferences: (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
   // Officer-managed opt-out list (SMS-REAUDIT-2026-09-02 F1). The route has
   // existed since the consent work but had no caller, so `sms_opt_outs` held 0
   // rows — not "nobody asked to opt out" but "no officer could record one".
@@ -388,123 +418,121 @@ export const smsApi = {
   // Failed messages + the manual retry (SMS-REAUDIT-2026-09-02 F3/F6). The
   // retry route shipped in #130 with no listing beside it, so nothing could
   // learn an id to retry with.
-  failures:          (params?: Record<string, unknown>) =>
-                       api.get<PaginatedResult<SmsFailure>>(`/sms/failures${buildQuery(params ?? {})}`),
-  retryFailure:      (id: string) => api.post<{ status: string }>(`/sms/failures/${id}/retry`, {}),
+  failures: (params?: Record<string, unknown>) =>
+    api.get<PaginatedResult<SmsFailure>>(`/sms/failures${buildQuery(params ?? {})}`),
+  retryFailure: (id: string) => api.post<{ status: string }>(`/sms/failures/${id}/retry`, {}),
   // Reminder/automation history, suppressed outcomes included — the DSAR view.
-  reminderHistory:   (params?: Record<string, unknown>) =>
-                       api.get<PaginatedResult<ReminderHistoryRow>>(`/sms/reminder-history${buildQuery(params ?? {})}`),
+  reminderHistory: (params?: Record<string, unknown>) =>
+    api.get<PaginatedResult<ReminderHistoryRow>>(`/sms/reminder-history${buildQuery(params ?? {})}`),
   // What a bulk send will actually reach and cost, before sending it.
-  previewBulk:       (body: { message: string; phones?: string[]; recipientType?: string }) =>
-                       api.post<SmsBulkPreview>('/sms/bulk/preview', body),
-  optOuts:           () => api.get<{ optOuts: SmsOptOut[] }>('/sms/opt-outs'),
-  addOptOut:         (phone: string, note?: string) =>
-                       api.post<{ optOuts: SmsOptOut[] }>('/sms/opt-outs', { phone, note }),
-  removeOptOut:      (phone: string) =>
-                       api.delete<{ optOuts: SmsOptOut[] }>(`/sms/opt-outs?phone=${encodeURIComponent(phone)}`),
+  previewBulk: (body: { message: string; phones?: string[]; recipientType?: string }) =>
+    api.post<SmsBulkPreview>('/sms/bulk/preview', body),
+  optOuts: () => api.get<{ optOuts: SmsOptOut[] }>('/sms/opt-outs'),
+  addOptOut: (phone: string, note?: string) => api.post<{ optOuts: SmsOptOut[] }>('/sms/opt-outs', { phone, note }),
+  removeOptOut: (phone: string) =>
+    api.delete<{ optOuts: SmsOptOut[] }>(`/sms/opt-outs?phone=${encodeURIComponent(phone)}`),
   // Per-group automation toggles. auto_send_birthday has existed since
   // migration 013 and its job since Phase 1, but there was no way to turn it on
   // from inside the product until now.
-  settings:          () => api.get<SmsGroupSettings>('/sms/settings'),
-  updateSettings:    (body: SmsGroupSettingsUpdateInput) =>
-                       api.put<SmsGroupSettings>('/sms/settings', body),
+  settings: () => api.get<SmsGroupSettings>('/sms/settings'),
+  updateSettings: (body: SmsGroupSettingsUpdateInput) => api.put<SmsGroupSettings>('/sms/settings', body),
   // Read-only view over the birthday job's own dispatch ledger.
-  birthdays:         () => api.get<BirthdaysResult>('/sms/birthdays'),
+  birthdays: () => api.get<BirthdaysResult>('/sms/birthdays'),
   // Spec §8. Deliberately carries no provider cost — see
   // lib/services/sms-analytics.service.ts.
-  analytics:         () => api.get<SmsUsageAnalytics>('/sms/analytics'),
+  analytics: () => api.get<SmsUsageAnalytics>('/sms/analytics'),
 };
 
 export interface SmsFailure {
-  id:             string;
-  phone:          string;
-  message:        string;
+  id: string;
+  phone: string;
+  message: string;
   failure_reason: string | null;
-  retry_count:    number;
-  max_retries:    number;
-  resolved:       boolean;
-  last_retry_at:  string | null;
-  next_retry_at:  string | null;
-  created_at:     string;
+  retry_count: number;
+  max_retries: number;
+  resolved: boolean;
+  last_retry_at: string | null;
+  next_retry_at: string | null;
+  created_at: string;
   /** True when the automatic sweep will never touch this row again. */
-  exhausted:      boolean;
+  exhausted: boolean;
 }
 
 export interface ReminderHistoryRow {
-  id:             string;
-  member_id:      string;
-  member_name:    string | null;
+  id: string;
+  member_id: string;
+  member_name: string | null;
   reference_type: string;
-  reference_id:   string;
+  reference_id: string;
   reminder_stage: string;
-  status:         string;
-  channel:        string | null;
-  reason:         string | null;
-  attempts:       number;
-  created_at:     string;
-  sent_at:        string | null;
+  status: string;
+  channel: string | null;
+  reason: string | null;
+  attempts: number;
+  created_at: string;
+  sent_at: string | null;
 }
 
 export interface SmsBulkPreview {
-  selected:             number;
-  optedOut:             number;
-  recipients:           number;
-  segmentsPerMessage:   number;
-  creditsRequired:      number;
+  selected: number;
+  optedOut: number;
+  recipients: number;
+  segmentsPerMessage: number;
+  creditsRequired: number;
   /**
    * Variables written in the body that NO recipient can fill, so they will be
    * stripped and send as gaps. Empty for an ordinary message. Variables that
    * only some recipients lack are deliberately absent — see previewBulkSend.
    */
   unresolvableVariables: string[];
-  balance:              { credits: number; allowanceRemaining: number; available: number };
-  affordable:           boolean;
+  balance: { credits: number; allowanceRemaining: number; available: number };
+  affordable: boolean;
   requiresConfirmation: boolean;
 }
 
 /** One live opt-out, as `sms_opt_outs` records it (migration 162). */
 export interface SmsOptOut {
-  phone:     string;
+  phone: string;
   optedOutAt: string;
   /** 'member' (portal), 'officer' (recorded on their behalf), 'import', 'inbound_stop'. */
-  source:    string;
-  note:      string | null;
+  source: string;
+  note: string | null;
 }
 
 export interface SmsGroupSettings {
-  senderId:             string | null;
+  senderId: string | null;
   autoSendContribution: boolean;
-  autoSendLoan:         boolean;
-  autoSendMeeting:      boolean;
-  autoSendBirthday:     boolean;
-  dailySendLimit:       number | null;
+  autoSendLoan: boolean;
+  autoSendMeeting: boolean;
+  autoSendBirthday: boolean;
+  dailySendLimit: number | null;
 }
 
 export interface UpcomingBirthday {
-  memberId:     string;
+  memberId: string;
   membershipId: string;
-  firstName:    string;
-  lastName:     string;
-  dateOfBirth:  string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
   nextBirthday: string;
 }
 
 export interface BirthdayDispatch {
-  id:        string;
-  status:    string;
-  channel:   string | null;
-  reason:    string | null;
-  attempts:  number;
-  sentAt:    string | null;
+  id: string;
+  status: string;
+  channel: string | null;
+  reason: string | null;
+  attempts: number;
+  sentAt: string | null;
   createdAt: string;
-  stage:     string;
+  stage: string;
   firstName: string;
-  lastName:  string;
+  lastName: string;
 }
 
 export interface BirthdaysResult {
   upcoming: UpcomingBirthday[];
-  history:  BirthdayDispatch[];
+  history: BirthdayDispatch[];
 }
 
 // ------------------------------------------------------------------
@@ -519,17 +547,17 @@ export interface BirthdaysResult {
  * charged via STK.
  */
 export interface BillingPlanRow {
-  plan:       PlanType;
-  product:    SubscriptionProduct;
+  plan: PlanType;
+  product: SubscriptionProduct;
   monthlyFee: number;
-  smsRate:    number;
-  features:   PlanFeatures;
-  current:    boolean;
+  smsRate: number;
+  features: PlanFeatures;
+  current: boolean;
 }
 
 /** GET /billing/entitlements — what this group may use, and what it signed up for. */
 export interface EntitlementsResponse {
-  products:      SubscriptionProduct[];
+  products: SubscriptionProduct[];
   signupProduct: SubscriptionProduct;
 }
 
@@ -541,26 +569,29 @@ export const billingApi = {
    * Kitabu Yetu prices on a Chama Reminder page, and the resulting STK payment
    * fails verification.
    */
-  plans:         (product?: SubscriptionProduct) => api.get<{
-    plans:   BillingPlanRow[];
-    current: SubscriptionPublic | null;
-    product: SubscriptionProduct;
-  }>(product ? `/billing/plans?product=${product}` : '/billing/plans'),
-  entitlements:  () => api.get<EntitlementsResponse>('/billing/entitlements'),
-  upgradePlan:   (planType: UpgradePlanInput['planType'], product?: SubscriptionProduct) =>
-                   api.post<SubscriptionPublic>('/billing/plans', { planType, ...(product ? { product } : {}) }),
-  invoices:      () => api.get<unknown[]>('/billing/invoices'),
+  plans: (product?: SubscriptionProduct) =>
+    api.get<{
+      plans: BillingPlanRow[];
+      current: SubscriptionPublic | null;
+      product: SubscriptionProduct;
+    }>(product ? `/billing/plans?product=${product}` : '/billing/plans'),
+  entitlements: () => api.get<EntitlementsResponse>('/billing/entitlements'),
+  upgradePlan: (planType: UpgradePlanInput['planType'], product?: SubscriptionProduct) =>
+    api.post<SubscriptionPublic>('/billing/plans', { planType, ...(product ? { product } : {}) }),
+  invoices: () => api.get<unknown[]>('/billing/invoices'),
   recordPayment: (body: RecordManualPaymentPayload) => api.post<unknown>('/billing/payments', body),
-  smsTopup:      (amount: number) => api.post<unknown>('/billing/payments', { type: 'sms_topup', amount }),
+  smsTopup: (amount: number) => api.post<unknown>('/billing/payments', { type: 'sms_topup', amount }),
 };
 
 // ------------------------------------------------------------------
 // M-Pesa
 // ------------------------------------------------------------------
 export const mpesaApi = {
-  stkPush:   (body: StkPushInput) => api.post<{ checkoutRequestId: string; message: string }>('/mpesa/stk-push', body),
+  stkPush: (body: StkPushInput) => api.post<{ checkoutRequestId: string; message: string }>('/mpesa/stk-push', body),
   pollStatus: (checkoutRequestId: string) =>
-    api.get<{ status: string; mpesaReceiptNumber: string | null }>(`/mpesa/status?checkoutRequestId=${checkoutRequestId}`),
+    api.get<{ status: string; mpesaReceiptNumber: string | null }>(
+      `/mpesa/status?checkoutRequestId=${checkoutRequestId}`,
+    ),
   b2c: (body: B2CInput) => api.post<unknown>('/mpesa/b2c', body),
 };
 
@@ -568,11 +599,9 @@ export const mpesaApi = {
 // Reports
 // ------------------------------------------------------------------
 export const reportsApi = {
-  contributions: (from: string, to: string) =>
-    api.get<unknown>(`/reports?type=contribution&from=${from}&to=${to}`),
-  loans:         () => api.get<unknown>('/reports?type=loans'),
-  financial:     (from: string, to: string) =>
-    api.get<unknown>(`/reports?type=financial&from=${from}&to=${to}`),
+  contributions: (from: string, to: string) => api.get<unknown>(`/reports?type=contribution&from=${from}&to=${to}`),
+  loans: () => api.get<unknown>('/reports?type=loans'),
+  financial: (from: string, to: string) => api.get<unknown>(`/reports?type=financial&from=${from}&to=${to}`),
 };
 
 // ------------------------------------------------------------------
@@ -580,11 +609,10 @@ export const reportsApi = {
 // ------------------------------------------------------------------
 export const organizationApi = {
   profile: () => adminApi.get<OrganizationProfile>('/organization/profile'),
-  groups:  (params?: { page?: number; limit?: number }) =>
+  groups: (params?: { page?: number; limit?: number }) =>
     adminApi.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),
   policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
-  setPolicy: (body: SetApprovalPolicyInput) =>
-    adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
+  setPolicy: (body: SetApprovalPolicyInput) => adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
 
   // §1.5 "what needs attention?" — served separately from dashboard() so a
   // failure in either cannot blank the other. `health: null` with
@@ -592,9 +620,7 @@ export const organizationApi = {
   // render a dash, because "no arrears" and "could not check for arrears" are
   // different statements. Typed against the service's own return type so a
   // change to the aggregate breaks the UI at compile time rather than silently.
-  health: () => adminApi.get<{ health: PortfolioHealth | null; incomplete: string[] }>(
-    '/organization/health',
-  ),
+  health: () => adminApi.get<{ health: PortfolioHealth | null; incomplete: string[] }>('/organization/health'),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — disbursements page.
   // Backend (organization-finance.service.ts) already existed; this is the
@@ -605,20 +631,37 @@ export const organizationApi = {
   // .sms_credits is its own wallet, purely for SMS. Same manual/self-attested
   // trust model as deposit(): this records that money already arrived, it
   // does not collect payment itself.
-  smsCredits: () => adminApi.get<{
-    balance: number; rate: number | null;
-    recent: { id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string }[];
-  }>('/organization/sms-credits'),
+  smsCredits: () =>
+    adminApi.get<{
+      balance: number;
+      rate: number | null;
+      recent: {
+        id: string;
+        amount_paid: string;
+        credits_added: string;
+        rate_applied: string;
+        notes: string | null;
+        created_at: string;
+      }[];
+    }>('/organization/sms-credits'),
   topUpSmsCredits: (body: TopUpSmsCreditsPayload) =>
     adminApi.post<{ creditsAdded: number; newBalance: number; rateApplied: number }>('/organization/sms-credits', body),
   // Read-only — an organization never self-serve changes its plan, only
   // super_admin does (app/api/admin/organizations/[id]/plan).
-  plan: () => adminApi.get<{
-    id: string; plan_type: string; monthly_fee: string;
-    max_linked_groups: number | null; max_staff: number | null; max_funding_programs: number | null;
-    sms_allowance_included: string; white_label_branding: boolean; advanced_reports: boolean;
-    support_tier: string; is_custom: boolean;
-  } | null>('/organization/plan'),
+  plan: () =>
+    adminApi.get<{
+      id: string;
+      plan_type: string;
+      monthly_fee: string;
+      max_linked_groups: number | null;
+      max_staff: number | null;
+      max_funding_programs: number | null;
+      sms_allowance_included: string;
+      white_label_branding: boolean;
+      advanced_reports: boolean;
+      support_tier: string;
+      is_custom: boolean;
+    } | null>('/organization/plan'),
   programs: () => adminApi.get<{ items: FundingProgram[] }>('/organization/programs'),
   createProgram: (body: CreateProgramPayload) => adminApi.post<FundingProgram>('/organization/programs', body),
   // Pause/resume a program. Typed here rather than left as a raw adminApi.patch
@@ -673,18 +716,14 @@ export const organizationApi = {
   // setBranding). Scope: logo + primary color only (decision recorded in
   // the audit doc's Phase 4 section) — no custom domain.
   branding: () => adminApi.get<OrganizationBranding>('/organization/branding'),
-  setBranding: (body: BrandingPayload) =>
-    adminApi.put<OrganizationBranding>('/organization/branding', body),
+  setBranding: (body: BrandingPayload) => adminApi.put<OrganizationBranding>('/organization/branding', body),
 
   // Phase 5 gap analysis — geography rollup, the last missing item on the
   // organization axis. Typed against organization-geography.service.ts's own
   // return shape, per the PortfolioHealth precedent above.
-  geographyCounties: () => adminApi.get<{ counties: OrgCountyAggregationRow[] }>(
-    '/organization/geography/counties',
-  ),
-  geographyWards: (countyId: string) => adminApi.get<{ wards: OrgWardAggregationRow[] }>(
-    `/organization/geography/counties/${countyId}/wards`,
-  ),
+  geographyCounties: () => adminApi.get<{ counties: OrgCountyAggregationRow[] }>('/organization/geography/counties'),
+  geographyWards: (countyId: string) =>
+    adminApi.get<{ wards: OrgWardAggregationRow[] }>(`/organization/geography/counties/${countyId}/wards`),
 };
 
 // ------------------------------------------------------------------

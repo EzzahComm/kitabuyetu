@@ -47,24 +47,19 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     await resetDatabase();
 
     ({ organizationId: orgId, coordinatorId } = await createTestOrganization());
-    ({ organizationId: otherOrgId, coordinatorId: otherCoordinatorId } =
-      await createTestOrganization());
+    ({ organizationId: otherOrgId, coordinatorId: otherCoordinatorId } = await createTestOrganization());
 
-    ({ groupId: linkedGroupId, officerId: linkedOfficerId } = await createTestGroup(
-      'chairperson',
-      { subscribed: true },
-    ));
-    ({ groupId: unlinkedGroupId, officerId: unlinkedOfficerId } = await createTestGroup(
-      'chairperson',
-      { subscribed: true },
-    ));
+    ({ groupId: linkedGroupId, officerId: linkedOfficerId } = await createTestGroup('chairperson', {
+      subscribed: true,
+    }));
+    ({ groupId: unlinkedGroupId, officerId: unlinkedOfficerId } = await createTestGroup('chairperson', {
+      subscribed: true,
+    }));
     ({ groupId: revokedGroupId } = await createTestGroup('chairperson', { subscribed: true }));
 
     await assignGroupToOrganization(orgId, linkedGroupId, coordinatorId, 'read');
     await assignGroupToOrganization(orgId, revokedGroupId, coordinatorId, 'read');
-    await rawQuery(`UPDATE organization_group_access SET is_active = false WHERE group_id = $1`, [
-      revokedGroupId,
-    ]);
+    await rawQuery(`UPDATE organization_group_access SET is_active = false WHERE group_id = $1`, [revokedGroupId]);
 
     // A repayment on the linked group and one on the unlinked group, so the
     // loan_repayments assertions below can distinguish "filtered correctly"
@@ -156,9 +151,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
   });
 
   it('sees group_members of an inactive membership too (portfolio health counts them)', async () => {
-    await rawQuery(`UPDATE group_members SET is_active = false WHERE group_id = $1`, [
-      linkedGroupId,
-    ]);
+    await rawQuery(`UPDATE group_members SET is_active = false WHERE group_id = $1`, [linkedGroupId]);
     try {
       const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
         const { rows } = await c.query('SELECT id FROM group_members');
@@ -168,18 +161,15 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       // which is the exact assertion portfolio-health.test.ts failed on.
       expect(rows.length).toBeGreaterThan(0);
     } finally {
-      await rawQuery(`UPDATE group_members SET is_active = true WHERE group_id = $1`, [
-        linkedGroupId,
-      ]);
+      await rawQuery(`UPDATE group_members SET is_active = true WHERE group_id = $1`, [linkedGroupId]);
     }
   });
 
   it('cannot see group_members once the organization link is deactivated', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
-      const { rows } = await c.query<{ group_id: string }>(
-        'SELECT group_id FROM group_members WHERE group_id = $1',
-        [revokedGroupId],
-      );
+      const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members WHERE group_id = $1', [
+        revokedGroupId,
+      ]);
       return rows;
     });
     expect(rows).toHaveLength(0);
@@ -208,9 +198,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
   // ── loan_repayments — getDashboard's loans_repaid read 0 without this ──────
   it('sees loan_repayments of linked groups only', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
-      const { rows } = await c.query<{ group_id: string }>(
-        'SELECT group_id FROM loan_repayments',
-      );
+      const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM loan_repayments');
       return rows;
     });
     expect(rows.length).toBeGreaterThan(0);
@@ -241,26 +229,22 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     // table is proven by the test above) — a check that can't fail proves
     // nothing.
     const [before] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
-      const { rows } = await c.query<{ status: string }>(
-        'SELECT status FROM subscriptions WHERE group_id = $1',
-        [linkedGroupId],
-      );
+      const { rows } = await c.query<{ status: string }>('SELECT status FROM subscriptions WHERE group_id = $1', [
+        linkedGroupId,
+      ]);
       return rows;
     });
     expect(before).toBeDefined();
 
     const result = await withDb(coordinatorCtx(coordinatorId, orgId), (c) =>
-      c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [
-        linkedGroupId,
-      ]),
+      c.query(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [linkedGroupId]),
     );
     expect(result.rowCount).toBe(0);
 
     const [after] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
-      const { rows } = await c.query<{ status: string }>(
-        'SELECT status FROM subscriptions WHERE group_id = $1',
-        [linkedGroupId],
-      );
+      const { rows } = await c.query<{ status: string }>('SELECT status FROM subscriptions WHERE group_id = $1', [
+        linkedGroupId,
+      ]);
       return rows;
     });
     expect(after.status).toBe(before.status);
@@ -269,13 +253,10 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
 
   // ── no widening for anyone else ───────────────────────────────────────────
   it("leaves an ordinary group officer's visibility unchanged", async () => {
-    const rows = await withDb(
-      { userId: linkedOfficerId, groupId: linkedGroupId, role: 'chairperson' },
-      async (c) => {
-        const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members');
-        return rows;
-      },
-    );
+    const rows = await withDb({ userId: linkedOfficerId, groupId: linkedGroupId, role: 'chairperson' }, async (c) => {
+      const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members');
+      return rows;
+    });
     // Still exactly their own group — the new arm requires the coordinator role.
     expect(new Set(rows.map((r) => r.group_id))).toEqual(new Set([linkedGroupId]));
   });
@@ -292,10 +273,9 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
         organizationId: orgId,
       },
       async (c) => {
-        const { rows } = await c.query<{ group_id: string }>(
-          'SELECT group_id FROM group_members WHERE group_id = $1',
-          [revokedGroupId],
-        );
+        const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members WHERE group_id = $1', [
+          revokedGroupId,
+        ]);
         return rows;
       },
     );

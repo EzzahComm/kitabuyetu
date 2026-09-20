@@ -30,25 +30,25 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
  * rather than reduced to the fields under test.
  */
 const DELIVERED_PAYLOAD = {
-  'response-code':        200,
-  'message-id':           '810668705',
+  'response-code': 200,
+  'message-id': '810668705',
   'response-description': 'Success',
-  'delivery-status':      32,
+  'delivery-status': 32,
   'delivery-description': 'DeliveredToTerminal',
-  'delivery-tat':         '0.24 sec',
-  'delivery-networkid':   1,
-  'delivery-time':        '2026-08-14 12:57:42',
+  'delivery-tat': '0.24 sec',
+  'delivery-networkid': 1,
+  'delivery-time': '2026-08-14 12:57:42',
 };
 
 const STALLED_PAYLOAD = {
-  'response-code':        200,
-  'message-id':           '821169663',
+  'response-code': 200,
+  'message-id': '821169663',
   'response-description': 'Success',
-  'delivery-status':      32,
+  'delivery-status': 32,
   'delivery-description': 'Scheduled',
-  'delivery-tat':         null,
-  'delivery-networkid':   1,
-  'delivery-time':        null,
+  'delivery-tat': null,
+  'delivery-networkid': 1,
+  'delivery-time': null,
 };
 
 describe('TextSMS DLR parsing (C1)', () => {
@@ -84,7 +84,7 @@ describe('TextSMS DLR parsing (C1)', () => {
     mockedAxios.get.mockResolvedValueOnce({ data: STALLED_PAYLOAD });
     const stalled = await getDeliveryReport('821169663');
 
-    expect(delivered.statusCode).toBe(stalled.statusCode);  // both 32
+    expect(delivered.statusCode).toBe(stalled.statusCode); // both 32
     expect(classifyDlrStatus(delivered.status)).not.toBe(classifyDlrStatus(stalled.status));
   });
 
@@ -144,8 +144,11 @@ describe('TextSMS DLR parsing (C1)', () => {
       // message is plainly still queued.
       mockedAxios.get.mockResolvedValue({
         data: {
-          'response-code': 200, 'response-description': 'Success',
-          'message-id': 'z', 'delivery-description': 'Scheduled', 'delivery-time': null,
+          'response-code': 200,
+          'response-description': 'Success',
+          'message-id': 'z',
+          'delivery-description': 'Scheduled',
+          'delivery-time': null,
         },
       });
 

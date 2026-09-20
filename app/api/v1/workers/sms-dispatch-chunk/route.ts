@@ -38,12 +38,14 @@ function isValidPayload(v: unknown): v is SmsDispatchChunkPayload {
     // per-chunk dispatch key is derived from below, and deriveUuid throws on
     // anything else. Rejecting here returns 400 (QStash gives up) rather than
     // letting it surface as a 500 that QStash would retry to exhaustion.
-    typeof p.jobId === 'string' && isUuid(p.jobId) &&
+    typeof p.jobId === 'string' &&
+    isUuid(p.jobId) &&
     typeof p.chunkIndex === 'number' &&
     typeof p.groupId === 'string' &&
     typeof p.sentBy === 'string' &&
     typeof p.message === 'string' &&
-    Array.isArray(p.phones) && p.phones.every((x) => typeof x === 'string') &&
+    Array.isArray(p.phones) &&
+    p.phones.every((x) => typeof x === 'string') &&
     typeof p.totalRecipientCount === 'number'
   );
 }
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const receiver = new Receiver({
       currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
-      nextSigningKey:    env.QSTASH_NEXT_SIGNING_KEY,
+      nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY,
     });
     const ok = await receiver.verify({ signature, body: rawBody, url: req.url });
     if (!ok) {
@@ -90,24 +92,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const { smsService } = await import('@/lib/services/sms.service');
 
-    const varsByPhone = payload.varsByPhone
-      ? new Map(Object.entries(payload.varsByPhone))
-      : undefined;
-    const payer = payload.fundedBy === 'organization' && payload.payerOrganizationId
-      ? { type: 'organization' as const, organizationId: payload.payerOrganizationId }
-      : undefined;
+    const varsByPhone = payload.varsByPhone ? new Map(Object.entries(payload.varsByPhone)) : undefined;
+    const payer =
+      payload.fundedBy === 'organization' && payload.payerOrganizationId
+        ? { type: 'organization' as const, organizationId: payload.payerOrganizationId }
+        : undefined;
 
     const result = await smsService.sendBulkCampaign({
-      campaignId:    payload.campaignId,
-      phones:        payload.phones,
-      message:       payload.message,
+      campaignId: payload.campaignId,
+      phones: payload.phones,
+      message: payload.message,
       varsByPhone,
-      senderId:      payload.senderId,
-      timeToSend:    payload.timeToSend,
-      groupId:       payload.groupId,
-      sentBy:        payload.sentBy,
+      senderId: payload.senderId,
+      timeToSend: payload.timeToSend,
+      groupId: payload.groupId,
+      sentBy: payload.sentBy,
       referenceType: payload.referenceType,
-      referenceId:   payload.referenceId,
+      referenceId: payload.referenceId,
       payer,
       totalRecipientCount: payload.totalRecipientCount,
       // Stable per-CHUNK key, distinct from the parent job's own id, so a
@@ -125,11 +126,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      jobId:      payload.jobId,
+      jobId: payload.jobId,
       chunkIndex: payload.chunkIndex,
       chunkCount: payload.chunkCount,
-      sent:       result.sent,
-      failed:     result.failed,
+      sent: result.sent,
+      failed: result.failed,
     });
   } catch (err) {
     logger.error('[sms-dispatch-chunk] Dispatch error:', err);

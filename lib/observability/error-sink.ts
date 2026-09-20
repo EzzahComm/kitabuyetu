@@ -55,7 +55,7 @@ async function getSentry(): Promise<SentryModule | false> {
       Sentry.init({
         dsn,
         environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
-        release:     process.env.VERCEL_GIT_COMMIT_SHA,
+        release: process.env.VERCEL_GIT_COMMIT_SHA,
         // Errors only. Tracing samples every request and would spend the
         // quota on volume rather than on the thing this exists for.
         tracesSampleRate: 0,

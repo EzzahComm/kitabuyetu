@@ -19,19 +19,29 @@ import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 
 interface Unrouted {
-  id: string; receipt: string; phone: string; amount: string;
-  bill_ref: string | null; reason: string; created_at: string;
+  id: string;
+  receipt: string;
+  phone: string;
+  amount: string;
+  bill_ref: string | null;
+  reason: string;
+  created_at: string;
 }
-interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
+interface MemberRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
 
 const REASON_LABEL: Record<string, string> = {
-  unknown_prefix:   'Unknown account format',
-  unknown_group:    'Group not found',
-  unknown_member:   'Member not matched',
+  unknown_prefix: 'Unknown account format',
+  unknown_group: 'Group not found',
+  unknown_member: 'Member not matched',
   ambiguous_member: 'Multiple members match',
-  no_account_ref:   'No account reference',
-  amount_mismatch:  'Amount mismatch',
-  other:            'Needs review',
+  no_account_ref: 'No account reference',
+  amount_mismatch: 'Amount mismatch',
+  other: 'Needs review',
 };
 
 export default function UnroutedPage() {
@@ -44,18 +54,22 @@ export default function UnroutedPage() {
 
   const { data, isLoading, isError, error, refetch } = useQuery<{ items: Unrouted[] }>({
     queryKey: ['mpesa', 'unrouted'],
-    queryFn:  () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
+    queryFn: () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
   });
   const { data: membersData } = useQuery<PaginatedResult<MemberRow>>({
     queryKey: ['mpesa', 'unrouted', 'members'],
-    queryFn:  () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
-    enabled:  !!active,
+    queryFn: () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
+    enabled: !!active,
   });
 
-  const items   = data?.items ?? [];
+  const items = data?.items ?? [];
   const members = membersData?.items ?? [];
 
-  const openResolve = (row: Unrouted) => { setActive(row); setMemberId(''); setNotes(''); };
+  const openResolve = (row: Unrouted) => {
+    setActive(row);
+    setMemberId('');
+    setNotes('');
+  };
 
   const resolve = async (action: 'allocate' | 'dismiss') => {
     if (!active) return;
@@ -68,13 +82,17 @@ export default function UnroutedPage() {
       await api.post(`/mpesa/unrouted/${active.id}/resolve`, {
         action,
         memberId: action === 'allocate' ? memberId : undefined,
-        notes:    notes || undefined,
+        notes: notes || undefined,
       });
       toast({ title: action === 'allocate' ? 'Receipt allocated' : 'Receipt dismissed' });
       setActive(null);
       await qc.invalidateQueries({ queryKey: ['mpesa', 'unrouted'] });
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Resolve failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Resolve failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -83,7 +101,11 @@ export default function UnroutedPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/mpesa"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
+        <Link href="/mpesa">
+          <Button variant="ghost" size="icon" aria-label="Back to M-Pesa">
+            <ArrowLeft size={16} />
+          </Button>
+        </Link>
         <PageHeader
           title="Unrouted receipts"
           description="Payments that landed but couldn't be matched to a member automatically."
@@ -92,7 +114,11 @@ export default function UnroutedPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
+        </div>
       ) : isError ? (
         // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C2 — a failed fetch used to render
         // "All receipts are routed", telling a treasurer there is nothing to
@@ -104,7 +130,11 @@ export default function UnroutedPage() {
               icon={AlertTriangle}
               title="Couldn't load unrouted receipts"
               description={getErrorMessage(error)}
-              action={<Button variant="outline" onClick={() => refetch()}>Try again</Button>}
+              action={
+                <Button variant="outline" onClick={() => refetch()}>
+                  Try again
+                </Button>
+              }
             />
           </CardContent>
         </Card>
@@ -131,7 +161,9 @@ export default function UnroutedPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">{formatDate(row.created_at)}</p>
                 </div>
-                <Button size="sm" onClick={() => openResolve(row)}>Resolve</Button>
+                <Button size="sm" onClick={() => openResolve(row)}>
+                  Resolve
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -140,12 +172,19 @@ export default function UnroutedPage() {
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Resolve receipt</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Resolve receipt</DialogTitle>
+          </DialogHeader>
           {active && (
             <div className="space-y-4">
               <div className="rounded-md bg-muted/50 p-3 text-sm">
-                <p><span className="font-semibold">{formatKES(Number(active.amount))}</span> from {active.phone}</p>
-                <p className="text-muted-foreground">Receipt {active.receipt}{active.bill_ref ? ` · Ref ${active.bill_ref}` : ''}</p>
+                <p>
+                  <span className="font-semibold">{formatKES(Number(active.amount))}</span> from {active.phone}
+                </p>
+                <p className="text-muted-foreground">
+                  Receipt {active.receipt}
+                  {active.bill_ref ? ` · Ref ${active.bill_ref}` : ''}
+                </p>
               </div>
               <div className="space-y-1">
                 <Label>Allocate to member</Label>
@@ -156,7 +195,9 @@ export default function UnroutedPage() {
                 >
                   <option value="">Select member…</option>
                   {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.first_name} {m.last_name} — {m.phone}</option>
+                    <option key={m.id} value={m.id}>
+                      {m.first_name} {m.last_name} — {m.phone}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -167,8 +208,12 @@ export default function UnroutedPage() {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => resolve('dismiss')} disabled={busy}>Dismiss</Button>
-            <Button onClick={() => resolve('allocate')} loading={busy}>Allocate as contribution</Button>
+            <Button variant="outline" onClick={() => resolve('dismiss')} disabled={busy}>
+              Dismiss
+            </Button>
+            <Button onClick={() => resolve('allocate')} loading={busy}>
+              Allocate as contribution
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

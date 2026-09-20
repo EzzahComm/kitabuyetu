@@ -10,8 +10,10 @@ import { resolveRag, type ThresholdRow } from '@/lib/services/governance.service
 function threshold(overrides: Partial<ThresholdRow> = {}): ThresholdRow {
   return {
     metric_code: 'test',
-    green_min: null, green_max: null,
-    amber_min: null, amber_max: null,
+    green_min: null,
+    green_max: null,
+    amber_min: null,
+    amber_max: null,
     ...overrides,
   };
 }

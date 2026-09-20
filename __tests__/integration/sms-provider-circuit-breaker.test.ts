@@ -38,23 +38,26 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
      ON CONFLICT (group_id) DO UPDATE SET sms_credits = EXCLUDED.sms_credits`,
     [groupId, credits],
   );
-  await rawQuery(
-    `UPDATE subscriptions SET sms_allowance_included = 0 WHERE group_id = $1`, [groupId],
-  );
+  await rawQuery(`UPDATE subscriptions SET sms_allowance_included = 0 WHERE group_id = $1`, [groupId]);
   await rawQuery(
     `UPDATE billing_accounts SET sms_allowance_used = 0, sms_allowance_reserved = 0
-     WHERE group_id = $1`, [groupId],
+     WHERE group_id = $1`,
+    [groupId],
   );
 }
 
 /** Same shape as sms-retry-rebills.test.ts's identical helper. */
 async function queueOneFailedSend(groupId: string, userId: string) {
   mockSendSingleSms.mockResolvedValueOnce({
-    success: false, responseDescription: 'Request failed with status code 401',
+    success: false,
+    responseDescription: 'Request failed with status code 401',
   });
   await smsService.send(
     { groupId, userId, role: 'chairperson' } as never,
-    '254700000001', 'first attempt', 'loan', null,
+    '254700000001',
+    'first attempt',
+    'loan',
+    null,
   );
   await rawQuery(
     `UPDATE sms_failures SET next_retry_at = NOW() - INTERVAL '1 minute'
@@ -65,7 +68,9 @@ async function queueOneFailedSend(groupId: string, userId: string) {
 
 async function failureRow(groupId: string) {
   const [row] = await rawQuery<{
-    retry_count: number; resolved: boolean; next_retry_at: Date | null;
+    retry_count: number;
+    resolved: boolean;
+    next_retry_at: Date | null;
   }>(
     `SELECT retry_count, resolved, next_retry_at FROM sms_failures
      WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`,
@@ -76,7 +81,8 @@ async function failureRow(groupId: string) {
 
 async function billingOf(groupId: string) {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
@@ -154,7 +160,7 @@ describe('retryFailures + provider circuit breaker', () => {
     expect(after.resolved).toBe(true);
   });
 
-  it('does not skip when a DIFFERENT provider is open — only the row\'s own provider gates it', async () => {
+  it("does not skip when a DIFFERENT provider is open — only the row's own provider gates it", async () => {
     for (let i = 0; i < 5; i++) recordFailure('some-other-provider');
     mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
 

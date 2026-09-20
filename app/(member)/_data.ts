@@ -12,7 +12,7 @@ import type { TxnType } from '@/lib/services/member-passbook.service';
 
 /** Labels + visual hints per passbook entry type. */
 export const TXN_META: Record<TxnType, { label: string; emoji: string }> = {
-  contribution:      { label: 'Contribution',  emoji: '💰' },
-  loan_repayment:    { label: 'Loan repayment', emoji: '✅' },
-  loan_disbursement: { label: 'Loan',          emoji: '🏦' },
+  contribution: { label: 'Contribution', emoji: '💰' },
+  loan_repayment: { label: 'Loan repayment', emoji: '✅' },
+  loan_disbursement: { label: 'Loan', emoji: '🏦' },
 };

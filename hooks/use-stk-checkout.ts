@@ -18,14 +18,14 @@ import type { StkPushInput } from '@/lib/validators/mpesa.schema';
  */
 export function useStkCheckout(onCompleted: (amount: number) => void) {
   const { toast } = useToast();
-  const stkPush   = useStkPush();
+  const stkPush = useStkPush();
 
-  const [open, setOpen]             = useState(false);
-  const [phone, setPhone]           = useState('');
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState('');
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
-  const [polling, setPolling]       = useState(false);
-  const [amount, setAmount]         = useState<number | null>(null);
-  const [payload, setPayload]       = useState<Omit<StkPushInput, 'phone'> | null>(null);
+  const [polling, setPolling] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [payload, setPayload] = useState<Omit<StkPushInput, 'phone'> | null>(null);
 
   const { data: mpesaStatus } = usePollMpesa(checkoutId, polling);
 
@@ -68,8 +68,11 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
     open,
     // Refuse to close mid-poll: the payment is in flight and the dialog is the
     // only thing telling the user so.
-    setOpen: (next: boolean) => { if (!polling) setOpen(next); },
-    phone, setPhone,
+    setOpen: (next: boolean) => {
+      if (!polling) setOpen(next);
+    },
+    phone,
+    setPhone,
     polling,
     amount,
     start,

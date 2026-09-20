@@ -7,7 +7,7 @@ import { created, ok } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const params = ShareTxnQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const result = await sharesService.listTransactions(ctx, params);
     return ok(result);
@@ -16,10 +16,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'shares.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = CreateShareTransactionSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const rows  = await sharesService.createTransaction(ctx, input);
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const rows = await sharesService.createTransaction(ctx, input);
     return created({ items: rows });
   });
 }

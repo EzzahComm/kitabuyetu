@@ -68,7 +68,13 @@ export default async function FundraisePage() {
               >
                 {c.cover_image_url && (
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper-deep">
-                    <Image src={c.cover_image_url} alt="" fill className="object-cover" sizes="(min-width: 640px) 50vw, 100vw" />
+                    <Image
+                      src={c.cover_image_url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="(min-width: 640px) 50vw, 100vw"
+                    />
                   </div>
                 )}
                 <div className="flex flex-1 flex-col p-6">
@@ -79,12 +85,16 @@ export default async function FundraisePage() {
                       <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="mt-2 text-xs font-medium text-brand-blue-900/60">
-                      KES {parseFloat(c.amount_raised).toLocaleString()} raised of {parseFloat(c.target_amount).toLocaleString()} target
+                      KES {parseFloat(c.amount_raised).toLocaleString()} raised of{' '}
+                      {parseFloat(c.target_amount).toLocaleString()} target
                     </p>
                   </div>
                   <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
                     Support this campaign
-                    <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
+                    />
                   </span>
                 </div>
               </Link>

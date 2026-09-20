@@ -33,13 +33,12 @@ function verifyCronSecret(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type') ?? 'stk';
-  
+
   // Allow cron-triggered calls without JWT
   if (verifyCronSecret(req)) {
     try {
-      const result = type === 'paybill'
-        ? await sweepPaybillTransactions(null, null)
-        : await runReconciliation(null, null);
+      const result =
+        type === 'paybill' ? await sweepPaybillTransactions(null, null) : await runReconciliation(null, null);
       return ok({ ...result, trigger: 'cron', reconciliationType: type });
     } catch (err) {
       return handleError(err);
@@ -51,9 +50,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   // idempotent (queries Daraja or sweeps C2B).
   return withPermission(req, 'accounting.manage', async (auth) => {
     try {
-      const result = type === 'paybill'
-        ? await sweepPaybillTransactions(auth.groupId, auth.userId)
-        : await runReconciliation(auth.groupId, auth.userId);
+      const result =
+        type === 'paybill'
+          ? await sweepPaybillTransactions(auth.groupId, auth.userId)
+          : await runReconciliation(auth.groupId, auth.userId);
       return ok({ ...result, trigger: 'manual', reconciliationType: type });
     } catch (err) {
       return handleError(err);
@@ -64,7 +64,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
     try {
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT r.*, m.first_name||' '||m.last_name AS initiated_by_name

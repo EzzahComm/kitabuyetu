@@ -35,11 +35,11 @@ describe('Contributions/Shares/Dividends permission gates', () => {
   beforeAll(async () => {
     await resetDatabase();
     const { groupId: gId, officerId: founderId } = await createTestGroup('chairperson');
-    groupId  = gId;
+    groupId = gId;
     memberId = founderId;
-    memberPerms      = await permissionsFor('member');
-    secretaryPerms   = await permissionsFor('secretary');
-    treasurerPerms   = await permissionsFor('treasurer');
+    memberPerms = await permissionsFor('member');
+    secretaryPerms = await permissionsFor('secretary');
+    treasurerPerms = await permissionsFor('treasurer');
     chairpersonPerms = await permissionsFor('chairperson');
   });
 
@@ -49,59 +49,79 @@ describe('Contributions/Shares/Dividends permission gates', () => {
 
   it('contributions.record: secretary is denied, treasurer CAN record a contribution', async () => {
     const body = { memberId, amount: 1000, contributionDate: '2026-01-01' };
-    const denied = await contributionsPost(buildRequest('/api/v1/contributions', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const denied = await contributionsPost(
+      buildRequest('/api/v1/contributions', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await contributionsPost(buildRequest('/api/v1/contributions', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await contributionsPost(
+      buildRequest('/api/v1/contributions', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(201);
   });
 
   it('contributions.view: secretary is denied non-contributors report, treasurer is allowed', async () => {
-    const denied = await nonContributorsGet(buildRequest('/api/v1/contributions/non-contributors', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const denied = await nonContributorsGet(
+      buildRequest('/api/v1/contributions/non-contributors', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await nonContributorsGet(buildRequest('/api/v1/contributions/non-contributors', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await nonContributorsGet(
+      buildRequest('/api/v1/contributions/non-contributors', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 
   it('treasury.manage: a plain member cannot set the group savings policy, treasurer can', async () => {
     const body = { minContribution: 100, maxContribution: 100000, gracePeriodDays: 5 };
-    const denied = await contributionsPolicyPut(buildRequest('/api/v1/contributions/policy', {
-      method: 'PUT', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await contributionsPolicyPut(
+      buildRequest('/api/v1/contributions/policy', {
+        method: 'PUT',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
   });
 
   it('shares.manage: secretary is denied creating a share class, treasurer is allowed', async () => {
     const body = { name: 'Ordinary Shares', code: 'ORD', parValue: 100 };
-    const denied = await shareClassPost(buildRequest('/api/v1/share-classes', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const denied = await shareClassPost(
+      buildRequest('/api/v1/share-classes', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await shareClassPost(buildRequest('/api/v1/share-classes', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await shareClassPost(
+      buildRequest('/api/v1/share-classes', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(201);
   });
 
   it('shares.reverse: treasurer cannot reverse a share transaction, only chairperson can (passes the gate; 404 on the fake id is expected)', async () => {
     const denied = await shareReversePost(
       buildRequest(`/api/v1/shares/transactions/${FAKE_ID}/reverse`, {
-        method: 'POST', body: { reason: 'test reversal' },
+        method: 'POST',
+        body: { reason: 'test reversal' },
         headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
       }),
       { params: Promise.resolve({ id: FAKE_ID }) },
@@ -110,7 +130,8 @@ describe('Contributions/Shares/Dividends permission gates', () => {
 
     const passesGate = await shareReversePost(
       buildRequest(`/api/v1/shares/transactions/${FAKE_ID}/reverse`, {
-        method: 'POST', body: { reason: 'test reversal' },
+        method: 'POST',
+        body: { reason: 'test reversal' },
         headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
       }),
       { params: Promise.resolve({ id: FAKE_ID }) },
@@ -120,19 +141,27 @@ describe('Contributions/Shares/Dividends permission gates', () => {
 
   it('dividends.manage: secretary is denied declaring a dividend, treasurer is allowed', async () => {
     const body = {
-      periodLabel: 'FY2026', periodStart: '2026-01-01', periodEnd: '2026-12-31',
+      periodLabel: 'FY2026',
+      periodStart: '2026-01-01',
+      periodEnd: '2026-12-31',
       poolAmount: 50000,
     };
-    const denied = await dividendsPost(buildRequest('/api/v1/dividends', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const denied = await dividendsPost(
+      buildRequest('/api/v1/dividends', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await dividendsPost(buildRequest('/api/v1/dividends', {
-      method: 'POST', body,
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await dividendsPost(
+      buildRequest('/api/v1/dividends', {
+        method: 'POST',
+        body,
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(201);
   });
 

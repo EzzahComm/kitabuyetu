@@ -19,7 +19,7 @@ function nairobiParts(utcIso: string) {
   return {
     hour: n.getUTCHours(),
     date: n.getUTCDate(),
-    day:  n.getUTCDay(),
+    day: n.getUTCDay(),
     dateStr: n.toISOString().slice(0, 10),
   };
 }

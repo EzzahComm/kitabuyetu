@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const schema = z.object({
   groupId: z.string().uuid('groupId must be a valid UUID'),
-  roleId:  z.string().uuid('roleId must be a valid UUID'),
+  roleId: z.string().uuid('roleId must be a valid UUID'),
 });
 
 /**
@@ -28,16 +28,14 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
       if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
       const ipAddress =
-        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-        req.headers.get('x-real-ip') ??
-        null;
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? null;
       const userAgent = req.headers.get('user-agent') ?? null;
 
       const result = await assignGroupMemberRole({
-        actorId:  ctx.userId,
+        actorId: ctx.userId,
         memberId,
-        groupId:  parsed.data.groupId,
-        roleId:   parsed.data.roleId,
+        groupId: parsed.data.groupId,
+        roleId: parsed.data.roleId,
         ipAddress,
         userAgent,
       });

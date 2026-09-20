@@ -15,7 +15,7 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -27,12 +27,20 @@ const ctx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' };
 
 const membershipRow = { rows: [{ id: 'gm-to', member_code: 'KY000000000002' }] };
 const contribution = (over: Record<string, unknown> = {}) => ({
-  rows: [{
-    id: 'contrib-1', group_id: 'grp-1', member_id: 'member-a',
-    group_membership_id: 'gm-from', amount: '5000.00', status: 'completed',
-    payment_id: 'pay-1', mpesa_receipt_number: 'RX123', journal_entry_id: null,
-    ...over,
-  }],
+  rows: [
+    {
+      id: 'contrib-1',
+      group_id: 'grp-1',
+      member_id: 'member-a',
+      group_membership_id: 'gm-from',
+      amount: '5000.00',
+      status: 'completed',
+      payment_id: 'pay-1',
+      mpesa_receipt_number: 'RX123',
+      journal_entry_id: null,
+      ...over,
+    },
+  ],
 });
 const paymentAllocated = { rows: [{ id: 'pay-1', allocation_status: 'allocated' }] };
 
@@ -40,7 +48,7 @@ describe('reallocationsService.initiate', () => {
   const input = { contributionId: 'contrib-1', toMemberId: 'member-b', reason: 'Posted to wrong member' };
 
   it('rejects when the contribution already belongs to the target member', async () => {
-    mockQuery.mockResolvedValueOnce(membershipRow);                       // guard
+    mockQuery.mockResolvedValueOnce(membershipRow); // guard
     mockQuery.mockResolvedValueOnce(contribution({ member_id: 'member-b' }));
 
     await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
@@ -82,21 +90,30 @@ describe('reallocationsService.initiate', () => {
     mockQuery.mockResolvedValueOnce(paymentAllocated);
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 'realloc-1', status: 'executed', payment_id: 'pay-1',
-        from_group_id: 'grp-1', from_member_id: 'member-a', from_domain_id: 'contrib-1',
-        to_group_id: 'grp-1', to_member_id: 'member-b', to_group_membership_id: 'gm-to',
-        reason: input.reason, initiated_by: 'treasurer-1',
-      }],
+      rows: [
+        {
+          id: 'realloc-1',
+          status: 'executed',
+          payment_id: 'pay-1',
+          from_group_id: 'grp-1',
+          from_member_id: 'member-a',
+          from_domain_id: 'contrib-1',
+          to_group_id: 'grp-1',
+          to_member_id: 'member-b',
+          to_group_membership_id: 'gm-to',
+          reason: input.reason,
+          initiated_by: 'treasurer-1',
+        },
+      ],
     });
-    mockQuery.mockResolvedValueOnce({ rows: [] });                    // audit log: reallocation.create
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reallocation.create
     // executeReallocation (original had no journal → mirrors skipped):
-    mockQuery.mockResolvedValueOnce(contribution());                  // void original RETURNING
+    mockQuery.mockResolvedValueOnce(contribution()); // void original RETURNING
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] }); // corrected insert
-    mockQuery.mockResolvedValueOnce({ rows: [] });                    // spine transition
-    mockQuery.mockResolvedValueOnce({ rows: [] });                    // payment_events
-    mockQuery.mockResolvedValueOnce({ rows: [] });                    // outbox
-    mockQuery.mockResolvedValueOnce({ rows: [] });                    // realloc finalise
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // spine transition
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // payment_events
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // outbox
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // realloc finalise
 
     const result = await reallocationsService.initiate(ctx, input);
 
@@ -115,27 +132,46 @@ describe('reallocationsService.approve', () => {
       rows: [{ id: 'realloc-1', status: 'pending_approval', initiated_by: 'treasurer-1' }],
     });
 
-    await expect(reallocationsService.approve(ctx, 'realloc-1'))
-      .rejects.toBeInstanceOf(ForbiddenError);
+    await expect(reallocationsService.approve(ctx, 'realloc-1')).rejects.toBeInstanceOf(ForbiddenError);
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
   it('lets a different officer approve and execute', async () => {
     const approverCtx = { ...ctx, userId: 'chair-1', role: 'chairperson' };
     const realloc = {
-      id: 'realloc-1', status: 'pending_approval', initiated_by: 'treasurer-1',
-      payment_id: 'pay-1', from_group_id: 'grp-1', from_member_id: 'member-a',
-      from_domain_id: 'contrib-1', to_group_id: 'grp-1', to_member_id: 'member-b',
-      to_group_membership_id: 'gm-to', reason: 'wrong member',
+      id: 'realloc-1',
+      status: 'pending_approval',
+      initiated_by: 'treasurer-1',
+      payment_id: 'pay-1',
+      from_group_id: 'grp-1',
+      from_member_id: 'member-a',
+      from_domain_id: 'contrib-1',
+      to_group_id: 'grp-1',
+      to_member_id: 'member-b',
+      to_group_membership_id: 'gm-to',
+      reason: 'wrong member',
     };
-    mockQuery.mockResolvedValueOnce({ rows: [realloc] });                        // FOR UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [realloc] }); // FOR UPDATE
     mockQuery.mockResolvedValueOnce({ rows: [{ ...realloc, status: 'executed' }] }); // approve UPDATE
-    mockQuery.mockResolvedValueOnce({ rows: [] });                               // audit log: reallocation.approve
-    mockQuery.mockResolvedValueOnce(                                             // void original
-      { rows: [{ id: 'contrib-1', group_id: 'grp-1', member_id: 'member-a',
-                 group_membership_id: 'gm-from', amount: '50000.00',
-                 contribution_date: new Date(), payment_method: 'mpesa',
-                 mpesa_receipt_number: 'RX123', journal_entry_id: null }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reallocation.approve
+    mockQuery.mockResolvedValueOnce(
+      // void original
+      {
+        rows: [
+          {
+            id: 'contrib-1',
+            group_id: 'grp-1',
+            member_id: 'member-a',
+            group_membership_id: 'gm-from',
+            amount: '50000.00',
+            contribution_date: new Date(),
+            payment_method: 'mpesa',
+            mpesa_receipt_number: 'RX123',
+            journal_entry_id: null,
+          },
+        ],
+      },
+    );
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });

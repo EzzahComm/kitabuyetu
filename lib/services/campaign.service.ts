@@ -109,9 +109,7 @@ export async function getCampaignRecipients(
 
 // Enqueue all recipients and update campaign status
 export async function launchCampaign(campaignId: string, createdBy?: string | null): Promise<void> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [campaignId]),
-  );
+  const { rows } = await withAdminDb((db) => db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [campaignId]));
   if (!rows.length) throw new Error('Campaign not found');
   const campaign = rows[0];
   if (!['draft', 'scheduled'].includes(campaign.status)) {
@@ -125,10 +123,7 @@ export async function launchCampaign(campaignId: string, createdBy?: string | nu
     role: '',
   };
 
-  const recipients = await getCampaignRecipients(
-    campaign.group_id,
-    campaign.recipient_filter,
-  );
+  const recipients = await getCampaignRecipients(campaign.group_id, campaign.recipient_filter);
 
   await withTransaction(ctx, async (client) => {
     const prevStatus = campaign.status;
@@ -214,44 +209,47 @@ export async function processCampaignJob(job: {
 
   await withTransaction(ctx, async (client) => {
     // Update recipient status
-    await client.query(
-      `UPDATE email_campaign_recipients
+    await client
+      .query(
+        `UPDATE email_campaign_recipients
        SET status=$1, sent_at=CASE WHEN $1='sent' THEN NOW() ELSE NULL END,
            error_message=CASE WHEN $1='failed' THEN $2 ELSE NULL END
        WHERE campaign_id=$3 AND email=$4`,
-      [status, result.error ?? null, job.campaignId, job.recipientEmail],
-    ).catch(() => {});
+        [status, result.error ?? null, job.campaignId, job.recipientEmail],
+      )
+      .catch(() => {});
 
     const col = result.success ? 'sent_count' : 'failed_count';
-    await client.query(
-      `UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`,
-      [job.campaignId],
-    ).catch(() => {});
+    await client.query(`UPDATE email_campaigns SET ${col}=${col}+1 WHERE id=$1`, [job.campaignId]).catch(() => {});
 
     // Mark completed when all recipients processed
-    await client.query(
-      `UPDATE email_campaigns
+    await client
+      .query(
+        `UPDATE email_campaigns
        SET status='sent', completed_at=NOW()
        WHERE id=$1
          AND (sent_count + failed_count) >= COALESCE(total_recipients, 0)
          AND status = 'sending'`,
-      [job.campaignId],
-    ).catch(() => {});
+        [job.campaignId],
+      )
+      .catch(() => {});
 
     // Record audit log entry for recipient processing
-    await client.query(
-      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+    await client
+      .query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        job.groupId,
-        null, // System-triggered
-        'campaign.recipient.process',
-        'campaign_recipient',
-        `${job.campaignId}:${job.recipientEmail}`,
-        JSON.stringify({ status: 'pending' }),
-        JSON.stringify({ status, email: job.recipientEmail, error: result.error ?? null }),
-      ],
-    ).catch(() => {});
+        [
+          job.groupId,
+          null, // System-triggered
+          'campaign.recipient.process',
+          'campaign_recipient',
+          `${job.campaignId}:${job.recipientEmail}`,
+          JSON.stringify({ status: 'pending' }),
+          JSON.stringify({ status, email: job.recipientEmail, error: result.error ?? null }),
+        ],
+      )
+      .catch(() => {});
   });
 
   return { success: result.success };
@@ -259,8 +257,8 @@ export async function processCampaignJob(job: {
 
 export interface CampaignDrainResult {
   processed: number;
-  sent:      number;
-  failed:    number;
+  sent: number;
+  failed: number;
 }
 
 /**
@@ -281,14 +279,14 @@ export interface CampaignDrainResult {
 export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrainResult> {
   const { rows } = await withAdminDb((db) =>
     db.query<{
-      campaign_id:  string;
-      group_id:     string;
-      member_id:    string | null;
-      email:        string;
-      name:         string | null;
-      subject:      string;
+      campaign_id: string;
+      group_id: string;
+      member_id: string | null;
+      email: string;
+      name: string | null;
+      subject: string;
       template_key: string | null;
-      html_body:    string | null;
+      html_body: string | null;
     }>(
       `UPDATE email_campaign_recipients ecr
        SET status = 'sending'
@@ -313,16 +311,17 @@ export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrain
   let failed = 0;
   for (const r of rows) {
     const { success } = await processCampaignJob({
-      campaignId:     r.campaign_id,
+      campaignId: r.campaign_id,
       recipientEmail: r.email,
-      recipientName:  r.name ?? r.email,
-      memberId:       r.member_id ?? '',
-      groupId:        r.group_id,
-      subject:        r.subject,
-      templateKey:    r.template_key ?? undefined,
-      htmlBody:       r.html_body ?? undefined,
+      recipientName: r.name ?? r.email,
+      memberId: r.member_id ?? '',
+      groupId: r.group_id,
+      subject: r.subject,
+      templateKey: r.template_key ?? undefined,
+      htmlBody: r.html_body ?? undefined,
     });
-    if (success) sent++; else failed++;
+    if (success) sent++;
+    else failed++;
   }
 
   return { processed: rows.length, sent, failed };

@@ -47,7 +47,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'capital.product.view',
   'capital.product.manage',
 ] as const;
-export type OrganizationPermission = typeof ORGANIZATION_PERMISSIONS[number];
+export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 
 const ORG_AXIS_ROLES: (MemberRole | PlatformRole)[] = ['organization_coordinator', 'super_admin'];
 
@@ -63,7 +63,7 @@ export function hasOrganizationPermission(role: MemberRole | PlatformRole): bool
  * drift. Both `AuthContext` and an adapted backoffice context satisfy this.
  */
 export interface OrganizationActor {
-  role:            MemberRole | PlatformRole;
+  role: MemberRole | PlatformRole;
   organizationId?: string;
 }
 

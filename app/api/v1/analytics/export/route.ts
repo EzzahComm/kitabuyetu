@@ -15,21 +15,22 @@ import { errorResponse } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withOneOf(req, ['chairperson', 'treasurer', 'secretary', 'super_admin'], async (auth) => {
-    const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const type = (req.nextUrl.searchParams.get('type') ?? '') as ExportKind;
     if (!EXPORT_KINDS.includes(type)) {
       return errorResponse(
         `Unsupported export type: ${type || '(missing)'}. Supported: ${EXPORT_KINDS.join(', ')}.`,
-        'VALIDATION_ERROR', 422,
+        'VALIDATION_ERROR',
+        422,
       );
     }
     const { csv, filename } = await analyticsService.exportCsv(ctx, type);
     return new Response(csv, {
       status: 200,
       headers: {
-        'Content-Type':        'text/csv; charset=utf-8',
+        'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Cache-Control':       'no-store',
+        'Cache-Control': 'no-store',
       },
     });
   });

@@ -4,7 +4,7 @@
 
 Every factual claim in the hero brief was checked against code, schema, migrations and services before any of it became marketing copy. Verdicts below are grounded in file paths, not intent.
 
-> **Headline:** the brief's two named leading differentiators — *project tracking* and *investment tracking* — cannot both be published. One does not exist at all; the other is record-only. Its trust-strip custody sentence is false and regulatory. Its audience-matched CTA requirement is unsatisfiable without new pages.
+> **Headline:** the brief's two named leading differentiators — _project tracking_ and _investment tracking_ — cannot both be published. One does not exist at all; the other is record-only. Its trust-strip custody sentence is false and regulatory. Its audience-matched CTA requirement is unsatisfiable without new pages.
 
 ---
 
@@ -14,7 +14,7 @@ Every factual claim in the hero brief was checked against code, schema, migratio
 
 > ~~"Kitabu Yetu records and instructs — your group's money moves directly between your members and your own M-Pesa or bank accounts. Kitabu Yetu never holds group funds."~~
 
-There is **one platform-wide M-Pesa paybill** (`MPESA_SHORTCODE`, production, shortcode 4044141) that every group's members pay into. `initiateStkPush` sends `BusinessShortCode: SHORTCODE` / `PartyB: SHORTCODE` and `StkPushInput` (`daraja.service.ts:263-268`) takes **no group or shortcode parameter** — there is nowhere to put one. No per-group M-Pesa account exists in the schema: `groups.mpesa_paybill_prefix` (migration 047) is a BillRef *string* defaulting to `'KYT-'`, and `group_bank_accounts` (migration 129) is a sweep *destination*.
+There is **one platform-wide M-Pesa paybill** (`MPESA_SHORTCODE`, production, shortcode 4044141) that every group's members pay into. `initiateStkPush` sends `BusinessShortCode: SHORTCODE` / `PartyB: SHORTCODE` and `StkPushInput` (`daraja.service.ts:263-268`) takes **no group or shortcode parameter** — there is nowhere to put one. No per-group M-Pesa account exists in the schema: `groups.mpesa_paybill_prefix` (migration 047) is a BillRef _string_ defaulting to `'KYT-'`, and `group_bank_accounts` (migration 129) is a sweep _destination_.
 
 The codebase states it outright at `accounting.service.ts:755-762`:
 
@@ -30,18 +30,18 @@ The existence of the settlement-sweep feature is itself proof — you do not bui
 
 **Safe framing:** "your group's books stay yours", "every shilling is tracked to a member". Never a custody claim.
 
-*Caveat: the adversarial refutation of this cluster did not run (session limit). The verdict is single-source, but the project-tracking refuter independently reached the same conclusion from different files.*
+_Caveat: the adversarial refutation of this cluster did not run (session limit). The verdict is single-source, but the project-tracking refuter independently reached the same conclusion from different files._
 
 ### 1.2 Project tracking (Audience 01 anchor) does not exist
 
 Repo-wide, "project" hits **twice**: a comment about projecting a QR code, and marketing prose on the `/fundraise` coming-soon page. No table under any name across 168 migrations; no route among 21 dashboard route dirs; no sidebar entry.
 
-| Brief noun | Verdict | Reality |
-|---|---|---|
-| budgets | FALSE | Only `funding_programs.budget` (migration 055), whose own COMMENT calls it "a SPENDING AUTHORITY, not a cash balance". Behind an `aud:'backoffice'` token, org-scoped RLS, and org creation is `withPlatformRole(req, 'super_admin')`. A group cannot reach it by any path. |
-| funds raised | FALSE | The only `target_amount` in the entire schema is `member_goals` (migration 103), whose header says it is "deliberately a PERSONAL TRACKING TOOL, not tied to real money movement… no officer visibility", self-only RLS. |
-| spend vs budget | **FALSE** *(overturned from PARTIAL)* | Funder-side only, and further gated by `assertReportsAccess` → `advancedReports`, false on the starter org plan. The subject ("projects") does not exist, so the claim cannot be partly true. |
-| milestone status | FALSE | Zero milestone tables/columns/enums. One free-text placeholder at `enterprise/funding/page.tsx:852`. |
+| Brief noun       | Verdict                               | Reality                                                                                                                                                                                                                                                                     |
+| ---------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| budgets          | FALSE                                 | Only `funding_programs.budget` (migration 055), whose own COMMENT calls it "a SPENDING AUTHORITY, not a cash balance". Behind an `aud:'backoffice'` token, org-scoped RLS, and org creation is `withPlatformRole(req, 'super_admin')`. A group cannot reach it by any path. |
+| funds raised     | FALSE                                 | The only `target_amount` in the entire schema is `member_goals` (migration 103), whose header says it is "deliberately a PERSONAL TRACKING TOOL, not tied to real money movement… no officer visibility", self-only RLS.                                                    |
+| spend vs budget  | **FALSE** _(overturned from PARTIAL)_ | Funder-side only, and further gated by `assertReportsAccess` → `advancedReports`, false on the starter org plan. The subject ("projects") does not exist, so the claim cannot be partly true.                                                                               |
+| milestone status | FALSE                                 | Zero milestone tables/columns/enums. One free-text placeholder at `enterprise/funding/page.tsx:852`.                                                                                                                                                                        |
 
 **"Grant & donor governance" — overturned PARTIAL → FALSE** for Audience 01. The group side is one read-only GET (`treasury/external-funding`, no POST/PATCH/DELETE) rendering a receipt list. A group **cannot record a grant from any donor not already an organization on the platform**: `external_grant` is a legal `source_type` (migration 115) with no service function, no API route, no UI — the only production INSERT hardcodes `'organization_allocation'`.
 
@@ -49,12 +49,12 @@ Repo-wide, "project" hits **twice**: a comment about projecting a QR code, and m
 
 Real tables, RLS, permissions, service, three API routes, sidebar entry, feature flag on for everyone. But `app/(dashboard)/investments/` contains **only `page.tsx`** — no detail page — and `useInvestment`, `useUpdateInvestment`, `useRecordInvestmentReturn` have **zero consumers** repo-wide.
 
-| Brief claim | Verdict |
-|---|---|
-| current valuation tracked | **FALSE** *(overturned from PARTIAL)* — no UI writer; `current_value` is always NULL for a customer |
-| returns tracked | **FALSE** *(overturned from PARTIAL)* — the only writer is one API route with no caller; "Returns Earned" is permanently KES 0 |
-| per-member proportional stake | FALSE — `member_investment_shares` has **zero writers**; migration 072b's header admits the history "never actually reached a working state" for it. No percentage is computed anywhere in the codebase |
-| asset classes | PARTIAL — land/shares/money_market/treasury_bills/business are real enum values. **"Rental property" is not** (nearest `real_estate`). Type is a label only; nothing branches on it, and the page exposes no asset-class filter |
+| Brief claim                   | Verdict                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| current valuation tracked     | **FALSE** _(overturned from PARTIAL)_ — no UI writer; `current_value` is always NULL for a customer                                                                                                                             |
+| returns tracked               | **FALSE** _(overturned from PARTIAL)_ — the only writer is one API route with no caller; "Returns Earned" is permanently KES 0                                                                                                  |
+| per-member proportional stake | FALSE — `member_investment_shares` has **zero writers**; migration 072b's header admits the history "never actually reached a working state" for it. No percentage is computed anywhere in the codebase                         |
+| asset classes                 | PARTIAL — land/shares/money_market/treasury_bills/business are real enum values. **"Rental property" is not** (nearest `real_estate`). Type is a label only; nothing branches on it, and the page exposes no asset-class filter |
 
 **Publishable:** "record your group's investments in one place." **Not publishable:** "track", "monitor", "returns", "ROI", "what your portfolio is worth", or anything about a member's share.
 
@@ -65,11 +65,11 @@ The brief's acceptance criterion "both panel CTAs route to distinct, audience-ma
 - No `vsla` member of `group_type` (chama, sacco, welfare, investment, ngo_group, self_help_group, cbo, society, cooperative, faith_based, other).
 - Repo-wide grep for `vsla|village savings|savings group` hits only two test fixtures and a placeholder.
 - `components/landing/personas.tsx` and the redesign's `ROLE_CARDS` both segment by **role**, not audience.
-- `/bookkeeper` and `/chama-reminder` address the *same* audience — that is a **product** split.
+- `/bookkeeper` and `/chama-reminder` address the _same_ audience — that is a **product** split.
 
 As things stand both panels land on `/register` — same page, same form, same copy.
 
-**Options:** build `/for-community-groups` and `/for-chamas`, or rewrite the criterion to *product*-matched (`/bookkeeper` vs `/chama-reminder`). The latter is honest and needs no new pages, but it must be stated as a reinterpretation.
+**Options:** build `/for-community-groups` and `/for-chamas`, or rewrite the criterion to _product_-matched (`/bookkeeper` vs `/chama-reminder`). The latter is honest and needs no new pages, but it must be stated as a reinterpretation.
 
 ### 1.5 Photography is a procurement blocker, not an engineering one
 
@@ -83,9 +83,9 @@ The brief needs three licensed photographs and forbids AI-generated people. Noth
 
 ### 1.6 The DPA 2019 compliance marker is false
 
-**There is no Privacy Policy page and no Terms page anywhere in `app/`** — not unlinked, non-existent. The redesign's omission of those links was correct, not an oversight. No ODPC reference, no consent capture, no retention/purge job, no subject-access or erasure endpoint. The only four data-protection strings in the repo are in its own audit documents, all saying it is *not* compliant. The SMS audit dated 2026-08-20 records as an open P1 that a member replying STOP has no effect — no inbound SMS route exists.
+**There is no Privacy Policy page and no Terms page anywhere in `app/`** — not unlinked, non-existent. The redesign's omission of those links was correct, not an oversight. No ODPC reference, no consent capture, no retention/purge job, no subject-access or erasure endpoint. The only four data-protection strings in the repo are in its own audit documents, all saying it is _not_ compliant. The SMS audit dated 2026-08-20 records as an open P1 that a member replying STOP has no effect — no inbound SMS route exists.
 
-What *does* exist is real but is access control, not compliance: role-based PII masking (`lib/utils/mask.ts`), officer-driven SMS opt-out, email suppression, immutable `audit_logs`. Those could support a weaker truthful marker — "role-based PII masking and audit logging" — but not a compliance badge.
+What _does_ exist is real but is access control, not compliance: role-based PII masking (`lib/utils/mask.ts`), officer-driven SMS opt-out, email suppression, immutable `audit_logs`. Those could support a weaker truthful marker — "role-based PII masking and audit logging" — but not a compliance badge.
 
 **Drop this marker until a privacy policy exists and ODPC registration is real.**
 
@@ -95,18 +95,18 @@ Both FALSE, exhaustively. Their only appearance in the repo is `components/landi
 
 Two decoys not to be fooled by: a table literally named `policies` is the Configuration Service policy-resolution engine (migration 086), nothing to do with insurance; and `insurance` is one CHECK value in `funding_programs.program_type` — a dropdown label an NGO can pick, not a feature.
 
-A credit **score** exists and is not a marketplace: eight *internal* signals, tenant-scoped, and **no organization/admin service reads `credit_scores`** — no lender can see it even in principle. The old copy's "verified M-Pesa history" was also false; no M-Pesa signal feeds the score.
+A credit **score** exists and is not a marketplace: eight _internal_ signals, tenant-scoped, and **no organization/admin service reads `credit_scores`** — no lender can see it even in principle. The old copy's "verified M-Pesa history" was also false; no M-Pesa signal feeds the score.
 
 ---
 
 ## 2. What the trust strip may honestly say
 
-| Marker | Verdict | Notes |
-|---|---|---|
-| M-Pesa / Safaricom Daraja integration | **TRUE** | Production-grade: 23 route files, 3,045 lines of service, Redis-cached OAuth, backoff retry, constant-time callback token check, `UNIQUE(mpesa_receipt_number)` idempotency, DLQ replay. Pointed at production. Two caveats: IP allow-listing is **advisory only** (`assertSafaricomIp` logs and processes anyway) so do not claim "IP-whitelisted callbacks"; and airtime throws `NotImplementedError` — do not market it. |
-| Double-entry accounting | **TRUE** | Genuinely double-entry, and balance is enforced by a **DEFERRABLE constraint trigger at COMMIT** (migration 027), not just app code — a developer cannot write an unbalanced posted entry even bypassing the service layer. |
-| Ledger is append-only / immutable | **PARTIAL — do not publish** | No immutability trigger on `journal_entries`/`journal_lines`, though the exact pattern *is* applied to `audit_logs`, `share_transactions`, `sms_trigger_executions`. Headers mutate (draft→posted→void); `journal_lines` cascades on delete; the balance trigger is AFTER INSERT only. Append-only **by convention in application code**, not enforced. Publish "double-entry", not "immutable". |
-| Kenya DPA 2019 compliance | **FALSE** | See §1.6. |
+| Marker                                | Verdict                      | Notes                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M-Pesa / Safaricom Daraja integration | **TRUE**                     | Production-grade: 23 route files, 3,045 lines of service, Redis-cached OAuth, backoff retry, constant-time callback token check, `UNIQUE(mpesa_receipt_number)` idempotency, DLQ replay. Pointed at production. Two caveats: IP allow-listing is **advisory only** (`assertSafaricomIp` logs and processes anyway) so do not claim "IP-whitelisted callbacks"; and airtime throws `NotImplementedError` — do not market it. |
+| Double-entry accounting               | **TRUE**                     | Genuinely double-entry, and balance is enforced by a **DEFERRABLE constraint trigger at COMMIT** (migration 027), not just app code — a developer cannot write an unbalanced posted entry even bypassing the service layer.                                                                                                                                                                                                 |
+| Ledger is append-only / immutable     | **PARTIAL — do not publish** | No immutability trigger on `journal_entries`/`journal_lines`, though the exact pattern _is_ applied to `audit_logs`, `share_transactions`, `sms_trigger_executions`. Headers mutate (draft→posted→void); `journal_lines` cascades on delete; the balance trigger is AFTER INSERT only. Append-only **by convention in application code**, not enforced. Publish "double-entry", not "immutable".                            |
+| Kenya DPA 2019 compliance             | **FALSE**                    | See §1.6.                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -118,7 +118,7 @@ The brief's structure — two audiences, each led by a capability that earns the
 
 **Audience 02 (already digital):** **share capital and dividends.** `share_classes` / `share_transactions` / `share_holdings` is a real ledger with a trigger maintaining per-member holdings, a full `/shares` UI (holdings, ledger, top-holders), per-member quantity + total invested + current value + appreciation, and PDF certificates. `computeAllocations` does genuine proportional distribution. It answers "what is my share worth" — the question the brief wanted investment tracking to answer — and it actually works.
 
-Note `/shares` never renders a *percentage*; it shows KES amounts. Copy accordingly.
+Note `/shares` never renders a _percentage_; it shows KES amounts. Copy accordingly.
 
 ---
 

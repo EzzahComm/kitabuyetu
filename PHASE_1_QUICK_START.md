@@ -9,6 +9,7 @@
 ## 🚀 GET STARTED
 
 ### 1. View Component Showcase
+
 ```bash
 npm run dev
 # Then visit: http://localhost:3000/components
@@ -21,8 +22,9 @@ You'll see all UI components in action with light and dark mode support.
 ## 📦 USE NEW COMPONENTS
 
 ### Example: Import and use Button
+
 ```tsx
-import { Button } from "@/components/ui";
+import { Button } from '@/components/ui';
 
 export default function MyPage() {
   return (
@@ -38,8 +40,9 @@ export default function MyPage() {
 ```
 
 ### Example: Use Input with Error
+
 ```tsx
-import { Input } from "@/components/ui";
+import { Input } from '@/components/ui';
 
 export default function FormPage() {
   return (
@@ -54,9 +57,10 @@ export default function FormPage() {
 ```
 
 ### Example: Card with Header/Content/Footer
+
 ```tsx
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui";
-import { Button } from "@/components/ui";
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui';
+import { Button } from '@/components/ui';
 
 export default function Dashboard() {
   return (
@@ -74,8 +78,9 @@ export default function Dashboard() {
 ```
 
 ### Example: Badge for Status
+
 ```tsx
-import { Badge } from "@/components/ui";
+import { Badge } from '@/components/ui';
 
 export default function StatusPage() {
   return (
@@ -89,8 +94,9 @@ export default function StatusPage() {
 ```
 
 ### Example: Spinner for Loading
+
 ```tsx
-import { Spinner } from "@/components/ui";
+import { Spinner } from '@/components/ui';
 
 export default function LoadingPage() {
   return (
@@ -107,6 +113,7 @@ export default function LoadingPage() {
 ## 🎨 USE DESIGN TOKENS
 
 ### Tailwind Color Classes
+
 ```html
 <!-- Primary colors (blue) -->
 <div class="bg-primary-50">Light background</div>
@@ -123,6 +130,7 @@ export default function LoadingPage() {
 ```
 
 ### Tailwind Spacing
+
 ```html
 <!-- All tokens: xs, sm, md, base, lg, xl, 2xl, 3xl, 4xl, 5xl -->
 <div class="px-base py-md">16px horizontal, 12px vertical</div>
@@ -131,6 +139,7 @@ export default function LoadingPage() {
 ```
 
 ### Tailwind Typography
+
 ```html
 <!-- Sizes with built-in line-height and letter-spacing -->
 <p class="text-sm">14px small text</p>
@@ -141,6 +150,7 @@ export default function LoadingPage() {
 ```
 
 ### Tailwind Shadows
+
 ```html
 <div class="shadow-sm">Subtle shadow</div>
 <div class="shadow-md">Medium shadow (cards)</div>
@@ -154,11 +164,13 @@ export default function LoadingPage() {
 ### Dark mode is built-in!
 
 **How it works:**
+
 1. Tailwind class mode is enabled
 2. Add `dark:` prefix to override colors in dark mode
 3. All components automatically support dark mode
 
 **Example:**
+
 ```tsx
 <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50">
   This text works in both light and dark modes
@@ -166,8 +178,9 @@ export default function LoadingPage() {
 ```
 
 **Toggle dark mode:**
+
 ```tsx
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Header() {
   return (
@@ -184,6 +197,7 @@ export default function Header() {
 ## 📱 RESPONSIVE BREAKPOINTS
 
 Tailwind breakpoints remain standard:
+
 - `sm:` — 640px (tablets)
 - `md:` — 768px (large tablets)
 - `lg:` — 1024px (desktops)
@@ -191,10 +205,9 @@ Tailwind breakpoints remain standard:
 - `2xl:` — 1536px (extra large)
 
 **Example:**
+
 ```html
-<div class="text-base md:text-lg lg:text-xl">
-  Responsive text that grows on larger screens
-</div>
+<div class="text-base md:text-lg lg:text-xl">Responsive text that grows on larger screens</div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-base">
   <!-- 1 column on mobile, 2 on tablet, 4 on desktop -->
@@ -206,6 +219,7 @@ Tailwind breakpoints remain standard:
 ## ✅ ACCESSIBILITY FEATURES
 
 All new components include:
+
 - ✅ Proper focus rings (visible on keyboard nav)
 - ✅ Semantic HTML (labels with form fields)
 - ✅ Error messages (near fields, not at top)
@@ -215,6 +229,7 @@ All new components include:
 - ✅ Minimum touch targets (40–48px)
 
 **Test accessibility:**
+
 ```bash
 # In browser, install axe DevTools extension
 # Run audit on any page to check compliance
@@ -225,21 +240,25 @@ All new components include:
 ## 🔄 MIGRATE EXISTING CODE
 
 ### Replace Heroicons with Tabler icons
-**Old:**
-```tsx
-import { ChevronRightIcon } from "@heroicons/react/24/outline";
 
-<ChevronRightIcon className="w-5 h-5" />
+**Old:**
+
+```tsx
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
+
+<ChevronRightIcon className="w-5 h-5" />;
 ```
 
 **New:**
-```tsx
-import { IconChevronRight } from "@tabler/icons-react";
 
-<IconChevronRight size={20} />
+```tsx
+import { IconChevronRight } from '@tabler/icons-react';
+
+<IconChevronRight size={20} />;
 ```
 
 **Common Tabler icon names:**
+
 - `IconChevronRight`, `IconChevronLeft`, `IconChevronDown`, `IconChevronUp`
 - `IconMenu`, `IconSearch`, `IconBell`, `IconMail`, `IconSettings`
 - `IconUser`, `IconLogout`, `IconEdit`, `IconDelete`, `IconSave`
@@ -249,18 +268,19 @@ import { IconChevronRight } from "@tabler/icons-react";
 **Find Tabler icons:** https://tabler.io/icons
 
 ### Replace inline button styles with Button component
+
 **Old:**
+
 ```tsx
-<button className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600">
-  Click me
-</button>
+<button className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600">Click me</button>
 ```
 
 **New:**
-```tsx
-import { Button } from "@/components/ui";
 
-<Button>Click me</Button>
+```tsx
+import { Button } from '@/components/ui';
+
+<Button>Click me</Button>;
 ```
 
 ---
@@ -299,6 +319,7 @@ SLATE (Neutral/Gray)
 ## 🎯 COMPONENT VARIANTS QUICK REFERENCE
 
 ### Button
+
 ```tsx
 <Button variant="primary">Primary (default)</Button>
 <Button variant="secondary">Secondary</Button>
@@ -315,6 +336,7 @@ SLATE (Neutral/Gray)
 ```
 
 ### Card
+
 ```tsx
 <Card variant="default">Default (subtle border)</Card>
 <Card variant="elevated">Elevated (with shadow)</Card>
@@ -322,6 +344,7 @@ SLATE (Neutral/Gray)
 ```
 
 ### Badge
+
 ```tsx
 <Badge variant="default">Default</Badge>
 <Badge variant="primary">Primary (blue)</Badge>
@@ -334,6 +357,7 @@ SLATE (Neutral/Gray)
 ```
 
 ### Input
+
 ```tsx
 <Input label="Text input" />
 <Input label="Email" type="email" />
@@ -343,6 +367,7 @@ SLATE (Neutral/Gray)
 ```
 
 ### Spinner
+
 ```tsx
 <Spinner size="sm" variant="primary" />
 <Spinner size="md" variant="success" />
@@ -382,7 +407,7 @@ npm run lint
 ✅ 5 reusable UI components  
 ✅ Dark mode infrastructure  
 ✅ Component showcase page  
-✅ All dependencies installed  
+✅ All dependencies installed
 
 **Ready for Phase 2:** Public website optimization (product pages, responsive testing, icon migration)
 

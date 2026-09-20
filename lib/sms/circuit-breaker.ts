@@ -31,9 +31,9 @@ const OPEN_DURATION_MS = 60_000;
 type State = 'closed' | 'open' | 'half_open';
 
 interface Circuit {
-  state:            State;
+  state: State;
   consecutiveFails: number;
-  openedAt:         number | null;
+  openedAt: number | null;
 }
 
 const circuits = new Map<string, Circuit>();
@@ -71,7 +71,8 @@ export function recordSuccess(name: string): void {
   const c = get(name);
   if (c.state !== 'closed') {
     logger.info('[sms-breaker] provider recovered, circuit closed', {
-      provider: name, afterFailures: c.consecutiveFails,
+      provider: name,
+      afterFailures: c.consecutiveFails,
     });
   }
   c.state = 'closed';
@@ -88,7 +89,8 @@ export function recordFailure(name: string): void {
   if (c.state === 'half_open' || c.consecutiveFails >= FAILURE_THRESHOLD) {
     if (c.state !== 'open') {
       logger.error('[sms-breaker] provider circuit OPEN — failing fast', {
-        provider: name, consecutiveFails: c.consecutiveFails,
+        provider: name,
+        consecutiveFails: c.consecutiveFails,
         reopenAfterMs: OPEN_DURATION_MS,
       });
     }

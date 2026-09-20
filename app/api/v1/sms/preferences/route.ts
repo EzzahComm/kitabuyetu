@@ -22,10 +22,7 @@ import { NotFoundError } from '@/lib/utils/errors';
  */
 
 async function callerPhone(client: PoolClient, memberId: string): Promise<string> {
-  const { rows } = await client.query<{ phone: string }>(
-    `SELECT phone FROM members WHERE id = $1`,
-    [memberId]
-  );
+  const { rows } = await client.query<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [memberId]);
   if (!rows[0]) throw new NotFoundError('Member', memberId);
   return rows[0].phone;
 }

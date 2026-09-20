@@ -46,10 +46,17 @@ export function OpportunityApplicationForm({
   useEffect(() => {
     if (!getStoredAccessToken()) return;
     let cancelled = false;
-    api.get<EligibilityCheck>(`/ecosystem/opportunities/${opportunityId}/eligibility`)
-      .then((result) => { if (!cancelled) setEligibility(result); })
-      .catch(() => { /* silent — this is advisory, not required for the form to work */ });
-    return () => { cancelled = true; };
+    api
+      .get<EligibilityCheck>(`/ecosystem/opportunities/${opportunityId}/eligibility`)
+      .then((result) => {
+        if (!cancelled) setEligibility(result);
+      })
+      .catch(() => {
+        /* silent — this is advisory, not required for the form to work */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [opportunityId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -110,8 +117,8 @@ export function OpportunityApplicationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {eligibility && (
-        eligibility.matches ? (
+      {eligibility &&
+        (eligibility.matches ? (
           <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
             Your group appears eligible for this opportunity, based on its record.
           </div>
@@ -125,8 +132,7 @@ export function OpportunityApplicationForm({
             </ul>
             <p className="mt-1 text-xs">You can still apply — the partner makes the final call.</p>
           </div>
-        )
-      )}
+        ))}
       <div>
         <label className="block text-sm font-medium text-gray-900">Group Name *</label>
         <Input

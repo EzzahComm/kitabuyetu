@@ -17,12 +17,12 @@ import { AppError } from '@/lib/utils/errors';
 export type VerificationChannel = 'email' | 'sms';
 
 interface GroupContactInfo {
-  groupId:    string;
-  groupName:  string;
-  groupCode:  string;
+  groupId: string;
+  groupName: string;
+  groupCode: string;
   memberName: string;
-  email:      string | null;
-  phone:      string;
+  email: string | null;
+  phone: string;
 }
 
 export function hashSecret(secret: string): string {
@@ -58,7 +58,7 @@ export async function startGroupVerification(
     throw new AppError('No email address on file for this group', 'NO_EMAIL_ON_FILE', 400);
   }
 
-  const secret     = channel === 'email' ? generateEmailToken() : generateOtp();
+  const secret = channel === 'email' ? generateEmailToken() : generateOtp();
   const secretHash = hashSecret(secret);
 
   const { id: attemptId, expires_at: expiresAt } = await withAdminDb(async (client) => {
@@ -78,16 +78,16 @@ export async function startGroupVerification(
     // from a brand-new one (docs/audits/optimization-2026-09).
     await sendTemplatedEmail({
       templateKey: 'group_verification_link',
-      to:          destination,
+      to: destination,
       vars: {
-        name:      info.memberName,
+        name: info.memberName,
         groupName: info.groupName,
         groupCode: info.groupCode,
         verifyUrl: verifyUrlFor(secret),
       },
       groupId: info.groupId,
       referenceType: 'group_verification',
-      referenceId:   attemptId,
+      referenceId: attemptId,
     });
   } else {
     // sendServiceSms NEVER throws and NEVER returns void — it reports the
@@ -97,7 +97,7 @@ export async function startGroupVerification(
     // accepted, with nothing in the response or the UI to say otherwise.
     // Surface it as a real error so the caller can tell the truth.
     const res = await sendServiceSms({
-      phone:   destination,
+      phone: destination,
       groupId: info.groupId,
       notificationType: 'auth_group_verification',
       body: `Your Kitabu Yetu verification code is ${secret}. It expires in 10 minutes. If you did not request this, ignore this SMS.`,

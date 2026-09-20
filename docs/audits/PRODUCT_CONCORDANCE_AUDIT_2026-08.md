@@ -18,11 +18,11 @@ Delivered via 3 parallel research passes, each re-verifying rather than re-deriv
 
 **Fourth: schema↔code concordance on the last 13 migrations is mostly clean** — the settlement/vendor-payment layer that a prior audit (Pass 2, 2026-08-09) found reverse-engineered but code-orphaned is now genuinely, fully wired end-to-end. The gaps that exist are narrow: a handful of new columns nothing writes yet (`sms_credits.package_id`/`.currency`, `settlement_requests.source_account`), three grants provisioned for access patterns nothing performs yet, and one real signal-loss bug — bulk SMS sends hardcode `notification_type = 'campaign'`, discarding the per-feature attribution the new usage-analytics screen exists to show, for the highest-volume send path in the product.
 
-| Dimension | Verdict |
-|---|---|
-| Landing/marketing content vs. real product state | **Actively false on pricing; absent on Chama Reminder** |
-| Schema ↔ code (migrations 134–146) | Mostly wired; a few narrow orphans, one real analytics-signal bug |
-| Code ↔ UI contracts (last 36h of work) | Two real bugs, one newly widened; rest confirmed clean |
+| Dimension                                        | Verdict                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------- |
+| Landing/marketing content vs. real product state | **Actively false on pricing; absent on Chama Reminder**           |
+| Schema ↔ code (migrations 134–146)               | Mostly wired; a few narrow orphans, one real analytics-signal bug |
+| Code ↔ UI contracts (last 36h of work)           | Two real bugs, one newly widened; rest confirmed clean            |
 
 **Score: 51/100.** Scoring rationale in §5 — pulled down almost entirely by the pricing-page finding, which by itself is the kind of thing that costs real signed-up customers and real support tickets the moment someone reads the page and then hits the real billing flow.
 
@@ -33,7 +33,7 @@ Delivered via 3 parallel research passes, each re-verifying rather than re-deriv
 Three parallel research passes, each told explicitly to build on prior audits rather than re-derive them:
 
 1. **Landing/marketing content reality-check** — every public page and shared marketing component, cross-referenced against `types/enums.ts` (the real pricing/feature source of truth) and the actual entitlement model.
-2. **Schema↔code concordance, migrations 134–146 only** — re-verified `PRODUCTION_SCHEMA_DRIFT_AUDIT.md` (2026-07-30), `DB_PERFORMANCE_ADVISOR_AUDIT_2026-08.md` (2026-08-06), and Pass 2's orphan-table findings (2026-08-09) as *context*, not re-checked; fresh ground truth gathered only for what shipped in the last ~36 hours.
+2. **Schema↔code concordance, migrations 134–146 only** — re-verified `PRODUCTION_SCHEMA_DRIFT_AUDIT.md` (2026-07-30), `DB_PERFORMANCE_ADVISOR_AUDIT_2026-08.md` (2026-08-06), and Pass 2's orphan-table findings (2026-08-09) as _context_, not re-checked; fresh ground truth gathered only for what shipped in the last ~36 hours.
 3. **Code↔UI contract concordance on the newest surfaces** — re-ran `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md`'s own method (client payload vs. server Zod schema, side by side) against everything built in PRs #62–#68: the Chama Reminder portal, the SMS pricing admin screen, the credits panel, and every component now shared across two products.
 
 Two of the most consequential claims (the pricing page's literal content; the `ComposeTab` schema mismatch) were independently re-read against source directly before writing this report, rather than trusted from agent output alone.
@@ -46,25 +46,25 @@ Two of the most consequential claims (the pricing page's literal content; the `C
 
 `app/pricing/page.tsx:5-33` hardcodes a `PLANS` array with **no fetch, no API call, no `useQuery`** — a static top-level const, structurally identical to the exact anti-pattern `components/billing/plan-purchase.tsx`'s own header comment says was already fixed once, on the in-app billing page:
 
-> *"This array used to carry its own prices (growth 2500, enterprise 8000) that disagreed with the server's ... a second copy here would mean customers paying an amount that fails verification."*
+> _"This array used to carry its own prices (growth 2500, enterprise 8000) that disagreed with the server's ... a second copy here would mean customers paying an amount that fails verification."_
 
 That fix was never applied to the public page. It still reads, verbatim, today:
 
-| Plan | Public pricing page says | Real value (`types/enums.ts` `PLAN_MONTHLY_FEES.kitabu_yetu`) |
-|---|---|---|
-| Starter | **Free**, forever, "Up to 10 members" | **KES 150/month** — no free tier exists (migration 139) |
-| Growth | **KES 2,500/month** | **KES 300/month** — 8.3× too high |
-| Enterprise | **KES 8,000/month**, flat | **Negotiated**, never a flat self-serve price — `enterprise: 0` in the fee table means "not self-serve," not "cheap" |
-| *(none)* | — | **Premium, KES 500/month** — exists, self-serve, entirely absent from the page |
+| Plan       | Public pricing page says              | Real value (`types/enums.ts` `PLAN_MONTHLY_FEES.kitabu_yetu`)                                                        |
+| ---------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Starter    | **Free**, forever, "Up to 10 members" | **KES 150/month** — no free tier exists (migration 139)                                                              |
+| Growth     | **KES 2,500/month**                   | **KES 300/month** — 8.3× too high                                                                                    |
+| Enterprise | **KES 8,000/month**, flat             | **Negotiated**, never a flat self-serve price — `enterprise: 0` in the fee table means "not self-serve," not "cheap" |
+| _(none)_   | —                                     | **Premium, KES 500/month** — exists, self-serve, entirely absent from the page                                       |
 
 Every supporting claim compounds the problem:
 
 - **"Get started free" / "Start free and grow" / "Start free trial"** (`page.tsx:52,61,106`) — no plan is free, and there is no trial concept anywhere in `billing.service.ts`: self-serve activation happens by paying via M-Pesa STK immediately (`activateSubscriptionForPayment`, gated on a confirmed payment).
-- **Member caps** ("Up to 10 members" / "Up to 100 members" / "Unlimited members") — fictional. `PLAN_FEATURES` applies `ALL_FEATURES` (`maxMembers: null`) to *every* plan of *every* product, and `billing.service.ts:314`'s own comment states the cap-enforcement code is *"Inert today: PLAN_FEATURES sets maxMembers null on every plan."* There is no tier where member count is actually limited.
+- **Member caps** ("Up to 10 members" / "Up to 100 members" / "Unlimited members") — fictional. `PLAN_FEATURES` applies `ALL_FEATURES` (`maxMembers: null`) to _every_ plan of _every_ product, and `billing.service.ts:314`'s own comment states the cap-enforcement code is _"Inert today: PLAN_FEATURES sets maxMembers null on every plan."_ There is no tier where member count is actually limited.
 - **SMS quotas** ("50 SMS per month" / "500 SMS per month" / "Unlimited SMS") — also fictional as a tier differentiator. Every subscription gets the same `sms_allowance_included` default (50) regardless of plan; nothing in `billing.service.ts` sets it per-tier, and "unlimited" doesn't exist anywhere in the credit-based model that shipped this week.
 - **FAQ**: "Growth and Enterprise plans support bulk CSV import" implies Starter can't — `historicalImport: true` is part of `ALL_FEATURES`, applied identically to every plan. "What happens when I hit the member limit?" answers a question about a mechanism that doesn't exist.
 
-`components/landing/pricing-preview.tsx` — the homepage's pricing cards — **explicitly documents itself as mirroring this file** ("Mirrors `app/pricing/page.tsx`'s PLANS exactly") and carries the identical wrong numbers, plus its own additional false claim: *"No card required to start. Every plan includes full M-Pesa integration"* (line 72) — every self-serve plan requires a confirmed M-Pesa payment before activation.
+`components/landing/pricing-preview.tsx` — the homepage's pricing cards — **explicitly documents itself as mirroring this file** ("Mirrors `app/pricing/page.tsx`'s PLANS exactly") and carries the identical wrong numbers, plus its own additional false claim: _"No card required to start. Every plan includes full M-Pesa integration"_ (line 72) — every self-serve plan requires a confirmed M-Pesa payment before activation.
 
 `components/landing/cta.tsx:9` and `components/landing/how-it-works.tsx:96` each carry their own **independent, mutually-inconsistent** free-tier taglines — "Free for groups up to 20 members" and "Free for small groups · No card required" — neither matching each other, the pricing page's "10 members," or reality.
 
@@ -82,7 +82,7 @@ A second product, with its own portal (`/reminder`) and its own price list (100/
 
 ### 1.3 SMS credit monetization is entirely unmentioned publicly
 
-Real system (live since 2026-08-13): 1 credit = 1 message, a bundled monthly allowance, then pay-as-you-go credits purchasable via packages or volume tiers. No public page mentions "credits," packages, or that SMS beyond the allowance costs extra — the pricing page's fictional per-tier SMS quotas (§1.1) are the *only* SMS-cost information a visitor can find, and they describe a model that was never built.
+Real system (live since 2026-08-13): 1 credit = 1 message, a bundled monthly allowance, then pay-as-you-go credits purchasable via packages or volume tiers. No public page mentions "credits," packages, or that SMS beyond the allowance costs extra — the pricing page's fictional per-tier SMS quotas (§1.1) are the _only_ SMS-cost information a visitor can find, and they describe a model that was never built.
 
 ### 1.4 What's fine
 
@@ -94,7 +94,7 @@ Real system (live since 2026-08-13): 1 credit = 1 message, a bundled monthly all
 
 ### 2.1 The good news: the settlement/vendor-payment layer is now genuinely fixed
 
-Pass 2 (2026-08-09) found `group_bank_accounts`/`settlement_requests`/`settlement_approvals`/`vendor_payments`/`platform_revenue` had **zero `CREATE TABLE` anywhere in migration history** — live in production, excised from git, migration numbers silently reused. Migration 129 recovered their schema, deliberately SELECT-only, explicitly scoped to *not* rebuild the application layer.
+Pass 2 (2026-08-09) found `group_bank_accounts`/`settlement_requests`/`settlement_approvals`/`vendor_payments`/`platform_revenue` had **zero `CREATE TABLE` anywhere in migration history** — live in production, excised from git, migration numbers silently reused. Migration 129 recovered their schema, deliberately SELECT-only, explicitly scoped to _not_ rebuild the application layer.
 
 **Migrations 134–135 close that gap for real.** The INSERT/UPDATE RLS policies migration 129 deliberately withheld are now present, and the accompanying service layer (`settlements.service.ts`, `vendor-payments.service.ts`, `group-bank-accounts.service.ts`) is fully wired end-to-end through `app/api/v1/treasury/*` into the `(dashboard)/treasury` page. This is a genuine, verified repair of one of the two most severe findings in the prior audit batch.
 
@@ -102,19 +102,19 @@ Pass 2 (2026-08-09) found `group_bank_accounts`/`settlement_requests`/`settlemen
 
 ### 2.2 New objects: wired vs. orphaned
 
-| Object | Migration | Status |
-|---|---|---|
-| `sms_credit_ledger` + `sms_ledger_append()` | 141 | Written correctly (purchase + consume paths). **Never read by any application code** — no route or service selects from it. Matches the migration's own stated intent ("nothing reads the ledger to authorise a send"), but there is currently no in-app way to *view* it; SQL only. |
-| `vw_sms_credit_reconciliation` | 141/142/146 | Grants correct and locked down. **Zero application-code references at all.** No admin route, no dashboard reads it. |
-| `sms_pricing_tiers` | 143 | `getUnitPrice()` is real and load-bearing (called from the billing hot path). `listActiveTiers()` has **zero non-test callers**. |
-| `sms_packages` | 143 | Admin CRUD is real; margin reporting reads it. **`listActivePackages()` has zero non-test callers** — no customer-facing route ever surfaces the catalog, and nothing ever links a real purchase to a package row (see §2.4). |
-| `sms_provider_costs` | 143 | Fully wired, correctly access-controlled (§2.3). |
-| `sms_credits.package_id` | 146 | **Never written anywhere.** Only ever read (`sms-margin.service.ts`'s `LEFT JOIN`), so `getRevenueByPackage()`'s per-package breakdown will permanently group 100% of real revenue under "custom quantity" until something sets it. |
-| `sms_credits.currency` | 146 | **Never referenced by any application code at all** — not even a read. Pure orphan, `DEFAULT 'KES'` only. |
-| `sms_credits.expires_at` | 146 | Unused, exactly as its own migration comment says ("no expiry policy yet"). Acknowledged-orphan-by-design. |
-| `draw_sms_credit_lots()` | 146 | Only ever called from inside `settle_sms_credit_reservation` (SQL-to-SQL, as the SECURITY DEFINER owner). **Zero direct TypeScript callers** — its `service_role`/`app_tenant` EXECUTE grants are never actually the ones checked. |
-| `settlement_requests.source_account` | 134 | The sharpest orphan in the batch: the migration's own header describes it as load-bearing (tags a settlement with `MPESA_SETTLEMENT_SHORTCODE` for reconciliation), but `settlements.service.ts`'s INSERT never includes it, and `MPESA_SETTLEMENT_SHORTCODE` has exactly one reference in the whole repo — the migration comment itself. **Column exists, is documented as necessary, has zero writers and zero readers.** |
-| `settlement_requests.reconciled_at` / `vendor_payments.reconciled_at` | 135 | Read (gates `findStuck*` paging), never written. Migration 135's own header names `disbursement-watchdog.service.ts` as "the first writer" — checked directly: it never touches this column. The header claim is inaccurate. |
+| Object                                                                | Migration   | Status                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sms_credit_ledger` + `sms_ledger_append()`                           | 141         | Written correctly (purchase + consume paths). **Never read by any application code** — no route or service selects from it. Matches the migration's own stated intent ("nothing reads the ledger to authorise a send"), but there is currently no in-app way to _view_ it; SQL only.                                                                                                                                        |
+| `vw_sms_credit_reconciliation`                                        | 141/142/146 | Grants correct and locked down. **Zero application-code references at all.** No admin route, no dashboard reads it.                                                                                                                                                                                                                                                                                                         |
+| `sms_pricing_tiers`                                                   | 143         | `getUnitPrice()` is real and load-bearing (called from the billing hot path). `listActiveTiers()` has **zero non-test callers**.                                                                                                                                                                                                                                                                                            |
+| `sms_packages`                                                        | 143         | Admin CRUD is real; margin reporting reads it. **`listActivePackages()` has zero non-test callers** — no customer-facing route ever surfaces the catalog, and nothing ever links a real purchase to a package row (see §2.4).                                                                                                                                                                                               |
+| `sms_provider_costs`                                                  | 143         | Fully wired, correctly access-controlled (§2.3).                                                                                                                                                                                                                                                                                                                                                                            |
+| `sms_credits.package_id`                                              | 146         | **Never written anywhere.** Only ever read (`sms-margin.service.ts`'s `LEFT JOIN`), so `getRevenueByPackage()`'s per-package breakdown will permanently group 100% of real revenue under "custom quantity" until something sets it.                                                                                                                                                                                         |
+| `sms_credits.currency`                                                | 146         | **Never referenced by any application code at all** — not even a read. Pure orphan, `DEFAULT 'KES'` only.                                                                                                                                                                                                                                                                                                                   |
+| `sms_credits.expires_at`                                              | 146         | Unused, exactly as its own migration comment says ("no expiry policy yet"). Acknowledged-orphan-by-design.                                                                                                                                                                                                                                                                                                                  |
+| `draw_sms_credit_lots()`                                              | 146         | Only ever called from inside `settle_sms_credit_reservation` (SQL-to-SQL, as the SECURITY DEFINER owner). **Zero direct TypeScript callers** — its `service_role`/`app_tenant` EXECUTE grants are never actually the ones checked.                                                                                                                                                                                          |
+| `settlement_requests.source_account`                                  | 134         | The sharpest orphan in the batch: the migration's own header describes it as load-bearing (tags a settlement with `MPESA_SETTLEMENT_SHORTCODE` for reconciliation), but `settlements.service.ts`'s INSERT never includes it, and `MPESA_SETTLEMENT_SHORTCODE` has exactly one reference in the whole repo — the migration comment itself. **Column exists, is documented as necessary, has zero writers and zero readers.** |
+| `settlement_requests.reconciled_at` / `vendor_payments.reconciled_at` | 135         | Read (gates `findStuck*` paging), never written. Migration 135's own header names `disbursement-watchdog.service.ts` as "the first writer" — checked directly: it never touches this column. The header claim is inaccurate.                                                                                                                                                                                                |
 
 ### 2.3 RLS/grant drift on the new SMS objects
 
@@ -132,11 +132,11 @@ Checked all 7 new SMS objects' migration-defined policies/grants against what th
 VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),'campaign',$6,$7,$8,$9,'textsms',$10,$11)
 ```
 
-`notification_type` is always the literal string `'campaign'`, regardless of the caller's real `referenceType` — even though the *next* column, `reference_type`, correctly carries the real category. This line was directly touched by migration 144's commit (only the `rate`→`CREDITS_PER_MESSAGE` change) and the hardcoding was carried forward unfixed.
+`notification_type` is always the literal string `'campaign'`, regardless of the caller's real `referenceType` — even though the _next_ column, `reference_type`, correctly carries the real category. This line was directly touched by migration 144's commit (only the `rate`→`CREDITS_PER_MESSAGE` change) and the hardcoding was carried forward unfixed.
 
 > **Fixed 2026-08-14 (PR #73), forward-only.** Rows already written carry `'campaign'` and are not backfilled: `reference_type` preserves the real category for anyone who needs to reconstruct history, but rewriting settled billing rows to make a chart read better is not a trade worth making. The analytics screen already declares `hasUnattributedHistory` for exactly this reason.
 
-By contrast, single/transactional sends (birthday reminders, one-off notifications) correctly set `notification_type` via `notifications.service.ts:391`. **Consequence**: `sms-analytics.service.ts`'s `byFeature` breakdown — the exact metric the SMS monetization audit's "~5% populated" finding is about — will keep every scheduled/bulk send bucketed under the single uninformative label `'campaign'` forever, rather than the real feature. The population *percentage* will likely improve (rows stop being NULL), but the *useful signal* — which feature actually consumed the credits — stays lost for the highest-volume path in the product.
+By contrast, single/transactional sends (birthday reminders, one-off notifications) correctly set `notification_type` via `notifications.service.ts:391`. **Consequence**: `sms-analytics.service.ts`'s `byFeature` breakdown — the exact metric the SMS monetization audit's "~5% populated" finding is about — will keep every scheduled/bulk send bucketed under the single uninformative label `'campaign'` forever, rather than the real feature. The population _percentage_ will likely improve (rows stop being NULL), but the _useful signal_ — which feature actually consumed the credits — stays lost for the highest-volume path in the product.
 
 ### 2.6 Type drift and dead code
 
@@ -157,17 +157,17 @@ By contrast, single/transactional sends (birthday reminders, one-off notificatio
 
 This bug predates the last 36 hours. What's new: PR #62 moved `ComposeTab` out of a private, Kitabu-Yetu-only function into the shared, exported `components/sms/tabs.tsx` — so it is now reachable, unmodified, from inside the Chama Reminder portal too, a product whose entire value proposition is broadcast SMS at volume. A Chama Reminder group with 150 members clicking "Send to All Members" today silently reaches 20 of them.
 
-> **Correction, 2026-08-14.** The roadmap below called this a "one-line fix (`pageSize`→`limit`)". It is not one, and the one-line version is worse than the bug: `limit` is capped at `.max(100)`, so `limit: 500` fails validation outright and the members query 422s — the compose screen would then send to *nobody*. `limit: 100` merely moves the silent cap from 20 to 100. Any client-side fix is bounded by a page size, because the client can only ask for a page.
+> **Correction, 2026-08-14.** The roadmap below called this a "one-line fix (`pageSize`→`limit`)". It is not one, and the one-line version is worse than the bug: `limit` is capped at `.max(100)`, so `limit: 500` fails validation outright and the members query 422s — the compose screen would then send to _nobody_. `limit: 100` merely moves the silent cap from 20 to 100. Any client-side fix is bounded by a page size, because the client can only ask for a page.
 >
 > What shipped instead: `/sms/bulk` accepts `recipientType: 'all_members' | 'active_members'` and resolves the audience server-side through `resolveSmsRecipients()` — the same helper campaigns and the scheduler already use, so the three paths cannot disagree about who a group's members are. The client sends phone numbers only when a human typed them.
 
 ### 3.2 The SMS pricing admin screen reproduces a fixed bug class
 
-`app/(admin)/admin/sms-pricing/page.tsx:51,58,65` calls `api.get`/`api.post` directly with bodies typed `unknown` (`lib/api/client.ts:183-188`), instead of adding typed helpers to `lib/api/endpoints.ts`. The two payloads sent today (`activate_tiers`, `provider_cost`) happen to match `lib/validators/sms-pricing.schema.ts` exactly, so nothing is broken *right now* — but there is zero compiler protection against the next change drifting it, reproducing verbatim the pattern `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md` already closed out everywhere else (its own §4 follow-up specifically fixed `organizationApi.deposit`'s equivalent raw call).
+`app/(admin)/admin/sms-pricing/page.tsx:51,58,65` calls `api.get`/`api.post` directly with bodies typed `unknown` (`lib/api/client.ts:183-188`), instead of adding typed helpers to `lib/api/endpoints.ts`. The two payloads sent today (`activate_tiers`, `provider_cost`) happen to match `lib/validators/sms-pricing.schema.ts` exactly, so nothing is broken _right now_ — but there is zero compiler protection against the next change drifting it, reproducing verbatim the pattern `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md` already closed out everywhere else (its own §4 follow-up specifically fixed `organizationApi.deposit`'s equivalent raw call).
 
 > **Correction, 2026-08-14 (found while fixing this in Phase 3).** "Nothing is broken right now" was wrong, and the reason is the raw call itself. `api` prefixes every path with `/api/v1` (`lib/api/client.ts:5`), so `api.get('/admin/sms-pricing')` requests `/api/v1/admin/sms-pricing` — a path that does not exist (there is no `admin` tree under `app/api/v1/`; the route is at `/api/admin/sms-pricing`). It never gets as far as a 404: `proxy.ts:260` sees a tenant-audience URL carrying the backoffice token a super_admin actually holds and returns **403 "This route requires a tenant session. Sign in at /login."**
 >
-> So all three calls fail, always. The SMS Pricing screen has not loaded once since it shipped in PR #68 — a correctly signed-in super admin is told to sign in. This is what the typed-helper convention is *for*: `adminFetch` is the only client that speaks to `/api/admin/*`, and going through it makes the URL right by construction rather than by memory. The payload-drift risk described above was real but was the smaller half.
+> So all three calls fail, always. The SMS Pricing screen has not loaded once since it shipped in PR #68 — a correctly signed-in super admin is told to sign in. This is what the typed-helper convention is _for_: `adminFetch` is the only client that speaks to `/api/admin/*`, and going through it makes the URL right by construction rather than by memory. The payload-drift risk described above was real but was the smaller half.
 
 ### 3.3 Dead code: tier/package creation has no UI
 
@@ -187,18 +187,18 @@ The birthday-toggle PUT payload, the registration form's new `product` field aga
 
 ## §4. Cross-cutting observation
 
-Every genuinely severe finding in this report sits on the *outward-facing* edge of the system — the pricing page a prospect reads before ever touching the app, the acquisition path for a whole product, the recipient list a treasurer trusts to be complete. Every finding on the *inward* edge (schema, RLS, grants, internal admin tooling) is narrow, already access-controlled correctly, or cosmetic. This project's audit series has repeatedly found the backend/RLS/schema layer well-engineered under scrutiny; this pass is no exception. The gap this time is that the last two days of real, correct backend work never got a corresponding pass over the pages that sell it.
+Every genuinely severe finding in this report sits on the _outward-facing_ edge of the system — the pricing page a prospect reads before ever touching the app, the acquisition path for a whole product, the recipient list a treasurer trusts to be complete. Every finding on the _inward_ edge (schema, RLS, grants, internal admin tooling) is narrow, already access-controlled correctly, or cosmetic. This project's audit series has repeatedly found the backend/RLS/schema layer well-engineered under scrutiny; this pass is no exception. The gap this time is that the last two days of real, correct backend work never got a corresponding pass over the pages that sell it.
 
 ---
 
 ## §5. Scoring
 
-| Category | Score | Why |
-|---|---|---|
-| Landing/marketing content accuracy | 15/100 | The pricing page is wrong on every number a visitor would check, plus a whole product invisible |
-| Schema ↔ code concordance | 74/100 | Mostly wired, one real signal-loss bug, narrow orphans, no security exposure |
-| Code ↔ UI contract concordance | 68/100 | Two real bugs (one newly widened), rest confirmed clean, established fix pattern already exists |
-| **Overall** | **51/100** | Weighted toward the landing-content finding given its direct revenue/trust exposure |
+| Category                           | Score      | Why                                                                                             |
+| ---------------------------------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| Landing/marketing content accuracy | 15/100     | The pricing page is wrong on every number a visitor would check, plus a whole product invisible |
+| Schema ↔ code concordance          | 74/100     | Mostly wired, one real signal-loss bug, narrow orphans, no security exposure                    |
+| Code ↔ UI contract concordance     | 68/100     | Two real bugs (one newly widened), rest confirmed clean, established fix pattern already exists |
+| **Overall**                        | **51/100** | Weighted toward the landing-content finding given its direct revenue/trust exposure             |
 
 ---
 
@@ -207,39 +207,45 @@ Every genuinely severe finding in this report sits on the *outward-facing* edge 
 Ordered by leverage and blast radius, matching this project's established phasing style.
 
 **Phase 0 — decisions needed before building** (flag via AskUserQuestion, don't build silently):
+
 - Should the public pricing page **fetch live** from `/api/v1/billing/plans` (matching how `/billing` and `/reminder/subscription` already work), or stay a manually-maintained static page that just gets corrected numbers? Fetching closes the drift risk permanently; a static page is simpler but will drift again the next time a price changes.
 - Is Chama Reminder ready for a real public marketing presence now, or is the standalone-signup path deliberately soft-launched/unlinked for now? This determines whether Phase 1 includes new landing content or just a fix to what already exists.
 - Should `sms_packages` go live on a real purchase screen in this pass, or stay dormant (as `sms_pricing_tiers`' volume bands currently do, deliberately)?
 
 **Phase 1 — stop the false claims** (no schema change, highest leverage, lowest risk): **✅ done — PR #70.**
+
 - Fix `app/pricing/page.tsx` and `components/landing/pricing-preview.tsx`'s numbers and remove every free-tier claim (`cta.tsx`, `how-it-works.tsx` included) — whether via live fetch or corrected static values per the Phase 0 decision.
 - Remove or correct the fictional member-cap and SMS-quota feature bullets.
 - Add the `premium` tier to both pricing surfaces.
 
-*Resolution of the Phase 0 fetch-vs-static question: neither. `PLAN_COPY` moved into `types/enums.ts` beside `PLAN_MONTHLY_FEES`, and the public pages — which are server components — import them directly. That gets a live fetch's drift-proofing (one table, read by the pricing page, the billing page and the M-Pesa callback alike) at a static page's cost: no new public API surface, no client bundle, still prerendered.*
+_Resolution of the Phase 0 fetch-vs-static question: neither. `PLAN_COPY` moved into `types/enums.ts` beside `PLAN_MONTHLY_FEES`, and the public pages — which are server components — import them directly. That gets a live fetch's drift-proofing (one table, read by the pricing page, the billing page and the M-Pesa callback alike) at a static page's cost: no new public API surface, no client bundle, still prerendered._
 
 **Phase 2 — Chama Reminder acquisition surface** (per the Phase 0 decision): **✅ done — PR #71.**
+
 - If greenlit: a real link/section on the homepage or navbar to `/register?product=chama_reminder`, and pricing content for its own (100/250/400/negotiated) tiers.
 
-*Shipped: a `#chama-reminder` section on `/pricing` rendering its real tiers through the same `PlanGrid` component as Kitabu Yetu, entries in both the navbar Solutions menu and the footer Solutions column, and a pointer from the homepage pricing section. Every buy link carries `?product=chama_reminder` — without it `register_group()` seeds an unused chart of accounts and quotes the wrong price.*
+_Shipped: a `#chama-reminder` section on `/pricing` rendering its real tiers through the same `PlanGrid` component as Kitabu Yetu, entries in both the navbar Solutions menu and the footer Solutions column, and a pointer from the homepage pricing section. Every buy link carries `?product=chama_reminder` — without it `register_group()` seeds an unused chart of accounts and quotes the wrong price._
 
 **Phase 3 — the two code bugs**: **✅ done — PR #72.**
+
 - Fix `ComposeTab`'s `pageSize`→`limit` mismatch (one-line fix, closes a real silent-partial-send bug now live in two portals).
 - Type `app/(admin)/admin/sms-pricing/page.tsx`'s two raw `api.get`/`api.post` calls through `lib/api/endpoints.ts`, matching the established pattern.
 
-*Both items turned out to be worse than written up, and neither fix is the one described above — see the corrections in §3.1 and §3.2. The recipient cap could not be fixed client-side at all (`limit` maxes at 100), so the audience moved server-side; the "typing nicety" on the admin screen was in fact a 403 on every call, meaning that screen had never once loaded. §3.4's guard came along with it, because fixing §3.2 is what made it reachable.*
+_Both items turned out to be worse than written up, and neither fix is the one described above — see the corrections in §3.1 and §3.2. The recipient cap could not be fixed client-side at all (`limit` maxes at 100), so the audience moved server-side; the "typing nicety" on the admin screen was in fact a 403 on every call, meaning that screen had never once loaded. §3.4's guard came along with it, because fixing §3.2 is what made it reachable._
 
 **Phase 4 — the analytics signal-loss bug**: **✅ done — PR #73.**
+
 - Thread the real `referenceType`/feature category into `sendBulkCampaign`'s `notification_type` column instead of the hardcoded `'campaign'` literal — restores per-feature attribution for the highest-volume send path, which is what the new usage-analytics screen exists to show.
 
-*As written. One value now feeds both columns, exactly as the single-send path already does it. Campaigns pass no `referenceType` and keep the `'campaign'` label, which is what they are — and they stay separately attributed by campaign id regardless. Verified by running the new test against the pre-fix code first: it reported `Received: "campaign"` where `'schedule'` belonged.*
+_As written. One value now feeds both columns, exactly as the single-send path already does it. Campaigns pass no `referenceType` and keep the `'campaign'` label, which is what they are — and they stay separately attributed by campaign id regardless. Verified by running the new test against the pre-fix code first: it reported `Received: "campaign"` where `'schedule'` belonged._
 
 **Phase 5 — low-risk cleanup**: **✅ done.**
+
 - Delete `billing.service.ts`'s dead `createStarterSubscription()` (removes a live footgun for the free-tier bug's return).
 - Add `payment_id` to the `Subscription` TS interface; add the missing columns to `settlements.service.ts`/`vendor-payments.service.ts`'s local row types.
 - Either wire `settlement_requests.source_account` (per its own migration's stated intent) or remove it if it's no longer needed.
 - ~~Add a loading guard to the tier-activation buttons.~~ Done in Phase 3 (PR #72) — see §3.4.
 
-*`createStarterSubscription()` had zero callers anywhere, including tests — confirmed before deleting, not assumed. `Subscription.payment_id`, `SettlementRow.{idempotency_key,source_account,reconciled_at}`, and `VendorPaymentRow.{idempotency_key,reconciled_at}` now match what `RETURNING *`/`SELECT *` actually returns. `source_account` was wired, not removed: `settlements.service.ts`'s `initiate()` now tags each row from `MPESA_SETTLEMENT_SHORTCODE`, the exact reconciliation-only pattern `mpesa-b2c.service.ts` already uses for its own sub-account tagging — the migration's stated intent, just never connected.*
+_`createStarterSubscription()` had zero callers anywhere, including tests — confirmed before deleting, not assumed. `Subscription.payment_id`, `SettlementRow.{idempotency_key,source_account,reconciled_at}`, and `VendorPaymentRow.{idempotency_key,reconciled_at}` now match what `RETURNING _`/`SELECT _`actually returns.`source_account`was wired, not removed:`settlements.service.ts`'s `initiate()`now tags each row from`MPESA_SETTLEMENT_SHORTCODE`, the exact reconciliation-only pattern `mpesa-b2c.service.ts` already uses for its own sub-account tagging — the migration's stated intent, just never connected._
 
 **Deliberately not recommended**: rushing `sms_packages`/`vw_sms_credit_reconciliation`'s unused grants to be revoked — they're correctly locked down today and provisioning ahead of a feature is normal; only worth tightening if Phase 0 decides those features stay dormant long-term.

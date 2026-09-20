@@ -33,23 +33,20 @@ function isAuthorised(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!isAuthorised(req)) {
-    return NextResponse.json(
-      { success: false, error: 'Forbidden', code: 'FORBIDDEN' },
-      { status: 403 },
-    );
+    return NextResponse.json({ success: false, error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
   }
 
   const started = Date.now();
 
   try {
-    const enqueued  = await enqueueTimeBasedJobs();
+    const enqueued = await enqueueTimeBasedJobs();
     const processed = await processJobBatch();
 
     return NextResponse.json({
-      success:   true,
-      trigger:   'manual',
+      success: true,
+      trigger: 'manual',
       timestamp: new Date().toISOString(),
-      duration:  `${Date.now() - started}ms`,
+      duration: `${Date.now() - started}ms`,
       enqueued,
       processed,
     });

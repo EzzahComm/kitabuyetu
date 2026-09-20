@@ -32,9 +32,9 @@ export type TemplateVars = Record<string, string | number | null | undefined>;
 export const VARIABLE_ALIASES: Readonly<Record<string, string>> = Object.freeze({
   short_member_id: 'membership_no',
   payment_account: 'membership_no',
-  account_number:  'membership_no',
-  paybill_number:  'paybill',
-  amount_due:      'amount',
+  account_number: 'membership_no',
+  paybill_number: 'paybill',
+  amount_due: 'amount',
 });
 
 /**
@@ -148,9 +148,7 @@ export function buildSenderVars(sender: SenderIdentity): TemplateVars {
   }
 
   const role = person.role?.trim();
-  const signature = role
-    ? `${person.name}, ${role}, ${groupName}`
-    : `${person.name}, ${groupName}`;
+  const signature = role ? `${person.name}, ${role}, ${groupName}` : `${person.name}, ${groupName}`;
 
   return { sender_name: person.name, sender_role: role ?? null, sender_signature: signature };
 }
@@ -177,7 +175,10 @@ export function platformPaybill(): string {
 
 /** Strip all unresolved {{variable}} placeholders from a rendered message. */
 export function stripUnresolved(text: string): string {
-  return text.replace(/\{\{\w+\}\}/g, '').replace(/\s{2,}/g, ' ').trim();
+  return text
+    .replace(/\{\{\w+\}\}/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /** Extract variable names from a template body. */
@@ -189,19 +190,19 @@ export function extractVars(template: string): string[] {
 // ─── Built-in template keys ───────────────────────────────────────────────────
 
 export const TEMPLATE_KEYS = {
-  CONTRIBUTION_RECEIVED:   'contribution_received',
-  CONTRIBUTION_REMINDER:   'contribution_reminder',
-  LOAN_APPROVED:           'loan_approved',
-  LOAN_DISBURSED:          'loan_disbursed',
-  LOAN_REPAYMENT_DUE:      'loan_repayment_due',
-  LOAN_OVERDUE:            'loan_overdue',
-  MEETING_REMINDER:        'meeting_reminder',
-  BIRTHDAY:                'birthday',
-  PAYMENT_CONFIRMED:       'payment_confirmed',
-  WELCOME:                 'welcome',
-  OTP:                     'otp',
-  GROUP_ANNOUNCEMENT:      'group_announcement',
-  GROUP_VERIFICATION_OTP:  'group_verification_otp',
+  CONTRIBUTION_RECEIVED: 'contribution_received',
+  CONTRIBUTION_REMINDER: 'contribution_reminder',
+  LOAN_APPROVED: 'loan_approved',
+  LOAN_DISBURSED: 'loan_disbursed',
+  LOAN_REPAYMENT_DUE: 'loan_repayment_due',
+  LOAN_OVERDUE: 'loan_overdue',
+  MEETING_REMINDER: 'meeting_reminder',
+  BIRTHDAY: 'birthday',
+  PAYMENT_CONFIRMED: 'payment_confirmed',
+  WELCOME: 'welcome',
+  OTP: 'otp',
+  GROUP_ANNOUNCEMENT: 'group_announcement',
+  GROUP_VERIFICATION_OTP: 'group_verification_otp',
 } as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[keyof typeof TEMPLATE_KEYS];
@@ -213,8 +214,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
     'Dear {{first_name}}, your contribution of KES {{amount}} has been received. Receipt: {{receipt}}. Thank you.',
   loan_approved:
     'Dear {{first_name}}, your loan of KES {{loan_amount}} has been approved. Disbursement is in progress.',
-  loan_disbursed:
-    'Dear {{first_name}}, KES {{amount}} has been disbursed to your M-Pesa. Receipt: {{receipt}}.',
+  loan_disbursed: 'Dear {{first_name}}, KES {{amount}} has been disbursed to your M-Pesa. Receipt: {{receipt}}.',
   loan_repayment_due:
     'Dear {{first_name}}, your loan repayment of KES {{amount}} is due on {{due_date}}. Outstanding: KES {{balance}}. Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}.',
   loan_overdue:
@@ -223,8 +223,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
     'Dear {{first_name}}, {{group_name}} meeting is on {{meeting_date}} at {{meeting_location}}. Kindly attend.',
   birthday:
     'Happy Birthday {{first_name}}! Your {{group_name}} family wishes you a wonderful year ahead. Stay blessed!',
-  payment_confirmed:
-    'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}.',
+  payment_confirmed: 'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}.',
   // Kept to one 160-character SMS segment even with a long group name —
   // "Ndengelwa Community Water Project" is 33 characters and real, so the
   // fixed text has to leave room for it. A second segment would double the
@@ -239,14 +238,12 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   // resolves to membership_no via VARIABLE_ALIASES, so no caller has to pass
   // it separately.
   contribution_reminder:
-    'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. '
-    + 'Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}. Thank you.',
+    'Dear {{first_name}}, this is a friendly reminder to make your {{group_name}} contribution for {{month}}. ' +
+    'Pay via M-Pesa Paybill {{paybill}}, Account {{account_number}}. Thank you.',
   welcome:
     'Dear {{first_name}}, you have joined {{group_name}} on Kitabu Yetu. Your member number is {{membership_no}}. Karibu.',
-  otp:
-    'Your Kitabu Yetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
-  group_announcement:
-    '{{group_name}}: {{message}}',
+  otp: 'Your Kitabu Yetu verification code is {{otp}}. Valid for 10 minutes. Do not share this code.',
+  group_announcement: '{{group_name}}: {{message}}',
   group_verification_otp:
     'Verify your Kitabu Yetu group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
 };

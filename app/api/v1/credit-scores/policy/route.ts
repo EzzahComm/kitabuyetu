@@ -22,7 +22,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'credit_scores.policy.manage', async (auth) => {
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const input = SetTierThresholdsSchema.parse(await req.json());
     await loanPolicyService.setGroupOverride(ctx, input.thresholds);
     return ok(await loanPolicyService.getGroupPolicy(ctx));

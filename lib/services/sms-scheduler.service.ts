@@ -20,28 +20,28 @@ import { resolveSmsRecipients } from './sms.service';
 import { renderTemplate } from '@/lib/sms/templates';
 
 interface ScheduleRow {
-  id:             string;
-  group_id:       string;
-  group_name:     string;
-  schedule_type:  string;
-  message:        string | null;
-  template_body:  string | null;
+  id: string;
+  group_id: string;
+  group_name: string;
+  schedule_type: string;
+  message: string | null;
+  template_body: string | null;
   recipient_type: string;
   raw_recipients: unknown;
-  next_run_at:    string;
-  created_by:     string;
+  next_run_at: string;
+  created_by: string;
 }
 
 interface CampaignRow {
-  id:             string;
-  group_id:       string;
-  group_name:     string;
-  message:        string;
+  id: string;
+  group_id: string;
+  group_name: string;
+  message: string;
   recipient_type: string;
   raw_recipients: unknown;
-  created_by:     string;
-  payer_type:             string;
-  payer_organization_id:  string | null;
+  created_by: string;
+  payer_type: string;
+  payer_organization_id: string | null;
 }
 
 /**
@@ -81,8 +81,9 @@ function renderScheduledMessage(message: string, groupName: string): string {
  */
 export async function processDueSmsSchedules(): Promise<{ processed: number; skipped: number }> {
   const rows = await withAdminDb((db) =>
-    db.query<ScheduleRow>(
-      `SELECT s.id, s.group_id, g.name AS group_name, s.schedule_type, s.message, s.recipient_type,
+    db
+      .query<ScheduleRow>(
+        `SELECT s.id, s.group_id, g.name AS group_name, s.schedule_type, s.message, s.recipient_type,
               s.raw_recipients, s.next_run_at, s.created_by,
               t.body AS template_body
        FROM sms_schedules s
@@ -94,12 +95,13 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
          AND s.schedule_type IN ('one_time','daily','weekly','monthly')
        ORDER BY s.next_run_at ASC
        LIMIT 100`,
-      [],
-    ).then((r) => r.rows),
+        [],
+      )
+      .then((r) => r.rows),
   );
 
   let processed = 0;
-  let skipped   = 0;
+  let skipped = 0;
 
   for (const s of rows) {
     const rawMessage = s.template_body ?? s.message;
@@ -107,13 +109,11 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
     // Resolve recipients (reads only) before opening the claim transaction, so
     // membership changes since scheduling are respected and the row lock is
     // held for as short a time as possible.
-    const phones = message
-      ? await resolveSmsRecipients(s.group_id, s.recipient_type, s.raw_recipients)
-      : [];
+    const phones = message ? await resolveSmsRecipients(s.group_id, s.recipient_type, s.raw_recipients) : [];
 
     const outcome = await withAdminDb(async (client) => {
       const occurrence = await claimOccurrence(client, s.id);
-      if (occurrence === null) return 'raced';   // another tick already claimed it
+      if (occurrence === null) return 'raced'; // another tick already claimed it
 
       if (!message) {
         logger.warn('[sms-scheduler] schedule has no message/template, skipping', { id: s.id });
@@ -126,13 +126,13 @@ export async function processDueSmsSchedules(): Promise<{ processed: number; ski
         {
           phones,
           message,
-          groupId:       s.group_id,
-          sentBy:        s.created_by,
+          groupId: s.group_id,
+          sentBy: s.created_by,
           referenceType: 'schedule',
-          referenceId:   s.id,
+          referenceId: s.id,
         },
         {
-          priority:  6,
+          priority: 6,
           max_attempts: 3,
           // One send per (schedule, occurrence). The occurrence advances each
           // run, so tomorrow's daily reminder is a distinct key and still sends.
@@ -228,7 +228,9 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
     // decision, and it should be visible when it happens rather than inferred
     // later from a gap in the logs.
     logger.warn('[sms-scheduler] skipped missed occurrences after downtime', {
-      scheduleId: id, skipped: missed, claimed: row.occurrence,
+      scheduleId: id,
+      skipped: missed,
+      claimed: row.occurrence,
     });
   }
   return row.occurrence;
@@ -237,16 +239,18 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
 /** Dispatch sms_campaigns whose scheduled_at has arrived. */
 export async function processDueScheduledCampaigns(): Promise<{ processed: number }> {
   const rows = await withAdminDb((db) =>
-    db.query<CampaignRow>(
-      `SELECT c.id, c.group_id, g.name AS group_name, c.message, c.recipient_type, c.raw_recipients, c.created_by,
+    db
+      .query<CampaignRow>(
+        `SELECT c.id, c.group_id, g.name AS group_name, c.message, c.recipient_type, c.raw_recipients, c.created_by,
               c.payer_type, c.payer_organization_id
        FROM sms_campaigns c
        JOIN groups g ON g.id = c.group_id
        WHERE c.status='scheduled' AND c.scheduled_at IS NOT NULL AND c.scheduled_at <= NOW()
        ORDER BY c.scheduled_at ASC
        LIMIT 100`,
-      [],
-    ).then((r) => r.rows),
+        [],
+      )
+      .then((r) => r.rows),
   );
 
   let processed = 0;
@@ -290,11 +294,11 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
         campaignId: c.id,
         phones,
         message,
-        groupId:    c.group_id,
-        sentBy:     c.created_by,
+        groupId: c.group_id,
+        sentBy: c.created_by,
         // Carried from the campaign row so a scheduled organization campaign
         // still bills the organization when it eventually fires.
-        fundedBy:            c.payer_type,
+        fundedBy: c.payer_type,
         payerOrganizationId: c.payer_organization_id,
       },
       { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${c.id}` },

@@ -44,15 +44,10 @@ export default function EcosystemPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <SiteHeader />
       <main id="main" className="flex-1">
-        <SectionTitle
-          preTitle="Ecosystem"
-          title="Build the relationships around the group"
-          titleAs="h1"
-        >
-          A group grows stronger when its records can open the right doors:
-          funding, training, financial products, professional support and markets.
-          Kitabu Yetu connects those relationships without taking the group&apos;s
-          own book away from it.
+        <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">
+          A group grows stronger when its records can open the right doors: funding, training, financial products,
+          professional support and markets. Kitabu Yetu connects those relationships without taking the group&apos;s own
+          book away from it.
         </SectionTitle>
 
         <div id="donors">
@@ -71,14 +66,9 @@ export default function EcosystemPage() {
           <Benefits imgPos="right" data={programs} />
         </div>
 
-        <SectionTitle
-          preTitle="Built on"
-          title="The products underneath"
-          align="center"
-        >
-          Every pillar above sits on top of the same products: Bookkeeper for
-          the ledger, Chama Reminder for the messaging, and Fundraise /
-          Changi$ha for causes and campaigns.
+        <SectionTitle preTitle="Built on" title="The products underneath" align="center">
+          Every pillar above sits on top of the same products: Bookkeeper for the ledger, Chama Reminder for the
+          messaging, and Fundraise / Changi$ha for causes and campaigns.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -89,8 +79,7 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-brand-blue-900">Bookkeeper</h3>
               <p className="mt-2 text-sm text-brand-blue-900/65">
-                The core ledger — contributions, loans, welfare and shares on one
-                double-entry book.
+                The core ledger — contributions, loans, welfare and shares on one double-entry book.
               </p>
             </Link>
             <Link
@@ -99,8 +88,8 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-brand-blue-900">Chama Reminder</h3>
               <p className="mt-2 text-sm text-brand-blue-900/65">
-                Member management and messaging — reminders, announcements and
-                engagement, standalone or with Bookkeeper.
+                Member management and messaging — reminders, announcements and engagement, standalone or with
+                Bookkeeper.
               </p>
             </Link>
             <Link
@@ -109,8 +98,7 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-brand-blue-900">Fundraise</h3>
               <p className="mt-2 text-sm text-brand-blue-900/65">
-                Digital campaigns for causes, projects and community fundraising
-                — coming soon.
+                Digital campaigns for causes, projects and community fundraising — coming soon.
               </p>
             </Link>
           </div>
@@ -153,7 +141,7 @@ const multigroup = {
   bullets: [
     {
       title: 'Every group in one view',
-      desc: "Linked groups under a single organization account, each keeping its own ledger and its own committee.",
+      desc: 'Linked groups under a single organization account, each keeping its own ledger and its own committee.',
       icon: <IconBuildingCommunity size={24} />,
     },
     {
@@ -186,7 +174,7 @@ const marketplace = {
     },
     {
       title: 'Matched to what a group can show',
-      desc: "Each offer can set its own criteria — how long a group has run, its type, its county, its balance — so a group sees where it stands before it applies.",
+      desc: 'Each offer can set its own criteria — how long a group has run, its type, its county, its balance — so a group sees where it stands before it applies.',
       icon: <IconChecklist size={24} />,
     },
   ],
@@ -194,7 +182,7 @@ const marketplace = {
 
 const programs = {
   title: 'Programs',
-  desc: "A funded programme running across many groups: its own rules, its own disbursements, and reporting that does not depend on chasing every group for numbers.",
+  desc: 'A funded programme running across many groups: its own rules, its own disbursements, and reporting that does not depend on chasing every group for numbers.',
   image: programsImg,
   bullets: [
     {

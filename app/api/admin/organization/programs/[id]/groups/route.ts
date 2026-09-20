@@ -26,10 +26,7 @@ import { ok } from '@/lib/utils/response';
 // Validating at the boundary keeps that a clean 400 — R14.
 const ParamsSchema = z.object({ id: z.string().uuid('Invalid program id') });
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.dashboard.view', async (auth) => {
     const { id } = ParamsSchema.parse(await params);
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };

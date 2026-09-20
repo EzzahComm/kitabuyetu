@@ -28,7 +28,7 @@ const PAGE_SIZE = 20;
 
 export default function PassbookPage() {
   const [filter, setFilter] = React.useState<Filter>('all');
-  const [limit, setLimit]   = React.useState(PAGE_SIZE);
+  const [limit, setLimit] = React.useState(PAGE_SIZE);
 
   const direction = filter === 'all' ? undefined : filter;
   // page stays 1, limit grows on "Load more" — a single query naturally
@@ -36,7 +36,10 @@ export default function PassbookPage() {
   // state needed.
   const { data, isLoading, isError, error, isFetching } = useMyPassbook({ page: 1, limit, direction });
 
-  const changeFilter = (f: Filter) => { setFilter(f); setLimit(PAGE_SIZE); };
+  const changeFilter = (f: Filter) => {
+    setFilter(f);
+    setLimit(PAGE_SIZE);
+  };
 
   const chips: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -103,7 +106,9 @@ export default function PassbookPage() {
               <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
               <Card>
                 <CardContent className="divide-y px-4 py-0">
-                  {g.items.map((e) => <PassbookRow key={e.id} entry={e} />)}
+                  {g.items.map((e) => (
+                    <PassbookRow key={e.id} entry={e} />
+                  ))}
                 </CardContent>
               </Card>
             </section>

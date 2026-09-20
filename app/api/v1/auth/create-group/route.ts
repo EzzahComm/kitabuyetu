@@ -12,22 +12,22 @@ import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
 interface CreateAdditionalGroupResult {
-  success:        true;
-  group_id:       string;
-  group_code:     string;
-  group_name:     string;
-  group_status:   string;
-  member_id:      string;
-  member_code:    string;
-  person_id:      string;
-  platform_role:  string;
-  creator_role:   string;
-  group_role:     string;
+  success: true;
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  group_status: string;
+  member_id: string;
+  member_code: string;
+  person_id: string;
+  platform_role: string;
+  creator_role: string;
+  group_role: string;
   signup_product: SubscriptionProduct;
-  first_name:     string;
-  last_name:      string;
-  phone:          string;
-  email:          string | null;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
 }
 
 /**
@@ -48,18 +48,18 @@ export async function POST(req: NextRequest): Promise<Response> {
       const input = CreateAdditionalGroupSchema.parse(await req.json());
 
       const rpcPayload = {
-        groupName:        input.groupName,
-        groupType:        input.groupType,
-        creatorRole:      input.creatorRole,
-        countyId:         input.countyId,
-        subCountyText:    input.subCountyText ?? '',
-        wardText:         input.wardText ?? '',
-        villageEstate:    input.villageEstate ?? '',
+        groupName: input.groupName,
+        groupType: input.groupType,
+        creatorRole: input.creatorRole,
+        countyId: input.countyId,
+        subCountyText: input.subCountyText ?? '',
+        wardText: input.wardText ?? '',
+        villageEstate: input.villageEstate ?? '',
         primaryObjective: input.primaryObjective ?? '',
         meetingFrequency: input.meetingFrequency ?? '',
-        meetingDay:       input.meetingDay ?? '',
-        meetingTime:      input.meetingTime ?? '',
-        product:          input.product,
+        meetingDay: input.meetingDay ?? '',
+        meetingTime: input.meetingTime ?? '',
+        product: input.product,
       };
 
       const result = await withAdminDb(async (client) => {
@@ -75,10 +75,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       // unchanged. The previous session (in whichever group the caller came
       // from) is left untouched, same independent-lineage model.
       const accessToken = signAccessToken({
-        sub:         result.member_id,
-        groupId:     result.group_id,
-        role:        result.group_role as MemberRole,
-        personId:    result.person_id,
+        sub: result.member_id,
+        groupId: result.group_id,
+        role: result.group_role as MemberRole,
+        personId: result.person_id,
         groupStatus: result.group_status,
       });
       const { token: refreshToken } = signRefreshToken(result.member_id, 'tenant', result.group_id);
@@ -91,8 +91,13 @@ export async function POST(req: NextRequest): Promise<Response> {
              VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(),
                      (SELECT gm.id FROM group_members gm
                       WHERE gm.group_id = $5 AND gm.member_id = $1))`,
-            [result.member_id, rtHash, refreshTtlSeconds(),
-             req.headers.get('x-forwarded-for') ?? null, result.group_id],
+            [
+              result.member_id,
+              rtHash,
+              refreshTtlSeconds(),
+              req.headers.get('x-forwarded-for') ?? null,
+              result.group_id,
+            ],
           ),
         );
         await storeRefreshToken(rtHash, result.member_id, refreshTtlSeconds());
@@ -103,32 +108,32 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       const response: LoginResponse & {
-        groupCode:     string;
-        memberCode:    string;
-        groupStatus:   string;
+        groupCode: string;
+        memberCode: string;
+        groupStatus: string;
         signupProduct: SubscriptionProduct;
       } = {
         accessToken,
         refreshToken,
         member: {
-          id:           result.member_id,
-          firstName:    result.first_name,
-          lastName:     result.last_name,
-          phone:        result.phone,
-          email:        result.email,
+          id: result.member_id,
+          firstName: result.first_name,
+          lastName: result.last_name,
+          phone: result.phone,
+          email: result.email,
           platformRole: result.platform_role as PlatformRole,
-          groupRole:    result.group_role as MemberRole,
-          groupId:      result.group_id,
-          groupName:    result.group_name,
-          groupCode:    result.group_code,
-          memberCode:   result.member_code,
-          personId:     result.person_id,
-          officerRole:  result.creator_role,
-          groupStatus:  result.group_status,
+          groupRole: result.group_role as MemberRole,
+          groupId: result.group_id,
+          groupName: result.group_name,
+          groupCode: result.group_code,
+          memberCode: result.member_code,
+          personId: result.person_id,
+          officerRole: result.creator_role,
+          groupStatus: result.group_status,
         },
-        groupCode:     result.group_code,
-        memberCode:    result.member_code,
-        groupStatus:   result.group_status,
+        groupCode: result.group_code,
+        memberCode: result.member_code,
+        groupStatus: result.group_status,
         signupProduct: result.signup_product,
       };
 
@@ -137,7 +142,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       const e = err as { code?: string; message?: string; constraint?: string };
 
       logger.error('[create-group] failed', {
-        memberId: auth.userId, pg_code: e?.code, message: e?.message, constraint: e?.constraint,
+        memberId: auth.userId,
+        pg_code: e?.code,
+        message: e?.message,
+        constraint: e?.constraint,
       });
 
       if (err instanceof AppError) return handleError(err);

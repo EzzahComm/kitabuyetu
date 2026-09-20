@@ -35,10 +35,10 @@ import { ForbiddenError } from '@/lib/utils/errors';
 const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, premium: 2, enterprise: 3 };
 
 interface FlagRow {
-  enabled:     boolean;
+  enabled: boolean;
   rollout_pct: number;
-  applies_to:  'all' | 'plan' | 'group' | 'member';
-  conditions:  { min_plan?: string; group_ids?: string[]; member_ids?: string[] } | null;
+  applies_to: 'all' | 'plan' | 'group' | 'member';
+  conditions: { min_plan?: string; group_ids?: string[]; member_ids?: string[] } | null;
 }
 
 /** Deterministic [0,100) bucket — same subject always lands in the same bucket for a given key. */
@@ -49,8 +49,8 @@ function rolloutBucket(key: string, subjectId: string): number {
 
 export async function isFeatureEnabled(
   client: PoolClient,
-  key:    string,
-  scope:  { groupId?: string | null; memberId?: string | null },
+  key: string,
+  scope: { groupId?: string | null; memberId?: string | null },
 ): Promise<boolean> {
   const { rows } = await client.query<FlagRow>(
     `SELECT enabled, rollout_pct, applies_to, conditions FROM feature_flags WHERE key = $1`,
@@ -103,7 +103,7 @@ export async function isFeatureEnabled(
   }
 
   if (flag.rollout_pct >= 100) return true;
-  if (flag.rollout_pct <= 0)   return false;
+  if (flag.rollout_pct <= 0) return false;
   const subject = scope.groupId ?? scope.memberId;
   if (!subject) return false; // percentage rollout needs a stable subject
   return rolloutBucket(key, subject) < flag.rollout_pct;

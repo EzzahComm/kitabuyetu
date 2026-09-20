@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { accountingService } from '@/lib/services/accounting.service';
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
     const input = CreateAccountSchema.parse(await req.json());
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return created(await accountingService.createAccount(ctx, input));
   });
 }

@@ -18,11 +18,11 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 /** A response row shaped exactly as TextSMS sends it — everything stringified. */
 function providerRow(overrides: Record<string, unknown> = {}) {
   return {
-    'respose-code':         '200',
+    'respose-code': '200',
     'response-description': 'Success',
-    mobile:                 '254717548646',
-    messageid:              '655405696',
-    networkid:              '1',
+    mobile: '254717548646',
+    messageid: '655405696',
+    networkid: '1',
     ...overrides,
   };
 }
@@ -53,10 +53,12 @@ describe('TextSMS response normalization (C2)', () => {
     it('treats a genuine error code as failure regardless of string typing', async () => {
       mockedAxios.post.mockResolvedValue({
         data: {
-          responses: [providerRow({
-            'respose-code': '1006',
-            'response-description': 'Invalid Credentials',
-          })],
+          responses: [
+            providerRow({
+              'respose-code': '1006',
+              'response-description': 'Invalid Credentials',
+            }),
+          ],
         },
       });
 
@@ -106,13 +108,15 @@ describe('TextSMS response normalization (C2)', () => {
     it('reads the correctly-spelled "response-code" key as success', async () => {
       mockedAxios.post.mockResolvedValue({
         data: {
-          responses: [{
-            'response-code':        '200',
-            'response-description': 'Success',
-            mobile:                 '254717548646',
-            messageid:              '800983636',
-            networkid:              '1',
-          }],
+          responses: [
+            {
+              'response-code': '200',
+              'response-description': 'Success',
+              mobile: '254717548646',
+              messageid: '800983636',
+              networkid: '1',
+            },
+          ],
         },
       });
 
@@ -125,13 +129,15 @@ describe('TextSMS response normalization (C2)', () => {
     it('reads a correctly-spelled error code as failure', async () => {
       mockedAxios.post.mockResolvedValue({
         data: {
-          responses: [{
-            'response-code':        1006,
-            'response-description': 'Invalid Credentials',
-            mobile:                 '254717548646',
-            messageid:              '',
-            networkid:              '',
-          }],
+          responses: [
+            {
+              'response-code': 1006,
+              'response-description': 'Invalid Credentials',
+              mobile: '254717548646',
+              messageid: '',
+              networkid: '',
+            },
+          ],
         },
       });
 
@@ -151,8 +157,20 @@ describe('TextSMS response normalization (C2)', () => {
       mockedAxios.post.mockResolvedValue({
         data: {
           responses: [
-            { 'response-code': '200', 'response-description': 'Success', mobile: '254717548646', messageid: '1', networkid: '1' },
-            { 'response-code': '1003', 'response-description': 'Invalid Mobile Number', mobile: '254717548647', messageid: '', networkid: '' },
+            {
+              'response-code': '200',
+              'response-description': 'Success',
+              mobile: '254717548646',
+              messageid: '1',
+              networkid: '1',
+            },
+            {
+              'response-code': '1003',
+              'response-description': 'Invalid Mobile Number',
+              mobile: '254717548647',
+              messageid: '',
+              networkid: '',
+            },
           ],
         },
       });

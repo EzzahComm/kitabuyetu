@@ -31,14 +31,16 @@ function asSuperAdmin(userId: string) {
 }
 
 describe('super_admin edits a group profile', () => {
-  beforeEach(async () => { await resetDatabase(); });
-  afterAll(async () => { await resetDatabase(); });
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   it('renames a group and records the before/after in audit_logs', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
-    const [{ name: before }] = await rawQuery<{ name: string }>(
-      `SELECT name FROM groups WHERE id = $1`, [groupId],
-    );
+    const [{ name: before }] = await rawQuery<{ name: string }>(`SELECT name FROM groups WHERE id = $1`, [groupId]);
 
     const res = await groupPatch(
       buildRequest(`/api/admin/groups/${groupId}`, {
@@ -69,13 +71,14 @@ describe('super_admin edits a group profile', () => {
 
     // Put both in the same county so uq_group_name_per_county can bite.
     const [{ id: countyId }] = await rawQuery<{ id: string }>(`SELECT id FROM counties LIMIT 1`);
-    const [{ name: countyName }] = await rawQuery<{ name: string }>(
-      `SELECT name FROM counties WHERE id = $1`, [countyId],
-    );
-    await rawQuery(
-      `UPDATE groups SET county_id = $2, county = $3 WHERE id = ANY($1::uuid[])`,
-      [[a.groupId, b.groupId], countyId, countyName],
-    );
+    const [{ name: countyName }] = await rawQuery<{ name: string }>(`SELECT name FROM counties WHERE id = $1`, [
+      countyId,
+    ]);
+    await rawQuery(`UPDATE groups SET county_id = $2, county = $3 WHERE id = ANY($1::uuid[])`, [
+      [a.groupId, b.groupId],
+      countyId,
+      countyName,
+    ]);
     await rawQuery(`UPDATE groups SET name = 'Taken Name' WHERE id = $1`, [a.groupId]);
 
     const res = await groupPatch(
@@ -105,16 +108,20 @@ describe('super_admin edits a group profile', () => {
     );
     expect(res.status).toBe(200);
 
-    const [row] = await rawQuery<{ onboarding_status: string }>(
-      `SELECT onboarding_status FROM groups WHERE id = $1`, [groupId],
-    );
+    const [row] = await rawQuery<{ onboarding_status: string }>(`SELECT onboarding_status FROM groups WHERE id = $1`, [
+      groupId,
+    ]);
     expect(row.onboarding_status).toBe('suspended');
   });
 });
 
 describe('super_admin edits a member', () => {
-  beforeEach(async () => { await resetDatabase(); });
-  afterAll(async () => { await resetDatabase(); });
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   it('renames a member AND propagates the name to the cross-group person record', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
@@ -130,7 +137,8 @@ describe('super_admin edits a member', () => {
     expect(res.status).toBe(200);
 
     const [member] = await rawQuery<{ first_name: string; last_name: string }>(
-      `SELECT first_name, last_name FROM members WHERE id = $1`, [officerId],
+      `SELECT first_name, last_name FROM members WHERE id = $1`,
+      [officerId],
     );
     expect(member.first_name).toBe('Corrected');
     expect(member.last_name).toBe('Spelling');
@@ -165,9 +173,9 @@ describe('super_admin edits a member', () => {
 
   it('REFUSES a phone change outright — phone is the login identity', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
-    const [{ phone: before }] = await rawQuery<{ phone: string }>(
-      `SELECT phone FROM members WHERE id = $1`, [officerId],
-    );
+    const [{ phone: before }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [
+      officerId,
+    ]);
 
     const res = await memberPatch(
       buildRequest(`/api/admin/groups/${groupId}/members/${officerId}`, {
@@ -182,7 +190,8 @@ describe('super_admin edits a member', () => {
     expect(res.status).toBe(400);
 
     const [after] = await rawQuery<{ phone: string; first_name: string }>(
-      `SELECT phone, first_name FROM members WHERE id = $1`, [officerId],
+      `SELECT phone, first_name FROM members WHERE id = $1`,
+      [officerId],
     );
     expect(after.phone).toBe(before);
     // And the rest of the payload must NOT have been applied either.

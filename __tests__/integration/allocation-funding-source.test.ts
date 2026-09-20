@@ -47,15 +47,22 @@ describe('allocation → group funding source', () => {
     await resetDatabase();
   });
 
-  const orgCtx = (userId: string): TenantContext => ({
-    userId, groupId: null, role: 'organization_coordinator', organizationId: orgId,
-  } as unknown as TenantContext);
+  const orgCtx = (userId: string): TenantContext =>
+    ({
+      userId,
+      groupId: null,
+      role: 'organization_coordinator',
+      organizationId: orgId,
+    }) as unknown as TenantContext;
 
-  const groupCtx = (): TenantContext => ({
-    userId: coordId, groupId, role: 'chairperson',
-  } as unknown as TenantContext);
+  const groupCtx = (): TenantContext =>
+    ({
+      userId: coordId,
+      groupId,
+      role: 'chairperson',
+    }) as unknown as TenantContext;
 
-  it("lets an organization make its FIRST deposit without having opened the wallet screen", async () => {
+  it('lets an organization make its FIRST deposit without having opened the wallet screen', async () => {
     // Pre-existing production bug, found by this job: deposit() row-locked the
     // wallet with a helper that THREW when no wallet row existed, and
     // createOrganization() seeds a chart of accounts but not a wallet — only
@@ -65,17 +72,21 @@ describe('allocation → group funding source', () => {
     // no wallet row at all, so this blocked real onboarding.
     const { organizationId, coordinatorId } = await createTestOrganization();
     const freshCtx = {
-      userId: coordinatorId, groupId: null,
-      role: 'organization_coordinator', organizationId,
+      userId: coordinatorId,
+      groupId: null,
+      role: 'organization_coordinator',
+      organizationId,
     } as unknown as TenantContext;
 
     const before = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM organization_wallets WHERE organization_id = $1`, [organizationId],
+      `SELECT count(*) AS n FROM organization_wallets WHERE organization_id = $1`,
+      [organizationId],
     );
     expect(Number(before[0].n)).toBe(0);
 
     const { wallet } = await organizationFinanceService.deposit(freshCtx, {
-      amount: 1_500_000, source: 'Cash',
+      amount: 1_500_000,
+      source: 'Cash',
     });
 
     expect(parseFloat(wallet.available_balance)).toBe(1_500_000);
@@ -84,13 +95,18 @@ describe('allocation → group funding source', () => {
   it('creates an organization_allocation funding source when a cash allocation settles', async () => {
     // The real shape: a 1.5M fund, 1M out to the group, paid in cash.
     const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {
-      name: 'Seed Capital', programType: 'seed_capital', budget: 1_500_000,
+      name: 'Seed Capital',
+      programType: 'seed_capital',
+      budget: 1_500_000,
     });
     await organizationFinanceService.deposit(orgCtx(coordId), { amount: 1_500_000, source: 'Cash' });
 
     const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
-      groupId, amount: 1_000_000, disbursementType: 'seed_capital',
-      fundingProgramId: fund.id, purpose: 'On-lending to members',
+      groupId,
+      amount: 1_000_000,
+      disbursementType: 'seed_capital',
+      fundingProgramId: fund.id,
+      purpose: 'On-lending to members',
     });
 
     // Above the default threshold, so it parks for a second approver.
@@ -137,7 +153,8 @@ describe('allocation → group funding source', () => {
     // settleOrgDisbursement only transitions rows still 'approved', so this is
     // a no-op; the ON CONFLICT guard covers the case where it is not.
     const [disb] = await rawQuery<{ id: string }>(
-      `SELECT id FROM organization_disbursements WHERE group_id = $1 LIMIT 1`, [groupId],
+      `SELECT id FROM organization_disbursements WHERE group_id = $1 LIMIT 1`,
+      [groupId],
     );
     await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id).catch(() => {});
 
@@ -158,26 +175,38 @@ describe('allocation → group funding source', () => {
     );
 
     const facility = await organizationFinanceService.createProgram(orgCtx(coordId), {
-      name: 'Revolving Facility', programType: 'revolving_fund', budget: 400_000,
-      isRepayable: true, interestMethod: 'reducing_balance', interestRateAnnual: 12.5,
-      repaymentFrequency: 'monthly', tenorMonths: 12,
+      name: 'Revolving Facility',
+      programType: 'revolving_fund',
+      budget: 400_000,
+      isRepayable: true,
+      interestMethod: 'reducing_balance',
+      interestRateAnnual: 12.5,
+      repaymentFrequency: 'monthly',
+      tenorMonths: 12,
       repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] },
     });
     await organizationFinanceService.deposit(orgCtx(coordId), { amount: 400_000, source: 'Cash' });
 
     const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
-      groupId: g2, amount: 300_000, disbursementType: 'revolving_fund', fundingProgramId: facility.id,
+      groupId: g2,
+      amount: 300_000,
+      disbursementType: 'revolving_fund',
+      fundingProgramId: facility.id,
     });
     if (disb.status === 'pending_approval') {
       await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
     }
 
     const [row] = await rawQuery<{
-      is_repayable: boolean; interest_rate_annual: string | null;
-      repayment_frequency: string | null; tenor_months: number | null; maturity_date: string | null;
+      is_repayable: boolean;
+      interest_rate_annual: string | null;
+      repayment_frequency: string | null;
+      tenor_months: number | null;
+      maturity_date: string | null;
     }>(
       `SELECT is_repayable, interest_rate_annual, repayment_frequency, tenor_months, maturity_date
-       FROM organization_disbursements WHERE id = $1`, [disb.id],
+       FROM organization_disbursements WHERE id = $1`,
+      [disb.id],
     );
 
     expect(row.is_repayable).toBe(true);
@@ -189,19 +218,21 @@ describe('allocation → group funding source', () => {
     // Repricing the product must NOT change the existing allocation.
     await rawQuery(`UPDATE funding_programs SET interest_rate_annual = 30 WHERE id = $1`, [facility.id]);
     const [after] = await rawQuery<{ interest_rate_annual: string }>(
-      `SELECT interest_rate_annual FROM organization_disbursements WHERE id = $1`, [disb.id],
+      `SELECT interest_rate_annual FROM organization_disbursements WHERE id = $1`,
+      [disb.id],
     );
     expect(parseFloat(after.interest_rate_annual)).toBe(12.5);
 
     // And the group-side source reflects that this money is a debt.
     const g2Sources = await rawQuery<{ is_repayable: boolean }>(
       `SELECT is_repayable FROM group_funding_sources
-       WHERE group_id = $1 AND source_type = 'organization_allocation'`, [g2],
+       WHERE group_id = $1 AND source_type = 'organization_allocation'`,
+      [g2],
     );
     expect(g2Sources[0].is_repayable).toBe(true);
   });
 
-  describe('processing fee (migration 125) — deducted from what\'s disbursed', () => {
+  describe("processing fee (migration 125) — deducted from what's disbursed", () => {
     it('nets the fee out of wallet cash while the group owes the full gross principal', async () => {
       const { groupId: g3 } = await createTestGroup('chairperson');
       await rawQuery(
@@ -211,9 +242,14 @@ describe('allocation → group funding source', () => {
       );
 
       const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {
-        name: 'Fee-bearing Seed Capital', programType: 'seed_capital', budget: 1_500_000,
-        isRepayable: true, interestMethod: 'flat', interestRateAnnual: 120,
-        repaymentFrequency: 'weekly', tenorMonths: 1,
+        name: 'Fee-bearing Seed Capital',
+        programType: 'seed_capital',
+        budget: 1_500_000,
+        isRepayable: true,
+        interestMethod: 'flat',
+        interestRateAnnual: 120,
+        repaymentFrequency: 'weekly',
+        tenorMonths: 1,
         repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] },
         processingFeePct: 3,
       });
@@ -226,19 +262,25 @@ describe('allocation → group funding source', () => {
       // nets 970,000, so a real operator entering "The Fionas get 1,000,000
       // cash" must gross up. This test proves the math, not the UI prompt.
       const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
-        groupId: g3, amount: 1_030_928, disbursementType: 'seed_capital',
-        fundingProgramId: fund.id, purpose: 'On-lending to members',
+        groupId: g3,
+        amount: 1_030_928,
+        disbursementType: 'seed_capital',
+        fundingProgramId: fund.id,
+        purpose: 'On-lending to members',
       });
       if (disb.status === 'pending_approval') {
         await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
       }
 
       const [row] = await rawQuery<{
-        amount: string; processing_fee_pct: string; processing_fee_amount: string;
+        amount: string;
+        processing_fee_pct: string;
+        processing_fee_amount: string;
         net_disbursed_amount: string;
       }>(
         `SELECT amount, processing_fee_pct, processing_fee_amount, net_disbursed_amount
-         FROM organization_disbursements WHERE id = $1`, [disb.id],
+         FROM organization_disbursements WHERE id = $1`,
+        [disb.id],
       );
       expect(parseFloat(row.processing_fee_pct)).toBe(3);
       // 1,030,928 * 3% = 30,927.84
@@ -267,7 +309,8 @@ describe('allocation → group funding source', () => {
       // The fee itself is recorded as an audit-trail ledger row.
       const [feeEntry] = await rawQuery<{ direction: string; amount: string }>(
         `SELECT direction, amount FROM organization_ledger
-         WHERE disbursement_id = $1 AND entry_type = 'fee'`, [disb.id],
+         WHERE disbursement_id = $1 AND entry_type = 'fee'`,
+        [disb.id],
       );
       expect(feeEntry.direction).toBe('credit');
       expect(parseFloat(feeEntry.amount)).toBeCloseTo(30_927.84, 2);
@@ -282,20 +325,26 @@ describe('allocation → group funding source', () => {
       );
 
       const grant = await organizationFinanceService.createProgram(orgCtx(coordId), {
-        name: 'Fee-bearing Grant', programType: 'grant', budget: 200_000,
+        name: 'Fee-bearing Grant',
+        programType: 'grant',
+        budget: 200_000,
         processingFeePct: 2,
       });
       await organizationFinanceService.deposit(orgCtx(coordId), { amount: 200_000, source: 'Cash' });
 
       const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
-        groupId: g4, amount: 50_000, disbursementType: 'grant', fundingProgramId: grant.id,
+        groupId: g4,
+        amount: 50_000,
+        disbursementType: 'grant',
+        fundingProgramId: grant.id,
       });
       if (disb.status === 'pending_approval') {
         await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);
       }
 
       const [row] = await rawQuery<{ is_repayable: boolean; processing_fee_amount: string }>(
-        `SELECT is_repayable, processing_fee_amount FROM organization_disbursements WHERE id = $1`, [disb.id],
+        `SELECT is_repayable, processing_fee_amount FROM organization_disbursements WHERE id = $1`,
+        [disb.id],
       );
       expect(row.is_repayable).toBe(false);
       expect(parseFloat(row.processing_fee_amount)).toBe(1_000); // 50,000 * 2%
@@ -310,12 +359,17 @@ describe('allocation → group funding source', () => {
       );
 
       const fund = await organizationFinanceService.createProgram(orgCtx(coordId), {
-        name: 'No Fee Fund', programType: 'grant', budget: 100_000,
+        name: 'No Fee Fund',
+        programType: 'grant',
+        budget: 100_000,
       });
       await organizationFinanceService.deposit(orgCtx(coordId), { amount: 100_000, source: 'Cash' });
 
       const disb = await organizationFinanceService.disburse(orgCtx(coordId), {
-        groupId: g5, amount: 40_000, disbursementType: 'grant', fundingProgramId: fund.id,
+        groupId: g5,
+        amount: 40_000,
+        disbursementType: 'grant',
+        fundingProgramId: fund.id,
       });
       if (disb.status === 'pending_approval') {
         await organizationFinanceService.approveDisbursement(orgCtx(approverId), disb.id);

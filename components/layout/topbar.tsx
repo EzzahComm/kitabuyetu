@@ -14,9 +14,7 @@ interface TopBarProps {
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { user } = useAuth();
 
-  const initials = user
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : '??';
+  const initials = user ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : '??';
 
   return (
     <header className="h-16 border-b bg-background flex items-center gap-4 px-4 lg:px-6">
@@ -28,20 +26,14 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       </button>
 
       {/* Global search — opens the ⌘K command palette */}
-      <SearchTrigger
-        variant="dashboard"
-        onOpen={openCommandPalette}
-        placeholder="Search or jump to…"
-      />
+      <SearchTrigger variant="dashboard" onOpen={openCommandPalette} placeholder="Search or jump to…" />
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="relative">
           <Bell size={18} />
         </Button>
         <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-brand-500 text-white text-xs font-semibold">
-            {initials}
-          </AvatarFallback>
+          <AvatarFallback className="bg-brand-500 text-white text-xs font-semibold">{initials}</AvatarFallback>
         </Avatar>
       </div>
     </header>

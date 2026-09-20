@@ -19,7 +19,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function PUT(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.branding.manage', async (auth) => {
     try {
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
       const input = BrandingSchema.parse(await req.json());
       return ok(await organizationService.setBranding(ctx, input));
     } catch (err) {

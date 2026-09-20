@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'payouts.manage');
 
       const input = ActionSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
       if (input.action === 'approve') {
         return ok(await disbursementsService.approve(ctx, id));

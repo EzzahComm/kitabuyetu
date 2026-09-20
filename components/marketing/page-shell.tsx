@@ -5,9 +5,9 @@ import { SiteHeader } from './site-header';
 import { fraunces } from './fraunces-font';
 
 interface PageShellProps {
-  title:        string;
+  title: string;
   description?: string;
-  children:     ReactNode;
+  children: ReactNode;
 }
 
 /**
@@ -38,11 +38,7 @@ export function PageShell({ title, description, children }: PageShellProps) {
               <h1 className="font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
                 {title}
               </h1>
-              {description && (
-                <p className="mt-5 text-lg leading-relaxed text-brand-blue-900/60">
-                  {description}
-                </p>
-              )}
+              {description && <p className="mt-5 text-lg leading-relaxed text-brand-blue-900/60">{description}</p>}
             </div>
           </Container>
         </div>

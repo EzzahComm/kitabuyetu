@@ -17,8 +17,8 @@ import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 const AirtimeSchema = z.object({
-  phone:   z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  amount:  z.number().int().positive(),
+  phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+  amount: z.number().int().positive(),
   remarks: z.string().max(100).optional(),
 });
 
@@ -29,11 +29,15 @@ const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -46,8 +50,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     after(async () => {
-      try { await handleAirtimeResult(body, ip); }
-      catch (err) { logger.error('[airtime result]', err); }
+      try {
+        await handleAirtimeResult(body, ip);
+      } catch (err) {
+        logger.error('[airtime result]', err);
+      }
     });
     return ack();
   }
@@ -56,18 +63,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'payments.disburse', async (auth) => {
     try {
       const input = AirtimeSchema.parse(await req.json());
-      const res   = await initiateAirtime({
-        phone:       input.phone,
-        amount:      input.amount,
-        remarks:     input.remarks,
-        groupId:     auth.groupId,
+      const res = await initiateAirtime({
+        phone: input.phone,
+        amount: input.amount,
+        remarks: input.remarks,
+        groupId: auth.groupId,
         initiatedBy: auth.userId,
       });
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseDescription:      res.responseDescription,
-        message:                  'Airtime purchase initiated. Monitor the result callback.',
+        responseDescription: res.responseDescription,
+        message: 'Airtime purchase initiated. Monitor the result callback.',
       });
     } catch (err) {
       return handleError(err);

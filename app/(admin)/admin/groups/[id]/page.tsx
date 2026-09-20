@@ -3,10 +3,22 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Building2, ShieldCheck, AlertTriangle,
-  Users, Coins, TrendingUp, Headphones,
-  MoreHorizontal, CheckCircle2, Ban, RefreshCw, XCircle,
-  Phone, Mail, Activity, Pencil,
+  Building2,
+  ShieldCheck,
+  AlertTriangle,
+  Users,
+  Coins,
+  TrendingUp,
+  Headphones,
+  MoreHorizontal,
+  CheckCircle2,
+  Ban,
+  RefreshCw,
+  XCircle,
+  Phone,
+  Mail,
+  Activity,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -17,37 +29,41 @@ import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  useAdminGroup, useUpdateGroupStatus, useUpdateGroupProfile,
-  useAdminGroupMembers, useGroupGovernanceSnapshot,
+  useAdminGroup,
+  useUpdateGroupStatus,
+  useUpdateGroupProfile,
+  useAdminGroupMembers,
+  useGroupGovernanceSnapshot,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 
 interface GroupActivityRow {
-  action:     string;
+  action: string;
   table_name: string;
   created_at: string;
 }
 
 interface GroupMemberRow {
-  id:          string;
-  first_name:  string;
-  last_name:   string;
-  email:       string | null;
-  phone:       string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string;
   member_code: string | null;
-  group_role:  string;
-  status:      string;
-  joined_at:   string;
+  group_role: string;
+  status: string;
+  joined_at: string;
 }
 
 // active/pending/suspended are already mapped by STATUS_TONE; deactivated is
@@ -57,9 +73,9 @@ const GROUP_STATUS_TONE: Record<string, Tone> = {
 };
 
 const PLAN_BADGE: Record<string, string> = {
-  starter:    'bg-muted text-muted-foreground border-border',
-  growth:     'bg-blue-100 text-blue-700 border-blue-200',
-  premium:    'bg-amber-100 text-amber-700 border-amber-200',
+  starter: 'bg-muted text-muted-foreground border-border',
+  growth: 'bg-blue-100 text-blue-700 border-blue-200',
+  premium: 'bg-amber-100 text-amber-700 border-amber-200',
   enterprise: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
@@ -76,11 +92,7 @@ const ACTION_DOT: Record<string, string> = {
   DELETE: 'bg-red-500',
 };
 
-export default function GroupDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function GroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
@@ -89,7 +101,12 @@ export default function GroupDetailPage({
   const updateStatus = useUpdateGroupStatus();
 
   const [memberPage, setMemberPage] = useState(1);
-  const { data: membersData, isLoading: membersLoading, isError: membersIsError, error: membersError } = useAdminGroupMembers(id, memberPage);
+  const {
+    data: membersData,
+    isLoading: membersLoading,
+    isError: membersIsError,
+    error: membersError,
+  } = useAdminGroupMembers(id, memberPage);
   const { data: snapshot } = useGroupGovernanceSnapshot(id);
 
   const [confirmAction, setConfirmAction] = useState<{
@@ -130,29 +147,33 @@ export default function GroupDetailPage({
     // trips uq_group_name_per_county against the group's own row in some
     // orderings — a 409 for changing nothing.
     const original: Record<string, string> = {
-      name:             grp.name ?? '',
-      type:             grp.group_type ?? '',
-      subCounty:        grp.sub_county ?? '',
-      ward:             grp.ward ?? '',
-      villageEstate:    grp.village_estate ?? '',
+      name: grp.name ?? '',
+      type: grp.group_type ?? '',
+      subCounty: grp.sub_county ?? '',
+      ward: grp.ward ?? '',
+      villageEstate: grp.village_estate ?? '',
       meetingFrequency: grp.meeting_frequency ?? '',
-      meetingDay:       grp.meeting_day ?? '',
-      meetingTime:      (grp.meeting_time ?? '').slice(0, 5),
+      meetingDay: grp.meeting_day ?? '',
+      meetingTime: (grp.meeting_time ?? '').slice(0, 5),
     };
-    const NULLABLE = new Set([
-      'subCounty', 'ward', 'villageEstate', 'meetingFrequency', 'meetingDay', 'meetingTime',
-    ]);
+    const NULLABLE = new Set(['subCounty', 'ward', 'villageEstate', 'meetingFrequency', 'meetingDay', 'meetingTime']);
 
     const body: Record<string, string | null> = {};
     for (const [k, v] of Object.entries(edits)) {
       if (v === original[k]) continue;
       // name and type are NOT nullable — blanking them is a mistake, not an
       // instruction, so they are simply skipped rather than sent as null.
-      if (v === '') { if (NULLABLE.has(k)) body[k] = null; continue; }
+      if (v === '') {
+        if (NULLABLE.has(k)) body[k] = null;
+        continue;
+      }
       body[k] = v;
     }
 
-    if (Object.keys(body).length === 0) { setEditOpen(false); return; }
+    if (Object.keys(body).length === 0) {
+      setEditOpen(false);
+      return;
+    }
 
     try {
       await updateProfile.mutateAsync({ id, ...body });
@@ -170,7 +191,9 @@ export default function GroupDetailPage({
       <div className="space-y-5">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
         </div>
         <Skeleton className="h-48 rounded-xl" />
       </div>
@@ -181,7 +204,9 @@ export default function GroupDetailPage({
     return (
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Group not found</p>
-        <Button variant="link" className="mt-2" onClick={() => router.back()}>← Go back</Button>
+        <Button variant="link" className="mt-2" onClick={() => router.back()}>
+          ← Go back
+        </Button>
       </div>
     );
   }
@@ -195,66 +220,71 @@ export default function GroupDetailPage({
       <PageHeader
         title={grp.name}
         description={`${TYPE_LABELS[grp.group_type] ?? grp.group_type}${grp.registration_number ? ` · ${grp.registration_number}` : ''}`}
-        breadcrumbs={[
-          { label: 'Groups', href: '/admin/groups' },
-          { label: grp.name },
-        ]}
+        breadcrumbs={[{ label: 'Groups', href: '/admin/groups' }, { label: grp.name }]}
         actions={
           <div className="flex items-center gap-2">
-          <Button
-            variant="outline" size="sm" className="h-8 gap-1.5"
-            onClick={() => {
-              setEdits({
-                name:             grp.name ?? '',
-                type:             grp.group_type ?? '',
-                subCounty:        grp.sub_county ?? '',
-                ward:             grp.ward ?? '',
-                villageEstate:    grp.village_estate ?? '',
-                meetingFrequency: grp.meeting_frequency ?? '',
-                meetingDay:       grp.meeting_day ?? '',
-                meetingTime:      (grp.meeting_time ?? '').slice(0, 5),
-              });
-              setEditOpen(true);
-            }}
-          >
-            <Pencil size={14} /> Edit
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                Actions <MoreHorizontal size={14} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {grp.onboarding_status === 'pending' && (
-                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'approve', label: 'Approve' })}>
-                  <CheckCircle2 size={13} className="mr-2 text-green-600" /> Approve Group
-                </DropdownMenuItem>
-              )}
-              {grp.onboarding_status === 'active' && (
-                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'suspend', label: 'Suspend' })}
-                  className="text-red-600 focus:text-red-600">
-                  <Ban size={13} className="mr-2" /> Suspend Group
-                </DropdownMenuItem>
-              )}
-              {grp.onboarding_status === 'suspended' && (
-                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'activate', label: 'Reactivate' })}>
-                  <RefreshCw size={13} className="mr-2 text-blue-600" /> Reactivate
-                </DropdownMenuItem>
-              )}
-              {grp.onboarding_status !== 'deactivated' && (
-                <DropdownMenuItem onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
-                  className="text-muted-foreground">
-                  <XCircle size={13} className="mr-2" /> Deactivate
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => {
+                setEdits({
+                  name: grp.name ?? '',
+                  type: grp.group_type ?? '',
+                  subCounty: grp.sub_county ?? '',
+                  ward: grp.ward ?? '',
+                  villageEstate: grp.village_estate ?? '',
+                  meetingFrequency: grp.meeting_frequency ?? '',
+                  meetingDay: grp.meeting_day ?? '',
+                  meetingTime: (grp.meeting_time ?? '').slice(0, 5),
+                });
+                setEditOpen(true);
+              }}
+            >
+              <Pencil size={14} /> Edit
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                  Actions <MoreHorizontal size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {grp.onboarding_status === 'pending' && (
+                  <DropdownMenuItem onClick={() => setConfirmAction({ action: 'approve', label: 'Approve' })}>
+                    <CheckCircle2 size={13} className="mr-2 text-green-600" /> Approve Group
+                  </DropdownMenuItem>
+                )}
+                {grp.onboarding_status === 'active' && (
+                  <DropdownMenuItem
+                    onClick={() => setConfirmAction({ action: 'suspend', label: 'Suspend' })}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Ban size={13} className="mr-2" /> Suspend Group
+                  </DropdownMenuItem>
+                )}
+                {grp.onboarding_status === 'suspended' && (
+                  <DropdownMenuItem onClick={() => setConfirmAction({ action: 'activate', label: 'Reactivate' })}>
+                    <RefreshCw size={13} className="mr-2 text-blue-600" /> Reactivate
+                  </DropdownMenuItem>
+                )}
+                {grp.onboarding_status !== 'deactivated' && (
+                  <DropdownMenuItem
+                    onClick={() => setConfirmAction({ action: 'deactivate', label: 'Deactivate' })}
+                    className="text-muted-foreground"
+                  >
+                    <XCircle size={13} className="mr-2" /> Deactivate
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${grp.plan ? (PLAN_BADGE[grp.plan] ?? 'bg-muted text-muted-foreground border-border') : 'bg-red-50 text-red-600 border-red-200'}`}>
+          <span
+            className={`text-xs font-semibold px-2 py-0.5 rounded border capitalize ${grp.plan ? (PLAN_BADGE[grp.plan] ?? 'bg-muted text-muted-foreground border-border') : 'bg-red-50 text-red-600 border-red-200'}`}
+          >
             {grp.plan ?? 'No plan'}
           </span>
           <StatusPill status={grp.onboarding_status} tone={GROUP_STATUS_TONE[grp.onboarding_status]} size="sm" />
@@ -313,7 +343,9 @@ export default function GroupDetailPage({
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
               <div>
                 <p className="text-muted-foreground mb-0.5">Type</p>
-                <p className="font-medium text-foreground capitalize">{TYPE_LABELS[grp.group_type] ?? grp.group_type}</p>
+                <p className="font-medium text-foreground capitalize">
+                  {TYPE_LABELS[grp.group_type] ?? grp.group_type}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Subscription</p>
@@ -321,7 +353,9 @@ export default function GroupDetailPage({
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Plan Period End</p>
-                <p className="font-medium text-foreground">{grp.current_period_end ? formatDate(grp.current_period_end) : '—'}</p>
+                <p className="font-medium text-foreground">
+                  {grp.current_period_end ? formatDate(grp.current_period_end) : '—'}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Registered</p>
@@ -341,9 +375,13 @@ export default function GroupDetailPage({
                 scoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) from
                 real liquidity/credit/profitability/growth metrics. */}
             <div className="pt-2.5 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5"><Activity size={11} /> Governance Health Score</p>
+              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Activity size={11} /> Governance Health Score
+              </p>
               {!snapshot?.healthScore ? (
-                <p className="text-xs text-muted-foreground">Not yet computed — runs monthly, or trigger it manually from Admin tools.</p>
+                <p className="text-xs text-muted-foreground">
+                  Not yet computed — runs monthly, or trigger it manually from Admin tools.
+                </p>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -356,12 +394,20 @@ export default function GroupDetailPage({
                     <span className="text-xs font-semibold text-muted-foreground">{snapshot.healthScore.score}</span>
                     <StatusPill
                       status={snapshot.healthScore.rag}
-                      tone={snapshot.healthScore.rag === 'red' ? 'negative' : snapshot.healthScore.rag === 'amber' ? 'warning' : 'positive'}
+                      tone={
+                        snapshot.healthScore.rag === 'red'
+                          ? 'negative'
+                          : snapshot.healthScore.rag === 'amber'
+                            ? 'warning'
+                            : 'positive'
+                      }
                       label={snapshot.healthScore.rag}
                       size="sm"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground">As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}
+                  </p>
                 </div>
               )}
             </div>
@@ -369,7 +415,9 @@ export default function GroupDetailPage({
             {grp.admin_notes && (
               <div className="pt-2.5 border-t border-border">
                 <p className="text-xs text-muted-foreground mb-1">Admin Notes</p>
-                <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2.5 leading-relaxed">{grp.admin_notes}</p>
+                <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2.5 leading-relaxed">
+                  {grp.admin_notes}
+                </p>
               </div>
             )}
           </CardContent>
@@ -388,7 +436,11 @@ export default function GroupDetailPage({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-purple-700">
-                      {grp.admin_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                      {grp.admin_name
+                        ?.split(' ')
+                        .map((n: string) => n[0])
+                        .join('')
+                        .slice(0, 2)}
                     </span>
                   </div>
                   <div>
@@ -398,14 +450,18 @@ export default function GroupDetailPage({
                 </div>
                 <div className="space-y-2">
                   {grp.admin_email && (
-                    <a href={`mailto:${grp.admin_email}`}
-                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
+                    <a
+                      href={`mailto:${grp.admin_email}`}
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors"
+                    >
                       <Mail size={12} /> {grp.admin_email}
                     </a>
                   )}
                   {grp.admin_phone && (
-                    <a href={`tel:${grp.admin_phone}`}
-                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
+                    <a
+                      href={`tel:${grp.admin_phone}`}
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-blue-600 transition-colors"
+                    >
                       <Phone size={12} /> {grp.admin_phone}
                     </a>
                   )}
@@ -416,7 +472,9 @@ export default function GroupDetailPage({
             )}
 
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Financial Summary</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Financial Summary
+              </p>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Total Payments Collected</span>
@@ -442,11 +500,17 @@ export default function GroupDetailPage({
         </CardHeader>
         <CardContent>
           <PaginatedTable<GroupMemberRow>
-            data={membersData ? {
-              items: membersData.items as GroupMemberRow[], total: membersData.total,
-              page: membersData.page, pageSize: membersData.limit,
-              totalPages: Math.ceil(membersData.total / membersData.limit),
-            } : null}
+            data={
+              membersData
+                ? {
+                    items: membersData.items as GroupMemberRow[],
+                    total: membersData.total,
+                    page: membersData.page,
+                    pageSize: membersData.limit,
+                    totalPages: Math.ceil(membersData.total / membersData.limit),
+                  }
+                : null
+            }
             isLoading={membersLoading}
             isError={membersIsError}
             error={membersError}
@@ -455,17 +519,39 @@ export default function GroupDetailPage({
             onRowClick={(m) => router.push(`/admin/groups/${id}/members/${m.id}`)}
             columns={[
               {
-                key: 'name', header: 'Name',
+                key: 'name',
+                header: 'Name',
                 render: (m) => (
                   <div>
-                    <p className="font-medium text-foreground">{m.first_name} {m.last_name}</p>
+                    <p className="font-medium text-foreground">
+                      {m.first_name} {m.last_name}
+                    </p>
                     {m.member_code && <p className="text-[11px] font-mono text-muted-foreground">{m.member_code}</p>}
                   </div>
                 ),
               },
-              { key: 'contact', header: 'Contact', render: (m) => <span className="text-xs text-muted-foreground">{m.phone}{m.email ? ` · ${m.email}` : ''}</span> },
-              { key: 'role', header: 'Role', render: (m) => <span className="text-xs text-muted-foreground capitalize">{m.group_role?.replace('_', ' ')}</span> },
-              { key: 'joined', header: 'Joined', render: (m) => <span className="text-xs text-muted-foreground">{formatDate(m.joined_at)}</span> },
+              {
+                key: 'contact',
+                header: 'Contact',
+                render: (m) => (
+                  <span className="text-xs text-muted-foreground">
+                    {m.phone}
+                    {m.email ? ` · ${m.email}` : ''}
+                  </span>
+                ),
+              },
+              {
+                key: 'role',
+                header: 'Role',
+                render: (m) => (
+                  <span className="text-xs text-muted-foreground capitalize">{m.group_role?.replace('_', ' ')}</span>
+                ),
+              },
+              {
+                key: 'joined',
+                header: 'Joined',
+                render: (m) => <span className="text-xs text-muted-foreground">{formatDate(m.joined_at)}</span>,
+              },
             ]}
           />
         </CardContent>
@@ -505,7 +591,9 @@ export default function GroupDetailPage({
           audit-trail mess. */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Edit group</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit group</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
             <div className="space-y-1">
               <Label>Group name</Label>
@@ -527,7 +615,9 @@ export default function GroupDetailPage({
               >
                 {/* Matches the group_type Postgres enum exactly. */}
                 {GROUP_TYPES.map((t) => (
-                  <option key={t} value={t}>{TYPE_LABELS[t] ?? t}</option>
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t] ?? t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -566,7 +656,11 @@ export default function GroupDetailPage({
                   onChange={(e) => setEdits({ ...edits, meetingFrequency: e.target.value })}
                 >
                   <option value="">Not set</option>
-                  {['weekly', 'biweekly', 'monthly'].map((f) => <option key={f} value={f}>{f}</option>)}
+                  {['weekly', 'biweekly', 'monthly'].map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
@@ -577,8 +671,11 @@ export default function GroupDetailPage({
                   onChange={(e) => setEdits({ ...edits, meetingDay: e.target.value })}
                 >
                   <option value="">Not set</option>
-                  {['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-                    .map((d) => <option key={d} value={d}>{d}</option>)}
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
@@ -596,14 +693,24 @@ export default function GroupDetailPage({
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveProfile} loading={updateProfile.isPending}>Save changes</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveProfile} loading={updateProfile.isPending}>
+              Save changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Confirm action dialog */}
-      <Dialog open={!!confirmAction} onOpenChange={() => { setConfirmAction(null); setReason(''); }}>
+      <Dialog
+        open={!!confirmAction}
+        onOpenChange={() => {
+          setConfirmAction(null);
+          setReason('');
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>{confirmAction?.label} Group</DialogTitle>
@@ -612,12 +719,14 @@ export default function GroupDetailPage({
             {confirmAction?.action === 'suspend'
               ? `This will immediately restrict access for all members of "${grp.name}".`
               : confirmAction?.action === 'deactivate'
-              ? `This will permanently deactivate "${grp.name}" and revoke all access.`
-              : `Confirm that you want to ${confirmAction?.label?.toLowerCase()} "${grp.name}".`}
+                ? `This will permanently deactivate "${grp.name}" and revoke all access.`
+                : `Confirm that you want to ${confirmAction?.label?.toLowerCase()} "${grp.name}".`}
           </p>
           {confirmAction?.action === 'suspend' && (
             <div className="space-y-1">
-              <Label>Reason for suspension <span className="text-red-500">*</span></Label>
+              <Label>
+                Reason for suspension <span className="text-red-500">*</span>
+              </Label>
               <textarea
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 rows={3}
@@ -628,14 +737,24 @@ export default function GroupDetailPage({
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmAction(null); setReason(''); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmAction(null);
+                setReason('');
+              }}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleAction}
               loading={updateStatus.isPending}
               disabled={confirmAction?.action === 'suspend' && !reason.trim()}
-              variant={confirmAction?.action === 'suspend' || confirmAction?.action === 'deactivate' ? 'destructive' : 'default'}
+              variant={
+                confirmAction?.action === 'suspend' || confirmAction?.action === 'deactivate'
+                  ? 'destructive'
+                  : 'default'
+              }
             >
               Confirm {confirmAction?.label}
             </Button>

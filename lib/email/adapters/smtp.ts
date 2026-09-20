@@ -76,10 +76,10 @@ export class SmtpAdapter implements IEmailAdapter {
 
       if (logId) {
         await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET status='sent', provider_message_id=$1, sent_at=NOW() WHERE id=$2`,
-            [info.messageId ?? null, logId],
-          ),
+          db.query(`UPDATE email_logs SET status='sent', provider_message_id=$1, sent_at=NOW() WHERE id=$2`, [
+            info.messageId ?? null,
+            logId,
+          ]),
         ).catch(() => {});
       }
 
@@ -89,10 +89,7 @@ export class SmtpAdapter implements IEmailAdapter {
 
       if (logId) {
         await withAdminDb((db) =>
-          db.query(
-            `UPDATE email_logs SET status='failed', error_message=$1 WHERE id=$2`,
-            [message, logId],
-          ),
+          db.query(`UPDATE email_logs SET status='failed', error_message=$1 WHERE id=$2`, [message, logId]),
         ).catch(() => {});
       }
 

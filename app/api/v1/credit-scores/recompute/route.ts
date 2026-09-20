@@ -11,9 +11,11 @@ import { ok } from '@/lib/utils/response';
  */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'admin.recompute', async (auth) => {
-    const result = await creditScoresService.recomputeAll(
-      { userId: auth.userId, groupId: auth.groupId, role: auth.role },
-    );
+    const result = await creditScoresService.recomputeAll({
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+    });
     return ok(result);
   });
 }

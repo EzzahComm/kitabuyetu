@@ -52,9 +52,7 @@ export default function AdminCampaignsPage() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : !campaigns || campaigns.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Nothing pending review.
-          </CardContent>
+          <CardContent className="py-16 text-center text-sm text-muted-foreground">Nothing pending review.</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -89,7 +87,13 @@ export default function AdminCampaignsPage() {
           </DialogHeader>
           <div className="space-y-1.5">
             <Label htmlFor="reason">Reason</Label>
-            <Textarea id="reason" rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is this campaign being rejected?" />
+            <Textarea
+              id="reason"
+              rows={4}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this campaign being rejected?"
+            />
           </div>
           <DialogFooter>
             <Button onClick={onReject} disabled={!reason.trim() || reject.isPending} variant="destructive">

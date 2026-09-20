@@ -10,37 +10,37 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 
 interface FeatureFlagRow {
-  id:          string;
-  key:         string;
+  id: string;
+  key: string;
   description: string | null;
-  enabled:     boolean;
+  enabled: boolean;
   rollout_pct: number;
-  applies_to:  'all' | 'plan' | 'group' | 'member';
-  conditions:  Record<string, unknown>;
-  created_at:  string;
-  updated_at:  string;
-  updated_by:  string | null;
+  applies_to: 'all' | 'plan' | 'group' | 'member';
+  conditions: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 const APPLIES_TO_ICON: Record<string, React.ElementType> = {
-  all:         Globe,
-  plan:        Layers,
-  group:       Users,
-  member:      User,
+  all: Globe,
+  plan: Layers,
+  group: Users,
+  member: User,
 };
 
 const FLAG_CATEGORY: Record<string, { label: string; color: string }> = {
-  'new_dashboard':           { label: 'UI',       color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  'ai_loan_recommendations': { label: 'AI',        color: 'text-purple-600 bg-purple-50 border-purple-200' },
-  'welfare_module':          { label: 'Core',      color: 'text-green-600 bg-green-50 border-green-200' },
-  'investment_module':       { label: 'Core',      color: 'text-green-600 bg-green-50 border-green-200' },
-  'meeting_management':      { label: 'Core',      color: 'text-green-600 bg-green-50 border-green-200' },
-  'mpesa_automation':        { label: 'Payments',  color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  'bulk_sms':                { label: 'Comms',     color: 'text-teal-600 bg-teal-50 border-teal-200' },
-  'advanced_analytics':      { label: 'Analytics', color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
-  'multi_currency':          { label: 'Finance',   color: 'text-orange-600 bg-orange-50 border-orange-200' },
-  'api_access':              { label: 'Dev',       color: 'text-muted-foreground bg-muted border-border' },
-  'white_label':             { label: 'Enterprise',color: 'text-rose-600 bg-rose-50 border-rose-200' },
+  new_dashboard: { label: 'UI', color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  ai_loan_recommendations: { label: 'AI', color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  welfare_module: { label: 'Core', color: 'text-green-600 bg-green-50 border-green-200' },
+  investment_module: { label: 'Core', color: 'text-green-600 bg-green-50 border-green-200' },
+  meeting_management: { label: 'Core', color: 'text-green-600 bg-green-50 border-green-200' },
+  mpesa_automation: { label: 'Payments', color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  bulk_sms: { label: 'Comms', color: 'text-teal-600 bg-teal-50 border-teal-200' },
+  advanced_analytics: { label: 'Analytics', color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
+  multi_currency: { label: 'Finance', color: 'text-orange-600 bg-orange-50 border-orange-200' },
+  api_access: { label: 'Dev', color: 'text-muted-foreground bg-muted border-border' },
+  white_label: { label: 'Enterprise', color: 'text-rose-600 bg-rose-50 border-rose-200' },
 };
 
 export default function FeatureFlagsPage() {
@@ -49,7 +49,7 @@ export default function FeatureFlagsPage() {
   const toggle = useToggleFeatureFlag();
 
   const items: FeatureFlagRow[] = flags ?? [];
-  const enabledCount  = items.filter((f) => f.enabled).length;
+  const enabledCount = items.filter((f) => f.enabled).length;
 
   const handleToggle = async (key: string, current: boolean) => {
     try {
@@ -69,7 +69,9 @@ export default function FeatureFlagsPage() {
           !isLoading && (
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-semibold text-foreground">{enabledCount}/{items.length}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {enabledCount}/{items.length}
+                </p>
                 <p className="text-xs text-muted-foreground">flags enabled</p>
               </div>
               <div className="w-16 h-2 rounded-full bg-muted overflow-hidden">
@@ -89,8 +91,8 @@ export default function FeatureFlagsPage() {
           <div className="flex items-start gap-2 text-sm text-blue-800">
             <Info size={14} className="mt-0.5 shrink-0 text-blue-500" />
             <p>
-              Feature flags take effect immediately across all active sessions.
-              Disabling a core module will hide it from all users in affected groups.
+              Feature flags take effect immediately across all active sessions. Disabling a core module will hide it
+              from all users in affected groups.
             </p>
           </div>
         </CardContent>
@@ -109,22 +111,17 @@ export default function FeatureFlagsPage() {
               </Card>
             ))
           : items.map((flag) => {
-              const cat     = FLAG_CATEGORY[flag.key];
-              const Icon    = APPLIES_TO_ICON[flag.applies_to] ?? Globe;
+              const cat = FLAG_CATEGORY[flag.key];
+              const Icon = APPLIES_TO_ICON[flag.applies_to] ?? Globe;
               const loading = toggle.isPending && toggle.variables?.key === flag.key;
 
               return (
-                <Card
-                  key={flag.key}
-                  className={`transition-shadow ${flag.enabled ? 'shadow-sm' : 'opacity-75'}`}
-                >
+                <Card key={flag.key} className={`transition-shadow ${flag.enabled ? 'shadow-sm' : 'opacity-75'}`}>
                   <CardContent className="pt-4 pb-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-sm font-semibold text-foreground truncate">
-                            {flag.key}
-                          </span>
+                          <span className="font-mono text-sm font-semibold text-foreground truncate">{flag.key}</span>
                           {cat && (
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cat.color}`}>
                               {cat.label}
@@ -167,10 +164,15 @@ export default function FeatureFlagsPage() {
 
                     {flag.conditions && Object.keys(flag.conditions).length > 0 && (
                       <div className="mt-3 pt-2.5 border-t border-border">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Conditions</p>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                          Conditions
+                        </p>
                         <div className="flex flex-wrap gap-1">
                           {Object.entries(flag.conditions).map(([k, v]) => (
-                            <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                            <span
+                              key={k}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
+                            >
                               {k}: {String(v)}
                             </span>
                           ))}
@@ -184,9 +186,7 @@ export default function FeatureFlagsPage() {
       </div>
 
       {!isLoading && items.length === 0 && (
-        <div className="text-center py-16 text-sm text-muted-foreground">
-          No feature flags configured
-        </div>
+        <div className="text-center py-16 text-sm text-muted-foreground">No feature flags configured</div>
       )}
     </div>
   );

@@ -31,25 +31,25 @@ import { evaluateCondition } from './conditions';
 import { parseRecipientSpec, type BusinessEvent, type EventPayload, type RecipientSpec } from './events';
 
 interface RuleRow {
-  id:              string;
-  group_id:        string | null;
+  id: string;
+  group_id: string | null;
   organization_id: string | null;
-  name:            string;
-  event_type:      string;
-  conditions:     unknown;
-  template_key:   string;
+  name: string;
+  event_type: string;
+  conditions: unknown;
+  template_key: string;
   recipient_spec: unknown;
-  delay_seconds:  number;
-  max_retries:    number;
-  created_by:     string | null;
+  delay_seconds: number;
+  max_retries: number;
+  created_by: string | null;
 }
 
 export interface EmitSummary {
   evaluated: number;
-  matched:   number;
+  matched: number;
   dispatched: number;
-  deferred:  number;
-  skipped:   number;
+  deferred: number;
+  skipped: number;
 }
 
 // ─── Rule resolution ─────────────────────────────────────────────────────────
@@ -62,8 +62,9 @@ export interface EmitSummary {
  */
 export async function loadMatchingRules(eventType: string, groupId: string): Promise<RuleRow[]> {
   const rows = await withAdminDb((db) =>
-    db.query<RuleRow>(
-      `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
+    db
+      .query<RuleRow>(
+        `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
               r.template_key, r.recipient_spec, r.delay_seconds, r.max_retries, r.created_by
        FROM sms_trigger_rules r
        WHERE r.is_active AND r.event_type = $1
@@ -75,8 +76,9 @@ export async function loadMatchingRules(eventType: string, groupId: string): Pro
                  WHERE nga.group_id = $2 AND nga.is_active
               ))
          )`,
-      [eventType, groupId],
-    ).then((r) => r.rows),
+        [eventType, groupId],
+      )
+      .then((r) => r.rows),
   );
 
   const specificity = (r: RuleRow) => (r.group_id ? 2 : r.organization_id ? 1 : 0);
@@ -111,7 +113,8 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
       if (!executionId) {
         // Already claimed — a duplicate emit of the same business event.
         logger.info('[sms-trigger] duplicate event suppressed', {
-          rule: rule.name, eventId: event.eventId,
+          rule: rule.name,
+          eventId: event.eventId,
         });
         continue;
       }
@@ -121,8 +124,8 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
           'sms_trigger_fire',
           { executionId },
           {
-            priority:  6,
-            run_at:    new Date(Date.now() + rule.delay_seconds * 1000),
+            priority: 6,
+            run_at: new Date(Date.now() + rule.delay_seconds * 1000),
             dedup_key: `sms_trigger_fire:${executionId}`,
             max_attempts: rule.max_retries + 1,
           },
@@ -146,9 +149,7 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
  * the row already exists (duplicate event), meaning: do not send.
  */
 async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<string | null> {
-  const scheduledFor = rule.delay_seconds > 0
-    ? new Date(Date.now() + rule.delay_seconds * 1000)
-    : null;
+  const scheduledFor = rule.delay_seconds > 0 ? new Date(Date.now() + rule.delay_seconds * 1000) : null;
 
   const { rows } = await withAdminDb((db) =>
     db.query<{ id: string }>(
@@ -157,8 +158,7 @@ async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<stri
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (rule_id, event_id) DO NOTHING
        RETURNING id`,
-      [rule.id, event.groupId, event.eventType, event.eventId,
-       JSON.stringify(event.payload), scheduledFor],
+      [rule.id, event.groupId, event.eventType, event.eventId, JSON.stringify(event.payload), scheduledFor],
     ),
   );
   return rows[0]?.id ?? null;
@@ -167,11 +167,11 @@ async function claimExecution(rule: RuleRow, event: BusinessEvent): Promise<stri
 // ─── Dispatch ────────────────────────────────────────────────────────────────
 
 interface ExecutionRow extends RuleRow {
-  execution_id:  string;
+  execution_id: string;
   exec_group_id: string;
-  event_id:      string;
+  event_id: string;
   event_payload: EventPayload;
-  attempts:      number;
+  attempts: number;
 }
 
 /**
@@ -183,16 +183,18 @@ interface ExecutionRow extends RuleRow {
  */
 export async function dispatchExecution(executionId: string): Promise<void> {
   const exec = await withAdminDb((db) =>
-    db.query<ExecutionRow>(
-      `SELECT e.id AS execution_id, e.group_id AS exec_group_id, e.event_id,
+    db
+      .query<ExecutionRow>(
+        `SELECT e.id AS execution_id, e.group_id AS exec_group_id, e.event_id,
               e.event_payload, e.attempts,
               r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
               r.template_key, r.recipient_spec, r.delay_seconds, r.max_retries, r.created_by
        FROM sms_trigger_executions e
        JOIN sms_trigger_rules r ON r.id = e.rule_id
        WHERE e.id = $1 AND e.status = 'pending'`,
-      [executionId],
-    ).then((r) => r.rows[0]),
+        [executionId],
+      )
+      .then((r) => r.rows[0]),
   );
 
   // Absent or already terminal — nothing to do. Not an error: a retried job
@@ -266,10 +268,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // welcome SMS marked 'sent' while every send had returned HTTP 401. All
     // eight rows are terminal and unrecoverable.
     if (!logs.some((l) => l.status !== 'failed')) {
-      return retryOrFail(
-        exec,
-        `provider rejected every recipient: ${logs[0]?.failed_reason ?? 'unknown error'}`,
-      );
+      return retryOrFail(exec, `provider rejected every recipient: ${logs[0]?.failed_reason ?? 'unknown error'}`);
     }
 
     await withAdminDb((db) =>
@@ -324,8 +323,8 @@ async function retryOrFail(exec: ExecutionRow, reason: string): Promise<void> {
     'sms_trigger_fire',
     { executionId: exec.execution_id },
     {
-      priority:  6,
-      run_at:    new Date(Date.now() + backoffMs),
+      priority: 6,
+      run_at: new Date(Date.now() + backoffMs),
       dedup_key: `sms_trigger_fire:${exec.execution_id}:${attempts}`,
       max_attempts: 1,
     },
@@ -333,11 +332,7 @@ async function retryOrFail(exec: ExecutionRow, reason: string): Promise<void> {
   logger.warn('[sms-trigger] retry scheduled', { rule: exec.name, attempts, reason });
 }
 
-async function settle(
-  executionId: string,
-  status: 'sent' | 'failed' | 'suppressed',
-  reason: string,
-): Promise<void> {
+async function settle(executionId: string, status: 'sent' | 'failed' | 'suppressed', reason: string): Promise<void> {
   await withAdminDb((db) =>
     db.query(
       `UPDATE sms_trigger_executions
@@ -380,12 +375,14 @@ export async function resolveRecipients(
 /** Group override first, then a system template, then the compiled-in default. */
 async function loadTemplateBody(groupId: string, key: string): Promise<string | null> {
   const body = await withAdminDb((db) =>
-    db.query<{ body: string }>(
-      `SELECT body FROM sms_templates
+    db
+      .query<{ body: string }>(
+        `SELECT body FROM sms_templates
        WHERE (group_id=$1 OR group_id IS NULL) AND template_key=$2 AND is_active
        ORDER BY group_id NULLS LAST LIMIT 1`,
-      [groupId, key],
-    ).then((r) => r.rows[0]?.body ?? null),
+        [groupId, key],
+      )
+      .then((r) => r.rows[0]?.body ?? null),
   );
 
   // A rule may name a custom key with no DB row yet; fall back only if the key

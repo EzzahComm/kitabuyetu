@@ -5,13 +5,13 @@ import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 const BrandingSchema = z.object({
-  senderName:    z.string().min(1).optional(),
-  senderEmail:   z.string().email().optional(),
-  replyToEmail:  z.string().email().optional(),
-  logoUrl:       z.string().optional(),
-  primaryColor:  z.string().optional(),
-  footerText:    z.string().optional(),
-  websiteUrl:    z.string().optional(),
+  senderName: z.string().min(1).optional(),
+  senderEmail: z.string().email().optional(),
+  replyToEmail: z.string().email().optional(),
+  logoUrl: z.string().optional(),
+  primaryColor: z.string().optional(),
+  footerText: z.string().optional(),
+  websiteUrl: z.string().optional(),
 });
 
 export async function GET(req: NextRequest): Promise<Response> {

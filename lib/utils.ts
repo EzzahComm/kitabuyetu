@@ -15,15 +15,20 @@ export function formatKES(amount: string | number | null | undefined): string {
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return '—';
   return new Date(date).toLocaleString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 

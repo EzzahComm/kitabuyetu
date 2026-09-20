@@ -85,10 +85,7 @@ export async function getPosts(): Promise<Post[]> {
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
-  return sanityFetch<Post | null>(
-    `*[_type == "post" && slug.current == $slug][0] { ${POST_FIELDS} }`,
-    { slug },
-  );
+  return sanityFetch<Post | null>(`*[_type == "post" && slug.current == $slug][0] { ${POST_FIELDS} }`, { slug });
 }
 
 export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship';
@@ -123,8 +120,5 @@ export async function getOpenJobs(): Promise<Job[]> {
 }
 
 export async function getJobBySlug(slug: string): Promise<Job | null> {
-  return sanityFetch<Job | null>(
-    `*[_type == "job" && slug.current == $slug][0] { ${JOB_FIELDS} }`,
-    { slug },
-  );
+  return sanityFetch<Job | null>(`*[_type == "job" && slug.current == $slug][0] { ${JOB_FIELDS} }`, { slug });
 }

@@ -35,16 +35,10 @@ async function handle(req: NextRequest, { params }: { params: Promise<{ token: s
   return accept();
 }
 
-export async function POST(
-  req: NextRequest,
-  ctx: { params: Promise<{ token: string }> },
-): Promise<NextResponse> {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }): Promise<NextResponse> {
   return handle(req, ctx);
 }
 
-export async function GET(
-  req: NextRequest,
-  ctx: { params: Promise<{ token: string }> },
-): Promise<NextResponse> {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ token: string }> }): Promise<NextResponse> {
   return handle(req, ctx);
 }

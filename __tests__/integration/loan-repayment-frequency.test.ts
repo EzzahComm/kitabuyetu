@@ -50,8 +50,11 @@ describe('loan repayment frequency', () => {
   /** Creates a disbursed loan and generates its schedule. Returns the loan row
    *  plus its instalments. */
   async function makeLoan(opts: {
-    principal: number; rate: number; termMonths: number;
-    method: 'flat' | 'reducing_balance'; freq: Freq;
+    principal: number;
+    rate: number;
+    termMonths: number;
+    method: 'flat' | 'reducing_balance';
+    freq: Freq;
   }) {
     // The loan and its funding split MUST be written in one statement. A
     // disbursed loan has to be fully attributed to a funding source (deferred
@@ -72,17 +75,29 @@ describe('loan repayment frequency', () => {
        INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
        SELECT group_id, id, $9, $4 FROM new_loan
        RETURNING loan_id AS id`,
-      [groupId, officerId, membershipId, opts.principal.toFixed(2), opts.rate.toFixed(2),
-       opts.termMonths, opts.freq, opts.method, internalSourceId],
+      [
+        groupId,
+        officerId,
+        membershipId,
+        opts.principal.toFixed(2),
+        opts.rate.toFixed(2),
+        opts.termMonths,
+        opts.freq,
+        opts.method,
+        internalSourceId,
+      ],
     );
 
     await rawQuery(`SELECT generate_loan_schedule($1)`, [loan.id]);
 
-    const [totals] = await rawQuery<{ total_repayable: string }>(
-      `SELECT total_repayable FROM loans WHERE id = $1`, [loan.id],
-    );
+    const [totals] = await rawQuery<{ total_repayable: string }>(`SELECT total_repayable FROM loans WHERE id = $1`, [
+      loan.id,
+    ]);
     const installments = await rawQuery<{
-      installment_number: number; due_date: Date; total_due: string; closing_balance: string;
+      installment_number: number;
+      due_date: Date;
+      total_due: string;
+      closing_balance: string;
     }>(
       `SELECT installment_number, due_date, total_due, closing_balance
        FROM loan_repayments WHERE loan_id = $1 ORDER BY installment_number`,
@@ -99,7 +114,11 @@ describe('loan repayment frequency', () => {
       // were scheduled at 10%/month, not 10%/year, and were reissued at
       // these corrected figures once the bug was found.
       const loan = await makeLoan({
-        principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq: 'monthly',
+        principal: 130_000,
+        rate: 10,
+        termMonths: 12,
+        method: 'flat',
+        freq: 'monthly',
       });
       expect(loan.installments).toHaveLength(12);
       expect(loan.totalRepayable).toBeCloseTo(143_000, 2);
@@ -125,10 +144,17 @@ describe('loan repayment frequency', () => {
     // Flat interest is principal * (annual rate) * (term_months / 12) — an
     // expression with no frequency term in it at all.
     it.each<[Freq, number]>([
-      ['weekly', 52], ['biweekly', 26], ['monthly', 12], ['quarterly', 4],
+      ['weekly', 52],
+      ['biweekly', 26],
+      ['monthly', 12],
+      ['quarterly', 4],
     ])('flat 10%% p.a. over 12 months costs 143,000 whether %s (%i instalments)', async (freq, n) => {
       const loan = await makeLoan({
-        principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq,
+        principal: 130_000,
+        rate: 10,
+        termMonths: 12,
+        method: 'flat',
+        freq,
       });
       expect(loan.installments).toHaveLength(n);
       expect(loan.totalRepayable).toBeCloseTo(143_000, 2);
@@ -137,7 +163,11 @@ describe('loan repayment frequency', () => {
     it('sums the instalments to exactly the total, with drift in the last one', async () => {
       // 52 roundings of a 2dp figure is where a naive schedule leaks cents.
       const loan = await makeLoan({
-        principal: 130_000, rate: 10, termMonths: 12, method: 'flat', freq: 'weekly',
+        principal: 130_000,
+        rate: 10,
+        termMonths: 12,
+        method: 'flat',
+        freq: 'weekly',
       });
       const sum = loan.installments.reduce((a, r) => a + Number(r.total_due), 0);
       expect(sum).toBeCloseTo(143_000, 2);
@@ -148,7 +178,11 @@ describe('loan repayment frequency', () => {
   describe('due dates step by the cadence', () => {
     it('spaces weekly instalments 7 days apart', async () => {
       const loan = await makeLoan({
-        principal: 52_000, rate: 5, termMonths: 12, method: 'flat', freq: 'weekly',
+        principal: 52_000,
+        rate: 5,
+        termMonths: 12,
+        method: 'flat',
+        freq: 'weekly',
       });
       const d0 = new Date(loan.installments[0].due_date).getTime();
       const d1 = new Date(loan.installments[1].due_date).getTime();
@@ -169,7 +203,11 @@ describe('loan repayment frequency', () => {
       // that is a permanent 2-3 day drift. Changing it would move the due
       // dates of every existing loan, so it is pinned here rather than fixed.
       const loan = await makeLoan({
-        principal: 60_000, rate: 5, termMonths: 3, method: 'flat', freq: 'monthly',
+        principal: 60_000,
+        rate: 5,
+        termMonths: 3,
+        method: 'flat',
+        freq: 'monthly',
       });
       const dates = loan.installments.map((r) => new Date(r.due_date).toISOString().slice(0, 10));
       expect(dates).toEqual(['2026-02-28', '2026-03-28', '2026-04-28']);
@@ -181,7 +219,11 @@ describe('loan repayment frequency', () => {
       // A declining balance amortises faster when payments are more frequent,
       // so weekly reducing must cost strictly less than weekly flat.
       const reducing = await makeLoan({
-        principal: 130_000, rate: 10, termMonths: 12, method: 'reducing_balance', freq: 'weekly',
+        principal: 130_000,
+        rate: 10,
+        termMonths: 12,
+        method: 'reducing_balance',
+        freq: 'weekly',
       });
       expect(reducing.totalRepayable).toBeLessThan(143_000);
       expect(reducing.totalRepayable).toBeGreaterThan(130_000);
@@ -189,7 +231,11 @@ describe('loan repayment frequency', () => {
 
     it('leaves the monthly reducing case identical to a 12-period amortisation', async () => {
       const loan = await makeLoan({
-        principal: 130_000, rate: 10, termMonths: 12, method: 'reducing_balance', freq: 'monthly',
+        principal: 130_000,
+        rate: 10,
+        termMonths: 12,
+        method: 'reducing_balance',
+        freq: 'monthly',
       });
       // Migration 148's figure (EMI 19,079.23 at 10%/month) was superseded by
       // migration 167: the rate is annual, so the period rate used inside the
@@ -217,7 +263,11 @@ describe('loan repayment frequency', () => {
     // 10,000 * (1 + 0.05 * 1/12) = 10,041.67. (Was 10,500 pre-167, when the
     // rate was applied as 5%/month flat regardless of term length.)
     const loan = await makeLoan({
-      principal: 10_000, rate: 5, termMonths: 1, method: 'flat', freq: 'quarterly',
+      principal: 10_000,
+      rate: 5,
+      termMonths: 1,
+      method: 'flat',
+      freq: 'quarterly',
     });
     expect(loan.installments).toHaveLength(1);
     expect(loan.totalRepayable).toBeCloseTo(10_041.67, 2);

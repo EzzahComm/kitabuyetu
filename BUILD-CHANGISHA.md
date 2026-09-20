@@ -636,16 +636,16 @@ Follow the existing API architecture.
 
 Potential routes:
 
-GET    /api/v1/changisha/campaigns
-POST   /api/v1/changisha/campaigns
-GET    /api/v1/changisha/campaigns/:id
-PATCH  /api/v1/changisha/campaigns/:id
-POST   /api/v1/changisha/campaigns/:id/publish
-POST   /api/v1/changisha/campaigns/:id/pause
-POST   /api/v1/changisha/campaigns/:id/updates
-GET    /api/v1/changisha/campaigns/:id/contributions
-POST   /api/v1/changisha/campaigns/:id/contribute
-GET    /api/v1/changisha/campaigns/:id/reports
+GET /api/v1/changisha/campaigns
+POST /api/v1/changisha/campaigns
+GET /api/v1/changisha/campaigns/:id
+PATCH /api/v1/changisha/campaigns/:id
+POST /api/v1/changisha/campaigns/:id/publish
+POST /api/v1/changisha/campaigns/:id/pause
+POST /api/v1/changisha/campaigns/:id/updates
+GET /api/v1/changisha/campaigns/:id/contributions
+POST /api/v1/changisha/campaigns/:id/contribute
+GET /api/v1/changisha/campaigns/:id/reports
 
 Use actual repository conventions if they differ.
 

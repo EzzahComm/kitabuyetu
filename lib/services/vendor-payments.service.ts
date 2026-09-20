@@ -18,45 +18,44 @@ import { recordApproval } from './settlement-approvals.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateVendorPaymentInput {
-  channel:             'b2c' | 'b2b';
-  payeeName:           string;
-  payeePhone?:         string;
-  payeeShortcode?:     string;
-  payeeAccount?:       string;
-  amount:              number;
+  channel: 'b2c' | 'b2b';
+  payeeName: string;
+  payeePhone?: string;
+  payeeShortcode?: string;
+  payeeAccount?: string;
+  amount: number;
   expenseAccountCode?: string;
-  description?:        string;
-  idempotencyKey:      string;
+  description?: string;
+  idempotencyKey: string;
 }
 
 export interface VendorPaymentRow {
-  id:                        string;
-  group_id:                  string;
-  channel:                   'b2c' | 'b2b';
-  payee_name:                string;
-  payee_phone:               string | null;
-  payee_shortcode:           string | null;
-  payee_account:             string | null;
-  amount:                    string;
-  expense_account_code:      string;
-  description:               string | null;
-  status:                    string;
-  requested_by:              string | null;
-  requested_at:              Date;
+  id: string;
+  group_id: string;
+  channel: 'b2c' | 'b2b';
+  payee_name: string;
+  payee_phone: string | null;
+  payee_shortcode: string | null;
+  payee_account: string | null;
+  amount: string;
+  expense_account_code: string;
+  description: string | null;
+  status: string;
+  requested_by: string | null;
+  requested_at: Date;
   originator_conversation_id: string | null;
-  journal_entry_id:          string | null;
-  platform_fee:              string | null;
-  completed_at:              Date | null;
-  failure_reason:            string | null;
-  idempotency_key:           string | null;
+  journal_entry_id: string | null;
+  platform_fee: string | null;
+  completed_at: Date | null;
+  failure_reason: string | null;
+  idempotency_key: string | null;
   /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
-  reconciled_at:             Date | null;
+  reconciled_at: Date | null;
 }
 
 const DEFAULT_EXPENSE_CODE = '5001';
 
 export const vendorPaymentsService = {
-
   async initiate(ctx: TenantContext, input: InitiateVendorPaymentInput): Promise<VendorPaymentRow> {
     if (!(input.amount > 0)) throw new ValidationError('Amount must be positive');
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
@@ -114,10 +113,17 @@ export const vendorPaymentsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending_approval',$10,$11)
          RETURNING *`,
         [
-          ctx.groupId, input.channel, input.payeeName,
-          input.payeePhone ?? null, input.payeeShortcode ?? null, input.payeeAccount ?? null,
-          input.amount.toFixed(2), expenseCode, input.description ?? null,
-          ctx.userId, input.idempotencyKey,
+          ctx.groupId,
+          input.channel,
+          input.payeeName,
+          input.payeePhone ?? null,
+          input.payeeShortcode ?? null,
+          input.payeeAccount ?? null,
+          input.amount.toFixed(2),
+          expenseCode,
+          input.description ?? null,
+          ctx.userId,
+          input.idempotencyKey,
         ],
       );
 
@@ -158,8 +164,10 @@ export const vendorPaymentsService = {
 
       const prior = rows[0];
       await recordApproval(db, ctx, {
-        subjectType: 'vendor_payment', subjectId: id,
-        initiatedBy: prior.requested_by ?? '', decision: 'approved',
+        subjectType: 'vendor_payment',
+        subjectId: id,
+        initiatedBy: prior.requested_by ?? '',
+        decision: 'approved',
       });
 
       const { rows: updated } = await db.query<VendorPaymentRow>(
@@ -201,13 +209,16 @@ export const vendorPaymentsService = {
 
       const prior = rows[0];
       await recordApproval(db, ctx, {
-        subjectType: 'vendor_payment', subjectId: id,
-        initiatedBy: prior.requested_by ?? '', decision: 'rejected', reason,
+        subjectType: 'vendor_payment',
+        subjectId: id,
+        initiatedBy: prior.requested_by ?? '',
+        decision: 'rejected',
+        reason,
       });
 
-      const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId],
-      );
+      const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
+        ctx.groupId,
+      ]);
       if (acctRows[0]) {
         await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${prior.amount}`]);
       }
@@ -282,11 +293,15 @@ export async function findStuckVendorPayments(): Promise<{
        LIMIT  20`,
     );
     const samples = rows.map((r) => ({
-      id: r.id, groupId: r.group_id, amount: r.amount, ageMinutes: Math.round(Number(r.age_minutes)),
+      id: r.id,
+      groupId: r.group_id,
+      amount: r.amount,
+      ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
       logger.error('[vendor-payments] stuck payouts — no result callback received', {
-        count: samples.length, samples: samples.slice(0, 5),
+        count: samples.length,
+        samples: samples.slice(0, 5),
       });
     }
     return { count: samples.length, samples };
@@ -302,9 +317,14 @@ export async function findStuckVendorPayments(): Promise<{
 async function dispatchVendorPayment(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; channel: 'b2c' | 'b2b';
-      payee_name: string; payee_phone: string | null;
-      payee_shortcode: string | null; payee_account: string | null;
+      id: string;
+      group_id: string;
+      amount: string;
+      channel: 'b2c' | 'b2b';
+      payee_name: string;
+      payee_phone: string | null;
+      payee_shortcode: string | null;
+      payee_account: string | null;
     }>(
       `UPDATE vendor_payments
        SET    status = 'processing'
@@ -342,31 +362,31 @@ async function dispatchVendorPayment(id: string): Promise<void> {
     if (claimed.channel === 'b2c') {
       const { initiateB2C } = await import('./daraja.service');
       const res = await initiateB2C({
-        phone:     claimed.payee_phone!,
+        phone: claimed.payee_phone!,
         amount,
         commandId: 'BusinessPayment',
-        occasion:  `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
-        remarks:   `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
+        occasion: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
+        remarks: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
       });
       originatorConversationId = res.originatorConversationId;
     } else {
       const { initiateB2B } = await import('./daraja.service');
       const res = await initiateB2B({
         amount,
-        receiverShortcode:  claimed.payee_shortcode!,
+        receiverShortcode: claimed.payee_shortcode!,
         receiverIdentifier: '4',
-        commandId:          'BusinessPayBill',
-        accountReference:   claimed.payee_account!.slice(0, 20),
-        remarks:            `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
+        commandId: 'BusinessPayBill',
+        accountReference: claimed.payee_account!.slice(0, 20),
+        remarks: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
       });
       originatorConversationId = res.originatorConversationId;
     }
 
     await withAdminDb((db) =>
-      db.query(
-        `UPDATE vendor_payments SET originator_conversation_id = $2 WHERE id = $1`,
-        [claimed.id, originatorConversationId],
-      ),
+      db.query(`UPDATE vendor_payments SET originator_conversation_id = $2 WHERE id = $1`, [
+        claimed.id,
+        originatorConversationId,
+      ]),
     );
     // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to vendor
     // payments — see disbursements.service.ts's dispatchDisbursement for the
@@ -374,12 +394,13 @@ async function dispatchVendorPayment(id: string): Promise<void> {
     await triggerDisbursementWatchdog({ kind: 'vendor_payment', rowId: claimed.id });
   } catch (err) {
     logger.error('[vendor-payments] dispatch failed before Daraja accepted the request', {
-      vendorPaymentId: id, err: String(err),
+      vendorPaymentId: id,
+      err: String(err),
     });
     await withAdminDb(async (db) => {
-      const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [claimed.group_id],
-      );
+      const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
+        claimed.group_id,
+      ]);
       if (acctRows[0]) {
         await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${claimed.amount}`]);
       }

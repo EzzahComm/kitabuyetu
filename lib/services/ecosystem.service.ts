@@ -133,11 +133,7 @@ export async function createPartner(
   });
 }
 
-export async function updatePartner(
-  ctx: AdminActionContext,
-  partnerId: string,
-  updates: Partial<Partner>,
-) {
+export async function updatePartner(ctx: AdminActionContext, partnerId: string, updates: Partial<Partner>) {
   return withAdminDb(async (db) => {
     const keys = Object.keys(updates).filter((k) => k !== 'id');
     if (!keys.length) return null;
@@ -164,7 +160,6 @@ export async function getPartnerById(partnerId: string): Promise<Partner | null>
     return result.rows.length ? result.rows[0] : null;
   });
 }
-
 
 export async function listPartners(filters?: { is_active?: boolean }): Promise<Partner[]> {
   return withAdminDb(async (db) => {
@@ -249,10 +244,20 @@ export async function createOpportunity(
 export async function updateOpportunity(
   ctx: AdminActionContext,
   opportunityId: string,
-  updates: Partial<Pick<Opportunity,
-    'title' | 'description' | 'category' | 'amount_min' | 'amount_max' | 'terms_summary'
-    | 'eligibility_rules' | 'application_url' | 'featured'
-  >>,
+  updates: Partial<
+    Pick<
+      Opportunity,
+      | 'title'
+      | 'description'
+      | 'category'
+      | 'amount_min'
+      | 'amount_max'
+      | 'terms_summary'
+      | 'eligibility_rules'
+      | 'application_url'
+      | 'featured'
+    >
+  >,
 ) {
   return withAdminDb(async (db) => {
     const keys = Object.keys(updates) as (keyof typeof updates)[];
@@ -307,10 +312,7 @@ export async function closeOpportunity(ctx: AdminActionContext, opportunityId: s
 }
 
 export async function getOpportunityById(db: PoolClient, opportunityId: string): Promise<Opportunity | null> {
-  const result = await db.query<Opportunity>(
-    `SELECT * FROM ecosystem_opportunities WHERE id = $1`,
-    [opportunityId],
-  );
+  const result = await db.query<Opportunity>(`SELECT * FROM ecosystem_opportunities WHERE id = $1`, [opportunityId]);
 
   return result.rows.length ? result.rows[0] : null;
 }
@@ -318,9 +320,7 @@ export async function getOpportunityById(db: PoolClient, opportunityId: string):
 /** Admin management view — every status, not just published. */
 export async function listAllOpportunities(): Promise<Opportunity[]> {
   return withAdminDb(async (db) => {
-    const result = await db.query<Opportunity>(
-      `SELECT * FROM ecosystem_opportunities ORDER BY created_at DESC`,
-    );
+    const result = await db.query<Opportunity>(`SELECT * FROM ecosystem_opportunities ORDER BY created_at DESC`);
     return result.rows;
   });
 }
@@ -558,10 +558,7 @@ export async function listGroupApplications(ctx: TenantContext, groupId: string)
   });
 }
 
-export async function listApplicationsForOpportunity(
-  db: PoolClient,
-  opportunityId: string,
-): Promise<Application[]> {
+export async function listApplicationsForOpportunity(db: PoolClient, opportunityId: string): Promise<Application[]> {
   const result = await db.query<Application>(
     `SELECT * FROM ecosystem_opportunity_applications WHERE opportunity_id = $1 ORDER BY created_at DESC`,
     [opportunityId],

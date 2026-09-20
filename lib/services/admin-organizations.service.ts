@@ -13,17 +13,23 @@ import { organizationAccountingService } from './organization-accounting.service
 import { assertLinkedGroupCap } from './organization-plan.service';
 
 export const ORGANIZATION_TYPES = [
-  'bank', 'sacco', 'foundation', 'ngo',
-  'government', 'cooperative', 'faith_based', 'other',
+  'bank',
+  'sacco',
+  'foundation',
+  'ngo',
+  'government',
+  'cooperative',
+  'faith_based',
+  'other',
 ] as const;
 export type OrganizationType = (typeof ORGANIZATION_TYPES)[number];
 
 export interface OrgListParams {
-  page:    number;
-  limit:   number;
+  page: number;
+  limit: number;
   search?: string;
-  type?:   string;
-  status?: string;   // 'active' | 'inactive'
+  type?: string;
+  status?: string; // 'active' | 'inactive'
 }
 
 /**
@@ -40,19 +46,22 @@ export async function listOrganizations(params: OrgListParams) {
 
     if (search) {
       conds.push(`(o.name ILIKE $${idx} OR o.registration_number ILIKE $${idx})`);
-      vals.push(`%${search}%`); idx++;
+      vals.push(`%${search}%`);
+      idx++;
     }
     if (type) {
       conds.push(`o.type = $${idx}::organization_type`);
-      vals.push(type); idx++;
+      vals.push(type);
+      idx++;
     }
-    if (status === 'active')   conds.push(`o.is_active = true`);
+    if (status === 'active') conds.push(`o.is_active = true`);
     if (status === 'inactive') conds.push(`o.is_active = false`);
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const [data, count] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT
           o.id, o.name, o.type, o.registration_number, o.phone, o.email,
           o.county, o.is_active, o.created_at,
@@ -76,7 +85,9 @@ export async function listOrganizations(params: OrgListParams) {
         ${where}
         ORDER BY o.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       db.query(`SELECT COUNT(*) AS total FROM public.organizations o ${where}`, vals),
     ]);
 
@@ -139,15 +150,19 @@ export async function compareOrganizations() {
 export async function getOrganizationDetail(orgId: string) {
   return withAdminDb(async (db: PoolClient) => {
     const [org, assigned, assignable, wallet] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT o.*, m.first_name || ' ' || m.last_name AS coordinator_name,
                m.phone AS coordinator_phone, m.email AS coordinator_email
         FROM public.organizations o
         LEFT JOIN public.members m ON m.id = o.coordinator_member_id
         WHERE o.id = $1
         LIMIT 1
-      `, [orgId]),
-      db.query(`
+      `,
+        [orgId],
+      ),
+      db.query(
+        `
         -- LATERAL per child table, not a flat multi-table LEFT JOIN: a plain
         -- join of group_members alongside contributions fans every
         -- contribution row out across every member row before SUM runs,
@@ -172,8 +187,11 @@ export async function getOrganizationDetail(orgId: string) {
         ) con ON true
         WHERE oga.organization_id = $1 AND oga.is_active
         ORDER BY g.name
-      `, [orgId]),
-      db.query(`
+      `,
+        [orgId],
+      ),
+      db.query(
+        `
         SELECT g.id, g.name, g.group_code, g.type AS group_type
         FROM public.groups g
         WHERE g.status = 'active'
@@ -183,50 +201,61 @@ export async function getOrganizationDetail(orgId: string) {
           )
         ORDER BY g.name
         LIMIT 500
-      `, [orgId]),
-      db.query(`
+      `,
+        [orgId],
+      ),
+      db.query(
+        `
         SELECT currency, available_balance, committed_balance,
                total_deposited, total_disbursed, total_returned
         FROM public.organization_wallets
         WHERE organization_id = $1
         ORDER BY currency
-      `, [orgId]),
+      `,
+        [orgId],
+      ),
     ]);
 
     if (!org.rows[0]) return null;
     return {
       ...org.rows[0],
-      assignedGroups:   assigned.rows,
+      assignedGroups: assigned.rows,
       assignableGroups: assignable.rows,
-      wallets:          wallet.rows,
+      wallets: wallet.rows,
     };
   });
 }
 
-export async function createOrganization(input: {
-  name: string;
-  type: string;
-  registrationNumber?: string;
-  phone?: string;
-  email?: string;
-  county?: string;
-  address?: string;
-}, userId?: string) {
+export async function createOrganization(
+  input: {
+    name: string;
+    type: string;
+    registrationNumber?: string;
+    phone?: string;
+    email?: string;
+    county?: string;
+    address?: string;
+  },
+  userId?: string,
+) {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query(`
+    const { rows } = await db.query(
+      `
       INSERT INTO public.organizations
         (name, type, registration_number, phone, email, county, address, is_active)
       VALUES ($1, $2::organization_type, $3, $4, $5, $6, $7, true)
       RETURNING id, name, type
-    `, [
-      input.name.trim(),
-      input.type,
-      input.registrationNumber?.trim() || null,
-      input.phone?.trim() || null,
-      input.email?.trim() || null,
-      input.county?.trim() || null,
-      input.address?.trim() || null,
-    ]);
+    `,
+      [
+        input.name.trim(),
+        input.type,
+        input.registrationNumber?.trim() || null,
+        input.phone?.trim() || null,
+        input.email?.trim() || null,
+        input.county?.trim() || null,
+        input.address?.trim() || null,
+      ],
+    );
     const org = rows[0];
 
     // Record audit log for organization creation
@@ -267,10 +296,7 @@ export async function setOrganizationActive(orgId: string, isActive: boolean, us
 
     const prev = existing[0];
 
-    await db.query(
-      `UPDATE public.organizations SET is_active = $1 WHERE id = $2`,
-      [isActive, orgId],
-    );
+    await db.query(`UPDATE public.organizations SET is_active = $1 WHERE id = $2`, [isActive, orgId]);
 
     // Record audit log for organization status change
     if (prev.is_active !== isActive) {
@@ -297,7 +323,10 @@ export async function setOrganizationActive(orgId: string, isActive: boolean, us
  * re-assigning a previously revoked group reactivates the existing row.
  */
 export async function assignGroupToOrganization(
-  orgId: string, groupId: string, grantedBy: string, accessLevel: 'read' | 'report' = 'read',
+  orgId: string,
+  groupId: string,
+  grantedBy: string,
+  accessLevel: 'read' | 'report' = 'read',
 ) {
   return withAdminDb(async (db: PoolClient) => {
     await assertLinkedGroupCap(db, orgId, groupId);
@@ -312,7 +341,8 @@ export async function assignGroupToOrganization(
     const isNew = !existing[0];
     const prev = existing[0];
 
-    await db.query(`
+    await db.query(
+      `
       INSERT INTO public.organization_group_access
         (organization_id, group_id, access_level, granted_by, is_active)
       VALUES ($1, $2, $3::organization_access_level, $4, true)
@@ -323,7 +353,9 @@ export async function assignGroupToOrganization(
         granted_at   = NOW(),
         revoked_at   = NULL,
         revoked_by   = NULL
-    `, [orgId, groupId, accessLevel, grantedBy]);
+    `,
+      [orgId, groupId, accessLevel, grantedBy],
+    );
 
     // Record audit log for group assignment
     await db.query(
@@ -347,9 +379,7 @@ export async function assignGroupToOrganization(
   });
 }
 
-export async function revokeGroupFromOrganization(
-  orgId: string, groupId: string, revokedBy: string,
-) {
+export async function revokeGroupFromOrganization(orgId: string, groupId: string, revokedBy: string) {
   return withAdminDb(async (db: PoolClient) => {
     // Fetch existing access record to capture old values
     const { rows: existing } = await db.query<{ id: string; is_active: boolean }>(
@@ -361,11 +391,14 @@ export async function revokeGroupFromOrganization(
 
     const prev = existing[0];
 
-    await db.query(`
+    await db.query(
+      `
       UPDATE public.organization_group_access
       SET is_active = false, revoked_at = NOW(), revoked_by = $3
       WHERE organization_id = $1 AND group_id = $2 AND is_active
-    `, [orgId, groupId, revokedBy]);
+    `,
+      [orgId, groupId, revokedBy],
+    );
 
     // Record audit log for group revocation
     await db.query(

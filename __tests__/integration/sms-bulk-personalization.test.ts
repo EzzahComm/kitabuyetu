@@ -39,9 +39,13 @@ jest.mock('@/lib/services/textsms.service', () => ({
 function acceptAll(items: BulkSmsItem[]): BulkSmsResult {
   return {
     responses: items.map((item, i) => ({
-      responseCode: 200, responseDescription: 'Success',
-      mobile: item.mobile, messageId: `msg-${i + 1}`, networkId: '1',
-      success: true, clientSmsId: item.clientSmsId as number,
+      responseCode: 200,
+      responseDescription: 'Success',
+      mobile: item.mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: '1',
+      success: true,
+      clientSmsId: item.clientSmsId as number,
     })),
     sent: items.length,
     failed: 0,
@@ -68,11 +72,18 @@ async function provisionBilling(groupId: string): Promise<void> {
 /** A named member with a known phone, created through the real service so
  *  person/member_code bookkeeping matches production rows. */
 async function addNamedMember(
-  groupId: string, actorId: string, firstName: string, lastName: string, phone: string,
+  groupId: string,
+  actorId: string,
+  firstName: string,
+  lastName: string,
+  phone: string,
 ): Promise<void> {
   const ctx: TenantContext = { userId: actorId, groupId, role: 'chairperson' };
   await membersService.create(ctx, {
-    phone, firstName, lastName, role: 'member',
+    phone,
+    firstName,
+    lastName,
+    role: 'member',
   } as Parameters<typeof membersService.create>[1]);
 }
 
@@ -83,8 +94,12 @@ async function makeBulkJob(payload: Record<string, unknown>): Promise<Job> {
     [JSON.stringify(payload)],
   );
   return {
-    id: row.id, type: 'sms_bulk_send', payload, status: 'processing',
-    attempts: 0, max_attempts: 3,
+    id: row.id,
+    type: 'sms_bulk_send',
+    payload,
+    status: 'processing',
+    attempts: 0,
+    max_attempts: 3,
   } as unknown as Job;
 }
 
@@ -130,11 +145,14 @@ describe('bulk SMS per-recipient personalization', () => {
     await addNamedMember(groupId, officerId, 'Amina', 'Hassan', amina);
     await addNamedMember(groupId, officerId, 'Brian', 'Otieno', brian);
 
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones:  [amina, brian],
-      message: 'Hi {{first_name}}, dues are due Friday.',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: [amina, brian],
+        message: 'Hi {{first_name}}, dues are due Friday.',
+      }),
+    );
 
     const dispatched = dispatchedByPhone();
     expect(dispatched.get(amina)).toBe('Hi Amina, dues are due Friday.');
@@ -159,11 +177,14 @@ describe('bulk SMS per-recipient personalization', () => {
     // /sms/campaign's immediate send enqueues input.message verbatim — unlike
     // the scheduler, it has never pre-rendered group-level vars, so this is
     // the handler resolving them on its own.
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones:  [phone],
-      message: '{{group_name}}: meeting moved to Saturday.',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: [phone],
+        message: '{{group_name}}: meeting moved to Saturday.',
+      }),
+    );
 
     expect(dispatchedByPhone().get(phone)).toBe(`${group.name}: meeting moved to Saturday.`);
   });
@@ -177,11 +198,14 @@ describe('bulk SMS per-recipient personalization', () => {
     // so {{first_name}} has nothing to resolve against.
     const stranger = '254711000004';
 
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones:  [stranger],
-      message: 'Reminder {{first_name}} the AGM is on Saturday.',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: [stranger],
+        message: 'Reminder {{first_name}} the AGM is on Saturday.',
+      }),
+    );
 
     const text = dispatchedByPhone().get(stranger)!;
     expect(text).not.toContain('{{');
@@ -202,9 +226,14 @@ describe('bulk SMS per-recipient personalization', () => {
     // '{{' precisely so this stays untouched.
     const body = 'AGM Saturday 10am.\n\nVenue:  Community Hall\nPlease attend.';
 
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId, phones: [phone], message: body,
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: [phone],
+        message: body,
+      }),
+    );
 
     expect(dispatchedByPhone().get(phone)).toBe(body);
     expect((await sentTextByPhone(groupId)).get(phone)).toBe(body);

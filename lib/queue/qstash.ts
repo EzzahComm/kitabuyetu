@@ -56,7 +56,9 @@ function buildClient(): Client {
   if (!env.QSTASH_TOKEN) throw new Error('QSTASH_TOKEN environment variable is not set');
   // baseUrl defaults to https://qstash.upstash.io when unset — only pass it
   // through when configured (e.g. a region-pinned endpoint).
-  return new Client(env.QSTASH_URL ? { token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL } : { token: env.QSTASH_TOKEN });
+  return new Client(
+    env.QSTASH_URL ? { token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL } : { token: env.QSTASH_TOKEN },
+  );
 }
 
 function client(): Client {
@@ -73,20 +75,20 @@ function appBaseUrl(): string {
 }
 
 export interface SmsDispatchChunkPayload {
-  jobId:          string;
-  chunkIndex:     number;
-  chunkCount:     number;
-  groupId:        string;
-  campaignId?:    string;
-  phones:         string[];
-  message:        string;
-  senderId?:      string;
-  timeToSend?:    string;
+  jobId: string;
+  chunkIndex: number;
+  chunkCount: number;
+  groupId: string;
+  campaignId?: string;
+  phones: string[];
+  message: string;
+  senderId?: string;
+  timeToSend?: string;
   referenceType?: string;
-  referenceId?:   string;
-  sentBy:         string;
+  referenceId?: string;
+  sentBy: string;
   totalRecipientCount: number;
-  fundedBy?:            'organization';
+  fundedBy?: 'organization';
   payerOrganizationId?: string;
   /** Precomputed per-phone template variables, serialised (Map isn't JSON-safe). */
   varsByPhone?: Record<string, TemplateVars>;
@@ -103,14 +105,16 @@ export interface SmsDispatchChunkPayload {
  */
 export async function publishSmsChunk(payload: SmsDispatchChunkPayload): Promise<string> {
   const { messageId } = await client().publishJSON({
-    url:  `${appBaseUrl()}/api/v1/workers/sms-dispatch-chunk`,
+    url: `${appBaseUrl()}/api/v1/workers/sms-dispatch-chunk`,
     body: payload,
     // Let QStash retry a chunk that 5xxs or times out — independent of, and
     // in addition to, the sms_usage_logs-level retry sms_failures already
     // does for individual provider rejections.
     retries: 3,
   });
-  logger.info(`[qstash] published SMS chunk ${payload.chunkIndex + 1}/${payload.chunkCount} for job ${payload.jobId}`, { messageId });
+  logger.info(`[qstash] published SMS chunk ${payload.chunkIndex + 1}/${payload.chunkCount} for job ${payload.jobId}`, {
+    messageId,
+  });
   return messageId;
 }
 
@@ -131,7 +135,7 @@ function workflowClient(): WorkflowClient {
 export type DisbursementWatchdogKind = 'disbursement' | 'settlement' | 'vendor_payment';
 
 export interface DisbursementWatchdogPayload {
-  kind:  DisbursementWatchdogKind;
+  kind: DisbursementWatchdogKind;
   rowId: string;
 }
 
@@ -168,9 +172,9 @@ export async function triggerDisbursementWatchdog(input: DisbursementWatchdogPay
   const key = watchdogKey(input.kind, input.rowId);
   try {
     await workflowClient().trigger({
-      url:            `${appBaseUrl()}/api/v1/workers/disbursement-watchdog`,
-      body:           input,
-      workflowRunId:  key,
+      url: `${appBaseUrl()}/api/v1/workers/disbursement-watchdog`,
+      body: input,
+      workflowRunId: key,
     });
   } catch (err) {
     logger.error(`[qstash] failed to trigger disbursement watchdog for ${key}`, { err: String(err) });
@@ -187,8 +191,8 @@ export async function triggerDisbursementWatchdog(input: DisbursementWatchdogPay
  * failed no longer matches that WHERE clause, so the stale timeout is a no-op.
  */
 export async function notifyDisbursementCallback(
-  kind:      DisbursementWatchdogKind,
-  rowId:     string,
+  kind: DisbursementWatchdogKind,
+  rowId: string,
   eventData: unknown,
 ): Promise<void> {
   if (!isQstashConfigured()) return;

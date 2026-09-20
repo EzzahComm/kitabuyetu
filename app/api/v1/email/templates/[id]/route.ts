@@ -7,15 +7,17 @@ import { ok } from '@/lib/utils/response';
 import { NotFoundError, ForbiddenError } from '@/lib/utils/errors';
 
 const UpdateTemplateSchema = z.object({
-  name:     z.string().optional(),
-  subject:  z.string().optional(),
-  body:     z.string().optional(),
+  name: z.string().optional(),
+  subject: z.string().optional(),
+  body: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
 
-interface TemplateRow { group_id: string | null }
+interface TemplateRow {
+  group_id: string | null;
+}
 
 /**
  * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 — GET previously had no auth
@@ -27,15 +29,8 @@ interface TemplateRow { group_id: string | null }
  *
  * Refactored (2026-09-16) to use client parameter within withDb context.
  */
-async function assertOwnership(
-  client: PoolClient,
-  id: string,
-  auth: { groupId: string; role: string }
-): Promise<void> {
-  const result = await client.query<TemplateRow>(
-    `SELECT group_id FROM email_templates WHERE id = $1`,
-    [id]
-  );
+async function assertOwnership(client: PoolClient, id: string, auth: { groupId: string; role: string }): Promise<void> {
+  const result = await client.query<TemplateRow>(`SELECT group_id FROM email_templates WHERE id = $1`, [id]);
   if (!result.rows.length) throw new NotFoundError('Email template', id);
 
   const ownerGroupId = result.rows[0].group_id;

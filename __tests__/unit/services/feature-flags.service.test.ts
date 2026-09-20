@@ -5,17 +5,22 @@
  */
 import { isFeatureEnabled } from '@/lib/services/feature-flags.service';
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery } as never;
 
 beforeEach(() => mockQuery.mockReset());
 
 function flagRow(overrides: Record<string, unknown> = {}) {
   return {
-    rows: [{
-      enabled: true, rollout_pct: 100, applies_to: 'all', conditions: {},
-      ...overrides,
-    }],
+    rows: [
+      {
+        enabled: true,
+        rollout_pct: 100,
+        applies_to: 'all',
+        conditions: {},
+        ...overrides,
+      },
+    ],
   };
 }
 

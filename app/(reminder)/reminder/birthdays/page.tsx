@@ -16,7 +16,11 @@ const upcomingColumns: PaginatedTableColumn<UpcomingBirthday & { id: string }>[]
   {
     key: 'name',
     header: 'Member',
-    render: (b) => <span className="font-medium text-foreground">{b.firstName} {b.lastName}</span>,
+    render: (b) => (
+      <span className="font-medium text-foreground">
+        {b.firstName} {b.lastName}
+      </span>
+    ),
   },
   { key: 'next', header: 'Birthday', render: (b) => formatDate(b.nextBirthday) },
   {
@@ -24,9 +28,7 @@ const upcomingColumns: PaginatedTableColumn<UpcomingBirthday & { id: string }>[]
     header: 'In',
     hideBelow: 'sm',
     render: (b) => {
-      const days = Math.round(
-        (new Date(b.nextBirthday).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000,
-      );
+      const days = Math.round((new Date(b.nextBirthday).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
       return days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days} days`;
     },
   },
@@ -36,7 +38,11 @@ const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
   {
     key: 'name',
     header: 'Member',
-    render: (h) => <span className="font-medium text-foreground">{h.firstName} {h.lastName}</span>,
+    render: (h) => (
+      <span className="font-medium text-foreground">
+        {h.firstName} {h.lastName}
+      </span>
+    ),
   },
   {
     key: 'status',
@@ -48,7 +54,7 @@ const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
     key: 'sent',
     header: 'Sent',
     hideBelow: 'md',
-    render: (h) => h.sentAt ? formatDate(h.sentAt) : formatDate(h.createdAt),
+    render: (h) => (h.sentAt ? formatDate(h.sentAt) : formatDate(h.createdAt)),
   },
   {
     key: 'reason',
@@ -79,15 +85,19 @@ export default function ReminderBirthdaysPage() {
     updateSettings.mutate(
       { autoSendBirthday: !enabled },
       {
-        onSuccess: () => toast({
-          title: !enabled ? 'Birthday messages on' : 'Birthday messages off',
-          description: !enabled
-            ? 'Members will get a greeting on their birthday, once a year.'
-            : 'No birthday greetings will be sent.',
-        }),
-        onError: (err) => toast({
-          variant: 'destructive', title: 'Could not save', description: getErrorMessage(err),
-        }),
+        onSuccess: () =>
+          toast({
+            title: !enabled ? 'Birthday messages on' : 'Birthday messages off',
+            description: !enabled
+              ? 'Members will get a greeting on their birthday, once a year.'
+              : 'No birthday greetings will be sent.',
+          }),
+        onError: (err) =>
+          toast({
+            variant: 'destructive',
+            title: 'Could not save',
+            description: getErrorMessage(err),
+          }),
       },
     );
   };
@@ -106,8 +116,8 @@ export default function ReminderBirthdaysPage() {
               Automatic birthday messages {enabled ? 'are on' : 'are off'}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Sent once a year per member, each morning, using your Birthday template.
-              Members without a date of birth are skipped.
+              Sent once a year per member, each morning, using your Birthday template. Members without a date of birth
+              are skipped.
             </p>
           </div>
           <Button

@@ -1,6 +1,6 @@
-"use client";
-import { useState } from "react";
-import { Container } from "@/components/Container";
+'use client';
+import { useState } from 'react';
+import { Container } from '@/components/Container';
 
 interface VideoProps {
   videoId: string;

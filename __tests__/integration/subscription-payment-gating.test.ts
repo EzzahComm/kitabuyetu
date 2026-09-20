@@ -27,7 +27,7 @@ async function payFor(
   product: SubscriptionProduct,
   amount: number,
 ): Promise<string> {
-  const suffix     = Math.random().toString(36).slice(2, 14);
+  const suffix = Math.random().toString(36).slice(2, 14);
   const checkoutId = `ws_CO_${suffix}`;
   await rawQuery(
     `INSERT INTO mpesa_stk_requests
@@ -69,8 +69,13 @@ describe('payment-gated subscription activation', () => {
 
     const sub = await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
 
     expect(sub?.plan_type).toBe('growth');
     expect(sub?.status).toBe('active');
@@ -82,10 +87,17 @@ describe('payment-gated subscription activation', () => {
     const fee = PLAN_MONTHLY_FEES.kitabu_yetu.premium;
     const paymentId = await payFor(groupId, 'premium', 'kitabu_yetu', fee - 1);
 
-    await expect(withAdminDb((db) =>
-      billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'premium', product: 'kitabu_yetu', paymentId, amountPaid: fee - 1,
-      }))).rejects.toThrow(/does not cover/i);
+    await expect(
+      withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId,
+          planType: 'premium',
+          product: 'kitabu_yetu',
+          paymentId,
+          amountPaid: fee - 1,
+        }),
+      ),
+    ).rejects.toThrow(/does not cover/i);
 
     // Crucially the existing plan was NOT cancelled on the way to failing: the
     // fee checks run before any mutation, so a refused activation leaves the
@@ -96,10 +108,17 @@ describe('payment-gated subscription activation', () => {
   it('refuses to sell the negotiated enterprise tier through self-serve payment', async () => {
     const paymentId = await payFor(groupId, 'growth', 'kitabu_yetu', 100_000);
 
-    await expect(withAdminDb((db) =>
-      billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'enterprise', product: 'kitabu_yetu', paymentId, amountPaid: 100_000,
-      }))).rejects.toThrow(/not self-serve/i);
+    await expect(
+      withAdminDb((db) =>
+        billingService.activateSubscriptionForPayment(db, {
+          groupId,
+          planType: 'enterprise',
+          product: 'kitabu_yetu',
+          paymentId,
+          amountPaid: 100_000,
+        }),
+      ),
+    ).rejects.toThrow(/not self-serve/i);
 
     expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
   });
@@ -110,8 +129,13 @@ describe('payment-gated subscription activation', () => {
 
     const first = await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
     expect(first).not.toBeNull();
 
     // Safaricom replays, or the client claims the payment the callback already
@@ -119,8 +143,13 @@ describe('payment-gated subscription activation', () => {
     // re-cancellation of the plan just activated.
     const second = await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
     expect(second).toBeNull();
 
     const active = await rawQuery(
@@ -137,15 +166,25 @@ describe('payment-gated subscription activation', () => {
 
     await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'premium', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'premium',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
 
     // Re-presenting the same receipt for a different plan is the obvious
     // attack once activation is driven by a payment id.
     const again = await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
     expect(again).toBeNull();
     expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('premium');
   });
@@ -156,19 +195,30 @@ describe('payment-gated subscription activation', () => {
 
     const before = await withAdminDb((db) =>
       billingService.findClaimablePayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu',
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+      }),
+    );
     expect(before?.paymentId).toBe(paymentId);
 
     await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId,
+        amountPaid: fee,
+      }),
+    );
 
     const after = await withAdminDb((db) =>
       billingService.findClaimablePayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu',
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+      }),
+    );
     expect(after).toBeNull();
   });
 
@@ -179,8 +229,11 @@ describe('payment-gated subscription activation', () => {
     // cheapest plan buys the dearest one.
     const claim = await withAdminDb((db) =>
       billingService.findClaimablePayment(db, {
-        groupId, planType: 'premium', product: 'kitabu_yetu',
-      }));
+        groupId,
+        planType: 'premium',
+        product: 'kitabu_yetu',
+      }),
+    );
     expect(claim).toBeNull();
   });
 
@@ -191,14 +244,24 @@ describe('payment-gated subscription activation', () => {
     const crPayment = await payFor(groupId, 'growth', 'chama_reminder', crFee);
     await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'chama_reminder', paymentId: crPayment, amountPaid: crFee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'chama_reminder',
+        paymentId: crPayment,
+        amountPaid: crFee,
+      }),
+    );
 
     const kyPayment = await payFor(groupId, 'growth', 'kitabu_yetu', kyFee);
     await withAdminDb((db) =>
       billingService.activateSubscriptionForPayment(db, {
-        groupId, planType: 'growth', product: 'kitabu_yetu', paymentId: kyPayment, amountPaid: kyFee,
-      }));
+        groupId,
+        planType: 'growth',
+        product: 'kitabu_yetu',
+        paymentId: kyPayment,
+        amountPaid: kyFee,
+      }),
+    );
 
     expect((await activeSub(groupId, 'chama_reminder'))?.plan_type).toBe('growth');
     expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('growth');
@@ -209,10 +272,16 @@ describe('payment-gated subscription activation', () => {
     // verifies a payment against, so a silent edit here sells plans at the
     // wrong price.
     expect(PLAN_MONTHLY_FEES.kitabu_yetu).toMatchObject({
-      starter: 150, growth: 300, premium: 500, enterprise: 0,
+      starter: 150,
+      growth: 300,
+      premium: 500,
+      enterprise: 0,
     });
     expect(PLAN_MONTHLY_FEES.chama_reminder).toMatchObject({
-      starter: 100, growth: 250, premium: 400, enterprise: 0,
+      starter: 100,
+      growth: 250,
+      premium: 400,
+      enterprise: 0,
     });
   });
 
@@ -230,9 +299,14 @@ describe('payment-gated subscription activation', () => {
 
       const sub = await withAdminDb((db) =>
         billingService.activateSubscriptionForPayment(db, {
-          groupId, planType: 'growth', product: 'kitabu_yetu', paymentId,
-          amountPaid: annualCharge, billingCycle: 'annual',
-        }));
+          groupId,
+          planType: 'growth',
+          product: 'kitabu_yetu',
+          paymentId,
+          amountPaid: annualCharge,
+          billingCycle: 'annual',
+        }),
+      );
 
       expect(Number(sub?.monthly_fee)).toBe(monthlyRate);
       expect(sub?.billing_cycle).toBe('annual');
@@ -245,9 +319,14 @@ describe('payment-gated subscription activation', () => {
 
       const sub = await withAdminDb((db) =>
         billingService.activateSubscriptionForPayment(db, {
-          groupId, planType: 'starter', product: 'kitabu_yetu', paymentId,
-          amountPaid: quarterlyCharge, billingCycle: 'quarterly',
-        }));
+          groupId,
+          planType: 'starter',
+          product: 'kitabu_yetu',
+          paymentId,
+          amountPaid: quarterlyCharge,
+          billingCycle: 'quarterly',
+        }),
+      );
 
       const nextBilling = new Date(sub!.next_billing_date!);
       const now = new Date();
@@ -272,11 +351,18 @@ describe('payment-gated subscription activation', () => {
       // Paid for one month, but requesting the annual cycle (12x the price).
       const paymentId = await payFor(groupId, 'premium', 'kitabu_yetu', monthlyRate);
 
-      await expect(withAdminDb((db) =>
-        billingService.activateSubscriptionForPayment(db, {
-          groupId, planType: 'premium', product: 'kitabu_yetu', paymentId,
-          amountPaid: monthlyRate, billingCycle: 'annual',
-        }))).rejects.toThrow(/does not cover/i);
+      await expect(
+        withAdminDb((db) =>
+          billingService.activateSubscriptionForPayment(db, {
+            groupId,
+            planType: 'premium',
+            product: 'kitabu_yetu',
+            paymentId,
+            amountPaid: monthlyRate,
+            billingCycle: 'annual',
+          }),
+        ),
+      ).rejects.toThrow(/does not cover/i);
 
       expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
     });
@@ -287,8 +373,13 @@ describe('payment-gated subscription activation', () => {
 
       const sub = await withAdminDb((db) =>
         billingService.activateSubscriptionForPayment(db, {
-          groupId, planType: 'growth', product: 'kitabu_yetu', paymentId, amountPaid: fee,
-        }));
+          groupId,
+          planType: 'growth',
+          product: 'kitabu_yetu',
+          paymentId,
+          amountPaid: fee,
+        }),
+      );
 
       expect(sub?.billing_cycle).toBe('monthly');
       expect(Number(sub?.monthly_fee)).toBe(fee);

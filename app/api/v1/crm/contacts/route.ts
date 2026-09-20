@@ -5,8 +5,17 @@ import { createContact, listContacts, type ContactType } from '@/lib/services/cr
 import { ok, created, badRequest } from '@/lib/utils/response';
 
 const CONTACT_TYPES: ContactType[] = [
-  'donor', 'lender', 'insurer', 'trainer', 'service_provider',
-  'professional', 'partner_rep', 'lead', 'media', 'government', 'other',
+  'donor',
+  'lender',
+  'insurer',
+  'trainer',
+  'service_provider',
+  'professional',
+  'partner_rep',
+  'lead',
+  'media',
+  'government',
+  'other',
 ];
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -41,7 +50,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
 
     const contact = await createContact(ctx, {
-      contact_type, name, email, phone, notes, donor_id, ecosystem_partner_id,
+      contact_type,
+      name,
+      email,
+      phone,
+      notes,
+      donor_id,
+      ecosystem_partner_id,
       marketing_opt_in: marketing_opt_in === true,
     });
 

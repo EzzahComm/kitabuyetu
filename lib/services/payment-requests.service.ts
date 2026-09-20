@@ -14,16 +14,15 @@ import { assertActiveMembership } from './membership-guard';
 import type { OpenPaymentRequest, PaymentProduct } from '@/lib/utils/allocation-engine';
 
 export interface CreatePaymentRequestInput {
-  memberId:  string;
-  product:   PaymentProduct;
-  amount:    number;
+  memberId: string;
+  product: PaymentProduct;
+  amount: number;
   entityId?: string | null;
   /** Hours until expiry; omit for no expiry. */
   expiresInHours?: number | null;
 }
 
 export const paymentRequestsService = {
-
   async create(ctx: TenantContext, data: CreatePaymentRequestInput) {
     return withTransaction(ctx, async (client) => {
       const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
@@ -37,9 +36,14 @@ export const paymentRequestsService = {
                  $8)
          RETURNING *`,
         [
-          ctx.groupId, membershipId, data.memberId, data.product,
-          data.entityId ?? null, data.amount.toFixed(2),
-          data.expiresInHours ?? null, ctx.userId,
+          ctx.groupId,
+          membershipId,
+          data.memberId,
+          data.product,
+          data.entityId ?? null,
+          data.amount.toFixed(2),
+          data.expiresInHours ?? null,
+          ctx.userId,
         ],
       );
 
@@ -75,14 +79,23 @@ export const paymentRequestsService = {
       const conds: string[] = ['pr.group_id = $1'];
       const vals: unknown[] = [ctx.groupId];
       let i = 2;
-      if (params.status)   { conds.push(`pr.status = $${i++}`);    vals.push(params.status); }
-      if (params.memberId) { conds.push(`pr.member_id = $${i++}`); vals.push(params.memberId); }
+      if (params.status) {
+        conds.push(`pr.status = $${i++}`);
+        vals.push(params.status);
+      }
+      if (params.memberId) {
+        conds.push(`pr.member_id = $${i++}`);
+        vals.push(params.memberId);
+      }
 
-      const where  = conds.join(' AND ');
+      const where = conds.join(' AND ');
       const offset = (params.page - 1) * params.limit;
 
-      const { rows: [{ count }] } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM payment_requests pr WHERE ${where}`, vals,
+      const {
+        rows: [{ count }],
+      } = await client.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM payment_requests pr WHERE ${where}`,
+        vals,
       );
       const { rows } = await client.query(
         `SELECT pr.*, m.first_name || ' ' || m.last_name AS member_name,
@@ -96,8 +109,11 @@ export const paymentRequestsService = {
         [...vals, params.limit, offset],
       );
       return {
-        items: rows, total: parseInt(count, 10), page: params.page,
-        pageSize: params.limit, totalPages: Math.ceil(parseInt(count, 10) / params.limit),
+        items: rows,
+        total: parseInt(count, 10),
+        page: params.page,
+        pageSize: params.limit,
+        totalPages: Math.ceil(parseInt(count, 10) / params.limit),
       };
     });
   },
@@ -145,13 +161,13 @@ export const paymentRequestsService = {
  * Open, unexpired requests for a membership — the A2/A4/A5 inputs.
  * Expiry filtering here implements A6 even between expiry-job runs.
  */
-export async function findOpenRequests(
-  db: PoolClient,
-  membershipId: string,
-): Promise<OpenPaymentRequest[]> {
+export async function findOpenRequests(db: PoolClient, membershipId: string): Promise<OpenPaymentRequest[]> {
   const { rows } = await db.query<{
-    id: string; product: PaymentProduct; entity_id: string | null;
-    amount: string; created_at: Date;
+    id: string;
+    product: PaymentProduct;
+    entity_id: string | null;
+    amount: string;
+    created_at: Date;
   }>(
     `SELECT id, product, entity_id, amount, created_at
      FROM   payment_requests
@@ -162,17 +178,16 @@ export async function findOpenRequests(
     [membershipId],
   );
   return rows.map((r) => ({
-    id: r.id, product: r.product, entityId: r.entity_id,
-    amount: parseFloat(r.amount), createdAt: new Date(r.created_at),
+    id: r.id,
+    product: r.product,
+    entityId: r.entity_id,
+    amount: parseFloat(r.amount),
+    createdAt: new Date(r.created_at),
   }));
 }
 
 /** Latch a request as fulfilled by a payment. No-op if already closed. */
-export async function fulfilRequest(
-  db: PoolClient,
-  requestId: string,
-  paymentId: string | null,
-): Promise<void> {
+export async function fulfilRequest(db: PoolClient, requestId: string, paymentId: string | null): Promise<void> {
   await db.query(
     `UPDATE payment_requests
      SET    status = 'fulfilled', fulfilled_by_payment = $2

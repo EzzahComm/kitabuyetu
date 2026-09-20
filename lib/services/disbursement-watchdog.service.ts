@@ -33,9 +33,9 @@ import type { DisbursementWatchdogKind } from '@/lib/queue/qstash';
 // DisbursementWatchdogKind union (never user input) — safe to interpolate
 // the table name directly, there is no fourth value this can ever be.
 const SPINE_BY_KIND: Record<DisbursementWatchdogKind, { table: string; inProgressStatus: string }> = {
-  disbursement:   { table: 'disbursement_requests', inProgressStatus: 'dispatched' },
-  settlement:     { table: 'settlement_requests',   inProgressStatus: 'processing' },
-  vendor_payment: { table: 'vendor_payments',       inProgressStatus: 'processing' },
+  disbursement: { table: 'disbursement_requests', inProgressStatus: 'dispatched' },
+  settlement: { table: 'settlement_requests', inProgressStatus: 'processing' },
+  vendor_payment: { table: 'vendor_payments', inProgressStatus: 'processing' },
 };
 
 export interface WatchdogTimeoutResult {
@@ -54,7 +54,7 @@ export interface WatchdogTimeoutResult {
  * simply matches zero rows and `resolved` comes back false.
  */
 export async function resolveWatchdogTimeout(
-  kind:  DisbursementWatchdogKind,
+  kind: DisbursementWatchdogKind,
   rowId: string,
 ): Promise<WatchdogTimeoutResult> {
   const { table, inProgressStatus } = SPINE_BY_KIND[kind];
@@ -78,8 +78,11 @@ export async function resolveWatchdogTimeout(
         [
           row.group_id,
           'watchdog.timeout',
-          kind === 'disbursement' ? 'disbursement_request' :
-          kind === 'settlement' ? 'settlement_request' : 'vendor_payment',
+          kind === 'disbursement'
+            ? 'disbursement_request'
+            : kind === 'settlement'
+              ? 'settlement_request'
+              : 'vendor_payment',
           row.id,
           JSON.stringify({ status: inProgressStatus, amount: row.amount }),
           JSON.stringify({
@@ -93,7 +96,10 @@ export async function resolveWatchdogTimeout(
       // (disbursements.service.ts) — deliberately not a new alert channel;
       // see the messaging architecture doc §9 for why.
       logger.error(`[disbursement-watchdog] ${kind} timed out waiting for a Daraja result callback`, {
-        kind, id: row.id, groupId: row.group_id, amount: row.amount,
+        kind,
+        id: row.id,
+        groupId: row.group_id,
+        amount: row.amount,
       });
     }
 

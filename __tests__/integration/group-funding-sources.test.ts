@@ -145,7 +145,7 @@ describe('group_funding_sources', () => {
   });
 
   describe('service layer', () => {
-    it('getInternalSavingsSource returns the group\'s own savings source', async () => {
+    it("getInternalSavingsSource returns the group's own savings source", async () => {
       const source = await getInternalSavingsSource(ctxA());
 
       expect(source.sourceType).toBe('internal_savings');
@@ -173,7 +173,7 @@ describe('group_funding_sources', () => {
       expect(sources[0].sourceType).toBe('internal_savings');
     });
 
-    it('listForGroup never leaks another group\'s sources', async () => {
+    it("listForGroup never leaks another group's sources", async () => {
       const sources = await listForGroup(ctxB());
 
       expect(sources.every((s) => s.groupId === groupBId)).toBe(true);
@@ -213,9 +213,7 @@ describe('group_funding_sources', () => {
     it('blocks hard-deleting a group (documents why the cascade is untestable end to end)', async () => {
       const { groupId } = await createTestGroup('chairperson');
 
-      await expect(
-        rawQuery(`DELETE FROM groups WHERE id = $1`, [groupId]),
-      ).rejects.toThrow();
+      await expect(rawQuery(`DELETE FROM groups WHERE id = $1`, [groupId])).rejects.toThrow();
     });
   });
 });

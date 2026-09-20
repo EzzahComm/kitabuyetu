@@ -17,9 +17,9 @@ export async function GET(req: NextRequest, { params }: Params): Promise<Respons
 export async function PATCH(req: NextRequest, { params }: Params): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'investments.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = UpdateInvestmentSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await investmentsService.update(ctx, id, input));
   });
 }

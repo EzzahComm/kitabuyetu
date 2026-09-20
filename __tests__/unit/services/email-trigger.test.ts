@@ -18,7 +18,7 @@ jest.mock('@/lib/services/campaign.service', () => ({
   getCampaignRecipients: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -28,14 +28,23 @@ beforeEach(() => {
 });
 
 const rolesRule = {
-  id: 'rule-1', group_id: 'grp-1', organization_id: null, name: 'Welcome email',
-  event_type: 'member.registered', conditions: {}, template_key: 'welcome_email',
+  id: 'rule-1',
+  group_id: 'grp-1',
+  organization_id: null,
+  name: 'Welcome email',
+  event_type: 'member.registered',
+  conditions: {},
+  template_key: 'welcome_email',
   recipient_spec: { type: 'roles', roles: ['chairperson'] },
-  delay_seconds: 0, max_retries: 3, created_by: 'user-1',
+  delay_seconds: 0,
+  max_retries: 3,
+  created_by: 'user-1',
 };
 
 const event = {
-  eventType: 'member.registered' as const, eventId: 'evt-1', groupId: 'grp-1',
+  eventType: 'member.registered' as const,
+  eventId: 'evt-1',
+  groupId: 'grp-1',
   payload: { first_name: 'Alice' },
 };
 
@@ -54,7 +63,7 @@ describe('emitEmailTriggerEvent — template lookup', () => {
     expect(mockQuery.mock.calls.some((c) => String(c[0]).includes('INSERT INTO email_campaigns'))).toBe(false);
   });
 
-  it('renders the email_templates row\'s subject + body, not the raw template_key', async () => {
+  it("renders the email_templates row's subject + body, not the raw template_key", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [rolesRule] }); // loadMatchingEmailRules
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'mem-1', email: 'a@x.com', name: 'Alice' }] }); // roles recipients
     mockQuery.mockResolvedValueOnce({ rows: [] }); // frequency_caps: none
@@ -74,8 +83,8 @@ describe('emitEmailTriggerEvent — template lookup', () => {
     expect(campaignInsert).toBeDefined();
     const [, params] = campaignInsert!;
     // params: [groupId, name, subject, html_body, recipients, created_by]
-    expect(params[2]).toBe('Welcome Alice');                          // rendered subject, not 'welcome_email'
-    expect(params[3]).toBe('Hi Alice, glad to have you.');            // rendered body, not 'welcome_email'
+    expect(params[2]).toBe('Welcome Alice'); // rendered subject, not 'welcome_email'
+    expect(params[3]).toBe('Hi Alice, glad to have you.'); // rendered body, not 'welcome_email'
     expect(params[3]).not.toContain('welcome_email');
   });
 });

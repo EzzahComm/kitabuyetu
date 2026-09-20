@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import {
-  createAutomationRule, listAutomationRules, type AutomationChannel,
+  createAutomationRule,
+  listAutomationRules,
+  type AutomationChannel,
 } from '@/lib/services/automation-rules.service';
 import { ok, created, badRequest } from '@/lib/utils/response';
 
@@ -23,7 +25,17 @@ export async function GET(request: NextRequest): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   return withPermission(request, 'crm.manage', async (auth) => {
     const body = await request.json();
-    const { channel, name, description, event_type, conditions, template_key, recipient_spec, delay_seconds, max_retries } = body;
+    const {
+      channel,
+      name,
+      description,
+      event_type,
+      conditions,
+      template_key,
+      recipient_spec,
+      delay_seconds,
+      max_retries,
+    } = body;
 
     if (!channel || !CHANNELS.includes(channel)) return badRequest("channel must be 'sms' or 'email'");
     if (!name || typeof name !== 'string' || !name.trim()) return badRequest('name is required');
@@ -33,7 +45,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const rule = await createAutomationRule(ctx, channel, {
-      name, description, event_type, conditions, template_key, recipient_spec, delay_seconds, max_retries,
+      name,
+      description,
+      event_type,
+      conditions,
+      template_key,
+      recipient_spec,
+      delay_seconds,
+      max_retries,
     });
     return created(rule);
   });

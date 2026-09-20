@@ -1,10 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import {
-  CreditCard, AlertCircle,
-  CheckCircle2, Clock,
-} from 'lucide-react';
+import { CreditCard, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
@@ -16,45 +13,59 @@ import { formatKES, formatDate } from '@/lib/utils';
 
 // OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — code-split recharts out of the
 // initial bundle for this rarely-visited admin page.
-const RevenueByPlanChart = dynamic(
-  () => import('./_charts').then((m) => m.RevenueByPlanChart),
-  { ssr: false, loading: () => <Skeleton className="h-52 w-full" /> },
-);
+const RevenueByPlanChart = dynamic(() => import('./_charts').then((m) => m.RevenueByPlanChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-52 w-full" />,
+});
 
 const PLAN_COLORS: Record<string, string> = {
-  starter:    '#94a3b8',
-  growth:     '#3b82f6',
-  premium:    '#f59e0b',
+  starter: '#94a3b8',
+  growth: '#3b82f6',
+  premium: '#f59e0b',
   enterprise: '#7c3aed',
 };
 
 interface BillingSummary {
-  active_subscriptions:     number;
-  expired_subscriptions:    number;
-  suspended_subscriptions:  number;
-  mrr:                      string;
-  overdue_count:            number;
+  active_subscriptions: number;
+  expired_subscriptions: number;
+  suspended_subscriptions: number;
+  mrr: string;
+  overdue_count: number;
 }
 
-interface PlanRevenueRow { plan: string; count: string; revenue: string }
+interface PlanRevenueRow {
+  plan: string;
+  count: string;
+  revenue: string;
+}
 
 interface OutstandingInvoiceRow {
-  id: string; invoice_number: string; amount_due: string;
-  due_date: string; status: string; is_overdue: boolean; group_name: string | null;
+  id: string;
+  invoice_number: string;
+  amount_due: string;
+  due_date: string;
+  status: string;
+  is_overdue: boolean;
+  group_name: string | null;
 }
 
 interface RecentPaymentRow {
-  id: string; amount: string; status: string; payment_method: string | null;
-  created_at: string; group_name: string | null; invoice_number: string | null;
+  id: string;
+  amount: string;
+  status: string;
+  payment_method: string | null;
+  created_at: string;
+  group_name: string | null;
+  invoice_number: string | null;
 }
 
 export default function BillingAdminPage() {
   const { data, isLoading, isError, error } = useAdminBilling();
 
-  const summary: Partial<BillingSummary> = data?.summary        ?? {};
-  const byPlan: PlanRevenueRow[]          = data?.byPlan         ?? [];
+  const summary: Partial<BillingSummary> = data?.summary ?? {};
+  const byPlan: PlanRevenueRow[] = data?.byPlan ?? [];
   const recentPayments: RecentPaymentRow[] = data?.recentPayments ?? [];
-  const outstanding: OutstandingInvoiceRow[] = data?.outstanding    ?? [];
+  const outstanding: OutstandingInvoiceRow[] = data?.outstanding ?? [];
 
   const mrr = parseFloat(summary.mrr ?? '0');
 
@@ -122,7 +133,9 @@ export default function BillingAdminPage() {
                     <span className="capitalize text-muted-foreground font-medium">{p.plan}</span>
                   </div>
                   <div className="flex items-center gap-4 text-muted-foreground">
-                    <span>{p.count} org{parseInt(p.count) !== 1 ? 's' : ''}</span>
+                    <span>
+                      {p.count} org{parseInt(p.count) !== 1 ? 's' : ''}
+                    </span>
                     <span className="font-semibold text-foreground">{formatKES(p.revenue)}/mo</span>
                   </div>
                 </div>
@@ -150,13 +163,18 @@ export default function BillingAdminPage() {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {outstanding.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-accent">
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-accent"
+                  >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{inv.group_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-muted-foreground">{inv.invoice_number}</span>
                         <span className="text-xs text-muted-foreground">·</span>
-                        <span className={`text-xs ${new Date(inv.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                        <span
+                          className={`text-xs ${new Date(inv.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}
+                        >
                           Due {formatDate(inv.due_date)}
                         </span>
                       </div>
@@ -187,15 +205,43 @@ export default function BillingAdminPage() {
             onPageChange={() => {}}
             emptyMessage="No payments yet"
             columns={[
-              { key: 'group_name', header: 'Organization', render: (p) => <span className="font-medium text-foreground">{p.group_name ?? '—'}</span> },
-              { key: 'invoice_number', header: 'Invoice', render: (p) => <span className="text-muted-foreground text-xs font-mono">{p.invoice_number ?? '—'}</span> },
-              { key: 'amount', header: 'Amount', className: 'text-right', render: (p) => <span className="font-semibold">{formatKES(p.amount)}</span> },
-              { key: 'payment_method', header: 'Method', render: (p) => <span className="text-xs text-muted-foreground capitalize">{p.payment_method?.replace('_', ' ') ?? '—'}</span> },
               {
-                key: 'status', header: 'Status',
+                key: 'group_name',
+                header: 'Organization',
+                render: (p) => <span className="font-medium text-foreground">{p.group_name ?? '—'}</span>,
+              },
+              {
+                key: 'invoice_number',
+                header: 'Invoice',
+                render: (p) => (
+                  <span className="text-muted-foreground text-xs font-mono">{p.invoice_number ?? '—'}</span>
+                ),
+              },
+              {
+                key: 'amount',
+                header: 'Amount',
+                className: 'text-right',
+                render: (p) => <span className="font-semibold">{formatKES(p.amount)}</span>,
+              },
+              {
+                key: 'payment_method',
+                header: 'Method',
+                render: (p) => (
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {p.payment_method?.replace('_', ' ') ?? '—'}
+                  </span>
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Status',
                 render: (p) => <StatusPill status={p.status} size="sm" />,
               },
-              { key: 'created_at', header: 'Date', render: (p) => <span className="text-xs text-muted-foreground">{formatDate(p.created_at)}</span> },
+              {
+                key: 'created_at',
+                header: 'Date',
+                render: (p) => <span className="text-xs text-muted-foreground">{formatDate(p.created_at)}</span>,
+              },
             ]}
           />
         </CardContent>

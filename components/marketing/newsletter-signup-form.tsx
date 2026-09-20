@@ -28,11 +28,7 @@ export function NewsletterSignupForm({ source, className }: NewsletterSignupForm
   };
 
   if (subscribe.isSuccess) {
-    return (
-      <p className={className}>
-        You&rsquo;re subscribed. Thanks for following along.
-      </p>
-    );
+    return <p className={className}>You&rsquo;re subscribed. Thanks for following along.</p>;
   }
 
   return (

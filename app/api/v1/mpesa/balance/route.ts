@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * POST /api/v1/mpesa/balance              â€” Trigger balance query (treasurer+)
  * GET  /api/v1/mpesa/balance              â€” Return latest stored balance result
@@ -21,7 +21,7 @@ const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
     // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
@@ -34,7 +34,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -47,8 +51,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     after(async () => {
-      try { await handleBalanceResult(body, ip); }
-      catch (err) { logger.error('[balance result]', err); }
+      try {
+        await handleBalanceResult(body, ip);
+      } catch (err) {
+        logger.error('[balance result]', err);
+      }
     });
     return ack();
   }
@@ -61,7 +68,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // Record the query in master ledger so we can correlate the callback
       const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       await withTransaction(ctx, (db) =>
         db.query(
           `INSERT INTO mpesa_transactions
@@ -74,11 +86,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
 
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseCode:             res.responseCode,
-        responseDescription:      res.responseDescription,
-        message:                  'Balance query submitted. Result will arrive via callback within 30 seconds.',
+        responseCode: res.responseCode,
+        responseDescription: res.responseDescription,
+        message: 'Balance query submitted. Result will arrive via callback within 30 seconds.',
       });
     } catch (err) {
       return handleError(err);
@@ -90,7 +102,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT raw_response, completed_at, status
@@ -113,13 +130,13 @@ export async function GET(req: NextRequest): Promise<Response> {
         };
       };
       const params = (raw as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
-      const get    = (k: string) => params.find((p) => p.Key === k)?.Value ?? 0;
+      const get = (k: string) => params.find((p) => p.Key === k)?.Value ?? 0;
 
       return ok({
-        workingAccountBalance:  Number(get('WorkingAccountAvailableFunds')),
-        utilityAccountBalance:  Number(get('UtilityAccountAvailableFunds')),
-        chargesAccountBalance:  Number(get('ChargesAccountAvailableFunds')),
-        queriedAt:              rows[0].completed_at as string,
+        workingAccountBalance: Number(get('WorkingAccountAvailableFunds')),
+        utilityAccountBalance: Number(get('UtilityAccountAvailableFunds')),
+        chargesAccountBalance: Number(get('ChargesAccountAvailableFunds')),
+        queriedAt: rows[0].completed_at as string,
       });
     } catch (err) {
       return handleError(err);

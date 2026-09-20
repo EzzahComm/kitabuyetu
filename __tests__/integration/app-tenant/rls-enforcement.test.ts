@@ -48,7 +48,9 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
     const ctx: TenantContext = { userId: officerAId, groupId: groupAId, role: 'chairperson' };
     const [role] = await withDb(ctx, async (client) => {
       const { rows } = await client.query<{
-        rolname: string; rolbypassrls: boolean; rolsuper: boolean;
+        rolname: string;
+        rolbypassrls: boolean;
+        rolsuper: boolean;
       }>('SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user');
       return rows;
     });
@@ -62,9 +64,7 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
     const ctx: TenantContext = { userId: officerAId, groupId: groupAId, role: 'chairperson' };
 
     const rows = await withDb(ctx, async (client) => {
-      const { rows } = await client.query<{ id: string; group_id: string }>(
-        'SELECT id, group_id FROM meetings',
-      );
+      const { rows } = await client.query<{ id: string; group_id: string }>('SELECT id, group_id FROM meetings');
       return rows;
     });
 
@@ -77,9 +77,7 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
     const ctx: TenantContext = { userId: officerBId, groupId: groupBId, role: 'chairperson' };
 
     const rows = await withDb(ctx, async (client) => {
-      const { rows } = await client.query<{ id: string; group_id: string }>(
-        'SELECT id, group_id FROM meetings',
-      );
+      const { rows } = await client.query<{ id: string; group_id: string }>('SELECT id, group_id FROM meetings');
       return rows;
     });
 

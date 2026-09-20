@@ -10,17 +10,17 @@ import { buyAirtime as _buyAirtime, assertSafaricomIp } from './daraja.service';
 import { IS_SANDBOX } from './mpesa-spine.service';
 
 export interface AirtimeParams {
-  phone:        string;
-  amount:       number;
-  groupId:      string;
-  remarks?:     string;
+  phone: string;
+  amount: number;
+  groupId: string;
+  remarks?: string;
   initiatedBy?: string;
 }
 
 export interface AirtimeResult {
-  conversationId:           string;
+  conversationId: string;
   originatorConversationId: string;
-  responseDescription:      string;
+  responseDescription: string;
 }
 
 /**
@@ -30,12 +30,12 @@ export interface AirtimeResult {
  * 'airtime' so it reports separately from B2C cash.
  */
 export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeResult> {
-  const phone     = normalizePhone(params.phone);
+  const phone = normalizePhone(params.phone);
   const amountStr = toMpesaAmount(params.amount).toFixed(2);
 
   const res = await _buyAirtime({
     phone,
-    amount:  params.amount,
+    amount: params.amount,
     remarks: params.remarks,
   });
 
@@ -49,9 +49,12 @@ export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeRes
        ON CONFLICT (originator_conversation_id) DO NOTHING
        RETURNING id`,
       [
-        params.groupId, phone, amountStr,
+        params.groupId,
+        phone,
+        amountStr,
         params.remarks ?? 'Airtime purchase',
-        res.conversationId, res.originatorConversationId,
+        res.conversationId,
+        res.originatorConversationId,
         process.env.MPESA_AIRTIME_SHORTCODE ?? null,
         IS_SANDBOX,
       ],
@@ -79,9 +82,9 @@ export async function initiateAirtime(params: AirtimeParams): Promise<AirtimeRes
   });
 
   return {
-    conversationId:           res.conversationId,
+    conversationId: res.conversationId,
     originatorConversationId: res.originatorConversationId,
-    responseDescription:      res.responseDescription,
+    responseDescription: res.responseDescription,
   };
 }
 
@@ -95,8 +98,10 @@ export async function handleAirtimeResult(
 
   type RawResult = {
     Result?: {
-      ResultCode?: number; ResultDesc?: string;
-      OriginatorConversationID?: string; ConversationID?: string;
+      ResultCode?: number;
+      ResultDesc?: string;
+      OriginatorConversationID?: string;
+      ConversationID?: string;
       ResultParameters?: { ResultParameter?: { Key: string; Value: unknown }[] };
     };
   };

@@ -16,11 +16,11 @@ jest.mock('@/lib/services/loan-policy.service', () => ({
 }));
 
 const DEFAULT_LADDER: TierThreshold[] = [
-  { tier: 'excellent', min: 85, loanMultiplier: 10   },
-  { tier: 'good',      min: 70, loanMultiplier: 5    },
-  { tier: 'fair',      min: 55, loanMultiplier: 3    },
-  { tier: 'poor',      min: 40, loanMultiplier: 1    },
-  { tier: 'high_risk', min: 0,  loanMultiplier: 0.5  },
+  { tier: 'excellent', min: 85, loanMultiplier: 10 },
+  { tier: 'good', min: 70, loanMultiplier: 5 },
+  { tier: 'fair', min: 55, loanMultiplier: 3 },
+  { tier: 'poor', min: 40, loanMultiplier: 1 },
+  { tier: 'high_risk', min: 0, loanMultiplier: 0.5 },
 ];
 
 // Real per-component weights (financial keys sum to 1.0, social keys sum to
@@ -28,21 +28,22 @@ const DEFAULT_LADDER: TierThreshold[] = [
 // All components at a flat `score` → financial = social = overall = score,
 // since a weighted sum of equal values (weights summing to 1) equals that value.
 const WEIGHTS: Record<string, number> = {
-  contribution_consistency: 0.30,
-  loan_repayment:           0.30,
-  savings_growth:           0.20,
-  share_ownership:          0.15,
-  dividend_participation:   0.05,
-  meeting_attendance:       0.50,
-  welfare_participation:    0.25,
-  leadership_role:          0.25,
+  contribution_consistency: 0.3,
+  loan_repayment: 0.3,
+  savings_growth: 0.2,
+  share_ownership: 0.15,
+  dividend_participation: 0.05,
+  meeting_attendance: 0.5,
+  welfare_participation: 0.25,
+  leadership_role: 0.25,
 };
 
 function flatComponents(score: number, totalSavings = 10000): Record<string, ComponentScore> {
   const out: Record<string, ComponentScore> = {};
   for (const [key, weight] of Object.entries(WEIGHTS)) {
     out[key] = {
-      score, weight,
+      score,
+      weight,
       raw: key === 'contribution_consistency' ? { total_completed_amount: totalSavings } : {},
     };
   }
@@ -59,11 +60,11 @@ describe('synthesise', () => {
 
   it('assigns a DIFFERENT tier for the same score under a custom ladder — proves the wiring is live', () => {
     const stricterLadder: TierThreshold[] = [
-      { tier: 'excellent', min: 90, loanMultiplier: 10  },
-      { tier: 'good',      min: 80, loanMultiplier: 5   },
-      { tier: 'fair',      min: 65, loanMultiplier: 3   }, // fair now requires 65, not 55
-      { tier: 'poor',      min: 40, loanMultiplier: 1   },
-      { tier: 'high_risk', min: 0,  loanMultiplier: 0.5 },
+      { tier: 'excellent', min: 90, loanMultiplier: 10 },
+      { tier: 'good', min: 80, loanMultiplier: 5 },
+      { tier: 'fair', min: 65, loanMultiplier: 3 }, // fair now requires 65, not 55
+      { tier: 'poor', min: 40, loanMultiplier: 1 },
+      { tier: 'high_risk', min: 0, loanMultiplier: 0.5 },
     ];
     const result = synthesise(flatComponents(60) as never, stricterLadder);
     expect(result.tier).toBe('poor'); // 60 no longer clears the raised 'fair' bar

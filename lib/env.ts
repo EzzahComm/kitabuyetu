@@ -43,7 +43,7 @@ const envObjectSchema = z.object({
   // organization_coordinator) by /api/v1/auth/admin/login. Tighter TTLs than tenant
   // tokens because the blast radius of a stolen platform token is much
   // larger (cross-tenant access).
-  BACKOFFICE_ACCESS_EXPIRES_IN:  z.string().default('15m'),
+  BACKOFFICE_ACCESS_EXPIRES_IN: z.string().default('15m'),
   BACKOFFICE_REFRESH_EXPIRES_IN: z.string().default('8h'),
 
   // ── M-Pesa (Safaricom Daraja) ─────────────────────────────────────────────
@@ -69,18 +69,18 @@ const envObjectSchema = z.object({
   // Sub-account shortcodes (Safaricom Daraja "Organization Accounts").
   // Used for reconciliation tracing — the API call still uses MPESA_SHORTCODE
   // as PartyA, but every B2C row records which sub-account funded it.
-  MPESA_WORKING_SHORTCODE:           z.string().optional(),
-  MPESA_UTILITY_SHORTCODE:           z.string().optional(),
+  MPESA_WORKING_SHORTCODE: z.string().optional(),
+  MPESA_UTILITY_SHORTCODE: z.string().optional(),
   MPESA_LOAN_DISBURSEMENT_SHORTCODE: z.string().optional(),
-  MPESA_CHARGES_SHORTCODE:           z.string().optional(),
-  MPESA_SETTLEMENT_SHORTCODE:        z.string().optional(),
-  MPESA_AIRTIME_SHORTCODE:           z.string().optional(),
+  MPESA_CHARGES_SHORTCODE: z.string().optional(),
+  MPESA_SETTLEMENT_SHORTCODE: z.string().optional(),
+  MPESA_AIRTIME_SHORTCODE: z.string().optional(),
   // Airtime purchase is operator-specific on Daraja — the exact CommandID and
   // request path are provisioned per shortcode. The wrapper stays inert (throws
   // NotImplementedError) until MPESA_AIRTIME_COMMAND_ID is set. ENDPOINT
   // defaults to the documented path but is overridable.
-  MPESA_AIRTIME_COMMAND_ID:          z.string().optional(),
-  MPESA_AIRTIME_ENDPOINT:            z.string().optional(),
+  MPESA_AIRTIME_COMMAND_ID: z.string().optional(),
+  MPESA_AIRTIME_ENDPOINT: z.string().optional(),
   // Pre-encrypted SecurityCredential (optional). When set, takes precedence
   // over the runtime RSA encryption of MPESA_B2C_INITIATOR_PASSWORD.
   MPESA_B2C_SECURITY_CREDENTIAL: z.string().optional(),
@@ -97,8 +97,8 @@ const envObjectSchema = z.object({
   // the key against the portal. A credential is never meant to carry leading
   // or trailing whitespace, so strip it before it can silently take SMS down.
   // Note this normalises the value only — a genuinely wrong key still fails.
-  TEXTSMS_API_KEY:    z.string().trim().min(1, 'TEXTSMS_API_KEY is required'),
-  TEXTSMS_SENDER_ID:  z.string().trim().default('KITABU YETU'),
+  TEXTSMS_API_KEY: z.string().trim().min(1, 'TEXTSMS_API_KEY is required'),
+  TEXTSMS_SENDER_ID: z.string().trim().default('KITABU YETU'),
   TEXTSMS_PARTNER_ID: z.string().trim().min(1, 'TEXTSMS_PARTNER_ID is required'),
 
   // ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────────
@@ -113,9 +113,7 @@ const envObjectSchema = z.object({
   WHATSAPP_APP_SECRET: z.string().optional(),
 
   // ── Email ─────────────────────────────────────────────────────────────────
-  EMAIL_PROVIDER: z
-    .enum(['resend', 'sendgrid', 'ses', 'mailgun', 'smtp'])
-    .default('resend'),
+  EMAIL_PROVIDER: z.enum(['resend', 'sendgrid', 'ses', 'mailgun', 'smtp']).default('resend'),
   EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
   EMAIL_ADMIN: z.string().email().optional(),
   /**
@@ -137,15 +135,11 @@ const envObjectSchema = z.object({
   RESEND_WEBHOOK_SECRET: z.string().optional(),
 
   // ── Encryption ────────────────────────────────────────────────────────────
-  ENCRYPTION_KEY: z
-    .string()
-    .min(32, 'ENCRYPTION_KEY must be at least 32 characters (use: openssl rand -hex 32)'),
+  ENCRYPTION_KEY: z.string().min(32, 'ENCRYPTION_KEY must be at least 32 characters (use: openssl rand -hex 32)'),
 
   // ── Worker / Cron auth ────────────────────────────────────────────────────
   // WORKER_SECRET: used to authenticate manual POST calls to /api/v1/workers/cron
-  WORKER_SECRET: z
-    .string()
-    .min(32, 'WORKER_SECRET must be at least 32 characters (use: openssl rand -hex 32)'),
+  WORKER_SECRET: z.string().min(32, 'WORKER_SECRET must be at least 32 characters (use: openssl rand -hex 32)'),
   // CRON_SECRET: Vercel automatically sets this and includes it in cron GET requests
   CRON_SECRET: z.string().optional(),
 
@@ -244,7 +238,8 @@ const envSchema = envObjectSchema.superRefine((data, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['MPESA_B2C_SECURITY_CREDENTIAL'],
-      message: 'Set MPESA_B2C_INITIATOR_PASSWORD (auto-encrypted) or MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) for production B2C',
+      message:
+        'Set MPESA_B2C_INITIATOR_PASSWORD (auto-encrypted) or MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) for production B2C',
     });
   }
   // QStash is all-or-nothing: a partial set (e.g. URL+TOKEN present but a
@@ -252,13 +247,19 @@ const envSchema = envObjectSchema.superRefine((data, ctx) => {
   // route can never verify the callback, silently dropping every chunk.
   // isQstashConfigured() in lib/queue/qstash.ts checks the same four —
   // this just fails fast at boot instead of at first dispatch.
-  const qstashVars = [data.QSTASH_URL, data.QSTASH_TOKEN, data.QSTASH_CURRENT_SIGNING_KEY, data.QSTASH_NEXT_SIGNING_KEY];
+  const qstashVars = [
+    data.QSTASH_URL,
+    data.QSTASH_TOKEN,
+    data.QSTASH_CURRENT_SIGNING_KEY,
+    data.QSTASH_NEXT_SIGNING_KEY,
+  ];
   const qstashSetCount = qstashVars.filter(Boolean).length;
   if (qstashSetCount > 0 && qstashSetCount < qstashVars.length) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['QSTASH_URL'],
-      message: 'QSTASH_URL, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY and QSTASH_NEXT_SIGNING_KEY must be set together, or all left unset',
+      message:
+        'QSTASH_URL, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY and QSTASH_NEXT_SIGNING_KEY must be set together, or all left unset',
     });
   }
 });
@@ -268,9 +269,7 @@ export type Env = z.infer<typeof envSchema>;
 function validateEnv(): Env {
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
-    const issues = result.error.issues
-      .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
-      .join('\n');
+    const issues = result.error.issues.map((i) => `  • ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`\n[env] Invalid environment variables:\n${issues}\n`);
   }
   return result.data;
@@ -302,9 +301,7 @@ function buildTimeEnv(): Env {
     // A malformed (not just missing) var still gets flagged — as a warning,
     // since throwing here would reintroduce the build failure this exists
     // to avoid. Falls back to the pre-fix behavior for that one case.
-    const issues = result.error.issues
-      .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
-      .join('\n');
+    const issues = result.error.issues.map((i) => `  • ${i.path.join('.')}: ${i.message}`).join('\n');
     console.warn(`[env] build-time relaxed validation issues (non-fatal):\n${issues}`);
     return process.env as unknown as Env;
   }
@@ -315,10 +312,7 @@ function buildTimeEnv(): Env {
 // Real validation (all required fields + cross-field checks) still runs at
 // cold-start in the deployed runtime via validateEnv().
 export const env: Env = (() => {
-  if (
-    process.env.SKIP_ENV_VALIDATION === '1' ||
-    process.env.NEXT_PHASE === 'phase-production-build'
-  ) {
+  if (process.env.SKIP_ENV_VALIDATION === '1' || process.env.NEXT_PHASE === 'phase-production-build') {
     return buildTimeEnv();
   }
   return validateEnv();

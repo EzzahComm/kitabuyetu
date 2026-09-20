@@ -8,9 +8,9 @@ import { withAdminDb } from '@/lib/db';
 import { ok, handleError } from '@/lib/utils/response';
 
 interface County {
-  id:     string;
-  code:   string;
-  name:   string;
+  id: string;
+  code: string;
+  name: string;
   region: string | null;
 }
 

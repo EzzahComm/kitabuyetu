@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { Building2, ArrowLeft } from 'lucide-react';
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBackofficeLogin } from '@/hooks/use-backoffice-login';
 import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/auth/backoffice-login-forms';
 
@@ -28,10 +26,8 @@ import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/a
  * would redirect an unauthenticated visitor away from this very login page.
  */
 export default function EnterpriseLoginPage() {
-  const {
-    phase, submitting, pwdForm, codeForm,
-    onSubmitPassword, onSubmitCode, onPickOrg, backToPassword,
-  } = useBackofficeLogin('organization', '/enterprise');
+  const { phase, submitting, pwdForm, codeForm, onSubmitPassword, onSubmitCode, onPickOrg, backToPassword } =
+    useBackofficeLogin('organization', '/enterprise');
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-brand-50 px-4">
@@ -48,25 +44,37 @@ export default function EnterpriseLoginPage() {
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-brand-600" />
               <CardTitle className="text-brand-blue-900">
-                {phase.kind === 'password'   && 'Enterprise sign-in'}
-                {phase.kind === 'enroll'     && 'Set up two-factor authentication'}
-                {phase.kind === 'verify'     && 'Enter your authenticator code'}
-                {phase.kind === 'chooseOrg'  && 'Choose an organization'}
+                {phase.kind === 'password' && 'Enterprise sign-in'}
+                {phase.kind === 'enroll' && 'Set up two-factor authentication'}
+                {phase.kind === 'verify' && 'Enter your authenticator code'}
+                {phase.kind === 'chooseOrg' && 'Choose an organization'}
               </CardTitle>
             </div>
             <CardDescription className="text-brand-blue-900/60">
               {phase.kind === 'password' && (
-                <>For SACCOs, NGOs, and federation staff. Member accounts log in at{' '}
-                  <Link href="/login" className="text-brand-blue-900 underline-offset-2 hover:underline">/login</Link>,
-                  {' '}Kitabu Yetu staff at{' '}
-                  <Link href="/admin-login" className="text-brand-blue-900 underline-offset-2 hover:underline">/admin-login</Link>.
+                <>
+                  For SACCOs, NGOs, and federation staff. Member accounts log in at{' '}
+                  <Link href="/login" className="text-brand-blue-900 underline-offset-2 hover:underline">
+                    /login
+                  </Link>
+                  , Kitabu Yetu staff at{' '}
+                  <Link href="/admin-login" className="text-brand-blue-900 underline-offset-2 hover:underline">
+                    /admin-login
+                  </Link>
+                  .
                 </>
               )}
               {phase.kind === 'enroll' && (
-                <>Scan the QR with Authy, Google Authenticator, or 1Password. Then enter the 6-digit code to finish enrolling.</>
+                <>
+                  Scan the QR with Authy, Google Authenticator, or 1Password. Then enter the 6-digit code to finish
+                  enrolling.
+                </>
               )}
               {phase.kind === 'verify' && (
-                <>Open your authenticator app and enter the current 6-digit code. Or use one of your recovery codes (10 hex characters).</>
+                <>
+                  Open your authenticator app and enter the current 6-digit code. Or use one of your recovery codes (10
+                  hex characters).
+                </>
               )}
               {phase.kind === 'chooseOrg' && (
                 <>You&apos;re staff at more than one organization. Pick the one you want to sign into.</>
@@ -77,26 +85,39 @@ export default function EnterpriseLoginPage() {
           <CardContent>
             {phase.kind === 'password' && (
               <PasswordForm
-                variant="light" form={pwdForm} submitting={submitting} onSubmit={onSubmitPassword}
+                variant="light"
+                form={pwdForm}
+                submitting={submitting}
+                onSubmit={onSubmitPassword}
                 forgotPasswordHref="/admin-login/forgot-password"
               />
             )}
             {phase.kind === 'enroll' && (
               <EnrollForm
-                variant="light" data={phase.data} form={codeForm} submitting={submitting}
-                onSubmit={onSubmitCode} onBack={backToPassword}
+                variant="light"
+                data={phase.data}
+                form={codeForm}
+                submitting={submitting}
+                onSubmit={onSubmitCode}
+                onBack={backToPassword}
               />
             )}
             {phase.kind === 'verify' && (
               <VerifyForm
-                variant="light" form={codeForm} submitting={submitting}
-                onSubmit={onSubmitCode} onBack={backToPassword}
+                variant="light"
+                form={codeForm}
+                submitting={submitting}
+                onSubmit={onSubmitCode}
+                onBack={backToPassword}
               />
             )}
             {phase.kind === 'chooseOrg' && (
               <OrgChooser
-                variant="light" organizations={phase.organizations} submitting={submitting}
-                onPick={onPickOrg} onBack={backToPassword}
+                variant="light"
+                organizations={phase.organizations}
+                submitting={submitting}
+                onPick={onPickOrg}
+                onBack={backToPassword}
               />
             )}
           </CardContent>

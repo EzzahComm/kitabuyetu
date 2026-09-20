@@ -25,9 +25,7 @@ const URGENT_BALANCE = 100;
 /** Turn a notification_type into something a person would recognise. */
 function featureLabel(feature: string | null): string {
   if (feature === null) return 'Earlier messages';
-  return feature
-    .replace(/[._]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return feature.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 const featureColumns: PaginatedTableColumn<FeatureUsage & { id: string }>[] = [
@@ -48,8 +46,8 @@ export function SmsCreditsPanel() {
   const { data, isLoading, isError, error } = useSmsAnalytics();
 
   const balance = data ? Math.floor(data.balance) : null;
-  const low     = balance !== null && balance < LOW_BALANCE;
-  const urgent  = balance !== null && balance < URGENT_BALANCE;
+  const low = balance !== null && balance < LOW_BALANCE;
+  const urgent = balance !== null && balance < URGENT_BALANCE;
 
   const features = (data?.byFeature ?? []).map((f, i) => ({
     ...f,
@@ -63,15 +61,11 @@ export function SmsCreditsPanel() {
       <Card className={urgent ? 'border-destructive/40' : low ? 'border-amber-300' : undefined}>
         <CardContent className="flex flex-wrap items-end justify-between gap-4 py-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              SMS Credits
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SMS Credits</p>
             {isLoading ? (
               <div className="mt-2 h-9 w-32 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="mt-1 text-4xl font-bold text-foreground">
-                {balance?.toLocaleString() ?? '—'}
-              </p>
+              <p className="mt-1 text-4xl font-bold text-foreground">{balance?.toLocaleString() ?? '—'}</p>
             )}
             {/* The breakdown matters: a group on a plan it has not topped up
                 sees its whole balance come from the bundled allowance, and
@@ -79,15 +73,19 @@ export function SmsCreditsPanel() {
             <p className="mt-1 text-sm text-muted-foreground">
               1 credit sends 1 SMS
               {data && data.allowanceRemaining > 0 && (
-                <> · {data.allowanceRemaining.toLocaleString()} included in your plan
+                <>
+                  {' '}
+                  · {data.allowanceRemaining.toLocaleString()} included in your plan
                   {data.purchasedBalance > 0 && <> + {Math.floor(data.purchasedBalance).toLocaleString()} purchased</>}
                 </>
               )}
             </p>
           </div>
-          {urgent ? <Badge variant="destructive">Very low balance</Badge>
-                  : low ? <Badge variant="warning">Low balance</Badge>
-                  : null}
+          {urgent ? (
+            <Badge variant="destructive">Very low balance</Badge>
+          ) : low ? (
+            <Badge variant="warning">Low balance</Badge>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -117,12 +115,14 @@ export function SmsCreditsPanel() {
       <div className="space-y-3">
         <SectionHeader
           title="What you have used credits on"
-          subtitle={data?.hasUnattributedHistory
-            // Honesty rather than a silent bucket: notification_type is only
-            // ~5% populated, because the column postdates most sending. Calling
-            // that "Other" would imply we know and are not saying.
-            ? 'Messages sent before we started recording categories appear as “Earlier messages”.'
-            : undefined}
+          subtitle={
+            data?.hasUnattributedHistory
+              ? // Honesty rather than a silent bucket: notification_type is only
+                // ~5% populated, because the column postdates most sending. Calling
+                // that "Other" would imply we know and are not saying.
+                'Messages sent before we started recording categories appear as “Earlier messages”.'
+              : undefined
+          }
         />
         <PaginatedTable
           data={singlePage(features)}
@@ -140,8 +140,16 @@ export function SmsCreditsPanel() {
   );
 }
 
-function StatCard({ icon, label, value, hint }: {
-  icon: React.ReactNode; label: string; value: string; hint?: string;
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
 }) {
   return (
     <Card>

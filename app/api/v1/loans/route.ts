@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { requirePermission } from '@/lib/auth/permissions';
@@ -9,7 +9,7 @@ import { ok, created } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const params = LoanQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await loansService.list(ctx, params));
   });
 }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (input.memberId && input.memberId !== auth.userId) {
       requirePermission(auth, 'loans.approve');
     }
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return created(await loansService.apply(ctx, input));
   });
 }

@@ -3,7 +3,16 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Wallet, TrendingUp, Landmark, Coins, Phone, Mail, Calendar, ShieldCheck, Activity, Pencil,
+  Wallet,
+  TrendingUp,
+  Landmark,
+  Coins,
+  Phone,
+  Mail,
+  Calendar,
+  ShieldCheck,
+  Activity,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -11,9 +20,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminMemberDetail, useUpdateMemberProfile } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
@@ -26,21 +33,26 @@ import type { Tone } from '@/lib/ui/tokens';
 // tolerates this exact duplication in 3 other files.
 type CreditTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 const TIER_TONE: Record<CreditTier, Tone> = {
-  excellent: 'positive', good: 'positive', fair: 'neutral', poor: 'warning', high_risk: 'negative',
+  excellent: 'positive',
+  good: 'positive',
+  fair: 'neutral',
+  poor: 'warning',
+  high_risk: 'negative',
 };
 const TIER_LABEL: Record<CreditTier, string> = {
-  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  high_risk: 'High risk',
 };
 
 const ACTIVITY_LABEL: Record<string, string> = {
-  contribution: 'Contribution', loan_repayment: 'Loan repayment',
+  contribution: 'Contribution',
+  loan_repayment: 'Loan repayment',
 };
 
-export default function AdminMemberDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string; memberId: string }>;
-}) {
+export default function AdminMemberDetailPage({ params }: { params: Promise<{ id: string; memberId: string }> }) {
   const { id: groupId, memberId } = use(params);
   const router = useRouter();
   const { data: detail, isLoading } = useAdminMemberDetail(groupId, memberId);
@@ -48,7 +60,9 @@ export default function AdminMemberDetailPage({
   const updateMember = useUpdateMemberProfile();
   const [editOpen, setEditOpen] = useState(false);
   const [edits, setEdits] = useState<{ firstName: string; lastName: string; email: string }>({
-    firstName: '', lastName: '', email: '',
+    firstName: '',
+    lastName: '',
+    email: '',
   });
 
   if (isLoading) {
@@ -56,7 +70,9 @@ export default function AdminMemberDetailPage({
       <div className="space-y-5">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
         </div>
         <Skeleton className="h-48 rounded-xl" />
       </div>
@@ -67,7 +83,9 @@ export default function AdminMemberDetailPage({
     return (
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Member not found</p>
-        <Button variant="link" className="mt-2" onClick={() => router.back()}>← Go back</Button>
+        <Button variant="link" className="mt-2" onClick={() => router.back()}>
+          ← Go back
+        </Button>
       </div>
     );
   }
@@ -86,12 +104,14 @@ export default function AdminMemberDetailPage({
         ]}
         actions={
           <Button
-            variant="outline" size="sm" className="h-8 gap-1.5"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
             onClick={() => {
               setEdits({
                 firstName: profile.first_name ?? '',
-                lastName:  profile.last_name ?? '',
-                email:     profile.email ?? '',
+                lastName: profile.last_name ?? '',
+                email: profile.email ?? '',
               });
               setEditOpen(true);
             }}
@@ -103,7 +123,11 @@ export default function AdminMemberDetailPage({
         <div className="flex items-center gap-2 flex-wrap">
           <StatusPill status={profile.is_active ? 'active' : 'inactive'} size="sm" />
           {profile.membership_status && (
-            <StatusPill status={profile.membership_status} size="sm" label={`Membership: ${profile.membership_status}`} />
+            <StatusPill
+              status={profile.membership_status}
+              size="sm"
+              label={`Membership: ${profile.membership_status}`}
+            />
           )}
           {profile.platform_role && profile.platform_role !== 'member' && (
             <StatusPill status="info" tone="info" size="sm" label={profile.platform_role.replace('_', ' ')} />
@@ -115,8 +139,18 @@ export default function AdminMemberDetailPage({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Savings" value={formatKES(snapshot?.savings ?? 0)} icon={Wallet} iconClass="bg-green-50" />
         <StatCard title="Shares" value={formatKES(snapshot?.shares ?? 0)} icon={Coins} iconClass="bg-blue-50" />
-        <StatCard title="Loan balance" value={formatKES(snapshot?.loanBalance ?? 0)} icon={Landmark} iconClass="bg-purple-50" />
-        <StatCard title="This month" value={formatKES(snapshot?.contributedThisPeriod ?? 0)} icon={TrendingUp} iconClass="bg-amber-50" />
+        <StatCard
+          title="Loan balance"
+          value={formatKES(snapshot?.loanBalance ?? 0)}
+          icon={Landmark}
+          iconClass="bg-purple-50"
+        />
+        <StatCard
+          title="This month"
+          value={formatKES(snapshot?.contributedThisPeriod ?? 0)}
+          icon={TrendingUp}
+          iconClass="bg-amber-50"
+        />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -129,12 +163,18 @@ export default function AdminMemberDetailPage({
           </CardHeader>
           <CardContent className="space-y-2.5 text-xs">
             {profile.email && (
-              <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
+              <a
+                href={`mailto:${profile.email}`}
+                className="flex items-center gap-2 text-muted-foreground hover:text-blue-600"
+              >
                 <Mail size={12} /> {profile.email}
               </a>
             )}
             {profile.phone && (
-              <a href={`tel:${profile.phone}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
+              <a
+                href={`tel:${profile.phone}`}
+                className="flex items-center gap-2 text-muted-foreground hover:text-blue-600"
+              >
                 <Phone size={12} /> {profile.phone}
               </a>
             )}
@@ -148,12 +188,16 @@ export default function AdminMemberDetailPage({
                 <p className="font-medium text-foreground capitalize">{profile.group_role?.replace('_', ' ') ?? '—'}</p>
               </div>
               <div>
-                <p className="text-muted-foreground mb-0.5 flex items-center gap-1"><Calendar size={10} /> Joined</p>
+                <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
+                  <Calendar size={10} /> Joined
+                </p>
                 <p className="font-medium text-foreground">{profile.joined_at ? formatDate(profile.joined_at) : '—'}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Last login</p>
-                <p className="font-medium text-foreground">{profile.last_login_at ? formatDate(profile.last_login_at) : 'Never'}</p>
+                <p className="font-medium text-foreground">
+                  {profile.last_login_at ? formatDate(profile.last_login_at) : 'Never'}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -170,7 +214,9 @@ export default function AdminMemberDetailPage({
             {creditScore ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-foreground">{Number(creditScore.overall_score).toFixed(0)}</span>
+                  <span className="text-2xl font-bold text-foreground">
+                    {Number(creditScore.overall_score).toFixed(0)}
+                  </span>
                   <StatusPill
                     status={creditScore.reliability_tier}
                     tone={TIER_TONE[creditScore.reliability_tier as CreditTier]}
@@ -213,7 +259,10 @@ export default function AdminMemberDetailPage({
           ) : (
             <div className="space-y-1">
               {recentActivity.map((row) => (
-                <div key={row.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0 text-xs">
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0 text-xs"
+                >
                   <span className="font-medium text-muted-foreground">{ACTIVITY_LABEL[row.type] ?? row.type}</span>
                   <StatusPill status={row.status} size="sm" />
                   <span className="font-mono text-foreground">{formatKES(row.amount)}</span>
@@ -233,7 +282,9 @@ export default function AdminMemberDetailPage({
           question; the note below answers it instead. */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Edit member</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit member</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -264,8 +315,9 @@ export default function AdminMemberDetailPage({
             </div>
             <div className="rounded-md border bg-muted/40 px-3 py-2 space-y-1">
               <p className="text-xs text-muted-foreground">
-                Renaming this member updates their name in <span className="font-medium text-foreground">every
-                group they belong to</span> — one person, one identity.
+                Renaming this member updates their name in{' '}
+                <span className="font-medium text-foreground">every group they belong to</span> — one person, one
+                identity.
               </p>
               <p className="text-xs text-muted-foreground">
                 The phone number ({profile.phone}) is the login identity and cannot be changed here.
@@ -273,7 +325,9 @@ export default function AdminMemberDetailPage({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
             <Button
               loading={updateMember.isPending}
               onClick={async () => {
@@ -281,9 +335,12 @@ export default function AdminMemberDetailPage({
                 // API accepts as null.
                 const body: Record<string, string | null> = {};
                 if (edits.firstName !== (profile.first_name ?? '')) body.firstName = edits.firstName;
-                if (edits.lastName  !== (profile.last_name ?? ''))  body.lastName  = edits.lastName;
-                if (edits.email     !== (profile.email ?? ''))      body.email     = edits.email || null;
-                if (Object.keys(body).length === 0) { setEditOpen(false); return; }
+                if (edits.lastName !== (profile.last_name ?? '')) body.lastName = edits.lastName;
+                if (edits.email !== (profile.email ?? '')) body.email = edits.email || null;
+                if (Object.keys(body).length === 0) {
+                  setEditOpen(false);
+                  return;
+                }
                 try {
                   await updateMember.mutateAsync({ groupId, memberId, ...body });
                   toast({ title: 'Member updated' });

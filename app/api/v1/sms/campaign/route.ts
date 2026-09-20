@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -13,22 +13,26 @@ import { ok, notFound } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
     const { searchParams } = new URL(req.url);
-    const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const limit  = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const status = searchParams.get('status');
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     return withDb(ctx, async (client) => {
       const conds: string[] = ['group_id=$1'];
       const vals: unknown[] = [auth.groupId];
       let idx = 2;
-      if (status) { conds.push(`status=$${idx++}`); vals.push(status); }
+      if (status) {
+        conds.push(`status=$${idx++}`);
+        vals.push(status);
+      }
 
-      const where  = conds.join(' AND ');
+      const where = conds.join(' AND ');
       const offset = (page - 1) * limit;
 
       const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM sms_campaigns WHERE ${where}`, vals,
+        `SELECT COUNT(*) AS count FROM sms_campaigns WHERE ${where}`,
+        vals,
       );
       const total = parseInt(countRows[0].count, 10);
 
@@ -49,9 +53,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     const limited = await enforceSmsRateLimit('campaign', auth.groupId);
     if (limited) return limited;
 
-    const body  = await req.json();
+    const body = await req.json();
     const input = CampaignCreateSchema.parse(body);
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
     // Only a coordinator of an organization may spend that organization's SMS
     // credits. debit_organization_sms_credits() independently re-checks that the
@@ -77,7 +86,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     // so it throws `could not determine data type of parameter $9` — on
     // EVERY call, not just scheduled ones, since this fails at parse time
     // before any value is even bound. Cast explicitly at both occurrences.
-    const { rows: [campaign] } = await withTransaction(ctx, (db) =>
+    const {
+      rows: [campaign],
+    } = await withTransaction(ctx, (db) =>
       db.query(
         `INSERT INTO sms_campaigns
            (group_id, name, description, message, template_id, recipient_type,
@@ -87,11 +98,18 @@ export async function POST(req: NextRequest): Promise<Response> {
            CASE WHEN $9::timestamptz IS NOT NULL THEN 'scheduled' ELSE 'draft' END, $11, $12)
          RETURNING *`,
         [
-          auth.groupId, input.name, input.description ?? null,
-          input.message, input.templateId ?? null, input.recipientType,
-          phones.length, input.rawRecipients ? JSON.stringify(input.rawRecipients) : null,
-          input.scheduledAt ?? null, auth.userId,
-          input.fundedBy, payerOrgId,
+          auth.groupId,
+          input.name,
+          input.description ?? null,
+          input.message,
+          input.templateId ?? null,
+          input.recipientType,
+          phones.length,
+          input.rawRecipients ? JSON.stringify(input.rawRecipients) : null,
+          input.scheduledAt ?? null,
+          auth.userId,
+          input.fundedBy,
+          payerOrgId,
         ],
       ),
     );
@@ -104,11 +122,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         {
           campaignId: campaign.id,
           phones,
-          message:    input.message,
-          senderId:   input.senderId,
-          groupId:    auth.groupId,
-          sentBy:     auth.userId,
-          fundedBy:   input.fundedBy,
+          message: input.message,
+          senderId: input.senderId,
+          groupId: auth.groupId,
+          sentBy: auth.userId,
+          fundedBy: input.fundedBy,
           payerOrganizationId: payerOrgId,
         },
         { priority: 7, max_attempts: 3, dedup_key: `sms_bulk_send:${campaign.id}` },
@@ -124,7 +142,12 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
     const { rows } = await withTransaction(ctx, (db) =>
       db.query(

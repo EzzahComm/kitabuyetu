@@ -2,11 +2,7 @@
 
 import { useState } from 'react';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import {
-  Search, Plus,
-  Clock, CheckCircle2, AlertTriangle,
-  MoreHorizontal,
-} from 'lucide-react';
+import { Search, Plus, Clock, CheckCircle2, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
@@ -15,11 +11,12 @@ import { StatusPill } from '@/components/shared/status-pill';
 import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import { useAdminTickets, useUpdateTicket, useCreateTicket } from '@/hooks/use-admin';
@@ -27,38 +24,40 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 
 interface SupportTicketRow {
-  id:             string;
-  subject:        string;
-  ticket_number:  string;
-  group_name:     string | null;
-  member_name:    string | null;
-  priority:       string;
-  status:         string;
-  sla_breach_at:  string | undefined;
-  comment_count:  number | null;
-  created_at:     string;
+  id: string;
+  subject: string;
+  ticket_number: string;
+  group_name: string | null;
+  member_name: string | null;
+  priority: string;
+  status: string;
+  sla_breach_at: string | undefined;
+  comment_count: number | null;
+  created_at: string;
 }
 
 const TICKET_STATUS_TONE: Record<string, Tone> = {
-  open:        'warning',
+  open: 'warning',
   in_progress: 'pending',
-  waiting:     'pending',
-  resolved:    'positive',
-  closed:      'neutral',
+  waiting: 'pending',
+  resolved: 'positive',
+  closed: 'neutral',
 };
 
 const PRIORITY_CLASS: Record<string, string> = {
   urgent: 'text-red-700 bg-red-50 border-red-200',
-  high:   'text-amber-700 bg-amber-50 border-amber-200',
+  high: 'text-amber-700 bg-amber-50 border-amber-200',
   normal: 'text-blue-700 bg-blue-50 border-blue-200',
-  low:    'text-muted-foreground bg-muted border-border',
+  low: 'text-muted-foreground bg-muted border-border',
 };
 
 function SlaChip({ breachAt }: { breachAt?: string }) {
   if (!breachAt) return null;
   const overdue = new Date(breachAt) < new Date();
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${overdue ? 'text-red-700 bg-red-50 border-red-200' : 'text-green-700 bg-green-50 border-green-200'}`}>
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${overdue ? 'text-red-700 bg-red-50 border-red-200' : 'text-green-700 bg-green-50 border-green-200'}`}
+    >
       {overdue ? 'SLA BREACHED' : `SLA: ${formatDate(breachAt)}`}
     </span>
   );
@@ -66,40 +65,50 @@ function SlaChip({ breachAt }: { breachAt?: string }) {
 
 export default function SupportPage() {
   const { toast } = useToast();
-  const [page,       setPage]       = useState(1);
-  const [search,     setSearch]     = useState('');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const [status,     setStatus]     = useState('');
-  const [priority,   setPriority]   = useState('');
-  const [resolveId,  setResolveId]  = useState<string | null>(null);
+  const [status, setStatus] = useState('');
+  const [priority, setPriority] = useState('');
+  const [resolveId, setResolveId] = useState<string | null>(null);
   const [resolution, setResolution] = useState('');
-  const [newTicket,  setNewTicket]  = useState(false);
-  const [form,       setForm]       = useState({
-    subject: '', description: '', category: 'general', priority: 'normal',
+  const [newTicket, setNewTicket] = useState(false);
+  const [form, setForm] = useState({
+    subject: '',
+    description: '',
+    category: 'general',
+    priority: 'normal',
   });
 
-  const { data, isLoading, isError, error } = useAdminTickets({ page, limit: 20, status, priority, search: debouncedSearch });
+  const { data, isLoading, isError, error } = useAdminTickets({
+    page,
+    limit: 20,
+    status,
+    priority,
+    search: debouncedSearch,
+  });
   const updateTicket = useUpdateTicket();
   const createTicket = useCreateTicket();
 
   const items: SupportTicketRow[] = data?.items ?? [];
-  const total        = data?.total ?? 0;
-  const totalPages   = Math.ceil(total / 20);
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 20);
 
   // Queue-wide (matching the current filters), computed server-side — not a
   // JS filter over just this page's 20 rows, which silently diverged from
   // these numbers past the first page or under any filter
   // (docs/audits/optimization-2026-09).
-  const openCount       = data?.summary.open ?? 0;
+  const openCount = data?.summary.open ?? 0;
   const inProgressCount = data?.summary.inProgress ?? 0;
-  const slaBreached     = data?.summary.slaBreached ?? 0;
+  const slaBreached = data?.summary.slaBreached ?? 0;
 
   const handleResolve = async () => {
     if (!resolveId) return;
     try {
       await updateTicket.mutateAsync({ id: resolveId, status: 'resolved', resolution });
       toast({ title: 'Ticket resolved' });
-      setResolveId(null); setResolution('');
+      setResolveId(null);
+      setResolution('');
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
@@ -123,8 +132,7 @@ export default function SupportPage() {
         title="Support Center"
         description="Triage, manage, and resolve customer support requests"
         actions={
-          <Button size="sm" className="text-xs"
-            onClick={() => setNewTicket(true)}>
+          <Button size="sm" className="text-xs" onClick={() => setNewTicket(true)}>
             <Plus size={14} className="mr-1" /> New Ticket
           </Button>
         }
@@ -151,21 +159,36 @@ export default function SupportPage() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search by subject or ticket #…"
                 className="pl-8 h-8 text-sm"
               />
             </div>
-            <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-              className="h-8 text-sm border border-input rounded-md px-2 bg-background">
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 text-sm border border-input rounded-md px-2 bg-background"
+            >
               <option value="">All statuses</option>
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
               <option value="waiting">Waiting</option>
               <option value="resolved">Resolved</option>
             </select>
-            <select value={priority} onChange={(e) => { setPriority(e.target.value); setPage(1); }}
-              className="h-8 text-sm border border-input rounded-md px-2 bg-background">
+            <select
+              value={priority}
+              onChange={(e) => {
+                setPriority(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 text-sm border border-input rounded-md px-2 bg-background"
+            >
               <option value="">All priorities</option>
               <option value="urgent">Urgent</option>
               <option value="high">High</option>
@@ -173,8 +196,17 @@ export default function SupportPage() {
               <option value="low">Low</option>
             </select>
             {(search || status || priority) && (
-              <Button variant="ghost" size="sm" className="h-8 text-xs"
-                onClick={() => { setSearch(''); setStatus(''); setPriority(''); setPage(1); }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  setSearch('');
+                  setStatus('');
+                  setPriority('');
+                  setPage(1);
+                }}
+              >
                 Clear
               </Button>
             )}
@@ -193,7 +225,8 @@ export default function SupportPage() {
         emptyMessage="No tickets found"
         columns={[
           {
-            key: 'ticket', header: 'Ticket',
+            key: 'ticket',
+            header: 'Ticket',
             render: (ticket) => (
               <div>
                 <p className="font-medium text-foreground max-w-[280px] truncate">{ticket.subject}</p>
@@ -201,26 +234,46 @@ export default function SupportPage() {
               </div>
             ),
           },
-          { key: 'org', header: 'Organization', render: (ticket) => <span className="text-sm text-muted-foreground">{ticket.group_name ?? ticket.member_name ?? '—'}</span> },
           {
-            key: 'priority', header: 'Priority',
+            key: 'org',
+            header: 'Organization',
             render: (ticket) => (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border capitalize ${PRIORITY_CLASS[ticket.priority] ?? ''}`}>
+              <span className="text-sm text-muted-foreground">{ticket.group_name ?? ticket.member_name ?? '—'}</span>
+            ),
+          },
+          {
+            key: 'priority',
+            header: 'Priority',
+            render: (ticket) => (
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded border capitalize ${PRIORITY_CLASS[ticket.priority] ?? ''}`}
+              >
                 {ticket.priority}
               </span>
             ),
           },
           {
-            key: 'status', header: 'Status',
+            key: 'status',
+            header: 'Status',
             render: (ticket) => (
               <StatusPill status={ticket.status} tone={TICKET_STATUS_TONE[ticket.status]} size="sm" />
             ),
           },
           { key: 'sla', header: 'SLA', render: (ticket) => <SlaChip breachAt={ticket.sla_breach_at} /> },
-          { key: 'replies', header: 'Replies', className: 'text-center', render: (ticket) => <span className="text-xs text-muted-foreground">{ticket.comment_count ?? 0}</span> },
-          { key: 'created', header: 'Created', render: (ticket) => <span className="text-xs text-muted-foreground">{formatDate(ticket.created_at)}</span> },
           {
-            key: 'actions', header: '',
+            key: 'replies',
+            header: 'Replies',
+            className: 'text-center',
+            render: (ticket) => <span className="text-xs text-muted-foreground">{ticket.comment_count ?? 0}</span>,
+          },
+          {
+            key: 'created',
+            header: 'Created',
+            render: (ticket) => <span className="text-xs text-muted-foreground">{formatDate(ticket.created_at)}</span>,
+          },
+          {
+            key: 'actions',
+            header: '',
             render: (ticket) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -229,11 +282,13 @@ export default function SupportPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {!['resolved','closed'].includes(ticket.status) && (
+                  {!['resolved', 'closed'].includes(ticket.status) && (
                     <>
-                      <DropdownMenuItem onClick={async () => {
-                        await updateTicket.mutateAsync({ id: ticket.id, status: 'in_progress' });
-                      }}>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          await updateTicket.mutateAsync({ id: ticket.id, status: 'in_progress' });
+                        }}
+                      >
                         <Clock size={13} className="mr-2" /> Mark In Progress
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setResolveId(ticket.id)}>
@@ -242,9 +297,11 @@ export default function SupportPage() {
                     </>
                   )}
                   {!['closed'].includes(ticket.status) && (
-                    <DropdownMenuItem onClick={async () => {
-                      await updateTicket.mutateAsync({ id: ticket.id, status: 'closed' });
-                    }}>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        await updateTicket.mutateAsync({ id: ticket.id, status: 'closed' });
+                      }}
+                    >
                       Close ticket
                     </DropdownMenuItem>
                   )}
@@ -256,9 +313,17 @@ export default function SupportPage() {
       />
 
       {/* Resolve dialog */}
-      <Dialog open={!!resolveId} onOpenChange={() => { setResolveId(null); setResolution(''); }}>
+      <Dialog
+        open={!!resolveId}
+        onOpenChange={() => {
+          setResolveId(null);
+          setResolution('');
+        }}
+      >
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Resolve Ticket</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Resolve Ticket</DialogTitle>
+          </DialogHeader>
           <div className="space-y-2">
             <Label>Resolution note (sent to customer)</Label>
             <textarea
@@ -270,9 +335,20 @@ export default function SupportPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setResolveId(null); setResolution(''); }}>Cancel</Button>
-            <Button onClick={handleResolve} loading={updateTicket.isPending}
-              className="bg-green-600 hover:bg-green-700">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setResolveId(null);
+                setResolution('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResolve}
+              loading={updateTicket.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
               Mark Resolved
             </Button>
           </DialogFooter>
@@ -282,18 +358,26 @@ export default function SupportPage() {
       {/* New ticket dialog */}
       <Dialog open={newTicket} onOpenChange={setNewTicket}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Create Support Ticket</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Create Support Ticket</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Subject</Label>
-              <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                placeholder="Brief description of the issue" />
+              <Input
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                placeholder="Brief description of the issue"
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Category</Label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
                   <option value="general">General</option>
                   <option value="billing">Billing</option>
                   <option value="technical">Technical</option>
@@ -303,8 +387,11 @@ export default function SupportPage() {
               </div>
               <div className="space-y-1">
                 <Label>Priority</Label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
                   <option value="low">Low</option>
                   <option value="normal">Normal</option>
                   <option value="high">High</option>
@@ -324,9 +411,14 @@ export default function SupportPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewTicket(false)}>Cancel</Button>
-            <Button onClick={handleCreate} loading={createTicket.isPending}
-              disabled={!form.subject || !form.description}>
+            <Button variant="outline" onClick={() => setNewTicket(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreate}
+              loading={createTicket.isPending}
+              disabled={!form.subject || !form.description}
+            >
               Create Ticket
             </Button>
           </DialogFooter>

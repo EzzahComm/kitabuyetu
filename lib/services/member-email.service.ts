@@ -26,11 +26,7 @@ export async function sendWelcomeEmail(opts: {
   });
 }
 
-export async function sendOtpEmail(opts: {
-  email: string;
-  otp: string;
-  expiresIn: string;
-}): Promise<EmailResult> {
+export async function sendOtpEmail(opts: { email: string; otp: string; expiresIn: string }): Promise<EmailResult> {
   return sendTemplatedEmail({
     templateKey: 'otp',
     to: opts.email,

@@ -3,7 +3,13 @@ import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { loansService } from '@/lib/services/loans.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
-import { ApproveLoanSchema, RejectLoanSchema, DisburseLoanSchema, MarkDefaultedSchema, WriteOffLoanSchema } from '@/lib/validators/loan.schema';
+import {
+  ApproveLoanSchema,
+  RejectLoanSchema,
+  DisburseLoanSchema,
+  MarkDefaultedSchema,
+  WriteOffLoanSchema,
+} from '@/lib/validators/loan.schema';
 import { WaiveChargeSchema } from '@/lib/validators/loan-charge.schema';
 import { loanChargesService } from '@/lib/services/loan-charges.service';
 import { ok } from '@/lib/utils/response';
@@ -28,9 +34,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
     const freshPermissions = await assertAuthFresh(auth);
     requirePermission({ role: auth.role, permissions: freshPermissions }, 'loans.approve');
 
-    const body   = await req.json();
+    const body = await req.json();
     const action = body.action as string;
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     if (action === 'approve') {
       const input = ApproveLoanSchema.parse(body);
@@ -60,6 +66,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
       return ok(await loanChargesService.waiveCharge(ctx, input.chargeId, input.reason));
     }
 
-    return ok({ error: 'Unknown action. Use action: approve | reject | disburse | default | writeOff | waiveCharge' }, 400) as Response;
+    return ok(
+      { error: 'Unknown action. Use action: approve | reject | disburse | default | writeOff | waiveCharge' },
+      400,
+    ) as Response;
   });
 }

@@ -3,7 +3,7 @@
 **Status:** first formal invariant set for this subsystem. **Date:** 2026-08-31.
 **Key words** MUST, MUST NOT, SHOULD, SHOULD NOT, MAY are to be interpreted per RFC 2119.
 
-> **This document supersedes nothing.** The brief that commissioned it assumed a prior RFC 2119 invariant set existed. It does not — `docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md` and `docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md` contain **zero** MUST/SHOULD/SHALL occurrences, and no file in `docs/` matches RFC 2119 phrasing. Prior SMS documents are *audits* and *architecture narratives*, not invariant sets. This is v3 only because it accompanies the third audit.
+> **This document supersedes nothing.** The brief that commissioned it assumed a prior RFC 2119 invariant set existed. It does not — `docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md` and `docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md` contain **zero** MUST/SHOULD/SHALL occurrences, and no file in `docs/` matches RFC 2119 phrasing. Prior SMS documents are _audits_ and _architecture narratives_, not invariant sets. This is v3 only because it accompanies the third audit.
 
 **Enforcement legend** — `ENFORCED` requires a mechanism that a second code path or a direct database write **cannot bypass**. A comment, a TypeScript type, or a happy-path check is **not** enforcement. Database-level mechanisms outrank application-level ones and are marked **[DB]**.
 
@@ -15,7 +15,7 @@
 No send path may debit on attempt. `ENFORCED` **[DB]** — `reserve_sms_credits` (SECURITY DEFINER) is the sole mutator of `reserved_sms_credits`; all five provider-client callers pass through it.
 
 **INV-02 — One credit MUST equal one billable provider segment.**
-`PARTIAL` — one credit currently equals one *recipient*, irrespective of length or encoding (`sms.service.ts:176`). The rate-vs-count half is correct (migration 144); the length half is not. → **G5**, pathway **T2-3**.
+`PARTIAL` — one credit currently equals one _recipient_, irrespective of length or encoding (`sms.service.ts:176`). The rate-vs-count half is correct (migration 144); the length half is not. → **G5**, pathway **T2-3**.
 
 **INV-03 — A single counter MUST serve both the quoted estimate and the billed amount.**
 `NOT-ENFORCED` — two independent counters exist and both are wrong: the UI divides by 160 with no encoding detection (`components/sms/tabs.tsx:122-123`), billing charges a flat 1. → **V3-01**, **T2-3**.
@@ -30,7 +30,7 @@ No send path may debit on attempt. `ENFORCED` **[DB]** — `reserve_sms_credits`
 `ENFORCED` **[DB]** — `SELECT … FOR UPDATE` on `billing_accounts` / `organization_billing_accounts` precedes the availability check and the update, inside one function, inside a caller transaction. Verified H3.
 
 **INV-07 — `sms_credit_ledger` MUST be append-only.**
-`ENFORCED` **[DB]** — trigger `sms_ledger_no_update` (BEFORE DELETE OR UPDATE) raises `42501` unconditionally. *Caveat:* `app_tenant` still holds redundant UPDATE/DELETE grants; the trigger is the only barrier. → **V3-06**, **T1-4**.
+`ENFORCED` **[DB]** — trigger `sms_ledger_no_update` (BEFORE DELETE OR UPDATE) raises `42501` unconditionally. _Caveat:_ `app_tenant` still holds redundant UPDATE/DELETE grants; the trigger is the only barrier. → **V3-06**, **T1-4**.
 
 **INV-08 — Balance MUST reconcile against the ledger, and the reconciliation MUST be exercised.**
 `DOC-ONLY` — `vw_sms_credit_reconciliation` computes drift correctly and has **zero consumers**. An instrument with no reader is not a control. → **G16**, **T1-6**.
@@ -92,7 +92,7 @@ No send path may debit on attempt. `ENFORCED` **[DB]** — `reserve_sms_credits`
 `NOT-ENFORCED` — no consent record of any kind exists; only a negative `text[]`, which structurally cannot carry those fields. → **INV-09 (findings)**, **T2-5**.
 
 **INV-25 — Message bodies and MSISDNs MUST NOT reach logs or client error payloads.**
-`ENFORCED` — SMS-subsystem logging carries counts and rule names only; no error-tracking SDK is configured, so no third-party exfiltration path exists. *Separate credential leak tracked as G13.*
+`ENFORCED` — SMS-subsystem logging carries counts and rule names only; no error-tracking SDK is configured, so no third-party exfiltration path exists. _Separate credential leak tracked as G13._
 
 **INV-26 — Personal data MUST have a retention limit.**
 `NOT-ENFORCED` — `sms_usage_logs` retains `message_text` and `recipient_phone` indefinitely; no purge job or migration exists. → **V3-04**, **T2-5**.
@@ -160,13 +160,13 @@ No send path may debit on attempt. `ENFORCED` **[DB]** — `reserve_sms_credits`
 
 ## Scorecard
 
-| Status | Count | Of which **[DB]**-enforced |
-|---|---|---|
-| ENFORCED | 13 | 9 |
-| PARTIAL | 8 | — |
-| DOC-ONLY | 2 | — |
-| NOT-ENFORCED | 20 | — |
-| **Total** | **43** | |
+| Status       | Count  | Of which **[DB]**-enforced |
+| ------------ | ------ | -------------------------- |
+| ENFORCED     | 13     | 9                          |
+| PARTIAL      | 8      | —                          |
+| DOC-ONLY     | 2      | —                          |
+| NOT-ENFORCED | 20     | —                          |
+| **Total**    | **43** |                            |
 
 **Reading of this scorecard.** Nine of the thirteen enforced invariants are enforced by PostgreSQL — locks, triggers, CHECK constraints, RLS policies, and function-level privilege. That is the subsystem's real strength and the reason the money core survived three audits without a loss event: where this codebase pushes correctness into the database, it holds.
 
@@ -180,13 +180,13 @@ The commissioning brief mandated preserving a distinction between **"Account Cre
 
 The vocabulary that actually exists, and which new work SHOULD use consistently:
 
-| Concept | Canonical name | Unit | Where it lives |
-|---|---|---|---|
-| Money paid by a tenant | **purchase / top-up** | KES | `sms_credits.amount_paid`, `organization_sms_credits.amount_paid` |
-| Spendable send capacity | **SMS credits** | **messages** (see INV-02) | `billing_accounts.sms_credits` |
-| Earmarked capacity | **reserved SMS credits** | messages | `billing_accounts.reserved_sms_credits` |
-| Bundled monthly grant | **SMS allowance** | messages | `subscriptions.sms_allowance_included` |
-| Immutable movement record | **SMS credit ledger** | messages | `sms_credit_ledger` |
-| Platform's own float with TextSMS | **provider balance** | provider units | `sms_provider_balances` |
+| Concept                           | Canonical name           | Unit                      | Where it lives                                                    |
+| --------------------------------- | ------------------------ | ------------------------- | ----------------------------------------------------------------- |
+| Money paid by a tenant            | **purchase / top-up**    | KES                       | `sms_credits.amount_paid`, `organization_sms_credits.amount_paid` |
+| Spendable send capacity           | **SMS credits**          | **messages** (see INV-02) | `billing_accounts.sms_credits`                                    |
+| Earmarked capacity                | **reserved SMS credits** | messages                  | `billing_accounts.reserved_sms_credits`                           |
+| Bundled monthly grant             | **SMS allowance**        | messages                  | `subscriptions.sms_allowance_included`                            |
+| Immutable movement record         | **SMS credit ledger**    | messages                  | `sms_credit_ledger`                                               |
+| Platform's own float with TextSMS | **provider balance**     | provider units            | `sms_provider_balances`                                           |
 
-Anything introduced as "Account Credit" MUST be mapped onto one of the above rather than added as a seventh term. Note that `billing_accounts.sms_credits` is `NUMERIC` and *looks* like money while *meaning* messages — the single most dangerous naming artifact in the subsystem, and the reason INV-02 and INV-09 are worth enforcing at the database level rather than by convention.
+Anything introduced as "Account Credit" MUST be mapped onto one of the above rather than added as a seventh term. Note that `billing_accounts.sms_credits` is `NUMERIC` and _looks_ like money while _meaning_ messages — the single most dangerous naming artifact in the subsystem, and the reason INV-02 and INV-09 are worth enforcing at the database level rather than by convention.

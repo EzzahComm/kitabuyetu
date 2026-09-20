@@ -20,11 +20,14 @@ describe('consent record (G20)', () => {
     const { groupId, officerId } = await createTestGroup('treasurer');
 
     await smsService.optOut(groupId, PHONE, {
-      source: 'officer', actorId: officerId, note: 'asked at the monthly meeting',
+      source: 'officer',
+      actorId: officerId,
+      note: 'asked at the monthly meeting',
     });
 
     const [row] = await rawQuery<{ source: string; actor_id: string; note: string; opted_out_at: string }>(
-      `SELECT source, actor_id, note, opted_out_at FROM sms_opt_outs WHERE group_id=$1`, [groupId],
+      `SELECT source, actor_id, note, opted_out_at FROM sms_opt_outs WHERE group_id=$1`,
+      [groupId],
     );
     expect(row.source).toBe('officer');
     expect(row.actor_id).toBe(officerId);
@@ -54,11 +57,15 @@ describe('consent record (G20)', () => {
     const { groupId } = await createTestGroup('treasurer');
     await smsService.optOut(groupId, PHONE, { source: 'member' });
     const [first] = await rawQuery<{ opted_out_at: string }>(
-      `SELECT opted_out_at FROM sms_opt_outs WHERE group_id=$1`, [groupId]);
+      `SELECT opted_out_at FROM sms_opt_outs WHERE group_id=$1`,
+      [groupId],
+    );
 
     await smsService.optOut(groupId, PHONE, { source: 'officer' });
     const rows = await rawQuery<{ opted_out_at: string; source: string }>(
-      `SELECT opted_out_at, source FROM sms_opt_outs WHERE group_id=$1`, [groupId]);
+      `SELECT opted_out_at, source FROM sms_opt_outs WHERE group_id=$1`,
+      [groupId],
+    );
 
     // Consent was withdrawn once; the second request must not rewrite when.
     expect(rows).toHaveLength(1);
@@ -103,7 +110,9 @@ describe('message retention (V3-04)', () => {
     expect(r.redacted).toBe(1);
 
     const [row] = await rawQuery<{ message_text: string; credits_deducted: string; recipient_phone: string }>(
-      `SELECT message_text, credits_deducted, recipient_phone FROM sms_usage_logs WHERE group_id=$1`, [groupId]);
+      `SELECT message_text, credits_deducted, recipient_phone FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
+    );
 
     // Content gone, billing evidence intact — deleting the row would destroy
     // reconciliation and make a data-subject request unanswerable.

@@ -4,13 +4,15 @@ import { DatabaseError } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { applyMemberMask } from '@/lib/utils/mask';
 import { normalizePhone } from '@/lib/utils/phone';
-import {
-  NotFoundError, ConflictError, ValidationError,
-} from '@/lib/utils/errors';
+import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
 import type { Member, GroupMember, PaginatedResult } from '@/types/db.types';
 import type {
-  CreateMemberInput, UpdateMemberInput, MemberQueryInput,
-  MemberStatus, CreateNextOfKinInput, UpdateNextOfKinInput,
+  CreateMemberInput,
+  UpdateMemberInput,
+  MemberQueryInput,
+  MemberStatus,
+  CreateNextOfKinInput,
+  UpdateNextOfKinInput,
 } from '@/lib/validators/member.schema';
 import { billingService } from './billing.service';
 import { linkMemberToGroup } from './group-membership';
@@ -41,8 +43,8 @@ async function emitMemberRegisteredEvent(
 ): Promise<void> {
   try {
     const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-    const { SMS_EVENTS }        = await import('@/lib/sms/events');
-    const { withAdminDb }       = await import('@/lib/db');
+    const { SMS_EVENTS } = await import('@/lib/sms/events');
+    const { withAdminDb } = await import('@/lib/db');
 
     // The engine's toTemplateVars copies the PAYLOAD and nothing else — it
     // does not inject the group. A {{group_name}} left unsupplied renders as
@@ -50,7 +52,8 @@ async function emitMemberRegisteredEvent(
     // fetched and passed explicitly. withAdminDb because this runs after the
     // tenant transaction has already closed.
     const groupName = await withAdminDb((db) =>
-      db.query<{ name: string }>('SELECT name FROM groups WHERE id = $1', [groupId])
+      db
+        .query<{ name: string }>('SELECT name FROM groups WHERE id = $1', [groupId])
         .then((r) => r.rows[0]?.name ?? null),
     );
     if (!groupName) {
@@ -64,12 +67,12 @@ async function emitMemberRegisteredEvent(
       // The membership is the business row this event is about, and it is
       // what makes the emit idempotent: re-adding the same member to the same
       // group can never send twice for the same rule.
-      eventId:   memberId,
+      eventId: memberId,
       groupId,
       payload: {
         memberId,
         first_name: member.firstName,
-        last_name:  member.lastName,
+        last_name: member.lastName,
         group_name: groupName,
         // The SHORT per-group number (e.g. NC000078), not the long platform
         // member_code (KY000000300004) — this is the one a member is asked to
@@ -81,7 +84,9 @@ async function emitMemberRegisteredEvent(
   } catch (err) {
     const { logger } = await import('@/lib/logger');
     logger.error('[members] welcome event failed — member was still created', {
-      memberId, groupId, err: String(err),
+      memberId,
+      groupId,
+      err: String(err),
     });
   }
 }
@@ -106,39 +111,46 @@ export type SafeMember = Omit<Member, 'password_hash'>;
  * See __tests__/integration/members-secret-fields.test.ts, which pins this.
  */
 const SENSITIVE_MEMBER_FIELDS = [
-  'password_hash', 'reset_otp_hash', 'reset_otp_expires_at', 'reset_otp_attempts', 'session_version',
+  'password_hash',
+  'reset_otp_hash',
+  'reset_otp_expires_at',
+  'reset_otp_attempts',
+  'session_version',
 ] as const;
 
-function stripSecrets<T extends {
-  password_hash?:        string | null;
-  reset_otp_hash?:        string | null;
-  reset_otp_expires_at?:  Date | string | null;
-  reset_otp_attempts?:    number | null;
-  session_version?:       number | null;
-}>(row: T): Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]> {
+function stripSecrets<
+  T extends {
+    password_hash?: string | null;
+    reset_otp_hash?: string | null;
+    reset_otp_expires_at?: Date | string | null;
+    reset_otp_attempts?: number | null;
+    session_version?: number | null;
+  },
+>(row: T): Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]> {
   const clean = { ...row } as Record<string, unknown>;
   for (const field of SENSITIVE_MEMBER_FIELDS) delete clean[field];
   return clean as Omit<T, (typeof SENSITIVE_MEMBER_FIELDS)[number]>;
 }
 
 // Member statuses that need a reason recorded when a transition lands.
-const REASON_REQUIRED_STATUSES = new Set<MemberStatus>([
-  'suspended', 'rejected', 'blacklisted', 'exited',
-]);
+const REASON_REQUIRED_STATUSES = new Set<MemberStatus>(['suspended', 'rejected', 'blacklisted', 'exited']);
 
 export const membersService = {
-
   async list(
     ctx: TenantContext,
     params: MemberQueryInput,
-  ): Promise<PaginatedResult<SafeMember & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>> {
+  ): Promise<
+    PaginatedResult<
+      SafeMember & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }
+    >
+  > {
     return withDb(ctx, async (client) => {
       const { page, limit, search, role, status, includeArchived, countyId, sortBy, sortDir } = params;
       const offset = (page - 1) * limit;
 
       const conditions: string[] = [];
       const values: unknown[] = [ctx.groupId];
-      let   idx = 2;
+      let idx = 2;
 
       if (search) {
         conditions.push(
@@ -147,17 +159,30 @@ export const membersService = {
         values.push(`%${search}%`);
         idx++;
       }
-      if (role)     { conditions.push(`gm.role = $${idx++}`);      values.push(role); }
-      if (status)   { conditions.push(`gm.status = $${idx++}`);    values.push(status); }
-      if (countyId) { conditions.push(`m.county_id = $${idx++}`);  values.push(countyId); }
+      if (role) {
+        conditions.push(`gm.role = $${idx++}`);
+        values.push(role);
+      }
+      if (status) {
+        conditions.push(`gm.status = $${idx++}`);
+        values.push(status);
+      }
+      if (countyId) {
+        conditions.push(`m.county_id = $${idx++}`);
+        values.push(countyId);
+      }
       // Hide archived rows by default; explicit toggle to include them. Archive
       // is a soft delete, so the list-view default matches user expectations.
-      if (!includeArchived && !status) { conditions.push(`gm.status <> 'archived'`); }
+      if (!includeArchived && !status) {
+        conditions.push(`gm.status <> 'archived'`);
+      }
 
       const where = conditions.length ? 'AND ' + conditions.join(' AND ') : '';
       const validSortColumns: Record<string, string> = {
-        first_name: 'm.first_name', last_name: 'm.last_name',
-        joined_at:  'gm.joined_at', created_at: 'm.created_at',
+        first_name: 'm.first_name',
+        last_name: 'm.last_name',
+        joined_at: 'gm.joined_at',
+        created_at: 'm.created_at',
       };
       const orderCol = validSortColumns[sortBy] ?? 'm.first_name';
       const orderDir = sortDir === 'desc' ? 'DESC' : 'ASC';
@@ -170,7 +195,9 @@ export const membersService = {
            WHERE gm.group_id = $1 ${where}`,
           values,
         ),
-        client.query<Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }>(
+        client.query<
+          Member & { group_role: string; group_status: string; joined_at: Date; membership_no: string | null }
+        >(
           `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
                   gm.membership_no
            FROM group_members gm
@@ -189,8 +216,17 @@ export const membersService = {
     });
   },
 
-  async getById(ctx: TenantContext, memberId: string): Promise<
-    SafeMember & { group_role: string; group_status: string; joined_at: Date; total_contributed: string; active_loans_count: number }
+  async getById(
+    ctx: TenantContext,
+    memberId: string,
+  ): Promise<
+    SafeMember & {
+      group_role: string;
+      group_status: string;
+      joined_at: Date;
+      total_contributed: string;
+      active_loans_count: number;
+    }
   > {
     return withDb(ctx, async (client) => {
       // total_contributed/active_loans_count are computed here (correlated
@@ -199,10 +235,15 @@ export const membersService = {
       // loans pages — a lifetime SUM/count over a paginated slice silently
       // understates once a member passes 11 contributions
       // (docs/audits/optimization-2026-09).
-      const { rows } = await client.query<Member & {
-        group_role: string; group_status: string; joined_at: Date;
-        total_contributed: string; active_loans_count: string;
-      }>(
+      const { rows } = await client.query<
+        Member & {
+          group_role: string;
+          group_status: string;
+          joined_at: Date;
+          total_contributed: string;
+          active_loans_count: string;
+        }
+      >(
         `SELECT m.*, gm.role AS group_role, gm.status AS group_status, gm.joined_at,
                 COALESCE((
                   SELECT SUM(c.amount) FROM contributions c
@@ -218,7 +259,7 @@ export const membersService = {
         [memberId, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Member', memberId);
-      const safe = stripSecrets(applyMemberMask(rows[0], ctx.role) as typeof rows[0]);
+      const safe = stripSecrets(applyMemberMask(rows[0], ctx.role) as (typeof rows)[0]);
       return { ...safe, active_loans_count: Number(safe.active_loans_count) };
     });
   },
@@ -231,10 +272,7 @@ export const membersService = {
       const phone = normalizePhone(data.phone);
 
       // Check if member already exists anywhere in the platform
-      const existing = await client.query<{ id: string }>(
-        'SELECT id FROM members WHERE phone = $1',
-        [phone],
-      );
+      const existing = await client.query<{ id: string }>('SELECT id FROM members WHERE phone = $1', [phone]);
 
       let memberId: string;
 
@@ -262,7 +300,7 @@ export const membersService = {
       } else {
         // Create new platform member with a temporary password they must reset
         const passwordHash = await bcrypt.hash(
-          (data as Record<string, unknown>).password as string | undefined ?? generateTempPassword(),
+          ((data as Record<string, unknown>).password as string | undefined) ?? generateTempPassword(),
           BCRYPT_ROUNDS,
         );
         // id is generated here (rather than left to the column's own
@@ -282,12 +320,21 @@ export const membersService = {
               alternative_phone, county_id, occupation, referred_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
           [
-            memberId, phone, data.email ?? null, passwordHash,
-            data.firstName, data.middleName ?? null, data.lastName,
-            data.nationalId ?? null, data.dateOfBirth ?? null,
-            data.gender ?? null, data.address ?? null,
-            data.alternativePhone ?? null, data.countyId ?? null,
-            data.occupation ?? null, data.referredBy ?? null,
+            memberId,
+            phone,
+            data.email ?? null,
+            passwordHash,
+            data.firstName,
+            data.middleName ?? null,
+            data.lastName,
+            data.nationalId ?? null,
+            data.dateOfBirth ?? null,
+            data.gender ?? null,
+            data.address ?? null,
+            data.alternativePhone ?? null,
+            data.countyId ?? null,
+            data.occupation ?? null,
+            data.referredBy ?? null,
           ],
         );
       }
@@ -297,21 +344,18 @@ export const membersService = {
       // what the register_group RPC does for the first member of a group.
       const link = await linkMemberToGroup(client, {
         memberId,
-        groupId:     ctx.groupId,
-        role:        data.role ?? 'member',
-        invitedBy:   ctx.userId,
-        firstName:   data.firstName,
-        lastName:    data.lastName,
+        groupId: ctx.groupId,
+        role: data.role ?? 'member',
+        invitedBy: ctx.userId,
+        firstName: data.firstName,
+        lastName: data.lastName,
         phone,
-        nationalId:  data.nationalId,
+        nationalId: data.nationalId,
         dateOfBirth: data.dateOfBirth,
-        gender:      data.gender,
+        gender: data.gender,
       });
 
-      const { rows } = await client.query<Member>(
-        'SELECT * FROM members WHERE id = $1',
-        [memberId],
-      );
+      const { rows } = await client.query<Member>('SELECT * FROM members WHERE id = $1', [memberId]);
       const member = rows[0];
 
       // Record audit log for member creation
@@ -341,8 +385,8 @@ export const membersService = {
 
     // After the commit, never inside it — see emitMemberRegisteredEvent.
     await emitMemberRegisteredEvent(member.member.id, ctx.groupId, {
-      firstName:    data.firstName,
-      lastName:     data.lastName,
+      firstName: data.firstName,
+      lastName: data.lastName,
       membershipNo: member.membershipNo,
     });
 
@@ -352,33 +396,30 @@ export const membersService = {
   async update(ctx: TenantContext, memberId: string, data: UpdateMemberInput): Promise<SafeMember> {
     return withTransaction(ctx, async (client) => {
       // Fetch the existing member to capture old values
-      const { rows: existing } = await client.query<Member>(
-        'SELECT * FROM members WHERE id = $1',
-        [memberId],
-      );
+      const { rows: existing } = await client.query<Member>('SELECT * FROM members WHERE id = $1', [memberId]);
       if (!existing[0]) throw new NotFoundError('Member', memberId);
       const prev = existing[0];
 
       // Field mapping kept explicit so unknown fields can't be smuggled into
       // the SQL via a dynamic object spread.
       const fieldMap: Record<string, string> = {
-        firstName:        'first_name',
-        lastName:         'last_name',
-        email:            'email',
-        nationalId:       'national_id',
-        dateOfBirth:      'date_of_birth',
-        gender:           'gender',
-        address:          'address',
-        profilePhotoUrl:  'profile_photo_url',
+        firstName: 'first_name',
+        lastName: 'last_name',
+        email: 'email',
+        nationalId: 'national_id',
+        dateOfBirth: 'date_of_birth',
+        gender: 'gender',
+        address: 'address',
+        profilePhotoUrl: 'profile_photo_url',
         // Phase E1
-        middleName:       'middle_name',
+        middleName: 'middle_name',
         alternativePhone: 'alternative_phone',
-        countyId:         'county_id',
-        occupation:       'occupation',
-        referredBy:       'referred_by',
+        countyId: 'county_id',
+        occupation: 'occupation',
+        referredBy: 'referred_by',
       };
 
-      const sets: string[]   = [];
+      const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
 
@@ -499,47 +540,52 @@ export const membersService = {
 
       const validNext: Partial<Record<MemberStatus, Set<MemberStatus>>> = {
         pending_verification: new Set(['active', 'rejected']),
-        active:               new Set(['suspended', 'inactive', 'archived', 'blacklisted', 'exited']),
-        inactive:             new Set(['active', 'archived']),
-        suspended:            new Set(['active', 'archived']),
-        rejected:             new Set(['archived']),
-        blacklisted:          new Set(['archived']),
-        exited:               new Set(['archived']),
-        archived:             new Set(['active']),
+        active: new Set(['suspended', 'inactive', 'archived', 'blacklisted', 'exited']),
+        inactive: new Set(['active', 'archived']),
+        suspended: new Set(['active', 'archived']),
+        rejected: new Set(['archived']),
+        blacklisted: new Set(['archived']),
+        exited: new Set(['archived']),
+        archived: new Set(['active']),
       };
 
       const allowed = validNext[current[0].status];
       if (!allowed || !allowed.has(target)) {
-        throw new ConflictError(
-          `Cannot transition member from '${current[0].status}' to '${target}'`,
-        );
+        throw new ConflictError(`Cannot transition member from '${current[0].status}' to '${target}'`);
       }
 
       // Build the per-status audit columns. Each terminal status writes its
       // own _at / _by / _reason. Restoring to 'active' clears archived_at
       // so the row no longer reads as soft-deleted.
       const setClauses: string[] = [`status = $1`];
-      const values: unknown[]    = [target];
+      const values: unknown[] = [target];
       let idx = 2;
 
       if (target === 'archived') {
         setClauses.push(`archived_at = NOW()`);
-        setClauses.push(`archived_by = $${idx++}`); values.push(ctx.userId);
+        setClauses.push(`archived_by = $${idx++}`);
+        values.push(ctx.userId);
       } else if (target === 'blacklisted') {
         setClauses.push(`blacklisted_at = NOW()`);
-        setClauses.push(`blacklisted_by = $${idx++}`);   values.push(ctx.userId);
-        setClauses.push(`blacklist_reason = $${idx++}`); values.push(reason!);
+        setClauses.push(`blacklisted_by = $${idx++}`);
+        values.push(ctx.userId);
+        setClauses.push(`blacklist_reason = $${idx++}`);
+        values.push(reason!);
       } else if (target === 'exited') {
         setClauses.push(`exited_at = NOW()`);
-        setClauses.push(`exited_by = $${idx++}`);   values.push(ctx.userId);
-        setClauses.push(`exit_reason = $${idx++}`); values.push(reason!);
+        setClauses.push(`exited_by = $${idx++}`);
+        values.push(ctx.userId);
+        setClauses.push(`exit_reason = $${idx++}`);
+        values.push(reason!);
       } else if (target === 'rejected') {
         setClauses.push(`rejected_at = NOW()`);
-        setClauses.push(`reject_reason = $${idx++}`); values.push(reason!);
+        setClauses.push(`reject_reason = $${idx++}`);
+        values.push(reason!);
       } else if (target === 'suspended') {
         // group_members has no suspended_at column — store reason on
         // reject_reason for now (Phase A added it as a generic reason field).
-        setClauses.push(`reject_reason = $${idx++}`); values.push(reason!);
+        setClauses.push(`reject_reason = $${idx++}`);
+        values.push(reason!);
       } else if (target === 'active' && current[0].status === 'archived') {
         // Restoring from archive: clear archive metadata.
         setClauses.push(`archived_at = NULL`, `archived_by = NULL`);
@@ -660,9 +706,7 @@ export const membersService = {
       // raw 23505 to make the UI message readable.
       try {
         const phone = normalizePhone(data.phone);
-        const altPhone = data.alternativePhone
-          ? normalizePhone(data.alternativePhone)
-          : null;
+        const altPhone = data.alternativePhone ? normalizePhone(data.alternativePhone) : null;
 
         const { rows } = await client.query(
           `INSERT INTO next_of_kin (
@@ -672,10 +716,17 @@ export const membersService = {
            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
            RETURNING *`,
           [
-            ctx.groupId, memberId,
-            data.fullName, data.relationship, phone, altPhone,
-            data.email || null, data.address || null,
-            data.nationalId || null, data.priority, data.notes || null,
+            ctx.groupId,
+            memberId,
+            data.fullName,
+            data.relationship,
+            phone,
+            altPhone,
+            data.email || null,
+            data.address || null,
+            data.nationalId || null,
+            data.priority,
+            data.notes || null,
           ],
         );
         const kinRecord = rows[0];
@@ -712,12 +763,7 @@ export const membersService = {
     });
   },
 
-  async updateNextOfKin(
-    ctx: TenantContext,
-    memberId: string,
-    kinId: string,
-    data: UpdateNextOfKinInput,
-  ) {
+  async updateNextOfKin(ctx: TenantContext, memberId: string, kinId: string, data: UpdateNextOfKinInput) {
     return withTransaction(ctx, async (client) => {
       // Fetch existing to capture old values
       const { rows: existing } = await client.query(
@@ -728,17 +774,17 @@ export const membersService = {
       const prev = existing[0];
 
       const fieldMap: Record<string, string> = {
-        fullName:         'full_name',
-        relationship:     'relationship',
-        phone:            'phone',
+        fullName: 'full_name',
+        relationship: 'relationship',
+        phone: 'phone',
         alternativePhone: 'alternative_phone',
-        email:            'email',
-        address:          'address',
-        nationalId:       'national_id',
-        priority:         'priority',
-        notes:            'notes',
+        email: 'email',
+        address: 'address',
+        nationalId: 'national_id',
+        priority: 'priority',
+        notes: 'notes',
       };
-      const sets: string[]   = [];
+      const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
 
@@ -749,8 +795,14 @@ export const membersService = {
           if ((field === 'phone' || field === 'alternativePhone') && typeof v === 'string' && v.length > 0) {
             value = normalizePhone(v);
           }
-          if ((field === 'email' || field === 'alternativePhone' || field === 'address' || field === 'nationalId' || field === 'notes')
-              && v === '') {
+          if (
+            (field === 'email' ||
+              field === 'alternativePhone' ||
+              field === 'address' ||
+              field === 'nationalId' ||
+              field === 'notes') &&
+            v === ''
+          ) {
             value = null;
           }
           sets.push(`${column} = $${idx++}`);

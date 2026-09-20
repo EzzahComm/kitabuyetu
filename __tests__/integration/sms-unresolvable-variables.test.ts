@@ -45,21 +45,21 @@ describe('unresolvable variables are reported before sending', () => {
 
     await rawQuery(
       `INSERT INTO billing_accounts (group_id, sms_credits) VALUES ($1, 500)
-       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`, [groupId],
+       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`,
+      [groupId],
     );
   });
 
   it('names every variable a bulk send cannot fill in a system template', async () => {
     // Verbatim body of the live platform `payment_received` row.
     const preview = await smsService.previewBulkSend(ctx, {
-      message: 'KES {{amount}} {{product}} received for {{group_name}} '
-             + '(A/C {{membership_no}}). Receipt: {{receipt}}. Balance: KES {{balance}}.',
+      message:
+        'KES {{amount}} {{product}} received for {{group_name}} ' +
+        '(A/C {{membership_no}}). Receipt: {{receipt}}. Balance: KES {{balance}}.',
       phones: [phone],
     });
 
-    expect(preview.unresolvableVariables.sort()).toEqual(
-      ['amount', 'balance', 'product', 'receipt'].sort(),
-    );
+    expect(preview.unresolvableVariables.sort()).toEqual(['amount', 'balance', 'product', 'receipt'].sort());
     // The two a bulk send DOES supply must not be flagged, or the warning
     // becomes noise an officer learns to dismiss.
     expect(preview.unresolvableVariables).not.toContain('group_name');
@@ -69,7 +69,7 @@ describe('unresolvable variables are reported before sending', () => {
   it('reports nothing for a message whose variables all resolve', async () => {
     const preview = await smsService.previewBulkSend(ctx, {
       message: 'Dear {{first_name}}, {{group_name}} meets on Friday.',
-      phones:  [phone],
+      phones: [phone],
     });
     expect(preview.unresolvableVariables).toEqual([]);
   });
@@ -77,7 +77,7 @@ describe('unresolvable variables are reported before sending', () => {
   it('reports nothing at all for a message with no variables', async () => {
     const preview = await smsService.previewBulkSend(ctx, {
       message: 'The meeting is on Friday at 4pm.',
-      phones:  [phone],
+      phones: [phone],
     });
     expect(preview.unresolvableVariables).toEqual([]);
   });
@@ -89,7 +89,7 @@ describe('unresolvable variables are reported before sending', () => {
     // about the rest would train an officer to click past this.
     const preview = await smsService.previewBulkSend(ctx, {
       message: 'Dear {{first_name}}, your receipt is {{receipt}}.',
-      phones:  [phone, '254700009999'],
+      phones: [phone, '254700009999'],
     });
 
     expect(preview.recipients).toBe(2);

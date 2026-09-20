@@ -1,8 +1,4 @@
-import {
-  normalizePhone,
-  isValidKenyanPhone,
-  formatPhoneDisplay,
-} from '@/lib/utils/phone';
+import { normalizePhone, isValidKenyanPhone, formatPhoneDisplay } from '@/lib/utils/phone';
 
 describe('normalizePhone', () => {
   it('normalises 07XXXXXXXX format', () => {
@@ -63,8 +59,12 @@ describe('mobile-only validation (SMS-AUDIT-v3 V3-03)', () => {
   it('accepts every real Kenyan mobile format', () => {
     // All the same subscriber, however it was typed.
     for (const input of [
-      '0722123456', '+254722123456', '254722123456', '722123456',
-      '07 22 12 34 56', '+254-722-123-456',
+      '0722123456',
+      '+254722123456',
+      '254722123456',
+      '722123456',
+      '07 22 12 34 56',
+      '+254-722-123-456',
     ]) {
       expect(normalizePhone(input)).toBe('254722123456');
     }
@@ -86,8 +86,8 @@ describe('mobile-only validation (SMS-AUDIT-v3 V3-03)', () => {
   });
 
   it('still rejects malformed and foreign numbers', () => {
-    expect(() => normalizePhone('2547221234567')).toThrow();  // 13 digits
-    expect(() => normalizePhone('+447911123456')).toThrow();  // UK
+    expect(() => normalizePhone('2547221234567')).toThrow(); // 13 digits
+    expect(() => normalizePhone('+447911123456')).toThrow(); // UK
     expect(() => normalizePhone('')).toThrow();
   });
 

@@ -10,8 +10,7 @@ import { BRAND } from '@/lib/brand';
 
 const c = BRAND.colors;
 
-const KES = (n: number) =>
-  'KSh ' + new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(n);
+const KES = (n: number) => 'KSh ' + new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(n);
 
 /** Hero amount — the focal point of receipts and money emails. */
 export function Amount({ value, label }: { value: number; label?: string }) {
@@ -38,7 +37,11 @@ export function InfoRow({ label, value, mono }: { label: string; value: React.Re
           <td style={{ fontSize: 14, color: c.textMuted, padding: '5px 0' }}>{label}</td>
           <td
             style={{
-              fontSize: 14, color: c.text, fontWeight: 600, textAlign: 'right', padding: '5px 0',
+              fontSize: 14,
+              color: c.text,
+              fontWeight: 600,
+              textAlign: 'right',
+              padding: '5px 0',
               fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined,
             }}
           >
@@ -61,8 +64,14 @@ export function CtaButton({ href, children }: { href: string; children: React.Re
       <Button
         href={href}
         style={{
-          backgroundColor: c.green, color: '#ffffff', fontSize: 15, fontWeight: 600,
-          padding: '12px 28px', borderRadius: 10, textDecoration: 'none', display: 'inline-block',
+          backgroundColor: c.green,
+          color: '#ffffff',
+          fontSize: 15,
+          fontWeight: 600,
+          padding: '12px 28px',
+          borderRadius: 10,
+          textDecoration: 'none',
+          display: 'inline-block',
         }}
       >
         {children}
@@ -75,9 +84,9 @@ export type ChipTone = 'positive' | 'pending' | 'negative' | 'info';
 
 const chipColors: Record<ChipTone, { bg: string; fg: string }> = {
   positive: { bg: '#DCFCE7', fg: '#166534' },
-  pending:  { bg: '#FEF9C3', fg: '#854D0E' },
+  pending: { bg: '#FEF9C3', fg: '#854D0E' },
   negative: { bg: '#FEE2E2', fg: '#991B1B' },
-  info:     { bg: '#E7EEF8', fg: '#0A3477' },
+  info: { bg: '#E7EEF8', fg: '#0A3477' },
 };
 
 /** Status pill — mirrors the in-app StatusPill tone language. */
@@ -86,8 +95,13 @@ export function StatusChip({ label, tone = 'positive' }: { label: string; tone?:
   return (
     <span
       style={{
-        display: 'inline-block', backgroundColor: t.bg, color: t.fg, fontSize: 12, fontWeight: 600,
-        padding: '3px 10px', borderRadius: 999,
+        display: 'inline-block',
+        backgroundColor: t.bg,
+        color: t.fg,
+        fontSize: 12,
+        fontWeight: 600,
+        padding: '3px 10px',
+        borderRadius: 999,
       }}
     >
       {label}
@@ -100,7 +114,9 @@ export function Panel({ title, children }: { title?: string; children: React.Rea
   return (
     <Section style={{ backgroundColor: '#F6F8FB', borderRadius: 12, padding: '16px 18px', margin: '4px 0' }}>
       {title && (
-        <Text style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: c.textMuted }}>
+        <Text
+          style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: c.textMuted }}
+        >
           {title}
         </Text>
       )}
@@ -122,7 +138,14 @@ export function AllocationRow({ label, amount, pct }: { label: string; amount: n
         </tbody>
       </table>
       <div style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 999, marginTop: 5 }}>
-        <div style={{ height: 6, width: `${Math.max(0, Math.min(100, pct))}%`, backgroundColor: c.green, borderRadius: 999 }} />
+        <div
+          style={{
+            height: 6,
+            width: `${Math.max(0, Math.min(100, pct))}%`,
+            backgroundColor: c.green,
+            borderRadius: 999,
+          }}
+        />
       </div>
     </div>
   );

@@ -32,16 +32,14 @@ async function purchase(groupId: string, credits: number, rate: number, daysAgo 
      FROM billing_accounts ba WHERE ba.group_id = $1`,
     [groupId, (credits * rate).toFixed(2), credits.toFixed(2), rate.toFixed(4), daysAgo],
   );
-  await rawQuery(
-    `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`,
-    [credits.toFixed(2), groupId],
-  );
+  await rawQuery(`UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`, [
+    credits.toFixed(2),
+    groupId,
+  ]);
 }
 
 /** A settled (consumed) message, optionally attributed to a feature. */
-async function consumed(
-  groupId: string, credits: number, opts: { feature?: string | null; daysAgo?: number } = {},
-) {
+async function consumed(groupId: string, credits: number, opts: { feature?: string | null; daysAgo?: number } = {}) {
   await rawQuery(
     `INSERT INTO sms_usage_logs
        (group_id, recipient_phone, message_text, status, credits_deducted,
@@ -51,10 +49,10 @@ async function consumed(
              NOW() - ($4 || ' days')::interval, NOW() - ($4 || ' days')::interval)`,
     [groupId, credits.toFixed(4), opts.feature ?? null, opts.daysAgo ?? 0],
   );
-  await rawQuery(
-    `UPDATE billing_accounts SET sms_credits = GREATEST(sms_credits - $1, 0) WHERE group_id = $2`,
-    [credits.toFixed(4), groupId],
-  );
+  await rawQuery(`UPDATE billing_accounts SET sms_credits = GREATEST(sms_credits - $1, 0) WHERE group_id = $2`, [
+    credits.toFixed(4),
+    groupId,
+  ]);
 }
 
 describe('SMS usage analytics (§8)', () => {
@@ -67,7 +65,7 @@ describe('SMS usage analytics (§8)', () => {
   });
 
   it('reports purchases, consumption and balance', async () => {
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     await consumed(groupId, 40);
 
     const a = await getUsageAnalytics(groupId);
@@ -85,7 +83,7 @@ describe('SMS usage analytics (§8)', () => {
   });
 
   it('separates this month from last month', async () => {
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     await consumed(groupId, 10, { daysAgo: 0 });
     await consumed(groupId, 25, { daysAgo: 45 }); // safely in a prior month
 
@@ -99,7 +97,7 @@ describe('SMS usage analytics (§8)', () => {
   it('counts only consumed messages, never reserved or released ones', async () => {
     // A reservation is not a spend, and a release never was. Counting either
     // would tell a customer they had used credits they still hold.
-    await purchase(groupId, 100, 0.90);
+    await purchase(groupId, 100, 0.9);
     await rawQuery(
       `INSERT INTO sms_usage_logs
          (group_id, recipient_phone, message_text, status, credits_deducted,
@@ -114,7 +112,7 @@ describe('SMS usage analytics (§8)', () => {
   });
 
   it('projects burn rate and days remaining once there is usage', async () => {
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     // 300 credits over the trailing 30-day window => 10/day.
     for (let i = 0; i < 3; i++) await consumed(groupId, 100, { daysAgo: i });
 
@@ -129,7 +127,7 @@ describe('SMS usage analytics (§8)', () => {
   it('reports no projection for a group that has never sent, rather than zero days', async () => {
     // "0 days remaining" on an idle group reads as an alarm. Null says
     // "nothing to project from", which is the truth.
-    await purchase(groupId, 500, 0.90);
+    await purchase(groupId, 500, 0.9);
 
     const a = await getUsageAnalytics(groupId);
     expect(a.projectedMonthly).toBeNull();
@@ -137,7 +135,7 @@ describe('SMS usage analytics (§8)', () => {
   });
 
   it('breaks usage down by feature and flags unattributed history', async () => {
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     await consumed(groupId, 30, { feature: 'contribution_nudge' });
     await consumed(groupId, 20, { feature: 'birthday' });
     await consumed(groupId, 50, { feature: null }); // predates attribution
@@ -154,8 +152,8 @@ describe('SMS usage analytics (§8)', () => {
     expect(byFeature['null']).toBe(50);
   });
 
-  it('costs usage at the GROUP\'S rate, which is what they pay', async () => {
-    await purchase(groupId, 1000, 0.90);
+  it("costs usage at the GROUP'S rate, which is what they pay", async () => {
+    await purchase(groupId, 1000, 0.9);
     await consumed(groupId, 100);
 
     const a = await getUsageAnalytics(groupId);
@@ -196,12 +194,12 @@ describe('SMS margin reporting (§15)', () => {
   afterAll(restorePricingConfig);
 
   it('computes revenue, cost and margin from real purchases', async () => {
-    await purchase(groupId, 1000, 0.90); // KES 900 revenue, 1000 credits
+    await purchase(groupId, 1000, 0.9); // KES 900 revenue, 1000 credits
 
     const m = await smsMarginService.getMarginSummary();
     expect(m.creditsSold).toBe(1000);
     expect(m.revenue).toBeCloseTo(900, 2);
-    expect(m.providerCost).toBeCloseTo(350, 2);   // 1000 * 0.35
+    expect(m.providerCost).toBeCloseTo(350, 2); // 1000 * 0.35
     expect(m.grossMargin).toBeCloseTo(550, 2);
     expect(m.marginPct).toBeCloseTo(61.1, 1);
   });
@@ -210,16 +208,14 @@ describe('SMS margin reporting (§15)', () => {
     // The whole reason sms_provider_costs carries validity dates. If margin
     // used a single current cost, every provider price change would silently
     // restate history — the same mistake §4 forbids on the revenue side.
-    await rawQuery(
-      `UPDATE sms_provider_costs SET effective_to = CURRENT_DATE - 10 WHERE provider = 'textsms'`,
-    );
+    await rawQuery(`UPDATE sms_provider_costs SET effective_to = CURRENT_DATE - 10 WHERE provider = 'textsms'`);
     await rawQuery(
       `INSERT INTO sms_provider_costs (provider, unit_cost, effective_from)
        VALUES ('textsms', 0.5000, CURRENT_DATE - 9)`,
     );
 
-    await purchase(groupId, 100, 0.90, 20); // sold under the OLD 0.35 cost
-    await purchase(groupId, 100, 0.90, 1);  // sold under the NEW 0.50 cost
+    await purchase(groupId, 100, 0.9, 20); // sold under the OLD 0.35 cost
+    await purchase(groupId, 100, 0.9, 1); // sold under the NEW 0.50 cost
 
     const m = await smsMarginService.getMarginSummary();
     // 100*0.35 + 100*0.50 = 85, not 200*0.50 = 100 nor 200*0.35 = 70.
@@ -229,14 +225,12 @@ describe('SMS margin reporting (§15)', () => {
   it('counts revenue but flags credits sold with no recorded cost', async () => {
     // Understating cost overstates margin. Surfacing the gap beats silently
     // producing a number that looks better than reality.
-    await rawQuery(
-      `UPDATE sms_provider_costs SET effective_from = CURRENT_DATE - 1 WHERE provider = 'textsms'`,
-    );
-    await purchase(groupId, 200, 0.90, 30); // predates any recorded cost
+    await rawQuery(`UPDATE sms_provider_costs SET effective_from = CURRENT_DATE - 1 WHERE provider = 'textsms'`);
+    await purchase(groupId, 200, 0.9, 30); // predates any recorded cost
 
     const m = await smsMarginService.getMarginSummary();
-    expect(m.revenue).toBeCloseTo(180, 2);      // revenue still counted
-    expect(m.creditsWithoutCost).toBe(200);     // and the gap is visible
+    expect(m.revenue).toBeCloseTo(180, 2); // revenue still counted
+    expect(m.creditsWithoutCost).toBe(200); // and the gap is visible
   });
 
   it('returns null margin percentage on no revenue, not zero', async () => {
@@ -246,7 +240,7 @@ describe('SMS margin reporting (§15)', () => {
   });
 
   it('ranks customers by revenue', async () => {
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     const top = await smsMarginService.getTopCustomers();
     expect(top[0].groupId).toBe(groupId);
     expect(top[0].revenue).toBeCloseTo(900, 2);
@@ -322,7 +316,7 @@ describe('SMS margin reporting (§15)', () => {
   it('NEVER leaks provider cost into the tenant-facing surface (§15)', async () => {
     // The boundary this whole split exists to hold. If a cost field ever
     // appears here, a customer can read what Kitabu Yetu pays.
-    await purchase(groupId, 1000, 0.90);
+    await purchase(groupId, 1000, 0.9);
     await consumed(groupId, 100);
 
     const a = await getUsageAnalytics(groupId);
@@ -343,7 +337,9 @@ describe('Organization SMS credit top-ups', () => {
     await resetDatabase();
     ({ organizationId, coordinatorId } = await createTestOrganization());
   });
-  afterAll(async () => { await resetDatabase(); });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   it('credits the right amount at the default rate, and writes a real purchase ledger row', async () => {
     // No prior organization_billing_accounts row — proves the lazy bootstrap.
@@ -354,12 +350,13 @@ describe('Organization SMS credit top-ups', () => {
     expect(result).not.toBeNull();
     if (!result) throw new Error('unreachable: manual top-up returned null');
 
-    expect(result.rateApplied).toBeCloseTo(0.90, 4); // schema default
+    expect(result.rateApplied).toBeCloseTo(0.9, 4); // schema default
     expect(result.creditsAdded).toBeCloseTo(1000, 4); // 900 / 0.90
     expect(result.newBalance).toBeCloseTo(1000, 4);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+      [organizationId],
     );
     expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
 
@@ -382,13 +379,13 @@ describe('Organization SMS credit top-ups', () => {
   it('a changed rate applies to the NEXT top-up, not the last one', async () => {
     const first = await addOrganizationSmsCredits(organizationId, 900, coordinatorId); // at 0.90
     if (!first) throw new Error('unreachable: manual top-up returned null');
-    expect(first.rateApplied).toBeCloseTo(0.90, 4);
+    expect(first.rateApplied).toBeCloseTo(0.9, 4);
 
-    await setOrganizationSmsRate(organizationId, 0.50, coordinatorId);
+    await setOrganizationSmsRate(organizationId, 0.5, coordinatorId);
     const second = await addOrganizationSmsCredits(organizationId, 500, coordinatorId); // at 0.50
     if (!second) throw new Error('unreachable: manual top-up returned null');
 
-    expect(second.rateApplied).toBeCloseTo(0.50, 4);
+    expect(second.rateApplied).toBeCloseTo(0.5, 4);
     expect(second.creditsAdded).toBeCloseTo(1000, 4); // 500 / 0.50
 
     // The first lot's OWN rate_applied must still read 0.90 — a rate change
@@ -398,20 +395,20 @@ describe('Organization SMS credit top-ups', () => {
       `SELECT rate_applied FROM organization_sms_credits WHERE organization_id = $1 ORDER BY created_at ASC`,
       [organizationId],
     );
-    expect(Number(lots[0].rate_applied)).toBeCloseTo(0.90, 4);
-    expect(Number(lots[1].rate_applied)).toBeCloseTo(0.50, 4);
+    expect(Number(lots[0].rate_applied)).toBeCloseTo(0.9, 4);
+    expect(Number(lots[1].rate_applied)).toBeCloseTo(0.5, 4);
   });
 
   it('setOrganizationSmsRate writes an audit_logs row with old and new values', async () => {
-    await setOrganizationSmsRate(organizationId, 1.20, coordinatorId);
+    await setOrganizationSmsRate(organizationId, 1.2, coordinatorId);
 
     const [audit] = await rawQuery<{ old_values: { sms_rate: string }; new_values: { sms_rate: string } }>(
       `SELECT old_values, new_values FROM audit_logs
        WHERE action = 'organization.sms_rate_update' AND resource_id = $1`,
       [organizationId],
     );
-    expect(Number(audit.old_values.sms_rate)).toBeCloseTo(0.90, 4); // the bootstrapped default
-    expect(Number(audit.new_values.sms_rate)).toBeCloseTo(1.20, 4);
+    expect(Number(audit.old_values.sms_rate)).toBeCloseTo(0.9, 4); // the bootstrapped default
+    expect(Number(audit.new_values.sms_rate)).toBeCloseTo(1.2, 4);
   });
 
   it('rejects a non-positive top-up amount', async () => {
@@ -431,29 +428,34 @@ describe('Organization SMS credit top-ups', () => {
   });
 
   it('an organization_coordinator can self-serve top up their OWN org via the route', async () => {
-    const res = await orgTopUpPost(buildRequest('/api/admin/organization/sms-credits', {
-      method: 'POST',
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
-      body: { amountKes: 450 },
-    }));
+    const res = await orgTopUpPost(
+      buildRequest('/api/admin/organization/sms-credits', {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
+        body: { amountKes: 450 },
+      }),
+    );
     expect(res.status).toBe(201);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+      [organizationId],
     );
     expect(Number(account.sms_credits)).toBeCloseTo(500, 4); // 450 / 0.90
   });
 
   it('a coordinator WITHOUT an organizationId claim is denied on the self-serve route', async () => {
-    const res = await orgTopUpPost(buildRequest('/api/admin/organization/sms-credits', {
-      method: 'POST',
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator' }),
-      body: { amountKes: 450 },
-    }));
+    const res = await orgTopUpPost(
+      buildRequest('/api/admin/organization/sms-credits', {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator' }),
+        body: { amountKes: 450 },
+      }),
+    );
     expect(res.status).toBe(403);
   });
 
-  it('super_admin can grant/correct ANY organization\'s balance via the by-id route', async () => {
+  it("super_admin can grant/correct ANY organization's balance via the by-id route", async () => {
     const res = await adminTopUpPost(
       buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
         method: 'POST',
@@ -465,7 +467,8 @@ describe('Organization SMS credit top-ups', () => {
     expect(res.status).toBe(201);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+      [organizationId],
     );
     expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
   });

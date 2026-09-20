@@ -17,7 +17,13 @@ import { normalizePhone } from '@/lib/utils/phone';
 import { isUuid } from '@/lib/utils/uuid';
 import { segmentsOf } from '@/lib/sms/segments';
 import { tickBudgetExhausted } from '@/lib/jobs/deadline';
-import { InsufficientSmsCreditsError, PaymentRequiredError, NotFoundError, ServiceUnavailableError, RateLimitedError } from '@/lib/utils/errors';
+import {
+  InsufficientSmsCreditsError,
+  PaymentRequiredError,
+  NotFoundError,
+  ServiceUnavailableError,
+  RateLimitedError,
+} from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import {
@@ -30,7 +36,15 @@ import {
   type BulkSmsItem,
   type SmsResponse,
 } from '@/lib/sms/provider';
-import { renderTemplate, renderBuiltin, stripUnresolved, unresolvedVars, BALANCE_VARS, type TemplateVars, type TemplateKey } from '@/lib/sms/templates';
+import {
+  renderTemplate,
+  renderBuiltin,
+  stripUnresolved,
+  unresolvedVars,
+  BALANCE_VARS,
+  type TemplateVars,
+  type TemplateKey,
+} from '@/lib/sms/templates';
 import { computeMemberFinancialSnapshot } from '@/lib/services/member-balances.service';
 import {
   reserveCredits,
@@ -46,24 +60,24 @@ import type { SmsUsageQueryInput } from '@/lib/validators/sms.schema';
 
 /** One unresolved (or resolved, if asked for) failed message. */
 export interface SmsFailureRow {
-  id:             string;
-  phone:          string;
-  message:        string;
+  id: string;
+  phone: string;
+  message: string;
   failure_reason: string | null;
-  retry_count:    number;
-  max_retries:    number;
-  resolved:       boolean;
-  last_retry_at:  Date | null;
-  next_retry_at:  Date | null;
-  created_at:     Date;
+  retry_count: number;
+  max_retries: number;
+  resolved: boolean;
+  last_retry_at: Date | null;
+  next_retry_at: Date | null;
+  created_at: Date;
   /** True when the automatic sweep will never touch this row again. */
-  exhausted:      boolean;
+  exhausted: boolean;
 }
 
 export interface SendSmsResult {
-  sent:    number;
-  failed:  number;
-  logs:    SmsUsageLog[];
+  sent: number;
+  failed: number;
+  logs: SmsUsageLog[];
 }
 
 export type DlrClass = 'delivered' | 'failed' | 'pending';
@@ -123,23 +137,21 @@ export function classifyDlrStatus(raw: string): DlrClass {
  * sms_usage_logs row. Organization-scoped trigger rules and organization
  * campaigns bill the organization; everything else bills the group.
  */
-export type SmsPayer =
-  | { type: 'group' }
-  | { type: 'organization'; organizationId: string };
+export type SmsPayer = { type: 'group' } | { type: 'organization'; organizationId: string };
 
 export const GROUP_PAYER: SmsPayer = { type: 'group' };
 
 export interface BulkCampaignInput {
   campaignId?: string;
-  phones:      string[];
-  message:     string;
-  senderId?:   string;
+  phones: string[];
+  message: string;
+  senderId?: string;
   timeToSend?: string;
-  groupId:     string;
-  sentBy:      string;
+  groupId: string;
+  sentBy: string;
   referenceType?: string;
-  referenceId?:   string;
-  payer?:      SmsPayer;
+  referenceId?: string;
+  payer?: SmsPayer;
   /**
    * Stable identifier for THIS dispatch attempt, used to deduplicate
    * recipients on a job-level retry (SMS_MESSAGING_AUDIT_2026-08.md H3).
@@ -239,32 +251,35 @@ function toReservationTarget(groupId: string, payer: SmsPayer): ReservationTarge
  */
 function reserveFailureToError(reason: ReserveFailure, detail: string): Error {
   switch (reason) {
-    case 'insufficient_credits': return new InsufficientSmsCreditsError();
-    case 'subscription_inactive': return new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
-    case 'not_authorized':        return new PaymentRequiredError('This organization cannot fund SMS for this group.');
-    case 'no_billing_account':    return new PaymentRequiredError('No billing account found.');
+    case 'insufficient_credits':
+      return new InsufficientSmsCreditsError();
+    case 'subscription_inactive':
+      return new PaymentRequiredError('Subscription inactive. SMS cannot be sent.');
+    case 'not_authorized':
+      return new PaymentRequiredError('This organization cannot fund SMS for this group.');
+    case 'no_billing_account':
+      return new PaymentRequiredError('No billing account found.');
     // 503, NOT the 402 the default arm would give: an operator halt is
     // transient, and trigger-engine.ts settles any 402 as terminally failed
     // on an append-only table. See ServiceUnavailableError's own comment.
-    case 'dispatch_halted':       return new ServiceUnavailableError(detail);
+    case 'dispatch_halted':
+      return new ServiceUnavailableError(detail);
     // 429, not 402, for the same reason as above: a daily cap lifts at
     // midnight, so it must not be recorded as a terminal billing failure.
-    case 'daily_limit_reached':   return new RateLimitedError(detail);
-    default:                      return new PaymentRequiredError(detail);
+    case 'daily_limit_reached':
+      return new RateLimitedError(detail);
+    default:
+      return new PaymentRequiredError(detail);
   }
 }
 
 /** payer_type / payer_organization_id columns for an sms_usage_logs insert. */
 function payerCols(payer: SmsPayer): [string, string | null] {
-  return payer.type === 'organization'
-    ? ['organization', payer.organizationId]
-    : ['group', null];
+  return payer.type === 'organization' ? ['organization', payer.organizationId] : ['group', null];
 }
 
 async function fetchOptOuts(client: import('pg').PoolClient, groupId: string): Promise<Set<string>> {
-  const { rows } = await client.query<{ phone: string }>(
-    `SELECT phone FROM sms_opt_outs WHERE group_id=$1`, [groupId],
-  );
+  const { rows } = await client.query<{ phone: string }>(`SELECT phone FROM sms_opt_outs WHERE group_id=$1`, [groupId]);
   return new Set(rows.map((r) => r.phone));
 }
 
@@ -325,7 +340,7 @@ function systemCtx(groupId: string): TenantContext {
  * always against *current* membership at send time.
  */
 export async function resolveSmsRecipients(
-  groupId:       string,
+  groupId: string,
   recipientType: string,
   rawRecipients: unknown,
 ): Promise<string[]> {
@@ -415,7 +430,7 @@ function formatMoney(n: number): string {
 
 export async function resolveRecipientVars(
   groupId: string,
-  phones:  string[],
+  phones: string[],
   message?: string,
 ): Promise<Map<string, TemplateVars>> {
   const wanted = new Set(phones.map(normalizePhone));
@@ -430,14 +445,18 @@ export async function resolveRecipientVars(
   // `message` is optional so every existing caller keeps working untouched;
   // omitting it simply means no balance variables, which is what those
   // callers got before this existed.
-  const needsBalances = message !== undefined && BALANCE_VARS.some(
-    (v) => message.includes(`{{${v}}}`),
-  );
+  const needsBalances = message !== undefined && BALANCE_VARS.some((v) => message.includes(`{{${v}}}`));
 
   const { groupName, members, balances } = await withDb(systemCtx(groupId), async (db) => {
     const [{ rows: groupRows }, { rows: memberRows }] = await Promise.all([
       db.query<{ name: string }>(`SELECT name FROM groups WHERE id=$1`, [groupId]),
-      db.query<{ phone: string; first_name: string; last_name: string; membership_no: string | null; member_id: string }>(
+      db.query<{
+        phone: string;
+        first_name: string;
+        last_name: string;
+        membership_no: string | null;
+        member_id: string;
+      }>(
         // membership_no is the SHORT per-group number (NC000078), not the long
         // platform member_code — it is what a member is asked to quote, and it
         // makes {{membership_no}} usable in an ordinary campaign body, not
@@ -458,14 +477,12 @@ export async function resolveRecipientVars(
     // logic. It is already set-based (one row per active member, balances
     // pre-aggregated per member before joining, so no fan-out inflates a
     // total) and takes the pool client we are already holding.
-    const snapshots = needsBalances
-      ? await computeMemberFinancialSnapshot(db, groupId)
-      : [];
+    const snapshots = needsBalances ? await computeMemberFinancialSnapshot(db, groupId) : [];
 
     return {
       groupName: groupRows[0]?.name ?? '',
-      members:   memberRows,
-      balances:  new Map(snapshots.map((s) => [s.memberId, s])),
+      members: memberRows,
+      balances: new Map(snapshots.map((s) => [s.memberId, s])),
     };
   });
 
@@ -494,20 +511,22 @@ export async function resolveRecipientVars(
 
     byPhone.set(key, {
       ...existing,
-      first_name:    m.first_name,
-      last_name:     m.last_name,
-      full_name:     `${m.first_name} ${m.last_name}`.trim(),
+      first_name: m.first_name,
+      last_name: m.last_name,
+      full_name: `${m.first_name} ${m.last_name}`.trim(),
       membership_no: m.membership_no ?? undefined,
-      ...(bal ? {
-        // Grouped thousands, no decimals, no "KES" — the currency word stays
-        // in the template so an officer writes "KES {{contribution_balance}}"
-        // and controls the phrasing. Matches how the receipt path formats its
-        // own {{balance}} (mpesa-spine.service.ts).
-        contribution_balance:  formatMoney(bal.savings),
-        loan_balance:          formatMoney(bal.loanBalance),
-        share_capital_balance: formatMoney(bal.shares),
-        contributed_this_month: formatMoney(bal.contributedThisPeriod),
-      } : {}),
+      ...(bal
+        ? {
+            // Grouped thousands, no decimals, no "KES" — the currency word stays
+            // in the template so an officer writes "KES {{contribution_balance}}"
+            // and controls the phrasing. Matches how the receipt path formats its
+            // own {{balance}} (mpesa-spine.service.ts).
+            contribution_balance: formatMoney(bal.savings),
+            loan_balance: formatMoney(bal.loanBalance),
+            share_capital_balance: formatMoney(bal.shares),
+            contributed_this_month: formatMoney(bal.contributedThisPeriod),
+          }
+        : {}),
     });
   }
   return byPhone;
@@ -533,7 +552,6 @@ function personalize(message: string, vars: TemplateVars | undefined): string {
 // ─── Core send (single or multi recipients) ───────────────────────────────────
 
 export const smsService = {
-
   async send(
     ctx: TenantContext,
     phones: string | string[],
@@ -542,7 +560,7 @@ export const smsService = {
     referenceId?: string | null,
     payer: SmsPayer = GROUP_PAYER,
   ): Promise<SmsUsageLog[]> {
-    const raw        = Array.isArray(phones) ? phones : [phones];
+    const raw = Array.isArray(phones) ? phones : [phones];
     const normalized = raw.map(normalizePhone);
 
     // Bill + create 'queued' log rows atomically, then dispatch *after* the
@@ -554,7 +572,7 @@ export const smsService = {
     const result = await withTransaction(ctx, async (client) => {
       // Opt-outs are resolved before billing so a fully-suppressed send costs
       // nothing — for either payer.
-      const optOuts  = await fetchOptOuts(client, ctx.groupId);
+      const optOuts = await fetchOptOuts(client, ctx.groupId);
       const eligible = normalized.filter((p) => !optOuts.has(p));
       if (!eligible.length) return { fresh: [] as SmsUsageLog[], alreadyLogged: [] as SmsUsageLog[] };
 
@@ -586,8 +604,8 @@ export const smsService = {
         );
         alreadyLogged = rows;
       }
-      const skip    = new Set(alreadyLogged.map((r) => r.recipient_phone));
-      const toSend  = eligible.filter((p) => !skip.has(p));
+      const skip = new Set(alreadyLogged.map((r) => r.recipient_phone));
+      const toSend = eligible.filter((p) => !skip.has(p));
       if (!toSend.length) return { fresh: [] as SmsUsageLog[], alreadyLogged };
 
       // Reserve, don't debit. Credits are earmarked here and only become a real
@@ -598,7 +616,9 @@ export const smsService = {
       // (SMS-AUDIT-v3 G5). One body for everyone on this path, so one count.
       const segsEach = segmentsOf(message);
       const reservation = await reserveCredits(
-        client, toReservationTarget(ctx.groupId, payer), segsEach * toSend.length,
+        client,
+        toReservationTarget(ctx.groupId, payer),
+        segsEach * toSend.length,
       );
       if (!reservation.ok) {
         // Reserve BEFORE inserting any row, so an unaffordable send leaves no
@@ -639,9 +659,21 @@ export const smsService = {
               credits_from_allowance, billing_state, reserved_at, notification_type, correlation_id,
               reference_type, reference_id, provider, payer_type, payer_organization_id, segments)
            VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-          [ctx.groupId, phone, message, segsEach.toFixed(4), fromAllowance.toFixed(4),
-           referenceType ?? null, referenceId ?? null,
-           referenceType ?? null, referenceId ?? null, provider, payerType, payerOrgId, segsEach],
+          [
+            ctx.groupId,
+            phone,
+            message,
+            segsEach.toFixed(4),
+            fromAllowance.toFixed(4),
+            referenceType ?? null,
+            referenceId ?? null,
+            referenceType ?? null,
+            referenceId ?? null,
+            provider,
+            payerType,
+            payerOrgId,
+            segsEach,
+          ],
         );
         const log = inserted[0];
         rows.push(log);
@@ -710,16 +742,12 @@ export const smsService = {
       // sms_trigger_executions is append-only, so a wrongly-terminal row can
       // never be corrected.
       const { rows: refreshed } = await withAdminDb((db) =>
-        db.query<SmsUsageLog>(
-          `SELECT * FROM sms_usage_logs WHERE id = ANY($1::uuid[])`,
-          [result.fresh.map((l) => l.id)],
-        ),
+        db.query<SmsUsageLog>(`SELECT * FROM sms_usage_logs WHERE id = ANY($1::uuid[])`, [
+          result.fresh.map((l) => l.id),
+        ]),
       );
       const byId = new Map(refreshed.map((r) => [r.id, r]));
-      logs = [
-        ...result.alreadyLogged,
-        ...result.fresh.map((l) => byId.get(l.id) ?? l),
-      ];
+      logs = [...result.alreadyLogged, ...result.fresh.map((l) => byId.get(l.id) ?? l)];
     }
     return logs;
   },
@@ -744,16 +772,14 @@ export const smsService = {
       return rows[0]?.body ?? null;
     });
 
-    const message = customTemplate
-      ? renderTemplate(customTemplate, vars)
-      : renderBuiltin(templateKey, vars);
+    const message = customTemplate ? renderTemplate(customTemplate, vars) : renderBuiltin(templateKey, vars);
 
     return this.send(ctx, phones, message, referenceType, referenceId);
   },
 
   async sendBulkCampaign(input: BulkCampaignInput): Promise<SendSmsResult> {
     const phones = input.phones.map(normalizePhone);
-    const payer  = input.payer ?? GROUP_PAYER;
+    const payer = input.payer ?? GROUP_PAYER;
     // A real campaign already has a stable id of its own; dispatchBatchId is
     // only consulted for ad-hoc job-triggered sends that have none.
     const dispatchKey = input.campaignId ?? input.dispatchBatchId ?? null;
@@ -768,7 +794,7 @@ export const smsService = {
     if (dispatchKey !== null && !isUuid(dispatchKey)) {
       throw new Error(
         `sendBulkCampaign: dispatchKey must be a UUID (got "${dispatchKey}") — ` +
-        'it is persisted to sms_usage_logs.correlation_id/.reference_id, both uuid columns',
+          'it is persisted to sms_usage_logs.correlation_id/.reference_id, both uuid columns',
       );
     }
 
@@ -799,9 +825,10 @@ export const smsService = {
     const { eligible, logIds, dedupedAway } = await withAdminDb(async (db) => {
       // Opt-out suppression
       const { rows: optOutRows } = await db.query<{ phone: string }>(
-        `SELECT phone FROM sms_opt_outs WHERE group_id=$1`, [input.groupId],
+        `SELECT phone FROM sms_opt_outs WHERE group_id=$1`,
+        [input.groupId],
       );
-      const optOuts  = new Set(optOutRows.map((r) => r.phone));
+      const optOuts = new Set(optOutRows.map((r) => r.phone));
       let eligible = phones.filter((p) => !optOuts.has(p));
 
       // H3 (SMS_MESSAGING_AUDIT_2026-08.md) — a job-level retry (e.g. after
@@ -887,14 +914,20 @@ export const smsService = {
                 payer_type, payer_organization_id, segments)
              VALUES ($1,$2,$3,0,$4,$5,'reserved',NOW(),$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
             [
-              input.groupId, phone, messageFor(phone), segs.toFixed(4), fromAllowance.toFixed(4),
+              input.groupId,
+              phone,
+              messageFor(phone),
+              segs.toFixed(4),
+              fromAllowance.toFixed(4),
               feature,
               dispatchKey,
               feature,
               input.referenceId ?? dispatchKey,
               input.campaignId ?? null,
               provider,
-              payerType, payerOrgId, segs,
+              payerType,
+              payerOrgId,
+              segs,
             ],
           );
           const log = rows[0];
@@ -989,8 +1022,8 @@ export const smsService = {
     // Dispatch via TextSMS bulk endpoint
     const items: BulkSmsItem[] = eligible.map((mobile, idx) => ({
       mobile,
-      message:   messageFor(mobile),
-      senderId:  input.senderId,
+      message: messageFor(mobile),
+      senderId: input.senderId,
       timeToSend: input.timeToSend,
       clientSmsId: idx + 1,
     }));
@@ -1019,10 +1052,10 @@ export const smsService = {
 
       await withAdminDb(async (db) => {
         // Audit: SMS usage logs marked as failed
-        await db.query(
-          `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
-          [reason, logIds],
-        );
+        await db.query(`UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`, [
+          reason,
+          logIds,
+        ]);
 
         // Audit each failure
         for (const logId of logIds) {
@@ -1146,9 +1179,9 @@ export const smsService = {
     const rejectedIds: string[] = [];
     for (const logId of logIds) {
       const r = byLogId.get(logId);
-      if (!r)              rejectedIds.push(logId);
-      else if (r.success)  acceptedIds.push(logId);
-      else                 rejectedIds.push(logId);
+      if (!r) rejectedIds.push(logId);
+      else if (r.success) acceptedIds.push(logId);
+      else rejectedIds.push(logId);
     }
     await settleReservation(acceptedIds, 'consume');
     await settleReservation(rejectedIds, 'release');
@@ -1163,8 +1196,12 @@ export const smsService = {
                (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
              VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
             [
-              input.groupId, logId, phoneByLogId.get(logId)!,
-              input.message, String(r.responseCode), r.responseDescription,
+              input.groupId,
+              logId,
+              phoneByLogId.get(logId)!,
+              input.message,
+              String(r.responseCode),
+              r.responseDescription,
             ],
           ),
         );
@@ -1195,9 +1232,9 @@ export const smsService = {
 
     // Return a compatible shape (logs is empty for large campaigns)
     return {
-      sent:   result.sent,
+      sent: result.sent,
       failed: result.failed,
-      logs:   [],
+      logs: [],
     };
   },
 
@@ -1212,13 +1249,18 @@ export const smsService = {
    * reach the UI. Reported in production right after a Starter purchase.
    */
   async getBalance(ctx: TenantContext): Promise<{
-    credits: string; rate: string;
-    allowanceIncluded: number; allowanceUsed: number; allowanceRemaining: number;
+    credits: string;
+    rate: string;
+    allowanceIncluded: number;
+    allowanceUsed: number;
+    allowanceRemaining: number;
   }> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<{
-        sms_credits: string; sms_rate: string;
-        allowance_included: number; allowance_used: number;
+        sms_credits: string;
+        sms_rate: string;
+        allowance_included: number;
+        allowance_used: number;
       }>(
         // SUM the allowance across active subscriptions, matching what
         // reserve_sms_credits itself does for a group holding more than one
@@ -1237,12 +1279,12 @@ export const smsService = {
         return { credits: '0.00', rate: '0.90', allowanceIncluded: 0, allowanceUsed: 0, allowanceRemaining: 0 };
       }
       const included = rows[0].allowance_included;
-      const used     = rows[0].allowance_used;
+      const used = rows[0].allowance_used;
       return {
         credits: rows[0].sms_credits,
-        rate:    rows[0].sms_rate,
-        allowanceIncluded:  included,
-        allowanceUsed:      used,
+        rate: rows[0].sms_rate,
+        allowanceIncluded: included,
+        allowanceUsed: used,
         allowanceRemaining: Math.max(included - used, 0),
       };
     });
@@ -1314,23 +1356,23 @@ export const smsService = {
     // pass with no single group to scope to, so it keeps the admin pool
     // exactly as before.
     type RunDb = <T>(fn: (db: import('pg').PoolClient) => Promise<T>) => Promise<T>;
-    const runDb: RunDb = 'groupId' in scope
-      ? (fn) => withDb(systemCtx(scope.groupId), fn)
-      : withAdminDb;
+    const runDb: RunDb = 'groupId' in scope ? (fn) => withDb(systemCtx(scope.groupId), fn) : withAdminDb;
 
     if ('groupId' in scope) {
       const owned = await runDb((db) =>
-        db.query(
-          `SELECT 1 FROM sms_usage_logs
+        db
+          .query(
+            `SELECT 1 FROM sms_usage_logs
            WHERE provider_msg_id=$1 AND group_id=$2 LIMIT 1`,
-          [messageId, scope.groupId],
-        ).then((r) => r.rowCount ?? 0),
+            [messageId, scope.groupId],
+          )
+          .then((r) => r.rowCount ?? 0),
       );
       if (!owned) throw new NotFoundError('Message not found');
     }
 
     const result = await getDeliveryReport(messageId);
-    const cls    = classifyDlrStatus(result.status);
+    const cls = classifyDlrStatus(result.status);
 
     await runDb(async (db) => {
       // Only advance to a terminal state. A 'pending'/in-transit report must
@@ -1421,7 +1463,12 @@ export const smsService = {
          RETURNING id`,
         [
           'groupId' in scope ? scope.groupId : null,
-          messageId, result.phone, cls, result.networkId, result.deliveredAt ?? null, JSON.stringify(result.raw),
+          messageId,
+          result.phone,
+          cls,
+          result.networkId,
+          result.deliveredAt ?? null,
+          JSON.stringify(result.raw),
         ],
       );
 
@@ -1490,14 +1537,16 @@ export const smsService = {
     // cannot drift apart: anything this marks is exactly what that query can
     // no longer see.
     const abandoned = await withAdminDb((db) =>
-      db.query<{ id: string }>(
-        `UPDATE sms_usage_logs
+      db
+        .query<{ id: string }>(
+          `UPDATE sms_usage_logs
             SET dlr_abandoned_at = NOW()
           WHERE status = 'sent'
             AND dlr_abandoned_at IS NULL
             AND (sent_at IS NULL OR sent_at < NOW() - INTERVAL '7 days')
           RETURNING id, group_id`,
-      ).then((r) => r.rowCount ?? 0),
+        )
+        .then((r) => r.rowCount ?? 0),
     );
 
     // Audit abandoned messages
@@ -1534,16 +1583,17 @@ export const smsService = {
     // provider message id in provider_msg_id, so that single column is the basis
     // for delivery tracking.
     const logs = await withAdminDb((db) =>
-      db.query<{ id: string; msg_id: string; campaign_id: string | null }>(
-        // LEFT JOIN + queried_at ordering is what stops a handful of
-        // never-reported messages holding every slot. sent_at ASC alone put
-        // them permanently at the head of the queue, so newer messages were
-        // never polled and aged out of the window still 'sent' — 175 of 353
-        // lifetime rows are in exactly that state (SMS-AUDIT-v3 G3).
-        //
-        // The join is 1:1: sms_delivery_reports has a unique index on
-        // provider_message_id.
-        `SELECT l.id, l.provider_msg_id AS msg_id, l.campaign_id
+      db
+        .query<{ id: string; msg_id: string; campaign_id: string | null }>(
+          // LEFT JOIN + queried_at ordering is what stops a handful of
+          // never-reported messages holding every slot. sent_at ASC alone put
+          // them permanently at the head of the queue, so newer messages were
+          // never polled and aged out of the window still 'sent' — 175 of 353
+          // lifetime rows are in exactly that state (SMS-AUDIT-v3 G3).
+          //
+          // The join is 1:1: sms_delivery_reports has a unique index on
+          // provider_message_id.
+          `SELECT l.id, l.provider_msg_id AS msg_id, l.campaign_id
          FROM sms_usage_logs l
          LEFT JOIN sms_delivery_reports dr
            ON dr.provider_message_id = l.provider_msg_id
@@ -1572,11 +1622,14 @@ export const smsService = {
          -- send first, preserving the previous ordering's intent.
          ORDER BY dr.queried_at ASC NULLS FIRST, l.sent_at ASC
          LIMIT $1`,
-        [limit],
-      ).then((r) => r.rows),
+          [limit],
+        )
+        .then((r) => r.rows),
     );
 
-    let delivered = 0, failed = 0, pending = 0;
+    let delivered = 0,
+      failed = 0,
+      pending = 0;
     const touchedCampaigns = new Set<string>();
 
     let stoppedEarly = false;
@@ -1650,7 +1703,7 @@ export const smsService = {
     // would hide exactly the budget pressure this bound exists to reveal.
     logger.info(
       `[sms] DLR poll: ${checked}/${logs.length} checked, ${delivered} delivered, ` +
-      `${failed} failed, ${pending} pending${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
+        `${failed} failed, ${pending} pending${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
     );
     return { checked, delivered, failed, pending, abandoned };
   },
@@ -1676,13 +1729,19 @@ export const smsService = {
     // out through the provider that accepted the original send, not whatever
     // is active now.
     const failures = await withAdminDb((db) =>
-      db.query<{
-        id: string; group_id: string; sms_log_id: string | null;
-        phone: string; message: string; retry_count: number;
-        payer_type: string | null; payer_organization_id: string | null;
-        provider: string | null;
-      }>(
-        `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count,
+      db
+        .query<{
+          id: string;
+          group_id: string;
+          sms_log_id: string | null;
+          phone: string;
+          message: string;
+          retry_count: number;
+          payer_type: string | null;
+          payer_organization_id: string | null;
+          provider: string | null;
+        }>(
+          `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count,
                 l.payer_type, l.payer_organization_id, l.provider
          FROM sms_failures f
          LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
@@ -1691,15 +1750,19 @@ export const smsService = {
            AND (f.next_retry_at IS NULL OR f.next_retry_at <= NOW())
          ORDER BY f.next_retry_at ASC NULLS FIRST
          LIMIT $1`,
-        [limit],
-      ).then((r) => r.rows),
+          [limit],
+        )
+        .then((r) => r.rows),
     );
 
     // M6: read through validated env (lib/env.ts), not a second, drifted
     // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
     // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
-    let retried = 0, resolved = 0, failed = 0, skipped = 0;
+    let retried = 0,
+      resolved = 0,
+      failed = 0,
+      skipped = 0;
     let stoppedEarly = false;
 
     for (const f of failures) {
@@ -1718,7 +1781,10 @@ export const smsService = {
 
       // A circuit skip is not an attempt: it touched no state and must not be
       // counted as one (SMS-AUDIT-v3 T3-3).
-      if (outcome === 'skipped_circuit') { skipped++; continue; }
+      if (outcome === 'skipped_circuit') {
+        skipped++;
+        continue;
+      }
 
       retried++;
       if (outcome === 'resolved' || outcome === 'suppressed') resolved++;
@@ -1727,8 +1793,8 @@ export const smsService = {
 
     logger.info(
       `[sms] retryFailures: ${retried}/${failures.length} due, ${resolved} resolved, ` +
-      `${failed} still failing, ${skipped} skipped (provider circuit open)` +
-      `${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
+        `${failed} still failing, ${skipped} skipped (provider circuit open)` +
+        `${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
     );
     return { retried, resolved, failed, skipped };
   },
@@ -1754,18 +1820,18 @@ export const smsService = {
    * who was selected. Reads only — nothing is reserved, nothing is written.
    */
   async previewBulkSend(
-    ctx:   TenantContext,
+    ctx: TenantContext,
     input: { message: string; phones?: string[]; recipientType?: string; rawRecipients?: unknown },
   ): Promise<{
-    selected:         number;
-    optedOut:         number;
-    recipients:       number;
+    selected: number;
+    optedOut: number;
+    recipients: number;
     segmentsPerMessage: number;
-    creditsRequired:  number;
+    creditsRequired: number;
     /** Written in the body but supplied to no recipient — these will send as holes. */
     unresolvableVariables: string[];
-    balance:          { credits: number; allowanceRemaining: number; available: number };
-    affordable:       boolean;
+    balance: { credits: number; allowanceRemaining: number; available: number };
+    affordable: boolean;
     requiresConfirmation: boolean;
   }> {
     const raw = input.phones?.length
@@ -1776,10 +1842,8 @@ export const smsService = {
     // counting it twice would over-quote the cost.
     const selected = [...new Set(raw)];
 
-    const optedOutSet = new Set(
-      (await smsService.listOptOuts(ctx.groupId)).map((o) => o.phone),
-    );
-    const recipients  = selected.filter((p) => !optedOutSet.has(p));
+    const optedOutSet = new Set((await smsService.listOptOuts(ctx.groupId)).map((o) => o.phone));
+    const recipients = selected.filter((p) => !optedOutSet.has(p));
 
     // ── Price what will ACTUALLY be sent, not what was typed ──────────
     //
@@ -1803,8 +1867,8 @@ export const smsService = {
       ? await resolveRecipientVars(ctx.groupId, recipients, input.message)
       : undefined;
 
-    const perRecipient = recipients.map(
-      (phone) => segmentsOf(personalize(input.message, varsByPhone?.get(normalizePhone(phone)))),
+    const perRecipient = recipients.map((phone) =>
+      segmentsOf(personalize(input.message, varsByPhone?.get(normalizePhone(phone)))),
     );
     const creditsRequired = perRecipient.reduce((sum, n) => sum + n, 0);
     // Personalisation makes this vary between recipients — one long name can
@@ -1831,19 +1895,20 @@ export const smsService = {
     // {{first_name}} unfilled for the non-members — that is the documented,
     // intended stripping, and warning about it on every such send would
     // train an officer to click past the warning that matters.
-    const unresolvableVariables = varsByPhone && recipients.length
-      ? recipients
-          .map((phone) => unresolvedVars(input.message, varsByPhone.get(normalizePhone(phone)) ?? {}))
-          .reduce((common, next) => common.filter((v) => next.includes(v)))
-      : [];
+    const unresolvableVariables =
+      varsByPhone && recipients.length
+        ? recipients
+            .map((phone) => unresolvedVars(input.message, varsByPhone.get(normalizePhone(phone)) ?? {}))
+            .reduce((common, next) => common.filter((v) => next.includes(v)))
+        : [];
 
-    const balance   = await smsService.getBalance(ctx);
-    const credits   = Number(balance.credits);
+    const balance = await smsService.getBalance(ctx);
+    const credits = Number(balance.credits);
     const available = credits + balance.allowanceRemaining;
 
     return {
-      selected:   selected.length,
-      optedOut:   selected.length - recipients.length,
+      selected: selected.length,
+      optedOut: selected.length - recipients.length,
       recipients: recipients.length,
       segmentsPerMessage,
       creditsRequired,
@@ -1905,12 +1970,11 @@ export const smsService = {
     return withDb(ctx, async (client) => {
       const { page, limit, includeResolved } = params;
       const offset = (page - 1) * limit;
-      const where = includeResolved
-        ? 'f.group_id = $1'
-        : 'f.group_id = $1 AND NOT f.resolved';
+      const where = includeResolved ? 'f.group_id = $1' : 'f.group_id = $1 AND NOT f.resolved';
 
       const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM sms_failures f WHERE ${where}`, [ctx.groupId],
+        `SELECT COUNT(*) AS count FROM sms_failures f WHERE ${where}`,
+        [ctx.groupId],
       );
       const total = parseInt(countRows[0].count, 10);
 
@@ -1942,31 +2006,30 @@ export const smsService = {
     // no per-request session — but every write inside it is already scoped
     // to this specific row's own f.group_id.
     const [row] = await withDb(ctx, (db) =>
-      db.query<RetryableFailure & { resolved: boolean }>(
-        `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count, f.resolved,
+      db
+        .query<RetryableFailure & { resolved: boolean }>(
+          `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count, f.resolved,
                 l.payer_type, l.payer_organization_id, l.provider
            FROM sms_failures f
            LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
           WHERE f.id = $1 AND f.group_id = $2`,
-        [failureId, ctx.groupId],
-      ).then((r) => r.rows),
+          [failureId, ctx.groupId],
+        )
+        .then((r) => r.rows),
     );
 
-    if (!row)          return { status: 'not_found' };
+    if (!row) return { status: 'not_found' };
     // Already delivered or already suppressed. Re-sending would be a duplicate
     // to a real person and a second charge — the exact pair of harms the
     // dedup work in T1-2 existed to stop.
-    if (row.resolved)  return { status: 'already_resolved' };
+    if (row.resolved) return { status: 'already_resolved' };
 
     const outcome = await retryOneFailure(row, env.TEXTSMS_SENDER_ID);
     logger.info('[sms] manual retry', { failureId, groupId: ctx.groupId, outcome });
     return { status: outcome };
   },
 
-  async listUsage(
-    ctx: TenantContext,
-    params: SmsUsageQueryInput,
-  ): Promise<PaginatedResult<SmsUsageLog>> {
+  async listUsage(ctx: TenantContext, params: SmsUsageQueryInput): Promise<PaginatedResult<SmsUsageLog>> {
     return withDb(ctx, async (client) => {
       const { page, limit, status, from, to } = params;
       const offset = (page - 1) * limit;
@@ -1974,13 +2037,23 @@ export const smsService = {
       const vals: unknown[] = [ctx.groupId];
       let idx = 2;
 
-      if (status) { conds.push(`status=$${idx++}`);               vals.push(status); }
-      if (from)   { conds.push(`created_at::date>=$${idx++}`);    vals.push(from); }
-      if (to)     { conds.push(`created_at::date<=$${idx++}`);    vals.push(to); }
+      if (status) {
+        conds.push(`status=$${idx++}`);
+        vals.push(status);
+      }
+      if (from) {
+        conds.push(`created_at::date>=$${idx++}`);
+        vals.push(from);
+      }
+      if (to) {
+        conds.push(`created_at::date<=$${idx++}`);
+        vals.push(to);
+      }
 
       const where = conds.join(' AND ');
       const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM sms_usage_logs WHERE ${where}`, vals,
+        `SELECT COUNT(*) AS count FROM sms_usage_logs WHERE ${where}`,
+        vals,
       );
       const total = parseInt(countRows[0].count, 10);
       const { rows } = await client.query<SmsUsageLog>(
@@ -1995,18 +2068,15 @@ export const smsService = {
   async isOptedOut(groupId: string, phone: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
     const { rows } = await withDb(systemCtx(groupId), (db) =>
-      db.query<{ n: string }>(
-        `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
-        [groupId, normalized],
-      ),
+      db.query<{ n: string }>(`SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, normalized]),
     );
     return rows.length > 0;
   },
 
   /** Everyone currently opted out for a group, newest first. */
-  async listOptOuts(groupId: string): Promise<
-    { phone: string; optedOutAt: string; source: string; note: string | null }[]
-  > {
+  async listOptOuts(
+    groupId: string,
+  ): Promise<{ phone: string; optedOutAt: string; source: string; note: string | null }[]> {
     const { rows } = await withDb(systemCtx(groupId), (db) =>
       db.query<{ phone: string; opted_out_at: string; source: string; note: string | null }>(
         `SELECT phone, opted_out_at, source, note
@@ -2015,7 +2085,10 @@ export const smsService = {
       ),
     );
     return rows.map((r) => ({
-      phone: r.phone, optedOutAt: r.opted_out_at, source: r.source, note: r.note,
+      phone: r.phone,
+      optedOutAt: r.opted_out_at,
+      source: r.source,
+      note: r.note,
     }));
   },
 
@@ -2039,10 +2112,7 @@ export const smsService = {
 
     // Check if already opted out
     const { rows: existing } = await withDb(systemCtx(groupId), (db) =>
-      db.query<{ id: string }>(
-        `SELECT id FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`,
-        [groupId, normalized],
-      ),
+      db.query<{ id: string }>(`SELECT id FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, normalized]),
     );
 
     if (!existing[0]) {
@@ -2157,9 +2227,7 @@ export const smsService = {
  * simply absent from the returned map — logIds not present in it stay
  * 'reserved', which the stale-reservation sweeper already recovers.
  */
-function alignBulkResponses(
-  responses: SmsResponse[], logIds: string[],
-): Map<string, SmsResponse> {
+function alignBulkResponses(responses: SmsResponse[], logIds: string[]): Map<string, SmsResponse> {
   const byLogId = new Map<string, SmsResponse>();
   const canUseClientId = responses.length > 0 && responses.every((r) => r.clientSmsId != null);
 
@@ -2190,7 +2258,7 @@ async function dispatchBatch(
   message: string,
   logIds: string[],
 ): Promise<{ sentIds: string[]; failedIds: string[] }> {
-  const sentIds: string[]   = [];
+  const sentIds: string[] = [];
   const failedIds: string[] = [];
 
   try {
@@ -2209,16 +2277,25 @@ async function dispatchBatch(
       } else sentIds.push(logIds[0]);
     } else {
       const items: BulkSmsItem[] = phones.map((mobile, i) => ({
-        mobile, message, senderId: sender, clientSmsId: i + 1,
+        mobile,
+        message,
+        senderId: sender,
+        clientSmsId: i + 1,
       }));
-      const result  = await sendBulkSmsChunked(items);
+      const result = await sendBulkSmsChunked(items);
       const byLogId = alignBulkResponses(result.responses, logIds);
       const phoneByLogId = new Map(logIds.map((id, i) => [id, phones[i]]));
 
       for (const logId of logIds) {
         const r = byLogId.get(logId);
         if (!r) continue; // unmatched — left 'reserved' for the stale-reservation sweeper
-        await updateLogRow(logId, r.success ? 'sent' : 'failed', r.messageId, r.networkId, r.success ? null : r.responseDescription);
+        await updateLogRow(
+          logId,
+          r.success ? 'sent' : 'failed',
+          r.messageId,
+          r.networkId,
+          r.success ? null : r.responseDescription,
+        );
         if (!r.success) {
           failedIds.push(logId);
           await logFailure(groupId, logId, phoneByLogId.get(logId)!, message, r.responseCode, r.responseDescription);
@@ -2243,10 +2320,10 @@ async function dispatchBatch(
       );
       const groupId_ = logRows[0]?.group_id ?? groupId;
 
-      await client.query(
-        `UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`,
-        [reason, logIds],
-      );
+      await client.query(`UPDATE sms_usage_logs SET status='failed', failed_reason=$1 WHERE id=ANY($2::uuid[])`, [
+        reason,
+        logIds,
+      ]);
 
       // Audit each failure
       for (const logId of logIds) {
@@ -2264,7 +2341,9 @@ async function dispatchBatch(
           ],
         );
       }
-    } finally { client.release(); }
+    } finally {
+      client.release();
+    }
     // The provider never confirmed acceptance, so nothing here is chargeable —
     // the caller's settleReservation(failedIds, 'release') already returns the
     // earmark. But unlike a provider *rejection* (handled per-row above via
@@ -2283,11 +2362,14 @@ async function dispatchBatch(
 }
 
 async function updateLogRow(
-  id: string, status: string,
-  msgId: string, networkId: string, reason: string | null,
+  id: string,
+  status: string,
+  msgId: string,
+  networkId: string,
+  reason: string | null,
 ): Promise<void> {
   const { pool } = await import('@/lib/db');
-  const client   = await pool.connect();
+  const client = await pool.connect();
   try {
     const { rows: oldRows } = await client.query<{ group_id: string; status: string }>(
       `SELECT group_id, status FROM sms_usage_logs WHERE id=$1`,
@@ -2325,22 +2407,24 @@ async function updateLogRow(
         ],
       );
     }
-  } finally { client.release(); }
+  } finally {
+    client.release();
+  }
 }
 
 export type RetryOutcome = 'resolved' | 'suppressed' | 'failed' | 'skipped_circuit';
 
 /** The columns retryOneFailure needs, joined from sms_failures + its log row. */
 interface RetryableFailure {
-  id:                     string;
-  group_id:               string;
-  sms_log_id:             string | null;
-  phone:                  string;
-  message:                string;
-  retry_count:            number;
-  payer_type:             string | null;
-  payer_organization_id:  string | null;
-  provider:               string | null;
+  id: string;
+  group_id: string;
+  sms_log_id: string | null;
+  phone: string;
+  message: string;
+  retry_count: number;
+  payer_type: string | null;
+  payer_organization_id: string | null;
+  provider: string | null;
 }
 
 /**
@@ -2417,16 +2501,14 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
   // something unbilled all over again. This mirrors the order in send() —
   // reserve, dispatch, then consume or release.
   const target = {
-    payerType:      (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
-    groupId:        f.group_id,
+    payerType: (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
+    groupId: f.group_id,
     organizationId: f.payer_organization_id,
   };
   // Re-price from the body actually being resent. A retry must reserve what
   // the provider will bill for THIS send, not a flat 1 (G5).
   const retrySegments = segmentsOf(f.message);
-  const reservation = await withAdminDb((db) =>
-    reserveCredits(db, target, retrySegments),
-  );
+  const reservation = await withAdminDb((db) => reserveCredits(db, target, retrySegments));
   if (!reservation.ok) {
     // Out of credits is not a transient provider fault — retrying on a timer
     // will not conjure a balance. Record it and stop; a top-up puts the row
@@ -2599,7 +2681,7 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
  */
 async function bumpRetry(id: string, retryCount: number, reason: string): Promise<void> {
   const { pool } = await import('@/lib/db');
-  const client   = await pool.connect();
+  const client = await pool.connect();
   try {
     const nextRetryInterval = Math.min(Math.pow(2, retryCount), 8) * 5; // minutes
 
@@ -2644,15 +2726,21 @@ async function bumpRetry(id: string, retryCount: number, reason: string): Promis
         ],
       );
     }
-  } finally { client.release(); }
+  } finally {
+    client.release();
+  }
 }
 
 async function logFailure(
-  groupId: string, logId: string, phone: string,
-  message: string, code: number, reason: string,
+  groupId: string,
+  logId: string,
+  phone: string,
+  message: string,
+  code: number,
+  reason: string,
 ): Promise<void> {
   const { pool } = await import('@/lib/db');
-  const client   = await pool.connect();
+  const client = await pool.connect();
   try {
     await client.query(
       `INSERT INTO sms_failures
@@ -2681,5 +2769,7 @@ async function logFailure(
         }),
       ],
     );
-  } finally { client.release(); }
+  } finally {
+    client.release();
+  }
 }

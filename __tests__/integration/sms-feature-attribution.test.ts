@@ -37,9 +37,13 @@ jest.mock('@/lib/services/textsms.service', () => ({
 function acceptAll(items: BulkSmsItem[]): BulkSmsResult {
   return {
     responses: items.map((item, i) => ({
-      responseCode: 200, responseDescription: 'Success',
-      mobile: item.mobile, messageId: `msg-${i + 1}`, networkId: '1',
-      success: true, clientSmsId: item.clientSmsId as number,
+      responseCode: 200,
+      responseDescription: 'Success',
+      mobile: item.mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: '1',
+      success: true,
+      clientSmsId: item.clientSmsId as number,
     })),
     sent: items.length,
     failed: 0,
@@ -69,12 +73,18 @@ async function makeBulkJob(payload: Record<string, unknown>): Promise<Job> {
     [JSON.stringify(payload)],
   );
   return {
-    id: row.id, type: 'sms_bulk_send', payload, status: 'processing',
-    attempts: 0, max_attempts: 3,
+    id: row.id,
+    type: 'sms_bulk_send',
+    payload,
+    status: 'processing',
+    attempts: 0,
+    max_attempts: 3,
   } as unknown as Job;
 }
 
-async function featuresLogged(groupId: string): Promise<Array<{ notification_type: string | null; reference_type: string | null }>> {
+async function featuresLogged(
+  groupId: string,
+): Promise<Array<{ notification_type: string | null; reference_type: string | null }>> {
   return rawQuery<{ notification_type: string | null; reference_type: string | null }>(
     `SELECT notification_type, reference_type FROM sms_usage_logs
      WHERE group_id = $1 ORDER BY created_at`,
@@ -101,13 +111,16 @@ describe('bulk SMS feature attribution', () => {
     await provisionBilling(groupId);
 
     // Exactly what sms-scheduler.service.ts enqueues for a due occurrence.
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000001', '254711000002'],
-      message: 'Meeting on Saturday.',
-      referenceType: 'schedule',
-      referenceId: '00000000-0000-4000-8000-000000000001',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ['254711000001', '254711000002'],
+        message: 'Meeting on Saturday.',
+        referenceType: 'schedule',
+        referenceId: '00000000-0000-4000-8000-000000000001',
+      }),
+    );
 
     const rows = await featuresLogged(groupId);
     expect(rows).toHaveLength(2);
@@ -126,11 +139,14 @@ describe('bulk SMS feature attribution', () => {
 
     // The campaign routes pass no referenceType — 'campaign' is the honest
     // label there, so the fix must not relabel it.
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000003'],
-      message: 'End of year party!',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ['254711000003'],
+        message: 'End of year party!',
+      }),
+    );
 
     const rows = await featuresLogged(groupId);
     expect(rows).toHaveLength(1);
@@ -142,20 +158,26 @@ describe('bulk SMS feature attribution', () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
     await provisionBilling(groupId);
 
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000001', '254711000002'],
-      message: 'Contributions are due Friday.',
-      referenceType: 'contribution_reminder',
-      referenceId: '00000000-0000-4000-8000-000000000002',
-    }));
-    await handleJob(await makeBulkJob({
-      groupId, sentBy: officerId,
-      phones: ['254711000003'],
-      message: 'Happy birthday!',
-      referenceType: 'birthday',
-      referenceId: '00000000-0000-4000-8000-000000000003',
-    }));
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ['254711000001', '254711000002'],
+        message: 'Contributions are due Friday.',
+        referenceType: 'contribution_reminder',
+        referenceId: '00000000-0000-4000-8000-000000000002',
+      }),
+    );
+    await handleJob(
+      await makeBulkJob({
+        groupId,
+        sentBy: officerId,
+        phones: ['254711000003'],
+        message: 'Happy birthday!',
+        referenceType: 'birthday',
+        referenceId: '00000000-0000-4000-8000-000000000003',
+      }),
+    );
 
     const analytics = await getUsageAnalytics(groupId);
     const byFeature = new Map(analytics.byFeature.map((f) => [f.feature, f.messages]));

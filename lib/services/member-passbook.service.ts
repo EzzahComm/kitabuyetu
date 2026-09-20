@@ -20,27 +20,27 @@ export type TxnStatus = 'success' | 'pending' | 'failed';
 export type TxnMethod = 'mpesa' | 'cash';
 
 export interface PassbookEntry {
-  id:        string;
-  type:      TxnType;
-  label:     string;
-  amount:    number;
+  id: string;
+  type: TxnType;
+  label: string;
+  amount: number;
   direction: 'in' | 'out';
-  status:    TxnStatus;
-  method:    TxnMethod;
-  date:      string;
-  ref?:      string;
+  status: TxnStatus;
+  method: TxnMethod;
+  date: string;
+  ref?: string;
 }
 
 interface PassbookRow {
-  id:        string;
-  type:      TxnType;
-  label:     string;
-  amount:    string;
+  id: string;
+  type: TxnType;
+  label: string;
+  amount: string;
   direction: 'in' | 'out';
   db_status: string;
   db_method: string | null;
-  txn_date:  string;
-  ref:       string | null;
+  txn_date: string;
+  ref: string | null;
 }
 
 function mapStatus(dbStatus: string): TxnStatus {
@@ -57,9 +57,15 @@ function mapMethod(dbMethod: string | null): TxnMethod {
 
 function mapRow(r: PassbookRow): PassbookEntry {
   return {
-    id: r.id, type: r.type, label: r.label, amount: parseFloat(r.amount),
-    direction: r.direction, status: mapStatus(r.db_status), method: mapMethod(r.db_method),
-    date: r.txn_date, ref: r.ref ?? undefined,
+    id: r.id,
+    type: r.type,
+    label: r.label,
+    amount: parseFloat(r.amount),
+    direction: r.direction,
+    status: mapStatus(r.db_status),
+    method: mapMethod(r.db_method),
+    date: r.txn_date,
+    ref: r.ref ?? undefined,
   };
 }
 
@@ -100,7 +106,8 @@ export async function listMyPassbook(
     const values: unknown[] = direction ? [ctx.groupId, ctx.userId, direction] : [ctx.groupId, ctx.userId];
 
     const { rows: countRows } = await client.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM (${union}) t ${directionFilter}`, values,
+      `SELECT COUNT(*) AS count FROM (${union}) t ${directionFilter}`,
+      values,
     );
     const total = parseInt(countRows[0].count, 10);
 
@@ -114,7 +121,11 @@ export async function listMyPassbook(
     );
 
     return {
-      items: rows.map(mapRow), total, page, pageSize: limit, totalPages: Math.ceil(total / limit),
+      items: rows.map(mapRow),
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
     };
   });
 }

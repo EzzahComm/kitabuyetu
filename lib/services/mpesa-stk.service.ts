@@ -33,38 +33,38 @@ import {
 // ─── STK Push ────────────────────────────────────────────────────────────────
 
 export interface StkPushParams {
-  phone:            string;
-  amount:           number;
+  phone: string;
+  amount: number;
   accountReference: string;
-  description:      string;
-  groupId:          string;
-  invoiceId?:       string;
-  purpose?:         string;
-  initiatedBy?:     string;
+  description: string;
+  groupId: string;
+  invoiceId?: string;
+  purpose?: string;
+  initiatedBy?: string;
   /** Required when purpose = 'subscription' — the callback activates these. */
-  planType?:        PlanType;
-  product?:         SubscriptionProduct;
+  planType?: PlanType;
+  product?: SubscriptionProduct;
   /** Defaults to 'monthly' at the callback if omitted (migration 155) — an
    *  older client that never sends this keeps today's behaviour exactly. */
-  billingCycle?:    BillingCycle;
+  billingCycle?: BillingCycle;
   /** Required when purpose = 'campaign_donation' — read back at settlement
    *  by applyCampaignDonationFromSTK (migration 184; AccountReference itself
    *  is truncated to 12 chars by Safaricom, so it cannot carry this). */
-  campaignId?:      string;
-  donorName?:       string;
-  donorMessage?:    string;
-  isAnonymous?:     boolean;
+  campaignId?: string;
+  donorName?: string;
+  donorMessage?: string;
+  isAnonymous?: boolean;
 }
 
 export interface StkPushResult {
-  checkoutRequestId:   string;
-  merchantRequestId:   string;
-  responseCode:        string;
+  checkoutRequestId: string;
+  merchantRequestId: string;
+  responseCode: string;
   responseDescription: string;
 }
 
 export async function initiateSTKPush(params: StkPushParams): Promise<StkPushResult> {
-  const phone     = normalizePhone(params.phone);
+  const phone = normalizePhone(params.phone);
   const amountStr = toMpesaAmount(params.amount).toFixed(2);
 
   // Duplicate-submit guard: an identical prompt (same group, phone, amount,
@@ -82,9 +82,9 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
   try {
     res = await _stkPush({
       phone,
-      amount:           params.amount,
+      amount: params.amount,
       accountReference: params.accountReference,
-      description:      params.description,
+      description: params.description,
     });
   } catch (err) {
     // The prompt never went out — release immediately so the user can retry.
@@ -101,8 +101,11 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
        VALUES ($1,'stk_push','inbound',$2,$3,'pending',$4,$5,$6,$7)
        RETURNING id`,
       [
-        params.groupId, phone, amountStr,
-        params.accountReference, params.description,
+        params.groupId,
+        phone,
+        amountStr,
+        params.accountReference,
+        params.description,
         JSON.stringify({ checkoutRequestId: res.checkoutRequestId }),
         IS_SANDBOX,
       ],
@@ -142,9 +145,12 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
        ON CONFLICT (checkout_request_id) DO NOTHING
        RETURNING id`,
       [
-        params.groupId, txId,
-        res.checkoutRequestId, res.merchantRequestId,
-        phone, amountStr,
+        params.groupId,
+        txId,
+        res.checkoutRequestId,
+        res.merchantRequestId,
+        phone,
+        amountStr,
         params.accountReference.slice(0, 12),
         params.description.slice(0, 20),
         params.purpose ?? null,
@@ -196,8 +202,12 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
        ON CONFLICT (mpesa_checkout_request_id) DO NOTHING
        RETURNING id`,
       [
-        params.groupId, params.invoiceId ?? null, amountStr,
-        res.checkoutRequestId, res.merchantRequestId, phone,
+        params.groupId,
+        params.invoiceId ?? null,
+        amountStr,
+        res.checkoutRequestId,
+        res.merchantRequestId,
+        phone,
         params.initiatedBy ?? null,
       ],
     );
@@ -255,9 +265,9 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
   await cacheMpesaStatus(res.checkoutRequestId, 'pending');
 
   return {
-    checkoutRequestId:   res.checkoutRequestId,
-    merchantRequestId:   res.merchantRequestId,
-    responseCode:        res.responseCode,
+    checkoutRequestId: res.checkoutRequestId,
+    merchantRequestId: res.merchantRequestId,
+    responseCode: res.responseCode,
     responseDescription: res.responseDescription,
   };
 }
@@ -269,8 +279,8 @@ export interface StkCallbackBody {
     stkCallback: {
       MerchantRequestID: string;
       CheckoutRequestID: string;
-      ResultCode:        number;
-      ResultDesc:        string;
+      ResultCode: number;
+      ResultDesc: string;
       CallbackMetadata?: {
         Item: { Name: string; Value: unknown }[];
       };
@@ -279,10 +289,10 @@ export interface StkCallbackBody {
 }
 
 export interface StkCallbackResult {
-  success:            boolean;
+  success: boolean;
   mpesaReceiptNumber: string | null;
-  amount:             number | null;
-  paymentId:          string | null;
+  amount: number | null;
+  paymentId: string | null;
 }
 
 export async function handleSTKCallback(
@@ -292,8 +302,8 @@ export async function handleSTKCallback(
 ): Promise<StkCallbackResult> {
   if (!opts?.skipIpCheck) assertSafaricomIp(callerIp);
 
-  const cb       = body.Body.stkCallback;
-  const rawBody  = JSON.stringify(body);
+  const cb = body.Body.stkCallback;
+  const rawBody = JSON.stringify(body);
 
   // ── Failure branch ─────────────────────────────────────────────────────────
   if (cb.ResultCode !== 0) {
@@ -302,13 +312,13 @@ export async function handleSTKCallback(
     // so a duplicate/ replayed failure callback won't re-send the SMS.
     const failed = await withAdminDb(async (db) => {
       const { rows: stkRows } = await db.query<{
-        id:                string;
-        group_id:          string;
-        phone:             string;
-        amount:            string;
+        id: string;
+        group_id: string;
+        phone: string;
+        amount: string;
         account_reference: string;
-        purpose:           string | null;
-        status:            string;
+        purpose: string | null;
+        status: string;
       }>(
         `UPDATE mpesa_stk_requests
          SET    status='failed', completed_at=NOW(), raw_callback=$2
@@ -320,10 +330,15 @@ export async function handleSTKCallback(
 
       // Fall back to a plain SELECT for group_id if the row already transitioned
       // (so failed_payment_logs still gets the FK on a duplicate callback).
-      const groupId = stk?.group_id ?? (await db.query<{ group_id: string | null }>(
-        `SELECT group_id FROM mpesa_stk_requests WHERE checkout_request_id=$1 LIMIT 1`,
-        [cb.CheckoutRequestID],
-      )).rows[0]?.group_id ?? null;
+      const groupId =
+        stk?.group_id ??
+        (
+          await db.query<{ group_id: string | null }>(
+            `SELECT group_id FROM mpesa_stk_requests WHERE checkout_request_id=$1 LIMIT 1`,
+            [cb.CheckoutRequestID],
+          )
+        ).rows[0]?.group_id ??
+        null;
 
       // Audit: stk_request transitioned to failed (only on first transition)
       if (stk) {
@@ -440,10 +455,10 @@ export async function handleSTKCallback(
   // `?? []` rather than the old `CallbackMetadata!` non-null assertion: a
   // success payload without metadata is malformed, but it must not crash the
   // handler before the guard below can classify it.
-  const items   = cb.CallbackMetadata?.Item ?? [];
+  const items = cb.CallbackMetadata?.Item ?? [];
   const getItem = (name: string) => items.find((i) => i.Name === name)?.Value;
   const receipt = getItem('MpesaReceiptNumber') as string;
-  const amount  = getItem('Amount') as number;
+  const amount = getItem('Amount') as number;
 
   // The receipt is the ONE field this branch genuinely cannot proceed without —
   // it is the idempotency key and the ledger's reference. Treat a
@@ -465,7 +480,7 @@ export async function handleSTKCallback(
   // STK has not been hit, but it is the same provider, the same shortcode and
   // the same shape — and STK is the primary payment path, so the blast radius
   // would be larger. Degrade the record; never reject the money.
-  const phone   = safeNormalizePhone(String(getItem('PhoneNumber') ?? '')) ?? UNKNOWN_PAYER_PHONE;
+  const phone = safeNormalizePhone(String(getItem('PhoneNumber') ?? '')) ?? UNKNOWN_PAYER_PHONE;
 
   const result = await withAdminDb(async (db) => {
     // 1. Idempotency: if this receipt is already completed, no-op.
@@ -576,7 +591,10 @@ export async function handleSTKCallback(
       // officer initiated this, Safaricom's callback did.
       if (stkReq?.group_id) {
         await postTemplatedJournal(
-          db, stkReq.group_id, null, 'subscription_payment',
+          db,
+          stkReq.group_id,
+          null,
+          'subscription_payment',
           `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
           { amount },
           { reference: receipt },
@@ -655,10 +673,10 @@ export async function handleSTKCallback(
 
   await cacheMpesaStatus(cb.CheckoutRequestID, 'completed');
   return {
-    success:            true,
+    success: true,
     mpesaReceiptNumber: receipt,
     amount,
-    paymentId:          result.paymentId,
+    paymentId: result.paymentId,
   };
 }
 
@@ -669,11 +687,7 @@ export async function handleSTKCallback(
  * request's `purpose` / `loan_repayment_id`. Idempotent — every INSERT
  * uses `ON CONFLICT DO NOTHING` keyed on `mpesa_receipt_number`.
  */
-async function fulfilStkCallback(
-  db:     PoolClient,
-  stkReq: StkRequestRow,
-  in_:    FulfilmentInput,
-): Promise<void> {
+async function fulfilStkCallback(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
   // Loan repayment — pre-bound at initiation time
   if (stkReq.loan_repayment_id) {
     await applyLoanRepayment(db, stkReq, in_);
@@ -715,18 +729,16 @@ async function fulfilStkCallback(
  * request, underpayment, a negotiated tier sold through self-serve) is logged
  * and swallowed, leaving the group on its current plan for ops to resolve.
  */
-async function activateSubscriptionFromSTK(
-  db:     PoolClient,
-  stkReq: StkRequestRow,
-  in_:    FulfilmentInput,
-): Promise<void> {
+async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
   // Pre-138 rows, or a client that skipped the fields, carry no plan to
   // activate. Nothing sane to guess here: the account reference is the
   // constant 'SUBSCRIPT' and matching on amount alone would pick a plan by
   // price collision across two products.
   if (!stkReq.plan_type || !stkReq.product) {
     logger.error('[mpesa] subscription payment with no plan recorded — not activating', {
-      stkRequestId: stkReq.id, groupId: stkReq.group_id, receipt: in_.receipt,
+      stkRequestId: stkReq.id,
+      groupId: stkReq.group_id,
+      receipt: in_.receipt,
     });
 
     // Audit: subscription activation skipped due to missing plan metadata
@@ -754,7 +766,8 @@ async function activateSubscriptionFromSTK(
   );
   if (!pay[0]) {
     logger.error('[mpesa] subscription payment row not found — not activating', {
-      stkRequestId: stkReq.id, receipt: in_.receipt,
+      stkRequestId: stkReq.id,
+      receipt: in_.receipt,
     });
 
     // Audit: subscription activation skipped due to missing payment record
@@ -778,10 +791,10 @@ async function activateSubscriptionFromSTK(
 
   try {
     const sub = await billingService.activateSubscriptionForPayment(db, {
-      groupId:    stkReq.group_id,
-      planType:   stkReq.plan_type as PlanType,
-      product:    stkReq.product as SubscriptionProduct,
-      paymentId:  pay[0].id,
+      groupId: stkReq.group_id,
+      planType: stkReq.plan_type as PlanType,
+      product: stkReq.product as SubscriptionProduct,
+      paymentId: pay[0].id,
       amountPaid: in_.amount,
       // Undefined (not null) when the column is NULL, so the function's own
       // `?? 'monthly'` default applies — same behaviour a pre-155 row always had.
@@ -789,8 +802,10 @@ async function activateSubscriptionFromSTK(
     });
     if (sub) {
       logger.info('[mpesa] subscription activated', {
-        groupId: stkReq.group_id, product: stkReq.product,
-        planType: stkReq.plan_type, paymentId: pay[0].id,
+        groupId: stkReq.group_id,
+        product: stkReq.product,
+        planType: stkReq.plan_type,
+        paymentId: pay[0].id,
       });
 
       // Audit: subscription successfully activated
@@ -802,7 +817,7 @@ async function activateSubscriptionFromSTK(
           null, // system-triggered via M-Pesa callback
           'subscription.activate_from_stk',
           'subscription',
-          typeof sub === 'object' && 'id' in sub ? (sub as { id?: string }).id ?? stkReq.id : stkReq.id,
+          typeof sub === 'object' && 'id' in sub ? ((sub as { id?: string }).id ?? stkReq.id) : stkReq.id,
           JSON.stringify({
             plan_type: stkReq.plan_type,
             product: stkReq.product,
@@ -819,8 +834,12 @@ async function activateSubscriptionFromSTK(
     // payment is legitimate and must stay recorded, and Safaricom must still
     // get its 200.
     logger.error('[mpesa] subscription payment could not be activated', {
-      groupId: stkReq.group_id, product: stkReq.product, planType: stkReq.plan_type,
-      paymentId: pay[0].id, amount: in_.amount, err: String(err),
+      groupId: stkReq.group_id,
+      product: stkReq.product,
+      planType: stkReq.plan_type,
+      paymentId: pay[0].id,
+      amount: in_.amount,
+      err: String(err),
     });
 
     // Audit: subscription activation failed with error
@@ -846,11 +865,7 @@ async function activateSubscriptionFromSTK(
   }
 }
 
-async function applyContributionFromSTK(
-  db:     PoolClient,
-  stkReq: StkRequestRow,
-  in_:    FulfilmentInput,
-): Promise<void> {
+async function applyContributionFromSTK(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
   // Registry-first (payment architecture §3.7): when the STK request's
   // AccountReference is a membership number (or legacy code) bound to a
   // payment-eligible membership of THIS group, that identifies the member —
@@ -858,10 +873,12 @@ async function applyContributionFromSTK(
   let memberId: string | null = null;
 
   const hit = await lookupPaymentAccount(db, stkReq.account_reference);
-  if (hit
-      && (hit.kind === 'membership_no' || hit.kind === 'legacy_code')
-      && hit.groupId === stkReq.group_id
-      && isPaymentEligible(hit)) {
+  if (
+    hit &&
+    (hit.kind === 'membership_no' || hit.kind === 'legacy_code') &&
+    hit.groupId === stkReq.group_id &&
+    isPaymentEligible(hit)
+  ) {
     memberId = hit.memberId;
   }
 
@@ -944,9 +961,13 @@ async function applyContributionFromSTK(
   // Post the matching journal entry (DR cash / CR member savings, split
   // across whatever income accounts the group has configured).
   await postContributionJournal(db, {
-    groupId: stkReq.group_id, contributionId, amount: in_.amount,
-    entryDate: new Date().toISOString().slice(0, 10), reference: in_.receipt,
-    createdBy: null, isTest: IS_SANDBOX,
+    groupId: stkReq.group_id,
+    contributionId,
+    amount: in_.amount,
+    entryDate: new Date().toISOString().slice(0, 10),
+    reference: in_.receipt,
+    createdBy: null,
+    isTest: IS_SANDBOX,
   });
 
   // Stamp the back-pointer on the STK request for traceability.
@@ -1008,11 +1029,11 @@ async function applyContributionFromSTK(
 // ─── STK failure → PayBill fallback nudge ─────────────────────────────────────
 
 interface FailedStkRow {
-  group_id:          string;
-  phone:             string;
-  amount:            string;
+  group_id: string;
+  phone: string;
+  amount: string;
   account_reference: string;
-  purpose:           string | null;
+  purpose: string | null;
 }
 
 /**
@@ -1022,11 +1043,16 @@ interface FailedStkRow {
  */
 function stkFailureReason(code: number): string {
   switch (code) {
-    case 1032: return 'was cancelled';
-    case 1037: return 'timed out with no response';
-    case 1:    return 'failed due to insufficient M-Pesa balance';
-    case 2001: return 'failed due to an incorrect M-Pesa PIN';
-    default:   return 'could not be completed';
+    case 1032:
+      return 'was cancelled';
+    case 1037:
+      return 'timed out with no response';
+    case 1:
+      return 'failed due to insufficient M-Pesa balance';
+    case 2001:
+      return 'failed due to an incorrect M-Pesa PIN';
+    default:
+      return 'could not be completed';
   }
 }
 
@@ -1045,12 +1071,14 @@ function stkFailureReason(code: number): string {
  * callback a no-op.
  */
 async function applyCampaignDonationFromSTK(
-  db:     PoolClient,
+  db: PoolClient,
   stkReq: StkRequestRow,
-  in_:    FulfilmentInput,
+  in_: FulfilmentInput,
 ): Promise<void> {
   if (!stkReq.campaign_id) {
-    logger.error('[mpesa] campaign_donation callback with no campaign_id on its STK request', { stkRequestId: stkReq.id });
+    logger.error('[mpesa] campaign_donation callback with no campaign_id on its STK request', {
+      stkRequestId: stkReq.id,
+    });
     return;
   }
 
@@ -1061,9 +1089,14 @@ async function applyCampaignDonationFromSTK(
      ON CONFLICT (mpesa_receipt_number) DO NOTHING
      RETURNING id`,
     [
-      stkReq.campaign_id, stkReq.group_id,
-      stkReq.donor_name, in_.phone, in_.amount.toFixed(2),
-      stkReq.donor_message, stkReq.is_anonymous ?? false, in_.receipt,
+      stkReq.campaign_id,
+      stkReq.group_id,
+      stkReq.donor_name,
+      in_.phone,
+      in_.amount.toFixed(2),
+      stkReq.donor_message,
+      stkReq.is_anonymous ?? false,
+      in_.receipt,
     ],
   );
   const donationId = donationRows[0]?.id ?? null;
@@ -1079,9 +1112,14 @@ async function applyCampaignDonationFromSTK(
   const campaignTitle = campaignRows[0]?.title ?? 'campaign';
 
   const journalEntryId = await postSystemJournal(
-    db, stkReq.group_id, null,
+    db,
+    stkReq.group_id,
+    null,
     `Changi$ha donation — ${campaignTitle}`,
-    [{ accountCode: '1001', debit: in_.amount }, { accountCode: '4006', credit: in_.amount }],
+    [
+      { accountCode: '1001', debit: in_.amount },
+      { accountCode: '4006', credit: in_.amount },
+    ],
     { reference: in_.receipt, isTest: IS_SANDBOX },
   );
   if (journalEntryId) {
@@ -1098,7 +1136,11 @@ async function applyCampaignDonationFromSTK(
       'campaign_donation.settle',
       'campaign_donation',
       donationId,
-      JSON.stringify({ amount: in_.amount.toFixed(2), mpesa_receipt_number: in_.receipt, campaign_id: stkReq.campaign_id }),
+      JSON.stringify({
+        amount: in_.amount.toFixed(2),
+        mpesa_receipt_number: in_.receipt,
+        campaign_id: stkReq.campaign_id,
+      }),
     ],
   );
 }
@@ -1113,15 +1155,17 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
   if (stk.purpose && !['contribution', 'loan_repayment'].includes(stk.purpose)) return;
 
   const member = await withAdminDb((db) =>
-    db.query<{ id: string }>(
-      `SELECT m.id
+    db
+      .query<{ id: string }>(
+        `SELECT m.id
        FROM   members m
        JOIN   group_members gm ON gm.member_id = m.id
        WHERE  m.phone = $1 AND gm.group_id = $2
          AND  gm.status = 'active' AND m.is_active = true
        LIMIT  1`,
-      [stk.phone, stk.group_id],
-    ).then((r) => r.rows[0] ?? null),
+        [stk.phone, stk.group_id],
+      )
+      .then((r) => r.rows[0] ?? null),
   );
   if (!member) return; // can't attribute the nudge — skip
 
@@ -1129,7 +1173,7 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
   // contributions.service.ts and in lib/jobs/handlers.ts.
   const { platformPaybill } = await import('@/lib/sms/templates');
   const paybill = platformPaybill();
-  const amount  = Math.round(parseFloat(stk.amount));
+  const amount = Math.round(parseFloat(stk.amount));
   // No brand prefix: the message already arrives from the registered sender
   // ID "KITABU YETU" (lib/env.ts TEXTSMS_SENDER_ID), so repeating it here just
   // spends characters on a fallback message that is already close to a second
@@ -1164,13 +1208,13 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
   );
 
   await notifyMember({
-    groupId:       stk.group_id,
-    memberId:      member.id,
-    phone:         stk.phone,
+    groupId: stk.group_id,
+    memberId: member.id,
+    phone: stk.phone,
     body,
     referenceType: 'stk_fallback',
     // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
     // bundled allowance now exists, so this real send-path bills.
-    billingMode:   'billed',
+    billingMode: 'billed',
   });
 }

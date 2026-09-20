@@ -11,9 +11,7 @@
  * schedules is that it is purely ADDITIVE: an explicitly supplied name always
  * wins, so nothing already written changes meaning.
  */
-import {
-  renderTemplate, VARIABLE_ALIASES, DEFAULT_TEMPLATES, TEMPLATE_KEYS,
-} from '@/lib/sms/templates';
+import { renderTemplate, VARIABLE_ALIASES, DEFAULT_TEMPLATES, TEMPLATE_KEYS } from '@/lib/sms/templates';
 
 // platformPaybill is exercised through require() after jest.resetModules()
 // below, because it reads the validated env at module load — a static import
@@ -25,14 +23,14 @@ describe('template variable aliases', () => {
   it('resolves the spec’s names to the values that already exist', () => {
     expect(renderTemplate('{{short_member_id}}', vars)).toBe('BG102534');
     expect(renderTemplate('{{payment_account}}', vars)).toBe('BG102534');
-    expect(renderTemplate('{{account_number}}',  vars)).toBe('BG102534');
-    expect(renderTemplate('{{paybill_number}}',  vars)).toBe('123456');
-    expect(renderTemplate('{{amount_due}}',      vars)).toBe('2000');
+    expect(renderTemplate('{{account_number}}', vars)).toBe('BG102534');
+    expect(renderTemplate('{{paybill_number}}', vars)).toBe('123456');
+    expect(renderTemplate('{{amount_due}}', vars)).toBe('2000');
   });
 
   it('still resolves the canonical names, unchanged', () => {
     expect(renderTemplate('{{membership_no}}', vars)).toBe('BG102534');
-    expect(renderTemplate('{{paybill}}',       vars)).toBe('123456');
+    expect(renderTemplate('{{paybill}}', vars)).toBe('123456');
   });
 
   it('an EXPLICIT value always wins over the alias — this is what makes it additive', () => {
@@ -49,8 +47,7 @@ describe('template variable aliases', () => {
   });
 
   it('does not resolve an alias whose canonical is absent', () => {
-    expect(renderTemplate('{{short_member_id}}', { first_name: 'Mary' }))
-      .toBe('{{short_member_id}}');
+    expect(renderTemplate('{{short_member_id}}', { first_name: 'Mary' })).toBe('{{short_member_id}}');
   });
 
   it('never chains: no alias points at another alias', () => {
@@ -60,11 +57,13 @@ describe('template variable aliases', () => {
   });
 
   it('renders the whole reminder the way a member would receive it', () => {
-    const body = renderTemplate(
-      DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER],
-      { first_name: 'Mary', group_name: 'Umoja Chama', month: 'September', paybill: '123456',
-        membership_no: 'BG102534' },
-    );
+    const body = renderTemplate(DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER], {
+      first_name: 'Mary',
+      group_name: 'Umoja Chama',
+      month: 'September',
+      paybill: '123456',
+      membership_no: 'BG102534',
+    });
     expect(body).toContain('Mary');
     expect(body).toContain('Umoja Chama');
     expect(body).toContain('Paybill 123456');
@@ -76,7 +75,9 @@ describe('template variable aliases', () => {
 
 describe('platformPaybill', () => {
   const ORIGINAL = { ...process.env };
-  afterEach(() => { process.env = { ...ORIGINAL }; });
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+  });
 
   it('prefers the working shortcode when set', () => {
     process.env.MPESA_WORKING_SHORTCODE = '999999';

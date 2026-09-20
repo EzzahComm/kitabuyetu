@@ -8,7 +8,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   return withPlatformRole(request, 'super_admin', async () => {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') as
-      | 'submitted' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn' | null;
+      | 'submitted'
+      | 'shortlisted'
+      | 'accepted'
+      | 'rejected'
+      | 'withdrawn'
+      | null;
 
     const applications = await listAllApplications(status ? { status } : undefined);
     return ok(applications);

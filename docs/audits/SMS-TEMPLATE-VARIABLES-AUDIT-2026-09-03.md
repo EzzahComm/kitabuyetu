@@ -5,22 +5,22 @@ Payment Context" specification, carried out as that spec's own §12 requires **b
 is written.
 
 **Headline: roughly two-thirds of the spec already exists under different names.** The largest
-risk in implementing it as written is that §12's own instruction — *"do not create duplicate
-fields or parallel identifiers if the required data already exists"* — would be violated by
+risk in implementing it as written is that §12's own instruction — _"do not create duplicate
+fields or parallel identifiers if the required data already exists"_ — would be violated by
 adopting the spec's proposed variable names verbatim.
 
 ---
 
 ## §1 What already exists
 
-| Spec asks for | Already present as | Where |
-|---|---|---|
-| `{{short_member_id}}` | **`{{membership_no}}`** | `resolveRecipientVars`, `DEFAULT_TEMPLATES.welcome` |
-| `{{payment_account}}` → short member ID | **`account_number: r.membership_no`** | `contributions.service.ts` |
-| `{{paybill_number}}` | **`{{paybill}}`** | contribution reminder, loan templates |
-| Contribution reminder template | exists, but **inline, not in `DEFAULT_TEMPLATES`** | `contributions.service.ts:122` |
-| Welcome / contribution received / loan repayment / payment confirmed | all present | `lib/sms/templates.ts` |
-| Segment counting that includes everything | **`lib/sms/segments.ts`**, single shared counter | used by UI *and* billing |
+| Spec asks for                                                        | Already present as                                 | Where                                               |
+| -------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------- |
+| `{{short_member_id}}`                                                | **`{{membership_no}}`**                            | `resolveRecipientVars`, `DEFAULT_TEMPLATES.welcome` |
+| `{{payment_account}}` → short member ID                              | **`account_number: r.membership_no`**              | `contributions.service.ts`                          |
+| `{{paybill_number}}`                                                 | **`{{paybill}}`**                                  | contribution reminder, loan templates               |
+| Contribution reminder template                                       | exists, but **inline, not in `DEFAULT_TEMPLATES`** | `contributions.service.ts:122`                      |
+| Welcome / contribution received / loan repayment / payment confirmed | all present                                        | `lib/sms/templates.ts`                              |
+| Segment counting that includes everything                            | **`lib/sms/segments.ts`**, single shared counter   | used by UI _and_ billing                            |
 
 ### The short membership ID is stronger than the spec assumes
 
@@ -31,7 +31,7 @@ mistyped account fails validation instead of **paying a stranger in another grou
 mirrored by a DB CHECK constraint (migration 056).
 
 It is per-group, deterministic, stable, and already the M-Pesa payment account. **§2 is satisfied
-today.** What is missing is only a consistent *name* for it in templates.
+today.** What is missing is only a consistent _name_ for it in templates.
 
 ---
 
@@ -50,9 +50,9 @@ platform value for every group until that separate work happens.
 ### Welfare is a pool, and member-level welfare needs a decision
 
 `welfare_pool_contributions` carries **both** `group_id` and `member_id`, so a per-member welfare
-*contribution total* is derivable. But the group-level `poolBalance` in `analytics.service.ts` is
-a **group** figure. The spec's own rule — *"do not expose financial information belonging to
-another member"* — makes conflating them a real hazard: `{{welfare_balance}}` must mean "what
+_contribution total_ is derivable. But the group-level `poolBalance` in `analytics.service.ts` is
+a **group** figure. The spec's own rule — _"do not expose financial information belonging to
+another member"_ — makes conflating them a real hazard: `{{welfare_balance}}` must mean "what
 this member has contributed", never the group pool.
 
 ### There is no sender-identity concept at all
@@ -97,7 +97,7 @@ Syntax is **consistent** — one `{{\w+}}` form, one renderer (`renderTemplate`)
 risk the spec anticipated.
 
 `{{balance}}` appears once, in `loan_repayment_due`, where it means loan outstanding. The spec's
-§6 objection is fair in principle — the *name* is ambiguous even though its single use site is
+§6 objection is fair in principle — the _name_ is ambiguous even though its single use site is
 not.
 
 ---
@@ -110,7 +110,7 @@ would otherwise be paid for repeatedly.
 1. **De-duplicate first (§13).** Move the two inline reminder templates into `DEFAULT_TEMPLATES`
    and give the paybill lookup one home. Everything below is cheaper afterwards and doubly
    expensive before.
-2. **Alias, do not duplicate (§12).** Accept the spec's names as *aliases* resolving to the
+2. **Alias, do not duplicate (§12).** Accept the spec's names as _aliases_ resolving to the
    existing values — `short_member_id` → `membership_no`, `payment_account` → `membership_no`,
    `paybill_number` → `paybill`. Legacy names keep working; historical messages are untouched.
 3. **Sender identity (§1).** New columns on `sms_group_settings`, a configuration surface, and
@@ -140,12 +140,12 @@ would otherwise be paid for repeatedly.
 and §6's own third bullet says so — yet the inventory never queried it. Production holds four
 rows:
 
-| key | scope | active | in `DEFAULT_TEMPLATES`? |
-|---|---|---|---|
-| `payment_received` | platform, `is_system` | yes | **no** |
-| `loan_disbursed` | platform, `is_system` | yes | yes |
-| `welcome` | one group | yes | yes (group row overrides) |
-| `onboarding` | one group | no | **no** |
+| key                | scope                 | active | in `DEFAULT_TEMPLATES`?   |
+| ------------------ | --------------------- | ------ | ------------------------- |
+| `payment_received` | platform, `is_system` | yes    | **no**                    |
+| `loan_disbursed`   | platform, `is_system` | yes    | yes                       |
+| `welcome`          | one group             | yes    | yes (group row overrides) |
+| `onboarding`       | one group             | no     | **no**                    |
 
 ### The consequence: §5 step 4 is already built and live
 
@@ -160,17 +160,17 @@ Its resolver is `mpesa-spine.service.ts:140-215`. A three-branch `UNION ALL` ret
 `savings` / `loan repayment` / `welfare` and `balance` as, respectively, completed-contribution
 total, `loans.outstanding_balance`, or welfare contributed — so **the spec's §6 context-aware
 balances exist**, keyed off which table the payment landed in rather than off a variable name.
-`membership_no` goes through `formatMembershipNo`. So §4's *"`{{balance}}` appears once, in
-`loan_repayment_due`"* is wrong: its most significant use is in a template §4 never looked at.
+`membership_no` goes through `formatMembershipNo`. So §4's _"`{{balance}}` appears once, in
+`loan_repayment_due`"_ is wrong: its most significant use is in a template §4 never looked at.
 
 Two things follow that change the plan in §5:
 
-- **Step 4 is mostly done.** What remains is exposing these balances to *composed* messages, not
+- **Step 4 is mostly done.** What remains is exposing these balances to _composed_ messages, not
   building the resolution.
 - **The welfare hazard §2 flagged is already handled correctly here.** The welfare branch sums
   `welfare_pool_contributions` **for that member** — "what you put in", never the group pool
   balance. That is the safe semantic §2 asked for, already in production. `{{welfare_balance}}`
-  as a *name* should still be avoided; the value that exists is a contributed total.
+  as a _name_ should still be avoided; the value that exists is a contributed total.
 
 ### Production evidence
 
@@ -194,7 +194,7 @@ a defect.
 
 The group-scoped `welcome` row ends with a personal signature — a named individual and a job
 title, authored into that group's own template. It is worth separating this from the **group name
-only** decision taken for §1, which it does *not* contradict: that decision governs the signature
+only** decision taken for §1, which it does _not_ contradict: that decision governs the signature
 `buildSenderVars` **generates** for automated sends, so that a system-sent message never appears
 to come from a person who did not write it. A group-authored template body is editorial content
 belonging to whoever wrote it, and a human sign-off there is a legitimate choice.

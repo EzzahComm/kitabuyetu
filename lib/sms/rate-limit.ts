@@ -28,9 +28,9 @@ import { errorResponse } from '@/lib/utils/response';
  * for transactional receipts and manual officer messages.
  */
 export const SMS_RATE_LIMITS = {
-  send:     { limit: 30, windowSeconds: 60 },
-  bulk:     { limit: 5,  windowSeconds: 60 },
-  campaign: { limit: 5,  windowSeconds: 60 },
+  send: { limit: 30, windowSeconds: 60 },
+  bulk: { limit: 5, windowSeconds: 60 },
+  campaign: { limit: 5, windowSeconds: 60 },
 } as const;
 
 export type SmsSendSurface = keyof typeof SMS_RATE_LIMITS;
@@ -39,10 +39,7 @@ export type SmsSendSurface = keyof typeof SMS_RATE_LIMITS;
  * Returns a 429 response when the group is over its ceiling for this surface,
  * or `null` to proceed. Callers must return the response when it is non-null.
  */
-export async function enforceSmsRateLimit(
-  surface: SmsSendSurface,
-  groupId: string,
-): Promise<Response | null> {
+export async function enforceSmsRateLimit(surface: SmsSendSurface, groupId: string): Promise<Response | null> {
   const { limit, windowSeconds } = SMS_RATE_LIMITS[surface];
   const allowed = await checkRateLimit(`sms:${surface}:${groupId}`, limit, windowSeconds);
   if (allowed) return null;

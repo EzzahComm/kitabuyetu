@@ -12,7 +12,7 @@ import { created, ok, handleError } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       const items = await contributionSplitsService.list(ctx);
       return ok({ items });
     } catch (err) {
@@ -26,8 +26,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const input = CreateContributionSplitSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-      const row   = await contributionSplitsService.create(ctx, input);
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const row = await contributionSplitsService.create(ctx, input);
       return created(row);
     } catch (err) {
       return handleError(err);
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const input = ReplaceContributionSplitsSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       const items = await contributionSplitsService.replaceAll(ctx, input);
       return ok({ items });
     } catch (err) {

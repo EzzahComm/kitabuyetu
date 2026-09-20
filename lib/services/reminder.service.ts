@@ -23,7 +23,7 @@ export interface ReminderInput extends NotifyRecipient {
   /** Required here (optional on the underlying NotifyRecipient) — the whole
    *  point of this module is keying off a specific business record. */
   referenceType: string;
-  referenceId:   string;
+  referenceId: string;
   /** e.g. 'due_3_days', 'overdue_7_days', 'missing_contribution:2026-06'. */
   reminderStage: string;
   /** job_queue.id of the run that produced this attempt — audit trail only. */
@@ -31,7 +31,7 @@ export interface ReminderInput extends NotifyRecipient {
 }
 
 export interface ReminderResult {
-  sent:   boolean;
+  sent: boolean;
   status: NotifyOutcome['status'] | 'already_sent' | 'already_suppressed' | 'claim_error' | 'cooldown';
 }
 
@@ -55,9 +55,7 @@ export interface ReminderResult {
  */
 const COOLDOWN_MINUTES = 60;
 
-type ClaimResult =
-  | { outcome: 'send'; id: string }
-  | { outcome: 'already_sent' | 'already_suppressed' | 'claim_error' };
+type ClaimResult = { outcome: 'send'; id: string } | { outcome: 'already_sent' | 'already_suppressed' | 'claim_error' };
 
 /**
  * Claim (or resume) the (reference_type, reference_id, reminder_stage) slot.
@@ -75,8 +73,14 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (reference_type, reference_id, reminder_stage) DO NOTHING
        RETURNING id`,
-      [input.groupId, input.memberId, input.referenceType, input.referenceId,
-       input.reminderStage, input.jobExecutionId ?? null],
+      [
+        input.groupId,
+        input.memberId,
+        input.referenceType,
+        input.referenceId,
+        input.reminderStage,
+        input.jobExecutionId ?? null,
+      ],
     );
 
     // Record audit log for new reminder claim (system-triggered)
@@ -111,20 +115,20 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
       // The row we just failed to insert should exist — append-only table,
       // nothing deletes it. Fail closed rather than risk a duplicate send.
       logger.error('[reminder] claim conflict but no existing row found', {
-        referenceType: input.referenceType, referenceId: input.referenceId, stage: input.reminderStage,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        stage: input.reminderStage,
       });
       return { outcome: 'claim_error' };
     }
-    if (row.status === 'sent')       return { outcome: 'already_sent' };
+    if (row.status === 'sent') return { outcome: 'already_sent' };
     if (row.status === 'suppressed') return { outcome: 'already_suppressed' };
     return { outcome: 'send', id: row.id }; // 'pending' or 'failed' — retry.
   });
 }
 
 async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
-  const status = outcome.status === 'sent' ? 'sent'
-    : outcome.status === 'suppressed' ? 'suppressed'
-    : 'failed';
+  const status = outcome.status === 'sent' ? 'sent' : outcome.status === 'suppressed' ? 'suppressed' : 'failed';
   await withAdminDb(async (db) => {
     // Fetch existing reminder to capture old values
     const { rows: existing } = await db.query<{ id: string; status: string; attempts: number }>(
@@ -170,27 +174,27 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
 }
 
 export interface ReminderHistoryQuery {
-  page:     number;
-  limit:    number;
+  page: number;
+  limit: number;
   memberId?: string;
-  status?:  'pending' | 'sent' | 'failed' | 'suppressed';
-  from?:    string;
-  to?:      string;
+  status?: 'pending' | 'sent' | 'failed' | 'suppressed';
+  from?: string;
+  to?: string;
 }
 
 export interface ReminderHistoryRow {
-  id:             string;
-  member_id:      string;
-  member_name:    string | null;
+  id: string;
+  member_id: string;
+  member_name: string | null;
   reference_type: string;
-  reference_id:   string;
+  reference_id: string;
   reminder_stage: string;
-  status:         string;
-  channel:        string | null;
-  reason:         string | null;
-  attempts:       number;
-  created_at:     Date;
-  sent_at:        Date | null;
+  status: string;
+  channel: string | null;
+  reason: string | null;
+  attempts: number;
+  created_at: Date;
+  sent_at: Date | null;
 }
 
 /**
@@ -228,15 +232,28 @@ export async function listReminderHistory(
     const vals: unknown[] = [ctx.groupId];
     let idx = 2;
 
-    if (memberId) { conds.push(`r.member_id = $${idx++}`);         vals.push(memberId); }
-    if (status)   { conds.push(`r.status = $${idx++}::reminder_dispatch_status`); vals.push(status); }
-    if (from)     { conds.push(`r.created_at::date >= $${idx++}`); vals.push(from); }
-    if (to)       { conds.push(`r.created_at::date <= $${idx++}`); vals.push(to); }
+    if (memberId) {
+      conds.push(`r.member_id = $${idx++}`);
+      vals.push(memberId);
+    }
+    if (status) {
+      conds.push(`r.status = $${idx++}::reminder_dispatch_status`);
+      vals.push(status);
+    }
+    if (from) {
+      conds.push(`r.created_at::date >= $${idx++}`);
+      vals.push(from);
+    }
+    if (to) {
+      conds.push(`r.created_at::date <= $${idx++}`);
+      vals.push(to);
+    }
 
     const where = conds.join(' AND ');
 
     const { rows: countRows } = await client.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM reminder_dispatch_log r WHERE ${where}`, vals,
+      `SELECT COUNT(*) AS count FROM reminder_dispatch_log r WHERE ${where}`,
+      vals,
     );
     const total = parseInt(countRows[0].count, 10);
 

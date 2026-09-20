@@ -46,20 +46,20 @@ const orgId = (ctx: TenantContext): string => {
 };
 
 export interface OrgCountyAggregationRow {
-  county_id:            string;
-  county_name:          string;
-  region:               string | null;
-  group_count:          string;
-  member_count:         string;
-  total_contributions:  string;
-  loan_book:            string;
+  county_id: string;
+  county_name: string;
+  region: string | null;
+  group_count: string;
+  member_count: string;
+  total_contributions: string;
+  loan_book: string;
 }
 
 export interface OrgWardAggregationRow {
-  ward:                 string;
-  group_count:          string;
-  member_count:         string;
-  total_contributions:  string;
+  ward: string;
+  group_count: string;
+  member_count: string;
+  total_contributions: string;
 }
 
 export const organizationGeographyService = {
@@ -76,8 +76,10 @@ export const organizationGeographyService = {
     await organizationService.assertOrganizationCoordinator(ctx);
     const organizationId = orgId(ctx);
 
-    return cached(keys.cache('geography-counties', organizationId), 120, () => withDb(ctx, async (db: PoolClient) => {
-      const { rows } = await db.query<OrgCountyAggregationRow>(`
+    return cached(keys.cache('geography-counties', organizationId), 120, () =>
+      withDb(ctx, async (db: PoolClient) => {
+        const { rows } = await db.query<OrgCountyAggregationRow>(
+          `
         -- group_stats pre-aggregates each child table PER GROUP first — see
         -- admin-geography.service.ts's getCountyAggregation for the proven
         -- 30x loan_book inflation a flat join causes here instead.
@@ -107,9 +109,12 @@ export const organizationGeographyService = {
         LEFT JOIN group_stats gs ON gs.county_id = c.id
         GROUP BY c.id, c.name, c.region
         ORDER BY group_count DESC, c.name
-      `, [organizationId]);
-      return rows;
-    }));
+      `,
+          [organizationId],
+        );
+        return rows;
+      }),
+    );
   },
 
   /** Ward breakdown within one county, scoped to this organization's own linked groups. */
@@ -118,7 +123,8 @@ export const organizationGeographyService = {
     const organizationId = orgId(ctx);
 
     return withDb(ctx, async (db: PoolClient) => {
-      const { rows } = await db.query<OrgWardAggregationRow>(`
+      const { rows } = await db.query<OrgWardAggregationRow>(
+        `
         -- LATERAL per child table — see getCountyAggregation's comment above
         -- for why a flat join fans contributions out across group_members.
         SELECT
@@ -140,7 +146,9 @@ export const organizationGeographyService = {
         WHERE g.county_id = $2
         GROUP BY 1
         ORDER BY group_count DESC, ward
-      `, [organizationId, countyId]);
+      `,
+        [organizationId, countyId],
+      );
       return rows;
     });
   },

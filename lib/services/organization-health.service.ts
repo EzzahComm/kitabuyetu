@@ -37,30 +37,34 @@ const orgId = (ctx: TenantContext): string => {
 };
 
 export interface PortfolioHealth {
-  linkedGroups:          number;
-  activeLoans:           number;
+  linkedGroups: number;
+  activeLoans: number;
   /** Loans whose next payment date has passed while still active. */
-  overdueLoans:          number;
-  overdueOutstanding:    string;
+  overdueLoans: number;
+  overdueOutstanding: string;
   /** Share of active loans that are overdue, 0-100. Null when there are none. */
-  overdueLoanPct:        number | null;
+  overdueLoanPct: number | null;
   /** Groups carrying at least one overdue loan. */
-  groupsInArrears:       number;
+  groupsInArrears: number;
   /** Share of linked groups in arrears, 0-100. Null when none are linked. */
-  groupsInArrearsPct:    number | null;
-  defaultedLoans:        number;
-  defaultedOutstanding:  string;
+  groupsInArrearsPct: number | null;
+  defaultedLoans: number;
+  defaultedOutstanding: string;
   /** Members currently marked inactive. A COUNT, not a rate — see below. */
-  inactiveMembers:       number;
+  inactiveMembers: number;
   /** Members who joined in the last 30 days. */
-  newMembers30d:         number;
+  newMembers30d: number;
 }
 
 interface HealthRow {
-  linked_groups: string; active_loans: string;
-  overdue_loans: string; overdue_outstanding: string;
-  groups_in_arrears: string; defaulted_loans: string;
-  defaulted_outstanding: string; inactive_members: string;
+  linked_groups: string;
+  active_loans: string;
+  overdue_loans: string;
+  overdue_outstanding: string;
+  groups_in_arrears: string;
+  defaulted_loans: string;
+  defaulted_outstanding: string;
+  inactive_members: string;
   new_members_30d: string;
 }
 
@@ -152,23 +156,23 @@ export const organizationHealthService = {
           return null;
         }
 
-        const activeLoans  = parseInt(r.active_loans, 10);
+        const activeLoans = parseInt(r.active_loans, 10);
         const linkedGroups = parseInt(r.linked_groups, 10);
         const overdueLoans = parseInt(r.overdue_loans, 10);
-        const inArrears    = parseInt(r.groups_in_arrears, 10);
+        const inArrears = parseInt(r.groups_in_arrears, 10);
 
         return {
           linkedGroups,
           activeLoans,
           overdueLoans,
-          overdueOutstanding:   r.overdue_outstanding,
-          overdueLoanPct:       pct(overdueLoans, activeLoans),
-          groupsInArrears:      inArrears,
-          groupsInArrearsPct:   pct(inArrears, linkedGroups),
-          defaultedLoans:       parseInt(r.defaulted_loans, 10),
+          overdueOutstanding: r.overdue_outstanding,
+          overdueLoanPct: pct(overdueLoans, activeLoans),
+          groupsInArrears: inArrears,
+          groupsInArrearsPct: pct(inArrears, linkedGroups),
+          defaultedLoans: parseInt(r.defaulted_loans, 10),
           defaultedOutstanding: r.defaulted_outstanding,
-          inactiveMembers:      parseInt(r.inactive_members, 10),
-          newMembers30d:        parseInt(r.new_members_30d, 10),
+          inactiveMembers: parseInt(r.inactive_members, 10),
+          newMembers30d: parseInt(r.new_members_30d, 10),
         };
       });
     } catch (err) {

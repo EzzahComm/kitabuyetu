@@ -43,15 +43,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 
       return ok({
         items: items.map((r) => ({
-          membershipId:   r.membership_id,
-          groupId:        r.group_id,
-          groupCode:      r.group_code,
-          groupName:      r.group_name,
-          role:           r.role,
-          membershipNo:   r.membership_no,
-          displayAlias:   r.display_alias,
+          membershipId: r.membership_id,
+          groupId: r.group_id,
+          groupCode: r.group_code,
+          groupName: r.group_name,
+          role: r.role,
+          membershipNo: r.membership_no,
+          displayAlias: r.display_alias,
           savingsBalance: r.savings_balance,
-          isCurrent:      r.group_id === auth.groupId,
+          isCurrent: r.group_id === auth.groupId,
         })),
       });
     } catch (err) {

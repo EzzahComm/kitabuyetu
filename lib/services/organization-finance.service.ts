@@ -33,14 +33,14 @@ import type { CreateProgramInput, CapitalAdjustmentInput, DisburseInput } from '
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface OrgWallet {
-  id:                string;
-  organization_id:   string;
-  currency:          string;
+  id: string;
+  organization_id: string;
+  currency: string;
   available_balance: string;
   committed_balance: string;
-  total_deposited:   string;
-  total_disbursed:   string;
-  total_returned:    string;
+  total_deposited: string;
+  total_disbursed: string;
+  total_returned: string;
 }
 
 /**
@@ -50,47 +50,47 @@ export interface OrgWallet {
  * trip through a JS double intact.
  */
 export interface ProgramGroupLine {
-  group_id:           string;
-  group_name:         string;
-  disbursed:          string;
-  reserved:           string;
+  group_id: string;
+  group_name: string;
+  disbursed: string;
+  reserved: string;
   disbursement_count: number;
-  last_disbursed_at:  string | null;
-  active_members:     number;
+  last_disbursed_at: string | null;
+  active_members: number;
 }
 
 export interface FundingProgram {
-  id:              string;
-  name:            string;
-  program_type:    string;
-  funding_source:  string | null;
-  description:     string | null;
-  budget:          string;
+  id: string;
+  name: string;
+  program_type: string;
+  funding_source: string | null;
+  description: string | null;
+  budget: string;
   disbursed_total: string;
-  currency:        string;
-  starts_on:       string | null;
-  ends_on:         string | null;
-  status:          string;
-  created_at:      string;
+  currency: string;
+  starts_on: string | null;
+  ends_on: string | null;
+  status: string;
+  created_at: string;
   // Financial-product terms (migration 116). Every existing program is
   // non-repayable by default, so these are all null/false for grants.
-  product_code:         string | null;
-  is_repayable:         boolean;
-  capital_model:        string;
-  loss_bearer:          string;
-  shared_loss_ratio:    string | null;
-  interest_method:      string | null;
+  product_code: string | null;
+  is_repayable: boolean;
+  capital_model: string;
+  loss_bearer: string;
+  shared_loss_ratio: string | null;
+  interest_method: string | null;
   /** PERCENTAGE (12.50 = 12.5%), matching loans.interest_rate — never a ratio. */
   interest_rate_annual: string | null;
-  repayment_frequency:  string;
-  grace_period_days:    number;
-  tenor_months:         number | null;
-  revenue_owner:        string;
-  revenue_share_ratio:  string | null;
-  repayment_waterfall:  unknown | null;
-  member_visibility:    string;
+  repayment_frequency: string;
+  grace_period_days: number;
+  tenor_months: number | null;
+  revenue_owner: string;
+  revenue_share_ratio: string | null;
+  repayment_waterfall: unknown | null;
+  member_visibility: string;
   /** PERCENTAGE, retained by the org and deducted from what's disbursed (migration 125). */
-  processing_fee_pct:   string | null;
+  processing_fee_pct: string | null;
 }
 
 /**
@@ -99,71 +99,71 @@ export interface FundingProgram {
  *   available = totalCapital - allocated
  */
 export interface ProductBalances {
-  programId:       string;
-  name:            string;
-  isRepayable:     boolean;
-  totalCapital:    number;
-  allocated:       number;
-  available:       number;
+  programId: string;
+  name: string;
+  isRepayable: boolean;
+  totalCapital: number;
+  allocated: number;
+  available: number;
   /** allocated / totalCapital, 0 when the product has no capital yet. */
   utilizationRate: number;
 }
 
 export interface ProgramBudgetLine {
-  id:             string;
-  name:           string;
-  programType:    string;
-  status:         string;
-  budget:         number;
-  disbursed:      number;
+  id: string;
+  name: string;
+  programType: string;
+  status: string;
+  budget: number;
+  disbursed: number;
   /** Held by pending-approval disbursements — committed but not yet settled. */
-  reserved:       number;
-  remaining:      number;
+  reserved: number;
+  remaining: number;
   /** (disbursed + reserved) / budget, as a percentage. */
   utilizationPct: number;
   /** Share of the program window already elapsed; null when the program is undated. */
   expectedUtilizationPct: number | null;
   /** utilizationPct − expectedUtilizationPct; negative = behind the calendar. */
-  variancePct:    number | null;
-  startsOn:       string | null;
-  endsOn:         string | null;
+  variancePct: number | null;
+  startsOn: string | null;
+  endsOn: string | null;
 }
 
 export interface DonorSpendLine {
-  fundingSource:   string;
-  programCount:    number;
-  totalBudget:     number;
-  totalDisbursed:  number;
-  totalReserved:   number;
-  remaining:       number;
-  utilizationPct:  number;
-  programs:        { id: string; name: string; budget: number; disbursed: number }[];
-  byGroup:         { groupId: string; groupName: string | null; amount: number }[];
+  fundingSource: string;
+  programCount: number;
+  totalBudget: number;
+  totalDisbursed: number;
+  totalReserved: number;
+  remaining: number;
+  utilizationPct: number;
+  programs: { id: string; name: string; budget: number; disbursed: number }[];
+  byGroup: { groupId: string; groupName: string | null; amount: number }[];
 }
 
 export interface OrgDisbursement {
-  id:                 string;
-  group_id:           string;
-  group_name?:        string;
+  id: string;
+  group_id: string;
+  group_name?: string;
   funding_program_id: string | null;
-  program_name?:      string | null;
-  disbursement_type:  string;
-  amount:             string;
-  status:             string;
-  reference:          string;
-  notes:              string | null;
-  created_at:         string;
+  program_name?: string | null;
+  disbursement_type: string;
+  amount: string;
+  status: string;
+  reference: string;
+  notes: string | null;
+  created_at: string;
   /** SNAPSHOT from the product at disbursement time (migration 125). */
-  processing_fee_pct:    string | null;
+  processing_fee_pct: string | null;
   processing_fee_amount: string;
   /** amount - processing_fee_amount — the real cash the group received. */
-  net_disbursed_amount:  string;
+  net_disbursed_amount: string;
   /** How the money physically moved (migration 150). NULL = not recorded,
    *  which is the honest state for every disbursement made before that. */
-  payment_method:        string | null;
+  payment_method: string | null;
   /** Cheque number / bank slip — the only artefact a cash or cheque
    *  hand-over leaves behind. */
-  payment_reference:     string | null;
+  payment_reference: string | null;
 }
 
 const orgId = (ctx: TenantContext): string => {
@@ -227,9 +227,7 @@ async function getWalletForUpdate(db: PoolClient, organizationId: string): Promi
 }
 
 /** Row-locks a product before adjusting its capital, mirroring getWalletForUpdate. */
-async function getProgramForUpdate(
-  db: PoolClient, organizationId: string, programId: string,
-): Promise<FundingProgram> {
+async function getProgramForUpdate(db: PoolClient, organizationId: string, programId: string): Promise<FundingProgram> {
   const { rows } = await db.query<FundingProgram>(
     `SELECT * FROM funding_programs
      WHERE id = $1 AND organization_id = $2
@@ -257,7 +255,7 @@ async function recordCapitalLedgerEntry(
   input: CapitalAdjustmentInput,
 ): Promise<void> {
   const wallet = await getWalletForUpdate(db, orgId(ctx));
-  const verb   = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
+  const verb = entryType === 'capitalization' ? 'Capitalized' : 'Decapitalized';
 
   await db.query(
     `INSERT INTO organization_ledger
@@ -265,7 +263,9 @@ async function recordCapitalLedgerEntry(
         funding_program_id, reference, description, created_by)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [
-      orgId(ctx), wallet.id, entryType,
+      orgId(ctx),
+      wallet.id,
+      entryType,
       entryType === 'capitalization' ? 'credit' : 'debit',
       input.amount.toFixed(2),
       parseFloat(wallet.available_balance).toFixed(2),
@@ -278,20 +278,24 @@ async function recordCapitalLedgerEntry(
 }
 
 interface AllocationTerms {
-  isRepayable:        boolean;
+  isRepayable: boolean;
   interestRateAnnual: string | null;
   repaymentFrequency: string | null;
-  tenorMonths:        number | null;
+  tenorMonths: number | null;
   firstRepaymentDate: string | null;
-  maturityDate:       string | null;
+  maturityDate: string | null;
   /** SNAPSHOT of the product's processing_fee_pct (migration 125). Independent
    *  of isRepayable — read below before the non-repayable early return. */
-  processingFeePct:   string | null;
+  processingFeePct: string | null;
 }
 
 const GRANT_TERMS: AllocationTerms = {
-  isRepayable: false, interestRateAnnual: null, repaymentFrequency: null,
-  tenorMonths: null, firstRepaymentDate: null, maturityDate: null,
+  isRepayable: false,
+  interestRateAnnual: null,
+  repaymentFrequency: null,
+  tenorMonths: null,
+  firstRepaymentDate: null,
+  maturityDate: null,
   processingFeePct: null,
 };
 
@@ -307,14 +311,15 @@ const GRANT_TERMS: AllocationTerms = {
  * plain grant: every term stays null and org_disb_non_repayable_shape enforces
  * that at the database level.
  */
-async function snapshotProductTerms(
-  db: PoolClient, fundingProgramId: string | null,
-): Promise<AllocationTerms> {
+async function snapshotProductTerms(db: PoolClient, fundingProgramId: string | null): Promise<AllocationTerms> {
   if (!fundingProgramId) return GRANT_TERMS;
 
   const { rows } = await db.query<{
-    is_repayable: boolean; interest_rate_annual: string | null;
-    repayment_frequency: string; tenor_months: number | null; grace_period_days: number;
+    is_repayable: boolean;
+    interest_rate_annual: string | null;
+    repayment_frequency: string;
+    tenor_months: number | null;
+    grace_period_days: number;
     processing_fee_pct: string | null;
   }>(
     `SELECT is_repayable, interest_rate_annual, repayment_frequency,
@@ -333,20 +338,20 @@ async function snapshotProductTerms(
 
   // Dates are derived from the product's grace period and tenor at the moment
   // of disbursement, so a later change to either leaves this allocation alone.
-  const first    = new Date();
+  const first = new Date();
   first.setDate(first.getDate() + (p.grace_period_days ?? 0));
   const maturity = new Date(first);
   maturity.setMonth(maturity.getMonth() + (p.tenor_months ?? 0));
   const iso = (d: Date): string => d.toISOString().slice(0, 10);
 
   return {
-    isRepayable:        true,
+    isRepayable: true,
     interestRateAnnual: p.interest_rate_annual,
     repaymentFrequency: p.repayment_frequency,
-    tenorMonths:        p.tenor_months,
+    tenorMonths: p.tenor_months,
     firstRepaymentDate: iso(first),
-    maturityDate:       iso(maturity),
-    processingFeePct:   p.processing_fee_pct,
+    maturityDate: iso(maturity),
+    processingFeePct: p.processing_fee_pct,
   };
 }
 
@@ -365,8 +370,11 @@ async function snapshotProductTerms(
 async function createAllocationFundingSource(
   db: PoolClient,
   allocation: {
-    id: string; organization_id: string; group_id: string;
-    funding_program_id: string | null; is_repayable: boolean;
+    id: string;
+    organization_id: string;
+    group_id: string;
+    funding_program_id: string | null;
+    is_repayable: boolean;
   },
 ): Promise<void> {
   const { rows } = await db.query<{ org_name: string; program_name: string | null }>(
@@ -378,7 +386,7 @@ async function createAllocationFundingSource(
   );
 
   const orgName = rows[0]?.org_name ?? 'Organization';
-  const label   = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
+  const label = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
 
   const { rows: existingRows } = await db.query<{ id: string }>(
     `SELECT id FROM group_funding_sources
@@ -429,9 +437,7 @@ async function createAllocationFundingSource(
 }
 
 async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisbursement> {
-  const { rows } = await db.query<OrgDisbursement>(
-    `SELECT * FROM organization_disbursements WHERE id = $1`, [id],
-  );
+  const { rows } = await db.query<OrgDisbursement>(`SELECT * FROM organization_disbursements WHERE id = $1`, [id]);
   if (!rows[0]) throw new NotFoundError('Disbursement', id);
   return rows[0];
 }
@@ -446,10 +452,17 @@ async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisb
 async function settleOrgDisbursement(id: string): Promise<void> {
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; organization_id: string; wallet_id: string; group_id: string;
-      funding_program_id: string | null; disbursement_type: string; amount: string;
-      reference: string; is_repayable: boolean;
-      processing_fee_amount: string; net_disbursed_amount: string;
+      id: string;
+      organization_id: string;
+      wallet_id: string;
+      group_id: string;
+      funding_program_id: string | null;
+      disbursement_type: string;
+      amount: string;
+      reference: string;
+      is_repayable: boolean;
+      processing_fee_amount: string;
+      net_disbursed_amount: string;
     }>(
       `SELECT id, organization_id, wallet_id, group_id, funding_program_id,
               disbursement_type, amount, reference, is_repayable,
@@ -501,9 +514,8 @@ async function settleOrgDisbursement(id: string): Promise<void> {
        WHERE group_id = $1 AND is_active AND account_code IN ('1001','4005','4004')`,
       [disb.group_id],
     );
-    const cashId   = accts.find((a) => a.code === '1001')?.id;
-    const incomeId = accts.find((a) => a.code === '4005')?.id
-                  ?? accts.find((a) => a.code === '4004')?.id;
+    const cashId = accts.find((a) => a.code === '1001')?.id;
+    const incomeId = accts.find((a) => a.code === '4005')?.id ?? accts.find((a) => a.code === '4004')?.id;
 
     let groupJournalId: string | null = null;
     if (cashId && incomeId) {
@@ -587,13 +599,16 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     //   - total_disbursed (lifetime counter) only counts the NET cash that
     //     really went out the door
     // Net effect on available_balance across request+settle: -gross+fee = -net.
-    const { rows: walletBefore } = await db.query<OrgWallet>(
-      `SELECT * FROM organization_wallets WHERE id = $1`,
-      [disb.wallet_id],
-    );
+    const { rows: walletBefore } = await db.query<OrgWallet>(`SELECT * FROM organization_wallets WHERE id = $1`, [
+      disb.wallet_id,
+    ]);
     const walletBeforeUpdate = walletBefore[0];
 
-    const { rows: walletAfter } = await db.query<{ available_balance: string; committed_balance: string; total_disbursed: string }>(
+    const { rows: walletAfter } = await db.query<{
+      available_balance: string;
+      committed_balance: string;
+      total_disbursed: string;
+    }>(
       `UPDATE organization_wallets
        SET    committed_balance = committed_balance - $1,
               available_balance = available_balance + $2,
@@ -631,9 +646,14 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     // transaction whose group-side half was posted above. net_disbursed_amount
     // (migration 125): only the real cash outflow is posted here.
     await postOrgSystemJournal(
-      db, disb.organization_id, null,
+      db,
+      disb.organization_id,
+      null,
       `Disbursement to group — ${disb.disbursement_type.replace(/_/g, ' ')}`,
-      [{ accountCode: '5001', debit: parseFloat(disb.net_disbursed_amount) }, { accountCode: '1001', credit: parseFloat(disb.net_disbursed_amount) }],
+      [
+        { accountCode: '5001', debit: parseFloat(disb.net_disbursed_amount) },
+        { accountCode: '1001', credit: parseFloat(disb.net_disbursed_amount) },
+      ],
       { reference: disb.reference },
     );
 
@@ -650,8 +670,14 @@ async function settleOrgDisbursement(id: string): Promise<void> {
             funding_program_id, group_id, disbursement_id, reference, description, created_by)
          VALUES ($1,$2,'fee','credit',$3,$4,$5,$6,$7,$8,$9,NULL)`,
         [
-          disb.organization_id, disb.wallet_id, disb.processing_fee_amount, walletAfter[0].available_balance,
-          disb.funding_program_id, disb.group_id, disb.id, disb.reference,
+          disb.organization_id,
+          disb.wallet_id,
+          disb.processing_fee_amount,
+          walletAfter[0].available_balance,
+          disb.funding_program_id,
+          disb.group_id,
+          disb.id,
+          disb.reference,
           `Processing fee retained — ${disb.disbursement_type.replace(/_/g, ' ')}`,
         ],
       );
@@ -687,7 +713,6 @@ async function settleOrgDisbursement(id: string): Promise<void> {
 }
 
 export const organizationFinanceService = {
-
   // ─── Wallet ────────────────────────────────────────────────────────────────
 
   async getWallet(ctx: TenantContext): Promise<OrgWallet> {
@@ -762,7 +787,10 @@ export const organizationFinanceService = {
          VALUES ($1,$2,'deposit','credit',$3,$4,$5,$6,$7)
          RETURNING id`,
         [
-          orgId(ctx), wallet.id, input.amount.toFixed(2), newBalance.toFixed(2),
+          orgId(ctx),
+          wallet.id,
+          input.amount.toFixed(2),
+          newBalance.toFixed(2),
           input.reference ?? null,
           input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
           ctx.userId,
@@ -770,9 +798,14 @@ export const organizationFinanceService = {
       );
 
       await postOrgSystemJournal(
-        db, orgId(ctx), ctx.userId,
+        db,
+        orgId(ctx),
+        ctx.userId,
         input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
-        [{ accountCode: '1001', debit: input.amount }, { accountCode: '4001', credit: input.amount }],
+        [
+          { accountCode: '1001', debit: input.amount },
+          { accountCode: '4001', credit: input.amount },
+        ],
         { reference: input.reference },
       );
 
@@ -785,7 +818,7 @@ export const organizationFinanceService = {
     params: { page?: number; limit?: number } = {},
   ): Promise<{ items: unknown[]; total: number; page: number; limit: number }> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    const page  = Math.max(1, params.page ?? 1);
+    const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(100, Math.max(1, params.limit ?? 25));
 
     return withDb(ctx, async (db) => {
@@ -939,13 +972,20 @@ export const organizationFinanceService = {
     // Outside the cache wrapper deliberately — evaluated on every call so a
     // plan change takes effect immediately rather than up to 60s late.
     await withDb(ctx, (db) => assertReportsAccess(db, orgId(ctx)));
-    return cached(keys.cache('program-budget', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
-      const { rows } = await db.query<{
-        id: string; name: string; program_type: string; status: string;
-        budget: string; disbursed_total: string; reserved: string;
-        starts_on: string | null; ends_on: string | null;
-      }>(
-        `SELECT p.id, p.name, p.program_type, p.status,
+    return cached(keys.cache('program-budget', orgId(ctx)), 60, () =>
+      withDb(ctx, async (db) => {
+        const { rows } = await db.query<{
+          id: string;
+          name: string;
+          program_type: string;
+          status: string;
+          budget: string;
+          disbursed_total: string;
+          reserved: string;
+          starts_on: string | null;
+          ends_on: string | null;
+        }>(
+          `SELECT p.id, p.name, p.program_type, p.status,
                 p.budget::text, p.disbursed_total::text,
                 COALESCE(pd.pending, 0)::text AS reserved,
                 p.starts_on::text, p.ends_on::text
@@ -958,36 +998,43 @@ export const organizationFinanceService = {
          ) pd ON pd.funding_program_id = p.id
          WHERE p.organization_id = $1
          ORDER BY p.status = 'active' DESC, p.created_at DESC`,
-        [orgId(ctx)],
-      );
+          [orgId(ctx)],
+        );
 
-      const today = Date.now();
-      return rows.map((r) => {
-        const budget    = parseFloat(r.budget);
-        const disbursed = parseFloat(r.disbursed_total);
-        const reserved  = parseFloat(r.reserved);
-        const utilizationPct = budget > 0 ? ((disbursed + reserved) / budget) * 100 : 0;
+        const today = Date.now();
+        return rows.map((r) => {
+          const budget = parseFloat(r.budget);
+          const disbursed = parseFloat(r.disbursed_total);
+          const reserved = parseFloat(r.reserved);
+          const utilizationPct = budget > 0 ? ((disbursed + reserved) / budget) * 100 : 0;
 
-        let expectedUtilizationPct: number | null = null;
-        if (r.starts_on && r.ends_on) {
-          const start = Date.parse(r.starts_on);
-          const end   = Date.parse(r.ends_on);
-          if (end > start) {
-            expectedUtilizationPct = Math.min(100, Math.max(0, ((today - start) / (end - start)) * 100));
+          let expectedUtilizationPct: number | null = null;
+          if (r.starts_on && r.ends_on) {
+            const start = Date.parse(r.starts_on);
+            const end = Date.parse(r.ends_on);
+            if (end > start) {
+              expectedUtilizationPct = Math.min(100, Math.max(0, ((today - start) / (end - start)) * 100));
+            }
           }
-        }
 
-        return {
-          id: r.id, name: r.name, programType: r.program_type, status: r.status,
-          budget, disbursed, reserved,
-          remaining:      budget - disbursed - reserved,
-          utilizationPct,
-          expectedUtilizationPct,
-          variancePct: expectedUtilizationPct === null ? null : utilizationPct - expectedUtilizationPct,
-          startsOn: r.starts_on, endsOn: r.ends_on,
-        };
-      });
-    }));
+          return {
+            id: r.id,
+            name: r.name,
+            programType: r.program_type,
+            status: r.status,
+            budget,
+            disbursed,
+            reserved,
+            remaining: budget - disbursed - reserved,
+            utilizationPct,
+            expectedUtilizationPct,
+            variancePct: expectedUtilizationPct === null ? null : utilizationPct - expectedUtilizationPct,
+            startsOn: r.starts_on,
+            endsOn: r.ends_on,
+          };
+        });
+      }),
+    );
   },
 
   /**
@@ -1003,12 +1050,17 @@ export const organizationFinanceService = {
   async donorSpendReport(ctx: TenantContext): Promise<DonorSpendLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
     await withDb(ctx, (db) => assertReportsAccess(db, orgId(ctx)));
-    return cached(keys.cache('donor-spend', orgId(ctx)), 60, () => withDb(ctx, async (db) => {
-      const { rows: programs } = await db.query<{
-        id: string; name: string; funding_source: string | null;
-        budget: string; disbursed_total: string; reserved: string;
-      }>(
-        `SELECT p.id, p.name, p.funding_source,
+    return cached(keys.cache('donor-spend', orgId(ctx)), 60, () =>
+      withDb(ctx, async (db) => {
+        const { rows: programs } = await db.query<{
+          id: string;
+          name: string;
+          funding_source: string | null;
+          budget: string;
+          disbursed_total: string;
+          reserved: string;
+        }>(
+          `SELECT p.id, p.name, p.funding_source,
                 p.budget::text, p.disbursed_total::text,
                 COALESCE(pd.pending, 0)::text AS reserved
          FROM funding_programs p
@@ -1020,61 +1072,73 @@ export const organizationFinanceService = {
          ) pd ON pd.funding_program_id = p.id
          WHERE p.organization_id = $1
          ORDER BY p.funding_source NULLS LAST, p.created_at DESC`,
-        [orgId(ctx)],
-      );
+          [orgId(ctx)],
+        );
 
-      const { rows: byGroupRows } = await db.query<{
-        funding_source: string | null; group_id: string; group_name: string | null; amount: string;
-      }>(
-        `SELECT p.funding_source, l.group_id, g.name AS group_name, SUM(l.amount)::text AS amount
+        const { rows: byGroupRows } = await db.query<{
+          funding_source: string | null;
+          group_id: string;
+          group_name: string | null;
+          amount: string;
+        }>(
+          `SELECT p.funding_source, l.group_id, g.name AS group_name, SUM(l.amount)::text AS amount
          FROM organization_ledger l
          JOIN funding_programs p ON p.id = l.funding_program_id
          LEFT JOIN groups g ON g.id = l.group_id
          WHERE l.organization_id = $1 AND l.entry_type = 'disbursement' AND l.direction = 'debit'
          GROUP BY p.funding_source, l.group_id, g.name`,
-        [orgId(ctx)],
-      );
+          [orgId(ctx)],
+        );
 
-      const donors = new Map<string, DonorSpendLine>();
-      const bucketOf = (source: string | null): DonorSpendLine => {
-        const key = source ?? 'Unspecified';
-        let d = donors.get(key);
-        if (!d) {
-          d = {
-            fundingSource: key, programCount: 0, totalBudget: 0, totalDisbursed: 0,
-            totalReserved: 0, remaining: 0, utilizationPct: 0, programs: [], byGroup: [],
-          };
-          donors.set(key, d);
+        const donors = new Map<string, DonorSpendLine>();
+        const bucketOf = (source: string | null): DonorSpendLine => {
+          const key = source ?? 'Unspecified';
+          let d = donors.get(key);
+          if (!d) {
+            d = {
+              fundingSource: key,
+              programCount: 0,
+              totalBudget: 0,
+              totalDisbursed: 0,
+              totalReserved: 0,
+              remaining: 0,
+              utilizationPct: 0,
+              programs: [],
+              byGroup: [],
+            };
+            donors.set(key, d);
+          }
+          return d;
+        };
+
+        for (const p of programs) {
+          const d = bucketOf(p.funding_source);
+          const budget = parseFloat(p.budget),
+            disbursed = parseFloat(p.disbursed_total),
+            reserved = parseFloat(p.reserved);
+          d.programCount += 1;
+          d.totalBudget += budget;
+          d.totalDisbursed += disbursed;
+          d.totalReserved += reserved;
+          d.programs.push({ id: p.id, name: p.name, budget, disbursed });
         }
-        return d;
-      };
-
-      for (const p of programs) {
-        const d = bucketOf(p.funding_source);
-        const budget = parseFloat(p.budget), disbursed = parseFloat(p.disbursed_total), reserved = parseFloat(p.reserved);
-        d.programCount   += 1;
-        d.totalBudget    += budget;
-        d.totalDisbursed += disbursed;
-        d.totalReserved  += reserved;
-        d.programs.push({ id: p.id, name: p.name, budget, disbursed });
-      }
-      for (const r of byGroupRows) {
-        bucketOf(r.funding_source).byGroup.push({
-          groupId: r.group_id, groupName: r.group_name, amount: parseFloat(r.amount),
-        });
-      }
-      for (const d of donors.values()) {
-        d.remaining      = d.totalBudget - d.totalDisbursed - d.totalReserved;
-        d.utilizationPct = d.totalBudget > 0 ? ((d.totalDisbursed + d.totalReserved) / d.totalBudget) * 100 : 0;
-      }
-      return Array.from(donors.values()).sort((a, b) => b.totalDisbursed - a.totalDisbursed);
-    }));
+        for (const r of byGroupRows) {
+          bucketOf(r.funding_source).byGroup.push({
+            groupId: r.group_id,
+            groupName: r.group_name,
+            amount: parseFloat(r.amount),
+          });
+        }
+        for (const d of donors.values()) {
+          d.remaining = d.totalBudget - d.totalDisbursed - d.totalReserved;
+          d.utilizationPct = d.totalBudget > 0 ? ((d.totalDisbursed + d.totalReserved) / d.totalBudget) * 100 : 0;
+        }
+        return Array.from(donors.values()).sort((a, b) => b.totalDisbursed - a.totalDisbursed);
+      }),
+    );
   },
 
-  async createProgram(
-    ctx: TenantContext,
-    input: CreateProgramInput,
-  ): Promise<FundingProgram> {
+  async createProgram(ctx: TenantContext, input: CreateProgramInput): Promise<FundingProgram> {
     await organizationService.assertOrganizationCoordinator(ctx);
     if (!(input.budget > 0)) throw new ValidationError('Budget must be positive');
 
@@ -1093,12 +1157,17 @@ export const organizationFinanceService = {
                  $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25::jsonb,$26,$27)
          RETURNING *`,
         [
-          orgId(ctx), input.name, input.programType, input.budget.toFixed(2),
-          input.fundingSource ?? null, input.description ?? null,
+          orgId(ctx),
+          input.name,
+          input.programType,
+          input.budget.toFixed(2),
+          input.fundingSource ?? null,
+          input.description ?? null,
           JSON.stringify(input.eligibilityCriteria ?? {}),
           JSON.stringify(input.geographicCoverage ?? []),
           input.reportingRequirements ?? null,
-          input.startsOn ?? null, input.endsOn ?? null,
+          input.startsOn ?? null,
+          input.endsOn ?? null,
           ctx.userId,
           // Financial-product terms. Defaults keep any caller that doesn't set
           // them (i.e. every existing one) creating a plain non-repayable grant.
@@ -1218,8 +1287,8 @@ export const organizationFinanceService = {
     if (!(input.amount > 0)) throw new ValidationError('Decapitalization amount must be positive');
 
     return withTransaction(ctx, async (db) => {
-      const program   = await getProgramForUpdate(db, orgId(ctx), programId);
-      const budget    = parseFloat(program.budget);
+      const program = await getProgramForUpdate(db, orgId(ctx), programId);
+      const budget = parseFloat(program.budget);
       const allocated = parseFloat(program.disbursed_total);
 
       if (input.amount > budget - allocated) {
@@ -1262,8 +1331,11 @@ export const organizationFinanceService = {
     await organizationService.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (db) => {
       const { rows } = await db.query<{
-        id: string; name: string; is_repayable: boolean;
-        budget: string; disbursed_total: string;
+        id: string;
+        name: string;
+        is_repayable: boolean;
+        budget: string;
+        disbursed_total: string;
       }>(
         `SELECT id, name, is_repayable, budget, disbursed_total
          FROM funding_programs
@@ -1275,14 +1347,14 @@ export const organizationFinanceService = {
 
       return rows.map((r) => {
         const totalCapital = parseFloat(r.budget);
-        const allocated    = parseFloat(r.disbursed_total);
+        const allocated = parseFloat(r.disbursed_total);
         return {
-          programId:       r.id,
-          name:            r.name,
-          isRepayable:     r.is_repayable,
+          programId: r.id,
+          name: r.name,
+          isRepayable: r.is_repayable,
           totalCapital,
           allocated,
-          available:       totalCapital - allocated,
+          available: totalCapital - allocated,
           utilizationRate: totalCapital > 0 ? allocated / totalCapital : 0,
         };
       });
@@ -1363,9 +1435,7 @@ export const organizationFinanceService = {
       const wallet = await getWalletForUpdate(db, organizationId);
       const available = parseFloat(wallet.available_balance);
       if (available < input.amount) {
-        throw new ValidationError(
-          `Insufficient wallet balance (available KES ${available.toFixed(2)})`,
-        );
+        throw new ValidationError(`Insufficient wallet balance (available KES ${available.toFixed(2)})`);
       }
 
       // 3. Program budget guard (when funded from a program). "Remaining"
@@ -1386,9 +1456,8 @@ export const organizationFinanceService = {
            WHERE funding_program_id = $1 AND status = 'pending_approval'`,
           [input.fundingProgramId],
         );
-        const remaining = parseFloat(prog[0].budget)
-                         - parseFloat(prog[0].disbursed_total)
-                         - parseFloat(pendingRows[0].pending);
+        const remaining =
+          parseFloat(prog[0].budget) - parseFloat(prog[0].disbursed_total) - parseFloat(pendingRows[0].pending);
         if (remaining < input.amount) {
           throw new ValidationError(`Program budget remaining is KES ${remaining.toFixed(2)}`);
         }
@@ -1403,7 +1472,7 @@ export const organizationFinanceService = {
       //    this balance-affecting event now; approval is a pure status
       //    transition (no second balance-affecting entry), rejection posts a
       //    reversing credit.
-      const reference  = `ODB-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+      const reference = `ODB-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
       const newBalance = available - input.amount;
 
       const { rows: walletAfterReserve } = await db.query<OrgWallet>(
@@ -1449,8 +1518,8 @@ export const organizationFinanceService = {
       //     Reservation itself (step 5 above) still holds the full gross
       //     amount — conservative, matches the existing approval-pending
       //     window's behaviour for every other term.
-      const feePct       = terms.processingFeePct ? parseFloat(terms.processingFeePct) : 0;
-      const feeAmount    = Math.round(input.amount * feePct) / 100;
+      const feePct = terms.processingFeePct ? parseFloat(terms.processingFeePct) : 0;
+      const feeAmount = Math.round(input.amount * feePct) / 100;
       const netDisbursed = input.amount - feeAmount;
 
       const { rows: disbRows } = await db.query<OrgDisbursement>(
@@ -1464,17 +1533,30 @@ export const organizationFinanceService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
          RETURNING *`,
         [
-          organizationId, wallet.id, input.fundingProgramId ?? null, input.groupId,
-          input.disbursementType, input.amount.toFixed(2),
+          organizationId,
+          wallet.id,
+          input.fundingProgramId ?? null,
+          input.groupId,
+          input.disbursementType,
+          input.amount.toFixed(2),
           requiresApproval ? 'pending_approval' : 'approved',
-          reference, input.notes ?? null, ctx.userId,
+          reference,
+          input.notes ?? null,
+          ctx.userId,
           input.purpose ?? null,
-          terms.isRepayable, terms.interestRateAnnual, terms.repaymentFrequency,
-          terms.tenorMonths, terms.firstRepaymentDate, terms.maturityDate,
-          terms.processingFeePct, feeAmount.toFixed(2), netDisbursed.toFixed(2),
+          terms.isRepayable,
+          terms.interestRateAnnual,
+          terms.repaymentFrequency,
+          terms.tenorMonths,
+          terms.firstRepaymentDate,
+          terms.maturityDate,
+          terms.processingFeePct,
+          feeAmount.toFixed(2),
+          netDisbursed.toFixed(2),
           // NULL when not supplied — "not recorded", never an assumed default.
           // Guessing a channel would fabricate an audit trail for real money.
-          input.paymentMethod ?? null, input.paymentReference ?? null,
+          input.paymentMethod ?? null,
+          input.paymentReference ?? null,
         ],
       );
 
@@ -1509,16 +1591,22 @@ export const organizationFinanceService = {
          VALUES ($1,$2,'disbursement','debit',$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING id`,
         [
-          organizationId, wallet.id, input.amount.toFixed(2), newBalance.toFixed(2),
-          input.fundingProgramId ?? null, input.groupId, disbursement.id, reference,
+          organizationId,
+          wallet.id,
+          input.amount.toFixed(2),
+          newBalance.toFixed(2),
+          input.fundingProgramId ?? null,
+          input.groupId,
+          disbursement.id,
+          reference,
           input.notes ?? (requiresApproval ? 'Disbursement — reserved, pending approval' : 'Disbursement to group'),
           ctx.userId,
         ],
       );
-      await db.query(
-        `UPDATE organization_disbursements SET ledger_entry_id = $1 WHERE id = $2`,
-        [ledger[0].id, disbursement.id],
-      );
+      await db.query(`UPDATE organization_disbursements SET ledger_entry_id = $1 WHERE id = $2`, [
+        ledger[0].id,
+        disbursement.id,
+      ]);
 
       return disbRows[0];
     });
@@ -1662,7 +1750,7 @@ export const organizationFinanceService = {
     params: { page?: number; limit?: number } = {},
   ): Promise<{ items: OrgDisbursement[]; total: number; page: number; limit: number }> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    const page  = Math.max(1, params.page ?? 1);
+    const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(100, Math.max(1, params.limit ?? 25));
 
     return withDb(ctx, async (db) => {
@@ -1709,9 +1797,9 @@ export const organizationFinanceService = {
    * (§1.5: "what needs attention") instead of rendering a confident wrong number.
    */
   async getDashboard(ctx: TenantContext): Promise<{
-    financial:  Record<string, string | number> | null;
-    portfolio:  Record<string, string | number> | null;
-    programs:   FundingProgram[] | null;
+    financial: Record<string, string | number> | null;
+    portfolio: Record<string, string | number> | null;
+    programs: FundingProgram[] | null;
     incomplete: string[];
   }> {
     await organizationService.assertOrganizationCoordinator(ctx);
@@ -1723,10 +1811,14 @@ export const organizationFinanceService = {
     return cached(keys.cache('org-dashboard', orgId(ctx)), 30, async () => {
       const [walletR, portfolioR, programsR] = await Promise.allSettled([
         this.getWallet(ctx),
-        withDb(ctx, async (db) => db.query<{
-            linked_groups: string; active_members: string;
-            total_savings: string; loan_portfolio: string;
-            loans_disbursed: string; loans_repaid: string;
+        withDb(ctx, async (db) =>
+          db.query<{
+            linked_groups: string;
+            active_members: string;
+            total_savings: string;
+            loan_portfolio: string;
+            loans_disbursed: string;
+            loans_repaid: string;
           }>(
             `-- group_stats pre-aggregates each child table PER GROUP first:
              -- joining group_members/contributions/loans/loan_repayments
@@ -1764,13 +1856,16 @@ export const organizationFinanceService = {
                COALESCE(SUM(loans_repaid), 0)::text  AS loans_repaid
              FROM group_stats`,
             [orgId(ctx)],
-          )),
-        withDb(ctx, async (db) => db.query<FundingProgram>(
+          ),
+        ),
+        withDb(ctx, async (db) =>
+          db.query<FundingProgram>(
             `SELECT * FROM funding_programs
              WHERE organization_id = $1 AND status = 'active'
              ORDER BY created_at DESC LIMIT 10`,
             [orgId(ctx)],
-          )),
+          ),
+        ),
       ]);
 
       const incomplete: string[] = [];
@@ -1783,16 +1878,18 @@ export const organizationFinanceService = {
         return false;
       };
 
-      const financial = failed('financial', walletR) ? null : (() => {
-        const w = (walletR as PromiseFulfilledResult<OrgWallet>).value;
-        return {
-          walletBalance:   w.available_balance,
-          committedFunds:  w.committed_balance,
-          totalDeposited:  w.total_deposited,
-          totalDisbursed:  w.total_disbursed,
-          totalReturned:   w.total_returned,
-        };
-      })();
+      const financial = failed('financial', walletR)
+        ? null
+        : (() => {
+            const w = (walletR as PromiseFulfilledResult<OrgWallet>).value;
+            return {
+              walletBalance: w.available_balance,
+              committedFunds: w.committed_balance,
+              totalDeposited: w.total_deposited,
+              totalDisbursed: w.total_disbursed,
+              totalReturned: w.total_returned,
+            };
+          })();
 
       const programs = failed('programs', programsR)
         ? null
@@ -1810,12 +1907,12 @@ export const organizationFinanceService = {
           incomplete.push('portfolio');
         } else {
           portfolio = {
-            linkedGroups:    parseInt(p.linked_groups, 10),
-            activeMembers:   parseInt(p.active_members, 10),
-            totalSavings:    p.total_savings,
-            loanPortfolio:   p.loan_portfolio,
-            activeLoans:     parseInt(p.loans_disbursed, 10),
-            loanRepayments:  p.loans_repaid,
+            linkedGroups: parseInt(p.linked_groups, 10),
+            activeMembers: parseInt(p.active_members, 10),
+            totalSavings: p.total_savings,
+            loanPortfolio: p.loan_portfolio,
+            activeLoans: parseInt(p.loans_disbursed, 10),
+            loanRepayments: p.loans_repaid,
             // Count of programs actually returned above. Omitted (rather than
             // shown as 0) when that section failed, so the two never disagree.
             ...(programs ? { activePrograms: programs.length } : {}),

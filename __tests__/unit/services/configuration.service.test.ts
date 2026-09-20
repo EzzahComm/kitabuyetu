@@ -5,7 +5,7 @@
  */
 import { resolvePolicy, resolvePolicyDetailed, setPolicy } from '@/lib/services/configuration.service';
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery } as never;
 
 beforeEach(() => {
@@ -15,7 +15,13 @@ beforeEach(() => {
 describe('resolvePolicyDetailed', () => {
   it('returns the fallback with source platform when no rows match', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    const result = await resolvePolicyDetailed(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 0 });
+    const result = await resolvePolicyDetailed(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1' },
+      { threshold: 0 },
+    );
     expect(result).toEqual({ value: { threshold: 0 }, source: 'platform' });
   });
 
@@ -27,7 +33,13 @@ describe('resolvePolicyDetailed', () => {
         { organization_id: null, group_id: 'g1', value: { threshold: 15000 } },
       ],
     });
-    const result = await resolvePolicyDetailed(mockClient, 'approval', 'journal_threshold', { groupId: 'g1', organizationId: 'org-1' }, { threshold: 0 });
+    const result = await resolvePolicyDetailed(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1', organizationId: 'org-1' },
+      { threshold: 0 },
+    );
     expect(result).toEqual({ value: { threshold: 15000 }, source: 'group' });
   });
 
@@ -38,7 +50,13 @@ describe('resolvePolicyDetailed', () => {
         { organization_id: 'org-1', group_id: null, value: { threshold: 30000 } },
       ],
     });
-    const result = await resolvePolicyDetailed(mockClient, 'approval', 'journal_threshold', { groupId: 'g1', organizationId: 'org-1' }, { threshold: 0 });
+    const result = await resolvePolicyDetailed(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1', organizationId: 'org-1' },
+      { threshold: 0 },
+    );
     expect(result).toEqual({ value: { threshold: 30000 }, source: 'organization' });
   });
 });
@@ -53,25 +71,47 @@ describe('resolvePolicy', () => {
 
 describe('setPolicy', () => {
   it('inserts version 1 when no active row exists at this scope yet', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });              // no existing active row
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no existing active row
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-1', version: 1 }] }); // INSERT
-    mockQuery.mockResolvedValueOnce({ rows: [] });              // audit log
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
-    const result = await setPolicy(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 5000 }, 'user-1');
+    const result = await setPolicy(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1' },
+      { threshold: 5000 },
+      'user-1',
+    );
 
     expect(result).toEqual({ id: 'p-1', version: 1 });
     expect(mockQuery).toHaveBeenCalledTimes(3);
     const insertCall = mockQuery.mock.calls[1];
-    expect(insertCall[1]).toEqual(['approval', 'journal_threshold', null, 'g1', JSON.stringify({ threshold: 5000 }), 1, 'user-1']);
+    expect(insertCall[1]).toEqual([
+      'approval',
+      'journal_threshold',
+      null,
+      'g1',
+      JSON.stringify({ threshold: 5000 }),
+      1,
+      'user-1',
+    ]);
   });
 
   it('retires the current active row and inserts version+1', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-old', version: 2 }] }); // existing active row
-    mockQuery.mockResolvedValueOnce({ rows: [] });                            // UPDATE retiring it
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE retiring it
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'p-new', version: 3 }] }); // INSERT new version
-    mockQuery.mockResolvedValueOnce({ rows: [] });                            // audit log
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
-    const result = await setPolicy(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 8000 }, 'user-1');
+    const result = await setPolicy(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1' },
+      { threshold: 8000 },
+      'user-1',
+    );
 
     expect(result).toEqual({ id: 'p-new', version: 3 });
     expect(mockQuery).toHaveBeenCalledTimes(4);

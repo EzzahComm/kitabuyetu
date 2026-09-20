@@ -20,39 +20,38 @@ import { ValidationError } from '@/lib/utils/errors';
 import { organizationService } from './organization.service';
 
 export interface OrgAccount {
-  id:              string;
+  id: string;
   organization_id: string;
-  account_code:    string;
-  name:            string;
-  type:            'asset' | 'liability' | 'equity' | 'income' | 'expense';
-  is_system:       boolean;
-  is_active:       boolean;
-  balance:         string;
+  account_code: string;
+  name: string;
+  type: 'asset' | 'liability' | 'equity' | 'income' | 'expense';
+  is_system: boolean;
+  is_active: boolean;
+  balance: string;
 }
 
 export interface OrgTrialBalanceLine {
   accountCode: string;
   accountName: string;
   accountType: string;
-  netBalance:  string;
+  netBalance: string;
 }
 
 // Kept in lockstep with migration 085's seed INSERT — this is the set every
 // current posting path (deposit, settleOrgDisbursement) actually uses.
 const DEFAULT_ORG_ACCOUNTS = [
-  { code: '1001', name: 'Cash and Bank',         type: 'asset'   },
-  { code: '4001', name: 'Donor Contributions',   type: 'income'  },
+  { code: '1001', name: 'Cash and Bank', type: 'asset' },
+  { code: '4001', name: 'Donor Contributions', type: 'income' },
   { code: '5001', name: 'Program Disbursements', type: 'expense' },
 ];
 
 export interface OrgSystemJournalLine {
   accountCode: string;
-  debit?:      number;
-  credit?:     number;
+  debit?: number;
+  credit?: number;
 }
 
 export const organizationAccountingService = {
-
   /** Participates in the caller's own transaction — used when provisioning a new organization. */
   async seedDefaultAccountsInTx(client: PoolClient, organizationId: string): Promise<void> {
     for (const acct of DEFAULT_ORG_ACCOUNTS) {
@@ -121,11 +120,11 @@ export const organizationAccountingService = {
  * to validate balance at COMMIT.
  */
 export async function postOrgSystemJournal(
-  client:          PoolClient,
-  organizationId:  string,
-  userId:          string | null,
-  description:     string,
-  lines:           OrgSystemJournalLine[],
+  client: PoolClient,
+  organizationId: string,
+  userId: string | null,
+  description: string,
+  lines: OrgSystemJournalLine[],
   opts?: { reference?: string; entryDate?: string | Date; isTest?: boolean },
 ): Promise<string | null> {
   const codes = [...new Set(lines.map((l) => l.accountCode))];
@@ -137,7 +136,9 @@ export async function postOrgSystemJournal(
   const byCode = new Map(accts.map((a) => [a.account_code, a.id]));
   if (byCode.size !== codes.length) {
     logger.warn('[org-accounting] postOrgSystemJournal: missing chart-of-accounts row(s), skipping posting', {
-      organizationId, description, missing: codes.filter((c) => !byCode.has(c)),
+      organizationId,
+      description,
+      missing: codes.filter((c) => !byCode.has(c)),
     });
     return null;
   }
@@ -147,8 +148,13 @@ export async function postOrgSystemJournal(
        (organization_id, entry_date, reference, description, status, created_by, posted_at, is_test, posted_via)
      VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, 'posted', $5, NOW(), $6, $7) RETURNING id`,
     [
-      organizationId, opts?.entryDate ?? null, opts?.reference ?? null, description, userId,
-      opts?.isTest ?? false, userId ? 'user' : 'system',
+      organizationId,
+      opts?.entryDate ?? null,
+      opts?.reference ?? null,
+      description,
+      userId,
+      opts?.isTest ?? false,
+      userId ? 'user' : 'system',
     ],
   );
   const jeId = je[0]?.id;

@@ -24,7 +24,7 @@ import { z } from 'zod';
 
 const OptOutSchema = z.object({
   phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  note:  z.string().max(200).optional(),
+  note: z.string().max(200).optional(),
 });
 
 // GET — who is currently opted out for this group.
@@ -42,7 +42,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     // recorded this and how did the request reach us" — the whole reason this
     // is a table and not a text[].
     await smsService.optOut(auth.groupId, input.phone, {
-      source: 'officer', actorId: auth.userId, note: input.note,
+      source: 'officer',
+      actorId: auth.userId,
+      note: input.note,
     });
     return ok({ optOuts: await smsService.listOptOuts(auth.groupId) });
   });

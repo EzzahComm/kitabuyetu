@@ -7,9 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { ArrowLeft, Shield, CheckCircle2, Eye, EyeOff } from 'lucide-react';
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,9 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 
 const passwordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Must contain an uppercase letter')
-               .regex(/[0-9]/, 'Must contain a number'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Must contain an uppercase letter')
+    .regex(/[0-9]/, 'Must contain a number'),
 });
 type PasswordValues = z.infer<typeof passwordSchema>;
 
@@ -47,8 +47,8 @@ function ResetPasswordBody() {
       toast({ title: 'Password reset', description: 'You can now sign in with your new password.' });
     } catch (err) {
       toast({
-        variant:     'destructive',
-        title:       'Could not reset password',
+        variant: 'destructive',
+        title: 'Could not reset password',
         description: getErrorMessage(err),
       });
     }
@@ -68,9 +68,7 @@ function ResetPasswordBody() {
           <CardHeader className="space-y-2">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-red-500" />
-              <CardTitle className="text-slate-100">
-                {done ? 'Password reset' : 'Choose a new password'}
-              </CardTitle>
+              <CardTitle className="text-slate-100">{done ? 'Password reset' : 'Choose a new password'}</CardTitle>
             </div>
             {!done && (
               <CardDescription className="text-slate-400">
@@ -96,10 +94,15 @@ function ResetPasswordBody() {
             ) : (
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-slate-300">New password</Label>
+                  <Label htmlFor="password" className="text-slate-300">
+                    New password
+                  </Label>
                   <div className="relative">
                     <Input
-                      id="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" autoFocus
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      autoFocus
                       className="bg-slate-950 border-slate-800 pr-10 text-slate-100"
                       {...form.register('password')}
                     />
@@ -118,7 +121,11 @@ function ResetPasswordBody() {
                   )}
                 </div>
 
-                <Button type="submit" disabled={form.formState.isSubmitting} className="w-full bg-red-600 hover:bg-red-700">
+                <Button
+                  type="submit"
+                  disabled={form.formState.isSubmitting}
+                  className="w-full bg-red-600 hover:bg-red-700"
+                >
                   {form.formState.isSubmitting ? 'Resetting…' : 'Reset password'}
                 </Button>
               </form>

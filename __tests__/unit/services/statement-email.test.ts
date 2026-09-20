@@ -38,10 +38,15 @@ describe('sendMemberStatements', () => {
       rows: [{ id: 'mem-1', full_name: 'Amina Hassan', email: 'amina@example.com', group_name: 'Umoja VSLA' }],
     });
     mockQuery.mockResolvedValueOnce({
-      rows: [{
-        member_id: 'mem-1',
-        savings: '84500.00', loan_balance: '18000.00', shares: '32000.00', contributed_this_period: '5000.00',
-      }],
+      rows: [
+        {
+          member_id: 'mem-1',
+          savings: '84500.00',
+          loan_balance: '18000.00',
+          shares: '32000.00',
+          contributed_this_period: '5000.00',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({
       rows: [{ member_id: 'mem-1', txn_date: '2026-05-29', label: 'Contribution', amount: '1000.00', direction: 'in' }],

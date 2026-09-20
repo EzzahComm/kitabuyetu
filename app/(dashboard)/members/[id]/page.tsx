@@ -2,7 +2,24 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, Shield, CreditCard, Landmark, Users, Plus, Trash2, Briefcase, Archive, RotateCcw, AlertTriangle, Smartphone } from 'lucide-react';
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Shield,
+  CreditCard,
+  Landmark,
+  Users,
+  Plus,
+  Trash2,
+  Briefcase,
+  Archive,
+  RotateCcw,
+  AlertTriangle,
+  Smartphone,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,10 +54,18 @@ type CreditTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 // auto-derived mapping, so mirror credit-scores/page.tsx's TIER_BADGE colors
 // (excellent/good both green-leaning, fair neutral, poor amber) explicitly.
 const TIER_TONE: Record<CreditTier, Tone> = {
-  excellent: 'positive', good: 'positive', fair: 'neutral', poor: 'warning', high_risk: 'negative',
+  excellent: 'positive',
+  good: 'positive',
+  fair: 'neutral',
+  poor: 'warning',
+  high_risk: 'negative',
 };
 const TIER_LABEL: Record<CreditTier, string> = {
-  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  high_risk: 'High risk',
 };
 interface MemberCreditScore {
   overall_score: string;
@@ -49,17 +74,17 @@ interface MemberCreditScore {
 
 const roleVariant: Record<string, 'default' | 'success' | 'secondary' | 'outline'> = {
   chairperson: 'default',
-  treasurer:   'success',
-  secretary:   'secondary',
-  member:      'outline',
+  treasurer: 'success',
+  secretary: 'secondary',
+  member: 'outline',
 };
 
 const roleLabels: Record<string, string> = {
   chairperson: 'Chairperson',
-  treasurer:   'Treasurer',
-  secretary:   'Secretary',
-  auditor:     'Auditor',
-  member:      'Member',
+  treasurer: 'Treasurer',
+  secretary: 'Secretary',
+  auditor: 'Auditor',
+  member: 'Member',
 };
 
 interface NextOfKin {
@@ -82,25 +107,25 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
   const { data: member, isLoading: loadingMember } = useMember(id);
   const { data: contribData } = useContributions({ memberId: id, limit: 10 });
-  const { data: loanData }    = useLoans({ memberId: id, limit: 10 });
+  const { data: loanData } = useLoans({ memberId: id, limit: 10 });
 
   // Next of kin (Phase E2)
   const { data: kinRows = [], isLoading: loadingKin } = useQuery<NextOfKin[]>({
     queryKey: ['next-of-kin', id],
-    queryFn:  () => nextOfKinApi.list(id) as Promise<NextOfKin[]>,
-    enabled:  !!id,
+    queryFn: () => nextOfKinApi.list(id) as Promise<NextOfKin[]>,
+    enabled: !!id,
   });
 
   const creditScoreQ = useQuery<MemberCreditScore>({
     queryKey: ['credit-score', id, 'latest'],
-    queryFn:  () => api.get<MemberCreditScore>(`/credit-scores/${id}`),
-    enabled:  !!id,
-    retry:    false,
+    queryFn: () => api.get<MemberCreditScore>(`/credit-scores/${id}`),
+    enabled: !!id,
+    retry: false,
   });
 
   const [kinDialogOpen, setKinDialogOpen] = useState(false);
-  const [statusDialog,  setStatusDialog]  = useState<null | { target: MemberStatus }>(null);
-  const [stkOpen,       setStkOpen]       = useState(false);
+  const [statusDialog, setStatusDialog] = useState<null | { target: MemberStatus }>(null);
+  const [stkOpen, setStkOpen] = useState(false);
 
   if (loadingMember) {
     return (
@@ -116,14 +141,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="text-center py-16">
         <p className="text-muted-foreground">Member not found.</p>
-        <Link href="/members"><Button variant="outline" className="mt-4">Back to Members</Button></Link>
+        <Link href="/members">
+          <Button variant="outline" className="mt-4">
+            Back to Members
+          </Button>
+        </Link>
       </div>
     );
   }
 
   const m = member;
   const contributions = contribData?.items ?? [];
-  const loans         = loanData?.items ?? [];
+  const loans = loanData?.items ?? [];
   // Server-computed lifetime totals (members.service.ts's getById), not a
   // reduction over the 10-row contributions/loans page fetched above for
   // the activity lists further down this page — the page-size reduction
@@ -137,7 +166,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <Link href="/members" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/members"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft size={16} /> Back to Members
       </Link>
 
@@ -159,15 +191,35 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 <StatusPill status={currentStatus} />
               </div>
               <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                {m.phone && <span className="flex items-center gap-1"><Phone size={13} /> {m.phone}</span>}
-                {m.alternative_phone && (
-                  <span className="flex items-center gap-1"><Phone size={13} /> Alt: {m.alternative_phone}</span>
+                {m.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone size={13} /> {m.phone}
+                  </span>
                 )}
-                {m.email   && <span className="flex items-center gap-1"><Mail size={13} /> {m.email}</span>}
-                {m.address && <span className="flex items-center gap-1"><MapPin size={13} /> {m.address}</span>}
-                {m.occupation && <span className="flex items-center gap-1"><Briefcase size={13} /> {m.occupation}</span>}
+                {m.alternative_phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone size={13} /> Alt: {m.alternative_phone}
+                  </span>
+                )}
+                {m.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail size={13} /> {m.email}
+                  </span>
+                )}
+                {m.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={13} /> {m.address}
+                  </span>
+                )}
+                {m.occupation && (
+                  <span className="flex items-center gap-1">
+                    <Briefcase size={13} /> {m.occupation}
+                  </span>
+                )}
                 {m.joined_at && (
-                  <span className="flex items-center gap-1"><Calendar size={13} /> Joined {formatDate(m.joined_at)}</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={13} /> Joined {formatDate(m.joined_at)}
+                  </span>
                 )}
               </div>
             </div>
@@ -259,7 +311,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                       <div>
                         <p className="font-medium">{formatDate(c.contribution_date)}</p>
                         <p className="text-xs text-muted-foreground capitalize">
-                          {c.payment_method?.replace('_',' ')}
+                          {c.payment_method?.replace('_', ' ')}
                         </p>
                       </div>
                       <div className="text-right">
@@ -372,11 +424,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         onApplied={() => qc.invalidateQueries({ queryKey: memberKeys.detail(id) })}
       />
 
-      <StkPromptDialog
-        open={stkOpen}
-        onClose={() => setStkOpen(false)}
-        member={{ name: fullName, phone: m.phone }}
-      />
+      <StkPromptDialog open={stkOpen} onClose={() => setStkOpen(false)} member={{ name: fullName, phone: m.phone }} />
     </div>
   );
 }
@@ -404,19 +452,27 @@ function KinRow({ memberId, kin }: { memberId: string; kin: NextOfKin }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-medium truncate">{kin.full_name}</p>
-          {kin.priority === 1 && <Badge variant="success" className="text-xs">Primary</Badge>}
-          <Badge variant="outline" className="text-xs capitalize">{kin.relationship.replace('_',' ')}</Badge>
+          {kin.priority === 1 && (
+            <Badge variant="success" className="text-xs">
+              Primary
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-xs capitalize">
+            {kin.relationship.replace('_', ' ')}
+          </Badge>
         </div>
         <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-3">
           <span>📱 {kin.phone}</span>
           {kin.alternative_phone && <span>Alt: {kin.alternative_phone}</span>}
-          {kin.email   && <span>✉ {kin.email}</span>}
+          {kin.email && <span>✉ {kin.email}</span>}
           {kin.address && <span>📍 {kin.address}</span>}
         </div>
         {kin.notes && <p className="text-xs text-muted-foreground mt-1 italic">{kin.notes}</p>}
       </div>
       <Button
-        size="sm" variant="ghost" type="button"
+        size="sm"
+        variant="ghost"
+        type="button"
         onClick={() => setConfirmOpen(true)}
         disabled={del.isPending}
         aria-label={`Remove ${kin.full_name}`}
@@ -453,7 +509,10 @@ interface KinFormValues {
 }
 
 function AddKinDialog({
-  open, onClose, memberId, existingPrimary,
+  open,
+  onClose,
+  memberId,
+  existingPrimary,
 }: {
   open: boolean;
   onClose: () => void;
@@ -462,7 +521,12 @@ function AddKinDialog({
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<KinFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<KinFormValues>({
     defaultValues: {
       priority: existingPrimary ? 2 : 1,
       relationship: 'spouse',
@@ -493,9 +557,19 @@ function AddKinDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          reset();
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Add emergency contact</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Add emergency contact</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div className="space-y-1">
             <Label>Full name</Label>
@@ -527,7 +601,9 @@ function AddKinDialog({
                 {...register('priority', { valueAsNumber: true })}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value={1} disabled={existingPrimary}>1 — Primary{existingPrimary ? ' (already set)' : ''}</option>
+                <option value={1} disabled={existingPrimary}>
+                  1 — Primary{existingPrimary ? ' (already set)' : ''}
+                </option>
                 <option value={2}>2 — Secondary</option>
                 <option value={3}>3 — Tertiary</option>
                 <option value={4}>4 — Other</option>
@@ -543,15 +619,21 @@ function AddKinDialog({
               <Input placeholder="0712345678" {...register('alternativePhone')} />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label>Email <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>
+                Email <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Input type="email" {...register('email')} />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label>Address <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>
+                Address <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Input {...register('address')} />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label>National ID <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>
+                National ID <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Input {...register('nationalId')} />
             </div>
             <div className="space-y-1 sm:col-span-2">
@@ -560,8 +642,19 @@ function AddKinDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Cancel</Button>
-            <Button type="submit" loading={isSubmitting || create.isPending}>Add contact</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting || create.isPending}>
+              Add contact
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -572,18 +665,21 @@ function AddKinDialog({
 // ─── Status transition dialog ───────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
-  active:      'Reactivate',
-  archived:    'Archive',
-  suspended:   'Suspend',
+  active: 'Reactivate',
+  archived: 'Archive',
+  suspended: 'Suspend',
   blacklisted: 'Blacklist',
-  exited:      'Mark as exited',
-  rejected:    'Reject',
+  exited: 'Mark as exited',
+  rejected: 'Reject',
 };
 
 const REASON_REQUIRED = new Set(['suspended', 'rejected', 'blacklisted', 'exited']);
 
 function StatusDialog({
-  memberId, target, onClose, onApplied,
+  memberId,
+  target,
+  onClose,
+  onApplied,
 }: {
   memberId: string;
   target: MemberStatus | null;
@@ -609,10 +705,15 @@ function StatusDialog({
   const reasonRequired = target ? REASON_REQUIRED.has(target) : false;
 
   return (
-    <Dialog open={!!target} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={!!target}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>{target ? STATUS_LABELS[target] ?? `Change to ${target}` : ''}</DialogTitle>
+          <DialogTitle>{target ? (STATUS_LABELS[target] ?? `Change to ${target}`) : ''}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -621,15 +722,19 @@ function StatusDialog({
           </p>
           <div className="space-y-1">
             <Label>Reason {reasonRequired && <span className="text-destructive">*</span>}</Label>
-            <Input
-              placeholder="Why?"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
+            <Input placeholder="Why?" value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => { setReason(''); onClose(); }}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setReason('');
+              onClose();
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={() => apply.mutate()}
             disabled={apply.isPending || (reasonRequired && reason.trim().length === 0)}

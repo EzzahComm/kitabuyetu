@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { fiscalPeriodsService } from '@/lib/services/fiscal-periods.service';
@@ -9,7 +9,7 @@ import { ok } from '@/lib/utils/response';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
     const { id } = await params;
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const input = ReopenPeriodSchema.parse(await req.json());
     return ok(await fiscalPeriodsService.reopen(ctx, id, input));
   });

@@ -54,7 +54,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
             {campaign.status === 'active' && (
               <Button asChild variant="outline">
-                <Link href={`/fundraise/${campaign.slug}`} target="_blank">View public page</Link>
+                <Link href={`/fundraise/${campaign.slug}`} target="_blank">
+                  View public page
+                </Link>
               </Button>
             )}
           </div>
@@ -92,12 +94,16 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Story</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Story</CardTitle>
+        </CardHeader>
         <CardContent className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.story}</CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Donations ({donations?.length ?? 0})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Donations ({donations?.length ?? 0})</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           {!donations || donations.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-muted-foreground">No donations yet.</p>
@@ -106,7 +112,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               {donations.map((d) => (
                 <div key={d.id} className="flex items-center justify-between px-5 py-3 text-sm">
                   <div>
-                    <p className="font-medium">{d.is_anonymous ? 'Anonymous' : (d.donor_name || d.donor_phone)}</p>
+                    <p className="font-medium">{d.is_anonymous ? 'Anonymous' : d.donor_name || d.donor_phone}</p>
                     {d.message && <p className="text-xs text-muted-foreground">&ldquo;{d.message}&rdquo;</p>}
                   </div>
                   <div className="text-right">
@@ -120,7 +126,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         </CardContent>
       </Card>
 
-      <Link href="/campaigns" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/campaigns"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to campaigns
       </Link>
     </div>

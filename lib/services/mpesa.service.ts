@@ -44,14 +44,9 @@ export {
   handleC2BConfirmation,
 } from './mpesa-c2b.service';
 
-export {
-  type PaymentAccountHit,
-  lookupPaymentAccount,
-} from './mpesa-payment-accounts.service';
+export { type PaymentAccountHit, lookupPaymentAccount } from './mpesa-payment-accounts.service';
 
-export {
-  emitPaymentReceiptEvent,
-} from './mpesa-spine.service';
+export { emitPaymentReceiptEvent } from './mpesa-spine.service';
 
 export {
   logMpesaCallback,
@@ -64,26 +59,11 @@ export {
   queryBalance,
 } from './mpesa-callbacks.service';
 
-export {
-  type AirtimeParams,
-  type AirtimeResult,
-  initiateAirtime,
-  handleAirtimeResult,
-} from './mpesa-airtime.service';
+export { type AirtimeParams, type AirtimeResult, initiateAirtime, handleAirtimeResult } from './mpesa-airtime.service';
 
-export {
-  type UnroutedRow,
-  listUnrouted,
-  resolveUnrouted,
-} from './mpesa-unrouted.service';
+export { type UnroutedRow, listUnrouted, resolveUnrouted } from './mpesa-unrouted.service';
 
-export {
-  type B2CParams,
-  type B2CResult,
-  initiateB2C,
-  type B2CResultBody,
-  handleB2CResult,
-} from './mpesa-b2c.service';
+export { type B2CParams, type B2CResult, initiateB2C, type B2CResultBody, handleB2CResult } from './mpesa-b2c.service';
 
 export { handleB2BResult } from './mpesa-b2b.service';
 

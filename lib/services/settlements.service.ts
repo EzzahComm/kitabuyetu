@@ -18,35 +18,34 @@ import { recordApproval } from './settlement-approvals.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateSettlementInput {
-  bankAccountId:  string;
-  amount:         number;
+  bankAccountId: string;
+  amount: number;
   idempotencyKey: string;
-  notes?:         string;
+  notes?: string;
 }
 
 export interface SettlementRow {
-  id:                        string;
-  group_id:                  string;
-  bank_account_id:           string;
-  amount:                    string;
-  status:                    string;
-  requested_by:              string | null;
-  requested_at:              Date;
+  id: string;
+  group_id: string;
+  bank_account_id: string;
+  amount: string;
+  status: string;
+  requested_by: string | null;
+  requested_at: Date;
   originator_conversation_id: string | null;
-  journal_entry_id:          string | null;
-  platform_fee:              string | null;
-  completed_at:              Date | null;
-  failure_reason:            string | null;
-  notes:                     string | null;
-  idempotency_key:           string | null;
+  journal_entry_id: string | null;
+  platform_fee: string | null;
+  completed_at: Date | null;
+  failure_reason: string | null;
+  notes: string | null;
+  idempotency_key: string | null;
   /** Reconciliation tag only — see the write site for why. Migration 134. */
-  source_account:            string | null;
+  source_account: string | null;
   /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
-  reconciled_at:             Date | null;
+  reconciled_at: Date | null;
 }
 
 export const settlementsService = {
-
   async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<SettlementRow> {
     if (!(input.amount > 0)) throw new ValidationError('Amount must be positive');
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
@@ -101,7 +100,15 @@ export const settlementsService = {
            (group_id, bank_account_id, amount, status, requested_by, idempotency_key, notes, source_account)
          VALUES ($1,$2,$3,'pending_approval',$4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, input.bankAccountId, input.amount.toFixed(2), ctx.userId, input.idempotencyKey, input.notes ?? null, sourceAccount],
+        [
+          ctx.groupId,
+          input.bankAccountId,
+          input.amount.toFixed(2),
+          ctx.userId,
+          input.idempotencyKey,
+          input.notes ?? null,
+          sourceAccount,
+        ],
       );
       const settlement = inserted[0];
 
@@ -142,8 +149,10 @@ export const settlementsService = {
       const prev = rows[0];
 
       await recordApproval(db, ctx, {
-        subjectType: 'settlement', subjectId: id,
-        initiatedBy: prev.requested_by ?? '', decision: 'approved',
+        subjectType: 'settlement',
+        subjectId: id,
+        initiatedBy: prev.requested_by ?? '',
+        decision: 'approved',
       });
 
       const { rows: updated } = await db.query<SettlementRow>(
@@ -187,18 +196,18 @@ export const settlementsService = {
       const prev = rows[0];
 
       await recordApproval(db, ctx, {
-        subjectType: 'settlement', subjectId: id,
-        initiatedBy: prev.requested_by ?? '', decision: 'rejected', reason,
+        subjectType: 'settlement',
+        subjectId: id,
+        initiatedBy: prev.requested_by ?? '',
+        decision: 'rejected',
+        reason,
       });
 
-      const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [ctx.groupId],
-      );
+      const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
+        ctx.groupId,
+      ]);
       if (acctRows[0]) {
-        await db.query(
-          `SELECT adjust_account_reserved_amount($1, $2)`,
-          [acctRows[0].id, `-${prev.amount}`],
-        );
+        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${prev.amount}`]);
       }
 
       const { rows: updated } = await db.query<SettlementRow>(
@@ -277,11 +286,15 @@ export async function findStuckSettlements(): Promise<{
        LIMIT  20`,
     );
     const samples = rows.map((r) => ({
-      id: r.id, groupId: r.group_id, amount: r.amount, ageMinutes: Math.round(Number(r.age_minutes)),
+      id: r.id,
+      groupId: r.group_id,
+      amount: r.amount,
+      ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
       logger.error('[settlements] stuck B2B sweeps — no result callback received', {
-        count: samples.length, samples: samples.slice(0, 5),
+        count: samples.length,
+        samples: samples.slice(0, 5),
       });
     }
     return { count: samples.length, samples };
@@ -296,8 +309,12 @@ export async function findStuckSettlements(): Promise<{
 async function dispatchSettlement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; bank_account_id: string;
-      bank_shortcode: string; bank_account_number: string;
+      id: string;
+      group_id: string;
+      amount: string;
+      bank_account_id: string;
+      bank_shortcode: string;
+      bank_account_number: string;
     }>(
       `UPDATE settlement_requests sr
        SET    status = 'processing'
@@ -314,18 +331,18 @@ async function dispatchSettlement(id: string): Promise<void> {
   try {
     const { initiateB2B } = await import('./daraja.service');
     const res = await initiateB2B({
-      amount:             parseFloat(claimed.amount),
-      receiverShortcode:  claimed.bank_shortcode,
+      amount: parseFloat(claimed.amount),
+      receiverShortcode: claimed.bank_shortcode,
       receiverIdentifier: '4',
-      commandId:          'BusinessPayBill',
-      accountReference:   claimed.bank_account_number.slice(0, 20),
-      remarks:            'Group settlement sweep',
+      commandId: 'BusinessPayBill',
+      accountReference: claimed.bank_account_number.slice(0, 20),
+      remarks: 'Group settlement sweep',
     });
     await withAdminDb(async (db) => {
-      await db.query(
-        `UPDATE settlement_requests SET originator_conversation_id = $2 WHERE id = $1`,
-        [claimed.id, res.originatorConversationId],
-      );
+      await db.query(`UPDATE settlement_requests SET originator_conversation_id = $2 WHERE id = $1`, [
+        claimed.id,
+        res.originatorConversationId,
+      ]);
 
       // Record audit log for settlement dispatch
       await db.query(
@@ -348,12 +365,13 @@ async function dispatchSettlement(id: string): Promise<void> {
     await triggerDisbursementWatchdog({ kind: 'settlement', rowId: claimed.id });
   } catch (err) {
     logger.error('[settlements] dispatch failed before Daraja accepted the request', {
-      settlementId: id, err: String(err),
+      settlementId: id,
+      err: String(err),
     });
     await withAdminDb(async (db) => {
-      const { rows: acctRows } = await db.query<{ id: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`, [claimed.group_id],
-      );
+      const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
+        claimed.group_id,
+      ]);
       if (acctRows[0]) {
         await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${claimed.amount}`]);
       }

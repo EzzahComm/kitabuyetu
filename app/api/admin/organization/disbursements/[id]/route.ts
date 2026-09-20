@@ -17,8 +17,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   return withOrganizationAccess(req, 'organization.disbursements.manage', async (auth) => {
     try {
       const input = ActionSchema.parse(await req.json());
-      const ctx   = {
-        userId: auth.userId, groupId: auth.groupId, role: auth.role,
+      const ctx = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
         organizationId: auth.organizationId,
       };
 

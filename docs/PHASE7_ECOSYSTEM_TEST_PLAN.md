@@ -16,6 +16,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Dashboard → Programs → Create New Program
 
 **Steps**:
+
 1. Navigate to `https://kitabuyetu.co.ke/dashboard/programs`
 2. Fill program creation form:
    - Program Name: "School Building Initiative"
@@ -32,6 +33,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 6. Verify program does NOT appear in public listing
 
 **Expected State**:
+
 - `programs.status = 'draft'`
 - `programs.created_by = current_user_id`
 - `programs.organization_id = current_org_id`
@@ -44,12 +46,14 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Dashboard → Programs → View Details (from Draft tab) → Submit for Review
 
 **Steps**:
+
 1. In "Draft" programs tab, click "View Details" on newly created program
 2. Click "Submit for Review" button
 3. Verify confirmation toast
 4. Verify program moves to "All" tab with status badge "Pending"
 
 **Expected State**:
+
 - `programs.status = 'pending_review'`
 - Audit log entry: `{action: 'program_submitted_for_review', ...}`
 
@@ -61,6 +65,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Admin → Program Review → Pending Programs
 
 **Steps**:
+
 1. Login as super admin (e.g., test@ezzahcomm.com with super_admin role)
 2. Navigate to `https://kitabuyetu.co.ke/admin/programs`
 3. Verify pending program card displays:
@@ -73,6 +78,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 6. Verify program disappears from queue
 
 **Expected State**:
+
 - `programs.status = 'active'`
 - `programs.reviewed_by = admin_user_id`
 - `programs.reviewed_at = current_timestamp`
@@ -86,6 +92,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Admin → Program Review → Pending Programs
 
 **Steps** (for alternative flow):
+
 1. Navigate to `https://kitabuyetu.co.ke/admin/programs`
 2. Click "Reject" button on pending program
 3. Details section expands, reveal textarea for rejection reason
@@ -94,6 +101,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 6. Verify toast confirmation
 
 **Expected State**:
+
 - `programs.status = 'rejected'`
 - `programs.rejection_reason = 'Missing required documentation'`
 - Audit log entry: `{action: 'program_rejected', changes: {reason: ...}}`
@@ -106,6 +114,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Marketing site → Ecosystem → Programs
 
 **Steps**:
+
 1. Navigate to `https://kitabuyetu.co.ke/ecosystem/programs` (or from public nav)
 2. Verify page title: "Support Programs"
 3. Verify grid displays only active programs
@@ -117,6 +126,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
    - Sticky sidebar: Support button, donation form, top supporters
 
 **Expected State**:
+
 - Only programs with `status = 'active'` are listed
 - Page is publicly accessible (no auth required)
 - Metadata: title = program.name, description = program.description
@@ -131,6 +141,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Steps**:
 
 **6a. Initiate Donation**:
+
 1. On program detail page, click "Support [Program Name]" button
 2. Donation form opens inline with fields:
    - Phone Number: "254712345678"
@@ -143,21 +154,22 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 5. Verify form shows loading state: "Waiting for payment..."
 
 **6b. M-Pesa Payment Callback** (simulated):
+
 - M-Pesa STK appears on phone
 - User enters PIN and confirms payment
 - Safaricom sends callback to `/api/webhooks/mpesa/stk-callback`
 - Callback handler verifies receipt, posts ledger entry, updates `campaign_donations.status = 'completed'`
 - Webhook updates `programs.amount_raised += 1000`
 
-**6c. Completion Poll**:
-6. Form continues polling `/api/v1/donations/{donationId}` every 5 seconds
-7. When poll detects `status = 'completed'`:
-   - Toast: "Donation received! Thank you for your support."
-   - Form resets & closes
-   - Page updates to show new donation count in leaderboard
-   - `programs.amount_raised` increments in display
+**6c. Completion Poll**: 6. Form continues polling `/api/v1/donations/{donationId}` every 5 seconds 7. When poll detects `status = 'completed'`:
+
+- Toast: "Donation received! Thank you for your support."
+- Form resets & closes
+- Page updates to show new donation count in leaderboard
+- `programs.amount_raised` increments in display
 
 **Expected State**:
+
 - `campaign_donations` row created with:
   - `status = 'pending'` initially, → `'completed'` after STK callback
   - `donor_name = 'Jane Donor'` (or NULL if anonymous)
@@ -177,12 +189,14 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: POST `/api/v1/donations`
 
 **Steps**:
+
 1. Send 11 donation requests in rapid succession, all from same phone + IP
 2. 10th request succeeds (status 200)
 3. 11th request returns 429 Too Many Requests
 4. Verify rate limit resets after 1 hour window
 
 **Expected State**:
+
 - Rate limit key: `{phone}:{ip}`
 - Limit: 10 donations per hour per phone+IP combination
 - Response header: `Retry-After: 3600`
@@ -195,6 +209,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Program detail sidebar OR `/ecosystem/donors`
 
 **Steps**:
+
 1. On program detail page, scroll to "Top Supporters" card (right sidebar)
 2. Verify leaderboard displays:
    - Rank (1, 2, 3, ...)
@@ -208,6 +223,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 6. Verify only non-anonymous donors appear
 
 **Expected State**:
+
 - Donors ordered by `total_donated DESC`
 - Limited to top 5-10 per leaderboard (configurable)
 - Anonymous donors excluded from public listing
@@ -221,6 +237,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: Dashboard → Ecosystem (or new section)
 
 **Steps** (if built):
+
 1. Navigate to organization impact summary
 2. Verify key stats:
    - Total Donated: aggregate of all `donations.amount` for org's programs
@@ -231,6 +248,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
    - Example: "Students Reached: 87/150 (58%)"
 
 **Expected State**:
+
 - Stats computed from `donations`, `donors`, `impact_metrics`
 - Updates reflect recent donations within 30s (Redis TTL)
 
@@ -242,6 +260,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 **Path**: `/api/webhooks/mpesa/stk-callback` → ledger posting
 
 **Steps**:
+
 1. Trigger STK callback for completed donation (1000 KES)
 2. Query ledger: `SELECT * FROM journal_lines WHERE reference_id = '{donation_id}'`
 3. Verify two rows exist:
@@ -250,6 +269,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 4. Verify balance sheet: `1001 = 4001` (double-entry maintained)
 
 **Expected State**:
+
 - Ledger entries posted atomically with donation status update
 - Account codes hardcoded: 1001 (Cash), 4001 (Donor Contributions)
 - If account codes missing in chart of accounts, donation still recorded (warning logged)
@@ -295,6 +315,7 @@ Complete end-to-end testing for the Ecosystem foundation (programs, donors, impa
 ## Rollback Plan
 
 If production issues found:
+
 1. Revert last 6 commits: `git revert 0f088a5...99db22b`
 2. Delete new tables: migrations to add `DROP TABLE IF EXISTS` for all 8 tables
 3. Remove API routes + UI pages

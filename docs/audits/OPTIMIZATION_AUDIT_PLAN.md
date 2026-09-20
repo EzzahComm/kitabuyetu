@@ -1,8 +1,8 @@
 # Optimization & correctness audit — plan
 
-**Goal:** verify that the platform's functionality is *accurate*, not merely present — and that it stays fast as real groups accumulate data.
+**Goal:** verify that the platform's functionality is _accurate_, not merely present — and that it stays fast as real groups accumulate data.
 
-**Method (non-negotiable, learned the hard way this month):** every finding is reproduced against the production database inside a rolled-back transaction before it is reported, and every fix is re-verified the same way. Reading code is how findings are *located*; running them is how they are *confirmed*. Three of today's four confirmed defects looked fine in the source.
+**Method (non-negotiable, learned the hard way this month):** every finding is reproduced against the production database inside a rolled-back transaction before it is reported, and every fix is re-verified the same way. Reading code is how findings are _located_; running them is how they are _confirmed_. Three of today's four confirmed defects looked fine in the source.
 
 ---
 
@@ -10,12 +10,12 @@
 
 Today's hardening pass found four real defects. They were not random — they share shapes, and those shapes tell us where else to look:
 
-| Defect | Shape |
-|---|---|
-| `computeTotalRepayable` divided by 12 | **A formula implemented twice**, one copy drifting |
-| Loan CSV import aborted at COMMIT | **A deferred constraint** firing outside the error handler's scope |
-| Every plan granted 50 SMS | **A column never set**, silently taking its default |
-| Retried SMS delivered free | **A state machine with an unhandled edge** (reserve → release → deliver) |
+| Defect                                | Shape                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `computeTotalRepayable` divided by 12 | **A formula implemented twice**, one copy drifting                       |
+| Loan CSV import aborted at COMMIT     | **A deferred constraint** firing outside the error handler's scope       |
+| Every plan granted 50 SMS             | **A column never set**, silently taking its default                      |
+| Retried SMS delivered free            | **A state machine with an unhandled edge** (reserve → release → deliver) |
 
 The audit hunts those four shapes deliberately, rather than re-reading everything at uniform depth.
 
@@ -34,7 +34,7 @@ The `computeTotalRepayable` bug existed because one formula lived in two places 
 
 The SMS allowance was wrong for every customer because two INSERTs omitted a column.
 
-- Enumerate every `INSERT` against a table with `NOT NULL DEFAULT` columns and check whether the default is *intended* or *accidental*.
+- Enumerate every `INSERT` against a table with `NOT NULL DEFAULT` columns and check whether the default is _intended_ or _accidental_.
 - Particular focus on money and entitlement columns: rates, fees, limits, allowances, tenors, `interest_method`.
 - Cross-check what the marketing surfaces promise (`PLAN_COPY`, pricing page, feature lists) against what the system actually stores and enforces. `"Higher SMS allowance"` was advertised for months and never delivered.
 
@@ -69,7 +69,7 @@ Correctness first, but this is where "stays working" lives.
 `getEffectiveLoanTerms()` had **zero callers** while the UI displayed its result — the policy was decorative and loans silently took a column default instead.
 
 - Exported functions with no callers, especially in services (that is how the loan-policy bug hid).
-- Config and policy values that are *read and displayed* but never *enforced*. `maxTermMonths` and `loanMultiplier` are known instances, deliberately advisory — confirm nothing else is accidentally so.
+- Config and policy values that are _read and displayed_ but never _enforced_. `maxTermMonths` and `loanMultiplier` are known instances, deliberately advisory — confirm nothing else is accidentally so.
 - Feature flags, env vars, and columns referenced nowhere.
 
 ## Phase 7 — Group-configured contribution splitting (shares / savings / welfare)

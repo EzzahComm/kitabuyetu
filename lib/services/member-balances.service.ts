@@ -13,18 +13,18 @@
 import type { PoolClient } from 'pg';
 
 export interface MemberFinancialSnapshot {
-  memberId:              string;
-  savings:                number;
-  loanBalance:            number;
-  shares:                 number;
-  contributedThisPeriod:  number;
+  memberId: string;
+  savings: number;
+  loanBalance: number;
+  shares: number;
+  contributedThisPeriod: number;
 }
 
 interface SnapshotRow {
-  member_id:               string;
-  savings:                 string;
-  loan_balance:            string;
-  shares:                  string;
+  member_id: string;
+  savings: string;
+  loan_balance: string;
+  shares: string;
   contributed_this_period: string;
 }
 
@@ -73,10 +73,10 @@ export async function computeMemberFinancialSnapshot(
   );
 
   return rows.map((r) => ({
-    memberId:              r.member_id,
-    savings:                parseFloat(r.savings),
-    loanBalance:            parseFloat(r.loan_balance),
-    shares:                 parseFloat(r.shares),
-    contributedThisPeriod:  parseFloat(r.contributed_this_period),
+    memberId: r.member_id,
+    savings: parseFloat(r.savings),
+    loanBalance: parseFloat(r.loan_balance),
+    shares: parseFloat(r.shares),
+    contributedThisPeriod: parseFloat(r.contributed_this_period),
   }));
 }

@@ -2,7 +2,7 @@ import type { SubscriptionProduct } from '@/types/enums';
 
 /** What a session is entitled to. Both optional — callers that have neither get the old behaviour. */
 export interface PostLoginEntitlements {
-  products?:      SubscriptionProduct[];
+  products?: SubscriptionProduct[];
   signupProduct?: SubscriptionProduct;
 }
 
@@ -30,15 +30,13 @@ export interface PostLoginEntitlements {
  * landing on /dashboard — the reminder portal is reachable from there, and
  * demoting a full customer to the lighter product would be a downgrade.
  */
-export function postLoginPath(
-  groupRole?: string,
-  entitlements?: PostLoginEntitlements,
-): string {
+export function postLoginPath(groupRole?: string, entitlements?: PostLoginEntitlements): string {
   const products = entitlements?.products ?? [];
 
-  const reminderOnly = !products.includes('kitabu_yetu')
-    && (products.includes('chama_reminder')
-        || (products.length === 0 && entitlements?.signupProduct === 'chama_reminder'));
+  const reminderOnly =
+    !products.includes('kitabu_yetu') &&
+    (products.includes('chama_reminder') ||
+      (products.length === 0 && entitlements?.signupProduct === 'chama_reminder'));
 
   if (reminderOnly) return '/reminder';
 

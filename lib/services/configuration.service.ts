@@ -18,13 +18,13 @@ import type { PoolClient } from 'pg';
 
 export interface PolicyScope {
   organizationId?: string | null;
-  groupId?:        string | null;
+  groupId?: string | null;
 }
 
 interface PolicyRow {
   organization_id: string | null;
-  group_id:        string | null;
-  value:           unknown;
+  group_id: string | null;
+  value: unknown;
 }
 
 const specificity = (r: { organization_id: string | null; group_id: string | null }): number =>
@@ -33,7 +33,7 @@ const specificity = (r: { organization_id: string | null; group_id: string | nul
 export type PolicySource = 'group' | 'organization' | 'platform';
 
 export interface ResolvedPolicy<T> {
-  value:  T;
+  value: T;
   source: PolicySource;
 }
 
@@ -47,11 +47,11 @@ export interface ResolvedPolicy<T> {
  * floor for domains that haven't seeded one yet.
  */
 export async function resolvePolicyDetailed<T>(
-  client:     PoolClient,
-  domain:     string,
-  policyKey:  string,
-  scope:      PolicyScope,
-  fallback:   T,
+  client: PoolClient,
+  domain: string,
+  policyKey: string,
+  scope: PolicyScope,
+  fallback: T,
 ): Promise<ResolvedPolicy<T>> {
   const { rows } = await client.query<PolicyRow>(
     `SELECT organization_id, group_id, value FROM policies
@@ -76,11 +76,11 @@ export async function resolvePolicyDetailed<T>(
 
 /** Convenience wrapper over resolvePolicyDetailed for callers that only need the value. */
 export async function resolvePolicy<T>(
-  client:     PoolClient,
-  domain:     string,
-  policyKey:  string,
-  scope:      PolicyScope,
-  fallback:   T,
+  client: PoolClient,
+  domain: string,
+  policyKey: string,
+  scope: PolicyScope,
+  fallback: T,
 ): Promise<T> {
   return (await resolvePolicyDetailed(client, domain, policyKey, scope, fallback)).value;
 }
@@ -93,15 +93,15 @@ export async function resolvePolicy<T>(
  * cascade only cares about these three shapes.
  */
 export async function setPolicy(
-  client:     PoolClient,
-  domain:     string,
-  policyKey:  string,
-  scope:      PolicyScope,
-  value:      unknown,
-  createdBy:  string | null,
+  client: PoolClient,
+  domain: string,
+  policyKey: string,
+  scope: PolicyScope,
+  value: unknown,
+  createdBy: string | null,
 ): Promise<{ id: string; version: number }> {
   const organizationId = scope.organizationId ?? null;
-  const groupId         = scope.groupId ?? null;
+  const groupId = scope.groupId ?? null;
 
   const { rows: existing } = await client.query<{ id: string; version: number; value: unknown }>(
     `SELECT id, version, value FROM policies
@@ -113,10 +113,7 @@ export async function setPolicy(
   );
 
   if (existing[0]) {
-    await client.query(
-      `UPDATE policies SET is_active = false, effective_to = NOW() WHERE id = $1`,
-      [existing[0].id],
-    );
+    await client.query(`UPDATE policies SET is_active = false, effective_to = NOW() WHERE id = $1`, [existing[0].id]);
   }
 
   const { rows } = await client.query<{ id: string; version: number }>(

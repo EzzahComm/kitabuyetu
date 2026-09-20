@@ -19,38 +19,44 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import {
-  LOAN_REPAYMENT_FREQUENCIES, installmentCount, type LoanRepaymentFrequency,
+  LOAN_REPAYMENT_FREQUENCIES,
+  installmentCount,
+  type LoanRepaymentFrequency,
 } from '@/lib/validators/loan.schema';
 import type { Loan } from '@/types/db.types';
 
 const FREQUENCY_LABELS: Record<LoanRepaymentFrequency, string> = {
-  weekly:    'Weekly',
-  biweekly:  'Every 2 weeks',
-  monthly:   'Monthly',
+  weekly: 'Weekly',
+  biweekly: 'Every 2 weeks',
+  monthly: 'Monthly',
   quarterly: 'Quarterly',
 };
 
 type LoanRow = Loan & { member_name: string };
 
 const applySchema = z.object({
-  memberId:       z.string().min(1),
+  memberId: z.string().min(1),
   principalAmount: z.coerce.number().positive().min(100),
   // Annual. Mirrors CreateLoanSchema's 300 ceiling — a tighter bound here just
   // blocks the value client-side before the server ever sees it.
-  interestRate:   z.coerce.number().positive().max(300),
-  loanTermMonths:     z.coerce.number().int().positive().max(120),
+  interestRate: z.coerce.number().positive().max(300),
+  loanTermMonths: z.coerce.number().int().positive().max(120),
   repaymentFrequency: z.enum(LOAN_REPAYMENT_FREQUENCIES),
-  purpose:        z.string().min(3),
+  purpose: z.string().min(3),
 });
 type ApplyValues = z.infer<typeof applySchema>;
 
 export default function LoansPage() {
-  const [page, setPage]   = useState(1);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState('all');
-  const [open, setOpen]   = useState(false);
-  const { toast }         = useToast();
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
 
-  const { data, isLoading, isError, error } = useLoans({ page, pageSize: 20, status: status === 'all' ? undefined : status });
+  const { data, isLoading, isError, error } = useLoans({
+    page,
+    pageSize: 20,
+    status: status === 'all' ? undefined : status,
+  });
   // pageSize is not a param the members API accepts (silently dropped by
   // zod's non-strict parse, leaving `limit` at its default of 20) — matches
   // the working contributions/page.tsx precedent (docs/audits/
@@ -67,7 +73,13 @@ export default function LoansPage() {
   // free-text term box for policies written before term options existed.
   const termOptions = policyTerms?.termOptions ?? [];
 
-  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<ApplyValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<ApplyValues>({
     resolver: zodResolver(applySchema),
     defaultValues: { interestRate: 10, loanTermMonths: 12, repaymentFrequency: 'monthly' },
   });
@@ -84,9 +96,12 @@ export default function LoansPage() {
       // Prefer the longest offered term, which is what the old
       // min(maxTermMonths, 12) effectively picked; fall back to the ceiling
       // when no fixed durations are declared.
-      loanTermMonths:   termOptions.length > 0
-                          ? termOptions[termOptions.length - 1]
-                          : policyTerms ? Math.min(policyTerms.maxTermMonths, 12) : 12,
+      loanTermMonths:
+        termOptions.length > 0
+          ? termOptions[termOptions.length - 1]
+          : policyTerms
+            ? Math.min(policyTerms.maxTermMonths, 12)
+            : 12,
       repaymentFrequency: 'monthly',
     } as Partial<ApplyValues> as ApplyValues);
     setOpen(true);
@@ -105,7 +120,8 @@ export default function LoansPage() {
 
   const columns = [
     {
-      key: 'id', header: 'Loan',
+      key: 'id',
+      header: 'Loan',
       render: (row: LoanRow) => (
         <Link href={`/loans/${row.id}`} className="font-mono text-xs text-brand-600 hover:underline">
           {row.id.slice(0, 8)}…
@@ -113,17 +129,28 @@ export default function LoansPage() {
       ),
     },
     { key: 'memberName', header: 'Member', render: (row: LoanRow) => row.member_name ?? row.member_id },
-    { key: 'principalAmount', header: 'Principal', render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span> },
+    {
+      key: 'principalAmount',
+      header: 'Principal',
+      render: (row: LoanRow) => <span className="font-semibold">{formatKES(row.principal_amount)}</span>,
+    },
     { key: 'interestRate', header: 'Rate', render: (row: LoanRow) => `${row.interest_rate}% p.a.` },
     {
-      key: 'term', header: 'Term',
+      key: 'term',
+      header: 'Term',
       render: (row: LoanRow) =>
-        `${row.loan_term_months}m${row.repayment_frequency && row.repayment_frequency !== 'monthly'
-          ? ` · ${FREQUENCY_LABELS[row.repayment_frequency].toLowerCase()}`
-          : ''}`,
+        `${row.loan_term_months}m${
+          row.repayment_frequency && row.repayment_frequency !== 'monthly'
+            ? ` · ${FREQUENCY_LABELS[row.repayment_frequency].toLowerCase()}`
+            : ''
+        }`,
     },
     { key: 'status', header: 'Status', render: (row: LoanRow) => <StatusPill status={row.status} /> },
-    { key: 'disbursedAt', header: 'Disbursed', render: (row: LoanRow) => row.disbursed_at ? formatDate(row.disbursed_at) : '—' },
+    {
+      key: 'disbursedAt',
+      header: 'Disbursed',
+      render: (row: LoanRow) => (row.disbursed_at ? formatDate(row.disbursed_at) : '—'),
+    },
   ];
 
   return (
@@ -138,27 +165,50 @@ export default function LoansPage() {
         }
       />
 
-      <Tabs value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+      <Tabs
+        value={status}
+        onValueChange={(v) => {
+          setStatus(v);
+          setPage(1);
+        }}
+      >
         <TabsList>
-          {['all','pending','active','completed','defaulted'].map((s) => (
-            <TabsTrigger key={s} value={s} className="capitalize">{s}</TabsTrigger>
+          {['all', 'pending', 'active', 'completed', 'defaulted'].map((s) => (
+            <TabsTrigger key={s} value={s} className="capitalize">
+              {s}
+            </TabsTrigger>
           ))}
         </TabsList>
         <TabsContent value={status} className="mt-4">
-          <PaginatedTable data={data} isLoading={isLoading} isError={isError} error={error} columns={columns} onPageChange={setPage} emptyMessage="No loans found" />
+          <PaginatedTable
+            data={data}
+            isLoading={isLoading}
+            isError={isError}
+            error={error}
+            columns={columns}
+            onPageChange={setPage}
+            emptyMessage="No loans found"
+          />
         </TabsContent>
       </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Apply for loan</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Apply for loan</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <Label>Member</Label>
-              <select {...register('memberId')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+              <select
+                {...register('memberId')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
                 <option value="">Select member…</option>
                 {(membersData?.items ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                  <option key={m.id} value={m.id}>
+                    {m.first_name} {m.last_name}
+                  </option>
                 ))}
               </select>
               {errors.memberId && <p className="text-xs text-destructive">{errors.memberId.message}</p>}
@@ -181,7 +231,8 @@ export default function LoansPage() {
                 <Input type="number" step="0.1" {...register('interestRate')} />
                 {policyTerms && (
                   <p className="text-xs text-muted-foreground">
-                    Group default {policyTerms.interestRate}% per year ({policyTerms.interestMethod === 'flat' ? 'flat' : 'reducing balance'})
+                    Group default {policyTerms.interestRate}% per year (
+                    {policyTerms.interestMethod === 'flat' ? 'flat' : 'reducing balance'})
                   </p>
                 )}
               </div>
@@ -197,7 +248,9 @@ export default function LoansPage() {
                     {...register('loanTermMonths')}
                   >
                     {termOptions.map((t) => (
-                      <option key={t} value={t}>{t === 1 ? '1 month' : `${t} months`}</option>
+                      <option key={t} value={t}>
+                        {t === 1 ? '1 month' : `${t} months`}
+                      </option>
                     ))}
                   </select>
                 ) : (
@@ -219,7 +272,9 @@ export default function LoansPage() {
                 {...register('repaymentFrequency')}
               >
                 {LOAN_REPAYMENT_FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                  <option key={f} value={f}>
+                    {FREQUENCY_LABELS[f]}
+                  </option>
                 ))}
               </select>
               {/* The term stays in months whatever the cadence, so spell out
@@ -237,8 +292,12 @@ export default function LoansPage() {
               {errors.purpose && <p className="text-xs text-destructive">{errors.purpose.message}</p>}
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={isSubmitting}>Submit application</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                Submit application
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

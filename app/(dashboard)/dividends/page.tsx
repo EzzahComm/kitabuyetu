@@ -32,48 +32,59 @@ interface Declaration {
   total_paid: string;
   declared_at: string;
 }
-interface ShareClass { id: string; name: string; code: string }
+interface ShareClass {
+  id: string;
+  name: string;
+  code: string;
+}
 
 const fmtMoney = (v: string | number | null | undefined) =>
-  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(Number(v ?? 0));
+  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(
+    Number(v ?? 0),
+  );
 
 const POLICY_LABEL: Record<string, string> = {
   proportional_to_shares: 'Proportional to shares',
-  flat_per_member:        'Flat per member',
-  weighted:               'Weighted (coming in E5.2)',
+  flat_per_member: 'Flat per member',
+  weighted: 'Weighted (coming in E5.2)',
 };
 
 const newDeclSchema = z.object({
-  periodLabel:        z.string().min(2),
-  periodStart:        z.string().min(1),
-  periodEnd:          z.string().min(1),
-  poolAmount:         z.coerce.number().positive(),
-  policyType:         z.enum(['proportional_to_shares', 'flat_per_member']),
+  periodLabel: z.string().min(2),
+  periodStart: z.string().min(1),
+  periodEnd: z.string().min(1),
+  poolAmount: z.coerce.number().positive(),
+  policyType: z.enum(['proportional_to_shares', 'flat_per_member']),
   withholdingTaxRate: z.coerce.number().min(0).max(0.9999).default(0),
-  shareClassIds:      z.array(z.string()).default([]),
-  notes:              z.string().optional().or(z.literal('')),
+  shareClassIds: z.array(z.string()).default([]),
+  notes: z.string().optional().or(z.literal('')),
 });
 type NewDeclForm = z.infer<typeof newDeclSchema>;
 
 export default function DividendsPage() {
   const { toast } = useToast();
-  const qc        = useQueryClient();
-  const router    = useRouter();
+  const qc = useQueryClient();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const canManage = useHasPermission('dividends.manage');
 
   const listQ = useQuery<PaginatedResult<Declaration>>({
     queryKey: ['dividends', 'list', page],
-    queryFn:  () => api.get<PaginatedResult<Declaration>>(`/dividends?page=${page}&limit=20`),
+    queryFn: () => api.get<PaginatedResult<Declaration>>(`/dividends?page=${page}&limit=20`),
   });
   const classesQ = useQuery<{ items: ShareClass[] }>({
     queryKey: ['share-classes', 'active'],
-    queryFn:  () => api.get<{ items: ShareClass[] }>('/share-classes?active=true'),
-    enabled:  open,
+    queryFn: () => api.get<{ items: ShareClass[] }>('/share-classes?active=true'),
+    enabled: open,
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<NewDeclForm>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<NewDeclForm>({
     resolver: zodResolver(newDeclSchema),
     defaultValues: {
       policyType: 'proportional_to_shares',
@@ -87,9 +98,9 @@ export default function DividendsPage() {
       const body: Record<string, unknown> = {
         periodLabel: v.periodLabel,
         periodStart: v.periodStart,
-        periodEnd:   v.periodEnd,
-        poolAmount:  v.poolAmount,
-        policyType:  v.policyType,
+        periodEnd: v.periodEnd,
+        poolAmount: v.poolAmount,
+        policyType: v.policyType,
         withholdingTaxRate: v.withholdingTaxRate,
         shareClassIds: v.shareClassIds ?? [],
       };
@@ -100,7 +111,11 @@ export default function DividendsPage() {
       reset({ policyType: 'proportional_to_shares', withholdingTaxRate: 0, shareClassIds: [] });
       qc.invalidateQueries({ queryKey: ['dividends', 'list'] });
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Create failed', description: err instanceof ApiError ? err.message : 'Unknown error' });
+      toast({
+        variant: 'destructive',
+        title: 'Create failed',
+        description: err instanceof ApiError ? err.message : 'Unknown error',
+      });
     }
   };
 
@@ -129,33 +144,81 @@ export default function DividendsPage() {
         emptyIcon={Coins}
         emptyDescription="Create one to start distributing earnings to shareholders."
         columns={[
-          { key: 'period', header: 'Period', render: (d) => (
-            <div>
-              <p className="font-medium">{d.period_label}</p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(d.period_start).toLocaleDateString()} → {new Date(d.period_end).toLocaleDateString()}
-              </p>
-            </div>
-          ) },
-          { key: 'policy', header: 'Policy', render: (d) => <span className="text-xs text-muted-foreground">{POLICY_LABEL[d.policy_type] ?? d.policy_type}</span> },
-          { key: 'status', header: 'Status', render: (d) => <StatusPill status={d.status} tone={d.status === 'pending_approval' ? 'pending' : undefined} /> },
-          { key: 'pool', header: 'Pool', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.pool_amount)}</span> },
-          { key: 'members', header: 'Members', className: 'text-right', render: (d) => <span className="font-mono">{d.total_eligible_members || '—'}</span> },
-          { key: 'allocated', header: 'Allocated', className: 'text-right', render: (d) => <span className="font-mono">{fmtMoney(d.total_allocated)}</span> },
-          { key: 'paid', header: 'Paid', className: 'text-right', render: (d) => {
-            const allocated = Number(d.total_allocated);
-            const paid      = Number(d.total_paid);
-            const pct       = allocated > 0 ? Math.round((paid / allocated) * 100) : 0;
-            return <span className="font-mono">{fmtMoney(d.total_paid)} <span className="text-xs text-muted-foreground">({pct}%)</span></span>;
-          } },
+          {
+            key: 'period',
+            header: 'Period',
+            render: (d) => (
+              <div>
+                <p className="font-medium">{d.period_label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(d.period_start).toLocaleDateString()} → {new Date(d.period_end).toLocaleDateString()}
+                </p>
+              </div>
+            ),
+          },
+          {
+            key: 'policy',
+            header: 'Policy',
+            render: (d) => (
+              <span className="text-xs text-muted-foreground">{POLICY_LABEL[d.policy_type] ?? d.policy_type}</span>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (d) => (
+              <StatusPill status={d.status} tone={d.status === 'pending_approval' ? 'pending' : undefined} />
+            ),
+          },
+          {
+            key: 'pool',
+            header: 'Pool',
+            className: 'text-right',
+            render: (d) => <span className="font-mono">{fmtMoney(d.pool_amount)}</span>,
+          },
+          {
+            key: 'members',
+            header: 'Members',
+            className: 'text-right',
+            render: (d) => <span className="font-mono">{d.total_eligible_members || '—'}</span>,
+          },
+          {
+            key: 'allocated',
+            header: 'Allocated',
+            className: 'text-right',
+            render: (d) => <span className="font-mono">{fmtMoney(d.total_allocated)}</span>,
+          },
+          {
+            key: 'paid',
+            header: 'Paid',
+            className: 'text-right',
+            render: (d) => {
+              const allocated = Number(d.total_allocated);
+              const paid = Number(d.total_paid);
+              const pct = allocated > 0 ? Math.round((paid / allocated) * 100) : 0;
+              return (
+                <span className="font-mono">
+                  {fmtMoney(d.total_paid)} <span className="text-xs text-muted-foreground">({pct}%)</span>
+                </span>
+              );
+            },
+          },
         ]}
       />
 
       {/* New declaration modal */}
-      <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); setOpen(v); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) reset();
+          setOpen(v);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ReceiptText className="h-5 w-5" /> New dividend declaration</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ReceiptText className="h-5 w-5" /> New dividend declaration
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(onCreate)} className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
@@ -181,14 +244,24 @@ export default function DividendsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="policyType">Distribution policy</Label>
-                <select id="policyType" {...register('policyType')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <select
+                  id="policyType"
+                  {...register('policyType')}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
                   <option value="proportional_to_shares">Proportional to shares</option>
                   <option value="flat_per_member">Flat per member</option>
                 </select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="withholdingTaxRate">Withholding tax (0–0.9999)</Label>
-                <Input id="withholdingTaxRate" type="number" step={0.0001} placeholder="0.05 for 5%" {...register('withholdingTaxRate')} />
+                <Input
+                  id="withholdingTaxRate"
+                  type="number"
+                  step={0.0001}
+                  placeholder="0.05 for 5%"
+                  {...register('withholdingTaxRate')}
+                />
               </div>
             </div>
 
@@ -198,11 +271,15 @@ export default function DividendsPage() {
                 {(classesQ.data?.items ?? []).map((c) => (
                   <label key={c.id} className="flex items-center gap-2 text-sm">
                     <input type="checkbox" value={c.id} {...register('shareClassIds')} />
-                    <span>{c.name} <span className="text-muted-foreground">({c.code})</span></span>
+                    <span>
+                      {c.name} <span className="text-muted-foreground">({c.code})</span>
+                    </span>
                   </label>
                 ))}
                 {(classesQ.data?.items ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground italic">No active classes — create one in /shares/classes first.</p>
+                  <p className="text-xs text-muted-foreground italic">
+                    No active classes — create one in /shares/classes first.
+                  </p>
                 )}
               </div>
             </div>
@@ -213,7 +290,9 @@ export default function DividendsPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create declaration

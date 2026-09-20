@@ -35,21 +35,19 @@ import { rawQuery } from './helpers/db';
 jest.mock('@/lib/services/textsms.service', () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
-  sendBulkSmsChunked: jest.fn(
-    async (items: Array<{ mobile: string; clientSmsId?: number }>) => ({
-      responses: items.map((it) => ({
-        responseCode:        200,
-        responseDescription: 'Success',
-        mobile:              it.mobile,
-        messageId:           `mock-msg-${it.clientSmsId ?? 0}`,
-        networkId:           '1',
-        success:             true,
-        clientSmsId:         it.clientSmsId,
-      })),
-      sent:   items.length,
-      failed: 0,
-    }),
-  ),
+  sendBulkSmsChunked: jest.fn(async (items: Array<{ mobile: string; clientSmsId?: number }>) => ({
+    responses: items.map((it) => ({
+      responseCode: 200,
+      responseDescription: 'Success',
+      mobile: it.mobile,
+      messageId: `mock-msg-${it.clientSmsId ?? 0}`,
+      networkId: '1',
+      success: true,
+      clientSmsId: it.clientSmsId,
+    })),
+    sent: items.length,
+    failed: 0,
+  })),
   getDeliveryReport: jest.fn(),
   getProviderBalance: jest.fn(),
 }));
@@ -63,7 +61,8 @@ describe('preview matches what will be charged', () => {
     ctx = { groupId, userId: officerId, role: 'chairperson' } as never;
     await rawQuery(
       `INSERT INTO billing_accounts (group_id, sms_credits) VALUES ($1, 500)
-       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`, [groupId],
+       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`,
+      [groupId],
     );
   });
 
@@ -73,7 +72,8 @@ describe('preview matches what will be charged', () => {
     const [officer] = await rawQuery<{ phone: string; first_name: string }>(
       `SELECT m.phone, m.first_name FROM members m
         JOIN group_members gm ON gm.member_id = m.id
-        WHERE gm.group_id = $1 LIMIT 1`, [groupId],
+        WHERE gm.group_id = $1 LIMIT 1`,
+      [groupId],
     );
 
     // Padded so the RAW text (with the 14-char placeholder) needs two
@@ -82,7 +82,7 @@ describe('preview matches what will be charged', () => {
     const filler = 'x'.repeat(140);
     const preview = await smsService.previewBulkSend(ctx, {
       message: `{{first_name}} ${filler}`,
-      phones:  [officer.phone],
+      phones: [officer.phone],
     });
 
     const renderedLength = officer.first_name.length + 1 + filler.length;
@@ -96,12 +96,14 @@ describe('preview matches what will be charged', () => {
   it('agrees with what sendBulkCampaign actually reserves', async () => {
     const [officer] = await rawQuery<{ phone: string }>(
       `SELECT m.phone FROM members m JOIN group_members gm ON gm.member_id = m.id
-        WHERE gm.group_id = $1 LIMIT 1`, [groupId],
+        WHERE gm.group_id = $1 LIMIT 1`,
+      [groupId],
     );
     const message = `Dear {{first_name}}, ${'y'.repeat(150)}`;
 
     const preview = await smsService.previewBulkSend(ctx, {
-      message, phones: [officer.phone],
+      message,
+      phones: [officer.phone],
     });
 
     // Compared against sendBulkCampaign specifically, because that is the path
@@ -127,13 +129,18 @@ describe('preview matches what will be charged', () => {
     // bearing rather than incidental.
     const varsByPhone = await resolveRecipientVars(groupId, [officer.phone], message);
     await smsService.sendBulkCampaign({
-      groupId, sentBy: officerId, phones: [officer.phone], message,
-      referenceType: 'campaign', varsByPhone,
+      groupId,
+      sentBy: officerId,
+      phones: [officer.phone],
+      message,
+      referenceType: 'campaign',
+      varsByPhone,
     });
 
     const [log] = await rawQuery<{ segments: number }>(
       `SELECT segments FROM sms_usage_logs
-        WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`, [groupId],
+        WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [groupId],
     );
 
     // What the officer was quoted is what the group was actually billed for.
@@ -144,7 +151,7 @@ describe('preview matches what will be charged', () => {
   it('does not query member variables for a message with no placeholders', async () => {
     const preview = await smsService.previewBulkSend(ctx, {
       message: 'A plain message with no variables at all.',
-      phones:  ['254700000001', '254700000002'],
+      phones: ['254700000001', '254700000002'],
     });
 
     expect(preview.recipients).toBe(2);
@@ -157,11 +164,12 @@ describe('preview matches what will be charged', () => {
     // and the other has its placeholder stripped, giving different lengths.
     const [officer] = await rawQuery<{ phone: string }>(
       `SELECT m.phone FROM members m JOIN group_members gm ON gm.member_id = m.id
-        WHERE gm.group_id = $1 LIMIT 1`, [groupId],
+        WHERE gm.group_id = $1 LIMIT 1`,
+      [groupId],
     );
     const preview = await smsService.previewBulkSend(ctx, {
       message: `{{first_name}} ${'z'.repeat(150)}`,
-      phones:  [officer.phone, '254700009999'],
+      phones: [officer.phone, '254700009999'],
     });
 
     // Whatever the per-recipient split, the headline must be >= every

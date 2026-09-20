@@ -58,8 +58,9 @@ export interface EmailTriggerEmitSummary {
  */
 export async function loadMatchingEmailRules(eventType: string, groupId: string): Promise<EmailRuleRow[]> {
   const rows = await withAdminDb((db) =>
-    db.query<EmailRuleRow>(
-      `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
+    db
+      .query<EmailRuleRow>(
+        `SELECT r.id, r.group_id, r.organization_id, r.name, r.event_type, r.conditions,
               r.template_key, r.recipient_spec, r.delay_seconds, r.max_retries, r.created_by
        FROM email_trigger_rules r
        WHERE r.is_active AND r.event_type = $1
@@ -71,8 +72,9 @@ export async function loadMatchingEmailRules(eventType: string, groupId: string)
                  WHERE nga.group_id = $2 AND nga.is_active
               ))
          )`,
-      [eventType, groupId],
-    ).then((r) => r.rows),
+        [eventType, groupId],
+      )
+      .then((r) => r.rows),
   );
 
   const specificity = (r: EmailRuleRow) => (r.group_id ? 2 : r.organization_id ? 1 : 0);
@@ -207,7 +209,10 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
           // building the automation rules UI, before any rule went live.
           const template = await loadEmailTemplate(db, event.groupId, rule.template_key);
           if (!template) {
-            logger.warn('[email-trigger] no template found for key', { templateKey: rule.template_key, ruleId: rule.id });
+            logger.warn('[email-trigger] no template found for key', {
+              templateKey: rule.template_key,
+              ruleId: rule.id,
+            });
             summary.skipped++;
             continue;
           }
@@ -272,7 +277,11 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
       }
     });
   } catch (err) {
-    logger.error('[email-trigger] emit failed', { eventType: event.eventType, eventId: event.eventId, error: (err as Error).message });
+    logger.error('[email-trigger] emit failed', {
+      eventType: event.eventType,
+      eventId: event.eventId,
+      error: (err as Error).message,
+    });
   }
 
   return summary;
@@ -336,7 +345,9 @@ export function parseRecipientEmailSpec(raw: unknown): EmailRecipientSpec | null
       return roles.length === spec.roles.length ? { type: 'roles', roles } : null;
     }
     case 'event_member':
-      return typeof spec.field === 'string' && spec.field.length > 0 ? { type: 'event_member', field: spec.field } : null;
+      return typeof spec.field === 'string' && spec.field.length > 0
+        ? { type: 'event_member', field: spec.field }
+        : null;
     default:
       return null;
   }

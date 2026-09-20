@@ -17,9 +17,9 @@ export async function GET(req: NextRequest, { params }: Params): Promise<Respons
 export async function PATCH(req: NextRequest, { params }: Params): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'meetings.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = UpdateMeetingSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await meetingsService.update(ctx, id, input));
   });
 }

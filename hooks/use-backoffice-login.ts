@@ -18,12 +18,15 @@ import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import {
-  isAdminEnrollment, isAdminMfaChallenge, isOrgSelectionNeeded,
-  type AdminLoginEnrollmentChallenge, type NeedsOrgSelection,
+  isAdminEnrollment,
+  isAdminMfaChallenge,
+  isOrgSelectionNeeded,
+  type AdminLoginEnrollmentChallenge,
+  type NeedsOrgSelection,
 } from '@/types/api.types';
 
 const passwordSchema = z.object({
-  email:    z.string().email('Enter a valid work email'),
+  email: z.string().email('Enter a valid work email'),
   password: z.string().min(1, 'Password is required'),
 });
 export type PasswordValues = z.infer<typeof passwordSchema>;
@@ -40,27 +43,24 @@ export type LoginPhase =
   | { kind: 'chooseOrg'; challenge: string; code: string; organizations: NeedsOrgSelection['organizations'] };
 
 export interface BackofficeLoginState {
-  phase:            LoginPhase;
-  submitting:       boolean;
-  pwdForm:          UseFormReturn<PasswordValues>;
-  codeForm:         UseFormReturn<CodeValues>;
+  phase: LoginPhase;
+  submitting: boolean;
+  pwdForm: UseFormReturn<PasswordValues>;
+  codeForm: UseFormReturn<CodeValues>;
   onSubmitPassword: (v: PasswordValues) => Promise<void>;
-  onSubmitCode:     (v: CodeValues) => Promise<void>;
-  onPickOrg:        (organizationId: string) => Promise<void>;
-  backToPassword:   () => void;
+  onSubmitCode: (v: CodeValues) => Promise<void>;
+  onPickOrg: (organizationId: string) => Promise<void>;
+  backToPassword: () => void;
 }
 
-export function useBackofficeLogin(
-  surface: 'platform' | 'organization',
-  redirectTo: string,
-): BackofficeLoginState {
+export function useBackofficeLogin(surface: 'platform' | 'organization', redirectTo: string): BackofficeLoginState {
   const router = useRouter();
   const { loginAdmin, user, audience } = useAuth();
   const { toast } = useToast();
-  const [phase, setPhase]           = useState<LoginPhase>({ kind: 'password' });
+  const [phase, setPhase] = useState<LoginPhase>({ kind: 'password' });
   const [submitting, setSubmitting] = useState(false);
 
-  const pwdForm  = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
+  const pwdForm = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
   const codeForm = useForm<CodeValues>({ resolver: zodResolver(codeSchema) });
 
   useEffect(() => {
@@ -86,8 +86,8 @@ export function useBackofficeLogin(
       }
     } catch (err) {
       toast({
-        variant:     'destructive',
-        title:       'Sign-in failed',
+        variant: 'destructive',
+        title: 'Sign-in failed',
         description: (err as Error).message ?? 'Invalid credentials',
       });
     } finally {
@@ -98,7 +98,7 @@ export function useBackofficeLogin(
   const onSubmitCode = async (values: CodeValues) => {
     if (phase.kind !== 'enroll' && phase.kind !== 'verify') return;
     const challenge = phase.kind === 'enroll' ? phase.data.challenge : phase.challenge;
-    const code       = values.code.trim();
+    const code = values.code.trim();
     setSubmitting(true);
     try {
       const data = await authApi.adminLoginVerify({
@@ -114,8 +114,8 @@ export function useBackofficeLogin(
       router.replace(redirectTo);
     } catch (err) {
       toast({
-        variant:     'destructive',
-        title:       'Verification failed',
+        variant: 'destructive',
+        title: 'Verification failed',
         description: (err as Error).message ?? 'Invalid code',
       });
     } finally {
@@ -128,15 +128,17 @@ export function useBackofficeLogin(
     setSubmitting(true);
     try {
       const data = await authApi.adminLoginVerify({
-        challenge: phase.challenge, code: phase.code, organizationId,
+        challenge: phase.challenge,
+        code: phase.code,
+        organizationId,
       });
       if (isOrgSelectionNeeded(data)) return; // shouldn't happen once organizationId is supplied
       loginAdmin(data);
       router.replace(redirectTo);
     } catch (err) {
       toast({
-        variant:     'destructive',
-        title:       'Sign-in failed',
+        variant: 'destructive',
+        title: 'Sign-in failed',
         description: (err as Error).message ?? 'Could not complete sign-in',
       });
     } finally {

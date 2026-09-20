@@ -16,7 +16,10 @@
  * was two INSERTs quietly omitting a column.
  */
 import {
-  PLAN_SMS_ALLOWANCE, PLAN_MONTHLY_FEES, SELF_SERVE_PLANS, PRODUCT_LABEL,
+  PLAN_SMS_ALLOWANCE,
+  PLAN_MONTHLY_FEES,
+  SELF_SERVE_PLANS,
+  PRODUCT_LABEL,
   type SubscriptionProduct,
 } from '@/types/enums';
 
@@ -39,7 +42,9 @@ describe('PLAN_SMS_ALLOWANCE', () => {
     // The exact symptom of the original bug: a plan whose allowance is 50
     // means someone forgot to set it and the column default won.
     for (const product of SUBSCRIPTION_PRODUCTS) {
-      for (const plan of Object.keys(PLAN_SMS_ALLOWANCE[product]) as Array<keyof typeof PLAN_SMS_ALLOWANCE[typeof product]>) {
+      for (const plan of Object.keys(PLAN_SMS_ALLOWANCE[product]) as Array<
+        keyof (typeof PLAN_SMS_ALLOWANCE)[typeof product]
+      >) {
         expect(PLAN_SMS_ALLOWANCE[product][plan]).not.toBe(50);
       }
     }
@@ -70,8 +75,7 @@ describe('PLAN_SMS_ALLOWANCE', () => {
     // Enterprise is negotiated; the constant is a floor. It must never be
     // worth LESS than the most expensive self-serve plan.
     for (const product of SUBSCRIPTION_PRODUCTS) {
-      expect(PLAN_SMS_ALLOWANCE[product].enterprise)
-        .toBeGreaterThanOrEqual(PLAN_SMS_ALLOWANCE[product].premium);
+      expect(PLAN_SMS_ALLOWANCE[product].enterprise).toBeGreaterThanOrEqual(PLAN_SMS_ALLOWANCE[product].premium);
     }
   });
 });

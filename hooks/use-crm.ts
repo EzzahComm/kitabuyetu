@@ -1,8 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import type {
-  Contact, Opportunity, OpportunityWithContact, Activity, ActivityWithSubject,
-  ContactType, OpportunityStage, ActivityType,
+  Contact,
+  Opportunity,
+  OpportunityWithContact,
+  Activity,
+  ActivityWithSubject,
+  ContactType,
+  OpportunityStage,
+  ActivityType,
 } from '@/lib/services/crm.service';
 
 const BASE = '/crm/contacts';
@@ -10,10 +16,10 @@ const OPPORTUNITIES_BASE = '/crm/opportunities';
 const ACTIVITIES_BASE = '/crm/activities';
 
 const crmKeys = {
-  all:          ['crm', 'contacts'] as const,
-  list:         (filters?: Record<string, unknown>) => ['crm', 'contacts', 'list', filters] as const,
-  detail:       (id: string) => ['crm', 'contacts', 'detail', id] as const,
-  pipeline:     ['crm', 'opportunities'] as const,
+  all: ['crm', 'contacts'] as const,
+  list: (filters?: Record<string, unknown>) => ['crm', 'contacts', 'list', filters] as const,
+  detail: (id: string) => ['crm', 'contacts', 'detail', id] as const,
+  pipeline: ['crm', 'opportunities'] as const,
   activityFeed: ['crm', 'activities'] as const,
 };
 
@@ -25,15 +31,15 @@ export function useContacts(filters?: { contact_type?: ContactType; marketing_op
 
   return useQuery({
     queryKey: crmKeys.list(filters),
-    queryFn:  () => api.get<Contact[]>(`${BASE}${qs ? `?${qs}` : ''}`),
+    queryFn: () => api.get<Contact[]>(`${BASE}${qs ? `?${qs}` : ''}`),
   });
 }
 
 export function useContact(id: string) {
   return useQuery({
     queryKey: crmKeys.detail(id),
-    queryFn:  () => api.get<{ contact: Contact; opportunities: Opportunity[]; activities: Activity[] }>(`${BASE}/${id}`),
-    enabled:  !!id,
+    queryFn: () => api.get<{ contact: Contact; opportunities: Opportunity[]; activities: Activity[] }>(`${BASE}/${id}`),
+    enabled: !!id,
   });
 }
 
@@ -41,8 +47,12 @@ export function useCreateContact() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      contact_type: ContactType; name: string; email?: string; phone?: string;
-      notes?: string; marketing_opt_in?: boolean;
+      contact_type: ContactType;
+      name: string;
+      email?: string;
+      phone?: string;
+      notes?: string;
+      marketing_opt_in?: boolean;
     }) => api.post<Contact>(BASE, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: crmKeys.all }),
   });
@@ -95,15 +105,20 @@ export function useLogActivity(contactId: string) {
 export function useOpportunities(stage?: OpportunityStage) {
   return useQuery({
     queryKey: [...crmKeys.pipeline, stage ?? 'all'],
-    queryFn:  () => api.get<OpportunityWithContact[]>(`${OPPORTUNITIES_BASE}${stage ? `?stage=${stage}` : ''}`),
+    queryFn: () => api.get<OpportunityWithContact[]>(`${OPPORTUNITIES_BASE}${stage ? `?stage=${stage}` : ''}`),
   });
 }
 
 export function useUpdateOpportunity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Opportunity, 'title' | 'stage' | 'amount' | 'notes'>> }) =>
-      api.patch<Opportunity>(`${OPPORTUNITIES_BASE}/${id}`, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<Pick<Opportunity, 'title' | 'stage' | 'amount' | 'notes'>>;
+    }) => api.patch<Opportunity>(`${OPPORTUNITIES_BASE}/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: crmKeys.pipeline });
       qc.invalidateQueries({ queryKey: crmKeys.activityFeed });
@@ -115,6 +130,6 @@ export function useUpdateOpportunity() {
 export function useRecentActivity(limit?: number) {
   return useQuery({
     queryKey: [...crmKeys.activityFeed, limit ?? 'default'],
-    queryFn:  () => api.get<ActivityWithSubject[]>(`${ACTIVITIES_BASE}${limit ? `?limit=${limit}` : ''}`),
+    queryFn: () => api.get<ActivityWithSubject[]>(`${ACTIVITIES_BASE}${limit ? `?limit=${limit}` : ''}`),
   });
 }

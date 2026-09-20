@@ -9,25 +9,37 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import type { PaginatedResult } from '@/types/db.types';
 
 export interface MemberNotification {
-  id:            string;
-  type:          string;
-  title:         string;
-  body:          string;
-  isRead:        boolean;
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
   referenceType: string | null;
-  referenceId:   string | null;
-  createdAt:     Date;
+  referenceId: string | null;
+  createdAt: Date;
 }
 
 interface NotificationRow {
-  id: string; type: string; title: string; body: string; is_read: boolean;
-  reference_type: string | null; reference_id: string | null; created_at: Date;
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  reference_type: string | null;
+  reference_id: string | null;
+  created_at: Date;
 }
 
 function mapRow(r: NotificationRow): MemberNotification {
   return {
-    id: r.id, type: r.type, title: r.title, body: r.body, isRead: r.is_read,
-    referenceType: r.reference_type, referenceId: r.reference_id, createdAt: r.created_at,
+    id: r.id,
+    type: r.type,
+    title: r.title,
+    body: r.body,
+    isRead: r.is_read,
+    referenceType: r.reference_type,
+    referenceId: r.reference_id,
+    createdAt: r.created_at,
   };
 }
 
@@ -56,7 +68,12 @@ export async function listMyNotifications(
     );
 
     return {
-      items: rows.map(mapRow), total, page, pageSize: limit, totalPages: Math.ceil(total / limit), unreadCount,
+      items: rows.map(mapRow),
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+      unreadCount,
     };
   });
 }
@@ -79,7 +96,8 @@ export async function markNotificationRead(ctx: TenantContext, id: string): Prom
     );
 
     // Record audit log
-    if (!prev.is_read) { // Only audit if status actually changed
+    if (!prev.is_read) {
+      // Only audit if status actually changed
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,

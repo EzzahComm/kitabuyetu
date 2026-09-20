@@ -1,26 +1,23 @@
-import React from "react";
-import { Container } from "@/components/Container";
+import React from 'react';
+import { Container } from '@/components/Container';
 
 interface SectionTitleProps {
   preTitle?: string;
   title?: string;
-  align?: "left" | "center";
+  align?: 'left' | 'center';
   /** Render the title as <h1> instead of <h2> — use on the first heading of a page that has no <h1> of its own (Hero already renders one). */
-  titleAs?: "h1" | "h2";
+  titleAs?: 'h1' | 'h2';
   children?: React.ReactNode;
 }
 
 export const SectionTitle = (props: Readonly<SectionTitleProps>) => {
-  const TitleTag = props.titleAs ?? "h2";
+  const TitleTag = props.titleAs ?? 'h2';
   return (
     <Container
-      className={`flex w-full flex-col ${
-        props.align === "left" ? "" : "items-center justify-center text-center"
-      }`}>
+      className={`flex w-full flex-col ${props.align === 'left' ? '' : 'items-center justify-center text-center'}`}
+    >
       {props.preTitle && (
-        <div className="text-sm font-bold tracking-wider text-indigo-600 uppercase">
-          {props.preTitle}
-        </div>
+        <div className="text-sm font-bold tracking-wider text-indigo-600 uppercase">{props.preTitle}</div>
       )}
 
       {props.title && (
@@ -36,5 +33,4 @@ export const SectionTitle = (props: Readonly<SectionTitleProps>) => {
       )}
     </Container>
   );
-}
-
+};

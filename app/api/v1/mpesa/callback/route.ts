@@ -43,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return ack();
   }
 
-  const rawBody  = await req.text();
+  const rawBody = await req.text();
 
   let body: StkCallbackBody;
   try {
@@ -83,14 +83,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // unconditional 200-ack (e.g. while diagnosing audit-table issues).
 const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== 'false';
 
-async function processFulfillment(
-  paymentId: string,
-  amount: number,
-  _receipt: string | null,
-): Promise<void> {
+async function processFulfillment(paymentId: string, amount: number, _receipt: string | null): Promise<void> {
   const payment = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      group_id: string; invoice_id: string | null; mpesa_phone: string | null;
+      group_id: string;
+      invoice_id: string | null;
+      mpesa_phone: string | null;
     }>('SELECT group_id, invoice_id, mpesa_phone FROM payments WHERE id=$1', [paymentId]);
     return rows[0] ?? null;
   });
@@ -147,11 +145,7 @@ async function processFulfillment(
 }
 
 function getCallerIp(req: NextRequest): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '0.0.0.0'
-  );
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? '0.0.0.0';
 }
 
 function ack(): NextResponse {

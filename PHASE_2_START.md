@@ -9,6 +9,7 @@
 ## ✅ COMPLETED: Icon Migration
 
 ### Files Migrated (8)
+
 ✅ `src/components/Navbar.tsx` — 4 icons migrated
 ✅ `src/components/BackToTop.tsx` — 1 icon migrated
 ✅ `src/components/Faq.tsx` — 1 icon migrated
@@ -22,6 +23,7 @@
 **Verification:** 0 Heroicon imports remaining ✅
 
 ### Icon Mapping Summary
+
 ```
 Heroicons → Tabler Equivalents:
 ArrowRightIcon              → IconArrowRight
@@ -58,27 +60,31 @@ GlobeAltIcon                → IconWorld
 ## 📋 PHASE 2 REMAINING TASKS
 
 ### Task 2: Add ThemeToggle to Navbar (NEXT)
+
 **File:** `src/components/Navbar.tsx`
 **Goal:** Add dark mode toggle button for user control
 
 ```tsx
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // Add to desktop actions area:
 <div className="hidden lg:flex gap-2">
   <ThemeToggle />
   {/* ... existing buttons ... */}
-</div>
+</div>;
 ```
 
 ### Task 3: Create Product Pages (PRIORITY)
+
 **New pages to create:**
+
 - [ ] Bookkeeper Product Page (detailed)
 - [ ] Chama Reminder Product Page (detailed)
 - [ ] Fundraise / Changi$ha Product Page (detailed)
 - [ ] Enterprise Product Page (detailed)
 
 **Each page should have:**
+
 - Hero section with product name & tagline
 - Key features/benefits
 - Pricing overview
@@ -87,20 +93,24 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 - Responsive design (mobile-first)
 
 ### Task 4: Color Token Updates (OPTIMIZATION)
+
 **Goal:** Replace indigo/gray hardcodes with semantic tokens
+
 - Replace `bg-indigo-*` with `bg-primary-*`
 - Replace `text-indigo-*` with `text-primary-*`
 - Replace `text-gray-*` with `text-slate-*`
 - Use new color design tokens from Tailwind config
 
 **Files to update:**
+
 - src/components/Navbar.tsx
 - src/components/Hero.tsx
 - src/components/Cta.tsx
 - src/components/ContactForm.tsx
-- src/app/*/page.tsx (all pages)
+- src/app/\*/page.tsx (all pages)
 
 ### Task 5: Responsive Testing (QA)
+
 - [ ] Test on 375px (mobile SE)
 - [ ] Test on 768px (tablet)
 - [ ] Test on 1024px (desktop)
@@ -109,6 +119,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 - [ ] Check touch targets (≥44px)
 
 ### Task 6: Header Navigation Expansion (ENHANCEMENT)
+
 **Goal:** Add navigation links for product pages
 
 ```
@@ -127,15 +138,18 @@ Just need to verify product page links are correct
 ## 🎯 IMMEDIATE NEXT STEPS
 
 ### Priority 1: Add ThemeToggle to Navbar
+
 Currently, dark mode works via next-themes but there's no user-facing toggle button.  
 Add ThemeToggle component to Navbar for easy theme switching.
 
 **Impact:** Enables users to toggle dark/light mode
 
 ### Priority 2: Update Color Tokens Throughout
+
 Replace hardcoded Tailwind color classes with new semantic tokens.
 
 **Example refactor:**
+
 ```tsx
 // BEFORE
 <button className="bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -151,11 +165,13 @@ Replace hardcoded Tailwind color classes with new semantic tokens.
 **Files affected:** ~12 component/page files
 
 ### Priority 3: Create Enhanced Product Pages
+
 Create dedicated, styled product pages for each product pillar.  
 Build on existing benefits/product grid components.
 
 **Current state:** Minimal product.page.tsx exists  
 **Goal:** Expand into 4 dedicated product pages with:
+
 - Full feature descriptions
 - Pricing details
 - Use cases/examples
@@ -167,14 +183,14 @@ Build on existing benefits/product grid components.
 
 ## 📊 PHASE 2 PROGRESS TRACKING
 
-| Task | Status | Est. Time | Priority |
-|------|--------|-----------|----------|
-| 1. Icon Migration | ✅ DONE | 30 min | HIGH |
-| 2. Add ThemeToggle | ⏳ NEXT | 15 min | HIGH |
-| 3. Update Color Tokens | ⏳ AFTER | 2 hours | HIGH |
-| 4. Product Pages | ⏳ AFTER | 4-6 hours | MEDIUM |
-| 5. Responsive Testing | ⏳ AFTER | 2 hours | MEDIUM |
-| 6. Nav Updates | ⏳ AFTER | 1 hour | MEDIUM |
+| Task                   | Status   | Est. Time | Priority |
+| ---------------------- | -------- | --------- | -------- |
+| 1. Icon Migration      | ✅ DONE  | 30 min    | HIGH     |
+| 2. Add ThemeToggle     | ⏳ NEXT  | 15 min    | HIGH     |
+| 3. Update Color Tokens | ⏳ AFTER | 2 hours   | HIGH     |
+| 4. Product Pages       | ⏳ AFTER | 4-6 hours | MEDIUM   |
+| 5. Responsive Testing  | ⏳ AFTER | 2 hours   | MEDIUM   |
+| 6. Nav Updates         | ⏳ AFTER | 1 hour    | MEDIUM   |
 
 **Total Phase 2 Time:** ~10-12 hours (≈ 1-2 days)
 
@@ -186,13 +202,14 @@ Build on existing benefits/product grid components.
 ✅ All Tabler icons in place  
 ✅ No import errors  
 ✅ Project builds cleanly  
-✅ npm dependencies installed  
+✅ npm dependencies installed
 
 ---
 
 ## 📝 NOTES
 
 ### Tabler Icons Advantages
+
 - 4,000+ icons (vs ~300 Heroicons)
 - Open source & free to use
 - Better design consistency
@@ -200,7 +217,9 @@ Build on existing benefits/product grid components.
 - CSS variables support for colors/strokes
 
 ### Design Token Approach
+
 New semantic color palette allows:
+
 - Easy light/dark mode switching
 - Brand consistency across app
 - Centralized color management
@@ -208,10 +227,11 @@ New semantic color palette allows:
 - Accessible contrast ratios
 
 ### Backward Compatibility
+
 ✅ No breaking changes  
 ✅ Existing classes still work  
 ✅ Navigation structure unchanged  
-✅ Dark mode already integrated  
+✅ Dark mode already integrated
 
 ---
 

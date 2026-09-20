@@ -13,7 +13,7 @@ const APPLICATIONS_KEY = ['admin', 'ecosystem', 'applications'] as const;
 export function usePartners() {
   return useQuery({
     queryKey: PARTNERS_KEY,
-    queryFn:  () => adminFetch<Partner[]>('/api/admin/ecosystem/partners'),
+    queryFn: () => adminFetch<Partner[]>('/api/admin/ecosystem/partners'),
   });
 }
 
@@ -36,17 +36,22 @@ export function useCreatePartner() {
 export function usePartner(id: string) {
   return useQuery({
     queryKey: [...PARTNERS_KEY, id],
-    queryFn:  () => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`),
-    enabled:  !!id,
+    queryFn: () => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`),
+    enabled: !!id,
   });
 }
 
 export function useUpdatePartner(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Pick<Partner,
-      'name' | 'type' | 'description' | 'logo_url' | 'website_url' | 'contact_email' | 'contact_phone' | 'is_active'
-    >>) => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`, { method: 'PATCH', json: data }),
+    mutationFn: (
+      data: Partial<
+        Pick<
+          Partner,
+          'name' | 'type' | 'description' | 'logo_url' | 'website_url' | 'contact_email' | 'contact_phone' | 'is_active'
+        >
+      >,
+    ) => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`, { method: 'PATCH', json: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PARTNERS_KEY });
       qc.invalidateQueries({ queryKey: [...PARTNERS_KEY, id] });
@@ -59,7 +64,7 @@ export function useUpdatePartner(id: string) {
 export function useOpportunities() {
   return useQuery({
     queryKey: OPPORTUNITIES_KEY,
-    queryFn:  () => adminFetch<Opportunity[]>('/api/admin/ecosystem/opportunities'),
+    queryFn: () => adminFetch<Opportunity[]>('/api/admin/ecosystem/opportunities'),
   });
 }
 
@@ -87,18 +92,30 @@ export function useCreateOpportunity() {
 export function useOpportunity(id: string) {
   return useQuery({
     queryKey: [...OPPORTUNITIES_KEY, id],
-    queryFn:  () => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`),
-    enabled:  !!id,
+    queryFn: () => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`),
+    enabled: !!id,
   });
 }
 
 export function useUpdateOpportunity(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Pick<Opportunity,
-      'title' | 'description' | 'category' | 'amount_min' | 'amount_max' | 'terms_summary'
-      | 'eligibility_rules' | 'application_url' | 'featured'
-    >>) => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`, { method: 'PATCH', json: data }),
+    mutationFn: (
+      data: Partial<
+        Pick<
+          Opportunity,
+          | 'title'
+          | 'description'
+          | 'category'
+          | 'amount_min'
+          | 'amount_max'
+          | 'terms_summary'
+          | 'eligibility_rules'
+          | 'application_url'
+          | 'featured'
+        >
+      >,
+    ) => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`, { method: 'PATCH', json: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: OPPORTUNITIES_KEY });
       qc.invalidateQueries({ queryKey: [...OPPORTUNITIES_KEY, id] });
@@ -129,14 +146,18 @@ export function useCloseOpportunity() {
 export function useApplications() {
   return useQuery({
     queryKey: APPLICATIONS_KEY,
-    queryFn:  () => adminFetch<Application[]>('/api/admin/ecosystem/applications'),
+    queryFn: () => adminFetch<Application[]>('/api/admin/ecosystem/applications'),
   });
 }
 
 export function useUpdateApplicationStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status, response_message }: {
+    mutationFn: ({
+      id,
+      status,
+      response_message,
+    }: {
       id: string;
       status: Application['application_status'];
       response_message?: string;

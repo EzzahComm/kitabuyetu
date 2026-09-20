@@ -26,9 +26,7 @@ interface SiteHeaderProps {
  * rather than hover-only — hover panels are unreliable on touch and awkward
  * for keyboard users; a button with aria-expanded works for both.
  */
-function NavDropdown({
-  group, transparent, pathname,
-}: { group: NavGroup; transparent: boolean; pathname: string }) {
+function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transparent: boolean; pathname: string }) {
   const [open, setOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -67,9 +65,7 @@ function NavDropdown({
         aria-haspopup="menu"
         className={cn(
           'flex items-center gap-1.5 rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
-          transparent
-            ? 'text-white/75 hover:text-white'
-            : 'text-brand-blue-900/70 hover:text-brand-blue-900',
+          transparent ? 'text-white/75 hover:text-white' : 'text-brand-blue-900/70 hover:text-brand-blue-900',
           active && (transparent ? 'text-white' : 'text-brand-blue-900'),
         )}
       >
@@ -206,151 +202,146 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             : 'border-b border-brand-blue-900/10 bg-paper/90 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75',
         )}
       >
-      <div className="mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10">
-        <div className="flex h-16 items-center justify-between gap-6 lg:h-20">
-          <Link
-            href="/"
-            onClick={() => setOpen(false)}
-            className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
-            aria-label="Kitabu Yetu — home"
-          >
-            <BrandLogo size={34} priority alt="" />
-            <span
-              className={cn(
-                'font-display text-[1.35rem] font-normal tracking-tight transition-colors',
-                transparent ? 'text-white' : 'text-brand-blue-900',
-              )}
+        <div className="mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10">
+          <div className="flex h-16 items-center justify-between gap-6 lg:h-20">
+            <Link
+              href="/"
+              onClick={() => setOpen(false)}
+              className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+              aria-label="Kitabu Yetu — home"
             >
-              Kitabu&nbsp;Yetu
-            </span>
-          </Link>
+              <BrandLogo size={34} priority alt="" />
+              <span
+                className={cn(
+                  'font-display text-[1.35rem] font-normal tracking-tight transition-colors',
+                  transparent ? 'text-white' : 'text-brand-blue-900',
+                )}
+              >
+                Kitabu&nbsp;Yetu
+              </span>
+            </Link>
 
-          <nav aria-label="Primary" className="hidden lg:block">
-            <ul className="flex items-center gap-8">
-              {NAV_ITEMS.map((entry) => {
-                if (isNavGroup(entry)) {
+            <nav aria-label="Primary" className="hidden lg:block">
+              <ul className="flex items-center gap-8">
+                {NAV_ITEMS.map((entry) => {
+                  if (isNavGroup(entry)) {
+                    return (
+                      <li key={entry.label}>
+                        <NavDropdown group={entry} transparent={transparent} pathname={pathname} />
+                      </li>
+                    );
+                  }
+                  const active = !entry.href.includes('#') && pathname === entry.href;
                   return (
-                    <li key={entry.label}>
-                      <NavDropdown group={entry} transparent={transparent} pathname={pathname} />
+                    <li key={entry.href}>
+                      <Link
+                        href={entry.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'relative rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+                          transparent
+                            ? 'text-white/75 hover:text-white'
+                            : 'text-brand-blue-900/70 hover:text-brand-blue-900',
+                          active && (transparent ? 'text-white' : 'text-brand-blue-900'),
+                        )}
+                      >
+                        {entry.label}
+                        {active && (
+                          <span aria-hidden="true" className="absolute -bottom-1.5 left-0 h-px w-full bg-brand-500" />
+                        )}
+                      </Link>
                     </li>
                   );
+                })}
+              </ul>
+            </nav>
+
+            <div className="hidden shrink-0 items-center gap-1 lg:flex">
+              <Link
+                href={ROUTES.signIn}
+                className={cn(
+                  'rounded-md px-4 py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+                  transparent
+                    ? 'text-white/85 hover:bg-white/10 hover:text-white'
+                    : 'text-brand-blue-900/80 hover:bg-brand-blue-900/[0.05] hover:text-brand-blue-900',
+                )}
+              >
+                Sign in
+              </Link>
+              <Link
+                href={ROUTES.startGroup}
+                className="group inline-flex items-center gap-2 rounded-md bg-brand-600 px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              >
+                Get started
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls="site-menu"
+              className={cn(
+                '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden',
+                transparent ? 'text-white hover:bg-white/10' : 'text-brand-blue-900 hover:bg-brand-blue-900/[0.06]',
+              )}
+            >
+              <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile panel. Full-height sheet rather than a dropdown: at 320 px the
+          nav plus two CTAs do not fit under the bar without cramping, and a
+          sheet gives each target a comfortable 48 px row. Groups collapse
+          into an accordion — there is no room for a floating popover here. */}
+        <div
+          id="site-menu"
+          ref={panelRef}
+          hidden={!open}
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-brand-blue-900/10 bg-paper lg:hidden"
+        >
+          <nav aria-label="Primary" className="px-5 py-4 sm:px-8">
+            <ul className="divide-y divide-brand-blue-900/[0.07]">
+              {NAV_ITEMS.map((entry) => {
+                if (isNavGroup(entry)) {
+                  return <MobileNavGroup key={entry.label} group={entry} onNavigate={() => setOpen(false)} />;
                 }
-                const active = !entry.href.includes('#') && pathname === entry.href;
                 return (
                   <li key={entry.href}>
                     <Link
                       href={entry.href}
-                      aria-current={active ? 'page' : undefined}
-                      className={cn(
-                        'relative rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
-                        transparent
-                          ? 'text-white/75 hover:text-white'
-                          : 'text-brand-blue-900/70 hover:text-brand-blue-900',
-                        active && (transparent ? 'text-white' : 'text-brand-blue-900'),
-                      )}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     >
                       {entry.label}
-                      {active && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute -bottom-1.5 left-0 h-px w-full bg-brand-500"
-                        />
-                      )}
+                      <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-blue-900/40" />
                     </Link>
                   </li>
                 );
               })}
             </ul>
+            <div className="mt-6 flex flex-col gap-3 pb-8">
+              <Link
+                href={ROUTES.startGroup}
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center rounded-md bg-brand-600 px-5 py-3.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              >
+                Get started
+              </Link>
+              <Link
+                href={ROUTES.signIn}
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center rounded-md border border-brand-blue-900/15 px-5 py-3.5 text-base font-medium text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              >
+                Sign in
+              </Link>
+            </div>
           </nav>
-
-          <div className="hidden shrink-0 items-center gap-1 lg:flex">
-            <Link
-              href={ROUTES.signIn}
-              className={cn(
-                'rounded-md px-4 py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
-                transparent
-                  ? 'text-white/85 hover:bg-white/10 hover:text-white'
-                  : 'text-brand-blue-900/80 hover:bg-brand-blue-900/[0.05] hover:text-brand-blue-900',
-              )}
-            >
-              Sign in
-            </Link>
-            <Link
-              href={ROUTES.startGroup}
-              className="group inline-flex items-center gap-2 rounded-md bg-brand-600 px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            >
-              Get started
-              <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </Link>
-          </div>
-
-          <button
-            ref={toggleRef}
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls="site-menu"
-            className={cn(
-              '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden',
-              transparent
-                ? 'text-white hover:bg-white/10'
-                : 'text-brand-blue-900 hover:bg-brand-blue-900/[0.06]',
-            )}
-          >
-            <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
         </div>
-      </div>
-
-      {/* Mobile panel. Full-height sheet rather than a dropdown: at 320 px the
-          nav plus two CTAs do not fit under the bar without cramping, and a
-          sheet gives each target a comfortable 48 px row. Groups collapse
-          into an accordion — there is no room for a floating popover here. */}
-      <div
-        id="site-menu"
-        ref={panelRef}
-        hidden={!open}
-        className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-brand-blue-900/10 bg-paper lg:hidden"
-      >
-        <nav aria-label="Primary" className="px-5 py-4 sm:px-8">
-          <ul className="divide-y divide-brand-blue-900/[0.07]">
-            {NAV_ITEMS.map((entry) => {
-              if (isNavGroup(entry)) {
-                return <MobileNavGroup key={entry.label} group={entry} onNavigate={() => setOpen(false)} />;
-              }
-              return (
-                <li key={entry.href}>
-                  <Link
-                    href={entry.href}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                  >
-                    {entry.label}
-                    <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-blue-900/40" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-6 flex flex-col gap-3 pb-8">
-            <Link
-              href={ROUTES.startGroup}
-              onClick={() => setOpen(false)}
-              className="inline-flex items-center justify-center rounded-md bg-brand-600 px-5 py-3.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            >
-              Get started
-            </Link>
-            <Link
-              href={ROUTES.signIn}
-              onClick={() => setOpen(false)}
-              className="inline-flex items-center justify-center rounded-md border border-brand-blue-900/15 px-5 py-3.5 text-base font-medium text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            >
-              Sign in
-            </Link>
-          </div>
-        </nav>
-      </div>
       </header>
     </>
   );

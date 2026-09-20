@@ -41,11 +41,7 @@ export class ReportStorageUnavailableError extends Error {
 }
 
 /** Upload one generated report artifact. Overwrites on retry (upsert). */
-export async function uploadReportArtifact(
-  path: string,
-  body: Buffer,
-  contentType: string,
-): Promise<void> {
+export async function uploadReportArtifact(path: string, body: Buffer, contentType: string): Promise<void> {
   const sb = getSupabaseAdminClient();
   if (!sb) throw new ReportStorageUnavailableError();
 

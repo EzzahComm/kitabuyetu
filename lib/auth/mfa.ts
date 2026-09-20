@@ -24,8 +24,8 @@ const TOTP_EPOCH_TOLERANCE = 1;
 
 // ── Secret encryption (AES-256-GCM) ─────────────────────────────────────
 
-const ENC_ALGO   = 'aes-256-gcm';
-const IV_BYTES   = 12;
+const ENC_ALGO = 'aes-256-gcm';
+const IV_BYTES = 12;
 
 function getEncryptionKey(): Buffer {
   // The env validator guarantees >= 32 chars. We hash to exactly 32 bytes
@@ -37,10 +37,10 @@ function getEncryptionKey(): Buffer {
 
 /** Encrypt the TOTP secret. Output format: `<iv hex>:<authTag hex>:<ciphertext hex>`. */
 export function encryptSecret(plaintext: string): string {
-  const iv     = crypto.randomBytes(IV_BYTES);
+  const iv = crypto.randomBytes(IV_BYTES);
   const cipher = crypto.createCipheriv(ENC_ALGO, getEncryptionKey(), iv);
-  const ct     = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag    = cipher.getAuthTag();
+  const ct = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
   return `${iv.toString('hex')}:${tag.toString('hex')}:${ct.toString('hex')}`;
 }
 
@@ -49,9 +49,9 @@ export function decryptSecret(blob: string): string {
   if (!ivHex || !tagHex || !ctHex) {
     throw new Error('Malformed encrypted secret blob');
   }
-  const iv  = Buffer.from(ivHex, 'hex');
+  const iv = Buffer.from(ivHex, 'hex');
   const tag = Buffer.from(tagHex, 'hex');
-  const ct  = Buffer.from(ctHex, 'hex');
+  const ct = Buffer.from(ctHex, 'hex');
   const decipher = crypto.createDecipheriv(ENC_ALGO, getEncryptionKey(), iv);
   decipher.setAuthTag(tag);
   const pt = Buffer.concat([decipher.update(ct), decipher.final()]);
@@ -73,8 +73,8 @@ export function generateTotpSecret(): string {
 export function buildOtpAuthUrl(accountLabel: string, secret: string): string {
   return generateURI({
     strategy: 'totp',
-    issuer:   'Kitabu Yetu',
-    label:    accountLabel,
+    issuer: 'Kitabu Yetu',
+    label: accountLabel,
     secret,
   });
 }
@@ -101,9 +101,9 @@ export function verifyTotp(code: string, encryptedSecret: string): boolean {
 export function verifyTotpRaw(code: string, secret: string): boolean {
   if (!/^\d{6}$/.test(code)) return false;
   const result = verifySync({
-    strategy:       'totp',
+    strategy: 'totp',
     secret,
-    token:          code,
+    token: code,
     epochTolerance: TOTP_EPOCH_TOLERANCE,
   });
   return result.valid === true;
@@ -111,8 +111,8 @@ export function verifyTotpRaw(code: string, secret: string): boolean {
 
 // ── Recovery codes ──────────────────────────────────────────────────────
 
-const RECOVERY_COUNT  = 10;
-const RECOVERY_BYTES  = 5;  // 10 hex chars = 5 bytes; printed as 2 groups of 5
+const RECOVERY_COUNT = 10;
+const RECOVERY_BYTES = 5; // 10 hex chars = 5 bytes; printed as 2 groups of 5
 
 /** Generate `RECOVERY_COUNT` printable codes like "a1b2c-d3e4f". */
 export function generateRecoveryCodes(): string[] {

@@ -56,11 +56,7 @@ export function FormFieldGroup({
     3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
   }[columns];
 
-  return (
-    <div className={`grid gap-4 ${gridClass} ${className || ''}`}>
-      {children}
-    </div>
-  );
+  return <div className={`grid gap-4 ${gridClass} ${className || ''}`}>{children}</div>;
 }
 
 /**

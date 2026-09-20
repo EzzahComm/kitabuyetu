@@ -3,12 +3,12 @@
  * Uses the shared pg Pool directly (no RLS context needed — job queue
  * is admin-only; the postgres superuser has BYPASSRLS).
  */
-import type { PoolClient } from "pg";
-import { pool } from "@/lib/db";
-import type { Job, JobStatus, JobType, EnqueueOptions } from "./types";
+import type { PoolClient } from 'pg';
+import { pool } from '@/lib/db';
+import type { Job, JobStatus, JobType, EnqueueOptions } from './types';
 
 /** A pg Pool or a transaction-bound PoolClient — anything with `.query`. */
-type Queryable = Pick<PoolClient, "query">;
+type Queryable = Pick<PoolClient, 'query'>;
 
 /**
  * Atomically claim the next batch of pending jobs using
@@ -27,10 +27,7 @@ type Queryable = Pick<PoolClient, "query">;
  * processor guarantee every distinct pending type gets touched once per
  * round before any type gets a second job.
  */
-export async function claimPendingJobs(
-  limit = 10,
-  onlyType?: JobType,
-): Promise<Job[]> {
+export async function claimPendingJobs(limit = 10, onlyType?: JobType): Promise<Job[]> {
   // Split into two statements rather than one query with
   // `($2::text IS NULL OR type = $2)` — that disjunction isn't sargable, so
   // the planner can't seek on `type` and falls back to scanning the pending
@@ -139,8 +136,7 @@ export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
   return {
     priorityOrderedTypes: rows.map((r) => r.type),
     pending: byType.reduce((sum, t) => sum + t.pending, 0),
-    oldestPendingMins:
-      byType.length > 0 ? Math.max(...byType.map((t) => t.oldestMins)) : 0,
+    oldestPendingMins: byType.length > 0 ? Math.max(...byType.map((t) => t.oldestMins)) : 0,
     byType,
   };
 }
@@ -168,9 +164,7 @@ export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
  * key and is tracked with the credit-reservation work (SMS-007/SMS-015,
  * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2/3).
  */
-export async function resetStuckJobs(
-  thresholdMinutes = 6,
-): Promise<{ released: number; failed: number }> {
+export async function resetStuckJobs(thresholdMinutes = 6): Promise<{ released: number; failed: number }> {
   const { rows } = await pool.query<{ status: JobStatus }>(
     `UPDATE job_queue
      SET    attempts   = attempts + 1,
@@ -187,8 +181,8 @@ export async function resetStuckJobs(
   );
 
   return {
-    released: rows.filter((r) => r.status === "pending").length,
-    failed: rows.filter((r) => r.status === "failed").length,
+    released: rows.filter((r) => r.status === 'pending').length,
+    failed: rows.filter((r) => r.status === 'failed').length,
   };
 }
 
@@ -214,12 +208,7 @@ export async function markJobFailed(id: string, error: string): Promise<void> {
  * Schedule a retry with exponential backoff.
  * Resets status to 'pending' so the job is picked up in a future tick.
  */
-export async function scheduleRetry(
-  id: string,
-  attempts: number,
-  delaySecs: number,
-  error: string,
-): Promise<void> {
+export async function scheduleRetry(id: string, attempts: number, delaySecs: number, error: string): Promise<void> {
   await pool.query(
     `UPDATE job_queue
      SET status     = 'pending',
@@ -238,7 +227,7 @@ export async function scheduleRetry(
  */
 export async function logJob(
   jobId: string,
-  status: JobStatus | "retried" | "started",
+  status: JobStatus | 'retried' | 'started',
   message: string,
   durationMs?: number,
 ): Promise<void> {
@@ -269,12 +258,7 @@ export async function insertJob(
   opts: EnqueueOptions = {},
   executor: Queryable = pool,
 ): Promise<string | null> {
-  const {
-    priority = 0,
-    run_at = new Date(),
-    max_attempts = 5,
-    dedup_key,
-  } = opts;
+  const { priority = 0, run_at = new Date(), max_attempts = 5, dedup_key } = opts;
 
   const { rows } = await executor.query<{ id: string }>(
     `INSERT INTO job_queue (type, payload, priority, run_at, max_attempts, dedup_key)
@@ -284,14 +268,7 @@ export async function insertJob(
          AND status NOT IN ('completed', 'failed')
      DO NOTHING
      RETURNING id`,
-    [
-      type,
-      JSON.stringify(payload),
-      priority,
-      run_at,
-      max_attempts,
-      dedup_key ?? null,
-    ],
+    [type, JSON.stringify(payload), priority, run_at, max_attempts, dedup_key ?? null],
   );
   return rows[0]?.id ?? null;
 }

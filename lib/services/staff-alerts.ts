@@ -40,10 +40,10 @@ const REREMIND_AFTER = '7 days';
 
 export interface StaffAlert {
   /** Stable identity of the condition, e.g. 'sms_credit_reconciliation'. */
-  key:     string;
+  key: string;
   subject: string;
   /** Plain-text body. Kept plain: this is an operational notice, not comms. */
-  body:    string;
+  body: string;
   /**
    * What is wrong, in a form that changes when the problem changes. Two runs
    * that produce the same details are the same problem; a different digest
@@ -53,7 +53,10 @@ export interface StaffAlert {
 }
 
 function fingerprintOf(details: unknown): string {
-  return createHash('sha256').update(JSON.stringify(details ?? null)).digest('hex').slice(0, 32);
+  return createHash('sha256')
+    .update(JSON.stringify(details ?? null))
+    .digest('hex')
+    .slice(0, 32);
 }
 
 /**
@@ -66,16 +69,18 @@ function fingerprintOf(details: unknown): string {
  */
 async function claim(key: string, fingerprint: string): Promise<boolean> {
   return withAdminDb((db) =>
-    db.query(
-      `INSERT INTO staff_alert_state (alert_key, fingerprint, last_alerted_at, last_checked_at, updated_at)
+    db
+      .query(
+        `INSERT INTO staff_alert_state (alert_key, fingerprint, last_alerted_at, last_checked_at, updated_at)
        VALUES ($1, $2, NOW(), NOW(), NOW())
        ON CONFLICT (alert_key) DO UPDATE
          SET fingerprint = $2, last_alerted_at = NOW(), last_checked_at = NOW(), updated_at = NOW()
          WHERE staff_alert_state.fingerprint IS DISTINCT FROM $2
             OR staff_alert_state.last_alerted_at IS NULL
             OR staff_alert_state.last_alerted_at < NOW() - INTERVAL '${REREMIND_AFTER}'`,
-      [key, fingerprint],
-    ).then((r) => (r.rowCount ?? 0) > 0),
+        [key, fingerprint],
+      )
+      .then((r) => (r.rowCount ?? 0) > 0),
   );
 }
 
@@ -99,7 +104,8 @@ export async function clearStaffAlert(key: string): Promise<void> {
     ),
   ).catch((err) => {
     logger.warn('[staff-alerts] failed to clear alert state', {
-      key, err: err instanceof Error ? err.message : String(err),
+      key,
+      err: err instanceof Error ? err.message : String(err),
     });
   });
 }
@@ -117,7 +123,8 @@ export async function raiseStaffAlert(alert: StaffAlert): Promise<boolean> {
   const to = process.env.EMAIL_ADMIN;
   if (!to) {
     logger.error('[staff-alerts] EMAIL_ADMIN is unset — alert has no recipient', {
-      key: alert.key, subject: alert.subject,
+      key: alert.key,
+      subject: alert.subject,
     });
     return false;
   }
@@ -131,7 +138,8 @@ export async function raiseStaffAlert(alert: StaffAlert): Promise<boolean> {
     // failure modes are opposite: there, a bad lookup must not halt the
     // platform; here, a bad lookup must not hide a problem.
     logger.warn('[staff-alerts] claim failed — alerting anyway', {
-      key: alert.key, err: err instanceof Error ? err.message : String(err),
+      key: alert.key,
+      err: err instanceof Error ? err.message : String(err),
     });
     claimed = true;
   }
@@ -142,15 +150,16 @@ export async function raiseStaffAlert(alert: StaffAlert): Promise<boolean> {
     templateKey: 'staff_operational_alert',
     vars: {
       subject: alert.subject,
-      body:    alert.body,
+      body: alert.body,
       details: JSON.stringify(alert.details, null, 2),
-      window:  REREMIND_AFTER,
+      window: REREMIND_AFTER,
     },
     referenceType: 'staff_alert',
-    priority:      'high',
+    priority: 'high',
   }).catch((err) => {
     logger.error('[staff-alerts] failed to queue alert email', {
-      key: alert.key, err: err instanceof Error ? err.message : String(err),
+      key: alert.key,
+      err: err instanceof Error ? err.message : String(err),
     });
   });
 

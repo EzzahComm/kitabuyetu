@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
@@ -27,9 +27,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     // against the LIVE roles.permissions too, not just the token's claim.
     const freshPermissions = await assertAuthFresh(auth);
     requirePermission({ role: auth.role, permissions: freshPermissions }, 'members.manage');
-    const body  = await req.json();
+    const body = await req.json();
     const input = MemberStatusTransitionSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const result = await membersService.transitionStatus(ctx, id, input.status, input.reason);
     return ok(result);
   });

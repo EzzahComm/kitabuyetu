@@ -29,34 +29,31 @@ import { ValidationError } from '@/lib/utils/errors';
 
 const DOMAIN = 'approval';
 
-export type ApprovalPolicyKey =
-  | 'journal_threshold'
-  | 'group_disbursement_threshold'
-  | 'org_disbursement_threshold';
+export type ApprovalPolicyKey = 'journal_threshold' | 'group_disbursement_threshold' | 'org_disbursement_threshold';
 
-interface ThresholdValue { threshold: number }
+interface ThresholdValue {
+  threshold: number;
+}
 
 const FALLBACKS: Record<ApprovalPolicyKey, number> = {
-  journal_threshold:            0,
+  journal_threshold: 0,
   group_disbursement_threshold: 20000,
-  org_disbursement_threshold:   50000,
+  org_disbursement_threshold: 50000,
 };
 
 export interface EffectiveThreshold {
-  key:       ApprovalPolicyKey;
+  key: ApprovalPolicyKey;
   threshold: number;
-  source:    PolicySource;
+  source: PolicySource;
 }
 
 /** Used inline by accounting/disbursement services — no route/role concerns, just a read. */
 export async function getEffectiveThreshold(
   client: PoolClient,
-  key:    ApprovalPolicyKey,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  key: ApprovalPolicyKey,
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<number> {
-  const { threshold } = await resolvePolicy<ThresholdValue>(
-    client, DOMAIN, key, scope, { threshold: FALLBACKS[key] },
-  );
+  const { threshold } = await resolvePolicy<ThresholdValue>(client, DOMAIN, key, scope, { threshold: FALLBACKS[key] });
   return threshold;
 }
 
@@ -70,7 +67,7 @@ export async function getEffectiveThreshold(
  */
 async function syncJournalThresholdColumn(
   client: PoolClient,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<void> {
   let affectedGroupIds: string[];
 
@@ -116,10 +113,10 @@ async function syncJournalThresholdColumn(
     );
     const priorValue = priorRows[0]?.journal_approval_threshold;
 
-    await client.query(
-      `UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`,
-      [threshold.toFixed(2), groupId],
-    );
+    await client.query(`UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`, [
+      threshold.toFixed(2),
+      groupId,
+    ]);
 
     // Record audit log for journal threshold sync — system-triggered
     await client.query(
@@ -146,7 +143,11 @@ export const approvalPolicyService = {
       const results: EffectiveThreshold[] = [];
       for (const key of keys) {
         const resolved = await resolvePolicyDetailed<ThresholdValue>(
-          client, DOMAIN, key, { groupId: ctx.groupId }, { threshold: FALLBACKS[key] },
+          client,
+          DOMAIN,
+          key,
+          { groupId: ctx.groupId },
+          { threshold: FALLBACKS[key] },
         );
         results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
       }
@@ -177,11 +178,19 @@ export const approvalPolicyService = {
   async getOrganizationPolicies(ctx: TenantContext): Promise<EffectiveThreshold[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
-      const keys: ApprovalPolicyKey[] = ['org_disbursement_threshold', 'group_disbursement_threshold', 'journal_threshold'];
+      const keys: ApprovalPolicyKey[] = [
+        'org_disbursement_threshold',
+        'group_disbursement_threshold',
+        'journal_threshold',
+      ];
       const results: EffectiveThreshold[] = [];
       for (const key of keys) {
         const resolved = await resolvePolicyDetailed<ThresholdValue>(
-          client, DOMAIN, key, { organizationId: ctx.organizationId }, { threshold: FALLBACKS[key] },
+          client,
+          DOMAIN,
+          key,
+          { organizationId: ctx.organizationId },
+          { threshold: FALLBACKS[key] },
         );
         results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
       }
@@ -209,11 +218,19 @@ export const approvalPolicyService = {
 
   /** Platform-wide defaults — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformPolicies(client: PoolClient): Promise<EffectiveThreshold[]> {
-    const keys: ApprovalPolicyKey[] = ['journal_threshold', 'group_disbursement_threshold', 'org_disbursement_threshold'];
+    const keys: ApprovalPolicyKey[] = [
+      'journal_threshold',
+      'group_disbursement_threshold',
+      'org_disbursement_threshold',
+    ];
     const results: EffectiveThreshold[] = [];
     for (const key of keys) {
       const resolved = await resolvePolicyDetailed<ThresholdValue>(
-        client, DOMAIN, key, {}, { threshold: FALLBACKS[key] },
+        client,
+        DOMAIN,
+        key,
+        {},
+        { threshold: FALLBACKS[key] },
       );
       results.push({ key, threshold: resolved.value.threshold, source: resolved.source });
     }
@@ -221,7 +238,12 @@ export const approvalPolicyService = {
   },
 
   /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
-  async setPlatformDefault(userId: string, client: PoolClient, key: ApprovalPolicyKey, threshold: number): Promise<void> {
+  async setPlatformDefault(
+    userId: string,
+    client: PoolClient,
+    key: ApprovalPolicyKey,
+    threshold: number,
+  ): Promise<void> {
     if (!(threshold >= 0)) throw new ValidationError('Threshold must be zero or positive');
     await setPolicy(client, DOMAIN, key, {}, { threshold }, userId);
     if (key === 'journal_threshold') {

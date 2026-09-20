@@ -14,12 +14,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  requiredEntitlement, ENTITLEMENT_RULES, DEFAULT_ENTITLEMENT,
+  requiredEntitlement,
+  ENTITLEMENT_RULES,
+  DEFAULT_ENTITLEMENT,
   type RouteEntitlement,
 } from '@/lib/auth/subscription-gate';
 
-const ROOT      = path.resolve(__dirname, '../../..');
-const API_V1    = path.join(ROOT, 'app', 'api', 'v1');
+const ROOT = path.resolve(__dirname, '../../..');
+const API_V1 = path.join(ROOT, 'app', 'api', 'v1');
 
 /** Every real /api/v1/* route path, derived from the filesystem. */
 function collectRoutePaths(dir = API_V1, prefix = '/api/v1'): string[] {
@@ -43,37 +45,37 @@ describe('route entitlement map', () => {
       // startsWith matching made it swallow BOTH of the others — which is how
       // /members and /meetings stayed open to unpaid groups after migration 139
       // shipped the lock. Segment-aware matching is what separates them.
-      ['/api/v1/me/wallet',      'open'],
-      ['/api/v1/me/goals',       'open'],
-      ['/api/v1/members',        'any'],
+      ['/api/v1/me/wallet', 'open'],
+      ['/api/v1/me/goals', 'open'],
+      ['/api/v1/members', 'any'],
       ['/api/v1/members/abc-123', 'any'],
-      ['/api/v1/meetings',       'kitabu_yetu'],
+      ['/api/v1/meetings', 'kitabu_yetu'],
 
       // Pay-from-locked path. If any of these ever stops being 'open' the
       // product is unrecoverable: the only routes that can END the lock would
       // themselves be behind it.
-      ['/api/v1/auth/login',            'open'],
-      ['/api/v1/billing/plans',         'open'],
-      ['/api/v1/billing/entitlements',  'open'],
-      ['/api/v1/mpesa/callback',        'open'],
-      ['/api/v1/workers/jobs',          'open'],
-      ['/api/v1/webhooks/textsms',      'open'],
-      ['/api/v1/daraja/b2c/result',     'open'],
+      ['/api/v1/auth/login', 'open'],
+      ['/api/v1/billing/plans', 'open'],
+      ['/api/v1/billing/entitlements', 'open'],
+      ['/api/v1/mpesa/callback', 'open'],
+      ['/api/v1/workers/jobs', 'open'],
+      ['/api/v1/webhooks/textsms', 'open'],
+      ['/api/v1/daraja/b2c/result', 'open'],
 
       // The shared surface — this is the Chama Reminder product.
-      ['/api/v1/sms',            'any'],
-      ['/api/v1/sms/campaign',   'any'],
-      ['/api/v1/sms/birthdays',  'any'],
+      ['/api/v1/sms', 'any'],
+      ['/api/v1/sms/campaign', 'any'],
+      ['/api/v1/sms/birthdays', 'any'],
 
       // Kitabu Yetu only. A Chama Reminder group has no chart of accounts, so
       // these must not be reachable on a chama_reminder subscription alone.
-      ['/api/v1/loans',          'kitabu_yetu'],
-      ['/api/v1/accounting',     'kitabu_yetu'],
-      ['/api/v1/contributions',  'kitabu_yetu'],
-      ['/api/v1/dividends',      'kitabu_yetu'],
-      ['/api/v1/shares',         'kitabu_yetu'],
-      ['/api/v1/treasury',       'kitabu_yetu'],
-      ['/api/v1/reports',        'kitabu_yetu'],
+      ['/api/v1/loans', 'kitabu_yetu'],
+      ['/api/v1/accounting', 'kitabu_yetu'],
+      ['/api/v1/contributions', 'kitabu_yetu'],
+      ['/api/v1/dividends', 'kitabu_yetu'],
+      ['/api/v1/shares', 'kitabu_yetu'],
+      ['/api/v1/treasury', 'kitabu_yetu'],
+      ['/api/v1/reports', 'kitabu_yetu'],
 
       // Pins the default-closed decision: an unlisted route requires Kitabu
       // Yetu rather than falling open.
@@ -107,9 +109,9 @@ describe('route entitlement map', () => {
     const routes = collectRoutePaths();
     expect(routes.length).toBeGreaterThan(0);
 
-    const dead = ENTITLEMENT_RULES
-      .map(([prefix]) => prefix)
-      .filter((prefix) => !routes.some((r) => r === prefix || r.startsWith(prefix + '/')));
+    const dead = ENTITLEMENT_RULES.map(([prefix]) => prefix).filter(
+      (prefix) => !routes.some((r) => r === prefix || r.startsWith(prefix + '/')),
+    );
 
     // This is the guard that would have caught '/api/v1/health' (health lives
     // at /api/health, outside /api/v1 entirely) and the phantom '/api/v1/me'
@@ -177,11 +179,13 @@ describe('route entitlement map', () => {
   });
 
   it('exactly these top-level areas are reachable with no subscription at all', () => {
-    const openAreas = [...new Set(
-      collectRoutePaths()
-        .filter((r) => requiredEntitlement(r) === 'open')
-        .map((r) => r.split('/').slice(0, 4).join('/')),
-    )].sort();
+    const openAreas = [
+      ...new Set(
+        collectRoutePaths()
+          .filter((r) => requiredEntitlement(r) === 'open')
+          .map((r) => r.split('/').slice(0, 4).join('/')),
+      ),
+    ].sort();
 
     // Grouped by top-level area rather than listing every descendant: the
     // reviewable decision is "is this whole area outside the lock", and the
@@ -206,7 +210,9 @@ describe('route entitlement map', () => {
     // rather than at the door.
     const routes = collectRoutePaths();
     const financial = routes.filter((r) =>
-      /^\/api\/v1\/(loans|accounting|contributions|dividends|shares|treasury|investments|welfare|fines|reports)\b/.test(r),
+      /^\/api\/v1\/(loans|accounting|contributions|dividends|shares|treasury|investments|welfare|fines|reports)\b/.test(
+        r,
+      ),
     );
     expect(financial.length).toBeGreaterThan(10);
     for (const route of financial) {

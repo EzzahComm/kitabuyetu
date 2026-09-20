@@ -1,6 +1,6 @@
-import React from "react";
-import Link from "next/link";
-import { Container } from "@/components/Container";
+import React from 'react';
+import Link from 'next/link';
+import { Container } from '@/components/Container';
 
 interface ProductCard {
   name: string;
@@ -22,15 +22,9 @@ export const ProductGrid = () => {
             key={product.name}
             className="flex flex-col border border-gray-200 bg-gray-50 p-7 transition-colors hover:border-brand-300 dark:border-trueGray-700 dark:bg-trueGray-800 dark:hover:border-brand-700"
           >
-            <h3 className="text-xl font-medium text-gray-800 dark:text-gray-200">
-              {product.name}
-            </h3>
-            <p className="mt-2 font-medium text-gray-700 dark:text-gray-300">
-              {product.tagline}
-            </p>
-            <p className="mt-3 text-gray-500 dark:text-gray-400">
-              {product.desc}
-            </p>
+            <h3 className="text-xl font-medium text-gray-800 dark:text-gray-200">{product.name}</h3>
+            <p className="mt-2 font-medium text-gray-700 dark:text-gray-300">{product.tagline}</p>
+            <p className="mt-3 text-gray-500 dark:text-gray-400">{product.desc}</p>
             <div className="mt-auto pt-7">
               <Link
                 href={product.cta.href}
@@ -48,28 +42,28 @@ export const ProductGrid = () => {
 
 const products: ProductCard[] = [
   {
-    name: "Bookkeeper",
+    name: 'Bookkeeper',
     tagline: "Your group's financial record.",
-    desc: "Manage members, contributions, loans, expenses, investments, income-generating activities, M-Pesa payments and reporting.",
-    cta: { text: "Explore Bookkeeper", href: "/products#bookkeeper" },
+    desc: 'Manage members, contributions, loans, expenses, investments, income-generating activities, M-Pesa payments and reporting.',
+    cta: { text: 'Explore Bookkeeper', href: '/products#bookkeeper' },
   },
   {
-    name: "Chama Reminder",
-    tagline: "Keep members engaged and contributions on track.",
-    desc: "Send reminders, announcements, birthday messages and SMS campaigns.",
-    cta: { text: "Explore Chama Reminder", href: "/products#chama-reminder" },
+    name: 'Chama Reminder',
+    tagline: 'Keep members engaged and contributions on track.',
+    desc: 'Send reminders, announcements, birthday messages and SMS campaigns.',
+    cta: { text: 'Explore Chama Reminder', href: '/products#chama-reminder' },
   },
   {
-    name: "Fundraise / Changi$ha",
-    tagline: "Raise money for groups, projects and community initiatives.",
-    desc: "Create fundraising campaigns and connect contributors to causes that matter.",
-    cta: { text: "Explore Fundraise", href: "/products#fundraise" },
+    name: 'Fundraise / Changi$ha',
+    tagline: 'Raise money for groups, projects and community initiatives.',
+    desc: 'Create fundraising campaigns and connect contributors to causes that matter.',
+    cta: { text: 'Explore Fundraise', href: '/products#fundraise' },
   },
   {
-    name: "Enterprise",
-    tagline: "Manage many groups from one place.",
-    desc: "Give organizations visibility across groups, programs, finances, activities and impact.",
-    cta: { text: "Explore Enterprise", href: "/products#enterprise" },
+    name: 'Enterprise',
+    tagline: 'Manage many groups from one place.',
+    desc: 'Give organizations visibility across groups, programs, finances, activities and impact.',
+    cta: { text: 'Explore Enterprise', href: '/products#enterprise' },
   },
 ];
 

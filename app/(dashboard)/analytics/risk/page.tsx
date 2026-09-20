@@ -3,8 +3,15 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Clock, Heart, Landmark,
-  Loader2, ShieldAlert, UserX,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Heart,
+  Landmark,
+  Loader2,
+  ShieldAlert,
+  UserX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,25 +24,51 @@ import { getErrorMessage } from '@/lib/utils';
 import type { Tone } from '@/lib/ui/tokens';
 
 interface OverdueLoan {
-  loanId: string; memberId: string; firstName: string; lastName: string;
-  phone: string; principalAmount: string; outstanding: string;
-  nextPaymentDate: string; daysOverdue: number;
+  loanId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  principalAmount: string;
+  outstanding: string;
+  nextPaymentDate: string;
+  daysOverdue: number;
 }
 interface DefaultedLoan {
-  loanId: string; memberId: string; firstName: string; lastName: string;
-  phone: string; principalAmount: string; outstanding: string; status: string;
+  loanId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  principalAmount: string;
+  outstanding: string;
+  status: string;
 }
 interface HighRiskMember {
-  memberId: string; firstName: string; lastName: string; phone: string;
-  overallScore: number; reliabilityTier: 'poor' | 'high_risk';
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  overallScore: number;
+  reliabilityTier: 'poor' | 'high_risk';
 }
 interface IdleMember {
-  memberId: string; firstName: string; lastName: string; phone: string;
-  joinedAt: string; lastContributionAt: string | null;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  joinedAt: string;
+  lastContributionAt: string | null;
 }
 interface StaleWelfare {
-  requestId: string; memberId: string; firstName: string; lastName: string;
-  phone: string; amountRequested: string; createdAt: string; daysPending: number;
+  requestId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  amountRequested: string;
+  createdAt: string;
+  daysPending: number;
 }
 interface RiskAnalysis {
   generatedAt: string;
@@ -47,19 +80,21 @@ interface RiskAnalysis {
 }
 
 const fmtMoney = (v: string | number | null | undefined) =>
-  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
+  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(
+    Number(v ?? 0),
+  );
 
 // Same reliability-tier → tone mapping as credit-scores/page.tsx and
 // credit-scores/[memberId]/page.tsx, for consistency across all three.
 const TIER_TONE: Record<HighRiskMember['reliabilityTier'], Tone> = {
-  poor:      'negative',
+  poor: 'negative',
   high_risk: 'negative',
 };
 
 export default function RiskAnalysisPage() {
   const riskQ = useQuery<RiskAnalysis>({
     queryKey: ['analytics', 'risk'],
-    queryFn:  () => api.get<RiskAnalysis>('/analytics/risk'),
+    queryFn: () => api.get<RiskAnalysis>('/analytics/risk'),
   });
   const r = riskQ.data;
 
@@ -90,16 +125,43 @@ export default function RiskAnalysisPage() {
           <AlertDescription>{getErrorMessage(riskQ.error)}</AlertDescription>
         </Alert>
       ) : riskQ.isLoading || !r ? (
-        <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
       ) : (
         <>
           {/* Summary tiles */}
           <div className="grid gap-3 md:grid-cols-5">
-            <RiskTile icon={<Clock     className="h-4 w-4" />} label="Overdue loans"   value={r.overdueLoans.length}        tone={r.overdueLoans.length > 0 ? 'warning' : 'ok'} />
-            <RiskTile icon={<Landmark  className="h-4 w-4" />} label="Defaulted loans" value={r.defaultedLoans.length}      tone={r.defaultedLoans.length > 0 ? 'danger' : 'ok'} />
-            <RiskTile icon={<ShieldAlert className="h-4 w-4" />} label="Risky members" value={r.highRiskMembers.length}     tone={r.highRiskMembers.length > 0 ? 'warning' : 'ok'} />
-            <RiskTile icon={<UserX     className="h-4 w-4" />} label="Idle members"   value={r.idleMembers.length}         tone={r.idleMembers.length > 0 ? 'warning' : 'ok'} />
-            <RiskTile icon={<Heart     className="h-4 w-4" />} label="Stale welfare"  value={r.staleWelfareRequests.length} tone={r.staleWelfareRequests.length > 0 ? 'warning' : 'ok'} />
+            <RiskTile
+              icon={<Clock className="h-4 w-4" />}
+              label="Overdue loans"
+              value={r.overdueLoans.length}
+              tone={r.overdueLoans.length > 0 ? 'warning' : 'ok'}
+            />
+            <RiskTile
+              icon={<Landmark className="h-4 w-4" />}
+              label="Defaulted loans"
+              value={r.defaultedLoans.length}
+              tone={r.defaultedLoans.length > 0 ? 'danger' : 'ok'}
+            />
+            <RiskTile
+              icon={<ShieldAlert className="h-4 w-4" />}
+              label="Risky members"
+              value={r.highRiskMembers.length}
+              tone={r.highRiskMembers.length > 0 ? 'warning' : 'ok'}
+            />
+            <RiskTile
+              icon={<UserX className="h-4 w-4" />}
+              label="Idle members"
+              value={r.idleMembers.length}
+              tone={r.idleMembers.length > 0 ? 'warning' : 'ok'}
+            />
+            <RiskTile
+              icon={<Heart className="h-4 w-4" />}
+              label="Stale welfare"
+              value={r.staleWelfareRequests.length}
+              tone={r.staleWelfareRequests.length > 0 ? 'warning' : 'ok'}
+            />
           </div>
 
           {totalRisks === 0 && (
@@ -108,8 +170,8 @@ export default function RiskAnalysisPage() {
                 <CheckCircle2 className="h-10 w-10 text-green-600" />
                 <p className="font-medium">No risk signals right now</p>
                 <p className="max-w-md text-sm text-muted-foreground">
-                  Every loan is on schedule, no members are in poor or high-risk credit tiers,
-                  contributions are active, and pending welfare requests are fresh.
+                  Every loan is on schedule, no members are in poor or high-risk credit tiers, contributions are active,
+                  and pending welfare requests are fresh.
                 </p>
               </CardContent>
             </Card>
@@ -117,9 +179,11 @@ export default function RiskAnalysisPage() {
 
           {r.overdueLoans.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
-                <Clock className="h-4 w-4" /> Overdue loans ({r.overdueLoans.length})
-              </CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-amber-700">
+                  <Clock className="h-4 w-4" /> Overdue loans ({r.overdueLoans.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <PaginatedTable
                   data={singlePage(r.overdueLoans.map((l) => ({ ...l, id: l.loanId })))}
@@ -128,19 +192,42 @@ export default function RiskAnalysisPage() {
                   emptyMessage="No overdue loans"
                   columns={[
                     {
-                      key: 'member', header: 'Member', render: (l) => (
+                      key: 'member',
+                      header: 'Member',
+                      render: (l) => (
                         <>
-                          <p className="font-medium">{l.firstName} {l.lastName}</p>
+                          <p className="font-medium">
+                            {l.firstName} {l.lastName}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{l.phone}</p>
                         </>
                       ),
                     },
-                    { key: 'principal', header: 'Principal', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span> },
-                    { key: 'outstanding', header: 'Outstanding', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span> },
-                    { key: 'due', header: 'Due', render: (l) => <span className="font-mono text-xs">{l.nextPaymentDate}</span> },
                     {
-                      key: 'daysOverdue', header: 'Days late', className: 'text-right', render: (l) => (
-                        <span className={`font-mono font-medium ${l.daysOverdue >= 60 ? 'text-red-600' : l.daysOverdue >= 30 ? 'text-amber-600' : ''}`}>
+                      key: 'principal',
+                      header: 'Principal',
+                      className: 'text-right',
+                      render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span>,
+                    },
+                    {
+                      key: 'outstanding',
+                      header: 'Outstanding',
+                      className: 'text-right',
+                      render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span>,
+                    },
+                    {
+                      key: 'due',
+                      header: 'Due',
+                      render: (l) => <span className="font-mono text-xs">{l.nextPaymentDate}</span>,
+                    },
+                    {
+                      key: 'daysOverdue',
+                      header: 'Days late',
+                      className: 'text-right',
+                      render: (l) => (
+                        <span
+                          className={`font-mono font-medium ${l.daysOverdue >= 60 ? 'text-red-600' : l.daysOverdue >= 30 ? 'text-amber-600' : ''}`}
+                        >
                           {l.daysOverdue}
                         </span>
                       ),
@@ -153,9 +240,11 @@ export default function RiskAnalysisPage() {
 
           {r.defaultedLoans.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-red-700">
-                <Landmark className="h-4 w-4" /> Defaulted &amp; written-off loans ({r.defaultedLoans.length})
-              </CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-red-700">
+                  <Landmark className="h-4 w-4" /> Defaulted &amp; written-off loans ({r.defaultedLoans.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <PaginatedTable
                   data={singlePage(r.defaultedLoans.map((l) => ({ ...l, id: l.loanId })))}
@@ -164,16 +253,34 @@ export default function RiskAnalysisPage() {
                   emptyMessage="No defaulted loans"
                   columns={[
                     {
-                      key: 'member', header: 'Member', render: (l) => (
+                      key: 'member',
+                      header: 'Member',
+                      render: (l) => (
                         <>
-                          <p className="font-medium">{l.firstName} {l.lastName}</p>
+                          <p className="font-medium">
+                            {l.firstName} {l.lastName}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{l.phone}</p>
                         </>
                       ),
                     },
-                    { key: 'principal', header: 'Principal', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span> },
-                    { key: 'outstanding', header: 'Outstanding', className: 'text-right', render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span> },
-                    { key: 'status', header: 'Status', render: (l) => <StatusPill status={l.status} tone="negative" /> },
+                    {
+                      key: 'principal',
+                      header: 'Principal',
+                      className: 'text-right',
+                      render: (l) => <span className="font-mono">{fmtMoney(l.principalAmount)}</span>,
+                    },
+                    {
+                      key: 'outstanding',
+                      header: 'Outstanding',
+                      className: 'text-right',
+                      render: (l) => <span className="font-mono">{fmtMoney(l.outstanding)}</span>,
+                    },
+                    {
+                      key: 'status',
+                      header: 'Status',
+                      render: (l) => <StatusPill status={l.status} tone="negative" />,
+                    },
                   ]}
                 />
               </CardContent>
@@ -182,9 +289,11 @@ export default function RiskAnalysisPage() {
 
           {r.highRiskMembers.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
-                <ShieldAlert className="h-4 w-4" /> Members in poor or high-risk tier ({r.highRiskMembers.length})
-              </CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-amber-700">
+                  <ShieldAlert className="h-4 w-4" /> Members in poor or high-risk tier ({r.highRiskMembers.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <PaginatedTable
                   data={singlePage(r.highRiskMembers.map((m) => ({ ...m, id: m.memberId })))}
@@ -193,17 +302,33 @@ export default function RiskAnalysisPage() {
                   emptyMessage="No high-risk members"
                   columns={[
                     {
-                      key: 'member', header: 'Member', render: (m) => (
+                      key: 'member',
+                      header: 'Member',
+                      render: (m) => (
                         <>
-                          <p className="font-medium">{m.firstName} {m.lastName}</p>
+                          <p className="font-medium">
+                            {m.firstName} {m.lastName}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{m.phone}</p>
                         </>
                       ),
                     },
-                    { key: 'overall', header: 'Overall', className: 'text-right', render: (m) => <span className="font-mono font-medium">{m.overallScore.toFixed(0)}</span> },
-                    { key: 'tier', header: 'Tier', render: (m) => <StatusPill status={m.reliabilityTier} tone={TIER_TONE[m.reliabilityTier]} /> },
                     {
-                      key: 'actions', header: '', className: 'text-right', render: (m) => (
+                      key: 'overall',
+                      header: 'Overall',
+                      className: 'text-right',
+                      render: (m) => <span className="font-mono font-medium">{m.overallScore.toFixed(0)}</span>,
+                    },
+                    {
+                      key: 'tier',
+                      header: 'Tier',
+                      render: (m) => <StatusPill status={m.reliabilityTier} tone={TIER_TONE[m.reliabilityTier]} />,
+                    },
+                    {
+                      key: 'actions',
+                      header: '',
+                      className: 'text-right',
+                      render: (m) => (
                         <Button asChild size="sm" variant="ghost">
                           <Link href={`/credit-scores/${m.memberId}`}>View score</Link>
                         </Button>
@@ -217,9 +342,11 @@ export default function RiskAnalysisPage() {
 
           {r.idleMembers.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
-                <UserX className="h-4 w-4" /> Idle members ({r.idleMembers.length})
-              </CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-amber-700">
+                  <UserX className="h-4 w-4" /> Idle members ({r.idleMembers.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <PaginatedTable
                   data={singlePage(r.idleMembers.map((m) => ({ ...m, id: m.memberId })))}
@@ -228,15 +355,31 @@ export default function RiskAnalysisPage() {
                   emptyMessage="No idle members"
                   columns={[
                     {
-                      key: 'member', header: 'Member', render: (m) => (
+                      key: 'member',
+                      header: 'Member',
+                      render: (m) => (
                         <>
-                          <p className="font-medium">{m.firstName} {m.lastName}</p>
+                          <p className="font-medium">
+                            {m.firstName} {m.lastName}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{m.phone}</p>
                         </>
                       ),
                     },
-                    { key: 'joinedAt', header: 'Joined', render: (m) => <span className="font-mono text-xs">{m.joinedAt}</span> },
-                    { key: 'lastContributionAt', header: 'Last contribution', render: (m) => <span className="font-mono text-xs">{m.lastContributionAt ?? <span className="text-muted-foreground italic">never</span>}</span> },
+                    {
+                      key: 'joinedAt',
+                      header: 'Joined',
+                      render: (m) => <span className="font-mono text-xs">{m.joinedAt}</span>,
+                    },
+                    {
+                      key: 'lastContributionAt',
+                      header: 'Last contribution',
+                      render: (m) => (
+                        <span className="font-mono text-xs">
+                          {m.lastContributionAt ?? <span className="text-muted-foreground italic">never</span>}
+                        </span>
+                      ),
+                    },
                   ]}
                 />
               </CardContent>
@@ -245,9 +388,11 @@ export default function RiskAnalysisPage() {
 
           {r.staleWelfareRequests.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-amber-700">
-                <Heart className="h-4 w-4" /> Welfare requests pending &gt; 14 days ({r.staleWelfareRequests.length})
-              </CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-amber-700">
+                  <Heart className="h-4 w-4" /> Welfare requests pending &gt; 14 days ({r.staleWelfareRequests.length})
+                </CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <PaginatedTable
                   data={singlePage(r.staleWelfareRequests.map((w) => ({ ...w, id: w.requestId })))}
@@ -256,33 +401,58 @@ export default function RiskAnalysisPage() {
                   emptyMessage="No stale welfare requests"
                   columns={[
                     {
-                      key: 'member', header: 'Member', render: (w) => (
+                      key: 'member',
+                      header: 'Member',
+                      render: (w) => (
                         <>
-                          <p className="font-medium">{w.firstName} {w.lastName}</p>
+                          <p className="font-medium">
+                            {w.firstName} {w.lastName}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{w.phone}</p>
                         </>
                       ),
                     },
-                    { key: 'amountRequested', header: 'Requested', className: 'text-right', render: (w) => <span className="font-mono">{fmtMoney(w.amountRequested)}</span> },
-                    { key: 'createdAt', header: 'Submitted', render: (w) => <span className="font-mono text-xs">{new Date(w.createdAt).toLocaleDateString()}</span> },
-                    { key: 'daysPending', header: 'Days pending', className: 'text-right', render: (w) => <span className="font-mono font-medium">{w.daysPending}</span> },
+                    {
+                      key: 'amountRequested',
+                      header: 'Requested',
+                      className: 'text-right',
+                      render: (w) => <span className="font-mono">{fmtMoney(w.amountRequested)}</span>,
+                    },
+                    {
+                      key: 'createdAt',
+                      header: 'Submitted',
+                      render: (w) => (
+                        <span className="font-mono text-xs">{new Date(w.createdAt).toLocaleDateString()}</span>
+                      ),
+                    },
+                    {
+                      key: 'daysPending',
+                      header: 'Days pending',
+                      className: 'text-right',
+                      render: (w) => <span className="font-mono font-medium">{w.daysPending}</span>,
+                    },
                   ]}
                 />
               </CardContent>
             </Card>
           )}
 
-          <p className="text-xs text-muted-foreground">
-            Generated {new Date(r.generatedAt).toLocaleString()}
-          </p>
+          <p className="text-xs text-muted-foreground">Generated {new Date(r.generatedAt).toLocaleString()}</p>
         </>
       )}
     </div>
   );
 }
 
-function RiskTile({ icon, label, value, tone }: {
-  icon: React.ReactNode; label: string; value: number;
+function RiskTile({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
   tone: 'ok' | 'warning' | 'danger';
 }) {
   const valueClass = tone === 'danger' ? 'text-red-600' : tone === 'warning' ? 'text-amber-600' : 'text-green-600';

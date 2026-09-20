@@ -1,6 +1,6 @@
 # SMS Monetization — Architecture Audit
 
-**2026-08-13.** Phase 1 of a pasted 22-section spec for restructuring SMS into a *Subscription + Prepaid Credits + Usage-Based Deduction* revenue model. The spec's own §20 mandates an audit before any code, and §21 warns against implementing blindly on a production system. This is that audit.
+**2026-08-13.** Phase 1 of a pasted 22-section spec for restructuring SMS into a _Subscription + Prepaid Credits + Usage-Based Deduction_ revenue model. The spec's own §20 mandates an audit before any code, and §21 warns against implementing blindly on a production system. This is that audit.
 
 Every claim below is grounded in source or in a live query against production (`qztcgryhoanennsizcll`). Nothing is taken from the spec's own description of what a generic SaaS looks like.
 
@@ -10,26 +10,26 @@ Every claim below is grounded in source or in a live query against production (`
 
 ## 1. Headline verdict
 
-**The spec is closer to a superset of what exists than a replacement of it.** The consumption half — reservation, settle/release, per-message attribution, allowance split, low-balance alerting — is already built, centralized, and production-proven. The *monetization* half — volume pricing, packages, purchase lots, margin — is genuinely absent.
+**The spec is closer to a superset of what exists than a replacement of it.** The consumption half — reservation, settle/release, per-message attribution, allowance split, low-balance alerting — is already built, centralized, and production-proven. The _monetization_ half — volume pricing, packages, purchase lots, margin — is genuinely absent.
 
 The single biggest risk in the spec is not any of its new features. It is **§6's "1 SMS = 1 SMS Credit"**, which is a **unit change on a live balance**, not a relabelling. See §4.
 
-| Spec requirement | Reality | Verdict |
-|---|---|---|
-| §5 Centralized wallet, all features | `billing_accounts` + `reserveCredits`/`settleReservation` | ✅ Exists |
-| §7 Central consumption service | `lib/services/messaging-billing.ts` — the single earmark/charge/return point | ✅ Exists |
-| §17 Reserve → reconcile → release | Exactly the implemented model, with a stale-reservation sweeper | ✅ Exists |
-| §14 Consumption record | `sms_usage_logs` — richer than the spec asks | ✅ Exists |
-| §9 Low-balance alerts | `low_balance_threshold`, `low_balance_notified_at`, 24h dedup, re-arms on top-up | ✅ Exists |
-| §11 Chama Reminder on the shared wallet | Never had its own; Phase 4 shipped on the shared one | ✅ Already true |
-| §14 Purchase record | `sms_credits` table — has `rate_applied` per purchase | 🟡 Partial |
-| §4 Don't retroactively reprice | Per-purchase rate stored; **no lot consumption tracking** | 🟡 Partial |
-| §5 Immutable ledger, never silently modify | Balance is a **mutable `NUMERIC`** column | ❌ Gap |
-| §2 Volume pricing tiers | Exists **as a dead function signature** — see §2.2 | ❌ Gap |
-| §3 Packages | Nothing | ❌ Gap |
-| §12 Super-admin pricing/package controls | Nothing | ❌ Gap |
-| §15 Provider cost & margin | Nothing — grepped, zero references | ❌ Gap |
-| §6 1 SMS = 1 credit | **Credited in messages, debited in money — a live leak** | ❌ FIXED, migration 144 |
+| Spec requirement                           | Reality                                                                          | Verdict                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------- |
+| §5 Centralized wallet, all features        | `billing_accounts` + `reserveCredits`/`settleReservation`                        | ✅ Exists               |
+| §7 Central consumption service             | `lib/services/messaging-billing.ts` — the single earmark/charge/return point     | ✅ Exists               |
+| §17 Reserve → reconcile → release          | Exactly the implemented model, with a stale-reservation sweeper                  | ✅ Exists               |
+| §14 Consumption record                     | `sms_usage_logs` — richer than the spec asks                                     | ✅ Exists               |
+| §9 Low-balance alerts                      | `low_balance_threshold`, `low_balance_notified_at`, 24h dedup, re-arms on top-up | ✅ Exists               |
+| §11 Chama Reminder on the shared wallet    | Never had its own; Phase 4 shipped on the shared one                             | ✅ Already true         |
+| §14 Purchase record                        | `sms_credits` table — has `rate_applied` per purchase                            | 🟡 Partial              |
+| §4 Don't retroactively reprice             | Per-purchase rate stored; **no lot consumption tracking**                        | 🟡 Partial              |
+| §5 Immutable ledger, never silently modify | Balance is a **mutable `NUMERIC`** column                                        | ❌ Gap                  |
+| §2 Volume pricing tiers                    | Exists **as a dead function signature** — see §2.2                               | ❌ Gap                  |
+| §3 Packages                                | Nothing                                                                          | ❌ Gap                  |
+| §12 Super-admin pricing/package controls   | Nothing                                                                          | ❌ Gap                  |
+| §15 Provider cost & margin                 | Nothing — grepped, zero references                                               | ❌ Gap                  |
+| §6 1 SMS = 1 credit                        | **Credited in messages, debited in money — a live leak**                         | ❌ FIXED, migration 144 |
 
 ---
 
@@ -39,15 +39,15 @@ The single biggest risk in the spec is not any of its new features. It is **§6'
 
 Two independent wallets, on two different tenancy axes:
 
-| | `billing_accounts` | `organization_billing_accounts` |
-|---|---|---|
-| Keyed by | `group_id` | `organization_id` |
-| Balance | `sms_credits NUMERIC(_,2)` | `sms_credits NUMERIC(_,2)` |
-| Rate | from `subscriptions.sms_rate` | own `sms_rate NUMERIC(_,4)` default 0.90 |
-| Reservation | `reserved_sms_credits` | `reserved_sms_credits` |
-| Bundled allowance | `sms_allowance_used` / `_reserved` (INTEGER, message counts) | none — orgs get no allowance |
-| Low balance | `low_balance_threshold`, `low_balance_notified_at` | same |
-| Auto top-up | `auto_topup_enabled`, `auto_topup_amount` — **columns exist, dormant** | none |
+|                   | `billing_accounts`                                                     | `organization_billing_accounts`          |
+| ----------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| Keyed by          | `group_id`                                                             | `organization_id`                        |
+| Balance           | `sms_credits NUMERIC(_,2)`                                             | `sms_credits NUMERIC(_,2)`               |
+| Rate              | from `subscriptions.sms_rate`                                          | own `sms_rate NUMERIC(_,4)` default 0.90 |
+| Reservation       | `reserved_sms_credits`                                                 | `reserved_sms_credits`                   |
+| Bundled allowance | `sms_allowance_used` / `_reserved` (INTEGER, message counts)           | none — orgs get no allowance             |
+| Low balance       | `low_balance_threshold`, `low_balance_notified_at`                     | same                                     |
+| Auto top-up       | `auto_topup_enabled`, `auto_topup_amount` — **columns exist, dormant** | none                                     |
 
 `reserveCredits` already takes `payerType: 'group' | 'organization' | 'platform'` (`lib/services/messaging-billing.ts:37`), so a three-way payer axis is live today. **This is the decision the spec cannot answer for us — see §3, Decision A.**
 
@@ -55,16 +55,17 @@ Note `auto_topup_*` already exists and is unused. The spec (§9) defers auto top
 
 ### 2.2 Pricing — volume tiers exist as a signature nothing calls
 
-`SMS_RATES` in `types/enums.ts` is typed `Record<SubscriptionProduct, Record<PlanType, (volume: number) => number>>` — a function *of volume*. Only the `enterprise` cell branches on it (0.90 / 0.75 above 10k / 0.60 above 50k).
+`SMS_RATES` in `types/enums.ts` is typed `Record<SubscriptionProduct, Record<PlanType, (volume: number) => number>>` — a function _of volume_. Only the `enterprise` cell branches on it (0.90 / 0.75 above 10k / 0.60 above 50k).
 
 **Every call site passes `0`:**
+
 - `billing.service.ts:102` — `SMS_RATES[product].starter(0)`
 - `billing.service.ts:186`, `:231` — `SMS_RATES[product][planType](0)`
 - `app/api/v1/billing/plans/route.ts:31` — `SMS_RATES[product][plan](0)`
 
 So the volume argument is dead in all four callers, and the tiers it encodes (0.60/0.75/0.90) don't match the spec's proposed table anyway.
 
-**It is doubly dead**: the rate used at *send* time doesn't come from this function at all. `reserve_sms_credits` reads `MIN(sms_rate)` across the group's active `subscriptions` rows — a scalar frozen onto the subscription at purchase time. `SMS_RATES` only ever *seeds* that scalar.
+**It is doubly dead**: the rate used at _send_ time doesn't come from this function at all. `reserve_sms_credits` reads `MIN(sms_rate)` across the group's active `subscriptions` rows — a scalar frozen onto the subscription at purchase time. `SMS_RATES` only ever _seeds_ that scalar.
 
 Practical consequence: **every group in production pays a flat 0.90**, and the volume machinery has never priced anything.
 
@@ -78,7 +79,7 @@ The spec's §14 consumption list is a strict subset. **Nothing needs adding here
 
 `sms_credits` stores one row per purchase: `amount_paid`, `credits_added`, **`rate_applied`**, `payment_id`, `added_by`, `notes`, plus `UNIQUE(payment_id)` (migration 137, idempotency).
 
-`rate_applied` is per-purchase, which already satisfies the *spirit* of §4 — the price paid for a batch is preserved and never recalculated. What's missing for §4's full model: `package_id`, `remaining_balance` (lot-level consumption), `currency`, and expiry.
+`rate_applied` is per-purchase, which already satisfies the _spirit_ of §4 — the price paid for a batch is preserved and never recalculated. What's missing for §4's full model: `package_id`, `remaining_balance` (lot-level consumption), `currency`, and expiry.
 
 **Important**: because the balance is a single pooled `NUMERIC`, credits are not consumed lot-by-lot today. Implementing §4's "remaining balance per purchase" means moving to lot consumption (FIFO or similar), which is a genuine behavioural change, not a schema addition.
 
@@ -95,11 +96,11 @@ The spec says "**Organization** SMS Wallet" throughout (§5, §7, §11, §14). I
 
 Three options:
 
-1. **Keep both wallets, formalise the existing 3-way payer axis.** Lowest risk; matches what's live; `reserveCredits` already models it. Cost: "one wallet" in the spec becomes "one *service*, two payer types" — the spec's §7 diagram is satisfied by the service, not by a single table.
+1. **Keep both wallets, formalise the existing 3-way payer axis.** Lowest risk; matches what's live; `reserveCredits` already models it. Cost: "one wallet" in the spec becomes "one _service_, two payer types" — the spec's §7 diagram is satisfied by the service, not by a single table.
 2. **Consolidate onto a single wallet table with a polymorphic owner.** Closest to the spec's literal wording. Cost: a real migration of two live balances, and it flattens a distinction the org-funding feature depends on (orgs negotiate their own rate).
 3. Organization-only wallet. **Rejected outright** — most groups have no organization, so this would leave the majority of tenants with nowhere to hold credits.
 
-> **DECIDED: option 1** — groups keep their own wallet, organizations keep theirs. The spec's actual requirement is "do not build a second billing implementation per feature", and that is already satisfied. Two *payer types* is not the fragmentation §1 warns about; two *billing implementations* would be, and there aren't any. No migration of live balances; the existing 3-way payer axis gets formalised rather than replaced.
+> **DECIDED: option 1** — groups keep their own wallet, organizations keep theirs. The spec's actual requirement is "do not build a second billing implementation per feature", and that is already satisfied. Two _payer types_ is not the fragmentation §1 warns about; two _billing implementations_ would be, and there aren't any. No migration of live balances; the existing 3-way payer axis gets formalised rather than replaced.
 
 ### Decision B — do credits become message counts (§6)?
 
@@ -107,7 +108,7 @@ Today `billing_accounts.sms_credits` is **money**. Live example: group `KY000000
 
 Under §6 the same wallet must read "123 SMS Credits".
 
-This is not a display change. It changes what the column *means*, and §21 forbids silently resetting balances. Options:
+This is not a display change. It changes what the column _means_, and §21 forbids silently resetting balances. Options:
 
 1. **Add `sms_credit_balance INTEGER` alongside the money column**, backfill as `floor(money / effective_rate)`, migrate readers, retire the money column later. Reversible, auditable, no customer sees a balance move.
 2. Convert in place. Cheaper, but irreversible and momentarily wrong for anyone mid-send.
@@ -121,18 +122,18 @@ This is not a display change. It changes what the column *means*, and §21 forbi
 
 **This audit originally claimed `billing_accounts.sms_credits` holds money. That was wrong**, and the truth was worse: the column was credited in one unit and debited in another.
 
-| path | code | at rate 0.90 | unit |
-|---|---|---|---|
+| path   | code                            | at rate 0.90          | unit          |
+| ------ | ------------------------------- | --------------------- | ------------- |
 | top-up | `credits += amount_paid / rate` | KES 100 → **+111.11** | message count |
-| send | `reserved += count * rate` | 1 message → **−0.90** | money |
+| send   | `reserved += count * rate`      | 1 message → **−0.90** | money         |
 
 Verified against production: the only funded group paid `amount_paid = 100.00` at `rate_applied = 0.9000` for `credits_added = 111.11`, and its two settled messages deducted 1.80 — 0.90 each.
 
-**A customer who paid for 111 messages could send 123.** The error factor is `1/rate`, so it *worsens as prices fall* — at the 0.50 tier proposed in §2, a customer would have received **double** what they bought. The volume discount this project exists to introduce would have amplified the leak rather than being neutral to it.
+**A customer who paid for 111 messages could send 123.** The error factor is `1/rate`, so it _worsens as prices fall_ — at the 0.50 tier proposed in §2, a customer would have received **double** what they bought. The volume discount this project exists to introduce would have amplified the leak rather than being neutral to it.
 
 **Consequences for the plan:**
 
-- **Decision B's migration is not needed.** The stored balance was always produced by the top-up path, so it is *already* a message count — `111.11` really does mean 111 messages. Nothing needs converting; the deduction side needed to agree with it. Fixed in **migration 144** by earmarking counts instead of money (two lines), plus the TypeScript send paths that wrote `rate` per row and `reservation.total` (money) as a row's reserved amount.
+- **Decision B's migration is not needed.** The stored balance was always produced by the top-up path, so it is _already_ a message count — `111.11` really does mean 111 messages. Nothing needs converting; the deduction side needed to agree with it. Fixed in **migration 144** by earmarking counts instead of money (two lines), plus the TypeScript send paths that wrote `rate` per row and `reservation.total` (money) as a row's reserved amount.
 - **§6 is therefore already satisfied**, not pending.
 - Historical `sms_usage_logs` rows keep money values and are not retro-converted: rewriting billing records to amounts that were never charged would be worse than a documented unit change at a known date. In practice 270 of 286 production rows predate the reservation system entirely.
 
@@ -162,13 +163,13 @@ The spec itself says not to assume 0.50 works. **Someone has to supply the actua
 
 At 0.35, the spec's proposed table is coherent and every tier clears:
 
-| Tier | Sell | Margin | Margin % |
-|---|---:|---:|---:|
-| 1–5,000 | 0.90 | 0.55 | 61% |
-| 5,001–10,000 | 0.80 | 0.45 | 56% |
-| 10,001–50,000 | 0.70 | 0.35 | 50% |
-| 50,001–100,000 | 0.60 | 0.25 | 42% |
-| 100,001+ | 0.50 | 0.15 | 30% |
+| Tier           | Sell | Margin | Margin % |
+| -------------- | ---: | -----: | -------: |
+| 1–5,000        | 0.90 |   0.55 |      61% |
+| 5,001–10,000   | 0.80 |   0.45 |      56% |
+| 10,001–50,000  | 0.70 |   0.35 |      50% |
+| 50,001–100,000 | 0.60 |   0.25 |      42% |
+| 100,001+       | 0.50 |   0.15 |      30% |
 
 So §19's warning not to assume 0.50 is sustainable resolves in its favour — 30% gross at the floor. All five tiers may ship active. **Re-check this if the provider's rate ever moves**: the bottom tier is the first to go underwater, at a cost of just 0.50.
 
@@ -178,18 +179,18 @@ So §19's warning not to assume 0.50 is sustainable resolves in its favour — 3
 
 The spec asks for particular attention to a list of SMS billing bugs. Checked each against this repo's history; **six are already fixed**, and re-"fixing" them risks reintroducing them:
 
-| §16 item | Status |
-|---|---|
-| Incorrect interpretation of provider response types | ✅ Fixed — PR #54, TextSMS returns two spellings of the response-code key |
-| Successful SMS recorded as failed | ✅ Same fix (#54) |
-| Failed SMS being charged | ✅ Fixed — reservation model; `failed` releases rather than consumes |
-| Duplicate deductions | ✅ Fixed — PR #41 (retry idempotency), #57 (chunked dispatch), migration 137 (`UNIQUE(payment_id)`) |
-| Refund/reversal logic | ✅ Fixed — PR #47, refund on dispatch exception |
-| Partial bulk-send failures | ✅ Fixed — PR #40, `clientSmsId` response alignment; #57 chunking |
-| Race conditions / concurrent consumption | ✅ `reserve_sms_credits` uses `FOR UPDATE`; settle claims only `billing_state='reserved'` rows |
-| Numeric values returned as strings | 🟡 **Real and current** — `pg` returns `NUMERIC` as string; the code converts at boundaries (`Number(r.rate)`), but this is convention, not enforcement |
-| Invalid SQL in billing/locking queries | 🟡 **Has bitten twice** — an untyped `$2` broke `reminder.service.settle()` in production (PR #44); migration 127 fixed a `SELECT INTO` that silently took an arbitrary subscription row |
-| Provider timeout handling | 🟡 Partial — stale-reservation sweeper is the backstop |
+| §16 item                                            | Status                                                                                                                                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Incorrect interpretation of provider response types | ✅ Fixed — PR #54, TextSMS returns two spellings of the response-code key                                                                                                                |
+| Successful SMS recorded as failed                   | ✅ Same fix (#54)                                                                                                                                                                        |
+| Failed SMS being charged                            | ✅ Fixed — reservation model; `failed` releases rather than consumes                                                                                                                     |
+| Duplicate deductions                                | ✅ Fixed — PR #41 (retry idempotency), #57 (chunked dispatch), migration 137 (`UNIQUE(payment_id)`)                                                                                      |
+| Refund/reversal logic                               | ✅ Fixed — PR #47, refund on dispatch exception                                                                                                                                          |
+| Partial bulk-send failures                          | ✅ Fixed — PR #40, `clientSmsId` response alignment; #57 chunking                                                                                                                        |
+| Race conditions / concurrent consumption            | ✅ `reserve_sms_credits` uses `FOR UPDATE`; settle claims only `billing_state='reserved'` rows                                                                                           |
+| Numeric values returned as strings                  | 🟡 **Real and current** — `pg` returns `NUMERIC` as string; the code converts at boundaries (`Number(r.rate)`), but this is convention, not enforcement                                  |
+| Invalid SQL in billing/locking queries              | 🟡 **Has bitten twice** — an untyped `$2` broke `reminder.service.settle()` in production (PR #44); migration 127 fixed a `SELECT INTO` that silently took an arbitrary subscription row |
+| Provider timeout handling                           | 🟡 Partial — stale-reservation sweeper is the backstop                                                                                                                                   |
 
 **Do not treat §16 as a fresh bug list.** It is largely a description of problems this codebase has already lived through and fixed; the audit trail is in `docs/audits/SMS_MESSAGING_AUDIT_2026-08.md`.
 
@@ -199,14 +200,14 @@ The spec asks for particular attention to a list of SMS billing bugs. Checked ea
 
 Queried live, 2026-08-13. All-time SMS across production: **286 messages**.
 
-| `notification_type` | `billing_state` | messages | credits charged |
-|---|---|---:|---:|
-| *(null)* | `none` | 270 | 100.80 |
-| `campaign` | `released` | 5 | 0 |
-| `contribution_nudge` | `released` | 4 | 0 |
-| `stk_fallback` | `none` | 3 | 0 |
-| `payment.received` | `released` | 2 | 0 |
-| `payment.received` | `consumed` | 2 | 1.80 |
+| `notification_type`  | `billing_state` | messages | credits charged |
+| -------------------- | --------------- | -------: | --------------: |
+| _(null)_             | `none`          |      270 |          100.80 |
+| `campaign`           | `released`      |        5 |               0 |
+| `contribution_nudge` | `released`      |        4 |               0 |
+| `stk_fallback`       | `none`          |        3 |               0 |
+| `payment.received`   | `released`      |        2 |               0 |
+| `payment.received`   | `consumed`      |        2 |            1.80 |
 
 Three things follow, and they matter for planning:
 
@@ -240,7 +241,7 @@ Ordered so nothing destructive happens before the decisions land, and so each ph
 
 ---
 
-## 7. What this audit recommends *against*
+## 7. What this audit recommends _against_
 
 - **Do not rebuild the consumption path.** Reservation, settle/release, the sweeper, allowance splitting and low-balance alerting are all live and were hardened across ~10 PRs in August 2026. §7's `SMSCreditService.consume(...)` already exists as `reserveCredits` + `settleReservation`.
 - **Do not create the seven services in §20's Phase 4 as separate modules.** `SMSCreditService`/`SMSWalletService`/`SMSReservationService`/`SMSBillingService` all describe `messaging-billing.ts`, which is deliberately one module because the SQLSTATE mapping has to live in one place. Splitting it would fragment exactly what §1 asks to centralize. `SMSPricingService`, `SMSUsageService` and `SMSMarginService` are genuinely new.

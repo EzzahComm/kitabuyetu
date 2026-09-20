@@ -41,10 +41,7 @@ describe('top-up leaves no ledger drift (G18)', () => {
 
     // KES 100 at 0.90 is 111.111... — the non-terminating case that produced
     // the drift.
-    await billingService.addSmsCredits(
-      { userId: officerId, groupId, role: 'treasurer' },
-      100,
-    );
+    await billingService.addSmsCredits({ userId: officerId, groupId, role: 'treasurer' }, 100);
 
     const [row] = await rawQuery<{ balance: string; ledger: string }>(
       `SELECT ba.sms_credits AS balance,
@@ -64,10 +61,7 @@ describe('top-up leaves no ledger drift (G18)', () => {
 
     // Several purchases, so any per-purchase drift would accumulate visibly.
     for (const amount of [100, 250, 75]) {
-      await billingService.addSmsCredits(
-        { userId: officerId, groupId, role: 'treasurer' },
-        amount,
-      );
+      await billingService.addSmsCredits({ userId: officerId, groupId, role: 'treasurer' }, amount);
     }
 
     const [v] = await rawQuery<{ drift: string; lot_drift: string }>(

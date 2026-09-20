@@ -40,15 +40,18 @@ async function main() {
   const dismiss = unrouted.find((u) => u.receipt === 'UETQZ5SNUZ');
 
   if (allocate && !allocate.resolved) {
-    console.log(`${apply ? 'ALLOCATING' : '[DRY RUN] would allocate'}: UF6QZ6QA8I (KES 100) -> Polycap Akoth, CAPITAL POINT CHAMA`);
+    console.log(
+      `${apply ? 'ALLOCATING' : '[DRY RUN] would allocate'}: UF6QZ6QA8I (KES 100) -> Polycap Akoth, CAPITAL POINT CHAMA`,
+    );
     if (apply) {
       await resolveUnroutedPayment(allocate.id, 'allocate', {
         adminId: 'script:resolve-last-2-unrouted',
         groupId: CAPITAL_POINT_GROUP_ID,
         memberId: POLYCAP_MEMBER_ID,
-        notes: `bill_ref='KY0000003' is CAPITAL POINT CHAMA's group_code with no member suffix; ` +
-               `C2B FirstName='POLYCAP' and Polycap Akoth (CP000080) is an active member there. ` +
-               `Same identification pattern as Anthony Situma's UF5QT6SMNR earlier this session.`,
+        notes:
+          `bill_ref='KY0000003' is CAPITAL POINT CHAMA's group_code with no member suffix; ` +
+          `C2B FirstName='POLYCAP' and Polycap Akoth (CP000080) is an active member there. ` +
+          `Same identification pattern as Anthony Situma's UF5QT6SMNR earlier this session.`,
       });
       console.log('  done: UF6QZ6QA8I');
     }
@@ -61,11 +64,12 @@ async function main() {
     if (apply) {
       await resolveUnroutedPayment(dismiss.id, 'dismiss', {
         adminId: 'script:resolve-last-2-unrouted',
-        notes: `KES 1 against the generic 'CONTRIB' reference, which carries no group signal ` +
-               `(payer Polycap Akoth holds 3 active memberships — Capital Point Chama, Joka Ezra, ` +
-               `The Fiona's — and nothing in this row indicates which). Judged a test/probe payment, ` +
-               `consistent with this same payer's confirmed KES 15,000 test payment earlier this ` +
-               `session, rather than guessed into one of the 3 groups. Reopen and reallocate if wrong.`,
+        notes:
+          `KES 1 against the generic 'CONTRIB' reference, which carries no group signal ` +
+          `(payer Polycap Akoth holds 3 active memberships — Capital Point Chama, Joka Ezra, ` +
+          `The Fiona's — and nothing in this row indicates which). Judged a test/probe payment, ` +
+          `consistent with this same payer's confirmed KES 15,000 test payment earlier this ` +
+          `session, rather than guessed into one of the 3 groups. Reopen and reallocate if wrong.`,
       });
       console.log('  done: UETQZ5SNUZ');
     }
@@ -78,4 +82,7 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch((err) => { console.error(err); process.exit(1); });
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

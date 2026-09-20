@@ -21,12 +21,18 @@ function describeRecipient(spec: unknown): string {
   if (!spec || typeof spec !== 'object') return 'Unknown recipients';
   const s = spec as Record<string, unknown>;
   switch (s.type) {
-    case 'all_members':    return 'All members';
-    case 'active_members': return 'Active members';
-    case 'roles':           return Array.isArray(s.roles) ? `Officers: ${(s.roles as string[]).join(', ')}` : 'Officers';
-    case 'event_member':    return 'The member on the event';
-    case 'event_phone':     return 'The phone number on the event';
-    default:                 return 'Unknown recipients';
+    case 'all_members':
+      return 'All members';
+    case 'active_members':
+      return 'Active members';
+    case 'roles':
+      return Array.isArray(s.roles) ? `Officers: ${(s.roles as string[]).join(', ')}` : 'Officers';
+    case 'event_member':
+      return 'The member on the event';
+    case 'event_phone':
+      return 'The phone number on the event';
+    default:
+      return 'Unknown recipients';
   }
 }
 
@@ -68,8 +74,8 @@ export function RuleCard({ rule, canManage }: Props) {
           </div>
           {rule.description && <p className="mt-1 text-sm text-muted-foreground">{rule.description}</p>}
           <p className="mt-2 text-xs text-muted-foreground">
-            When <span className="font-medium text-foreground">{humanizeEvent(rule.event_type)}</span> happens,
-            {' '}send <span className="font-medium text-foreground">{rule.template_key}</span> to{' '}
+            When <span className="font-medium text-foreground">{humanizeEvent(rule.event_type)}</span> happens, send{' '}
+            <span className="font-medium text-foreground">{rule.template_key}</span> to{' '}
             <span className="font-medium text-foreground">{describeRecipient(rule.recipient_spec)}</span>.
           </p>
           {!rule.group_id && !rule.organization_id && (
@@ -84,7 +90,9 @@ export function RuleCard({ rule, canManage }: Props) {
           {canManage && isOwnRule && (
             <>
               <Switch checked={rule.is_active} onCheckedChange={onToggleActive} disabled={updateRule.isPending} />
-              <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>Edit</Button>
+              <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                Edit
+              </Button>
               <RuleEditDialog rule={rule} open={editOpen} onOpenChange={setEditOpen} />
             </>
           )}

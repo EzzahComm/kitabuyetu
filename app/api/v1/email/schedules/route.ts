@@ -7,17 +7,17 @@ import { ok } from '@/lib/utils/response';
 import { NotFoundError } from '@/lib/utils/errors';
 
 const CreateScheduleSchema = z.object({
-  templateKey:   z.string().min(1),
-  to:            z.string().min(1),
-  vars:          z.record(z.string()).optional(),
-  name:          z.string().optional(),
-  sendAt:        z.string().datetime(),
-  referenceId:   z.string().optional(),
+  templateKey: z.string().min(1),
+  to: z.string().min(1),
+  vars: z.record(z.string()).optional(),
+  name: z.string().optional(),
+  sendAt: z.string().datetime(),
+  referenceId: z.string().optional(),
   referenceType: z.string().optional(),
 });
 
 const UpdateScheduleSchema = z.object({
-  id:       z.string(),
+  id: z.string(),
   isActive: z.boolean(),
 });
 
@@ -26,7 +26,12 @@ const UpdateScheduleSchema = z.object({
 // (GET /api/v1/sms/schedules) already requires messaging.schedules.view.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.view', async (auth) => {
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const { rows } = await withDb(ctx, (db) =>
       db.query(
         `SELECT id, name, template_key, recipient_email, schedule_type,
@@ -51,14 +56,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     const body = CreateScheduleSchema.parse(await req.json());
 
     const id = await scheduleEmail({
-      templateKey:   body.templateKey,
-      to:            body.to,
-      vars:          body.vars ?? {},
-      groupId:       auth.groupId,
-      userId:        auth.userId,
-      sendAt:        new Date(body.sendAt),
-      name:          body.name,
-      referenceId:   body.referenceId,
+      templateKey: body.templateKey,
+      to: body.to,
+      vars: body.vars ?? {},
+      groupId: auth.groupId,
+      userId: auth.userId,
+      sendAt: new Date(body.sendAt),
+      name: body.name,
+      referenceId: body.referenceId,
       referenceType: body.referenceType,
     });
 
@@ -72,12 +77,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
     const body = UpdateScheduleSchema.parse(await req.json());
 
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const { rowCount } = await withTransaction(ctx, (db) =>
-      db.query(
-        `UPDATE email_schedules SET is_active=$1, updated_at=NOW() WHERE id=$2 AND group_id=$3`,
-        [body.isActive, body.id, auth.groupId],
-      ),
+      db.query(`UPDATE email_schedules SET is_active=$1, updated_at=NOW() WHERE id=$2 AND group_id=$3`, [
+        body.isActive,
+        body.id,
+        auth.groupId,
+      ]),
     );
     if (!rowCount) throw new NotFoundError('Email schedule', body.id);
 

@@ -41,15 +41,18 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const { id } = await params;
   return withPermission(req, 'messaging.send', async (auth) => {
     const scoped = auth.role !== 'super_admin';
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
     const { rows } = scoped
       ? await withDb(ctx, (db) =>
           db.query(`SELECT * FROM email_campaigns WHERE id = $1 AND group_id = $2`, [id, auth.groupId]),
         )
-      : await withAdminDb((db) =>
-          db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [id]),
-        );
+      : await withAdminDb((db) => db.query(`SELECT * FROM email_campaigns WHERE id = $1`, [id]));
     if (!rows.length) throw new NotFoundError('Campaign', id);
 
     const { rows: recipients } = scoped
@@ -78,15 +81,18 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     const { action } = ActionSchema.parse(await req.json());
 
     const scoped = auth.role !== 'super_admin';
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
     const { rows: owned } = scoped
       ? await withDb(ctx, (db) =>
           db.query(`SELECT id FROM email_campaigns WHERE id = $1 AND group_id = $2`, [id, auth.groupId]),
         )
-      : await withAdminDb((db) =>
-          db.query(`SELECT id FROM email_campaigns WHERE id = $1`, [id]),
-        );
+      : await withAdminDb((db) => db.query(`SELECT id FROM email_campaigns WHERE id = $1`, [id]));
     if (!owned.length) throw new NotFoundError('Campaign', id);
 
     if (action === 'launch') {
@@ -109,10 +115,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       );
     } else {
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_campaigns SET status='cancelled' WHERE id=$1 AND status IN ('draft','scheduled')`,
-          [id],
-        ),
+        db.query(`UPDATE email_campaigns SET status='cancelled' WHERE id=$1 AND status IN ('draft','scheduled')`, [id]),
       );
     }
     return ok({ message: 'Campaign cancelled' });

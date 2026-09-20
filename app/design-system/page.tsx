@@ -1,9 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Users, Wallet, TrendingUp, AlertTriangle, Plus, FileText, Inbox,
-} from 'lucide-react';
+import { Users, Wallet, TrendingUp, AlertTriangle, Plus, FileText, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,15 +75,23 @@ export default function DesignSystemPage() {
       {/* Colours */}
       <Section id="color" title="Brand colour">
         <Card>
-          <CardHeader><CardTitle className="text-base">Green — primary (CTAs, positive)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Green — primary (CTAs, positive)</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
-            {Object.entries(brandGreen).map(([k, v]) => <Swatch key={k} name={k} hex={v} />)}
+            {Object.entries(brandGreen).map(([k, v]) => (
+              <Swatch key={k} name={k} hex={v} />
+            ))}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Navy — headings, sidebar, nav</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Navy — headings, sidebar, nav</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
-            {Object.entries(brandNavy).map(([k, v]) => <Swatch key={k} name={k} hex={v} />)}
+            {Object.entries(brandNavy).map(([k, v]) => (
+              <Swatch key={k} name={k} hex={v} />
+            ))}
           </CardContent>
         </Card>
       </Section>
@@ -124,7 +130,17 @@ export default function DesignSystemPage() {
               <Badge variant="destructive">Destructive</Badge>
             </div>
             <div className="flex flex-wrap gap-2">
-              {['paid', 'pending', 'overdue', 'failed', 'reconciled', 'unrouted', 'under_review', 'reversed', 'active'].map((s) => (
+              {[
+                'paid',
+                'pending',
+                'overdue',
+                'failed',
+                'reconciled',
+                'unrouted',
+                'under_review',
+                'reversed',
+                'active',
+              ].map((s) => (
                 <StatusPill key={s} status={s} />
               ))}
             </div>
@@ -137,7 +153,12 @@ export default function DesignSystemPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total members" value="248" icon={Users} trend={{ value: 12, label: 'vs last month' }} />
           <StatCard title="Group wallet" value="KES 1.2M" icon={Wallet} trend={{ value: 8, label: 'this month' }} />
-          <StatCard title="Loans out" value="KES 340K" icon={TrendingUp} trend={{ value: -3, label: 'vs last month' }} />
+          <StatCard
+            title="Loans out"
+            value="KES 340K"
+            icon={TrendingUp}
+            trend={{ value: -3, label: 'vs last month' }}
+          />
           <Card>
             <CardContent className="space-y-2 p-6">
               <p className="text-sm text-muted-foreground">Money display</p>
@@ -155,7 +176,10 @@ export default function DesignSystemPage() {
             <TrendChart
               data={trendData}
               xKey="month"
-              series={[{ key: 'savings', label: 'Savings' }, { key: 'loans', label: 'Loans' }]}
+              series={[
+                { key: 'savings', label: 'Savings' },
+                { key: 'loans', label: 'Loans' },
+              ]}
             />
           </ChartCard>
           <ChartCard title="Monthly repayments" height={240}>
@@ -165,9 +189,13 @@ export default function DesignSystemPage() {
             <DonutChart data={portfolio} />
           </ChartCard>
           <Card>
-            <CardHeader><CardTitle className="text-base">Palette</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Palette</CardTitle>
+            </CardHeader>
             <CardContent className="grid grid-cols-4 gap-3">
-              {chartPalette.map((c, i) => <Swatch key={i} name={`c${i}`} hex={c} />)}
+              {chartPalette.map((c, i) => (
+                <Swatch key={i} name={`c${i}`} hex={c} />
+              ))}
             </CardContent>
           </Card>
         </div>
@@ -195,7 +223,11 @@ export default function DesignSystemPage() {
               icon={Inbox}
               title="No contributions yet"
               description="Once members start contributing, their payments will appear here. Record the first one to get going."
-              action={<Button><Plus className="h-4 w-4" /> Record contribution</Button>}
+              action={
+                <Button>
+                  <Plus className="h-4 w-4" /> Record contribution
+                </Button>
+              }
               secondaryAction={<Button variant="ghost">Learn how</Button>}
             />
           </CardContent>
@@ -211,7 +243,9 @@ export default function DesignSystemPage() {
       <Section id="dialogs" title="Confirmation UX for money actions">
         <Card>
           <CardContent className="flex flex-wrap gap-2 p-6">
-            <Button variant="outline" onClick={() => setConfirmOpen(true)}>Open confirm dialog</Button>
+            <Button variant="outline" onClick={() => setConfirmOpen(true)}>
+              Open confirm dialog
+            </Button>
             <Button onClick={() => setMoneyOpen(true)}>Open money action dialog</Button>
           </CardContent>
         </Card>
@@ -278,7 +312,9 @@ export default function DesignSystemPage() {
                     <SelectItem value="option1">First option</SelectItem>
                     <SelectItem value="option2">Second option</SelectItem>
                     <SelectItem value="option3">Third option</SelectItem>
-                    <SelectItem value="option4" disabled>Disabled option</SelectItem>
+                    <SelectItem value="option4" disabled>
+                      Disabled option
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -300,9 +336,23 @@ export default function DesignSystemPage() {
               isLoading={false}
               columns={[
                 { key: 'name', header: 'Name', render: (row) => <p className="font-medium">{row.name}</p> },
-                { key: 'email', header: 'Email', render: (row) => <p className="text-sm text-muted-foreground">{row.email}</p> },
-                { key: 'status', header: 'Status', render: (row) => <StatusPill status={row.status} tone={row.status === 'active' ? 'positive' : 'neutral'} size="sm" /> },
-                { key: 'amount', header: 'Balance', render: (row) => <p className="text-right font-mono text-sm">{row.amount}</p> },
+                {
+                  key: 'email',
+                  header: 'Email',
+                  render: (row) => <p className="text-sm text-muted-foreground">{row.email}</p>,
+                },
+                {
+                  key: 'status',
+                  header: 'Status',
+                  render: (row) => (
+                    <StatusPill status={row.status} tone={row.status === 'active' ? 'positive' : 'neutral'} size="sm" />
+                  ),
+                },
+                {
+                  key: 'amount',
+                  header: 'Balance',
+                  render: (row) => <p className="text-right font-mono text-sm">{row.amount}</p>,
+                },
               ]}
               onPageChange={() => {}}
               emptyMessage="No data"
@@ -310,7 +360,9 @@ export default function DesignSystemPage() {
           </CardContent>
         </Card>
         <p className="text-sm text-muted-foreground">
-          Shows paginated data with responsive column hiding, error states, and loading skeletons. Handles permission denials and fetch failures with semantic <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">isError</code> variant.
+          Shows paginated data with responsive column hiding, error states, and loading skeletons. Handles permission
+          denials and fetch failures with semantic{' '}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">isError</code> variant.
         </p>
       </Section>
 
@@ -321,19 +373,29 @@ export default function DesignSystemPage() {
             <div>
               <h3 className="mb-2 text-sm font-semibold text-foreground">PortalSidebar + TopBar</h3>
               <p className="text-sm text-muted-foreground">
-                Standardized layout for all authenticated portals (dashboard, admin, enterprise, member, reminder). Sidebar handles navigation, TopBar shows breadcrumbs/actions. See <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">components/shared/portal-sidebar.tsx</code>.
+                Standardized layout for all authenticated portals (dashboard, admin, enterprise, member, reminder).
+                Sidebar handles navigation, TopBar shows breadcrumbs/actions. See{' '}
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                  components/shared/portal-sidebar.tsx
+                </code>
+                .
               </p>
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-foreground">SiteHeader + SiteFooter</h3>
               <p className="text-sm text-muted-foreground">
-                Marketing pages (public routes). Wraps each page with navigation and footer. See <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">components/marketing/site-header.tsx</code>.
+                Marketing pages (public routes). Wraps each page with navigation and footer. See{' '}
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                  components/marketing/site-header.tsx
+                </code>
+                .
               </p>
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-foreground">PageShell</h3>
               <p className="text-sm text-muted-foreground">
-                Legacy wrapper; most marketing pages now use SiteHeader/SiteFooter directly. Still used in a few places for compatibility.
+                Legacy wrapper; most marketing pages now use SiteHeader/SiteFooter directly. Still used in a few places
+                for compatibility.
               </p>
             </div>
           </CardContent>
@@ -373,7 +435,12 @@ export default function DesignSystemPage() {
           </CardContent>
         </Card>
         <p className="text-sm text-muted-foreground">
-          Standardized form field wrappers for Label + Input/Select/Textarea. Use <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormSection</code> for individual fields with optional error/hint, <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormFieldGroup</code> for side-by-side fields, and <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormDivider</code> to separate form sections.
+          Standardized form field wrappers for Label + Input/Select/Textarea. Use{' '}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormSection</code> for individual fields
+          with optional error/hint,{' '}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormFieldGroup</code> for side-by-side
+          fields, and <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormDivider</code> to separate
+          form sections.
         </p>
       </Section>
 
@@ -404,7 +471,11 @@ export default function DesignSystemPage() {
           </CardContent>
         </Card>
         <p className="text-sm text-muted-foreground">
-          Page layout wrappers for consistent structure. <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">PageSection</code> wraps content areas in Card with optional title/description/action. <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormActions</code> groups buttons at the bottom with separator and consistent alignment options.
+          Page layout wrappers for consistent structure.{' '}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">PageSection</code> wraps content areas in
+          Card with optional title/description/action.{' '}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">FormActions</code> groups buttons at the
+          bottom with separator and consistent alignment options.
         </p>
       </Section>
     </div>

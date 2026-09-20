@@ -1,7 +1,7 @@
-import React from "react";
-import Link from "next/link";
-import { Container } from "@/components/Container";
-import { signUpUrl } from "@/lib/app-links";
+import React from 'react';
+import Link from 'next/link';
+import { Container } from '@/components/Container';
+import { signUpUrl } from '@/lib/app-links';
 
 interface CtaAction {
   text: string;
@@ -26,10 +26,10 @@ interface CtaProps {
 export const Cta = (props: Readonly<CtaProps>) => {
   const {
     title = "Ready to bring your group's records together?",
-    subtitle = "Pay by M-Pesa, from KES 150 a month, with no lock-in period.",
+    subtitle = 'Pay by M-Pesa, from KES 150 a month, with no lock-in period.',
     note,
     footnote,
-    primary = { text: "Get Started", href: signUpUrl() },
+    primary = { text: 'Get Started', href: signUpUrl() },
     secondary,
   } = props;
 
@@ -38,12 +38,8 @@ export const Cta = (props: Readonly<CtaProps>) => {
       <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-5 bg-brand-600 px-7 py-7 text-white lg:flex-nowrap lg:px-12 lg:py-12">
         <div className="flex-grow text-center lg:text-left">
           <h2 className="text-2xl font-medium lg:text-3xl">{title}</h2>
-          <p className="mt-2 font-medium text-white text-opacity-90 lg:text-xl">
-            {subtitle}
-          </p>
-          {note && (
-            <p className="mt-3 text-white text-opacity-80">{note}</p>
-          )}
+          <p className="mt-2 font-medium text-white text-opacity-90 lg:text-xl">{subtitle}</p>
+          {note && <p className="mt-3 text-white text-opacity-80">{note}</p>}
         </div>
         <div className="flex-shrink-0 w-full text-center lg:w-auto">
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
@@ -62,9 +58,7 @@ export const Cta = (props: Readonly<CtaProps>) => {
               </Link>
             )}
           </div>
-          {footnote && (
-            <p className="mt-4 text-sm text-white text-opacity-80">{footnote}</p>
-          )}
+          {footnote && <p className="mt-4 text-sm text-white text-opacity-80">{footnote}</p>}
         </div>
       </div>
     </Container>

@@ -30,10 +30,7 @@ export interface CommandPaletteGroup {
  * Every command here closes the palette before running — callers don't need
  * to manage that themselves.
  */
-export function createCommandPalette(
-  openEventName: string,
-  useGroups: (query: string) => CommandPaletteGroup[],
-) {
+export function createCommandPalette(openEventName: string, useGroups: (query: string) => CommandPaletteGroup[]) {
   function CommandPalette() {
     const [open, setOpen] = React.useState(false);
     const [query, setQuery] = React.useState('');
@@ -44,14 +41,20 @@ export function createCommandPalette(
     // Single entry point for open/close so we can reset query + selection on
     // the open transition — avoids a setState-in-effect (cascading render).
     const setPaletteOpen = React.useCallback((next: boolean) => {
-      if (next) { setQuery(''); setActive(0); }
+      if (next) {
+        setQuery('');
+        setActive(0);
+      }
       setOpen(next);
     }, []);
 
-    const runCommand = React.useCallback((cmd: CommandPaletteCommand) => {
-      setPaletteOpen(false);
-      cmd.run();
-    }, [setPaletteOpen]);
+    const runCommand = React.useCallback(
+      (cmd: CommandPaletteCommand) => {
+        setPaletteOpen(false);
+        cmd.run();
+      },
+      [setPaletteOpen],
+    );
 
     // Flatten for keyboard selection, respecting the query filter.
     const filtered = React.useMemo(() => {
@@ -60,7 +63,9 @@ export function createCommandPalette(
         .map((g) => ({
           ...g,
           commands: q
-            ? g.commands.filter((c) => (c.label + ' ' + (c.keywords ?? '') + ' ' + (c.hint ?? '')).toLowerCase().includes(q))
+            ? g.commands.filter((c) =>
+                (c.label + ' ' + (c.keywords ?? '') + ' ' + (c.hint ?? '')).toLowerCase().includes(q),
+              )
             : g.commands,
         }))
         .filter((g) => g.commands.length > 0);
@@ -91,14 +96,24 @@ export function createCommandPalette(
     }, [open, setPaletteOpen]);
 
     const onListKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIndex + 1, flat.length - 1)); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); }
-      else if (e.key === 'Enter') { e.preventDefault(); const cmd = flat[activeIndex]; if (cmd) runCommand(cmd); }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActive(Math.min(activeIndex + 1, flat.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActive(Math.max(activeIndex - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const cmd = flat[activeIndex];
+        if (cmd) runCommand(cmd);
+      }
     };
 
     // Keep the active row scrolled into view (DOM sync — no setState).
     React.useEffect(() => {
-      listRef.current?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
     }, [activeIndex]);
 
     let runningIndex = -1;
@@ -118,7 +133,9 @@ export function createCommandPalette(
               className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               aria-label="Command palette search"
             />
-            <kbd className="hidden select-none rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline">ESC</kbd>
+            <kbd className="hidden select-none rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline">
+              ESC
+            </kbd>
           </div>
 
           <div ref={listRef} className="max-h-[min(60vh,420px)] overflow-y-auto p-2" onKeyDown={onListKeyDown}>
@@ -150,9 +167,11 @@ export function createCommandPalette(
                         <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="flex-1 truncate">{cmd.label}</span>
                         {cmd.hint && <span className="text-xs text-muted-foreground">{cmd.hint}</span>}
-                        {isActive
-                          ? <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground" />
-                          : <ArrowRight className="h-3.5 w-3.5 text-transparent" />}
+                        {isActive ? (
+                          <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <ArrowRight className="h-3.5 w-3.5 text-transparent" />
+                        )}
                       </button>
                     );
                   })}
@@ -162,9 +181,15 @@ export function createCommandPalette(
           </div>
 
           <div className="flex items-center gap-3 border-t px-3 py-2 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1 font-mono">↑↓</kbd> navigate</span>
-            <span className="flex items-center gap-1"><kbd className="rounded border bg-muted px-1 font-mono">↵</kbd> open</span>
-            <span className="ml-auto flex items-center gap-1"><kbd className="rounded border bg-muted px-1 font-mono">⌘K</kbd> toggle</span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border bg-muted px-1 font-mono">↑↓</kbd> navigate
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border bg-muted px-1 font-mono">↵</kbd> open
+            </span>
+            <span className="ml-auto flex items-center gap-1">
+              <kbd className="rounded border bg-muted px-1 font-mono">⌘K</kbd> toggle
+            </span>
           </div>
         </DialogContent>
       </Dialog>

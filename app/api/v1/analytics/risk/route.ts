@@ -15,9 +15,11 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const risk = await analyticsService.getRiskAnalysis(
-      { userId: auth.userId, groupId: auth.groupId, role: auth.role },
-    );
+    const risk = await analyticsService.getRiskAnalysis({
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+    });
     return ok(risk);
   });
 }

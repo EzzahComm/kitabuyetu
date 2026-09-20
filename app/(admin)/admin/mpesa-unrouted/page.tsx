@@ -9,30 +9,36 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PaginatedTable } from '@/components/shared/paginated-table';
 import {
-  useAdminUnroutedPayments, useResolveUnroutedPayment, useAdminGroups, useAdminGroupMembers,
+  useAdminUnroutedPayments,
+  useResolveUnroutedPayment,
+  useAdminGroups,
+  useAdminGroupMembers,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, formatKES, getErrorMessage } from '@/lib/utils';
 import {
-  BILLING_CYCLES, BILLING_CYCLE_LABELS, BILLING_CYCLE_MONTHS, PLAN_MONTHLY_FEES,
-  type PlanType, type SubscriptionProduct, type BillingCycle,
+  BILLING_CYCLES,
+  BILLING_CYCLE_LABELS,
+  BILLING_CYCLE_MONTHS,
+  PLAN_MONTHLY_FEES,
+  type PlanType,
+  type SubscriptionProduct,
+  type BillingCycle,
 } from '@/types/enums';
 
 interface UnroutedRow {
-  id:                   string;
-  receipt:              string;
-  phone:                string;
-  amount:               string;
-  bill_ref:             string | null;
-  reason:               string;
-  candidate_group_id:   string | null;
+  id: string;
+  receipt: string;
+  phone: string;
+  amount: string;
+  bill_ref: string | null;
+  reason: string;
+  candidate_group_id: string | null;
   candidate_group_name: string | null;
-  created_at:           string;
+  created_at: string;
 }
 
 type Action = 'allocate' | 'activate_subscription' | 'dismiss';
@@ -65,18 +71,18 @@ const SUBSCRIPTION_REFS = new Set(['SUBSCRIPT', 'REMINDER']);
  */
 export default function MpesaUnroutedPage() {
   const { toast } = useToast();
-  const [page, setPage]     = useState(1);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [target, setTarget] = useState<UnroutedRow | null>(null);
   const [action, setAction] = useState<Action>('allocate');
   const [groupSearch, setGroupSearch] = useState('');
-  const [groupId, setGroupId]   = useState('');
+  const [groupId, setGroupId] = useState('');
   const [memberId, setMemberId] = useState('');
-  const [notes, setNotes]       = useState('');
-  const [product, setProduct]   = useState<SubscriptionProduct>('kitabu_yetu');
+  const [notes, setNotes] = useState('');
+  const [product, setProduct] = useState<SubscriptionProduct>('kitabu_yetu');
   const [planType, setPlanType] = useState<PlanType>('starter');
-  const [cycle, setCycle]       = useState<BillingCycle>('monthly');
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
 
   const { data, isLoading, isError, error } = useAdminUnroutedPayments({ page, limit: 20, search: debouncedSearch });
   const resolve = useResolveUnroutedPayment();
@@ -85,7 +91,7 @@ export default function MpesaUnroutedPage() {
   const { data: memberResults } = useAdminGroupMembers(groupId, 1);
 
   const items: UnroutedRow[] = data?.items ?? [];
-  const total      = data?.total ?? 0;
+  const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
   // Server-computed over the whole filtered queue, not just this page — a
   // page-only reduce here silently understated the true unreconciled amount
@@ -123,8 +129,9 @@ export default function MpesaUnroutedPage() {
     }
     try {
       await resolve.mutateAsync({
-        id: target.id, action,
-        groupId: action === 'dismiss' ? (groupId || undefined) : groupId,
+        id: target.id,
+        action,
+        groupId: action === 'dismiss' ? groupId || undefined : groupId,
         memberId: action === 'allocate' ? memberId : undefined,
         planType: action === 'activate_subscription' ? planType : undefined,
         product: action === 'activate_subscription' ? product : undefined,
@@ -132,11 +139,12 @@ export default function MpesaUnroutedPage() {
         notes: notes || undefined,
       });
       toast({
-        title: action === 'allocate'
-          ? 'Payment allocated'
-          : action === 'activate_subscription'
-            ? 'Subscription activated'
-            : 'Payment dismissed',
+        title:
+          action === 'allocate'
+            ? 'Payment allocated'
+            : action === 'activate_subscription'
+              ? 'Subscription activated'
+              : 'Payment dismissed',
       });
       closeResolve();
     } catch (e) {
@@ -163,7 +171,10 @@ export default function MpesaUnroutedPage() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search by receipt or account ref…"
                 className="pl-8 h-8 text-sm"
               />
@@ -182,12 +193,18 @@ export default function MpesaUnroutedPage() {
         emptyMessage="No unrouted payments — the queue is clear"
         columns={[
           {
-            key: 'receipt', header: 'Receipt',
+            key: 'receipt',
+            header: 'Receipt',
             render: (row) => <span className="font-mono text-xs text-muted-foreground">{row.receipt}</span>,
           },
-          { key: 'amount', header: 'Amount', render: (row) => <span className="font-semibold text-sm">{formatKES(Number(row.amount))}</span> },
           {
-            key: 'ref', header: 'Account ref',
+            key: 'amount',
+            header: 'Amount',
+            render: (row) => <span className="font-semibold text-sm">{formatKES(Number(row.amount))}</span>,
+          },
+          {
+            key: 'ref',
+            header: 'Account ref',
             render: (row) => (
               <span className="font-mono text-xs text-muted-foreground">
                 {row.bill_ref ?? '—'}
@@ -200,15 +217,28 @@ export default function MpesaUnroutedPage() {
             ),
           },
           {
-            key: 'candidate', header: 'Candidate group',
-            render: (row) => row.candidate_group_name
-              ? <span className="text-sm">{row.candidate_group_name}</span>
-              : <span className="text-xs text-muted-foreground italic">none — router couldn&apos;t guess</span>,
+            key: 'candidate',
+            header: 'Candidate group',
+            render: (row) =>
+              row.candidate_group_name ? (
+                <span className="text-sm">{row.candidate_group_name}</span>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">none — router couldn&apos;t guess</span>
+              ),
           },
-          { key: 'reason', header: 'Reason', render: (row) => <span className="text-xs text-muted-foreground">{row.reason}</span> },
-          { key: 'date', header: 'Paid', render: (row) => <span className="text-xs text-muted-foreground">{formatDate(row.created_at)}</span> },
           {
-            key: 'actions', header: '',
+            key: 'reason',
+            header: 'Reason',
+            render: (row) => <span className="text-xs text-muted-foreground">{row.reason}</span>,
+          },
+          {
+            key: 'date',
+            header: 'Paid',
+            render: (row) => <span className="text-xs text-muted-foreground">{formatDate(row.created_at)}</span>,
+          },
+          {
+            key: 'actions',
+            header: '',
             render: (row) => (
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openResolve(row)}>
                 Resolve
@@ -218,7 +248,12 @@ export default function MpesaUnroutedPage() {
         ]}
       />
 
-      <Dialog open={!!target} onOpenChange={(open) => { if (!open) closeResolve(); }}>
+      <Dialog
+        open={!!target}
+        onOpenChange={(open) => {
+          if (!open) closeResolve();
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Resolve {target?.receipt}</DialogTitle>
@@ -226,26 +261,38 @@ export default function MpesaUnroutedPage() {
           {target && (
             <div className="space-y-4">
               <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                <p><span className="font-medium">{formatKES(Number(target.amount))}</span> · ref <span className="font-mono">{target.bill_ref ?? '—'}</span></p>
+                <p>
+                  <span className="font-medium">{formatKES(Number(target.amount))}</span> · ref{' '}
+                  <span className="font-mono">{target.bill_ref ?? '—'}</span>
+                </p>
                 <p>{target.reason}</p>
               </div>
 
               <div className="flex gap-2">
                 <Button
-                  type="button" size="sm" variant={action === 'allocate' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs" onClick={() => setAction('allocate')}
+                  type="button"
+                  size="sm"
+                  variant={action === 'allocate' ? 'default' : 'outline'}
+                  className="flex-1 h-8 text-xs"
+                  onClick={() => setAction('allocate')}
                 >
                   <CheckCircle2 size={13} className="mr-1.5" /> Allocate
                 </Button>
                 <Button
-                  type="button" size="sm" variant={action === 'activate_subscription' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs" onClick={() => setAction('activate_subscription')}
+                  type="button"
+                  size="sm"
+                  variant={action === 'activate_subscription' ? 'default' : 'outline'}
+                  className="flex-1 h-8 text-xs"
+                  onClick={() => setAction('activate_subscription')}
                 >
                   <RefreshCw size={13} className="mr-1.5" /> Subscription
                 </Button>
                 <Button
-                  type="button" size="sm" variant={action === 'dismiss' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs" onClick={() => setAction('dismiss')}
+                  type="button"
+                  size="sm"
+                  variant={action === 'dismiss' ? 'default' : 'outline'}
+                  className="flex-1 h-8 text-xs"
+                  onClick={() => setAction('dismiss')}
                 >
                   <XCircle size={13} className="mr-1.5" /> Dismiss
                 </Button>
@@ -256,8 +303,19 @@ export default function MpesaUnroutedPage() {
                   <Label>Group</Label>
                   {groupId ? (
                     <div className="flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm">
-                      <span>{groupResults?.items.find((g) => g.id === groupId)?.name ?? target.candidate_group_name ?? groupId}</span>
-                      <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setGroupId(''); setMemberId(''); }}>
+                      <span>
+                        {groupResults?.items.find((g) => g.id === groupId)?.name ??
+                          target.candidate_group_name ??
+                          groupId}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setGroupId('');
+                          setMemberId('');
+                        }}
+                      >
                         Change
                       </button>
                     </div>
@@ -273,9 +331,13 @@ export default function MpesaUnroutedPage() {
                         <div className="max-h-40 overflow-y-auto rounded-md border border-input divide-y">
                           {(groupResults?.items ?? []).map((g) => (
                             <button
-                              key={g.id} type="button"
+                              key={g.id}
+                              type="button"
                               className="block w-full text-left px-3 py-2 text-sm hover:bg-accent"
-                              onClick={() => { setGroupId(g.id); setMemberId(''); }}
+                              onClick={() => {
+                                setGroupId(g.id);
+                                setMemberId('');
+                              }}
                             >
                               {g.name}
                             </button>
@@ -340,7 +402,9 @@ export default function MpesaUnroutedPage() {
                     <div className="inline-flex w-full rounded-md border border-input p-0.5">
                       {BILLING_CYCLES.map((c) => (
                         <button
-                          key={c} type="button" onClick={() => setCycle(c)}
+                          key={c}
+                          type="button"
+                          onClick={() => setCycle(c)}
                           className={`flex-1 rounded-[5px] px-2 py-1.5 text-xs font-medium transition-colors ${
                             cycle === c ? 'bg-brand-500 text-white' : 'text-muted-foreground hover:bg-muted'
                           }`}
@@ -351,10 +415,13 @@ export default function MpesaUnroutedPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    This cycle costs <span className="font-medium">{formatKES(expectedFee)}</span>.
-                    {' '}The receipt is <span className="font-medium">{formatKES(Number(target.amount))}</span>
+                    This cycle costs <span className="font-medium">{formatKES(expectedFee)}</span>. The receipt is{' '}
+                    <span className="font-medium">{formatKES(Number(target.amount))}</span>
                     {Number(target.amount) < expectedFee && (
-                      <span className="text-red-600"> — this receipt doesn&apos;t cover it; the server will refuse to activate.</span>
+                      <span className="text-red-600">
+                        {' '}
+                        — this receipt doesn&apos;t cover it; the server will refuse to activate.
+                      </span>
                     )}
                   </p>
                 </>
@@ -367,13 +434,19 @@ export default function MpesaUnroutedPage() {
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder={action === 'dismiss' ? 'Why this is being dismissed (e.g. confirmed test payment)…' : 'Optional context…'}
+                  placeholder={
+                    action === 'dismiss'
+                      ? 'Why this is being dismissed (e.g. confirmed test payment)…'
+                      : 'Optional context…'
+                  }
                 />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={closeResolve}>Cancel</Button>
+            <Button variant="outline" onClick={closeResolve}>
+              Cancel
+            </Button>
             <Button onClick={handleSubmit} loading={resolve.isPending}>
               {action === 'allocate' ? 'Allocate' : action === 'activate_subscription' ? 'Activate' : 'Dismiss'}
             </Button>

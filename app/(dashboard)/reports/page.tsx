@@ -14,17 +14,34 @@ import { reportsApi } from '@/lib/api/endpoints';
 export default function ReportsPage() {
   const now = new Date();
   const [from, setFrom] = useState(`${now.getFullYear()}-01-01`);
-  const [to, setTo]     = useState(now.toISOString().slice(0, 10));
-  const [tab, setTab]   = useState('contributions');
+  const [to, setTo] = useState(now.toISOString().slice(0, 10));
+  const [tab, setTab] = useState('contributions');
 
-  const { data: contribReport, isLoading: loadingContrib, refetch: refetchContrib } =
-    useQuery({ queryKey: ['reports','contributions',from,to], queryFn: () => reportsApi.contributions(from, to), enabled: false });
+  const {
+    data: contribReport,
+    isLoading: loadingContrib,
+    refetch: refetchContrib,
+  } = useQuery({
+    queryKey: ['reports', 'contributions', from, to],
+    queryFn: () => reportsApi.contributions(from, to),
+    enabled: false,
+  });
 
-  const { data: financialReport, isLoading: loadingFinancial, refetch: refetchFinancial } =
-    useQuery({ queryKey: ['reports','financial',from,to], queryFn: () => reportsApi.financial(from, to), enabled: false });
+  const {
+    data: financialReport,
+    isLoading: loadingFinancial,
+    refetch: refetchFinancial,
+  } = useQuery({
+    queryKey: ['reports', 'financial', from, to],
+    queryFn: () => reportsApi.financial(from, to),
+    enabled: false,
+  });
 
-  const { data: loansReport, isLoading: loadingLoans, refetch: refetchLoans } =
-    useQuery({ queryKey: ['reports','loans'], queryFn: () => reportsApi.loans(), enabled: false });
+  const {
+    data: loansReport,
+    isLoading: loadingLoans,
+    refetch: refetchLoans,
+  } = useQuery({ queryKey: ['reports', 'loans'], queryFn: () => reportsApi.loans(), enabled: false });
 
   const handleRun = () => {
     if (tab === 'contributions') refetchContrib();
@@ -60,11 +77,17 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="contributions" className="mt-4">
-          {loadingContrib ? <Skeleton className="h-64 w-full"/> : contribReport ? (
+          {loadingContrib ? (
+            <Skeleton className="h-64 w-full" />
+          ) : contribReport ? (
             <Card>
-              <CardHeader><CardTitle className="text-base">Contributions Report</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Contributions Report</CardTitle>
+              </CardHeader>
               <CardContent>
-                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">{JSON.stringify(contribReport, null, 2)}</pre>
+                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">
+                  {JSON.stringify(contribReport, null, 2)}
+                </pre>
               </CardContent>
             </Card>
           ) : (
@@ -75,11 +98,17 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="loans" className="mt-4">
-          {loadingLoans ? <Skeleton className="h-64 w-full"/> : loansReport ? (
+          {loadingLoans ? (
+            <Skeleton className="h-64 w-full" />
+          ) : loansReport ? (
             <Card>
-              <CardHeader><CardTitle className="text-base">Loans Report</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Loans Report</CardTitle>
+              </CardHeader>
               <CardContent>
-                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">{JSON.stringify(loansReport, null, 2)}</pre>
+                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">
+                  {JSON.stringify(loansReport, null, 2)}
+                </pre>
               </CardContent>
             </Card>
           ) : (
@@ -90,11 +119,17 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="financial" className="mt-4">
-          {loadingFinancial ? <Skeleton className="h-64 w-full"/> : financialReport ? (
+          {loadingFinancial ? (
+            <Skeleton className="h-64 w-full" />
+          ) : financialReport ? (
             <Card>
-              <CardHeader><CardTitle className="text-base">Financial Report</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Financial Report</CardTitle>
+              </CardHeader>
               <CardContent>
-                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">{JSON.stringify(financialReport, null, 2)}</pre>
+                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-96">
+                  {JSON.stringify(financialReport, null, 2)}
+                </pre>
               </CardContent>
             </Card>
           ) : (

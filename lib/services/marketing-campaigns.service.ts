@@ -32,7 +32,14 @@ export interface Audience {
   updated_at: Date;
 }
 
-export type CampaignStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'sending' | 'completed' | 'cancelled';
+export type CampaignStatus =
+  | 'draft'
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'sending'
+  | 'completed'
+  | 'cancelled';
 
 export interface Campaign {
   id: string;
@@ -135,7 +142,9 @@ async function resolveAudience(
       [scope.groupId || null, scope.organizationId || null],
     );
     recipients = rows.map((r) => ({
-      target_type: 'crm_contact', target_id: r.id, name: r.name,
+      target_type: 'crm_contact',
+      target_id: r.id,
+      name: r.name,
       ...(channel === 'sms' ? { phone: r.phone! } : { email: r.email! }),
     }));
   } else {
@@ -153,7 +162,9 @@ async function resolveAudience(
       [scope.organizationId],
     );
     recipients = rows.map((r) => ({
-      target_type: 'member', target_id: r.member_id, name: r.name,
+      target_type: 'member',
+      target_id: r.member_id,
+      name: r.name,
       ...(channel === 'sms' ? { phone: r.phone! } : { email: r.email! }),
     }));
   }
@@ -191,8 +202,14 @@ export async function createCampaign(
       `INSERT INTO marketing_campaigns (group_id, organization_id, title, channel, subject, message, audience_id, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
-        ctx.groupId || null, ctx.groupId ? null : ctx.organizationId,
-        data.title, channel, data.subject || null, data.message, data.audience_id, ctx.userId,
+        ctx.groupId || null,
+        ctx.groupId ? null : ctx.organizationId,
+        data.title,
+        channel,
+        data.subject || null,
+        data.message,
+        data.audience_id,
+        ctx.userId,
       ],
     );
     return result.rows[0];
@@ -222,7 +239,12 @@ export async function getCampaignById(ctx: TenantContext, id: string): Promise<C
       return campaign;
     }
 
-    const { rows: emailRows } = await db.query<{ status: string; sent_count: number; failed_count: number; total_recipients: number | null }>(
+    const { rows: emailRows } = await db.query<{
+      status: string;
+      sent_count: number;
+      failed_count: number;
+      total_recipients: number | null;
+    }>(
       `SELECT status, sent_count, failed_count, total_recipients FROM email_campaigns WHERE marketing_campaign_id = $1`,
       [id],
     );
@@ -302,10 +324,9 @@ export async function approveCampaign(ctx: TenantContext, campaignId: string): P
       throw new ForbiddenError('The campaign creator cannot approve their own campaign');
     }
 
-    const { rows: audienceRows } = await db.query<Audience>(
-      `SELECT * FROM marketing_audiences WHERE id = $1`,
-      [campaign.audience_id],
-    );
+    const { rows: audienceRows } = await db.query<Audience>(`SELECT * FROM marketing_audiences WHERE id = $1`, [
+      campaign.audience_id,
+    ]);
     const audience = audienceRows[0];
     if (!audience) throw new NotFoundError('Audience not found');
 
@@ -357,9 +378,15 @@ export async function approveCampaign(ctx: TenantContext, campaignId: string): P
        VALUES ($1, $2, $3, $4, $5, 'sending', NOW(), $6, $7, $8, $9)
        RETURNING id`,
       [
-        campaign.group_id || null, campaign.organization_id || null,
-        campaign.title, campaign.subject, campaign.message,
-        recipients.length, audience.id, campaignId, ctx.userId,
+        campaign.group_id || null,
+        campaign.organization_id || null,
+        campaign.title,
+        campaign.subject,
+        campaign.message,
+        recipients.length,
+        audience.id,
+        campaignId,
+        ctx.userId,
       ],
     );
     const emailCampaignId = ecRows[0].id;
@@ -369,8 +396,12 @@ export async function approveCampaign(ctx: TenantContext, campaignId: string): P
         `INSERT INTO email_campaign_recipients (campaign_id, group_id, organization_id, member_id, email, name)
          VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
         [
-          emailCampaignId, campaign.group_id || null, campaign.organization_id || null,
-          r.target_type === 'member' ? r.target_id : null, r.email, r.name || r.email,
+          emailCampaignId,
+          campaign.group_id || null,
+          campaign.organization_id || null,
+          r.target_type === 'member' ? r.target_id : null,
+          r.email,
+          r.name || r.email,
         ],
       );
       await db.query(
@@ -423,11 +454,7 @@ export async function rejectCampaign(ctx: TenantContext, campaignId: string, rea
  * no equivalent call: email_campaigns tracks its own completion already
  * (processCampaignJob in campaign.service.ts), read live by getCampaignById.
  */
-export async function completeMarketingCampaignSend(
-  campaignId: string,
-  sent: number,
-  failed: number,
-): Promise<void> {
+export async function completeMarketingCampaignSend(campaignId: string, sent: number, failed: number): Promise<void> {
   await withAdminDb((db) =>
     db.query(
       `UPDATE marketing_campaigns

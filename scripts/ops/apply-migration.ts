@@ -22,7 +22,7 @@ import { basename } from 'path';
 import { pool } from '../../lib/db';
 
 function parseName(file: string): { version: string; name: string } {
-  const base  = basename(file).replace(/\.sql$/, '');
+  const base = basename(file).replace(/\.sql$/, '');
   const match = base.match(/^(\d+)_(.+)$/);
   if (!match) {
     throw new Error(`Migration filename must be <version>_<name>.sql — got "${base}"`);
@@ -31,7 +31,7 @@ function parseName(file: string): { version: string; name: string } {
 }
 
 async function main() {
-  const file  = process.argv[2];
+  const file = process.argv[2];
   const apply = process.argv.includes('--apply');
   if (!file) {
     console.error('Usage: apply-migration.ts <path-to-migration.sql> [--apply]');
@@ -76,7 +76,9 @@ async function main() {
   }
 }
 
-main().then(() => process.exit(0)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

@@ -42,7 +42,10 @@ export default function ProductsPage() {
             </ul>
             <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
               {product.linkText}
-              <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+              <ArrowRight
+                aria-hidden="true"
+                className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
+              />
             </span>
           </Link>
         ))}

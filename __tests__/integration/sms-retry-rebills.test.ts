@@ -37,12 +37,11 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
      ON CONFLICT (group_id) DO UPDATE SET sms_credits = EXCLUDED.sms_credits`,
     [groupId, credits],
   );
-  await rawQuery(
-    `UPDATE subscriptions SET sms_allowance_included = 0 WHERE group_id = $1`, [groupId],
-  );
+  await rawQuery(`UPDATE subscriptions SET sms_allowance_included = 0 WHERE group_id = $1`, [groupId]);
   await rawQuery(
     `UPDATE billing_accounts SET sms_allowance_used = 0, sms_allowance_reserved = 0
-     WHERE group_id = $1`, [groupId],
+     WHERE group_id = $1`,
+    [groupId],
   );
 }
 
@@ -56,11 +55,15 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
  */
 async function queueOneFailedSend(groupId: string, userId: string) {
   mockSendSingleSms.mockResolvedValueOnce({
-    success: false, responseDescription: 'Request failed with status code 401',
+    success: false,
+    responseDescription: 'Request failed with status code 401',
   });
   await smsService.send(
     { groupId, userId, role: 'chairperson' } as never,
-    '254700000001', 'first attempt', 'loan', null,
+    '254700000001',
+    'first attempt',
+    'loan',
+    null,
   );
   await rawQuery(
     `UPDATE sms_failures SET next_retry_at = NOW() - INTERVAL '1 minute'
@@ -71,17 +74,21 @@ async function queueOneFailedSend(groupId: string, userId: string) {
 
 async function billingOf(groupId: string) {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
 
 async function logOf(groupId: string) {
   const [row] = await rawQuery<{
-    status: string; billing_state: string; credits_deducted: string;
+    status: string;
+    billing_state: string;
+    credits_deducted: string;
   }>(
     `SELECT status, billing_state, credits_deducted FROM sms_usage_logs
-     WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`, [groupId],
+     WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [groupId],
   );
   return row;
 }
@@ -120,7 +127,8 @@ describe('retryFailures billing', () => {
     await queueOneFailedSend(groupId, officerId);
 
     mockSendSingleSms.mockResolvedValueOnce({
-      success: false, responseDescription: 'still failing',
+      success: false,
+      responseDescription: 'still failing',
     });
     await smsService.retryFailures();
 

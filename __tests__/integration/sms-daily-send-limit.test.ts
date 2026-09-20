@@ -107,7 +107,8 @@ describe('daily send limit (G25)', () => {
     if (!r.ok) expect(r.reason).toBe('daily_limit_reached');
 
     const [acct] = await rawQuery<{ reserved_sms_credits: string }>(
-      `SELECT reserved_sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT reserved_sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
     expect(Number(acct.reserved_sms_credits)).toBe(0);
   });
@@ -131,10 +132,7 @@ describe('daily send limit (G25)', () => {
     await setLimit(groupId, 5);
     await seedSentToday(groupId, 5);
     // Push them into yesterday, Kenyan time.
-    await rawQuery(
-      `UPDATE sms_usage_logs SET created_at = NOW() - INTERVAL '2 days' WHERE group_id=$1`,
-      [groupId],
-    );
+    await rawQuery(`UPDATE sms_usage_logs SET created_at = NOW() - INTERVAL '2 days' WHERE group_id=$1`, [groupId]);
 
     const r = await reserveCredits(pool, { payerType: 'group', groupId }, 5);
     expect(r.ok).toBe(true);

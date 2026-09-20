@@ -1,4 +1,4 @@
-export type PlanType           = 'starter' | 'growth' | 'premium' | 'enterprise';
+export type PlanType = 'starter' | 'growth' | 'premium' | 'enterprise';
 /**
  * Which product a subscription entitles a group to (migration 127).
  * A group holds at most one ACTIVE subscription per product, so these are
@@ -13,20 +13,28 @@ export const DEFAULT_PRODUCT: SubscriptionProduct = 'kitabu_yetu';
 
 /** Customer-facing product names. Used anywhere a product is shown to a user. */
 export const PRODUCT_LABEL: Record<SubscriptionProduct, string> = {
-  kitabu_yetu:    'Kitabu Yetu',
+  kitabu_yetu: 'Kitabu Yetu',
   chama_reminder: 'Chama Reminder',
 };
 export type ContributionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'overdue';
-export type LoanStatus         = 'pending' | 'approved' | 'rejected' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'written_off';
-export type PaymentMethod      = 'mpesa' | 'cash' | 'bank_transfer' | 'cheque' | 'standing_order';
-export type PaymentStatus      = 'pending' | 'completed' | 'failed' | 'refunded' | 'reversed';
-export type MemberRole         = 'chairperson' | 'treasurer' | 'secretary' | 'member';
-export type PlatformRole       = 'super_admin' | 'support' | 'organization_coordinator' | 'member';
-export type AccountType        = 'asset' | 'liability' | 'equity' | 'income' | 'expense';
-export type JournalStatus      = 'draft' | 'posted' | 'void';
-export type NotificationType   = 'sms' | 'in_app' | 'email';
-export type SmsStatus          = 'queued' | 'sent' | 'delivered' | 'failed' | 'rejected';
-export type Gender             = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+export type LoanStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'disbursed'
+  | 'active'
+  | 'completed'
+  | 'defaulted'
+  | 'written_off';
+export type PaymentMethod = 'mpesa' | 'cash' | 'bank_transfer' | 'cheque' | 'standing_order';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'reversed';
+export type MemberRole = 'chairperson' | 'treasurer' | 'secretary' | 'member';
+export type PlatformRole = 'super_admin' | 'support' | 'organization_coordinator' | 'member';
+export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense';
+export type JournalStatus = 'draft' | 'posted' | 'void';
+export type NotificationType = 'sms' | 'in_app' | 'email';
+export type SmsStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'rejected';
+export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
 // Must match the group_type Postgres enum EXACTLY (supabase/migrations/
 // 20260101000000_001_init_enums.sql, extended by migration 154). This used to
 // say 'organization_group', which the enum has never contained — the real value
@@ -38,37 +46,46 @@ export type Gender             = 'male' | 'female' | 'other' | 'prefer_not_to_sa
 // their own <option> text, which is how "Organization" survived in two places
 // after the value itself was corrected.
 export type GroupType =
-  | 'chama' | 'sacco' | 'welfare' | 'investment' | 'ngo_group'
-  | 'self_help_group' | 'cbo' | 'society' | 'cooperative' | 'faith_based' | 'other';
+  | 'chama'
+  | 'sacco'
+  | 'welfare'
+  | 'investment'
+  | 'ngo_group'
+  | 'self_help_group'
+  | 'cbo'
+  | 'society'
+  | 'cooperative'
+  | 'faith_based'
+  | 'other';
 
 export const GROUP_TYPE_LABELS: Record<GroupType, string> = {
-  chama:           'Chama',
+  chama: 'Chama',
   self_help_group: 'Self Help Group (SHG)',
-  cbo:             'Community Based Organisation (CBO)',
-  society:         'Registered Society',
-  sacco:           'SACCO',
-  cooperative:     'Cooperative',
-  welfare:         'Welfare Group',
-  investment:      'Investment Club',
-  faith_based:     'Faith-Based Group',
-  ngo_group:       'NGO',
-  other:           'Other',
+  cbo: 'Community Based Organisation (CBO)',
+  society: 'Registered Society',
+  sacco: 'SACCO',
+  cooperative: 'Cooperative',
+  welfare: 'Welfare Group',
+  investment: 'Investment Club',
+  faith_based: 'Faith-Based Group',
+  ngo_group: 'NGO',
+  other: 'Other',
 };
 
 // Insertion order above is the dropdown order — commonest Kenyan forms first,
 // 'other' last. Object key order is guaranteed for string keys, so this needs
 // no separate ordering array to stay in sync with.
 export const GROUP_TYPES = Object.keys(GROUP_TYPE_LABELS) as [GroupType, ...GroupType[]];
-export type OrganizationAccessLevel     = 'read' | 'report';
+export type OrganizationAccessLevel = 'read' | 'report';
 
 export const ROLE_HIERARCHY: Record<MemberRole | PlatformRole, number> = {
-  super_admin:     100,
-  chairperson:      80,
-  treasurer:        60,
-  secretary:        40,
-  member:           20,
-  organization_coordinator:  10,
-  support:           5,
+  super_admin: 100,
+  chairperson: 80,
+  treasurer: 60,
+  secretary: 40,
+  member: 20,
+  organization_coordinator: 10,
+  support: 5,
 };
 
 export interface PlanFeatures {
@@ -92,17 +109,20 @@ export interface PlanFeatures {
 // a deliberate single decision, and spelling it out per (product, plan) would
 // invite the six copies to drift apart silently.
 const ALL_FEATURES: PlanFeatures = {
-  maxMembers:       null,
+  maxMembers: null,
   historicalImport: true,
-  loanTracking:     true,
-  analytics:        true,
-  advancedReports:  true,
-  apiAccess:        true,
-  multiGroup:       true,
+  loanTracking: true,
+  analytics: true,
+  advancedReports: true,
+  apiAccess: true,
+  multiGroup: true,
 };
 
-const EVERY_PLAN = <T,>(value: T): Record<PlanType, T> => ({
-  starter: value, growth: value, premium: value, enterprise: value,
+const EVERY_PLAN = <T>(value: T): Record<PlanType, T> => ({
+  starter: value,
+  growth: value,
+  premium: value,
+  enterprise: value,
 });
 
 /**
@@ -111,7 +131,7 @@ const EVERY_PLAN = <T,>(value: T): Record<PlanType, T> => ({
  * both at once.
  */
 export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFeatures>> = {
-  kitabu_yetu:    EVERY_PLAN(ALL_FEATURES),
+  kitabu_yetu: EVERY_PLAN(ALL_FEATURES),
   chama_reminder: EVERY_PLAN(ALL_FEATURES),
 };
 
@@ -145,15 +165,15 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
  */
 export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, number>> = {
   kitabu_yetu: {
-    starter:    150,
-    growth:     300,
-    premium:    500,
+    starter: 150,
+    growth: 300,
+    premium: 500,
     enterprise: 0, // negotiated — never self-serve
   },
   chama_reminder: {
-    starter:    100,
-    growth:     250,
-    premium:    400,
+    starter: 100,
+    growth: 250,
+    premium: 400,
     enterprise: 0, // negotiated — never self-serve
   },
 };
@@ -171,20 +191,20 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
  * the day someone actually decides on one.
  */
 export const BILLING_CYCLES = ['monthly', 'quarterly', 'biannual', 'annual'] as const;
-export type BillingCycle = typeof BILLING_CYCLES[number];
+export type BillingCycle = (typeof BILLING_CYCLES)[number];
 
 export const BILLING_CYCLE_MONTHS: Record<BillingCycle, number> = {
-  monthly:  1,
+  monthly: 1,
   quarterly: 3,
   biannual: 6,
-  annual:   12,
+  annual: 12,
 };
 
 export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
-  monthly:  'Monthly',
+  monthly: 'Monthly',
   quarterly: 'Quarterly',
   biannual: 'Bi-annual',
-  annual:   'Annual',
+  annual: 'Annual',
 };
 
 /**
@@ -208,15 +228,15 @@ export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
  */
 export const PLAN_SMS_ALLOWANCE: Record<SubscriptionProduct, Record<PlanType, number>> = {
   kitabu_yetu: {
-    starter:    100,
-    growth:     200,
-    premium:    300,
+    starter: 100,
+    growth: 200,
+    premium: 300,
     enterprise: 300, // floor — negotiated per contract
   },
   chama_reminder: {
-    starter:    100,
-    growth:     200,
-    premium:    300,
+    starter: 100,
+    growth: 200,
+    premium: 300,
     enterprise: 300, // floor — negotiated per contract
   },
 };
@@ -240,16 +260,32 @@ export const SELF_SERVE_PLANS: readonly PlanType[] = ['starter', 'growth', 'prem
  */
 export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: string; features: string[] }[]> = {
   kitabu_yetu: [
-    { type: 'starter',    label: 'Starter',    features: ['Basic reporting', 'M-Pesa integration', 'SMS included'] },
-    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Advanced reports', 'Accounting module'] },
-    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Priority support', 'Higher SMS allowance'] },
-    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'] },
+    { type: 'starter', label: 'Starter', features: ['Basic reporting', 'M-Pesa integration', 'SMS included'] },
+    { type: 'growth', label: 'Growth', features: ['All Starter features', 'Advanced reports', 'Accounting module'] },
+    {
+      type: 'premium',
+      label: 'Premium',
+      features: ['All Growth features', 'Priority support', 'Higher SMS allowance'],
+    },
+    {
+      type: 'enterprise',
+      label: 'Enterprise',
+      features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'],
+    },
   ],
   chama_reminder: [
-    { type: 'starter',    label: 'Starter',    features: ['Member list & SMS', 'Birthday greetings', 'SMS included'] },
-    { type: 'growth',     label: 'Growth',     features: ['All Starter features', 'Scheduled campaigns', 'Message templates'] },
-    { type: 'premium',    label: 'Premium',    features: ['All Growth features', 'Higher SMS allowance', 'Priority support'] },
-    { type: 'enterprise', label: 'Enterprise', features: ['All Premium features', 'Custom sender ID', 'Dedicated support'] },
+    { type: 'starter', label: 'Starter', features: ['Member list & SMS', 'Birthday greetings', 'SMS included'] },
+    { type: 'growth', label: 'Growth', features: ['All Starter features', 'Scheduled campaigns', 'Message templates'] },
+    {
+      type: 'premium',
+      label: 'Premium',
+      features: ['All Growth features', 'Higher SMS allowance', 'Priority support'],
+    },
+    {
+      type: 'enterprise',
+      label: 'Enterprise',
+      features: ['All Premium features', 'Custom sender ID', 'Dedicated support'],
+    },
   ],
 };
 
@@ -268,17 +304,17 @@ export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: str
 // always assigned by staff — never purchased, never upgraded by a coordinator.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type OrganizationPlanType    = 'starter' | 'growth' | 'premium' | 'premium_plus';
+export type OrganizationPlanType = 'starter' | 'growth' | 'premium' | 'premium_plus';
 export type OrganizationSupportTier = 'standard' | 'priority' | 'priority_plus';
 
 export interface OrganizationPlanFeatures {
-  maxLinkedGroups:      number | null; // null = unlimited
-  maxStaff:             number | null;
-  maxFundingPrograms:   number | null;
-  smsAllowanceIncluded: number;        // bundled credits granted per monthly anniversary
-  whiteLabelBranding:   boolean;
-  advancedReports:      boolean;       // budget variance + donor spend reports
-  supportTier:          OrganizationSupportTier;
+  maxLinkedGroups: number | null; // null = unlimited
+  maxStaff: number | null;
+  maxFundingPrograms: number | null;
+  smsAllowanceIncluded: number; // bundled credits granted per monthly anniversary
+  whiteLabelBranding: boolean;
+  advancedReports: boolean; // budget variance + donor spend reports
+  supportTier: OrganizationSupportTier;
 }
 
 /**
@@ -291,42 +327,87 @@ export interface OrganizationPlanFeatures {
  */
 export const ORGANIZATION_PLAN_FEATURES: Record<'starter' | 'growth' | 'premium', OrganizationPlanFeatures> = {
   starter: {
-    maxLinkedGroups: 5, maxStaff: 2, maxFundingPrograms: 1,
-    smsAllowanceIncluded: 0, whiteLabelBranding: false, advancedReports: false,
+    maxLinkedGroups: 5,
+    maxStaff: 2,
+    maxFundingPrograms: 1,
+    smsAllowanceIncluded: 0,
+    whiteLabelBranding: false,
+    advancedReports: false,
     supportTier: 'standard',
   },
   growth: {
-    maxLinkedGroups: 15, maxStaff: 5, maxFundingPrograms: 5,
-    smsAllowanceIncluded: 500, whiteLabelBranding: false, advancedReports: true,
+    maxLinkedGroups: 15,
+    maxStaff: 5,
+    maxFundingPrograms: 5,
+    smsAllowanceIncluded: 500,
+    whiteLabelBranding: false,
+    advancedReports: true,
     supportTier: 'priority',
   },
   premium: {
-    maxLinkedGroups: null, maxStaff: 15, maxFundingPrograms: 10,
-    smsAllowanceIncluded: 1500, whiteLabelBranding: false, advancedReports: true,
+    maxLinkedGroups: null,
+    maxStaff: 15,
+    maxFundingPrograms: 10,
+    smsAllowanceIncluded: 1500,
+    whiteLabelBranding: false,
+    advancedReports: true,
     supportTier: 'priority',
   },
 };
 
 export const ORGANIZATION_PLAN_MONTHLY_FEES: Record<'starter' | 'growth' | 'premium', number> = {
-  starter: 2999, growth: 4999, premium: 8999,
+  starter: 2999,
+  growth: 4999,
+  premium: 8999,
 };
 
 export const ORGANIZATION_PLAN_COPY: { type: OrganizationPlanType; label: string; features: string[] }[] = [
-  { type: 'starter', label: 'Starter', features: [
-    'Up to 5 linked groups', 'Up to 2 staff seats', '1 active funding program',
-    'Basic reports', 'Pay-as-you-go SMS', 'Standard support',
-  ] },
-  { type: 'growth', label: 'Growth', features: [
-    'All Starter features', 'Up to 15 linked groups', 'Up to 5 staff seats',
-    '5 active funding programs', 'Budget variance & donor spend reports',
-    '500 SMS credits/month included', 'Priority support',
-  ] },
-  { type: 'premium', label: 'Premium', features: [
-    'All Growth features', 'Unlimited linked groups', 'Up to 15 staff seats',
-    '10 active funding programs', '1,500 SMS credits/month included', 'Priority support',
-  ] },
-  { type: 'premium_plus', label: 'Premium+', features: [
-    'All Premium features', 'Unlimited everything, negotiated per contract',
-    'White-label branding', 'Negotiated SMS rate & custom allowance', 'Priority+ support',
-  ] },
+  {
+    type: 'starter',
+    label: 'Starter',
+    features: [
+      'Up to 5 linked groups',
+      'Up to 2 staff seats',
+      '1 active funding program',
+      'Basic reports',
+      'Pay-as-you-go SMS',
+      'Standard support',
+    ],
+  },
+  {
+    type: 'growth',
+    label: 'Growth',
+    features: [
+      'All Starter features',
+      'Up to 15 linked groups',
+      'Up to 5 staff seats',
+      '5 active funding programs',
+      'Budget variance & donor spend reports',
+      '500 SMS credits/month included',
+      'Priority support',
+    ],
+  },
+  {
+    type: 'premium',
+    label: 'Premium',
+    features: [
+      'All Growth features',
+      'Unlimited linked groups',
+      'Up to 15 staff seats',
+      '10 active funding programs',
+      '1,500 SMS credits/month included',
+      'Priority support',
+    ],
+  },
+  {
+    type: 'premium_plus',
+    label: 'Premium+',
+    features: [
+      'All Premium features',
+      'Unlimited everything, negotiated per contract',
+      'White-label branding',
+      'Negotiated SMS rate & custom allowance',
+      'Priority+ support',
+    ],
+  },
 ];

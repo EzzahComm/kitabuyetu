@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * Bill Manager API routes.
  *
@@ -31,15 +31,15 @@ import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
 
 const InvoiceSchema = z.object({
   externalReference: z.string().min(1).max(50),
-  billedFullName:    z.string().min(1).max(100),
+  billedFullName: z.string().min(1).max(100),
   billedPhoneNumber: z.string().refine(isValidKenyanPhone, 'Invalid phone'),
   billedPeriodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  billedPeriodEnd:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  invoiceDate:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  dueDate:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  accountReference:  z.string().min(1).max(20),
-  amount:            z.number().positive(),
-  invoiceName:       z.string().min(1).max(100),
+  billedPeriodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  accountReference: z.string().min(1).max(20),
+  amount: z.number().positive(),
+  invoiceName: z.string().min(1).max(100),
 });
 
 const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
@@ -52,7 +52,12 @@ export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
     try {
       const status = req.nextUrl.searchParams.get('status');
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT * FROM bill_manager_invoices
@@ -71,13 +76,17 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function POST(req: NextRequest): Promise<Response> {
   const action = req.nextUrl.searchParams.get('action');
-  const type   = req.nextUrl.searchParams.get('type');
-  const ip     = callerIp(req);
+  const type = req.nextUrl.searchParams.get('type');
+  const ip = callerIp(req);
 
   // Safaricom reconciliation callback (no JWT)
   if (type === 'reconciliation') {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
     after(() => {
       withAdminDb((db) =>
         db.query(
@@ -93,17 +102,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (action === 'optin') {
     return withRole(req, 'super_admin', async () => {
       try {
-        const input = z.object({
-          email:           z.string().email(),
-          officialContact: z.string(),
-          sendReminders:   z.union([z.literal(0), z.literal(1)]),
-          logo:            z.string().url().optional(),
-          callbackUrl:     z.string().url().optional(),
-        }).parse(await req.json());
+        const input = z
+          .object({
+            email: z.string().email(),
+            officialContact: z.string(),
+            sendReminders: z.union([z.literal(0), z.literal(1)]),
+            logo: z.string().url().optional(),
+            callbackUrl: z.string().url().optional(),
+          })
+          .parse(await req.json());
 
         await billManagerOptIn({
           ...input,
-          callbackUrl: input.callbackUrl ??
+          callbackUrl:
+            input.callbackUrl ??
             `${process.env.MPESA_CALLBACK_BASE_URL ?? ''}/api/v1/mpesa/bill-manager?type=reconciliation`,
         });
         return ok({ message: 'Bill Manager opt-in successful.' });
@@ -120,7 +132,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         await sendSingleInvoice(input as BillManagerInvoice);
 
         // Persist locally
-        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        const ctx: TenantContext = {
+          userId: auth.userId,
+          groupId: auth.groupId,
+          role: auth.role,
+          organizationId: auth.organizationId,
+        };
         await withTransaction(ctx, (db) =>
           db.query(
             `INSERT INTO bill_manager_invoices
@@ -132,10 +149,16 @@ export async function POST(req: NextRequest): Promise<Response> {
                SET billed_full_name=$3, amount=$7, due_date=$10,
                    sent_to_safaricom=true, sent_at=NOW()`,
             [
-              auth.groupId, input.externalReference, input.billedFullName,
-              normalizePhone(input.billedPhoneNumber), input.billedPeriodStart,
-              input.billedPeriodEnd, input.amount.toFixed(2),
-              input.accountReference, input.invoiceName, input.dueDate,
+              auth.groupId,
+              input.externalReference,
+              input.billedFullName,
+              normalizePhone(input.billedPhoneNumber),
+              input.billedPeriodStart,
+              input.billedPeriodEnd,
+              input.amount.toFixed(2),
+              input.accountReference,
+              input.invoiceName,
+              input.dueDate,
             ],
           ),
         );
@@ -150,11 +173,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (action === 'bulk') {
     return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
       try {
-        const invoices = z.array(InvoiceSchema).min(1).max(100).parse(await req.json());
+        const invoices = z
+          .array(InvoiceSchema)
+          .min(1)
+          .max(100)
+          .parse(await req.json());
         await sendBulkInvoices(invoices as BillManagerInvoice[]);
 
         // Persist all locally
-        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        const ctx: TenantContext = {
+          userId: auth.userId,
+          groupId: auth.groupId,
+          role: auth.role,
+          organizationId: auth.organizationId,
+        };
         await withTransaction(ctx, async (db) => {
           for (const inv of invoices) {
             await db.query(
@@ -166,10 +198,16 @@ export async function POST(req: NextRequest): Promise<Response> {
                ON CONFLICT (group_id, external_reference) DO UPDATE
                  SET sent_to_safaricom=true, sent_at=NOW()`,
               [
-                auth.groupId, inv.externalReference, inv.billedFullName,
-                normalizePhone(inv.billedPhoneNumber), inv.billedPeriodStart,
-                inv.billedPeriodEnd, inv.amount.toFixed(2),
-                inv.accountReference, inv.invoiceName, inv.dueDate,
+                auth.groupId,
+                inv.externalReference,
+                inv.billedFullName,
+                normalizePhone(inv.billedPhoneNumber),
+                inv.billedPeriodStart,
+                inv.billedPeriodEnd,
+                inv.amount.toFixed(2),
+                inv.accountReference,
+                inv.invoiceName,
+                inv.dueDate,
               ],
             );
           }
@@ -185,9 +223,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (action === 'cancel') {
     return withPermission(req, 'mpesa.bill_manager.manage', async (auth) => {
       try {
-        const { externalReferences } = z.object({
-          externalReferences: z.array(z.string()).min(1),
-        }).parse(await req.json());
+        const { externalReferences } = z
+          .object({
+            externalReferences: z.array(z.string()).min(1),
+          })
+          .parse(await req.json());
 
         if (externalReferences.length === 1) {
           await cancelSingleInvoice(externalReferences[0]);
@@ -195,7 +235,12 @@ export async function POST(req: NextRequest): Promise<Response> {
           await cancelBulkInvoices(externalReferences);
         }
 
-        const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+        const ctx: TenantContext = {
+          userId: auth.userId,
+          groupId: auth.groupId,
+          role: auth.role,
+          organizationId: auth.organizationId,
+        };
         await withTransaction(ctx, (db) =>
           db.query(
             `UPDATE bill_manager_invoices
@@ -233,7 +278,10 @@ export async function PUT(req: NextRequest): Promise<Response> {
   if (action === 'bulk') {
     return withPermission(req, 'mpesa.bill_manager.manage', async () => {
       try {
-        const invoices = z.array(InvoiceSchema).min(1).parse(await req.json());
+        const invoices = z
+          .array(InvoiceSchema)
+          .min(1)
+          .parse(await req.json());
         await updateBulkInvoices(invoices as BillManagerInvoice[]);
         return ok({ message: `${invoices.length} invoice(s) updated.` });
       } catch (err) {
@@ -245,11 +293,13 @@ export async function PUT(req: NextRequest): Promise<Response> {
   if (action === 'optin') {
     return withRole(req, 'super_admin', async () => {
       try {
-        const input = z.object({
-          email:           z.string().email().optional(),
-          officialContact: z.string().optional(),
-          sendReminders:   z.union([z.literal(0), z.literal(1)]).optional(),
-        }).parse(await req.json());
+        const input = z
+          .object({
+            email: z.string().email().optional(),
+            officialContact: z.string().optional(),
+            sendReminders: z.union([z.literal(0), z.literal(1)]).optional(),
+          })
+          .parse(await req.json());
         await updateBillManagerOptIn(input);
         return ok({ message: 'Bill Manager opt-in details updated.' });
       } catch (err) {

@@ -19,37 +19,31 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
     case 'email.delivered':
     case 'email.sent':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET status='sent', sent_at=COALESCE(sent_at, NOW()) WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET status='sent', sent_at=COALESCE(sent_at, NOW()) WHERE provider_message_id=$1`, [
+          messageId,
+        ]),
       ).catch(() => {});
       break;
 
     case 'email.opened':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET opened_at=COALESCE(opened_at, NOW()) WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET opened_at=COALESCE(opened_at, NOW()) WHERE provider_message_id=$1`, [
+          messageId,
+        ]),
       ).catch(() => {});
       break;
 
     case 'email.clicked':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET clicked_at=COALESCE(clicked_at, NOW()) WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET clicked_at=COALESCE(clicked_at, NOW()) WHERE provider_message_id=$1`, [
+          messageId,
+        ]),
       ).catch(() => {});
       break;
 
     case 'email.bounced':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET status='bounced', bounced_at=NOW() WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET status='bounced', bounced_at=NOW() WHERE provider_message_id=$1`, [messageId]),
       ).catch(() => {});
       await updateCampaignOpenCount(messageId);
       await suppressFromLog(messageId, 'bounce').catch(() => {});
@@ -57,20 +51,16 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
 
     case 'email.complained':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET status='complained', unsubscribed_at=NOW() WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET status='complained', unsubscribed_at=NOW() WHERE provider_message_id=$1`, [
+          messageId,
+        ]),
       ).catch(() => {});
       await suppressFromLog(messageId, 'complaint').catch(() => {});
       break;
 
     case 'email.delivery_delayed':
       await withAdminDb((db) =>
-        db.query(
-          `UPDATE email_logs SET status='delayed' WHERE provider_message_id=$1`,
-          [messageId],
-        ),
+        db.query(`UPDATE email_logs SET status='delayed' WHERE provider_message_id=$1`, [messageId]),
       ).catch(() => {});
       break;
   }
@@ -114,15 +104,15 @@ async function updateCampaignOpenCount(messageId: string): Promise<void> {
   if (!rows.length || !rows[0].reference_id) return;
 
   await withAdminDb((db) =>
-    db.query(
-      `UPDATE email_campaigns SET opened_count=opened_count+1 WHERE id=$1`,
-      [rows[0].reference_id],
-    ),
+    db.query(`UPDATE email_campaigns SET opened_count=opened_count+1 WHERE id=$1`, [rows[0].reference_id]),
   ).catch(() => {});
 }
 
 // Analytics summary for the analytics dashboard
-export async function getEmailAnalytics(groupId: string | null, days = 30): Promise<{
+export async function getEmailAnalytics(
+  groupId: string | null,
+  days = 30,
+): Promise<{
   total: number;
   sent: number;
   failed: number;
@@ -180,15 +170,15 @@ export async function getEmailAnalytics(groupId: string | null, days = 30): Prom
 
   const t = totals.rows[0];
   return {
-    total:      Number(t?.total   ?? 0),
-    sent:       Number(t?.sent    ?? 0),
-    failed:     Number(t?.failed  ?? 0),
-    opened:     Number(t?.opened  ?? 0),
-    bounced:    Number(t?.bounced ?? 0),
+    total: Number(t?.total ?? 0),
+    sent: Number(t?.sent ?? 0),
+    failed: Number(t?.failed ?? 0),
+    opened: Number(t?.opened ?? 0),
+    bounced: Number(t?.bounced ?? 0),
     byCategory: byCategory.rows.map((r) => ({ category: r.category, count: Number(r.count) })),
-    byDay:      byDay.rows.map((r) => ({
-      date:   String(r.date),
-      sent:   Number(r.sent),
+    byDay: byDay.rows.map((r) => ({
+      date: String(r.date),
+      sent: Number(r.sent),
       failed: Number(r.failed),
     })),
   };

@@ -9,12 +9,7 @@ import { render } from '@react-email/render';
  * single bridge between the React Email templates in `emails/` and the rest of
  * the email system — keeping React Email as a rendering concern only.
  */
-export async function renderReactEmail(
-  element: React.ReactElement,
-): Promise<{ html: string; text: string }> {
-  const [html, text] = await Promise.all([
-    render(element),
-    render(element, { plainText: true }),
-  ]);
+export async function renderReactEmail(element: React.ReactElement): Promise<{ html: string; text: string }> {
+  const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return { html, text };
 }

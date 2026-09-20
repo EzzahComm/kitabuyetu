@@ -33,7 +33,10 @@ export default async function UnsubscribePage({ searchParams }: UnsubscribePageP
   if (!token) {
     return (
       <PageShell title="Unsubscribe">
-        <p>This link is missing its unsubscribe code. If you followed a link from an email, please use that link directly.</p>
+        <p>
+          This link is missing its unsubscribe code. If you followed a link from an email, please use that link
+          directly.
+        </p>
       </PageShell>
     );
   }
@@ -44,8 +47,8 @@ export default async function UnsubscribePage({ searchParams }: UnsubscribePageP
     return (
       <PageShell title="You're unsubscribed">
         <p>
-          You won&rsquo;t receive any further newsletter emails from Kitabu Yetu. Changed your mind?
-          You can subscribe again any time from our <Link href="/resources">Resources</Link> page.
+          You won&rsquo;t receive any further newsletter emails from Kitabu Yetu. Changed your mind? You can subscribe
+          again any time from our <Link href="/resources">Resources</Link> page.
         </p>
       </PageShell>
     );

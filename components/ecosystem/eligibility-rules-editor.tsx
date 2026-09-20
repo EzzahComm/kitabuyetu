@@ -4,9 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 import type { EligibilityRule } from '@/lib/services/ecosystem.service';
 
@@ -33,11 +31,16 @@ function newRule(type: EligibilityRule['type']): EligibilityRule {
   const meta = RULE_TYPES.find((t) => t.value === type)!;
   const base = { id: crypto.randomUUID(), name: meta.label, type, field: meta.field, error_message: '' };
   switch (type) {
-    case 'range': return { ...base, operator: 'before_or_equal', value: '' };
-    case 'enum_whitelist': return { ...base, values: [] };
-    case 'geo': return { ...base, values: [] };
-    case 'financial': return { ...base, operator: '>=', value: 0 };
-    default: return { ...base, function: '' };
+    case 'range':
+      return { ...base, operator: 'before_or_equal', value: '' };
+    case 'enum_whitelist':
+      return { ...base, values: [] };
+    case 'geo':
+      return { ...base, values: [] };
+    case 'financial':
+      return { ...base, operator: '>=', value: 0 };
+    default:
+      return { ...base, function: '' };
   }
 }
 
@@ -67,24 +70,38 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
                 value={rule.type}
                 onValueChange={(t) => updateRule(rule.id, newRule(t as EligibilityRule['type']))}
               >
-                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {RULE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {RULE_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Button type="button" variant="ghost" size="sm" onClick={() => removeRule(rule.id)}>Remove</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeRule(rule.id)}>
+                Remove
+              </Button>
             </div>
 
             {rule.type === 'range' && (
               <div className="grid grid-cols-2 gap-2">
                 <Select value={rule.operator} onValueChange={(v) => updateRule(rule.id, { operator: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="before_or_equal">Founded on or before</SelectItem>
                     <SelectItem value="after">Founded after</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="date" value={rule.value ?? ''} onChange={(e) => updateRule(rule.id, { value: e.target.value })} />
+                <Input
+                  type="date"
+                  value={rule.value ?? ''}
+                  onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+                />
               </div>
             )}
 
@@ -98,9 +115,11 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
                       type="button"
                       size="sm"
                       variant={active ? 'default' : 'outline'}
-                      onClick={() => updateRule(rule.id, {
-                        values: active ? (rule.values ?? []).filter((v) => v !== gt) : [...(rule.values ?? []), gt],
-                      })}
+                      onClick={() =>
+                        updateRule(rule.id, {
+                          values: active ? (rule.values ?? []).filter((v) => v !== gt) : [...(rule.values ?? []), gt],
+                        })
+                      }
                     >
                       {GROUP_TYPE_LABELS[gt]}
                     </Button>
@@ -113,14 +132,23 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
               <Input
                 placeholder="Counties, comma-separated — e.g. Nairobi, Kiambu, Machakos"
                 value={(rule.values ?? []).join(', ')}
-                onChange={(e) => updateRule(rule.id, { values: e.target.value.split(',').map((v: string) => v.trim()).filter(Boolean) })}
+                onChange={(e) =>
+                  updateRule(rule.id, {
+                    values: e.target.value
+                      .split(',')
+                      .map((v: string) => v.trim())
+                      .filter(Boolean),
+                  })
+                }
               />
             )}
 
             {rule.type === 'financial' && (
               <div className="grid grid-cols-2 gap-2">
                 <Select value={rule.operator} onValueChange={(v) => updateRule(rule.id, { operator: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value=">=">At least (≥)</SelectItem>
                     <SelectItem value=">">More than (&gt;)</SelectItem>
@@ -128,7 +156,12 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
                     <SelectItem value="<">Less than (&lt;)</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="number" placeholder="KES" value={rule.value ?? ''} onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })} />
+                <Input
+                  type="number"
+                  placeholder="KES"
+                  value={rule.value ?? ''}
+                  onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
+                />
               </div>
             )}
 

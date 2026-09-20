@@ -140,7 +140,7 @@ describe('processDueScheduledCampaigns', () => {
       'sms_bulk_send',
       expect.objectContaining({
         campaignId: 'camp-1',
-        message:    'Reminder {{first_name}}: Umoja Chama dues are due.',
+        message: 'Reminder {{first_name}}: Umoja Chama dues are due.',
       }),
       expect.objectContaining({ dedup_key: 'sms_bulk_send:camp-1' }),
     );

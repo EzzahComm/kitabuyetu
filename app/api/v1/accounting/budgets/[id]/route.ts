@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth, withPermission } from '@/lib/auth/middleware';
 import { budgetService } from '@/lib/services/budget.service';
@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const { id } = await params;
   return withPermission(req, 'accounting.manage', async (auth) => {
     const input = UpdateBudgetSchema.parse(await req.json());
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await budgetService.update(ctx, id, input));
   });
 }

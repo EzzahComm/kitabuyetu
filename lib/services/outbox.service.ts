@@ -17,19 +17,21 @@
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-const BATCH        = 100;
+const BATCH = 100;
 const MAX_ATTEMPTS = 5;
 
 interface OutboxRow {
-  id:           string;
-  event_type:   string;
+  id: string;
+  event_type: string;
   aggregate_id: string;
-  payload:      Record<string, unknown>;
-  attempts:     number;
+  payload: Record<string, unknown>;
+  attempts: number;
 }
 
 export async function dispatchOutboxEvents(): Promise<{
-  processed: number; failed: number; dead: number;
+  processed: number;
+  failed: number;
+  dead: number;
 }> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<OutboxRow>(
@@ -43,16 +45,13 @@ export async function dispatchOutboxEvents(): Promise<{
     );
 
     let processed = 0;
-    let failed    = 0;
-    let dead      = 0;
+    let failed = 0;
+    let dead = 0;
 
     for (const row of rows) {
       try {
         await handleOutboxEvent(row);
-        await db.query(
-          `UPDATE event_outbox SET processed_at = NOW(), attempts = attempts + 1 WHERE id = $1`,
-          [row.id],
-        );
+        await db.query(`UPDATE event_outbox SET processed_at = NOW(), attempts = attempts + 1 WHERE id = $1`, [row.id]);
 
         // Record audit log for successful event processing
         await db.query(
@@ -74,10 +73,10 @@ export async function dispatchOutboxEvents(): Promise<{
         if (attempts >= MAX_ATTEMPTS) {
           // Park it: mark processed so the queue drains, but record the death
           // loudly — the §16 alert on this log line is the operator signal.
-          await db.query(
-            `UPDATE event_outbox SET processed_at = NOW(), attempts = $2 WHERE id = $1`,
-            [row.id, attempts],
-          );
+          await db.query(`UPDATE event_outbox SET processed_at = NOW(), attempts = $2 WHERE id = $1`, [
+            row.id,
+            attempts,
+          ]);
 
           // Record audit log for dead letter (max attempts exceeded)
           await db.query(
@@ -94,14 +93,14 @@ export async function dispatchOutboxEvents(): Promise<{
           );
 
           logger.error('[outbox] event dead after max attempts', {
-            id: row.id, eventType: row.event_type, aggregateId: row.aggregate_id, err: String(err),
+            id: row.id,
+            eventType: row.event_type,
+            aggregateId: row.aggregate_id,
+            err: String(err),
           });
           dead++;
         } else {
-          await db.query(
-            `UPDATE event_outbox SET attempts = $2 WHERE id = $1`,
-            [row.id, attempts],
-          );
+          await db.query(`UPDATE event_outbox SET attempts = $2 WHERE id = $1`, [row.id, attempts]);
 
           // Record audit log for failed attempt (retryable)
           await db.query(
@@ -152,11 +151,15 @@ async function handleOutboxEvent(row: OutboxRow): Promise<void> {
  * anything older than 7 days (pre-spine history never alerts).
  */
 export async function findSpineOrphans(): Promise<{
-  count: number; samples: { id: string; receipt: string | null; amount: string; ageMinutes: number }[];
+  count: number;
+  samples: { id: string; receipt: string | null; amount: string; ageMinutes: number }[];
 }> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; mpesa_receipt_number: string | null; amount: string; age_minutes: number;
+      id: string;
+      mpesa_receipt_number: string | null;
+      amount: string;
+      age_minutes: number;
     }>(
       `SELECT id, mpesa_receipt_number, amount,
               EXTRACT(EPOCH FROM (NOW() - payment_date)) / 60 AS age_minutes
@@ -170,15 +173,18 @@ export async function findSpineOrphans(): Promise<{
     );
 
     const samples = rows.map((r) => ({
-      id: r.id, receipt: r.mpesa_receipt_number,
-      amount: r.amount, ageMinutes: Math.round(Number(r.age_minutes)),
+      id: r.id,
+      receipt: r.mpesa_receipt_number,
+      amount: r.amount,
+      ageMinutes: Math.round(Number(r.age_minutes)),
     }));
 
     if (samples.length > 0) {
       // §16: this log line is the paging signal — completed money that never
       // reached a ledger is the one thing that must never sit quietly.
       logger.error('[spine] orphaned payments detected (received but never allocated)', {
-        count: samples.length, samples: samples.slice(0, 5),
+        count: samples.length,
+        samples: samples.slice(0, 5),
       });
     }
 

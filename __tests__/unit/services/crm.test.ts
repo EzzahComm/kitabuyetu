@@ -6,9 +6,16 @@
 import type { PoolClient } from 'pg';
 import { withDb } from '@/lib/db';
 import {
-  createContact, recordOptIn, recordOptOut, createOpportunity, updateOpportunity,
-  listOpportunities, listActivitiesForContact, listRecentActivity,
-  logActivityForContact, isEmailSuppressed,
+  createContact,
+  recordOptIn,
+  recordOptOut,
+  createOpportunity,
+  updateOpportunity,
+  listOpportunities,
+  listActivitiesForContact,
+  listRecentActivity,
+  logActivityForContact,
+  isEmailSuppressed,
 } from '@/lib/services/crm.service';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
 
@@ -16,7 +23,7 @@ jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -28,8 +35,7 @@ const ctx = { groupId: 'grp-1', userId: 'member-1', role: 'treasurer' };
 
 describe('createContact', () => {
   it('rejects a blank name before any query runs', async () => {
-    await expect(createContact(ctx, { contact_type: 'donor', name: '   ' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(createContact(ctx, { contact_type: 'donor', name: '   ' })).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
@@ -41,9 +47,9 @@ describe('createContact', () => {
 
     const insertCall = mockQuery.mock.calls[0];
     // params: [group_id, org_id, contact_type, name, email, phone, notes, donor_id, partner_id, optIn, optedInAt, optedInBy, created_by]
-    expect(insertCall[1][9]).toBe(false);   // marketing_opt_in
-    expect(insertCall[1][10]).toBeNull();   // opted_in_at
-    expect(insertCall[1][11]).toBeNull();   // opted_in_by
+    expect(insertCall[1][9]).toBe(false); // marketing_opt_in
+    expect(insertCall[1][10]).toBeNull(); // opted_in_at
+    expect(insertCall[1][11]).toBeNull(); // opted_in_by
   });
 
   it('stamps opted_in_at/opted_in_by to the acting user when marketing_opt_in is explicitly true', async () => {
@@ -100,8 +106,7 @@ describe('recordOptIn / recordOptOut', () => {
 
 describe('createOpportunity', () => {
   it('rejects a blank title before any query runs', async () => {
-    await expect(createOpportunity(ctx, { contact_id: 'c1', title: '' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(createOpportunity(ctx, { contact_id: 'c1', title: '' })).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
@@ -190,7 +195,7 @@ describe('listRecentActivity — cross-CRM feed', () => {
     expect(mockQuery.mock.calls[1][1]).toEqual([100]);
   });
 
-  it('resolves contact_name from either the direct contact or the opportunity\'s contact', async () => {
+  it("resolves contact_name from either the direct contact or the opportunity's contact", async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'a1', contact_name: 'Jane', opportunity_title: null }],
     });
@@ -202,8 +207,9 @@ describe('listRecentActivity — cross-CRM feed', () => {
 
 describe('logActivityForContact', () => {
   it('rejects an activity with neither contact_id nor opportunity_id', async () => {
-    await expect(logActivityForContact(ctx, { activity_type: 'note', body: 'x' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(logActivityForContact(ctx, { activity_type: 'note', body: 'x' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
@@ -217,13 +223,17 @@ describe('logActivityForContact', () => {
 describe('isEmailSuppressed', () => {
   it('returns true when a matching suppression row exists for the scope', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
-    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'bounced@example.com', { groupId: 'grp-1' });
+    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'bounced@example.com', {
+      groupId: 'grp-1',
+    });
     expect(suppressed).toBe(true);
   });
 
   it('returns false when no suppression row exists', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'ok@example.com', { groupId: 'grp-1' });
+    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'ok@example.com', {
+      groupId: 'grp-1',
+    });
     expect(suppressed).toBe(false);
   });
 });

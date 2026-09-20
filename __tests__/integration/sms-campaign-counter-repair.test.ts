@@ -27,8 +27,11 @@ jest.mock('@/lib/services/email.service', () => ({
 }));
 
 async function makeCampaign(
-  groupId: string, createdBy: string,
-  storedSent: number, storedFailed: number, status = 'completed',
+  groupId: string,
+  createdBy: string,
+  storedSent: number,
+  storedFailed: number,
+  status = 'completed',
 ): Promise<string> {
   // created_by is NOT NULL on sms_campaigns — a campaign always has an author.
   const [row] = await rawQuery<{ id: string }>(
@@ -56,7 +59,8 @@ async function seedLogs(groupId: string, campaignId: string, sent: number, faile
 
 async function countersOf(campaignId: string) {
   const [row] = await rawQuery<{ sent_count: number; failed_count: number }>(
-    `SELECT sent_count, failed_count FROM sms_campaigns WHERE id = $1`, [campaignId],
+    `SELECT sent_count, failed_count FROM sms_campaigns WHERE id = $1`,
+    [campaignId],
   );
   return row;
 }
@@ -73,8 +77,8 @@ describe('campaign counter repair', () => {
   });
 
   it('recomputes inverted counters from the message log — the 9e1d1bf5 case', async () => {
-    const id = await makeCampaign(groupId, officerId, 0, 8);   // stored: 0 sent / 8 failed
-    await seedLogs(groupId, id, 8, 0);              // real:   8 sent / 0 failed
+    const id = await makeCampaign(groupId, officerId, 0, 8); // stored: 0 sent / 8 failed
+    await seedLogs(groupId, id, 8, 0); // real:   8 sent / 0 failed
 
     const r = await reconcileSmsCredits();
 

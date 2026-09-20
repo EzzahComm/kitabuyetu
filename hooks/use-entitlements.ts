@@ -21,8 +21,8 @@ import type { SubscriptionProduct } from '@/types/enums';
  */
 export function useEntitlements() {
   const query = useQuery({
-    queryKey:  billingKeys.entitlements,
-    queryFn:   billingApi.entitlements,
+    queryKey: billingKeys.entitlements,
+    queryFn: billingApi.entitlements,
     staleTime: 30_000,
   });
 
@@ -39,8 +39,7 @@ export function useEntitlements() {
      * A group holding both is a Kitabu Yetu group with an add-on and belongs
      * on its normal dashboard.
      */
-    reminderOnly:
-      products.includes('chama_reminder') && !products.includes('kitabu_yetu'),
+    reminderOnly: products.includes('chama_reminder') && !products.includes('kitabu_yetu'),
     /**
      * True for a group that has not paid for anything yet but registered for
      * Chama Reminder. `products` cannot answer this — since migration 139 a
@@ -48,7 +47,6 @@ export function useEntitlements() {
      * it is indistinguishable from an unpaid Kitabu Yetu group and would be
      * sent to the wrong subscribe page.
      */
-    awaitingReminderPayment:
-      products.length === 0 && query.data?.signupProduct === 'chama_reminder',
+    awaitingReminderPayment: products.length === 0 && query.data?.signupProduct === 'chama_reminder',
   };
 }

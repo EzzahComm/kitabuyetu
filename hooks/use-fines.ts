@@ -9,7 +9,7 @@ export const fineKeys = {
 export function useFinePolicy() {
   return useQuery({
     queryKey: fineKeys.policy,
-    queryFn:  () => finesApi.policy(),
+    queryFn: () => finesApi.policy(),
   });
 }
 
@@ -17,6 +17,6 @@ export function useSetFinePolicy() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { schedule: Record<string, number> }) => finesApi.setPolicy(body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: fineKeys.policy }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: fineKeys.policy }),
   });
 }

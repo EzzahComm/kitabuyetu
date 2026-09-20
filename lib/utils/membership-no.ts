@@ -55,7 +55,10 @@ export function dammCheckDigit(base: string): string {
 
 /** Strip spaces/dashes/underscores and uppercase — how members actually type. */
 export function normalizeAccountRef(input: string): string {
-  return input.trim().toUpperCase().replace(/[\s\-_./]+/g, '');
+  return input
+    .trim()
+    .toUpperCase()
+    .replace(/[\s\-_./]+/g, '');
 }
 
 /** True when the (normalised) input has membership-number SHAPE (may still fail the check digit). */
@@ -93,9 +96,9 @@ const VALID_SUFFIXES: ReadonlySet<string> = new Set(['L', 'W', 'S']);
 
 export interface ParsedAccountRef {
   /** The 8-char membership-number candidate (normalised), suffix removed. */
-  account:       string;
+  account: string;
   /** Valid product suffix, when present. */
-  suffix:        ProductSuffix | null;
+  suffix: ProductSuffix | null;
   /** True when a 9th trailing letter exists but isn't a known suffix (A1: reject, never guess). */
   invalidSuffix: boolean;
 }

@@ -3,11 +3,28 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Building2, Landmark, Users, CreditCard,
-  Headphones, ScrollText,
-  BarChart3, Flag, ShieldAlert, Activity, MapPin,
-  Settings, Coins, Wallet,
-  Store, Handshake, ClipboardList, HeartHandshake, Mail, Briefcase, UserPlus,
+  LayoutDashboard,
+  Building2,
+  Landmark,
+  Users,
+  CreditCard,
+  Headphones,
+  ScrollText,
+  BarChart3,
+  Flag,
+  ShieldAlert,
+  Activity,
+  MapPin,
+  Settings,
+  Coins,
+  Wallet,
+  Store,
+  Handshake,
+  ClipboardList,
+  HeartHandshake,
+  Mail,
+  Briefcase,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -17,59 +34,57 @@ const NAV: PortalNavSection[] = [
   {
     title: 'Core',
     items: [
-      { href: '/admin',             label: 'Dashboard',      icon: LayoutDashboard },
-      { href: '/admin/organizations', label: 'Organizations',  icon: Landmark },
-      { href: '/admin/groups',      label: 'Groups',         icon: Building2 },
-      { href: '/admin/users',       label: 'Members',        icon: Users },
-      { href: '/admin/billing-admin', label: 'Billing',      icon: CreditCard },
-      { href: '/admin/sms-pricing', label: 'SMS Pricing',    icon: Coins },
-      { href: '/admin/analytics',   label: 'Analytics',      icon: BarChart3 },
-      { href: '/admin/geography',   label: 'Geography',      icon: MapPin },
+      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/admin/organizations', label: 'Organizations', icon: Landmark },
+      { href: '/admin/groups', label: 'Groups', icon: Building2 },
+      { href: '/admin/users', label: 'Members', icon: Users },
+      { href: '/admin/billing-admin', label: 'Billing', icon: CreditCard },
+      { href: '/admin/sms-pricing', label: 'SMS Pricing', icon: Coins },
+      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/admin/geography', label: 'Geography', icon: MapPin },
     ],
   },
   {
     title: 'Risk & Compliance',
     items: [
-      { href: '/admin/risk',        label: 'Risk & Fraud',   icon: ShieldAlert },
-      { href: '/admin/monitoring',  label: 'Monitoring',     icon: Activity },
+      { href: '/admin/risk', label: 'Risk & Fraud', icon: ShieldAlert },
+      { href: '/admin/monitoring', label: 'Monitoring', icon: Activity },
     ],
   },
   {
     title: 'Ecosystem',
     items: [
-      { href: '/admin/ecosystem/partners',      label: 'Partners',      icon: Handshake },
+      { href: '/admin/ecosystem/partners', label: 'Partners', icon: Handshake },
       { href: '/admin/ecosystem/opportunities', label: 'Opportunities', icon: Store },
-      { href: '/admin/ecosystem/applications',  label: 'Applications',  icon: ClipboardList },
-      { href: '/admin/campaigns',               label: "Changi$ha",     icon: HeartHandshake },
+      { href: '/admin/ecosystem/applications', label: 'Applications', icon: ClipboardList },
+      { href: '/admin/campaigns', label: 'Changi$ha', icon: HeartHandshake },
     ],
   },
   {
     title: 'People',
     items: [
-      { href: '/admin/hr',          label: 'HR',             icon: Briefcase },
-      { href: '/admin/careers',     label: 'Careers',        icon: UserPlus },
+      { href: '/admin/hr', label: 'HR', icon: Briefcase },
+      { href: '/admin/careers', label: 'Careers', icon: UserPlus },
     ],
   },
   {
     title: 'Operations',
     items: [
-      { href: '/admin/support',     label: 'Support Center', icon: Headphones },
+      { href: '/admin/support', label: 'Support Center', icon: Headphones },
       { href: '/admin/mpesa-unrouted', label: 'Unrouted Payments', icon: Wallet },
-      { href: '/admin/audit-logs',  label: 'Audit Logs',     icon: ScrollText },
+      { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: Flag },
-      { href: '/admin/newsletter',  label: 'Newsletter',     icon: Mail },
+      { href: '/admin/newsletter', label: 'Newsletter', icon: Mail },
     ],
   },
   {
     title: 'System',
-    items: [
-      { href: '/admin/settings',    label: 'Settings',       icon: Settings },
-    ],
+    items: [{ href: '/admin/settings', label: 'Settings', icon: Settings }],
   },
 ];
 
 interface AdminSidebarProps {
-  open:    boolean;
+  open: boolean;
   onClose: () => void;
 }
 
@@ -77,8 +92,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const isActive = (href: string) =>
-    href === '/admin' ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => (href === '/admin' ? pathname === href : pathname.startsWith(href));
 
   return (
     <PortalSidebar
@@ -112,7 +126,8 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
                 <span className="text-[10px] font-bold text-white">
-                  {user.firstName?.[0]}{user.lastName?.[0]}
+                  {user.firstName?.[0]}
+                  {user.lastName?.[0]}
                 </span>
               </div>
               <div className="min-w-0">

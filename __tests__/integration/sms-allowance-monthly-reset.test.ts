@@ -35,9 +35,7 @@ const RESET_JOB = {
   max_attempts: 5,
 } as unknown as Job;
 
-async function setAllowanceState(
-  groupId: string, used: number, reserved: number,
-): Promise<void> {
+async function setAllowanceState(groupId: string, used: number, reserved: number): Promise<void> {
   await rawQuery(
     `UPDATE billing_accounts SET sms_allowance_used = $2, sms_allowance_reserved = $3
      WHERE group_id = $1`,
@@ -77,7 +75,8 @@ async function markCycleCurrent(groupId: string): Promise<void> {
 
 async function allowanceStateOf(groupId: string) {
   const [row] = await rawQuery<{
-    sms_allowance_used: number; sms_allowance_reserved: number;
+    sms_allowance_used: number;
+    sms_allowance_reserved: number;
     sms_allowance_period_start: Date | null;
   }>(
     `SELECT sms_allowance_used, sms_allowance_reserved, sms_allowance_period_start
@@ -142,11 +141,12 @@ describe('sms_allowance_monthly_reset', () => {
 
     const after = await allowanceStateOf(groupId);
     expect(after.sms_allowance_period_start).not.toBeNull();
-    expect(new Date(after.sms_allowance_period_start!).getTime())
-      .toBeGreaterThan(new Date(before.sms_allowance_period_start!).getTime());
+    expect(new Date(after.sms_allowance_period_start!).getTime()).toBeGreaterThan(
+      new Date(before.sms_allowance_period_start!).getTime(),
+    );
   });
 
-  it('leaves sms_allowance_reserved untouched — an in-flight reservation is not this job\'s job', async () => {
+  it("leaves sms_allowance_reserved untouched — an in-flight reservation is not this job's job", async () => {
     await setAllowanceState(groupId, 10, 4);
     await simulateCycleRollover(groupId);
 
@@ -161,10 +161,7 @@ describe('sms_allowance_monthly_reset', () => {
     const { groupId: cancelled } = await createTestGroup('treasurer');
     await setAllowanceState(cancelled, 22, 0);
     await simulateCycleRollover(cancelled);
-    await rawQuery(
-      `UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`,
-      [cancelled],
-    );
+    await rawQuery(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [cancelled]);
 
     await handleJob(RESET_JOB);
 

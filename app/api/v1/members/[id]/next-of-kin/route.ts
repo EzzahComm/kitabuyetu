@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const { id } = await params;
   return withAuth(req, async (auth) => {
     requirePermission(auth, 'members.manage');
-    const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const rows = await membersService.listNextOfKin(ctx, id);
     return ok(rows);
   });
@@ -31,10 +31,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const { id } = await params;
   return withAuth(req, async (auth) => {
     requirePermission(auth, 'members.manage');
-    const body  = await req.json();
+    const body = await req.json();
     const input = CreateNextOfKinSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const row   = await membersService.createNextOfKin(ctx, id, input);
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const row = await membersService.createNextOfKin(ctx, id, input);
     return created(row);
   });
 }

@@ -18,21 +18,21 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  */
 
 export interface PricingTier {
-  id:          string;
-  name:        string;
-  minCredits:  number;
-  maxCredits:  number | null;
-  unitPrice:   number;
-  currency:    string;
+  id: string;
+  name: string;
+  minCredits: number;
+  maxCredits: number | null;
+  unitPrice: number;
+  currency: string;
 }
 
 export interface SmsPackage {
-  id:            string;
-  name:          string;
-  description:   string | null;
-  credits:       number;
-  price:         number;
-  currency:      string;
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  price: number;
+  currency: string;
   isRecommended: boolean;
 }
 
@@ -65,16 +65,23 @@ export async function getUnitPrice(volume: number, client?: PoolClient): Promise
 export async function listActiveTiers(): Promise<PricingTier[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; name: string; min_credits: number;
-      max_credits: number | null; unit_price: string; currency: string;
+      id: string;
+      name: string;
+      min_credits: number;
+      max_credits: number | null;
+      unit_price: string;
+      currency: string;
     }>(
       `SELECT id, name, min_credits, max_credits, unit_price, currency
        FROM sms_pricing_tiers WHERE is_active ORDER BY display_order, min_credits`,
     );
     return rows.map((r) => ({
-      id: r.id, name: r.name,
-      minCredits: r.min_credits, maxCredits: r.max_credits,
-      unitPrice: Number(r.unit_price), currency: r.currency,
+      id: r.id,
+      name: r.name,
+      minCredits: r.min_credits,
+      maxCredits: r.max_credits,
+      unitPrice: Number(r.unit_price),
+      currency: r.currency,
     }));
   });
 }
@@ -93,15 +100,24 @@ export async function listActiveTiers(): Promise<PricingTier[]> {
 export async function listActivePackages(): Promise<SmsPackage[]> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; name: string; description: string | null;
-      credits: number; price: string; currency: string; is_recommended: boolean;
+      id: string;
+      name: string;
+      description: string | null;
+      credits: number;
+      price: string;
+      currency: string;
+      is_recommended: boolean;
     }>(
       `SELECT id, name, description, credits, price, currency, is_recommended
        FROM sms_packages WHERE is_active ORDER BY display_order, credits`,
     );
     return rows.map((r) => ({
-      id: r.id, name: r.name, description: r.description,
-      credits: r.credits, price: Number(r.price), currency: r.currency,
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      credits: r.credits,
+      price: Number(r.price),
+      currency: r.currency,
       isRecommended: r.is_recommended,
     }));
   });
@@ -115,10 +131,7 @@ export async function listActivePackages(): Promise<SmsPackage[]> {
  * service_role can see it; this function must never be called from a handler
  * that serialises its result into a tenant-facing response.
  */
-export async function getProviderCost(
-  provider = DEFAULT_SMS_PROVIDER,
-  onDate?: Date,
-): Promise<number | null> {
+export async function getProviderCost(provider = DEFAULT_SMS_PROVIDER, onDate?: Date): Promise<number | null> {
   return withAdminDb(async (db) => {
     // Date-scoped so margin on a PAST sale is computed against the cost that
     // applied then, not against whatever the provider charges now.
@@ -137,8 +150,8 @@ export async function getProviderCost(
 
 export interface Margin {
   sellPrice: number;
-  unitCost:  number;
-  margin:    number;
+  unitCost: number;
+  margin: number;
   marginPct: number;
 }
 

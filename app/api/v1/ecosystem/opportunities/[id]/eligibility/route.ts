@@ -3,7 +3,9 @@ import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';
 import {
-  getOpportunityById, getGroupEligibilityData, evaluateEligibilityDetailed,
+  getOpportunityById,
+  getGroupEligibilityData,
+  evaluateEligibilityDetailed,
 } from '@/lib/services/ecosystem.service';
 import { ok, notFound } from '@/lib/utils/response';
 

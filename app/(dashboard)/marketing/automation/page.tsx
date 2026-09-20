@@ -19,8 +19,8 @@ function RulesList({ channel }: { channel?: AutomationChannel }) {
     return (
       <Card>
         <CardContent className="py-16 text-center text-sm text-muted-foreground">
-          No automation rules yet. Create one to send an SMS or email automatically when something happens —
-          a contribution lands, a loan is approved, a meeting is scheduled.
+          No automation rules yet. Create one to send an SMS or email automatically when something happens — a
+          contribution lands, a loan is approved, a meeting is scheduled.
         </CardContent>
       </Card>
     );
@@ -28,7 +28,9 @@ function RulesList({ channel }: { channel?: AutomationChannel }) {
 
   return (
     <div className="space-y-3">
-      {rules.map((rule) => <RuleCard key={`${rule.channel}-${rule.id}`} rule={rule} canManage={canManage} />)}
+      {rules.map((rule) => (
+        <RuleCard key={`${rule.channel}-${rule.id}`} rule={rule} canManage={canManage} />
+      ))}
     </div>
   );
 }
@@ -50,9 +52,15 @@ export default function AutomationRulesPage() {
           <TabsTrigger value="sms">SMS</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
         </TabsList>
-        <TabsContent value="all"><RulesList /></TabsContent>
-        <TabsContent value="sms"><RulesList channel="sms" /></TabsContent>
-        <TabsContent value="email"><RulesList channel="email" /></TabsContent>
+        <TabsContent value="all">
+          <RulesList />
+        </TabsContent>
+        <TabsContent value="sms">
+          <RulesList channel="sms" />
+        </TabsContent>
+        <TabsContent value="email">
+          <RulesList channel="email" />
+        </TabsContent>
       </Tabs>
     </div>
   );

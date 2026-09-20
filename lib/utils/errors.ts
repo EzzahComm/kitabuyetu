@@ -13,11 +13,7 @@ export class AppError extends Error {
 
 export class NotFoundError extends AppError {
   constructor(resource: string, id?: string) {
-    super(
-      id ? `${resource} with id '${id}' not found` : `${resource} not found`,
-      'NOT_FOUND',
-      404,
-    );
+    super(id ? `${resource} with id '${id}' not found` : `${resource} not found`, 'NOT_FOUND', 404);
     this.name = 'NotFoundError';
   }
 }
@@ -69,33 +65,21 @@ export class PaymentRequiredError extends AppError {
  */
 export class ProductNotEntitledError extends AppError {
   constructor(product: SubscriptionProduct) {
-    super(
-      `This area requires an active ${PRODUCT_LABEL[product]} subscription.`,
-      'PRODUCT_NOT_ENTITLED',
-      402,
-    );
+    super(`This area requires an active ${PRODUCT_LABEL[product]} subscription.`, 'PRODUCT_NOT_ENTITLED', 402);
     this.name = 'ProductNotEntitledError';
   }
 }
 
 export class FeatureGatedError extends AppError {
   constructor(feature: string, requiredPlan: string) {
-    super(
-      `'${feature}' requires the ${requiredPlan} plan or higher`,
-      'FEATURE_GATED',
-      403,
-    );
+    super(`'${feature}' requires the ${requiredPlan} plan or higher`, 'FEATURE_GATED', 403);
     this.name = 'FeatureGatedError';
   }
 }
 
 export class MemberCapError extends AppError {
   constructor(cap: number) {
-    super(
-      `Your plan allows a maximum of ${cap} members. Upgrade to add more.`,
-      'MEMBER_CAP_REACHED',
-      403,
-    );
+    super(`Your plan allows a maximum of ${cap} members. Upgrade to add more.`, 'MEMBER_CAP_REACHED', 403);
     this.name = 'MemberCapError';
   }
 }

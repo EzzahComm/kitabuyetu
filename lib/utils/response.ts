@@ -16,11 +16,7 @@ export function noContent(): NextResponse {
   return new NextResponse(null, { status: 204 });
 }
 
-export function errorResponse(
-  message: string,
-  code: string,
-  status = 400,
-): NextResponse<ApiError> {
+export function errorResponse(message: string, code: string, status = 400): NextResponse<ApiError> {
   return NextResponse.json({ success: false, error: message, code }, { status });
 }
 
@@ -43,20 +39,12 @@ export function handleError(err: unknown): NextResponse<ApiError> {
   }
 
   // PostgreSQL unique violation
-  if (
-    err instanceof Error &&
-    'code' in err &&
-    (err as NodeJS.ErrnoException).code === '23505'
-  ) {
+  if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === '23505') {
     return errorResponse('A record with these details already exists', 'DUPLICATE', 409);
   }
 
   // PostgreSQL foreign key violation
-  if (
-    err instanceof Error &&
-    'code' in err &&
-    (err as NodeJS.ErrnoException).code === '23503'
-  ) {
+  if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === '23503') {
     return errorResponse('Referenced record does not exist', 'FOREIGN_KEY', 400);
   }
 

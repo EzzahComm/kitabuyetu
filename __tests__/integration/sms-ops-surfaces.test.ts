@@ -32,21 +32,18 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
     [groupId, credits],
   );
   await rawQuery(`UPDATE subscriptions SET sms_allowance_included = 0 WHERE group_id = $1`, [groupId]);
-  await rawQuery(
-    `UPDATE billing_accounts SET sms_allowance_used = 0, sms_allowance_reserved = 0 WHERE group_id = $1`,
-    [groupId],
-  );
+  await rawQuery(`UPDATE billing_accounts SET sms_allowance_used = 0, sms_allowance_reserved = 0 WHERE group_id = $1`, [
+    groupId,
+  ]);
 }
 
 /** One failed send, so a retryable sms_failures row exists as production makes it. */
 async function queueOneFailedSend(groupId: string, userId: string, phone = '254700000001') {
   mockSendSingleSms.mockResolvedValueOnce({
-    success: false, responseDescription: 'Request failed with status code 401',
+    success: false,
+    responseDescription: 'Request failed with status code 401',
   });
-  await smsService.send(
-    { groupId, userId, role: 'chairperson' } as never,
-    phone, 'first attempt', 'loan', null,
-  );
+  await smsService.send({ groupId, userId, role: 'chairperson' } as never, phone, 'first attempt', 'loan', null);
   const [row] = await rawQuery<{ id: string }>(
     `SELECT id FROM sms_failures WHERE group_id = $1 AND NOT resolved ORDER BY created_at DESC LIMIT 1`,
     [groupId],
@@ -56,7 +53,8 @@ async function queueOneFailedSend(groupId: string, userId: string, phone = '2547
 
 async function billingOf(groupId: string) {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
@@ -87,7 +85,8 @@ describe('T3-5 ops surfaces', () => {
 
       const [log] = await rawQuery<{ status: string; billing_state: string }>(
         `SELECT status, billing_state FROM sms_usage_logs WHERE group_id = $1
-         ORDER BY created_at DESC LIMIT 1`, [groupId],
+         ORDER BY created_at DESC LIMIT 1`,
+        [groupId],
       );
       expect(log.status).toBe('sent');
       expect(log.billing_state).toBe('consumed');
@@ -96,10 +95,7 @@ describe('T3-5 ops surfaces', () => {
     it('ignores the backoff — the whole point of a manual retry', async () => {
       const failureId = await queueOneFailedSend(groupId, officerId);
       // The sweep would decline this row: its next_retry_at is minutes away.
-      await rawQuery(
-        `UPDATE sms_failures SET next_retry_at = NOW() + INTERVAL '1 hour' WHERE id = $1`,
-        [failureId],
-      );
+      await rawQuery(`UPDATE sms_failures SET next_retry_at = NOW() + INTERVAL '1 hour' WHERE id = $1`, [failureId]);
 
       mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
       const result = await smsService.retryFailure(ctx, failureId);
@@ -109,9 +105,7 @@ describe('T3-5 ops surfaces', () => {
 
     it('retries a message that has already exhausted max_retries', async () => {
       const failureId = await queueOneFailedSend(groupId, officerId);
-      await rawQuery(
-        `UPDATE sms_failures SET retry_count = max_retries WHERE id = $1`, [failureId],
-      );
+      await rawQuery(`UPDATE sms_failures SET retry_count = max_retries WHERE id = $1`, [failureId]);
 
       mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
       const result = await smsService.retryFailure(ctx, failureId);
@@ -122,10 +116,9 @@ describe('T3-5 ops surfaces', () => {
 
     it('resolves an opted-out number as suppressed and bills NOTHING', async () => {
       const failureId = await queueOneFailedSend(groupId, officerId);
-      await rawQuery(
-        `INSERT INTO sms_opt_outs (group_id, phone, source) VALUES ($1,'254700000001','officer')`,
-        [groupId],
-      );
+      await rawQuery(`INSERT INTO sms_opt_outs (group_id, phone, source) VALUES ($1,'254700000001','officer')`, [
+        groupId,
+      ]);
       const before = await billingOf(groupId);
       mockSendSingleSms.mockClear();
 
@@ -136,7 +129,8 @@ describe('T3-5 ops surfaces', () => {
       expect(await billingOf(groupId)).toBe(before);
 
       const [row] = await rawQuery<{ resolved: boolean; failure_reason: string }>(
-        `SELECT resolved, failure_reason FROM sms_failures WHERE id = $1`, [failureId],
+        `SELECT resolved, failure_reason FROM sms_failures WHERE id = $1`,
+        [failureId],
       );
       expect(row.resolved).toBe(true);
       expect(row.failure_reason).toMatch(/opted out/);
@@ -237,10 +231,9 @@ describe('T3-5 ops surfaces', () => {
     });
 
     it('excludes opted-out numbers from the count and the cost', async () => {
-      await rawQuery(
-        `INSERT INTO sms_opt_outs (group_id, phone, source) VALUES ($1,'254700000002','member')`,
-        [groupId],
-      );
+      await rawQuery(`INSERT INTO sms_opt_outs (group_id, phone, source) VALUES ($1,'254700000002','member')`, [
+        groupId,
+      ]);
 
       const preview = await smsService.previewBulkSend(ctx, {
         message: 'hello',
@@ -278,14 +271,16 @@ describe('T3-5 ops surfaces', () => {
     it('writes nothing — an abandoned preview costs the group nothing', async () => {
       const before = await billingOf(groupId);
       const [{ n: logsBefore }] = await rawQuery<{ n: string }>(
-        `SELECT COUNT(*)::text AS n FROM sms_usage_logs WHERE group_id = $1`, [groupId],
+        `SELECT COUNT(*)::text AS n FROM sms_usage_logs WHERE group_id = $1`,
+        [groupId],
       );
 
       await smsService.previewBulkSend(ctx, { message: 'hello', phones: ['254700000001'] });
 
       expect(await billingOf(groupId)).toBe(before);
       const [{ n: logsAfter }] = await rawQuery<{ n: string }>(
-        `SELECT COUNT(*)::text AS n FROM sms_usage_logs WHERE group_id = $1`, [groupId],
+        `SELECT COUNT(*)::text AS n FROM sms_usage_logs WHERE group_id = $1`,
+        [groupId],
       );
       expect(logsAfter).toBe(logsBefore);
     });

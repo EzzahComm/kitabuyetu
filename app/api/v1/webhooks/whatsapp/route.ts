@@ -35,10 +35,10 @@ export const dynamic = 'force-dynamic';
 
 // ── GET: Meta subscribe handshake ──────────────────────────────────────
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const url   = new URL(req.url);
-  const mode  = url.searchParams.get('hub.mode');
+  const url = new URL(req.url);
+  const mode = url.searchParams.get('hub.mode');
   const token = url.searchParams.get('hub.verify_token');
-  const chal  = url.searchParams.get('hub.challenge');
+  const chal = url.searchParams.get('hub.challenge');
 
   const expected = env.WHATSAPP_VERIFY_TOKEN;
   if (!expected) {
@@ -147,23 +147,23 @@ async function applyStatusUpdate(s: WaStatus): Promise<void> {
   let newStatus: 'sent' | 'delivered' | 'read' | 'failed';
   switch (s.status) {
     case 'sent':
-      setSql    = `status = 'sent', sent_at = COALESCE(sent_at, to_timestamp($2))`;
+      setSql = `status = 'sent', sent_at = COALESCE(sent_at, to_timestamp($2))`;
       newStatus = 'sent';
       break;
     case 'delivered':
-      setSql    = `status = CASE WHEN status IN ('read') THEN status ELSE 'delivered' END,
+      setSql = `status = CASE WHEN status IN ('read') THEN status ELSE 'delivered' END,
                    delivered_at = COALESCE(delivered_at, to_timestamp($2))`;
       newStatus = 'delivered';
       break;
     case 'read':
       // 'read' is terminal-good; never downgrade.
-      setSql    = `status = 'read',
+      setSql = `status = 'read',
                    read_at = COALESCE(read_at, to_timestamp($2)),
                    delivered_at = COALESCE(delivered_at, to_timestamp($2))`;
       newStatus = 'read';
       break;
     case 'failed':
-      setSql    = `status = 'failed',
+      setSql = `status = 'failed',
                    failed_at = COALESCE(failed_at, to_timestamp($2)),
                    error_code = COALESCE($3, error_code),
                    error_message = COALESCE($4, error_message)`;
@@ -235,25 +235,25 @@ interface WaWebhookPayload {
       value?: {
         messaging_product?: string;
         metadata?: { phone_number_id?: string; display_phone_number?: string };
-        statuses?:  WaStatus[];
-        messages?:  WaInboundMessage[];
+        statuses?: WaStatus[];
+        messages?: WaInboundMessage[];
       };
     }>;
   }>;
 }
 
 interface WaStatus {
-  id?:           string;
-  status?:       'sent' | 'delivered' | 'read' | 'failed' | string;
-  timestamp?:    string;
+  id?: string;
+  status?: 'sent' | 'delivered' | 'read' | 'failed' | string;
+  timestamp?: string;
   recipient_id?: string;
   errors?: Array<{ code?: number | string; title?: string; message?: string }>;
 }
 
 interface WaInboundMessage {
-  from?:      string;
-  id?:        string;
+  from?: string;
+  id?: string;
   timestamp?: string;
-  type?:      string;
-  text?:      { body?: string };
+  type?: string;
+  text?: { body?: string };
 }

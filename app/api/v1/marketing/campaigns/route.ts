@@ -24,7 +24,11 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const campaign = await createCampaign(ctx, {
-      title, message, audience_id, channel: channel as Channel | undefined, subject,
+      title,
+      message,
+      audience_id,
+      channel: channel as Channel | undefined,
+      subject,
     });
     return created(campaign);
   });

@@ -10,8 +10,13 @@ export interface PlatformSearchResults {
   organizations: Array<{ id: string; name: string; type: string; registration_number: string | null }>;
   groups: Array<{ id: string; name: string; group_type: string; group_code: string | null }>;
   members: Array<{
-    id: string; first_name: string; last_name: string; phone: string | null;
-    member_code: string | null; group_id: string | null; group_name: string | null;
+    id: string;
+    first_name: string;
+    last_name: string;
+    phone: string | null;
+    member_code: string | null;
+    group_id: string | null;
+    group_name: string | null;
   }>;
 }
 

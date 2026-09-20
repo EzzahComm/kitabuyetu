@@ -17,20 +17,23 @@ export interface RecipientSpecValue {
 export const DEFAULT_RECIPIENT_SPEC: RecipientSpecValue = { type: 'active_members', roles: [], field: '' };
 
 const TYPE_LABELS: Record<RecipientType, string> = {
-  all_members:    'All members',
+  all_members: 'All members',
   active_members: 'Active members only',
-  roles:          'Specific officer roles',
-  event_member:   'The member named on the event (e.g. the borrower)',
-  event_phone:    'The phone number carried on the event (e.g. the M-Pesa payer)',
+  roles: 'Specific officer roles',
+  event_member: 'The member named on the event (e.g. the borrower)',
+  event_phone: 'The phone number carried on the event (e.g. the M-Pesa payer)',
 };
 
 /** Turn the form's local state into the JSONB shape sms_trigger_rules / email_trigger_rules expect. */
 export function toRecipientSpec(value: RecipientSpecValue): unknown {
   switch (value.type) {
-    case 'roles':        return { type: 'roles', roles: value.roles };
+    case 'roles':
+      return { type: 'roles', roles: value.roles };
     case 'event_member':
-    case 'event_phone':  return { type: value.type, field: value.field.trim() };
-    default:              return { type: value.type };
+    case 'event_phone':
+      return { type: value.type, field: value.field.trim() };
+    default:
+      return { type: value.type };
   }
 }
 
@@ -58,17 +61,24 @@ interface Props {
 }
 
 export function RecipientSpecEditor({ channel, value, onChange }: Props) {
-  const types: RecipientType[] = channel === 'sms'
-    ? ['active_members', 'all_members', 'roles', 'event_member', 'event_phone']
-    : ['active_members', 'all_members', 'roles', 'event_member'];
+  const types: RecipientType[] =
+    channel === 'sms'
+      ? ['active_members', 'all_members', 'roles', 'event_member', 'event_phone']
+      : ['active_members', 'all_members', 'roles', 'event_member'];
 
   return (
     <div className="space-y-2">
       <Label htmlFor="recipient_type">Who receives it *</Label>
       <Select value={value.type} onValueChange={(v) => onChange({ ...value, type: v as RecipientType })}>
-        <SelectTrigger id="recipient_type"><SelectValue /></SelectTrigger>
+        <SelectTrigger id="recipient_type">
+          <SelectValue />
+        </SelectTrigger>
         <SelectContent>
-          {types.map((t) => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
+          {types.map((t) => (
+            <SelectItem key={t} value={t}>
+              {TYPE_LABELS[t]}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
 
@@ -82,10 +92,12 @@ export function RecipientSpecEditor({ channel, value, onChange }: Props) {
                 type="button"
                 size="sm"
                 variant={active ? 'default' : 'outline'}
-                onClick={() => onChange({
-                  ...value,
-                  roles: active ? value.roles.filter((r) => r !== role) : [...value.roles, role],
-                })}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    roles: active ? value.roles.filter((r) => r !== role) : [...value.roles, role],
+                  })
+                }
               >
                 {role}
               </Button>
@@ -96,7 +108,11 @@ export function RecipientSpecEditor({ channel, value, onChange }: Props) {
 
       {(value.type === 'event_member' || value.type === 'event_phone') && (
         <Input
-          placeholder={value.type === 'event_member' ? 'Payload field holding the member id, e.g. memberId' : 'Payload field holding the phone, e.g. phone'}
+          placeholder={
+            value.type === 'event_member'
+              ? 'Payload field holding the member id, e.g. memberId'
+              : 'Payload field holding the phone, e.g. phone'
+          }
           value={value.field}
           onChange={(e) => onChange({ ...value, field: e.target.value })}
         />

@@ -27,58 +27,75 @@ import { formatKES, formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 
 interface ReallocRow {
-  id: string; status: 'pending_approval' | 'executed' | 'rejected';
-  amount: string; mpesa_receipt_number: string | null; reason: string;
-  from_member_name: string | null; to_member_name: string | null;
-  initiated_by_name: string | null; approved_by_name: string | null;
-  rejection_reason: string | null; created_at: string; executed_at: string | null;
+  id: string;
+  status: 'pending_approval' | 'executed' | 'rejected';
+  amount: string;
+  mpesa_receipt_number: string | null;
+  reason: string;
+  from_member_name: string | null;
+  to_member_name: string | null;
+  initiated_by_name: string | null;
+  approved_by_name: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  executed_at: string | null;
 }
 interface ContributionRow {
-  id: string; member_id: string; member_name: string; amount: string;
-  status: string; payment_method: string | null;
-  mpesa_receipt_number: string | null; contribution_date: string;
+  id: string;
+  member_id: string;
+  member_name: string;
+  amount: string;
+  status: string;
+  payment_method: string | null;
+  mpesa_receipt_number: string | null;
+  contribution_date: string;
 }
-interface MemberRow { id: string; first_name: string; last_name: string; phone: string }
+interface MemberRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
 
 // rejected is already mapped by STATUS_TONE; pending_approval and executed
 // are reallocation-specific and need an explicit override. Labels preserved
 // from the original copy.
 const STATUS_LABEL: Record<ReallocRow['status'], string> = {
   pending_approval: 'Awaiting approval',
-  executed:         'Executed',
-  rejected:         'Rejected',
+  executed: 'Executed',
+  rejected: 'Rejected',
 };
 const STATUS_TONE_OVERRIDE: Partial<Record<ReallocRow['status'], Tone>> = {
   pending_approval: 'pending',
-  executed:         'positive',
+  executed: 'positive',
 };
 
 export default function ReallocationsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const [creating, setCreating]         = useState(false);
-  const [contributionId, setContribId]  = useState('');
-  const [toMemberId, setToMemberId]     = useState('');
-  const [reason, setReason]             = useState('');
-  const [rejecting, setRejecting]       = useState<ReallocRow | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [contributionId, setContribId] = useState('');
+  const [toMemberId, setToMemberId] = useState('');
+  const [reason, setReason] = useState('');
+  const [rejecting, setRejecting] = useState<ReallocRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [approving, setApproving]       = useState<ReallocRow | null>(null);
-  const [busy, setBusy]                 = useState(false);
+  const [approving, setApproving] = useState<ReallocRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const { data, isLoading } = useQuery<PaginatedResult<ReallocRow>>({
     queryKey: ['mpesa', 'reallocations'],
-    queryFn:  () => api.get<PaginatedResult<ReallocRow>>('/mpesa/reallocations?limit=50'),
+    queryFn: () => api.get<PaginatedResult<ReallocRow>>('/mpesa/reallocations?limit=50'),
   });
   const { data: contribData } = useQuery<PaginatedResult<ContributionRow>>({
     queryKey: ['mpesa', 'reallocations', 'contributions'],
-    queryFn:  () => api.get<PaginatedResult<ContributionRow>>('/contributions?limit=100'),
-    enabled:  creating,
+    queryFn: () => api.get<PaginatedResult<ContributionRow>>('/contributions?limit=100'),
+    enabled: creating,
   });
   const { data: membersData } = useQuery<PaginatedResult<MemberRow>>({
     queryKey: ['mpesa', 'reallocations', 'members'],
-    queryFn:  () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
-    enabled:  creating,
+    queryFn: () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
+    enabled: creating,
   });
 
   const items = data?.items ?? [];
@@ -88,7 +105,7 @@ export default function ReallocationsPage() {
     (c) => c.status === 'completed' && c.payment_method === 'mpesa' && c.mpesa_receipt_number,
   );
   const members = membersData?.items ?? [];
-  const chosen  = correctable.find((c) => c.id === contributionId);
+  const chosen = correctable.find((c) => c.id === contributionId);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['mpesa', 'reallocations'] });
 
@@ -100,18 +117,24 @@ export default function ReallocationsPage() {
     setBusy(true);
     try {
       const res = await api.post<{ needsApproval: boolean }>('/mpesa/reallocations', {
-        contributionId, toMemberId, reason: reason.trim(),
+        contributionId,
+        toMemberId,
+        reason: reason.trim(),
       });
       toast({
-        title: res.needsApproval
-          ? 'Correction submitted — awaiting a second officer'
-          : 'Correction executed',
+        title: res.needsApproval ? 'Correction submitted — awaiting a second officer' : 'Correction executed',
       });
       setCreating(false);
-      setContribId(''); setToMemberId(''); setReason('');
+      setContribId('');
+      setToMemberId('');
+      setReason('');
       await refresh();
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Correction failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Correction failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -125,7 +148,11 @@ export default function ReallocationsPage() {
       setApproving(null);
       await refresh();
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Approval failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -140,10 +167,15 @@ export default function ReallocationsPage() {
     try {
       await api.post(`/mpesa/reallocations/${rejecting.id}`, { action: 'reject', reason: rejectReason.trim() });
       toast({ title: 'Correction rejected' });
-      setRejecting(null); setRejectReason('');
+      setRejecting(null);
+      setRejectReason('');
       await refresh();
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Rejection failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Rejection failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -152,7 +184,11 @@ export default function ReallocationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3">
-        <Link href="/mpesa" className="mt-1"><Button variant="ghost" size="icon" aria-label="Back to M-Pesa"><ArrowLeft size={16} /></Button></Link>
+        <Link href="/mpesa" className="mt-1">
+          <Button variant="ghost" size="icon" aria-label="Back to M-Pesa">
+            <ArrowLeft size={16} />
+          </Button>
+        </Link>
         <PageHeader
           className="flex-1"
           title="Payment corrections"
@@ -166,7 +202,11 @@ export default function ReallocationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -183,7 +223,12 @@ export default function ReallocationsPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{formatKES(Number(row.amount))}</span>
-                      <StatusPill status={row.status} tone={STATUS_TONE_OVERRIDE[row.status]} label={STATUS_LABEL[row.status]} size="sm" />
+                      <StatusPill
+                        status={row.status}
+                        tone={STATUS_TONE_OVERRIDE[row.status]}
+                        label={STATUS_LABEL[row.status]}
+                        size="sm"
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {row.from_member_name ?? 'Unknown'} → {row.to_member_name ?? 'Unknown'}
@@ -191,13 +236,23 @@ export default function ReallocationsPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {row.reason} · by {row.initiated_by_name ?? 'unknown'} · {formatDate(row.created_at)}
-                      {row.status === 'executed' && row.approved_by_name ? ` · approved by ${row.approved_by_name}` : ''}
+                      {row.status === 'executed' && row.approved_by_name
+                        ? ` · approved by ${row.approved_by_name}`
+                        : ''}
                       {row.status === 'rejected' && row.rejection_reason ? ` · rejected: ${row.rejection_reason}` : ''}
                     </p>
                   </div>
                   {row.status === 'pending_approval' && (
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { setRejecting(row); setRejectReason(''); }} disabled={busy}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setRejecting(row);
+                          setRejectReason('');
+                        }}
+                        disabled={busy}
+                      >
                         Reject
                       </Button>
                       <Button size="sm" onClick={() => setApproving(row)} disabled={busy}>
@@ -215,7 +270,9 @@ export default function ReallocationsPage() {
       {/* New correction */}
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Correct a misposted payment</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Correct a misposted payment</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Contribution to correct</Label>
@@ -243,7 +300,9 @@ export default function ReallocationsPage() {
                 {members
                   .filter((m) => m.id !== chosen?.member_id)
                   .map((m) => (
-                    <option key={m.id} value={m.id}>{m.first_name} {m.last_name} — {m.phone}</option>
+                    <option key={m.id} value={m.id}>
+                      {m.first_name} {m.last_name} — {m.phone}
+                    </option>
                   ))}
               </select>
             </div>
@@ -260,7 +319,9 @@ export default function ReallocationsPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={initiate} loading={busy}>Submit correction</Button>
+            <Button onClick={initiate} loading={busy}>
+              Submit correction
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -288,13 +349,21 @@ export default function ReallocationsPage() {
       {/* Reject */}
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Reject correction</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reject correction</DialogTitle>
+          </DialogHeader>
           <div className="space-y-1">
             <Label>Rejection reason</Label>
-            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Why is this correction wrong?" />
+            <Input
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Why is this correction wrong?"
+            />
           </div>
           <DialogFooter>
-            <Button variant="destructive" onClick={reject} loading={busy}>Reject correction</Button>
+            <Button variant="destructive" onClick={reject} loading={busy}>
+              Reject correction
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

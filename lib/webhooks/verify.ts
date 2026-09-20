@@ -29,14 +29,14 @@ import crypto from 'crypto';
 const SVIX_TOLERANCE_SECONDS = 5 * 60;
 
 export interface SvixVerifyResult {
-  ok:     boolean;
+  ok: boolean;
   reason?: string;
 }
 
 export function verifySvixSignature(
   rawBody: string,
   headers: {
-    svixId?:        string | null;
+    svixId?: string | null;
     svixTimestamp?: string | null;
     svixSignature?: string | null;
   },
@@ -72,10 +72,7 @@ export function verifySvixSignature(
     return { ok: false, reason: 'decoded secret is empty' };
   }
 
-  const expected = crypto
-    .createHmac('sha256', key)
-    .update(`${svixId}.${svixTimestamp}.${rawBody}`, 'utf8')
-    .digest();
+  const expected = crypto.createHmac('sha256', key).update(`${svixId}.${svixTimestamp}.${rawBody}`, 'utf8').digest();
 
   // svix-signature is a space-separated list like "v1,abcd= v1,wxyz=".
   // Any one valid match wins.
@@ -88,8 +85,7 @@ export function verifySvixSignature(
     } catch {
       continue;
     }
-    if (provided.length === expected.length &&
-        crypto.timingSafeEqual(provided, expected)) {
+    if (provided.length === expected.length && crypto.timingSafeEqual(provided, expected)) {
       return { ok: true };
     }
   }

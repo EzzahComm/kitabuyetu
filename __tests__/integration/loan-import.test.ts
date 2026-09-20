@@ -36,9 +36,7 @@ describe('loan CSV import', () => {
     ({ groupId, officerId } = await createTestGroup('chairperson'));
     ctx = { userId: officerId, groupId, role: 'chairperson' } as TenantContext;
 
-    const members = await rawQuery<{ phone: string }>(
-      `SELECT phone FROM members WHERE id = $1`, [officerId],
-    );
+    const members = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [officerId]);
     memberPhone = members[0].phone;
   });
 
@@ -46,10 +44,10 @@ describe('loan CSV import', () => {
    *  `method` blank omits the column entirely, which is the case that must
    *  fall back to the group's loan policy. */
   async function importOne(status: string, method = '', rate = '10.00', term = 12) {
-    const header = 'member_phone,principal_amount,interest_rate,term_months,disbursement_date,status'
-      + (method ? ',interest_method' : '');
-    const row = `${memberPhone},130000,${rate},${term},2026-01-16,${status}`
-      + (method ? `,${method}` : '');
+    const header =
+      'member_phone,principal_amount,interest_rate,term_months,disbursement_date,status' +
+      (method ? ',interest_method' : '');
+    const row = `${memberPhone},130000,${rate},${term},2026-01-16,${status}` + (method ? `,${method}` : '');
 
     const job = await importService.previewLoans(ctx, Buffer.from([header, row].join('\n')), 'loans.csv');
     return importService.commitLoans(ctx, job.id);
@@ -59,7 +57,8 @@ describe('loan CSV import', () => {
   async function latestMethod(): Promise<string> {
     const rows = await rawQuery<{ interest_method: string }>(
       `SELECT interest_method FROM loans WHERE group_id = $1
-        ORDER BY created_at DESC LIMIT 1`, [groupId],
+        ORDER BY created_at DESC LIMIT 1`,
+      [groupId],
     );
     return rows[0].interest_method;
   }
@@ -97,7 +96,8 @@ describe('loan CSV import', () => {
 
   it('takes total_repayable from generate_loan_schedule, not a TS formula', async () => {
     const rows = await rawQuery<{ total_repayable: string }>(
-      `SELECT total_repayable FROM loans WHERE group_id = $1 LIMIT 1`, [groupId],
+      `SELECT total_repayable FROM loans WHERE group_id = $1 LIMIT 1`,
+      [groupId],
     );
     const total = Number(rows[0].total_repayable);
     // importOne()'s default fixture is 130,000 at 10% p.a. flat over 12

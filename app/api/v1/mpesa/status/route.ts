@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { getMpesaStatus } from '@/lib/redis';
@@ -24,7 +24,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
 
     // Fall back to DB
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const payment = await withDb(ctx, async (db) => {
       const { rows } = await db.query<{ status: string; mpesa_receipt_number: string | null }>(
         `SELECT status, mpesa_receipt_number
@@ -41,9 +46,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
 
     return ok({
-      status:               payment.status,
+      status: payment.status,
       checkoutRequestId,
-      mpesaReceiptNumber:   payment.mpesa_receipt_number,
+      mpesaReceiptNumber: payment.mpesa_receipt_number,
     });
   });
 }

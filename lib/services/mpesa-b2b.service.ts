@@ -6,24 +6,23 @@
 import { withAdminDb } from '@/lib/db';
 import { assertSafaricomIp } from './daraja.service';
 
-export async function handleB2BResult(
-  body: Record<string, unknown>,
-  callerIp: string,
-): Promise<void> {
+export async function handleB2BResult(body: Record<string, unknown>, callerIp: string): Promise<void> {
   assertSafaricomIp(callerIp);
 
   type RawResult = {
     Result?: {
-      ResultCode?: number; OriginatorConversationID?: string; ConversationID?: string;
+      ResultCode?: number;
+      OriginatorConversationID?: string;
+      ConversationID?: string;
       ResultParameters?: { ResultParameter?: { Key: string; Value: unknown }[] };
     };
   };
   const r = (body as RawResult).Result;
   if (!r) return;
 
-  const origId  = r.OriginatorConversationID ?? '';
+  const origId = r.OriginatorConversationID ?? '';
   const success = r.ResultCode === 0;
-  const get     = (k: string) => r.ResultParameters?.ResultParameter?.find((p) => p.Key === k)?.Value;
+  const get = (k: string) => r.ResultParameters?.ResultParameter?.find((p) => p.Key === k)?.Value;
   const receipt = get('TransactionReceipt') as string | undefined;
 
   await withAdminDb(async (db) => {

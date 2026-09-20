@@ -53,8 +53,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // on the right re-auth page.
   useEffect(() => {
     configureApiClient({
-      getToken:       () => accessToken ?? null,
-      onUnauthorized: () => { logout(); router.push('/admin-login'); },
+      getToken: () => accessToken ?? null,
+      onUnauthorized: () => {
+        logout();
+        router.push('/admin-login');
+      },
     });
   }, [accessToken, logout, router]);
 
@@ -74,10 +77,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, audience, isLoading, router]);
 
-  const ready = !isLoading
-    && !!user
-    && audience === 'backoffice'
-    && ADMIN_ROLES.includes(user.platformRole as AdminRole);
+  const ready =
+    !isLoading && !!user && audience === 'backoffice' && ADMIN_ROLES.includes(user.platformRole as AdminRole);
 
   if (!ready) {
     return (
@@ -110,9 +111,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6 max-w-[1600px] mx-auto">
-            {children}
-          </div>
+          <div className="p-6 max-w-[1600px] mx-auto">{children}</div>
         </main>
       </div>
     </div>

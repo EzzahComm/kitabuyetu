@@ -26,11 +26,13 @@ export function GET(req: NextRequest, { params }: { params: Promise<{ id: string
  * strict(), so a client that sends `phone` gets a clear 400 instead of having
  * it silently ignored.
  */
-const profileSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters').max(100).optional(),
-  lastName:  z.string().min(2, 'Last name must be at least 2 characters').max(100).optional(),
-  email:     z.string().email('Invalid email address').nullable().optional().or(z.literal('')),
-}).strict();
+const profileSchema = z
+  .object({
+    firstName: z.string().min(2, 'First name must be at least 2 characters').max(100).optional(),
+    lastName: z.string().min(2, 'Last name must be at least 2 characters').max(100).optional(),
+    email: z.string().email('Invalid email address').nullable().optional().or(z.literal('')),
+  })
+  .strict();
 
 /** PATCH — super_admin only; `support` is read-only across the admin surface. */
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; memberId: string }> }) {

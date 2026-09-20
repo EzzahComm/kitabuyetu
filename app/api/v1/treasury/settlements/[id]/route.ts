@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');
 
       const input = SettlementActionSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
       if (input.action === 'approve') return ok(await settlementsService.approve(ctx, id));
       return ok(await settlementsService.reject(ctx, id, input.reason));

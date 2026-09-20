@@ -2,9 +2,9 @@
 
 import type { ApiResponse } from '@/types/api.types';
 
-const BASE        = '/api/v1';
-const ADMIN_BASE  = '/api/admin';
-const STORAGE_KEY = 'ky_auth';  // mirrors lib/auth/context.tsx
+const BASE = '/api/v1';
+const ADMIN_BASE = '/api/admin';
+const STORAGE_KEY = 'ky_auth'; // mirrors lib/auth/context.tsx
 
 // Read the access token directly from localStorage on every request. This
 // avoids a closure/timing race we used to have where pages would call
@@ -44,8 +44,8 @@ let _onPaymentRequired: ((code?: string) => void) | null = null;
 // silently ignores it (the api client now reads localStorage). Pages can drop
 // the `getToken` arg in a follow-up cleanup without breaking anything.
 export function configureApiClient(opts: {
-  getToken?:           () => string | null;
-  onUnauthorized:      () => void;
+  getToken?: () => string | null;
+  onUnauthorized: () => void;
   /**
    * Called on a 402 — the group cannot reach this route on what it pays for.
    * Optional so the admin/auth shells, which have no billing page to send
@@ -55,9 +55,9 @@ export function configureApiClient(opts: {
    * PAYMENT_REQUIRED (no subscription at all) vs PRODUCT_NOT_ENTITLED (paying,
    * but not for this product). Existing zero-argument callbacks keep working.
    */
-  onPaymentRequired?:  (code?: string) => void;
+  onPaymentRequired?: (code?: string) => void;
 }) {
-  _onUnauthorized    = opts.onUnauthorized;
+  _onUnauthorized = opts.onUnauthorized;
   _onPaymentRequired = opts.onPaymentRequired ?? null;
 }
 
@@ -88,23 +88,21 @@ function buildRequestBody(body: unknown, multipart = false): BodyInit | undefine
 async function handle401(res: Response, hadToken: boolean): Promise<never> {
   let serverError: { error?: string; code?: string } | null = null;
   try {
-    serverError = await res.json() as { error?: string; code?: string };
-  } catch { /* non-JSON body */ }
+    serverError = (await res.json()) as { error?: string; code?: string };
+  } catch {
+    /* non-JSON body */
+  }
 
   if (hadToken) {
     _onUnauthorized?.();
     throw new ApiError(
       serverError?.error ?? 'Session expired. Please log in again.',
-      serverError?.code  ?? 'SESSION_EXPIRED',
+      serverError?.code ?? 'SESSION_EXPIRED',
       401,
     );
   }
 
-  throw new ApiError(
-    serverError?.error ?? 'Authentication failed',
-    serverError?.code  ?? 'UNAUTHORIZED',
-    401,
-  );
+  throw new ApiError(serverError?.error ?? 'Authentication failed', serverError?.code ?? 'UNAUTHORIZED', 401);
 }
 
 async function request<T>(
@@ -124,7 +122,7 @@ async function request<T>(
     return handle401(res, Boolean(headers['Authorization']));
   }
 
-  const json = await res.json() as ApiResponse<T>;
+  const json = (await res.json()) as ApiResponse<T>;
 
   if (!json.success) {
     // 402 — the group cannot reach this on what it pays for, either because it
@@ -168,26 +166,28 @@ async function openBlob(path: string): Promise<void> {
     // Binary endpoints still return JSON errors via handleError.
     let msg = `Request failed (${res.status})`;
     try {
-      const j = await res.json() as { error?: string };
+      const j = (await res.json()) as { error?: string };
       if (j.error) msg = j.error;
-    } catch { /* non-JSON body */ }
+    } catch {
+      /* non-JSON body */
+    }
     throw new Error(msg);
   }
   const blob = await res.blob();
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener');
   // Revoke after a tick so the new tab has time to load the blob.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export const api = {
-  get:    <T>(path: string)                           => request<T>('GET',    path),
-  post:   <T>(path: string, body: unknown, opts?: { headers?: Record<string, string> }) =>
-                                                          request<T>('POST',   path, body, opts),
-  patch:  <T>(path: string, body: unknown)            => request<T>('PATCH',  path, body),
-  put:    <T>(path: string, body: unknown)            => request<T>('PUT',    path, body),
-  delete: <T>(path: string)                           => request<T>('DELETE', path),
-  upload: <T>(path: string, formData: FormData)       => request<T>('POST',   path, formData, { multipart: true }),
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body: unknown, opts?: { headers?: Record<string, string> }) =>
+    request<T>('POST', path, body, opts),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  delete: <T>(path: string) => request<T>('DELETE', path),
+  upload: <T>(path: string, formData: FormData) => request<T>('POST', path, formData, { multipart: true }),
   openBlob,
 };
 
@@ -201,9 +201,9 @@ export const api = {
  * fetch would silently lose the session-expiry redirect.
  */
 export const adminApi = {
-  get:    <T>(path: string)                => request<T>('GET',    path, undefined, { base: ADMIN_BASE }),
-  post:   <T>(path: string, body: unknown) => request<T>('POST',   path, body,      { base: ADMIN_BASE }),
-  patch:  <T>(path: string, body: unknown) => request<T>('PATCH',  path, body,      { base: ADMIN_BASE }),
-  put:    <T>(path: string, body: unknown) => request<T>('PUT',    path, body,      { base: ADMIN_BASE }),
-  delete: <T>(path: string)                => request<T>('DELETE', path, undefined, { base: ADMIN_BASE }),
+  get: <T>(path: string) => request<T>('GET', path, undefined, { base: ADMIN_BASE }),
+  post: <T>(path: string, body: unknown) => request<T>('POST', path, body, { base: ADMIN_BASE }),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body, { base: ADMIN_BASE }),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body, { base: ADMIN_BASE }),
+  delete: <T>(path: string) => request<T>('DELETE', path, undefined, { base: ADMIN_BASE }),
 };

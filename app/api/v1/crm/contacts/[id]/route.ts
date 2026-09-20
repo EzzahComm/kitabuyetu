@@ -1,7 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { getContactById, updateContact, listOpportunitiesForContact, listActivitiesForContact } from '@/lib/services/crm.service';
+import {
+  getContactById,
+  updateContact,
+  listOpportunitiesForContact,
+  listActivitiesForContact,
+} from '@/lib/services/crm.service';
 import { ok, notFound, badRequest } from '@/lib/utils/response';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {

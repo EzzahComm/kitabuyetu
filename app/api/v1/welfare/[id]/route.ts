@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: Params): Promise<Respo
   const { id } = await params;
   return withPermission(req, 'welfare.manage', async (auth) => {
     const body = await req.json();
-    const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     if (body.action === 'disburse') {
       const input = DisburseWelfareSchema.parse(body);

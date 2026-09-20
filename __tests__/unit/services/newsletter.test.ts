@@ -5,8 +5,10 @@
  */
 import { withAdminDb } from '@/lib/db';
 import {
-  subscribeToNewsletter, unsubscribeFromNewsletter,
-  listNewsletterSubscribers, getNewsletterStats,
+  subscribeToNewsletter,
+  unsubscribeFromNewsletter,
+  listNewsletterSubscribers,
+  getNewsletterStats,
 } from '@/lib/services/newsletter.service';
 import { NotFoundError } from '@/lib/utils/errors';
 
@@ -14,7 +16,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {

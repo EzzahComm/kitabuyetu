@@ -17,7 +17,7 @@
 
 /** Primary green — built around the logo's vibrant #3CB043 leaf/people mark. */
 export const brandGreen = {
-  50:  '#EAF7EC', // light accent
+  50: '#EAF7EC', // light accent
   100: '#D2EFD7',
   200: '#A8DFB1',
   300: '#7CCC89',
@@ -31,7 +31,7 @@ export const brandGreen = {
 
 /** Primary navy — built around the logo's deep #0B3C88 book/wordmark. */
 export const brandNavy = {
-  50:  '#E7EEF8',
+  50: '#E7EEF8',
   100: '#C6D5ED',
   200: '#94B0DC',
   300: '#5F88C7',
@@ -56,7 +56,7 @@ export const brandNavy = {
  * since nothing references them.)
  */
 export const brandOrange = {
-  50:  '#FFF4ED',
+  50: '#FFF4ED',
   100: '#FFE6D5',
   300: '#FDA572',
   500: '#F97316',
@@ -78,7 +78,7 @@ export const brandOrange = {
  */
 export const brandPaper = {
   DEFAULT: '#FFFFFF',
-  deep:    '#F8FAFC',
+  deep: '#F8FAFC',
 } as const;
 
 /** Convenience aliases for the spec's named neutral/accent tokens. */

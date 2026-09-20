@@ -34,7 +34,7 @@ Platform
    `4005 External Funding`). Organizations never write into group tables
    directly and never see groups they aren't linked to.
 2. **The link table is the trust boundary.** `organization_group_access`
-   (many-to-many, per-relationship `is_active`) gates *everything*: visibility,
+   (many-to-many, per-relationship `is_active`) gates _everything_: visibility,
    SMS funding (051), and now disbursement eligibility (055). One group can
    simultaneously hold a grant relationship with Donor A, a loan relationship
    with MFI B, and an insurance relationship with Insurer C — each independent.
@@ -54,16 +54,16 @@ Platform
 
 ## Phase 1 — shipped (migration 055)
 
-| Piece | Where |
-|---|---|
-| `organization_wallets` (available/committed/lifetime counters, per-currency) | migration 055 |
-| `organization_ledger` (8 entry types, append-only, balance_after) | migration 055 |
-| `funding_programs` (10 types, budget ceiling enforced by CHECK + service) | migration 055 |
-| `organization_disbursements` (7 types, unique replay-safe reference) | migration 055 |
-| Group chart account `4005 External Funding` (seeded for all groups) | migration 055 + accounting.service |
+| Piece                                                                                         | Where                                          |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `organization_wallets` (available/committed/lifetime counters, per-currency)                  | migration 055                                  |
+| `organization_ledger` (8 entry types, append-only, balance_after)                             | migration 055                                  |
+| `funding_programs` (10 types, budget ceiling enforced by CHECK + service)                     | migration 055                                  |
+| `organization_disbursements` (7 types, unique replay-safe reference)                          | migration 055                                  |
+| Group chart account `4005 External Funding` (seeded for all groups)                           | migration 055 + accounting.service             |
 | Service layer: deposit, ledger, programs CRUD, atomic dual-ledger disburse, dashboard metrics | `lib/services/organization-finance.service.ts` |
-| APIs: `/organization/wallet`, `/programs`, `/programs/:id`, `/disbursements`, `/dashboard` | `app/api/v1/organization/*` |
-| Ecosystem dashboard (wallet, programs, disburse dialog, portfolio metrics, linked groups) | `app/(dashboard)/organization/page.tsx` |
+| APIs: `/organization/wallet`, `/programs`, `/programs/:id`, `/disbursements`, `/dashboard`    | `app/api/v1/organization/*`                    |
+| Ecosystem dashboard (wallet, programs, disburse dialog, portfolio metrics, linked groups)     | `app/(dashboard)/organization/page.tsx`        |
 
 ### Disbursement flow (atomic, single transaction)
 

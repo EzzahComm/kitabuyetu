@@ -15,7 +15,7 @@ import {
 
 // Deterministic sample across the space: several prefixes × sequences.
 const PREFIXES = ['BG', 'DF', 'SW', 'AA', 'MZ', 'XX', 'QA', 'KZ'];
-const SEQS     = [1, 7, 42, 999, 10253, 54321, 99999];
+const SEQS = [1, 7, 42, 999, 10253, 54321, 99999];
 
 const samples: string[] = [];
 for (const p of PREFIXES) for (const s of SEQS) samples.push(composeMembershipNo(p, s));
@@ -29,9 +29,9 @@ describe('composeMembershipNo / isValidMembershipNo', () => {
   });
 
   it('rejects wrong shapes', () => {
-    expect(isValidMembershipNo('BG1025')).toBe(false);      // too short
-    expect(isValidMembershipNo('BG1025345')).toBe(false);   // too long
-    expect(isValidMembershipNo('B1102534')).toBe(false);    // digit in prefix
+    expect(isValidMembershipNo('BG1025')).toBe(false); // too short
+    expect(isValidMembershipNo('BG1025345')).toBe(false); // too long
+    expect(isValidMembershipNo('B1102534')).toBe(false); // digit in prefix
     expect(isValidMembershipNo('')).toBe(false);
   });
 
@@ -67,8 +67,7 @@ describe('composeMembershipNo / isValidMembershipNo', () => {
     for (const no of samples) {
       for (let pos = 2; pos < 7; pos++) {
         if (no[pos] === no[pos + 1]) continue; // swap is a no-op
-        const swapped =
-          no.slice(0, pos) + no[pos + 1] + no[pos] + no.slice(pos + 2);
+        const swapped = no.slice(0, pos) + no[pos + 1] + no[pos] + no.slice(pos + 2);
         expect(isValidMembershipNo(swapped)).toBe(false);
       }
     }
@@ -94,8 +93,8 @@ describe('normalisation & display', () => {
   it('looksLikeMembershipNo distinguishes shape from legacy refs', () => {
     expect(looksLikeMembershipNo('BG 10253 4')).toBe(true);
     expect(looksLikeMembershipNo('KYT-CONTR-KY1234567')).toBe(false); // legacy grammar
-    expect(looksLikeMembershipNo('INV-2026-000123')).toBe(false);     // invoice
-    expect(looksLikeMembershipNo('KY000000100001')).toBe(false);      // member_code (14)
+    expect(looksLikeMembershipNo('INV-2026-000123')).toBe(false); // invoice
+    expect(looksLikeMembershipNo('KY000000100001')).toBe(false); // member_code (14)
   });
 });
 

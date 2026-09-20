@@ -27,19 +27,19 @@ type ContributionRow = Contribution & { member_name: string };
 // don't exist on that schema, silently dropped by zod) and never sent the
 // required contributionDate, so every submission 400'd server-side.
 const schema = z.object({
-  memberId:           z.string().min(1, 'Member required'),
-  amount:             z.coerce.number().positive(),
-  contributionDate:   z.string().min(1, 'Date required'),
-  paymentMethod:      z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque']),
+  memberId: z.string().min(1, 'Member required'),
+  amount: z.coerce.number().positive(),
+  contributionDate: z.string().min(1, 'Date required'),
+  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque']),
   mpesaReceiptNumber: z.string().optional(),
-  notes:              z.string().optional(),
+  notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
 export default function ContributionsPage() {
-  const [page, setPage]   = useState(1);
-  const [open, setOpen]   = useState(false);
-  const { toast }         = useToast();
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
 
   const now = new Date();
   const { data, isLoading, isError, error } = useContributions({ page, pageSize: 20 });
@@ -55,7 +55,12 @@ export default function ContributionsPage() {
   const { data: savingsPolicy } = useSavingsPolicy();
   const limits = savingsPolicy?.limits;
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { paymentMethod: 'mpesa', contributionDate: now.toISOString().split('T')[0] },
   });
@@ -72,21 +77,43 @@ export default function ContributionsPage() {
   };
 
   const columns = [
-    { key: 'memberName', header: 'Member', render: (row: ContributionRow) => <span className="font-medium">{row.member_name ?? row.member_id}</span> },
-    { key: 'amount', header: 'Amount', render: (row: ContributionRow) => <span className="font-semibold text-green-600">{formatKES(row.amount)}</span> },
+    {
+      key: 'memberName',
+      header: 'Member',
+      render: (row: ContributionRow) => <span className="font-medium">{row.member_name ?? row.member_id}</span>,
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      render: (row: ContributionRow) => <span className="font-semibold text-green-600">{formatKES(row.amount)}</span>,
+    },
     { key: 'period', header: 'Date', render: (row: ContributionRow) => formatDate(row.contribution_date) },
-    { key: 'paymentMethod', header: 'Method', render: (row: ContributionRow) => <Badge variant="outline" className="capitalize">{row.payment_method?.replace('_',' ')}</Badge> },
+    {
+      key: 'paymentMethod',
+      header: 'Method',
+      render: (row: ContributionRow) => (
+        <Badge variant="outline" className="capitalize">
+          {row.payment_method?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
     { key: 'status', header: 'Status', render: (row: ContributionRow) => <StatusPill status={row.status} /> },
     { key: 'createdAt', header: 'Recorded', render: (row: ContributionRow) => formatDate(row.created_at) },
     {
-      key: 'receipt', header: '',
+      key: 'receipt',
+      header: '',
       render: (row: ContributionRow) =>
         row.status === 'completed' ? (
           <button
             type="button"
             className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
-            onClick={() => api.openBlob(`/contributions/${row.id}/receipt`).catch((e) =>
-              toast({ variant: 'destructive', title: 'Receipt failed', description: getErrorMessage(e) }))}
+            onClick={() =>
+              api
+                .openBlob(`/contributions/${row.id}/receipt`)
+                .catch((e) =>
+                  toast({ variant: 'destructive', title: 'Receipt failed', description: getErrorMessage(e) }),
+                )
+            }
           >
             <FileText size={13} /> Receipt
           </button>
@@ -106,11 +133,21 @@ export default function ContributionsPage() {
         }
       />
 
-      <PaginatedTable data={data} isLoading={isLoading} isError={isError} error={error} columns={columns} onPageChange={setPage} emptyMessage="No contributions recorded yet" />
+      <PaginatedTable
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        columns={columns}
+        onPageChange={setPage}
+        emptyMessage="No contributions recorded yet"
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Record contribution</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Record contribution</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <Label>Member</Label>
@@ -128,15 +165,17 @@ export default function ContributionsPage() {
                 </option>
                 {memberOptions.map((m) => {
                   const first = m.first_name ?? '';
-                  const last  = m.last_name ?? '';
+                  const last = m.last_name ?? '';
                   const phone = m.phone ?? '';
                   // Identify members by name + Membership Number (the only
                   // public payment identifier) — never member_code/UUIDs.
-                  const acct  = m.membership_no ?? '';
+                  const acct = m.membership_no ?? '';
                   const label = `${first} ${last}`.trim() || acct || 'Member';
                   return (
                     <option key={m.id} value={m.id}>
-                      {label}{acct ? ` (${acct})` : ''}{phone ? ` — ${phone}` : ''}
+                      {label}
+                      {acct ? ` (${acct})` : ''}
+                      {phone ? ` — ${phone}` : ''}
                     </option>
                   );
                 })}
@@ -160,7 +199,10 @@ export default function ContributionsPage() {
               </div>
               <div className="space-y-1">
                 <Label>Payment method</Label>
-                <select {...register('paymentMethod')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <select
+                  {...register('paymentMethod')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
                   <option value="mpesa">M-Pesa</option>
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank Transfer</option>
@@ -170,7 +212,9 @@ export default function ContributionsPage() {
               <div className="space-y-1 sm:col-span-2">
                 <Label>Contribution date</Label>
                 <Input type="date" {...register('contributionDate')} />
-                {errors.contributionDate && <p className="text-xs text-destructive">{errors.contributionDate.message}</p>}
+                {errors.contributionDate && (
+                  <p className="text-xs text-destructive">{errors.contributionDate.message}</p>
+                )}
               </div>
             </div>
             <div className="space-y-1">
@@ -178,8 +222,12 @@ export default function ContributionsPage() {
               <Input placeholder="QAB1234XYZ" {...register('mpesaReceiptNumber')} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={isSubmitting}>Record</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                Record
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

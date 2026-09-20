@@ -13,13 +13,13 @@ every token and component rendered.
 
 Derived from the Kitabu Yetu logo — **green + navy**, with orange reserved for alerts/actions.
 
-| Role | Token | Hex |
-|------|-------|-----|
+| Role                      | Token                     | Hex       |
+| ------------------------- | ------------------------- | --------- |
 | Primary / CTAs / positive | `brand-500` / `--primary` | `#3CB043` |
-| Headings, sidebar, nav | `brand-blue-500` | `#0B3C88` |
-| Accent / hover tint | `brand-50` / `--accent` | `#EAF7EC` |
-| Neutral surface | `brand-neutral` | `#F8FAFC` |
-| Alert / action accent | `brandOrange` (tokens.ts) | `#F97316` |
+| Headings, sidebar, nav    | `brand-blue-500`          | `#0B3C88` |
+| Accent / hover tint       | `brand-50` / `--accent`   | `#EAF7EC` |
+| Neutral surface           | `brand-neutral`           | `#F8FAFC` |
+| Alert / action accent     | `brandOrange` (tokens.ts) | `#F97316` |
 
 - **CSS / Tailwind components** use the HSL tokens in [`app/globals.css`](../app/globals.css)
   (`bg-primary`, `text-muted-foreground`, `border-border`, …) and the `brand` / `brand-blue`
@@ -34,36 +34,37 @@ for figures. Money values use the `.money` utility (tabular figures) so columns 
 
 ## Design tokens — `lib/ui/tokens.ts`
 
-| Export | Purpose |
-|--------|---------|
-| `brandGreen` / `brandNavy` / `brandOrange` | Hex palettes mirroring Tailwind |
-| `tone` / `Tone` | Semantic financial tones (`positive`, `negative`, `warning`, `info`, `pending`, `neutral`) with `solid`/`fg`/`bg`/`border` |
-| `STATUS_TONE` + `statusTone(status)` | Map a domain status string → a tone (loans, M-Pesa, KYC, billing…) |
-| `chartPalette` / `chartTheme` | Ordered series colours + axis/grid styling for Recharts |
-| `spacing` / `breakpoints` / `radius` / `zIndex` / `motion` | Layout & animation scales for JS-computed UI |
+| Export                                                     | Purpose                                                                                                                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `brandGreen` / `brandNavy` / `brandOrange`                 | Hex palettes mirroring Tailwind                                                                                            |
+| `tone` / `Tone`                                            | Semantic financial tones (`positive`, `negative`, `warning`, `info`, `pending`, `neutral`) with `solid`/`fg`/`bg`/`border` |
+| `STATUS_TONE` + `statusTone(status)`                       | Map a domain status string → a tone (loans, M-Pesa, KYC, billing…)                                                         |
+| `chartPalette` / `chartTheme`                              | Ordered series colours + axis/grid styling for Recharts                                                                    |
+| `spacing` / `breakpoints` / `radius` / `zIndex` / `motion` | Layout & animation scales for JS-computed UI                                                                               |
 
 ---
 
 ## Component library
 
 ### Primitives — `components/ui/`
+
 shadcn/ui-based (Radix + cva): `alert`, `avatar`, `badge`, `button`, `card`, `dialog`,
 `dropdown-menu`, `input`, `label`, `progress`, `select`, `separator`, `skeleton`, `switch`,
 `table`, `tabs`, `textarea`, `toast`/`toaster`, and **`empty-state`** (new).
 
 ### Shared composites — `components/shared/`
 
-| Component | Use it for |
-|-----------|-----------|
-| `PageHeader` | Every screen header — breadcrumbs, title, description, actions slot |
-| `StatCard` | KPI / metric tiles with icon + trend |
-| `MoneyDisplay` | Inline KES amounts (mono, tabular, colour by sign) |
-| `StatusPill` | Financial/lifecycle status — auto-coloured from `statusTone()` |
-| `PaginatedTable` | Server-paginated data tables |
-| `ConfirmDialog` | Deliberate confirm for destructive/irreversible actions (async-aware) |
-| `MoneyActionDialog` | **High-confidence confirmation for money movements** — large amount, itemised summary, trust/warning line |
-| `ChartCard` + `TrendChart` / `BarSeriesChart` / `DonutChart` / `Sparkline` | All charts — themed wrappers; never use raw Recharts hex |
-| `skeletons` (`StatCardsSkeleton`, `TableSkeleton`, `ListSkeleton`, `ChartSkeleton`, `DashboardSkeleton`) | Loading states matching final layout |
+| Component                                                                                                | Use it for                                                                                                |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `PageHeader`                                                                                             | Every screen header — breadcrumbs, title, description, actions slot                                       |
+| `StatCard`                                                                                               | KPI / metric tiles with icon + trend                                                                      |
+| `MoneyDisplay`                                                                                           | Inline KES amounts (mono, tabular, colour by sign)                                                        |
+| `StatusPill`                                                                                             | Financial/lifecycle status — auto-coloured from `statusTone()`                                            |
+| `PaginatedTable`                                                                                         | Server-paginated data tables                                                                              |
+| `ConfirmDialog`                                                                                          | Deliberate confirm for destructive/irreversible actions (async-aware)                                     |
+| `MoneyActionDialog`                                                                                      | **High-confidence confirmation for money movements** — large amount, itemised summary, trust/warning line |
+| `ChartCard` + `TrendChart` / `BarSeriesChart` / `DonutChart` / `Sparkline`                               | All charts — themed wrappers; never use raw Recharts hex                                                  |
+| `skeletons` (`StatCardsSkeleton`, `TableSkeleton`, `ListSkeleton`, `ChartSkeleton`, `DashboardSkeleton`) | Loading states matching final layout                                                                      |
 
 ---
 

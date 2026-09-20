@@ -21,6 +21,7 @@
 ## Test Scenario 1: Authentication Flow
 
 ### Step 1.1: Register New Group
+
 **Request:** `POST /api/v1/auth/register`
 
 ```json
@@ -39,7 +40,8 @@
 }
 ```
 
-**Expected Response:** 
+**Expected Response:**
+
 ```json
 {
   "success": true,
@@ -51,6 +53,7 @@
 ```
 
 ### Step 1.2: Login with Credentials
+
 **Request:** `POST /api/v1/auth/login`
 
 ```json
@@ -61,6 +64,7 @@
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -81,10 +85,12 @@
 ## Test Scenario 2: Group Management
 
 ### Step 2.1: List Your Groups
+
 **Request:** `GET /api/v1/groups`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -103,10 +109,12 @@
 **⚠️ ACTION:** Copy `groups[0].id` → Paste into environment variable `group_id`
 
 ### Step 2.2: Get Group Details
+
 **Request:** `GET /api/v1/groups/{{group_id}}`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -126,10 +134,12 @@
 ## Test Scenario 3: Member Management
 
 ### Step 3.1: List Members in Group
+
 **Request:** `GET /api/v1/members?groupId={{group_id}}`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -150,10 +160,12 @@
 **⚠️ ACTION:** Copy `members[0].id` → Paste into environment variable `member_id`
 
 ### Step 3.2: Get Member Profile
+
 **Request:** `GET /api/v1/members/{{member_id}}`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -173,6 +185,7 @@
 ## Test Scenario 4: Changi$ha Fundraising (✨ NEW)
 
 ### Step 4.1: Create Campaign
+
 **Request:** `POST /api/v1/campaigns`  
 **Headers:** `Authorization: Bearer {{access_token}}`  
 **Body:**
@@ -188,6 +201,7 @@
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -203,10 +217,12 @@
 ```
 
 ### Step 4.2: Submit for Review
+
 **Request:** `POST /api/v1/campaigns/{{campaign_id}}/submit`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -218,15 +234,18 @@
 ```
 
 ### Step 4.3: View Campaign (Public - No Auth)
+
 **Request:** `GET /fundraise/school-fees-campaign`
 
 **Expected:** Full campaign page loads (once approved)
 
 ### Step 4.4: Verify Account Code 4006
+
 **Request:** `GET /api/v1/accounting/accounts?groupId={{group_id}}`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response - Look for:**
+
 ```json
 {
   "code": "4006",
@@ -242,6 +261,7 @@
 ## Test Scenario 5: Contributions & Accounting
 
 ### Step 5.1: Make a Contribution
+
 **Request:** `POST /api/v1/contributions`  
 **Headers:** `Authorization: Bearer {{access_token}}`  
 **Body:**
@@ -257,6 +277,7 @@
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -270,10 +291,12 @@
 ```
 
 ### Step 5.2: View Journal Entries
+
 **Request:** `GET /api/v1/accounting/journals?groupId={{group_id}}`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected Response - Look for:**
+
 - Debit: Account 1001 (Cash and M-Pesa) - 1000
 - Credit: Account 4001 (Member Contributions) - 1000
 
@@ -282,8 +305,10 @@
 ## Test Scenario 6: Error Handling & Validation
 
 ### Step 6.1: Test Invalid Login
+
 **Request:** `POST /api/v1/auth/login`
 **Body:**
+
 ```json
 {
   "identifier": "+254700000000",
@@ -294,9 +319,11 @@
 **Expected:** 422 or 401 with error message
 
 ### Step 6.2: Test Missing Authorization
+
 **Request:** `GET /api/v1/members` (no Authorization header)
 
 **Expected:**
+
 ```json
 {
   "success": false,
@@ -306,10 +333,12 @@
 ```
 
 ### Step 6.3: Test Invalid Group ID
+
 **Request:** `GET /api/v1/groups/invalid-uuid`  
 **Headers:** `Authorization: Bearer {{access_token}}`
 
 **Expected:**
+
 ```json
 {
   "success": false,
@@ -322,27 +351,30 @@
 
 ## Performance Benchmarks
 
-| Endpoint | Expected Time | Status |
-|----------|---------------|--------|
-| Home Page | < 500ms | ✅ 347ms |
-| Fundraise Page | < 2000ms | ✅ 1929ms |
-| Login | < 1000ms | ✅ TBD |
-| List Groups | < 1000ms | ✅ TBD |
-| Create Campaign | < 2000ms | ✅ TBD |
+| Endpoint        | Expected Time | Status    |
+| --------------- | ------------- | --------- |
+| Home Page       | < 500ms       | ✅ 347ms  |
+| Fundraise Page  | < 2000ms      | ✅ 1929ms |
+| Login           | < 1000ms      | ✅ TBD    |
+| List Groups     | < 1000ms      | ✅ TBD    |
+| Create Campaign | < 2000ms      | ✅ TBD    |
 
 ---
 
 ## Monitoring & Debugging
 
 ### Health Check
+
 **Request:** `GET /api/v1/health/deep`
 
 Returns system status including:
+
 - Database connectivity
 - Redis availability
 - Queue status
 
 ### Check Logs
+
 1. Navigate to: https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu
 2. Click → Deployments → Production
 3. View → Logs
@@ -352,16 +384,19 @@ Returns system status including:
 ## Known Behaviors
 
 ✅ **Changi$ha Account (4006):**
+
 - Automatically seeded for all groups
 - Used for fundraising donations
 - Separate from Member Contributions (4001)
 
 ✅ **Force-Dynamic Pages:**
+
 - /fundraise pages render at request time
 - Handles database unavailability gracefully
 - No static prerendering
 
 ✅ **Redis Guard:**
+
 - Initialization only if REDIS_URL is set
 - Build-safe without credentials
 
@@ -369,12 +404,12 @@ Returns system status including:
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| 401 Unauthorized | Ensure access_token is set in environment |
-| 422 Validation Error | Check request body matches schema |
+| Issue                | Solution                                                  |
+| -------------------- | --------------------------------------------------------- |
+| 401 Unauthorized     | Ensure access_token is set in environment                 |
+| 422 Validation Error | Check request body matches schema                         |
 | Campaign not visible | Wait for admin approval (status: pending_review → active) |
-| Account 4006 missing | Verify migration 185 applied (check git log) |
+| Account 4006 missing | Verify migration 185 applied (check git log)              |
 
 ---
 
@@ -394,6 +429,7 @@ Returns system status including:
 ---
 
 **Report Issues:**
+
 - Check Vercel logs: https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu
 - Check database: Supabase dashboard
 - Inspect deployment: https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu/CvkaRXM3r4XiVNo8SYzbWJ9xcAgm

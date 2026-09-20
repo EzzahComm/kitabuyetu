@@ -24,7 +24,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const input = SetApprovalPolicySchema.parse(await req.json());
-    await withAdminDb((client) => approvalPolicyService.setPlatformDefault(auth.userId, client, input.key, input.threshold));
+    await withAdminDb((client) =>
+      approvalPolicyService.setPlatformDefault(auth.userId, client, input.key, input.threshold),
+    );
     return ok(await withAdminDb((client) => approvalPolicyService.getPlatformPolicies(client)));
   });
 }

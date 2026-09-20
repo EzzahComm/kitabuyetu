@@ -8,7 +8,7 @@ import { ok } from '@/lib/utils/response';
 /** GET /api/v1/credit-scores — list latest score per member. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const params = CreditScoreQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const result = await creditScoresService.listLatest(ctx, params);
     return ok(result);

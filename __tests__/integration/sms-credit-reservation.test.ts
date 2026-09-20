@@ -32,49 +32,58 @@ async function provision(groupId: string, credits: number, allowance = 50): Prom
   // provision() can be called more than once per test (e.g. to re-baseline
   // credits) — the ON CONFLICT DO NOTHING above means a second call would
   // otherwise leave a stale allowance from the first call.
-  await rawQuery(
-    `UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`,
-    [groupId, allowance],
-  );
+  await rawQuery(`UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`, [
+    groupId,
+    allowance,
+  ]);
 }
 
 async function balances(groupId: string): Promise<{
-  credits: number; reserved: number; allowanceUsed: number; allowanceReserved: number;
+  credits: number;
+  reserved: number;
+  allowanceUsed: number;
+  allowanceReserved: number;
 }> {
   const [row] = await rawQuery<{
-    sms_credits: string; reserved_sms_credits: string;
-    sms_allowance_used: number; sms_allowance_reserved: number;
+    sms_credits: string;
+    reserved_sms_credits: string;
+    sms_allowance_used: number;
+    sms_allowance_reserved: number;
   }>(
     `SELECT sms_credits, reserved_sms_credits, sms_allowance_used, sms_allowance_reserved
      FROM billing_accounts WHERE group_id = $1`,
     [groupId],
   );
   return {
-    credits:           parseFloat(row.sms_credits),
-    reserved:          parseFloat(row.reserved_sms_credits),
-    allowanceUsed:      row.sms_allowance_used,
-    allowanceReserved:  row.sms_allowance_reserved,
+    credits: parseFloat(row.sms_credits),
+    reserved: parseFloat(row.reserved_sms_credits),
+    allowanceUsed: row.sms_allowance_used,
+    allowanceReserved: row.sms_allowance_reserved,
   };
 }
 
 async function reserve(groupId: string, count: number, organizationId: string | null = null) {
   const [row] = await rawQuery<{
     result: {
-      rate: string; total: string; remaining: string;
-      fromAllowance: string; fromPaid: string;
-      fromAllowanceCount: number; fromPaidCount: number;
+      rate: string;
+      total: string;
+      remaining: string;
+      fromAllowance: string;
+      fromPaid: string;
+      fromAllowanceCount: number;
+      fromPaidCount: number;
     };
-  }>(
-    `SELECT reserve_sms_credits($3, $1, $4, $2) AS result`,
-    [groupId, count, organizationId ? 'organization' : 'group', organizationId],
-  );
+  }>(`SELECT reserve_sms_credits($3, $1, $4, $2) AS result`, [
+    groupId,
+    count,
+    organizationId ? 'organization' : 'group',
+    organizationId,
+  ]);
   return row.result;
 }
 
 /** A log row already in the reserved state, as the send path would leave it. */
-async function reservedLog(
-  groupId: string, amount: number, extra: Record<string, unknown> = {}, fromAllowance = 0,
-) {
+async function reservedLog(groupId: string, amount: number, extra: Record<string, unknown> = {}, fromAllowance = 0) {
   const [row] = await rawQuery<{ id: string }>(
     `INSERT INTO sms_usage_logs
        (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
@@ -144,10 +153,7 @@ describe('SMS credit reservation (migration 123)', () => {
       // register_group (migration 050) gives every new group an active
       // 'starter' subscription, so the no-subscription state has to be
       // induced explicitly rather than left as a fixture default.
-      await rawQuery(
-        `UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`,
-        [other],
-      );
+      await rawQuery(`UPDATE subscriptions SET status = 'cancelled' WHERE group_id = $1`, [other]);
       await expect(reserve(other, 1)).rejects.toThrow();
     });
   });
@@ -169,8 +175,8 @@ describe('SMS credit reservation (migration 123)', () => {
       await reserve(groupId, 100);
 
       const b = await balances(groupId);
-      expect(b.reserved).toBeCloseTo(100, 2);              // not 90
-      expect(b.credits - b.reserved).toBeCloseTo(0, 2);    // nothing spare
+      expect(b.reserved).toBeCloseTo(100, 2); // not 90
+      expect(b.credits - b.reserved).toBeCloseTo(0, 2); // nothing spare
 
       await expect(reserve(groupId, 1)).rejects.toThrow(/insufficient/i);
     });
@@ -181,8 +187,8 @@ describe('SMS credit reservation (migration 123)', () => {
       await provision(groupId, 100, 0);
       const res = await reserve(groupId, 10);
 
-      expect(parseFloat(res.total)).toBeCloseTo(9, 2);   // 10 * 0.90, money
-      expect(res.fromPaidCount).toBe(10);                // messages
+      expect(parseFloat(res.total)).toBeCloseTo(9, 2); // 10 * 0.90, money
+      expect(res.fromPaidCount).toBe(10); // messages
       expect(parseFloat(res.fromPaid)).toBeCloseTo(10, 2); // credits = messages
     });
   });
@@ -195,11 +201,12 @@ describe('SMS credit reservation (migration 123)', () => {
       await settleReservation([logId], 'consume');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(99, 2);  // one message, one credit
+      expect(b.credits).toBeCloseTo(99, 2); // one message, one credit
       expect(b.reserved).toBeCloseTo(0, 2);
 
       const [log] = await rawQuery<{ billing_state: string; credits_deducted: string; credits_reserved: string }>(
-        `SELECT billing_state, credits_deducted, credits_reserved FROM sms_usage_logs WHERE id = $1`, [logId],
+        `SELECT billing_state, credits_deducted, credits_reserved FROM sms_usage_logs WHERE id = $1`,
+        [logId],
       );
       expect(log.billing_state).toBe('consumed');
       expect(parseFloat(log.credits_deducted)).toBeCloseTo(1, 2);
@@ -213,11 +220,12 @@ describe('SMS credit reservation (migration 123)', () => {
       await settleReservation([logId], 'release');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(100, 2);   // untouched
-      expect(b.reserved).toBeCloseTo(0, 2);    // returned
+      expect(b.credits).toBeCloseTo(100, 2); // untouched
+      expect(b.reserved).toBeCloseTo(0, 2); // returned
 
       const [log] = await rawQuery<{ billing_state: string; credits_deducted: string }>(
-        `SELECT billing_state, credits_deducted FROM sms_usage_logs WHERE id = $1`, [logId],
+        `SELECT billing_state, credits_deducted FROM sms_usage_logs WHERE id = $1`,
+        [logId],
       );
       expect(log.billing_state).toBe('released');
       expect(parseFloat(log.credits_deducted)).toBeCloseTo(0, 2);
@@ -260,8 +268,8 @@ describe('SMS credit reservation (migration 123)', () => {
       expect(parseFloat(res.fromAllowance)).toBeCloseTo(5, 2);
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(100, 2);   // untouched
-      expect(b.reserved).toBeCloseTo(0, 2);    // paid earmark untouched
+      expect(b.credits).toBeCloseTo(100, 2); // untouched
+      expect(b.reserved).toBeCloseTo(0, 2); // paid earmark untouched
       expect(b.allowanceReserved).toBe(5);
     });
 
@@ -315,7 +323,8 @@ describe('SMS credit reservation (migration 123)', () => {
     // these tests must mirror that shape, not fabricate one row for a
     // multi-message reservation.
     async function reservedLogsFor(
-      groupId: string, res: { rate: string; fromAllowanceCount: number; fromPaidCount: number },
+      groupId: string,
+      res: { rate: string; fromAllowanceCount: number; fromPaidCount: number },
     ): Promise<string[]> {
       // One credit per message since migration 144 — the row amount is 1, not
       // the rate. res.rate is deliberately unused now; it prices the send, it
@@ -334,13 +343,14 @@ describe('SMS credit reservation (migration 123)', () => {
       await settleReservation(logIds, 'release');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(100, 2);           // untouched
-      expect(b.reserved).toBeCloseTo(0, 2);            // paid earmark returned
-      expect(b.allowanceReserved).toBe(0);             // allowance earmark returned too
-      expect(b.allowanceUsed).toBe(0);                 // never touched by a release
+      expect(b.credits).toBeCloseTo(100, 2); // untouched
+      expect(b.reserved).toBeCloseTo(0, 2); // paid earmark returned
+      expect(b.allowanceReserved).toBe(0); // allowance earmark returned too
+      expect(b.allowanceUsed).toBe(0); // never touched by a release
 
       const rows = await rawQuery<{ billing_state: string }>(
-        `SELECT billing_state FROM sms_usage_logs WHERE id = ANY($1::uuid[])`, [logIds],
+        `SELECT billing_state FROM sms_usage_logs WHERE id = ANY($1::uuid[])`,
+        [logIds],
       );
       expect(rows.every((r) => r.billing_state === 'released')).toBe(true);
     });
@@ -353,10 +363,10 @@ describe('SMS credit reservation (migration 123)', () => {
       await settleReservation(logIds, 'consume');
 
       const b = await balances(groupId);
-      expect(b.credits).toBeCloseTo(98, 2);    // only the 2 paid messages debited
+      expect(b.credits).toBeCloseTo(98, 2); // only the 2 paid messages debited
       expect(b.reserved).toBeCloseTo(0, 2);
       expect(b.allowanceReserved).toBe(0);
-      expect(b.allowanceUsed).toBe(3);         // permanently spent
+      expect(b.allowanceUsed).toBe(3); // permanently spent
 
       // Idempotent: settling the same already-consumed rows again must not
       // double-spend the allowance (mirrors the existing paid-side guarantee).
@@ -389,7 +399,7 @@ describe('SMS credit reservation (migration 123)', () => {
         `SELECT sms_credits, reserved_sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
         [organizationId],
       );
-      expect(parseFloat(org.sms_credits)).toBeCloseTo(100, 2);       // untouched
+      expect(parseFloat(org.sms_credits)).toBeCloseTo(100, 2); // untouched
       // 3 messages, 3 credits — organizations use the same one-credit-one-
       // message rule since migration 144, not 3 * their negotiated rate.
       expect(parseFloat(org.reserved_sms_credits)).toBeCloseTo(3, 2);

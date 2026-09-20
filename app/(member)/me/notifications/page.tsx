@@ -10,9 +10,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { cn, formatDateTime, getErrorMessage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { smsApi } from '@/lib/api/endpoints';
-import {
-  useMyNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
-} from '@/hooks/use-member';
+import { useMyNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-member';
 
 /**
  * Self-service SMS opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — the platform
@@ -25,7 +23,7 @@ function SmsPreferenceCard() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['sms-preferences'],
-    queryFn:  () => smsApi.preferences(),
+    queryFn: () => smsApi.preferences(),
   });
 
   const setPref = useMutation({
@@ -34,9 +32,7 @@ function SmsPreferenceCard() {
       qc.setQueryData(['sms-preferences'], res);
       toast({
         title: res.optedOut ? 'SMS notifications turned off' : 'SMS notifications turned on',
-        description: res.optedOut
-          ? "You'll still see alerts here in-app and by other channels."
-          : undefined,
+        description: res.optedOut ? "You'll still see alerts here in-app and by other channels." : undefined,
       });
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Could not update', description: e.message }),

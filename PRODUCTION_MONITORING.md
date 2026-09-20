@@ -8,39 +8,44 @@
 
 ## Dashboard Links
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Vercel** | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu | Deployments, logs, analytics |
-| **Deployment** | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu/CvkaRXM3r4XiVNo8SYzbWJ9xcAgm | Current prod deployment (dpl_CvkaRXM3r4XiVNo8SYzbWJ9xcAgm) |
-| **Supabase** | https://supabase.com/dashboard/project/qztcgryhoanennsizcll | Database, RLS, auth |
-| **Health Check** | https://www.kitabuyetu.co.ke/api/v1/health/deep | System status |
+| Service          | URL                                                                              | Purpose                                                    |
+| ---------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Vercel**       | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu                              | Deployments, logs, analytics                               |
+| **Deployment**   | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu/CvkaRXM3r4XiVNo8SYzbWJ9xcAgm | Current prod deployment (dpl_CvkaRXM3r4XiVNo8SYzbWJ9xcAgm) |
+| **Supabase**     | https://supabase.com/dashboard/project/qztcgryhoanennsizcll                      | Database, RLS, auth                                        |
+| **Health Check** | https://www.kitabuyetu.co.ke/api/v1/health/deep                                  | System status                                              |
 
 ---
 
 ## Critical Metrics to Monitor
 
 ### **Application Health**
+
 - [ ] Response time < 500ms (homepage)
 - [ ] Error rate < 0.5%
 - [ ] Uptime > 99.9%
 
 ### **Database**
+
 - [ ] Connection pool: < 50% utilized
 - [ ] Query latency: < 100ms (p95)
 - [ ] Replication lag: < 1s
 
 ### **Authentication**
+
 - [ ] Login success rate > 99%
 - [ ] Token refresh working
 - [ ] No auth errors in logs
 
 ### **Changi$ha Fundraising**
+
 - [ ] Campaign creation: Working
 - [ ] Campaign listing: Working
 - [ ] Account 4006: Backfilled to all groups
 - [ ] M-Pesa STK integration: Ready for testing
 
 ### **Infrastructure**
+
 - [ ] Build time: < 5 minutes
 - [ ] Deployment success: 100%
 - [ ] No unhandled exceptions
@@ -80,12 +85,14 @@ curl -X GET "https://www.kitabuyetu.co.ke/api/v1/health" -w "\nHTTP: %{http_code
 ## Critical Alerts to Setup
 
 **In Vercel:**
+
 1. High error rate (> 1%)
 2. Build failure
 3. Deployment failure
 4. Response time > 2s
 
 **In Supabase:**
+
 1. Database connection pool exhausted
 2. Replication lag > 10s
 3. Failed backups
@@ -117,16 +124,19 @@ If critical issues occur:
 ## Pending Items
 
 ### High Priority
+
 - [ ] Run account 4006 backfill SQL (Supabase dashboard)
 - [ ] Admin approve test campaign
 - [ ] Test donation flow (M-Pesa STK)
 
 ### Medium Priority
+
 - [ ] Set up automated monitoring alerts
 - [ ] Configure log aggregation
 - [ ] Test disaster recovery
 
 ### Low Priority
+
 - [ ] Performance optimization audit
 - [ ] Security penetration test
 - [ ] Load testing (>1000 concurrent users)
@@ -136,18 +146,21 @@ If critical issues occur:
 ## Success Metrics (Post-Launch)
 
 **Week 1:**
+
 - ✅ Zero critical errors
 - ✅ All endpoints responding
 - ✅ Auth flow working perfectly
 - ✅ Changi$ha campaigns processing
 
 **Month 1:**
+
 - ✅ 50+ test users onboarded
 - ✅ 10+ campaigns created
 - ✅ $10k+ in donations processed
 - ✅ <1% error rate sustained
 
 **Q4 2026:**
+
 - ✅ 1000+ active groups
 - ✅ 100+ concurrent users
 - ✅ $100k+ monthly transaction volume
@@ -157,11 +170,11 @@ If critical issues occur:
 
 ## Support Contacts
 
-| Role | Contact | Timezone |
-|------|---------|----------|
-| Engineering | Polycap Akoth | EAT |
-| Platform Ops | Vercel Support | UTC |
-| Database | Supabase Support | UTC |
+| Role         | Contact          | Timezone |
+| ------------ | ---------------- | -------- |
+| Engineering  | Polycap Akoth    | EAT      |
+| Platform Ops | Vercel Support   | UTC      |
+| Database     | Supabase Support | UTC      |
 
 ---
 

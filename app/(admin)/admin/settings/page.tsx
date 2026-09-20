@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin:              'Super Admin',
-  support:                  'Support',
+  super_admin: 'Super Admin',
+  support: 'Support',
   organization_coordinator: 'Organization Coordinator',
 };
 
@@ -41,11 +41,7 @@ export default function AdminSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <Row label="Name" value={staff ? `${staff.firstName} ${staff.lastName}` : '—'} />
-          <Row
-            label="Email"
-            value={staff?.email ?? '—'}
-            icon={<Mail size={13} className="text-muted-foreground" />}
-          />
+          <Row label="Email" value={staff?.email ?? '—'} icon={<Mail size={13} className="text-muted-foreground" />} />
           <Row
             label="Role"
             value={staff ? (ROLE_LABELS[staff.platformRole] ?? staff.platformRole) : '—'}
@@ -109,9 +105,8 @@ function C2BRegistrationCard() {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="text-muted-foreground">
-          Confirmation/Validation URLs registered with Safaricom for PayBill payments. Safaricom
-          has no read API for this — re-register whenever the callback config changes or a paybill
-          payment goes missing.
+          Confirmation/Validation URLs registered with Safaricom for PayBill payments. Safaricom has no read API for
+          this — re-register whenever the callback config changes or a paybill payment goes missing.
         </p>
         {isLoading ? (
           <p className="text-muted-foreground">Loading…</p>
@@ -121,9 +116,7 @@ function C2BRegistrationCard() {
               label="Environment"
               value=""
               valueSlot={
-                <Badge variant={urls.environment === 'production' ? 'success' : 'secondary'}>
-                  {urls.environment}
-                </Badge>
+                <Badge variant={urls.environment === 'production' ? 'success' : 'secondary'}>{urls.environment}</Badge>
               }
             />
             <Row label="Shortcode" value={urls.shortCode} />
@@ -140,12 +133,7 @@ function C2BRegistrationCard() {
         ) : (
           <p className="text-destructive">Could not load current configuration.</p>
         )}
-        <Button
-          variant="outline"
-          onClick={handleRegister}
-          disabled={register.isPending}
-          className="gap-2"
-        >
+        <Button variant="outline" onClick={handleRegister} disabled={register.isPending} className="gap-2">
           <RefreshCw size={15} className={register.isPending ? 'animate-spin' : ''} />
           {register.isPending ? 'Registering…' : 'Register with Safaricom'}
         </Button>
@@ -154,14 +142,25 @@ function C2BRegistrationCard() {
   );
 }
 
-function Row({ label, value, icon, valueSlot }: {
-  label: string; value: string; icon?: React.ReactNode; valueSlot?: React.ReactNode;
+function Row({
+  label,
+  value,
+  icon,
+  valueSlot,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  valueSlot?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
       {valueSlot ?? (
-        <span className="flex items-center gap-1.5 font-medium text-foreground">{icon}{value}</span>
+        <span className="flex items-center gap-1.5 font-medium text-foreground">
+          {icon}
+          {value}
+        </span>
       )}
     </div>
   );

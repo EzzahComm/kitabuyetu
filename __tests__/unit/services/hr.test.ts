@@ -5,16 +5,14 @@
  * of direct reports).
  */
 import { withAdminDb } from '@/lib/db';
-import {
-  createEmployee, listEmployees, updateEmployee, terminateEmployee,
-} from '@/lib/services/hr.service';
+import { createEmployee, listEmployees, updateEmployee, terminateEmployee } from '@/lib/services/hr.service';
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -23,8 +21,11 @@ beforeEach(() => {
 });
 
 const validInput = {
-  firstName: 'Jane', lastName: 'Doe', email: 'jane@kitabuyetu.co.ke',
-  employmentType: 'full_time' as const, hireDate: '2026-01-01',
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane@kitabuyetu.co.ke',
+  employmentType: 'full_time' as const,
+  hireDate: '2026-01-01',
 };
 
 describe('createEmployee', () => {
@@ -45,8 +46,9 @@ describe('createEmployee', () => {
 
   it('rejects a manager that does not exist', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // manager existence check: not found
-    await expect(createEmployee('admin-1', { ...validInput, managerId: 'ghost' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(createEmployee('admin-1', { ...validInput, managerId: 'ghost' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 });
 
@@ -99,14 +101,16 @@ describe('updateEmployee', () => {
 describe('terminateEmployee', () => {
   it('throws NotFoundError for an unknown employee', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(terminateEmployee('admin-1', 'ghost', { terminationDate: '2026-01-01' }))
-      .rejects.toBeInstanceOf(NotFoundError);
+    await expect(terminateEmployee('admin-1', 'ghost', { terminationDate: '2026-01-01' })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('throws ConflictError when already terminated (not idempotent — a second termination is an error)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'e1', employment_status: 'terminated' }] });
-    await expect(terminateEmployee('admin-1', 'e1', { terminationDate: '2026-01-01' }))
-      .rejects.toBeInstanceOf(ConflictError);
+    await expect(terminateEmployee('admin-1', 'e1', { terminationDate: '2026-01-01' })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
   });
 
   it('orphans direct reports and logs an audit entry', async () => {

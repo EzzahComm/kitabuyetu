@@ -8,9 +8,15 @@
  * against a real Postgres instance.
  */
 import {
-  listOrgStaff, addOrgStaff, changeOrgStaffRole, removeOrgStaff,
-  createOrgInvitation, getOrgInvitation, confirmOrgInvitationEmail,
-  verifyOrgInvitationOtp, completeOrgInvitation,
+  listOrgStaff,
+  addOrgStaff,
+  changeOrgStaffRole,
+  removeOrgStaff,
+  createOrgInvitation,
+  getOrgInvitation,
+  confirmOrgInvitationEmail,
+  verifyOrgInvitationOtp,
+  completeOrgInvitation,
 } from '@/lib/services/organization-members.service';
 import { createTestOrganization, createOrgCoordinator } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
@@ -60,8 +66,11 @@ describe('organization staff (multi-staff organizations)', () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
 
     const added = await addOrgStaff(organizationId, {
-      phone: '0712340001', firstName: 'Amara', lastName: 'Njeri',
-      orgRole: 'staff', invitedBy: coordinatorId,
+      phone: '0712340001',
+      firstName: 'Amara',
+      lastName: 'Njeri',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
     expect(added.orgRole).toBe('staff');
     expect(added.status).toBe('active');
@@ -69,9 +78,9 @@ describe('organization staff (multi-staff organizations)', () => {
     const staff = await listOrgStaff(organizationId);
     expect(staff.map((s) => s.memberId)).toContain(added.memberId);
 
-    const [row] = await rawQuery<{ platform_role: string }>(
-      'SELECT platform_role FROM members WHERE id = $1', [added.memberId],
-    );
+    const [row] = await rawQuery<{ platform_role: string }>('SELECT platform_role FROM members WHERE id = $1', [
+      added.memberId,
+    ]);
     expect(row.platform_role).toBe('organization_coordinator');
   });
 
@@ -80,35 +89,53 @@ describe('organization staff (multi-staff organizations)', () => {
     const existingSuperAdminId = await createOrgCoordinator(); // creates as organization_coordinator
     // Simulate this member already holding a MORE privileged role elsewhere.
     await rawQuery(`UPDATE members SET platform_role = 'super_admin' WHERE id = $1`, [existingSuperAdminId]);
-    const [{ phone }] = await rawQuery<{ phone: string }>(
-      'SELECT phone FROM members WHERE id = $1', [existingSuperAdminId],
-    );
+    const [{ phone }] = await rawQuery<{ phone: string }>('SELECT phone FROM members WHERE id = $1', [
+      existingSuperAdminId,
+    ]);
 
     await addOrgStaff(organizationId, {
-      phone, firstName: 'x', lastName: 'x', orgRole: 'staff', invitedBy: coordinatorId,
+      phone,
+      firstName: 'x',
+      lastName: 'x',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
 
-    const [row] = await rawQuery<{ platform_role: string }>(
-      'SELECT platform_role FROM members WHERE id = $1', [existingSuperAdminId],
-    );
+    const [row] = await rawQuery<{ platform_role: string }>('SELECT platform_role FROM members WHERE id = $1', [
+      existingSuperAdminId,
+    ]);
     expect(row.platform_role).toBe('super_admin'); // NOT downgraded to organization_coordinator
   });
 
   it('rejects adding someone who is already active staff at the same org', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     await addOrgStaff(organizationId, {
-      phone: '0712340002', firstName: 'B', lastName: 'B', orgRole: 'staff', invitedBy: coordinatorId,
+      phone: '0712340002',
+      firstName: 'B',
+      lastName: 'B',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
 
-    await expect(addOrgStaff(organizationId, {
-      phone: '0712340002', firstName: 'B', lastName: 'B', orgRole: 'staff', invitedBy: coordinatorId,
-    })).rejects.toThrow();
+    await expect(
+      addOrgStaff(organizationId, {
+        phone: '0712340002',
+        firstName: 'B',
+        lastName: 'B',
+        orgRole: 'staff',
+        invitedBy: coordinatorId,
+      }),
+    ).rejects.toThrow();
   });
 
-  it('changes a staff member\'s role', async () => {
+  it("changes a staff member's role", async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     const added = await addOrgStaff(organizationId, {
-      phone: '0712340003', firstName: 'C', lastName: 'C', orgRole: 'staff', invitedBy: coordinatorId,
+      phone: '0712340003',
+      firstName: 'C',
+      lastName: 'C',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
 
     await changeOrgStaffRole(organizationId, added.memberId, 'lead');
@@ -124,10 +151,18 @@ describe('organization staff (multi-staff organizations)', () => {
     // organization_members (that table is new) — add them as lead explicitly
     // to get two real, distinct staff rows for the same org.
     const first = await addOrgStaff(organizationId, {
-      phone: '0712340003', firstName: 'C', lastName: 'C', orgRole: 'lead', invitedBy: coordinatorId,
+      phone: '0712340003',
+      firstName: 'C',
+      lastName: 'C',
+      orgRole: 'lead',
+      invitedBy: coordinatorId,
     });
     const second = await addOrgStaff(organizationId, {
-      phone: '0712340004', firstName: 'D', lastName: 'D', orgRole: 'staff', invitedBy: first.memberId,
+      phone: '0712340004',
+      firstName: 'D',
+      lastName: 'D',
+      orgRole: 'staff',
+      invitedBy: first.memberId,
     });
 
     // Two distinct, real organization_members rows for the same org — this
@@ -148,7 +183,11 @@ describe('organization staff (multi-staff organizations)', () => {
     // createTestOrganization's coordinator isn't auto-added as organization_members
     // staff (that table is new) — add them as the org's lead explicitly first.
     await addOrgStaff(organizationId, {
-      phone: '0712340005', firstName: 'Lead', lastName: 'One', orgRole: 'lead', invitedBy: coordinatorId,
+      phone: '0712340005',
+      firstName: 'Lead',
+      lastName: 'One',
+      orgRole: 'lead',
+      invitedBy: coordinatorId,
     });
     const [lead] = await listOrgStaff(organizationId);
 
@@ -166,8 +205,12 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
     const { organizationId, coordinatorId } = await createTestOrganization();
 
     const invitation = await createOrgInvitation(organizationId, {
-      email: 'amara@example.com', phone: '0712350001',
-      firstName: 'Amara', lastName: 'Njeri', orgRole: 'staff', invitedBy: coordinatorId,
+      email: 'amara@example.com',
+      phone: '0712350001',
+      firstName: 'Amara',
+      lastName: 'Njeri',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
     expect(sendTemplatedEmail).toHaveBeenCalledTimes(1);
     const token = extractTokenFromEmailMock();
@@ -187,7 +230,8 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
     await completeOrgInvitation(token, 'S3curePass1');
 
     const [row] = await rawQuery<{ status: string; completed_at: Date | null }>(
-      `SELECT status, completed_at FROM organization_invitations WHERE id = $1`, [invitation.id],
+      `SELECT status, completed_at FROM organization_invitations WHERE id = $1`,
+      [invitation.id],
     );
     expect(row.status).toBe('completed');
     expect(row.completed_at).not.toBeNull();
@@ -201,8 +245,12 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
   it('rejects an incorrect OTP and does not advance the invitation past otp_sent', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     await createOrgInvitation(organizationId, {
-      email: 'b@example.com', phone: '0712350002',
-      firstName: 'B', lastName: 'B', orgRole: 'staff', invitedBy: coordinatorId,
+      email: 'b@example.com',
+      phone: '0712350002',
+      firstName: 'B',
+      lastName: 'B',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
     const token = extractTokenFromEmailMock();
 
@@ -214,8 +262,12 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
   it('rejects completing an invitation before OTP verification', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     await createOrgInvitation(organizationId, {
-      email: 'c@example.com', phone: '0712350003',
-      firstName: 'C', lastName: 'C', orgRole: 'staff', invitedBy: coordinatorId,
+      email: 'c@example.com',
+      phone: '0712350003',
+      firstName: 'C',
+      lastName: 'C',
+      orgRole: 'staff',
+      invitedBy: coordinatorId,
     });
     const token = extractTokenFromEmailMock();
 

@@ -5,17 +5,25 @@ import { withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 const VALID_CATEGORIES = [
-  'financial_reports', 'loan_updates', 'contribution_updates',
-  'meeting_invitations', 'announcements', 'billing', 'birthday',
-  'weekly_summary', 'monthly_statement',
+  'financial_reports',
+  'loan_updates',
+  'contribution_updates',
+  'meeting_invitations',
+  'announcements',
+  'billing',
+  'birthday',
+  'weekly_summary',
+  'monthly_statement',
 ] as const;
 
-const PreferencesSchema = z.array(z.object({
-  category:  z.enum(VALID_CATEGORIES),
-  enabled:   z.boolean(),
-  frequency: z.string().optional(),
-  groupId:   z.string().optional(),
-}));
+const PreferencesSchema = z.array(
+  z.object({
+    category: z.enum(VALID_CATEGORIES),
+    enabled: z.boolean(),
+    frequency: z.string().optional(),
+    groupId: z.string().optional(),
+  }),
+);
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
@@ -38,9 +46,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 
       // Merge with defaults (all enabled)
       const existing = new Map(rows.map((r: { category: string }) => [r.category, r]));
-      const merged = VALID_CATEGORIES.map((cat) => existing.get(cat) ?? {
-        category: cat, enabled: true, frequency: 'immediate', group_id: null,
-      });
+      const merged = VALID_CATEGORIES.map(
+        (cat) =>
+          existing.get(cat) ?? {
+            category: cat,
+            enabled: true,
+            frequency: 'immediate',
+            group_id: null,
+          },
+      );
 
       return ok(merged);
     });
@@ -66,13 +80,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
              VALUES ($1,$2,$3,$4,$5)
              ON CONFLICT ON CONSTRAINT idx_email_pref_global DO UPDATE
                SET enabled=$4, frequency=$5, updated_at=NOW()`,
-            [
-              auth.userId,
-              pref.groupId ?? null,
-              pref.category,
-              pref.enabled,
-              pref.frequency ?? 'immediate',
-            ],
+            [auth.userId, pref.groupId ?? null, pref.category, pref.enabled, pref.frequency ?? 'immediate'],
           );
         } catch {
           await client.query(

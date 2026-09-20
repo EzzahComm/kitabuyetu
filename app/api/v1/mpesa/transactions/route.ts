@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * GET /api/v1/mpesa/transactions â€” Paginated list of all M-Pesa transactions
  *
@@ -12,26 +12,46 @@ import { withDb, type TenantContext } from '@/lib/db';
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-      const sp       = req.nextUrl.searchParams;
-      const page     = Math.max(1, parseInt(sp.get('page') ?? '1', 10));
-      const limit    = Math.min(100, Math.max(1, parseInt(sp.get('limit') ?? '25', 10)));
-      const offset   = (page - 1) * limit;
-      const txType   = sp.get('type');
-      const status   = sp.get('status');
-      const phone    = sp.get('phone');
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
+      const sp = req.nextUrl.searchParams;
+      const page = Math.max(1, parseInt(sp.get('page') ?? '1', 10));
+      const limit = Math.min(100, Math.max(1, parseInt(sp.get('limit') ?? '25', 10)));
+      const offset = (page - 1) * limit;
+      const txType = sp.get('type');
+      const status = sp.get('status');
+      const phone = sp.get('phone');
       const dateFrom = sp.get('dateFrom');
-      const dateTo   = sp.get('dateTo');
+      const dateTo = sp.get('dateTo');
 
       const conditions: string[] = ['group_id=$1'];
       const params: unknown[] = [auth.groupId];
       let idx = 2;
 
-      if (txType)   { conditions.push(`transaction_type=$${idx++}`); params.push(txType); }
-      if (status)   { conditions.push(`status=$${idx++}`);           params.push(status); }
-      if (phone)    { conditions.push(`phone_number ILIKE $${idx++}`); params.push(`%${phone}%`); }
-      if (dateFrom) { conditions.push(`created_at>=$${idx++}`);      params.push(dateFrom); }
-      if (dateTo)   { conditions.push(`created_at<=$${idx++}`);      params.push(dateTo); }
+      if (txType) {
+        conditions.push(`transaction_type=$${idx++}`);
+        params.push(txType);
+      }
+      if (status) {
+        conditions.push(`status=$${idx++}`);
+        params.push(status);
+      }
+      if (phone) {
+        conditions.push(`phone_number ILIKE $${idx++}`);
+        params.push(`%${phone}%`);
+      }
+      if (dateFrom) {
+        conditions.push(`created_at>=$${idx++}`);
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        conditions.push(`created_at<=$${idx++}`);
+        params.push(dateTo);
+      }
 
       const where = conditions.join(' AND ');
 
@@ -45,10 +65,7 @@ export async function GET(req: NextRequest): Promise<Response> {
              ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
             [...params, limit, offset],
           ),
-          db.query<{ count: string }>(
-            `SELECT COUNT(*) FROM mpesa_transactions WHERE ${where}`,
-            params,
-          ),
+          db.query<{ count: string }>(`SELECT COUNT(*) FROM mpesa_transactions WHERE ${where}`, params),
         ]),
       );
 
@@ -58,7 +75,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         items,
         total,
         page,
-        pageSize:   limit,
+        pageSize: limit,
         totalPages: Math.ceil(total / limit),
       });
     } catch (err) {

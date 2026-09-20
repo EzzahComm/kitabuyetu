@@ -106,16 +106,13 @@ export default function SupportPage() {
         <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
-                Support
-              </p>
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Support</p>
               <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
                 Need a hand with <em className="italic font-normal text-brand-600">your group</em>?
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
-                If you&apos;re a member of a group, your chairperson, secretary or
-                treasurer can often help directly. Otherwise, reach us — real people,
-                not a ticket queue.
+                If you&apos;re a member of a group, your chairperson, secretary or treasurer can often help directly.
+                Otherwise, reach us — real people, not a ticket queue.
               </p>
             </div>
           </Container>
@@ -144,25 +141,19 @@ export default function SupportPage() {
               </span>
               <span>
                 <span className="block text-sm font-semibold text-brand-blue-900">Call us</span>
-                <span className="block text-[0.9375rem] text-brand-blue-900/60">
-                  {CONTACT.phones[0]}
-                </span>
+                <span className="block text-[0.9375rem] text-brand-blue-900/60">{CONTACT.phones[0]}</span>
               </span>
             </a>
           </div>
 
           {FAQ_CATEGORIES.map((category) => (
             <section key={category.heading} className="mt-16 first:mt-20">
-              <h2 className="font-display text-2xl font-normal text-brand-blue-900">
-                {category.heading}
-              </h2>
+              <h2 className="font-display text-2xl font-normal text-brand-blue-900">{category.heading}</h2>
               <dl className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
                 {category.items.map(([question, answer]) => (
                   <div key={question} className="border-t border-brand-blue-900/10 pt-6">
                     <dt className="text-base font-semibold text-brand-blue-900">{question}</dt>
-                    <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                      {answer}
-                    </dd>
+                    <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{answer}</dd>
                   </div>
                 ))}
               </dl>

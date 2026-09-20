@@ -15,7 +15,7 @@
 > markDefaulted, contribution create/update/delete, member create/
 > updateRole/transitionStatus, settlement initiate, disbursement initiate,
 > bank account create — is gated by `withPermission(req, '<permission>',
-> ...)` (`lib/auth/middleware.ts` + `lib/auth/permissions.ts`) against a real
+...)` (`lib/auth/middleware.ts` + `lib/auth/permissions.ts`) against a real
 > `roles.permissions` seed catalog
 > (`__tests__/integration/permissions/role-permission-catalog.test.ts`),
 > scoped to secretary/treasurer/chairperson tiers, never plain `member`.
@@ -50,14 +50,16 @@ This audit examined authorization patterns across 10 critical services handling 
 Most group-scoped services rely entirely on RLS for access control, with no explicit role checks at the application layer. This creates a significant gap: any authenticated group member can perform operations that should be restricted to officers (treasurers, loan officers, administrators). Organization-scoped services (organization-finance, organization-members) correctly enforce coordinator roles, but the pattern is inconsistent.
 
 **Critical Issues Found**:
+
 1. **Missing RBAC in group-scoped services** — No role validation for financial operations (loans, contributions, settlements, disbursements)
 2. **Inconsistent dual-control implementation** — Some operations enforce maker-checker, others don't
 3. **No authorization at application layer** — Operations gate on status only, not role
 4. **Audit logging present but incomplete** — Logs what happened, not who should have been allowed
 
 **Risk Level**: **HIGH** — Any authenticated group member can currently:
+
 - Create/approve loans
-- Create/approve settlements and disbursements  
+- Create/approve settlements and disbursements
 - Manage member roles and status
 - Create bank accounts
 
@@ -67,17 +69,17 @@ Most group-scoped services rely entirely on RLS for access control, with no expl
 
 ### Summary Table
 
-| Service | Auth Pattern | Dual-Control | Role Checks | Risk Level |
-|---------|--------------|--------------|-------------|-----------|
-| contributions.service | RLS only | ❌ | ❌ | HIGH |
-| loans.service | RLS + status | ⚠️ Partial | ❌ | HIGH |
-| organization-finance.service | Coordinator role | ✅ Full | ✅ | MEDIUM |
-| members.service | RLS only | ❌ | ❌ | HIGH |
-| organization-members.service | Super-admin only | ❌ | ✅ | LOW |
-| settlements.service | RLS + threshold | ✅ Full | ❌ | HIGH |
-| disbursements.service | RLS + threshold | ✅ Full | ❌ | HIGH |
-| organization.service | Coordinator role | ❌ | ✅ | MEDIUM |
-| group-bank-accounts.service | RLS only | ✅ Partial | ❌ | HIGH |
+| Service                      | Auth Pattern     | Dual-Control | Role Checks | Risk Level |
+| ---------------------------- | ---------------- | ------------ | ----------- | ---------- |
+| contributions.service        | RLS only         | ❌           | ❌          | HIGH       |
+| loans.service                | RLS + status     | ⚠️ Partial   | ❌          | HIGH       |
+| organization-finance.service | Coordinator role | ✅ Full      | ✅          | MEDIUM     |
+| members.service              | RLS only         | ❌           | ❌          | HIGH       |
+| organization-members.service | Super-admin only | ❌           | ✅          | LOW        |
+| settlements.service          | RLS + threshold  | ✅ Full      | ❌          | HIGH       |
+| disbursements.service        | RLS + threshold  | ✅ Full      | ❌          | HIGH       |
+| organization.service         | Coordinator role | ❌           | ✅          | MEDIUM     |
+| group-bank-accounts.service  | RLS only         | ✅ Partial   | ❌          | HIGH       |
 
 ---
 
@@ -86,9 +88,11 @@ Most group-scoped services rely entirely on RLS for access control, with no expl
 ### Tier 1 - Financial Critical
 
 #### 1. contributions.service
+
 **File**: `lib/services/contributions.service.ts`
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for all filtering (RLS isolation)
 - Calls `assertActiveMembership()` to verify member belongs to group
 - No role-based checks
@@ -103,11 +107,13 @@ Most group-scoped services rely entirely on RLS for access control, with no expl
 | remindNonContributors() | ❌ | No role check (likely should be treasurer-only) |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for audit logging
 - `ctx.groupId`: Used for all data scoping
 - No `ctx.organizationId` usage
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role validation. Any authenticated group member can:
   - Create contributions for any active member
   - Update or delete their own contributions
@@ -118,6 +124,7 @@ Most group-scoped services rely entirely on RLS for access control, with no expl
 **Risk Classification**: **HIGH**
 
 **Recommended Authorization Model**:
+
 ```typescript
 // Proposed pattern
 async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
@@ -132,9 +139,11 @@ async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contrib
 ---
 
 #### 2. loans.service
+
 **File**: `lib/services/loans.service.ts`
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for group isolation
 - Calls `assertActiveMembership()` for borrower and guarantor validation
 - No role-based checks
@@ -153,16 +162,19 @@ async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contrib
 | writeOff() | ✅ | **Enforces maker-checker**: approver ≠ defaulted_by |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for recording approvals and audit logging
 - `ctx.groupId`: Used for all queries
 - `ctx.organizationId`: Used in `getEffectiveLoanTerms()` for policy lookup
 
 **Patterns Identified**:
+
 - **Status-based restrictions**: Operations check current loan status (pending → approved → disbursed → active)
 - **Group-level isolation**: All queries filter by ctx.groupId
 - **Single dual-control**: Only `writeOff()` enforces maker-checker
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role-based checks on `apply()`, `approve()`, `reject()`, `disburse()`, `markDefaulted()`
   - Any authenticated group member can approve loans
   - Any authenticated group member can disburse loans
@@ -174,6 +186,7 @@ async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contrib
 **Risk Classification**: **HIGH**
 
 **Identified Dual-Control Pattern**:
+
 ```typescript
 // writeOff() correctly enforces maker-checker
 if (existing[0].defaulted_by === ctx.userId) {
@@ -182,6 +195,7 @@ if (existing[0].defaulted_by === ctx.userId) {
 ```
 
 **Recommended Authorization Model**:
+
 ```typescript
 // Add role checks for all approval operations
 async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<Loan> {
@@ -189,7 +203,7 @@ async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<
   if (!['loan_officer', 'finance_officer', 'chairman'].includes(ctx.role)) {
     throw new ForbiddenError('Only loan officers can approve loans');
   }
-  
+
   // Also add dual-control where appropriate
   const { rows: existing } = await client.query(
     'SELECT approved_by FROM loans WHERE id = $1 AND group_id = $2',
@@ -205,10 +219,12 @@ async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<
 ---
 
 #### 3. organization-finance.service
+
 **File**: `lib/services/organization-finance.service.ts`  
 **Size**: ~2000 lines (audit read: 700-1580)
 
 **Permission Model**:
+
 - **Correctly enforces** `organization_coordinator` role via `assertOrganizationCoordinator()`
 - Uses `ctx.organizationId` for organization isolation
 - RLS scopes all tables to `app_current_organization_id()`
@@ -228,14 +244,16 @@ async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<
 | rejectDisbursement() | ✅ | assertOrganizationCoordinator |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for audit logging and approvals
 - `ctx.organizationId`: Used for all organization-scoped queries (required)
 - Throws ValidationError if `ctx.organizationId` is missing
 
 **Patterns Identified**:
+
 - **Role-based RBAC**: All operations require `organization_coordinator` role
 - **Belt-and-braces**: Explicit checks at app layer AND RLS at database layer
-- **Dual-control on approveDisbursement()**: 
+- **Dual-control on approveDisbursement()**:
   ```typescript
   if (rows[0].created_by === ctx.userId) {
     throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
@@ -245,12 +263,14 @@ async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<
 - **Funding source tracking**: Every disbursement creates a group-side funding source
 
 **Gaps & Issues**:
+
 - None identified at authorization layer
 - Implementation is consistent and well-designed
 
 **Risk Classification**: **MEDIUM** (org-level only, properly gated)
 
 **Recommended Pattern** (Use as model for group-scoped services):
+
 ```typescript
 // Pattern used correctly here; replicate in group services
 async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisbursement> {
@@ -267,10 +287,12 @@ async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisburseme
 ### Tier 2 - Membership & Access
 
 #### 4. members.service
+
 **File**: `lib/services/members.service.ts`  
 **Size**: 800+ lines
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for group isolation (RLS only)
 - No role-based checks at all
 - Implements `applyMemberMask()` for field-level masking based on `ctx.role`
@@ -289,16 +311,19 @@ async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisburseme
 | createNextOfKin() | ❌ | Filters by ctx.groupId; no role check |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for audit logging and password changes
 - `ctx.groupId`: Used for all queries
 - `ctx.role`: Used for `applyMemberMask()` (field-level masking only)
 
 **Patterns Identified**:
+
 - **Sensitive field stripping**: Correctly strips credential material (password_hash, OTP_hash, session_version)
 - **Member masking**: Applies different views based on `ctx.role`
 - **Audit logging**: All write operations log old and new values
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role validation on any operation
   - Any group member can create new members
   - Any group member can update member details
@@ -314,6 +339,7 @@ async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisburseme
 **Risk Classification**: **HIGH**
 
 **Recommended Authorization Model**:
+
 ```typescript
 // Proposed role-based patterns
 async updateRole(ctx: TenantContext, memberId: string, role: string): Promise<GroupMember> {
@@ -343,9 +369,11 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 ---
 
 #### 5. organization-members.service
+
 **File**: `lib/services/organization-members.service.ts`
 
 **Permission Model**:
+
 - Uses `withAdminDb()` — super_admin only (no tenant context)
 - Takes explicit `organizationId` parameter
 - Gated at route layer (super_admin route only), not service layer
@@ -360,22 +388,26 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 | archiveOrgStaff() | ✅ | withAdminDb only |
 
 **Context Usage**:
+
 - No `TenantContext` (uses withAdminDb with explicit organizationId)
 - `invitedBy`: Passed explicitly, not from context
 
 **Patterns Identified**:
+
 - **Admin-only pattern**: Correct use of `withAdminDb` for admin operations
 - **Staff capacity check**: Validates against organization's staff limit
 - **Platform role upgrade**: Promotes members from 'member' to 'organization_coordinator' automatically
 - **Dual-control in database**: RLS policies require `org_role = 'lead'` for INSERT/UPDATE (future self-service support)
 
 **Gaps & Issues**:
+
 - None at authorization layer (correctly super-admin only)
 - Phase 2 will add self-service path with RLS policies
 
 **Risk Classification**: **LOW**
 
 **Note**: This service correctly mirrors `admin-organizations.service.ts` pattern by:
+
 1. Using `withAdminDb` instead of tenant context
 2. Gating at route layer
 3. Taking explicit `organizationId` parameter
@@ -386,9 +418,11 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 ### Tier 3 - Payments & Settlements
 
 #### 6. settlements.service
+
 **File**: `lib/services/settlements.service.ts`
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for group isolation
 - No role-based checks
 - Uses `recordApproval()` from `settlement-approvals.service` for dual-control
@@ -403,17 +437,19 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 | list() | ❌ | Filters by ctx.groupId only |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for recording approvals and initiations
 - `ctx.groupId`: Used for all queries
 - Bank account status checked (must be 'active')
 - Account balance validated before initiation
 
 **Patterns Identified**:
+
 - **Dual-control via shared helper**: `recordApproval()` enforces maker-checker:
   ```typescript
   if (args.initiatedBy === ctx.userId) {
     throw new ForbiddenError(
-      `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`
+      `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,
     );
   }
   ```
@@ -422,6 +458,7 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 - **External dispatch**: Settlement dispatches Daraja B2B outside transaction
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role check on `initiate()`
   - Any authenticated group member can request settlements
   - Should require treasurer/finance officer role
@@ -430,15 +467,12 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 **Risk Classification**: **HIGH**
 
 **Maker-Checker Implementation** (via recordApproval):
+
 ```typescript
-export async function recordApproval(
-  db: PoolClient,
-  ctx: TenantContext,
-  args: RecordApprovalInput,
-): Promise<void> {
+export async function recordApproval(db: PoolClient, ctx: TenantContext, args: RecordApprovalInput): Promise<void> {
   if (args.initiatedBy === ctx.userId) {
     throw new ForbiddenError(
-      `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`
+      `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,
     );
   }
   // ... records approval to settlement_approvals table
@@ -446,6 +480,7 @@ export async function recordApproval(
 ```
 
 **Recommended Authorization Model**:
+
 ```typescript
 async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<SettlementRow> {
   // NEW: Require treasurer/finance officer role
@@ -459,9 +494,11 @@ async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<Sett
 ---
 
 #### 7. disbursements.service
+
 **File**: `lib/services/disbursements.service.ts`
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for group isolation
 - No role-based checks
 - Threshold-based dual-control via `getEffectiveThreshold()`
@@ -476,10 +513,12 @@ async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<Sett
 | list() | ❌ | Filters by ctx.groupId only |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for recording approvals and initiations
 - `ctx.groupId`: Used for all queries
 
 **Patterns Identified**:
+
 - **Threshold-based approval**: `getEffectiveThreshold()` determines if amount > group's limit
 - **Dual-control on approve()**: Direct check:
   ```typescript
@@ -492,6 +531,7 @@ async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<Sett
 - **Loan-linked**: Can be tied to a specific loan (status validated)
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role check on `initiateDisbursement()`
   - Any authenticated group member can request disbursements
   - Should require treasurer/finance officer role
@@ -502,6 +542,7 @@ async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<Sett
 **Risk Classification**: **HIGH** (threshold-mitigated, but still needs role check)
 
 **Recommended Authorization Model**:
+
 ```typescript
 async initiateDisbursement(
   ctx: TenantContext, input: InitiateDisbursementInput,
@@ -519,10 +560,12 @@ async initiateDisbursement(
 ### Tier 4 - Platform Governance
 
 #### 8. organization.service
+
 **File**: `lib/services/organization.service.ts`  
 **Size**: 400+ lines
 
 **Permission Model**:
+
 - **Correctly enforces** `organization_coordinator` role via `assertOrganizationCoordinator()`
 - Uses `ctx.organizationId` for organization isolation
 - Different from group-scoped services
@@ -538,16 +581,19 @@ async initiateDisbursement(
 | getAuditLog() | ✅ | assertOrganizationCoordinator |
 
 **Context Usage**:
+
 - `ctx.organizationId`: Required for all operations
 - `ctx.userId`: Used for audit logging
 - `ctx.role`: Checked against 'organization_coordinator' and 'super_admin'
 
 **Patterns Identified**:
+
 - **Role-based RBAC**: All operations require coordinator role
 - **Organization isolation**: All queries explicitly check organization_id
 - **Audit trail**: All modifications logged
 
 **Gaps & Issues**:
+
 - None identified at authorization layer
 - No dual-control (not needed for profile-level operations)
 
@@ -556,9 +602,11 @@ async initiateDisbursement(
 ---
 
 #### 9. group-bank-accounts.service
+
 **File**: `lib/services/group-bank-accounts.service.ts`
 
 **Permission Model**:
+
 - Uses `ctx.groupId` for group isolation
 - No role-based checks
 - Uses `recordApproval()` for dual-control on activation
@@ -575,10 +623,12 @@ async initiateDisbursement(
 | list() | ❌ | Filters by ctx.groupId only |
 
 **Context Usage**:
+
 - `ctx.userId`: Used for recording approvals and creation
 - `ctx.groupId`: Used for all queries
 
 **Patterns Identified**:
+
 - **Dual-control on activation**: Critical operation (determines where settlements go)
   - Uses `recordApproval()` which enforces `created_by !== ctx.userId`
 - **Single-actor on disable**: Deliberate choice (disabling reduces risk)
@@ -586,6 +636,7 @@ async initiateDisbursement(
 - **Reconciliation column**: source_account for B2B reconciliation
 
 **Gaps & Issues**:
+
 - **CRITICAL**: No role check on `create()`
   - Any group member can create bank accounts
   - Should require treasurer/finance officer role
@@ -594,6 +645,7 @@ async initiateDisbursement(
 **Risk Classification**: **HIGH**
 
 **Recommended Authorization Model**:
+
 ```typescript
 async create(ctx: TenantContext, input: CreateGroupBankAccountInput): Promise<GroupBankAccountRow> {
   // NEW: Require treasurer/finance officer role
@@ -617,16 +669,17 @@ async disable(ctx: TenantContext, id: string, reason?: string): Promise<GroupBan
 ## Authorization Patterns & Recommendations
 
 ### Pattern 1: Organization-Scoped Services (CORRECT PATTERN)
+
 **Used by**: organization-finance.service, organization.service, organization-members.service
 
 ```typescript
 async operation(ctx: TenantContext, ...): Promise<Result> {
   // 1. Role check at entry point
   await organizationService.assertOrganizationCoordinator(ctx);
-  
+
   // 2. Organization ID validation (belt-and-braces)
   const organizationId = orgId(ctx); // throws if missing
-  
+
   // 3. RLS at query layer provides defense-in-depth
   return withDb(ctx, async (db) => {
     const { rows } = await db.query(
@@ -639,6 +692,7 @@ async operation(ctx: TenantContext, ...): Promise<Result> {
 ```
 
 **Strengths**:
+
 - Clear role requirement
 - Defense-in-depth (both app layer and RLS)
 - Consistent pattern across services
@@ -651,6 +705,7 @@ async operation(ctx: TenantContext, ...): Promise<Result> {
 ### Pattern 2: Dual-Control / Maker-Checker (CORRECT PATTERN)
 
 **Option A: Direct Check** (loans.service, disbursements.service)
+
 ```typescript
 async approve(ctx: TenantContext, id: string): Promise<Result> {
   const { rows } = await db.query('SELECT initiated_by FROM table WHERE id = $1', [id]);
@@ -662,10 +717,11 @@ async approve(ctx: TenantContext, id: string): Promise<Result> {
 ```
 
 **Option B: Shared Helper** (settlements.service, group-bank-accounts.service)
+
 ```typescript
 async approve(ctx: TenantContext, id: string): Promise<Result> {
   const { rows } = await db.query('SELECT created_by FROM table WHERE id = $1', [id]);
-  
+
   await recordApproval(db, ctx, {
     subjectType: 'subject',
     subjectId: id,
@@ -678,6 +734,7 @@ async approve(ctx: TenantContext, id: string): Promise<Result> {
 ```
 
 **Current Coverage**:
+
 - ✅ loans.service: writeOff() only
 - ✅ organization-finance.service: approveDisbursement()
 - ✅ settlements.service: approve(), reject()
@@ -685,6 +742,7 @@ async approve(ctx: TenantContext, id: string): Promise<Result> {
 - ✅ group-bank-accounts.service: activate(), reject()
 
 **Missing Coverage** (HIGH RISK):
+
 - ❌ loans.service: approve(), reject(), disburse()
 - ❌ contributions.service: All operations
 - ❌ members.service: All operations
@@ -710,11 +768,13 @@ if (requiresApproval) {
 ```
 
 **Characteristics**:
+
 - **Appropriate for amount-based gating** (high amounts need review)
 - **Does not replace role checks** (role still needed to initiate)
 - **Risk**: Auto-approval under threshold could be abused if threshold is too high
 
 **Recommendation**: Use threshold + role check together:
+
 ```typescript
 // PROPOSED
 if (!['treasurer', 'finance_officer'].includes(ctx.role)) {
@@ -730,6 +790,7 @@ const requiresApproval = amount > threshold; // Additionally check threshold
 ### Issue #1: Missing RBAC in Group-Scoped Services
 
 **Affected Services** (5 services):
+
 - contributions.service ❌
 - loans.service ❌
 - members.service ❌
@@ -738,6 +799,7 @@ const requiresApproval = amount > threshold; // Additionally check threshold
 - group-bank-accounts.service ❌
 
 **Impact**: Any authenticated group member can:
+
 - Create, approve, and disburse loans
 - Create and approve settlements
 - Create and approve disbursements
@@ -745,6 +807,7 @@ const requiresApproval = amount > threshold; // Additionally check threshold
 - Create bank accounts
 
 **Mitigation**: Implement role checks based on operation:
+
 - **Treasurer**: contributions, settlements, disbursements
 - **Loan Officer**: loans (apply, approve, disburse)
 - **Chairman/Secretary**: members (create, update role, transition status)
@@ -754,10 +817,12 @@ const requiresApproval = amount > threshold; // Additionally check threshold
 ### Issue #2: Inconsistent Dual-Control Implementation
 
 **Current State**:
+
 - 5 operations have dual-control ✅
 - 10+ operations need it ❌
 
 **Operations Requiring Dual-Control**:
+
 - Loan approval (high-value decision)
 - Loan disbursement (money leaves group)
 - Settlement initiation (money leaves group)
@@ -772,6 +837,7 @@ const requiresApproval = amount > threshold; // Additionally check threshold
 ### Issue #3: RLS vs. Application Layer Authorization
 
 **Current Pattern**:
+
 ```
 RLS Checks                      | App Layer Checks
 ────────────────────────────────┼─────────────────────────
@@ -781,11 +847,13 @@ RLS Checks                      | App Layer Checks
 ```
 
 **Risk**: RLS provides table-level isolation but not fine-grained authorization:
+
 - RLS prevents cross-group data leaks ✅
 - RLS does NOT enforce role-based policies ❌
 - Anyone with any role can access their group's data ❌
 
 **Recommendation**: Implement **belt-and-braces** pattern:
+
 ```typescript
 // Layer 1: Application-layer role check
 if (!hasRequiredRole(ctx.role)) {
@@ -803,17 +871,17 @@ await db.query(
 
 ## Risk Assessment Matrix
 
-| Service | Role Checks | Dual-Control | RLS | Overall Risk |
-|---------|-------------|--------------|-----|--------------|
-| contributions | ❌ | ❌ | ✅ | **HIGH** |
-| loans | ❌ | ⚠️ | ✅ | **HIGH** |
-| organization-finance | ✅ | ✅ | ✅ | **MEDIUM** |
-| members | ❌ | ❌ | ✅ | **HIGH** |
-| organization-members | ✅ | ❌ | ✅ | **LOW** |
-| settlements | ❌ | ⚠️ | ✅ | **HIGH** |
-| disbursements | ❌ | ✅ | ✅ | **HIGH** |
-| organization | ✅ | ❌ | ✅ | **MEDIUM** |
-| group-bank-accounts | ❌ | ⚠️ | ✅ | **HIGH** |
+| Service              | Role Checks | Dual-Control | RLS | Overall Risk |
+| -------------------- | ----------- | ------------ | --- | ------------ |
+| contributions        | ❌          | ❌           | ✅  | **HIGH**     |
+| loans                | ❌          | ⚠️           | ✅  | **HIGH**     |
+| organization-finance | ✅          | ✅           | ✅  | **MEDIUM**   |
+| members              | ❌          | ❌           | ✅  | **HIGH**     |
+| organization-members | ✅          | ❌           | ✅  | **LOW**      |
+| settlements          | ❌          | ⚠️           | ✅  | **HIGH**     |
+| disbursements        | ❌          | ✅           | ✅  | **HIGH**     |
+| organization         | ✅          | ❌           | ✅  | **MEDIUM**   |
+| group-bank-accounts  | ❌          | ⚠️           | ✅  | **HIGH**     |
 
 **Overall Platform Risk**: **HIGH** — 6 critical services lack role-based authorization.
 
@@ -827,39 +895,29 @@ await db.query(
 
 ```typescript
 // lib/utils/authorization.ts
-export async function assertGroupRole(
-  ctx: TenantContext,
-  requiredRoles: string[]
-): Promise<void> {
+export async function assertGroupRole(ctx: TenantContext, requiredRoles: string[]): Promise<void> {
   if (!requiredRoles.includes(ctx.role)) {
-    throw new ForbiddenError(
-      `This operation requires one of: ${requiredRoles.join(', ')}`
-    );
+    throw new ForbiddenError(`This operation requires one of: ${requiredRoles.join(', ')}`);
   }
 }
 
-export function assertMakerChecker(
-  initiatedBy: string,
-  approvingAs: string,
-  operationName: string
-): void {
+export function assertMakerChecker(initiatedBy: string, approvingAs: string, operationName: string): void {
   if (initiatedBy === approvingAs) {
-    throw new ForbiddenError(
-      `Maker-checker: the initiator cannot ${operationName} their own request`
-    );
+    throw new ForbiddenError(`Maker-checker: the initiator cannot ${operationName} their own request`);
   }
 }
 
 export async function getEffectiveThreshold(
   db: PoolClient,
   policyKey: string,
-  context: { groupId?: string; organizationId?: string }
+  context: { groupId?: string; organizationId?: string },
 ): Promise<number> {
   // Existing implementation, but ensure used consistently
 }
 ```
 
 **Tasks**:
+
 1. Review and document existing role definitions across platform
 2. Create centralized authorization helper functions
 3. Define role→permission matrix for each service
@@ -875,11 +933,9 @@ export async function getEffectiveThreshold(
    - require 'loan_officer' | 'finance_officer' for apply()
    - add dual-control to approve() and disburse()
    - restrict markDefaulted() to loan_officer
-   
 2. **settlements.service** (HIGH PRIORITY)
    - require 'treasurer' | 'finance_officer' for initiate()
    - maker-checker already working on approve()
-   
 3. **disbursements.service** (HIGH PRIORITY)
    - require 'treasurer' | 'finance_officer' for initiate()
    - maker-checker already working on approve()
@@ -902,11 +958,13 @@ export async function getEffectiveThreshold(
 ### Phase 2.3: Standardize Dual-Control Patterns (Week 3-4)
 
 **Implementation**:
+
 - Apply direct checks (like disbursements) for simpler operations
 - Use recordApproval() pattern for complex workflows
 - Ensure consistency in error messages
 
 **Services to update**:
+
 - Add dual-control to loans.service: approve(), disburse()
 - Add dual-control to settlements.service: initiate() if high-value
 - Add role checks to members.service: updateRole(), transitionStatus()
@@ -931,23 +989,24 @@ describe('Authorization', () => {
   describe('loans.service', () => {
     it('should require loan_officer role to approve loans', async () => {
       const memberContext = { role: 'member', groupId: 'g1', userId: 'u1' };
-      expect(() => loansService.approve(memberContext, 'loan1'))
-        .toThrow('Only loan officers can approve loans');
+      expect(() => loansService.approve(memberContext, 'loan1')).toThrow('Only loan officers can approve loans');
     });
-    
+
     it('should enforce maker-checker on loan approval', async () => {
       const approverContext = { role: 'loan_officer', groupId: 'g1', userId: 'u2' };
       const loan = { id: 'loan1', applied_by: 'u2' }; // approver applied it
-      expect(() => loansService.approve(approverContext, 'loan1'))
-        .toThrow('Maker-checker: the officer who applied this loan cannot approve it');
+      expect(() => loansService.approve(approverContext, 'loan1')).toThrow(
+        'Maker-checker: the officer who applied this loan cannot approve it',
+      );
     });
   });
-  
+
   describe('members.service', () => {
     it('should require chairman to change member roles', async () => {
       const memberContext = { role: 'member', groupId: 'g1', userId: 'u1' };
-      expect(() => membersService.updateRole(memberContext, 'member2', 'treasurer'))
-        .toThrow('Only board members can change member roles');
+      expect(() => membersService.updateRole(memberContext, 'member2', 'treasurer')).toThrow(
+        'Only board members can change member roles',
+      );
     });
   });
 });
@@ -971,6 +1030,7 @@ describe('Authorization', () => {
 ## Conclusion
 
 The Kitabu Yetu platform has made good progress on authorization through:
+
 - ✅ RLS for tenant isolation
 - ✅ Dual-control patterns in some services
 - ✅ Role enforcement in organization-scoped services
@@ -980,11 +1040,13 @@ However, the **largest gap** remains in group-scoped services (6 services) where
 Phase 2 implementation of consistent RBAC and standardized dual-control patterns will **significantly reduce authorization risk** and align the platform with governance best practices.
 
 **Estimated Effort for Phase 2 Implementation**: 3-4 weeks
+
 - Week 1-2: Framework setup and role definitions
 - Week 2-4: Service-by-service updates
 - Week 4-5: Testing and cross-platform audit
 
 **Success Criteria**:
+
 - All financial operations require appropriate role
 - Dual-control enforced for high-risk actions
 - Consistent pattern across all services

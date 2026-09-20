@@ -23,7 +23,7 @@ jest.mock('@/lib/redis', () => ({
   keys: { cache: (name: string, scope: string) => `cache:${name}:${scope}` },
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -36,15 +36,17 @@ const ctx = { groupId: 'g1', userId: 'u1', role: 'treasurer' };
 describe('getCashFlowStatement', () => {
   it('classifies counter-accounts into IAS 7 sections (lending = operating)', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { account_code: '4001', account_name: 'Member Contributions', type: 'income',    cash_impact: '10000' },
-        { account_code: '5002', account_name: 'SMS Expenses',         type: 'expense',   cash_impact: '-500' },
-        { account_code: '1101', account_name: 'Loans Receivable',     type: 'asset',     cash_impact: '-7000' },
-        { account_code: '1201', account_name: 'Fixed Assets',         type: 'asset',     cash_impact: '-2000' },
-        { account_code: '3001', account_name: 'Member Equity',        type: 'equity',    cash_impact: '3000' },
-        { account_code: '2103', account_name: 'Dividends Payable',    type: 'liability', cash_impact: '-1500' },
-        { account_code: '2102', account_name: 'Welfare Fund',         type: 'liability', cash_impact: '800' },
-      ]})
+      .mockResolvedValueOnce({
+        rows: [
+          { account_code: '4001', account_name: 'Member Contributions', type: 'income', cash_impact: '10000' },
+          { account_code: '5002', account_name: 'SMS Expenses', type: 'expense', cash_impact: '-500' },
+          { account_code: '1101', account_name: 'Loans Receivable', type: 'asset', cash_impact: '-7000' },
+          { account_code: '1201', account_name: 'Fixed Assets', type: 'asset', cash_impact: '-2000' },
+          { account_code: '3001', account_name: 'Member Equity', type: 'equity', cash_impact: '3000' },
+          { account_code: '2103', account_name: 'Dividends Payable', type: 'liability', cash_impact: '-1500' },
+          { account_code: '2102', account_name: 'Welfare Fund', type: 'liability', cash_impact: '800' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ opening: '5000', closing: '7800' }] });
 
     const cf = await accountingService.getCashFlowStatement(ctx, '2026-01-01', '2026-12-31');
@@ -53,20 +55,20 @@ describe('getCashFlowStatement', () => {
     expect(cf.investing.map((l) => l.accountCode)).toEqual(['1201']);
     expect(cf.financing.map((l) => l.accountCode)).toEqual(['3001', '2103']);
 
-    expect(cf.netOperating).toBe('3300.00');  // 10000 - 500 - 7000 + 800
+    expect(cf.netOperating).toBe('3300.00'); // 10000 - 500 - 7000 + 800
     expect(cf.netInvesting).toBe('-2000.00');
-    expect(cf.netFinancing).toBe('1500.00');  // 3000 - 1500
+    expect(cf.netFinancing).toBe('1500.00'); // 3000 - 1500
     expect(cf.netChange).toBe('2800.00');
     expect(cf.openingCash).toBe('5000.00');
     expect(cf.closingCash).toBe('7800.00');
-    expect(cf.reconciles).toBe(true);         // 5000 + 2800 = 7800
+    expect(cf.reconciles).toBe(true); // 5000 + 2800 = 7800
   });
 
   it('flags non-reconciliation instead of silently presenting wrong numbers', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { account_code: '4001', account_name: 'Member Contributions', type: 'income', cash_impact: '1000' },
-      ]})
+      .mockResolvedValueOnce({
+        rows: [{ account_code: '4001', account_name: 'Member Contributions', type: 'income', cash_impact: '1000' }],
+      })
       .mockResolvedValueOnce({ rows: [{ opening: '0', closing: '9999' }] });
 
     const cf = await accountingService.getCashFlowStatement(ctx, '2026-01-01', '2026-12-31');
@@ -77,10 +79,24 @@ describe('getCashFlowStatement', () => {
 describe('getEquityChanges', () => {
   it('computes closing = opening + increases − decreases per account', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { account_code: '3001', account_name: 'Member Equity',    opening: '10000', increases: '3000', decreases: '500' },
-        { account_code: '3101', account_name: 'Retained Surplus', opening: '2000',  increases: '0',    decreases: '1000' },
-      ]})
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            account_code: '3001',
+            account_name: 'Member Equity',
+            opening: '10000',
+            increases: '3000',
+            decreases: '500',
+          },
+          {
+            account_code: '3101',
+            account_name: 'Retained Surplus',
+            opening: '2000',
+            increases: '0',
+            decreases: '1000',
+          },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ net: '4200' }] });
 
     const sce = await accountingService.getEquityChanges(ctx, '2026-01-01', '2026-12-31');

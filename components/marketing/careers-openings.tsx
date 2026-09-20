@@ -29,18 +29,11 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
   const [department, setDepartment] = useState('all');
   const [location, setLocation] = useState('all');
 
-  const departments = useMemo(
-    () => Array.from(new Set(jobs.map((j) => j.department))),
-    [jobs],
-  );
-  const locations = useMemo(
-    () => Array.from(new Set(jobs.map((j) => j.location))),
-    [jobs],
-  );
+  const departments = useMemo(() => Array.from(new Set(jobs.map((j) => j.department))), [jobs]);
+  const locations = useMemo(() => Array.from(new Set(jobs.map((j) => j.location))), [jobs]);
 
   const filtered = jobs.filter((job) => {
-    const matchesSearch = search.trim().length === 0
-      || job.title.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesSearch = search.trim().length === 0 || job.title.toLowerCase().includes(search.trim().toLowerCase());
     const matchesDepartment = department === 'all' || job.department === department;
     const matchesLocation = location === 'all' || job.location === location;
     return matchesSearch && matchesDepartment && matchesLocation;
@@ -70,7 +63,9 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
           >
             <option value="all">All departments</option>
             {departments.map((d) => (
-              <option key={d} value={d}>{DEPARTMENT_LABEL[d] ?? d}</option>
+              <option key={d} value={d}>
+                {DEPARTMENT_LABEL[d] ?? d}
+              </option>
             ))}
           </select>
         </label>
@@ -84,7 +79,9 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
           >
             <option value="all">All locations</option>
             {locations.map((l) => (
-              <option key={l} value={l}>{l}</option>
+              <option key={l} value={l}>
+                {l}
+              </option>
             ))}
           </select>
         </label>

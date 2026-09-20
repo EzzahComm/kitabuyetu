@@ -98,9 +98,7 @@ describe('sms provider health alerting', () => {
 
   it('sends the alert by email only — never over SMS', async () => {
     await seedUsage(groupId, 20, 20);
-    const before = await rawQuery<{ n: string }>(
-      `SELECT COUNT(*)::text AS n FROM sms_usage_logs`,
-    );
+    const before = await rawQuery<{ n: string }>(`SELECT COUNT(*)::text AS n FROM sms_usage_logs`);
 
     await sampleProviderHealth();
 
@@ -110,9 +108,7 @@ describe('sms provider health alerting', () => {
 
     // Alerting about a broken SMS channel must not put anything down that
     // channel: no new usage row exists after the alert.
-    const after = await rawQuery<{ n: string }>(
-      `SELECT COUNT(*)::text AS n FROM sms_usage_logs`,
-    );
+    const after = await rawQuery<{ n: string }>(`SELECT COUNT(*)::text AS n FROM sms_usage_logs`);
     expect(after[0].n).toBe(before[0].n);
   });
 

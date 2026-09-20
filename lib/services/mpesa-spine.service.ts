@@ -18,12 +18,21 @@ import { formatMembershipNo } from '@/lib/utils/membership-no';
 export const IS_SANDBOX = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
 
 export async function logPaymentEvent(
-  db:        PoolClient,
+  db: PoolClient,
   paymentId: string,
-  event:     'received' | 'validated' | 'allocated' | 'journal_posted' | 'unrouted' |
-             'reallocated' | 'reversed' | 'refunded' | 'charged_back' | 'replayed',
-  detail?:   Record<string, unknown>,
-  actor?:    string | null,
+  event:
+    | 'received'
+    | 'validated'
+    | 'allocated'
+    | 'journal_posted'
+    | 'unrouted'
+    | 'reallocated'
+    | 'reversed'
+    | 'refunded'
+    | 'charged_back'
+    | 'replayed',
+  detail?: Record<string, unknown>,
+  actor?: string | null,
 ): Promise<void> {
   await db.query(
     `INSERT INTO payment_events (payment_id, event, actor, detail)
@@ -33,10 +42,10 @@ export async function logPaymentEvent(
 }
 
 export async function emitOutbox(
-  db:          PoolClient,
-  eventType:   string,
+  db: PoolClient,
+  eventType: string,
   aggregateId: string,
-  payload:     Record<string, unknown>,
+  payload: Record<string, unknown>,
 ): Promise<void> {
   await db.query(
     `INSERT INTO event_outbox (event_type, aggregate_id, payload)
@@ -47,10 +56,9 @@ export async function emitOutbox(
 
 /** Spine payment id for a receipt (null when no payments row exists). */
 export async function spinePaymentId(db: PoolClient, receipt: string): Promise<string | null> {
-  const { rows } = await db.query<{ id: string }>(
-    `SELECT id FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`,
-    [receipt],
-  );
+  const { rows } = await db.query<{ id: string }>(`SELECT id FROM payments WHERE mpesa_receipt_number = $1 LIMIT 1`, [
+    receipt,
+  ]);
   return rows[0]?.id ?? null;
 }
 
@@ -59,9 +67,9 @@ export async function spinePaymentId(db: PoolClient, receipt: string): Promise<s
  * Idempotent: only rows still in received/unrouted transition.
  */
 export async function markSpineAllocated(
-  db:      PoolClient,
+  db: PoolClient,
   receipt: string,
-  opts?:   { isThirdParty?: boolean; actor?: string | null; detail?: Record<string, unknown> },
+  opts?: { isThirdParty?: boolean; actor?: string | null; detail?: Record<string, unknown> },
 ): Promise<void> {
   // Fetch existing payment to capture old values
   const { rows: existing } = await db.query<{ id: string; allocation_status: string }>(
@@ -100,16 +108,13 @@ export async function markSpineAllocated(
 
   await logPaymentEvent(db, paymentId, 'allocated', opts?.detail, opts?.actor);
   await emitOutbox(db, 'payment.allocated', paymentId, {
-    receipt, ...(opts?.detail ?? {}),
+    receipt,
+    ...(opts?.detail ?? {}),
   });
 }
 
 /** Transition the spine to 'unrouted' when auto-allocation could not bind. */
-export async function markSpineUnrouted(
-  db:      PoolClient,
-  receipt: string,
-  reason:  string,
-): Promise<void> {
+export async function markSpineUnrouted(db: PoolClient, receipt: string, reason: string): Promise<void> {
   // Fetch existing payment to capture old values
   const { rows: existing } = await db.query<{ id: string; allocation_status: string }>(
     `SELECT id, allocation_status FROM payments WHERE mpesa_receipt_number = $1 AND allocation_status = 'received'`,
@@ -162,18 +167,20 @@ export async function markSpineUnrouted(
  * AFTER the money transaction committed (emitBusinessEvent does its own DB
  * work and may send inline). Best-effort by design — never throws.
  */
-export async function emitPaymentReceiptEvent(
-  paymentId: string,
-  opts?: { requireAllocated?: boolean },
-): Promise<void> {
+export async function emitPaymentReceiptEvent(paymentId: string, opts?: { requireAllocated?: boolean }): Promise<void> {
   try {
     const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-    const { SMS_EVENTS }        = await import('@/lib/sms/events');
+    const { SMS_EVENTS } = await import('@/lib/sms/events');
 
     const data = await withAdminDb(async (db) => {
-      const { rows: [payment] } = await db.query<{
-        group_id: string; amount: string; mpesa_phone: string | null;
-        mpesa_receipt_number: string | null; allocation_status: string;
+      const {
+        rows: [payment],
+      } = await db.query<{
+        group_id: string;
+        amount: string;
+        mpesa_phone: string | null;
+        mpesa_receipt_number: string | null;
+        allocation_status: string;
       }>(
         `SELECT group_id, amount, mpesa_phone, mpesa_receipt_number, allocation_status
          FROM   payments WHERE id = $1`,
@@ -185,8 +192,13 @@ export async function emitPaymentReceiptEvent(
       // top-up payments never reach 'allocated' but still deserve a receipt).
       if (opts?.requireAllocated && payment.allocation_status !== 'allocated') return null;
 
-      const { rows: [alloc] } = await db.query<{
-        product: string; group_name: string; membership_no: string | null; balance: string;
+      const {
+        rows: [alloc],
+      } = await db.query<{
+        product: string;
+        group_name: string;
+        membership_no: string | null;
+        balance: string;
       }>(
         `SELECT 'savings' AS product, g.name AS group_name, gm.membership_no,
                 COALESCE((SELECT SUM(c2.amount) FROM contributions c2
@@ -240,25 +252,28 @@ export async function emitPaymentReceiptEvent(
     // worse than no receipt.
     if (!data.alloc) {
       logger.info('[mpesa] skipping generic receipt for a non-allocated payment', {
-        paymentId, groupId: data.payment.group_id,
+        paymentId,
+        groupId: data.payment.group_id,
       });
       return;
     }
 
     await emitBusinessEvent({
       eventType: SMS_EVENTS.PAYMENT_RECEIVED,
-      eventId:   paymentId,
-      groupId:   data.payment.group_id,
+      eventId: paymentId,
+      groupId: data.payment.group_id,
       payload: {
-        amount:  parseFloat(data.payment.amount),
+        amount: parseFloat(data.payment.amount),
         receipt: data.payment.mpesa_receipt_number ?? 'N/A',
-        phone:   data.payment.mpesa_phone,
-        ...(data.alloc ? {
-          group_name:    data.alloc.group_name,
-          membership_no: data.alloc.membership_no ? formatMembershipNo(data.alloc.membership_no) : undefined,
-          product:       data.alloc.product,
-          balance:       Number(data.alloc.balance).toLocaleString(),
-        } : {}),
+        phone: data.payment.mpesa_phone,
+        ...(data.alloc
+          ? {
+              group_name: data.alloc.group_name,
+              membership_no: data.alloc.membership_no ? formatMembershipNo(data.alloc.membership_no) : undefined,
+              product: data.alloc.product,
+              balance: Number(data.alloc.balance).toLocaleString(),
+            }
+          : {}),
       },
     });
   } catch (err) {

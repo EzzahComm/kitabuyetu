@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { revokeRefreshToken } from '@/lib/redis';
 import { hashToken, verifyRefreshToken } from '@/lib/auth/jwt';
@@ -17,10 +17,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         // Revoke in both Redis and DB using the same SHA-256 hash stored at login.
         await revokeRefreshToken(hash);
         await withAdminDb(async (client) => {
-          await client.query(
-            'UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1',
-            [hash],
-          );
+          await client.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1', [hash]);
         });
       } catch {
         // Ignore invalid tokens on logout — client clears storage regardless

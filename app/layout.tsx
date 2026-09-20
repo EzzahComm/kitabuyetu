@@ -40,13 +40,22 @@ export const metadata: Metadata = {
   // var would have silently pointed every canonical link and OG image at
   // somebody else's domain. Next resolves relative URLs and warns instead,
   // which is a visible degradation rather than a confident wrong answer.
-  metadataBase: process.env.NEXT_PUBLIC_APP_URL
-    ? new URL(process.env.NEXT_PUBLIC_APP_URL)
-    : undefined,
-  title:       { default: `Kitabu Yetu — ${TAGLINE}`, template: '%s | Kitabu Yetu' },
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
+  title: { default: `Kitabu Yetu — ${TAGLINE}`, template: '%s | Kitabu Yetu' },
   description: LONG_DESCRIPTION,
   applicationName: 'Kitabu Yetu',
-  keywords: ['chama', 'table banking', 'welfare', 'SACCO', 'cooperative', 'investment club', 'Kenya', 'East Africa', 'bookkeeping', 'community finance'],
+  keywords: [
+    'chama',
+    'table banking',
+    'welfare',
+    'SACCO',
+    'cooperative',
+    'investment club',
+    'Kenya',
+    'East Africa',
+    'bookkeeping',
+    'community finance',
+  ],
   authors: [{ name: 'Kitabu Yetu' }],
   manifest: '/manifest.webmanifest',
   appleWebApp: {
@@ -65,16 +74,14 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.png',        sizes: '32x32',  type: 'image/png' },
-      { url: '/icons/icon-72.png',  sizes: '72x72',  type: 'image/png' },
-      { url: '/icons/icon-96.png',  sizes: '96x96',  type: 'image/png' },
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
+      { url: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
       { url: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: [
-      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
     shortcut: '/favicon.png',
   },
   openGraph: {
@@ -102,4 +109,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-

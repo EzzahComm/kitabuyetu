@@ -25,7 +25,9 @@ import { __resetSubscriptionCache } from '@/lib/auth/subscription-gate';
 
 function headersFor(groupId: string, officerId: string, role = 'chairperson') {
   return authHeaders({
-    userId: officerId, groupId, role,
+    userId: officerId,
+    groupId,
+    role,
     permissions: ['billing.manage', 'contributions.view', 'contributions.record'],
   });
 }
@@ -50,7 +52,7 @@ describe('paid-subscription lock', () => {
     );
     expect(res.status).toBe(402);
 
-    const body = await res.json() as { code: string };
+    const body = (await res.json()) as { code: string };
     expect(body.code).toBe('PAYMENT_REQUIRED');
   });
 
@@ -62,7 +64,7 @@ describe('paid-subscription lock', () => {
     );
     expect(res.status).toBe(200);
 
-    const body = await res.json() as { data: { plans: { plan: string; monthlyFee: number }[] } };
+    const body = (await res.json()) as { data: { plans: { plan: string; monthlyFee: number }[] } };
     expect(body.data.plans.map((p) => p.plan)).toEqual(
       expect.arrayContaining(['starter', 'growth', 'premium', 'enterprise']),
     );
@@ -89,14 +91,13 @@ describe('paid-subscription lock', () => {
 
   it('re-locks when the only subscription is expired', async () => {
     await subscribeTestGroup(groupId);
-    expect((await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
-    )).status).toBe(200);
+    expect(
+      (await contributionsGet(buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) })))
+        .status,
+    ).toBe(200);
 
     // Exactly what migration 139 does to the legacy free plans.
-    await rawQuery(
-      `UPDATE subscriptions SET status = 'expired' WHERE group_id = $1`, [groupId],
-    );
+    await rawQuery(`UPDATE subscriptions SET status = 'expired' WHERE group_id = $1`, [groupId]);
 
     // Losing entitlement is NOT instant, by design: a positive is cached for
     // up to 60s, so the group keeps working until it lapses. That tradeoff is
@@ -106,9 +107,10 @@ describe('paid-subscription lock', () => {
     // rather than waiting out the TTL.
     __resetSubscriptionCache();
 
-    expect((await contributionsGet(
-      buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) }),
-    )).status).toBe(402);
+    expect(
+      (await contributionsGet(buildRequest('/api/v1/contributions', { headers: headersFor(groupId, officerId) })))
+        .status,
+    ).toBe(402);
   });
 
   it('does not lock support staff out of an unpaid group', async () => {
@@ -116,7 +118,9 @@ describe('paid-subscription lock', () => {
     const res = await contributionsGet(
       buildRequest('/api/v1/contributions', {
         headers: authHeaders({
-          userId: officerId, groupId, role: 'super_admin',
+          userId: officerId,
+          groupId,
+          role: 'super_admin',
           permissions: ['contributions.view'],
         }),
       }),
@@ -143,7 +147,7 @@ describe('paid-subscription lock', () => {
     );
     expect(res.status).toBe(402);
 
-    const body = await res.json() as { code: string };
+    const body = (await res.json()) as { code: string };
     expect(body.code).toBe('PRODUCT_NOT_ENTITLED');
   });
 
@@ -157,7 +161,9 @@ describe('paid-subscription lock', () => {
     const res = await smsUsageGet(
       buildRequest('/api/v1/sms/usage', {
         headers: authHeaders({
-          userId: officerId, groupId, role: 'chairperson',
+          userId: officerId,
+          groupId,
+          role: 'chairperson',
           permissions: ['messaging.view', 'messaging.send'],
         }),
       }),

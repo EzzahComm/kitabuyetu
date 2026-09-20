@@ -10,13 +10,13 @@
 
 **Score: 62/100.** No security issues, no correctness bugs, nothing here is causing an incident. But real, avoidable query-cost debt exists in two well-defined, fixable patterns, plus a third data-quality issue in the advisor output itself that would have caused wrong action if taken at face value.
 
-| Category | Count | Level | Verdict |
-|---|---|---|---|
-| Multiple permissive RLS policies | 175 (25 tables × up to 7 roles) | WARN | **Real, structural** — every one of these tables evaluates 2-3 separate policies per row on every query, for every role including `anon` |
-| Unindexed foreign keys | 60 (29 tables) | INFO | **Real, mechanical** — joins/cascades on these columns are sequential scans today |
-| `auth_rls_initplan` (per-row re-evaluation) | 6 (6 tables) | WARN | **Real, trivial fix** — textbook Supabase footgun, one-line-per-policy correction |
-| Unused indexes | 296 (107 tables) | INFO | **Not actionable as reported** — see §2.4, the list is contaminated by indexes on tables that are days old |
-| Table bloat | 1 | INFO | **Not our schema** — `net._http_response`, a `pg_net` extension internal table, not application code |
+| Category                                    | Count                           | Level | Verdict                                                                                                                                  |
+| ------------------------------------------- | ------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Multiple permissive RLS policies            | 175 (25 tables × up to 7 roles) | WARN  | **Real, structural** — every one of these tables evaluates 2-3 separate policies per row on every query, for every role including `anon` |
+| Unindexed foreign keys                      | 60 (29 tables)                  | INFO  | **Real, mechanical** — joins/cascades on these columns are sequential scans today                                                        |
+| `auth_rls_initplan` (per-row re-evaluation) | 6 (6 tables)                    | WARN  | **Real, trivial fix** — textbook Supabase footgun, one-line-per-policy correction                                                        |
+| Unused indexes                              | 296 (107 tables)                | INFO  | **Not actionable as reported** — see §2.4, the list is contaminated by indexes on tables that are days old                               |
+| Table bloat                                 | 1                               | INFO  | **Not our schema** — `net._http_response`, a `pg_net` extension internal table, not application code                                     |
 
 **What this is not:** no finding here implies data is wrong, isolation is broken, or anything is user-facing broken. This is entirely "the database is doing more work per query than it needs to" — invisible today at Kitabu Yetu's current transaction volume (see [[project-kitabu-yetu-real-capital-state]] — a single real org, KES 1.5M), and worth fixing before it isn't.
 

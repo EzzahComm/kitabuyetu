@@ -9,17 +9,16 @@ export const billingKeys = {
   // would let the Kitabu Yetu billing page and the Chama Reminder subscribe
   // page serve each other's cached prices — and the server verifies the amount
   // paid against its own table, so the mismatch surfaces as a failed payment.
-  plans:       (product?: SubscriptionProduct) =>
-                 ['billing', 'plans', product ?? 'kitabu_yetu'] as const,
-  invoices:    ['billing', 'invoices'] as const,
-  smsCredits:  ['billing', 'sms-credits'] as const,
+  plans: (product?: SubscriptionProduct) => ['billing', 'plans', product ?? 'kitabu_yetu'] as const,
+  invoices: ['billing', 'invoices'] as const,
+  smsCredits: ['billing', 'sms-credits'] as const,
   entitlements: ['billing', 'entitlements'] as const,
 };
 
 export function useBillingPlans(product?: SubscriptionProduct) {
   return useQuery({
     queryKey: billingKeys.plans(product),
-    queryFn:  () => billingApi.plans(product),
+    queryFn: () => billingApi.plans(product),
   });
 }
 
@@ -40,9 +39,8 @@ export function useUpgradePlan(product?: SubscriptionProduct) {
     // `product` has to be threaded: without it this claimed a kitabu_yetu
     // payment no matter which product the user actually paid for, so a Chama
     // Reminder purchase would find no claimable payment and fail.
-    mutationFn: (planType: UpgradePlanInput['planType']) =>
-                  billingApi.upgradePlan(planType, product),
-    onSuccess:  () => {
+    mutationFn: (planType: UpgradePlanInput['planType']) => billingApi.upgradePlan(planType, product),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: billingKeys.plans(product) });
       // Buying a product changes what this session may reach, and the portal
       // shells gate on it.
@@ -60,8 +58,8 @@ export function useStkPush() {
 export function usePollMpesa(checkoutRequestId: string | null, enabled: boolean) {
   return useQuery({
     queryKey: ['mpesa', 'poll', checkoutRequestId],
-    queryFn:  () => mpesaApi.pollStatus(checkoutRequestId!),
-    enabled:  enabled && !!checkoutRequestId,
+    queryFn: () => mpesaApi.pollStatus(checkoutRequestId!),
+    enabled: enabled && !!checkoutRequestId,
     // refetchInterval's callback receives the Query object, not its data
     // directly (query.state.data) — the previous `(data: any) => data?.status`
     // read a `.status` field that doesn't exist on a Query, so polling never

@@ -85,9 +85,9 @@ function resolveCredential(): string {
     if (!looksLikeRealCredential(preEncrypted)) {
       throw new Error(
         '[mpesa-credential] MPESA_B2C_SECURITY_CREDENTIAL is set but does not look ' +
-        'like a valid Safaricom credential (expected base64 RSA output, ~344+ chars). ' +
-        'Replace the placeholder with the encrypted blob from the Daraja portal, or ' +
-        'unset it and use MPESA_B2C_INITIATOR_PASSWORD + the public cert.',
+          'like a valid Safaricom credential (expected base64 RSA output, ~344+ chars). ' +
+          'Replace the placeholder with the encrypted blob from the Daraja portal, or ' +
+          'unset it and use MPESA_B2C_INITIATOR_PASSWORD + the public cert.',
       );
     }
     return preEncrypted;
@@ -99,8 +99,8 @@ function resolveCredential(): string {
     if (IS_SANDBOX) return '';
     throw new Error(
       '[mpesa-credential] No SecurityCredential available. Set either ' +
-      'MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) or ' +
-      'MPESA_B2C_INITIATOR_PASSWORD (plaintext, requires cert).',
+        'MPESA_B2C_SECURITY_CREDENTIAL (pre-encrypted) or ' +
+        'MPESA_B2C_INITIATOR_PASSWORD (plaintext, requires cert).',
     );
   }
 
@@ -141,8 +141,8 @@ function readCertFile(filePath: string): string {
   } catch (err) {
     throw new Error(
       `[mpesa-credential] Cannot read Safaricom public cert from ${filePath}. ` +
-      `Either place the cert there or set MPESA_PUBLIC_CERT_PEM / MPESA_PUBLIC_CERT_PATH. ` +
-      `Underlying error: ${(err as Error).message}`,
+        `Either place the cert there or set MPESA_PUBLIC_CERT_PEM / MPESA_PUBLIC_CERT_PATH. ` +
+        `Underlying error: ${(err as Error).message}`,
     );
   }
   return normaliseCertPem(raw);
@@ -159,7 +159,11 @@ function normaliseCertPem(input: string): string {
     return trimmed.replace(/\r\n/g, '\n');
   }
   // Bare base64 body — wrap with the standard PEM armor
-  const body = trimmed.replace(/\s+/g, '').match(/.{1,64}/g)?.join('\n') ?? '';
+  const body =
+    trimmed
+      .replace(/\s+/g, '')
+      .match(/.{1,64}/g)
+      ?.join('\n') ?? '';
   return `-----BEGIN CERTIFICATE-----\n${body}\n-----END CERTIFICATE-----\n`;
 }
 

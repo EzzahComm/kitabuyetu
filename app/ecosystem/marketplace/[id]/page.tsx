@@ -71,9 +71,7 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
           {partner && (
             <div className="rounded-lg border border-brand-blue-900/10 p-6">
               <h2 className="font-display text-xl font-normal text-brand-blue-900">About {partner.name}</h2>
-              {partner.description && (
-                <p className="mt-2 text-sm text-brand-blue-900/70">{partner.description}</p>
-              )}
+              {partner.description && <p className="mt-2 text-sm text-brand-blue-900/70">{partner.description}</p>}
               {partner.website_url && (
                 <a
                   href={partner.website_url}

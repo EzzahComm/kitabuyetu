@@ -4,7 +4,9 @@ import { withPermission } from '@/lib/auth/middleware';
 import { listRuleExecutions } from '@/lib/services/automation-rules.service';
 import { ok } from '@/lib/utils/response';
 
-interface Params { params: { channel: string; id: string } }
+interface Params {
+  params: { channel: string; id: string };
+}
 
 export async function GET(request: NextRequest, { params }: Params): Promise<Response> {
   return withPermission(request, 'crm.view', async (auth) => {

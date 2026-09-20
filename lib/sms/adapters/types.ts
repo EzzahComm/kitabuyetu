@@ -16,14 +16,7 @@ import type {
   BalanceResult,
 } from '@/lib/services/textsms.service';
 
-export type {
-  SingleSmsInput,
-  SmsResponse,
-  BulkSmsItem,
-  BulkSmsResult,
-  DlrResult,
-  BalanceResult,
-};
+export type { SingleSmsInput, SmsResponse, BulkSmsItem, BulkSmsResult, DlrResult, BalanceResult };
 
 /**
  * One SMS provider's raw send/poll/balance surface.

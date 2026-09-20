@@ -8,7 +8,11 @@ import { withAdminDb } from '@/lib/db';
 import { createEmployeeWith } from '@/lib/services/hr.service';
 import { uploadResume, createResumeSignedUrl } from '@/lib/supabase/resume-storage';
 import {
-  submitApplication, listApplications, updateApplicationStage, hireApplicant, getResumeUrl,
+  submitApplication,
+  listApplications,
+  updateApplicationStage,
+  hireApplicant,
+  getResumeUrl,
 } from '@/lib/services/careers.service';
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/utils/errors';
 
@@ -23,7 +27,7 @@ jest.mock('@/lib/supabase/resume-storage', () => ({
   createResumeSignedUrl: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -35,8 +39,10 @@ beforeEach(() => {
 });
 
 const validInput = {
-  jobSlug: 'engineer', jobTitle: 'Software Engineer',
-  applicantName: 'Jane Doe', applicantEmail: 'jane@example.com',
+  jobSlug: 'engineer',
+  jobTitle: 'Software Engineer',
+  applicantName: 'Jane Doe',
+  applicantEmail: 'jane@example.com',
 };
 
 describe('submitApplication', () => {
@@ -57,7 +63,11 @@ describe('submitApplication', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'app-1', resume_path: 'app-1/resume.pdf' }] }); // update with path
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit
 
-    const result = await submitApplication(validInput, { buffer: Buffer.from('x'), contentType: 'application/pdf', filename: 'cv.pdf' });
+    const result = await submitApplication(validInput, {
+      buffer: Buffer.from('x'),
+      contentType: 'application/pdf',
+      filename: 'cv.pdf',
+    });
 
     expect(result.resume_path).toBe('app-1/resume.pdf');
     expect(uploadResume).toHaveBeenCalledWith('app-1/resume.pdf', expect.any(Buffer), 'application/pdf');
@@ -68,7 +78,11 @@ describe('submitApplication', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit (upload path skipped — never reaches the UPDATE)
     (uploadResume as jest.Mock).mockRejectedValueOnce(new Error('storage unavailable'));
 
-    const result = await submitApplication(validInput, { buffer: Buffer.from('x'), contentType: 'application/pdf', filename: 'cv.pdf' });
+    const result = await submitApplication(validInput, {
+      buffer: Buffer.from('x'),
+      contentType: 'application/pdf',
+      filename: 'cv.pdf',
+    });
 
     expect(result.id).toBe('app-1');
     expect(result.resume_path).toBeNull();
@@ -104,32 +118,43 @@ describe('getResumeUrl', () => {
 describe('updateApplicationStage', () => {
   it('throws NotFoundError for an unknown application', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(updateApplicationStage('admin-1', 'ghost', { stage: 'screening' })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(updateApplicationStage('admin-1', 'ghost', { stage: 'screening' })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('throws ConflictError once an application is already hired', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'app-1', stage: 'hired' }] });
-    await expect(updateApplicationStage('admin-1', 'app-1', { stage: 'rejected' })).rejects.toBeInstanceOf(ConflictError);
+    await expect(updateApplicationStage('admin-1', 'app-1', { stage: 'rejected' })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
   });
 });
 
 describe('hireApplicant', () => {
   const applicationRow = {
-    id: 'app-1', stage: 'interview', applicant_name: 'Jane Doe',
-    applicant_email: 'jane@example.com', applicant_phone: null, job_title: 'Software Engineer', job_slug: 'engineer',
+    id: 'app-1',
+    stage: 'interview',
+    applicant_name: 'Jane Doe',
+    applicant_email: 'jane@example.com',
+    applicant_phone: null,
+    job_title: 'Software Engineer',
+    job_slug: 'engineer',
   };
 
   it('throws ConflictError if already hired', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...applicationRow, stage: 'hired' }] });
-    await expect(hireApplicant('admin-1', 'app-1', { employmentType: 'full_time', hireDate: '2026-01-01' }))
-      .rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      hireApplicant('admin-1', 'app-1', { employmentType: 'full_time', hireDate: '2026-01-01' }),
+    ).rejects.toBeInstanceOf(ConflictError);
     expect(createEmployeeWith).not.toHaveBeenCalled();
   });
 
   it('rejects hiring a rejected application', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...applicationRow, stage: 'rejected' }] });
-    await expect(hireApplicant('admin-1', 'app-1', { employmentType: 'full_time', hireDate: '2026-01-01' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      hireApplicant('admin-1', 'app-1', { employmentType: 'full_time', hireDate: '2026-01-01' }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(createEmployeeWith).not.toHaveBeenCalled();
   });
 
@@ -144,9 +169,15 @@ describe('hireApplicant', () => {
     expect(result.employee.id).toBe('emp-1');
     expect(result.application.hired_employee_id).toBe('emp-1');
     // Same mockClient passed through — proves no second withAdminDb/transaction was opened.
-    expect(createEmployeeWith).toHaveBeenCalledWith(mockClient, 'admin-1', expect.objectContaining({
-      firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
-    }));
+    expect(createEmployeeWith).toHaveBeenCalledWith(
+      mockClient,
+      'admin-1',
+      expect.objectContaining({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+      }),
+    );
   });
 
   it('splits a multi-word name into first/last correctly', async () => {
@@ -157,8 +188,13 @@ describe('hireApplicant', () => {
 
     await hireApplicant('admin-1', 'app-1', { employmentType: 'full_time', hireDate: '2026-01-01' });
 
-    expect(createEmployeeWith).toHaveBeenCalledWith(mockClient, 'admin-1', expect.objectContaining({
-      firstName: 'Mary', lastName: 'Jane Watson',
-    }));
+    expect(createEmployeeWith).toHaveBeenCalledWith(
+      mockClient,
+      'admin-1',
+      expect.objectContaining({
+        firstName: 'Mary',
+        lastName: 'Jane Watson',
+      }),
+    );
   });
 });

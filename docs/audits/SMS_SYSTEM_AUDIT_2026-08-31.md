@@ -10,29 +10,29 @@
 
 The subsystem's architecture is sound and its hardest problems — the reservation billing model, RLS tenant isolation, the trigger engine's idempotency claim, the job-sweep dedup fix — are correctly built and, on direct re-reading, **not regressed**. Two full audit cycles of real fixes are holding.
 
-What this pass found is a different shape of risk than the first two audits: not "the whole pipe is broken" (2026-08-06) or "one field is misread, hiding all delivery status" (2026-08-20), but a set of **narrower, deeper defects that only show up when you trace a specific path to its end** — a UUID column fed a non-UUID key, a time-budget change that quietly removed the safety margin three job types depend on, a billing unit ("1 credit = 1 message") that was fixed for *rate* but never extended to *length*, and a brand-new automated send path (shipped four days ago) that bills every group with no way to see or refuse it.
+What this pass found is a different shape of risk than the first two audits: not "the whole pipe is broken" (2026-08-06) or "one field is misread, hiding all delivery status" (2026-08-20), but a set of **narrower, deeper defects that only show up when you trace a specific path to its end** — a UUID column fed a non-UUID key, a time-budget change that quietly removed the safety margin three job types depend on, a billing unit ("1 credit = 1 message") that was fixed for _rate_ but never extended to _length_, and a brand-new automated send path (shipped four days ago) that bills every group with no way to see or refuse it.
 
-**The single most consequential finding:** chunked bulk SMS — the path QStash was specifically introduced to support — has been **completely broken since it was built**. Any ad-hoc "send to all members" or recurring Chama Reminder send to more than 100 recipients writes a non-UUID string into a UUID column and fails on every attempt, with **zero user-visible error** (the API already returned `{queued: true}` before the failure). Nothing has surfaced this because no test covers the failing combination — a chunk key *without* a `campaignId` (corrected during remediation; integration tests do run in CI, see §G1). This is the kind of "genuinely well-built plumbing, one wrong assumption, invisible until traced" defect this audit series keeps finding — see [[project_kitabu_yetu_sms_messaging]] for the pattern.
+**The single most consequential finding:** chunked bulk SMS — the path QStash was specifically introduced to support — has been **completely broken since it was built**. Any ad-hoc "send to all members" or recurring Chama Reminder send to more than 100 recipients writes a non-UUID string into a UUID column and fails on every attempt, with **zero user-visible error** (the API already returned `{queued: true}` before the failure). Nothing has surfaced this because no test covers the failing combination — a chunk key _without_ a `campaignId` (corrected during remediation; integration tests do run in CI, see §G1). This is the kind of "genuinely well-built plumbing, one wrong assumption, invisible until traced" defect this audit series keeps finding — see [[project_kitabu_yetu_sms_messaging]] for the pattern.
 
 **Second:** PR #126 (2026-08-30/31, "give the job worker a real time budget") is a real, correct fix for job-queue starvation — but it also **cut the safety margin for long-running jobs from ~293 seconds to ~10**, without re-checking the three SMS job types whose worst-case runtime was tuned against the old margin. This was independently found by two separate research passes reading different files, which is strong corroboration. It re-arms exactly the double-bill/double-send failure mode PR #34/#41 (2026-08-06/08) fixed once already.
 
 **Third:** SMS billing has no concept of a segment. Every message — 1 character or 640 — costs exactly 1 credit. This was also independently found by two research passes. It is a live, uncapped margin leak, and — this is the part neither prior audit could have found, because the instrument didn't exist until this pass looked for it — **nothing would ever detect it**: the internal reconciliation view has zero consumers, and provider-side reconciliation (comparing what TextSMS actually billed us against what we think we sent) doesn't exist at all.
 
-**Fourth:** the welcome-on-join SMS shipped four days ago (PR #124) is architecturally sound (correct idempotency claim shape, correct opt-in-by-default *pattern* used elsewhere in the same codebase for birthday SMS) but was shipped **without following that pattern** — it bills every group by platform default, with no settings toggle, no UI of any kind, and an idempotency key that silently drops a second welcome for a member who joins a second group (which multi-group registration, shipped 2026-08-15, makes a normal case, not an edge case).
+**Fourth:** the welcome-on-join SMS shipped four days ago (PR #124) is architecturally sound (correct idempotency claim shape, correct opt-in-by-default _pattern_ used elsewhere in the same codebase for birthday SMS) but was shipped **without following that pattern** — it bills every group by platform default, with no settings toggle, no UI of any kind, and an idempotency key that silently drops a second welcome for a member who joins a second group (which multi-group registration, shipped 2026-08-15, makes a normal case, not an edge case).
 
 None of what follows requires a rewrite. Every fix is additive or a targeted correction to code shipped in the last three weeks. The billing core, tenant isolation, and job-sweep fairness machinery this audit re-verified are the right foundation to build on.
 
 **Headline numbers, live production, 2026-08-31:**
 
-| Metric | Value |
-|---|---|
-| Total `sms_usage_logs` rows, all time | 353 (2026-05-29 → 2026-08-27) |
-| Messages permanently stuck `status='sent'` (never resolved delivered/failed) | **175 (≈50%)**, oldest since 2026-07-01 |
-| `sms_delivery_reports`: pending vs delivered | 54 pending / 7 delivered |
-| `sms_group_settings` rows (of 8 groups) | **0** — consent/automation settings table has never been written to by any group |
-| `organization_sms_credits` rows | 0 (writer exists since PR #98; no org has used it) |
-| Campaign `sms_campaigns.sent_count`/`failed_count` vs real `sms_usage_logs` | **Confirmed still lying for one live row** — see Finding G6 |
-| SECURITY DEFINER SMS RPCs exploitable by `anon`/`authenticated` | 0 — migration 126's fix holds |
+| Metric                                                                       | Value                                                                            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Total `sms_usage_logs` rows, all time                                        | 353 (2026-05-29 → 2026-08-27)                                                    |
+| Messages permanently stuck `status='sent'` (never resolved delivered/failed) | **175 (≈50%)**, oldest since 2026-07-01                                          |
+| `sms_delivery_reports`: pending vs delivered                                 | 54 pending / 7 delivered                                                         |
+| `sms_group_settings` rows (of 8 groups)                                      | **0** — consent/automation settings table has never been written to by any group |
+| `organization_sms_credits` rows                                              | 0 (writer exists since PR #98; no org has used it)                               |
+| Campaign `sms_campaigns.sent_count`/`failed_count` vs real `sms_usage_logs`  | **Confirmed still lying for one live row** — see Finding G6                      |
+| SECURITY DEFINER SMS RPCs exploitable by `anon`/`authenticated`              | 0 — migration 126's fix holds                                                    |
 
 ---
 
@@ -40,38 +40,38 @@ None of what follows requires a rewrite. Every fix is additive or a targeted cor
 
 Ordered by severity, then by how directly the gap touches money or delivery correctness.
 
-| # | Area | Issue | Severity | Status |
-|---|---|---|---|---|
-| G1 | Reliability | Chunked bulk SMS writes a non-UUID key into a UUID column — every &gt;100-recipient ad-hoc/scheduled send fails silently, zero rows written | **Critical** | Open |
-| G2 | Reliability / Billing | `maxDuration=60` (PR #126) is below worst-case runtime of 3 SMS job types — re-arms the timeout-kill double-bill/double-send bug fixed once already | High | Open |
-| G3 | Reliability | DLR poll limit (15/tick) is a stale pre-#126 workaround — throughput capped ~4,320/day platform-wide, messages age out of the 7-day poll window and get stuck `sent` forever | High | Open — **[PROVEN-PROD]** 175 stuck rows |
-| G4 | Reliability | Mid-batch chunk failure discards already-accepted provider responses — free delivery, no bill, then a duplicate send on retry | High | Open |
-| G5 | Billing | No segment/multipart accounting anywhere — every message is 1 credit regardless of length or encoding | High | Open |
-| G6 | Billing / Observability | Campaign counters can still show inverted sent/failed counts for a completed campaign, and nothing detects or backfills it | Medium | Open — **[PROVEN-PROD]** |
-| G7 | Billing | Trigger-engine retry (PR #124) and the independent `sms_failures` cron retry can both retry the same failed message — duplicate send, duplicate charge | High | Open |
-| G8 | Consent / Billing | Welcome-on-join SMS bills every group by platform default with no toggle, no UI, no failure visibility | High | Open |
-| G9 | Security | `POST /sms/send` accepts an unbounded recipient array, defeating its own rate-limit tiering | High | Open |
-| G10 | Security | Campaign/schedule `rawRecipients` is entirely unvalidated — no phone format check, no cap, throws 500 mid-campaign | High | Open |
-| G11 | Security | Welcome SMS's idempotency key omits the membership — a member joining a 2nd group gets no welcome, silently and permanently | Medium | Open — **[PROVEN-PROD]** confirmed via live index def |
-| G12 | Security | Welcome SMS bypasses the per-group SMS rate limiter entirely (only 3 routes are gated, not the spend primitive) | Medium | Open |
-| G13 | Credentials | `TEXTSMS_API_KEY` printed to console on DLR poll errors outside production | High | Open |
-| G14 | Observability | No alerting of any kind — a total provider outage (the Ndengelwa 401 incident) is invisible until a human reads the DB | Medium | Open |
-| G15 | Reliability | No provider fallback/circuit breaker; retry cadence has no health gate, so an outage produces maximum wasted work at maximum latency | Medium | Open — SPOF, reconfirmed |
-| G16 | Billing | Reconciliation view (`vw_sms_credit_reconciliation`) has zero consumers anywhere in the app | Medium | Open |
-| G17 | Billing | No provider-side reconciliation exists at all — the one control that would catch G5 | Medium | Open |
-| G18 | Billing | `sms_credit_ledger`/`billing_accounts` numeric-scale mismatch means reconciliation can never read exactly 0 even when correct | Medium | Open |
-| G19 | Billing | Stranded aggregate reservation when a log-row insert fails — sweeper can't find it (scans only `sms_usage_logs`) | Medium | Open |
-| G20 | Consent | Self-service opt-out unreachable by phone-only members — exactly the population G8 now auto-messages | Medium | Open, compounds G8 |
-| G21 | UX / Compliance | No read surface anywhere for `reminder_dispatch_log` — can't answer "did this fire, to whom, was anyone suppressed" | Medium | Open |
-| G22 | UX | Same-day duplicate-reminder risk on day 1 of month; manual "Remind" has no recipient/cost preview | Medium | Open |
-| G23 | Reliability | Unbounded `pruneOldJobs()` DELETE runs inline/awaited on the monthly high-stakes tick, competing for the now-scarce time budget | Medium | Open |
-| G24 | Security | `GET /sms/balance` over-shares the platform-wide provider float to all 3 officer roles instead of `super_admin` only | Low | Open |
-| G25 | UX | `daily_send_limit` is displayed as if enforced; it is never enforced and cannot be set via the UI | Low | Open |
-| G26 | Billing | `sms_credits.package_id`/`.currency` still dead columns — "revenue by package" admin report is structurally misleading | Low | Open |
-| G27 | Billing | Org SMS top-up has no idempotency guard — safe today (admin-only), High the day org self-serve top-up ships | Low (High-if-shipped) | Open |
-| G28 | UX | No retry action or cost/recipient preview on failed messages / before large sends | Low | Open |
-| G29 | Reliability | Two small, low-risk items: O(n²) scan in the reservation sweeper; `getDlr`'s UPDATE isn't group-scoped in its own WHERE clause (the read-check is) | Low | Open |
-| G30 | Documentation | Stale comment in `sms-margin.service.ts` asserting `organization_sms_credits` has no writer (wrong since PR #98) | Low | Open |
+| #   | Area                    | Issue                                                                                                                                                                        | Severity              | Status                                                |
+| --- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------------------------- |
+| G1  | Reliability             | Chunked bulk SMS writes a non-UUID key into a UUID column — every &gt;100-recipient ad-hoc/scheduled send fails silently, zero rows written                                  | **Critical**          | Open                                                  |
+| G2  | Reliability / Billing   | `maxDuration=60` (PR #126) is below worst-case runtime of 3 SMS job types — re-arms the timeout-kill double-bill/double-send bug fixed once already                          | High                  | Open                                                  |
+| G3  | Reliability             | DLR poll limit (15/tick) is a stale pre-#126 workaround — throughput capped ~4,320/day platform-wide, messages age out of the 7-day poll window and get stuck `sent` forever | High                  | Open — **[PROVEN-PROD]** 175 stuck rows               |
+| G4  | Reliability             | Mid-batch chunk failure discards already-accepted provider responses — free delivery, no bill, then a duplicate send on retry                                                | High                  | Open                                                  |
+| G5  | Billing                 | No segment/multipart accounting anywhere — every message is 1 credit regardless of length or encoding                                                                        | High                  | Open                                                  |
+| G6  | Billing / Observability | Campaign counters can still show inverted sent/failed counts for a completed campaign, and nothing detects or backfills it                                                   | Medium                | Open — **[PROVEN-PROD]**                              |
+| G7  | Billing                 | Trigger-engine retry (PR #124) and the independent `sms_failures` cron retry can both retry the same failed message — duplicate send, duplicate charge                       | High                  | Open                                                  |
+| G8  | Consent / Billing       | Welcome-on-join SMS bills every group by platform default with no toggle, no UI, no failure visibility                                                                       | High                  | Open                                                  |
+| G9  | Security                | `POST /sms/send` accepts an unbounded recipient array, defeating its own rate-limit tiering                                                                                  | High                  | Open                                                  |
+| G10 | Security                | Campaign/schedule `rawRecipients` is entirely unvalidated — no phone format check, no cap, throws 500 mid-campaign                                                           | High                  | Open                                                  |
+| G11 | Security                | Welcome SMS's idempotency key omits the membership — a member joining a 2nd group gets no welcome, silently and permanently                                                  | Medium                | Open — **[PROVEN-PROD]** confirmed via live index def |
+| G12 | Security                | Welcome SMS bypasses the per-group SMS rate limiter entirely (only 3 routes are gated, not the spend primitive)                                                              | Medium                | Open                                                  |
+| G13 | Credentials             | `TEXTSMS_API_KEY` printed to console on DLR poll errors outside production                                                                                                   | High                  | Open                                                  |
+| G14 | Observability           | No alerting of any kind — a total provider outage (the Ndengelwa 401 incident) is invisible until a human reads the DB                                                       | Medium                | Open                                                  |
+| G15 | Reliability             | No provider fallback/circuit breaker; retry cadence has no health gate, so an outage produces maximum wasted work at maximum latency                                         | Medium                | Open — SPOF, reconfirmed                              |
+| G16 | Billing                 | Reconciliation view (`vw_sms_credit_reconciliation`) has zero consumers anywhere in the app                                                                                  | Medium                | Open                                                  |
+| G17 | Billing                 | No provider-side reconciliation exists at all — the one control that would catch G5                                                                                          | Medium                | Open                                                  |
+| G18 | Billing                 | `sms_credit_ledger`/`billing_accounts` numeric-scale mismatch means reconciliation can never read exactly 0 even when correct                                                | Medium                | Open                                                  |
+| G19 | Billing                 | Stranded aggregate reservation when a log-row insert fails — sweeper can't find it (scans only `sms_usage_logs`)                                                             | Medium                | Open                                                  |
+| G20 | Consent                 | Self-service opt-out unreachable by phone-only members — exactly the population G8 now auto-messages                                                                         | Medium                | Open, compounds G8                                    |
+| G21 | UX / Compliance         | No read surface anywhere for `reminder_dispatch_log` — can't answer "did this fire, to whom, was anyone suppressed"                                                          | Medium                | Open                                                  |
+| G22 | UX                      | Same-day duplicate-reminder risk on day 1 of month; manual "Remind" has no recipient/cost preview                                                                            | Medium                | Open                                                  |
+| G23 | Reliability             | Unbounded `pruneOldJobs()` DELETE runs inline/awaited on the monthly high-stakes tick, competing for the now-scarce time budget                                              | Medium                | Open                                                  |
+| G24 | Security                | `GET /sms/balance` over-shares the platform-wide provider float to all 3 officer roles instead of `super_admin` only                                                         | Low                   | Open                                                  |
+| G25 | UX                      | `daily_send_limit` is displayed as if enforced; it is never enforced and cannot be set via the UI                                                                            | Low                   | Open                                                  |
+| G26 | Billing                 | `sms_credits.package_id`/`.currency` still dead columns — "revenue by package" admin report is structurally misleading                                                       | Low                   | Open                                                  |
+| G27 | Billing                 | Org SMS top-up has no idempotency guard — safe today (admin-only), High the day org self-serve top-up ships                                                                  | Low (High-if-shipped) | Open                                                  |
+| G28 | UX                      | No retry action or cost/recipient preview on failed messages / before large sends                                                                                            | Low                   | Open                                                  |
+| G29 | Reliability             | Two small, low-risk items: O(n²) scan in the reservation sweeper; `getDlr`'s UPDATE isn't group-scoped in its own WHERE clause (the read-check is)                           | Low                   | Open                                                  |
+| G30 | Documentation           | Stale comment in `sms-margin.service.ts` asserting `organization_sms_credits` has no writer (wrong since PR #98)                                                             | Low                   | Open                                                  |
 
 **Confirmed still fixed, no regression** (full list in §8): the migration-144 unit fix, reservation atomicity, C1–C3 (2026-08-06), the DLR field-read + 404 handling + H2 dedup-key + M1 low-balance re-arm (2026-08-20), H3 job-retry dedup, the parameter-type-inference SQL bug class (0 new instances found across 5 known-affected files), campaign `notification_type` attribution, the `ComposeTab` 500-recipient cap, the SMS Sender ID, and the SECURITY DEFINER RPC grant hygiene from migration 126.
 
@@ -87,15 +87,15 @@ One pass reported `sms_delivery_reports` as having no `group_id` column and ther
 
 #### G1 — Chunked bulk SMS writes a non-UUID dispatch key into UUID columns; every &gt;100-recipient send fails silently
 
-**Current behavior.** `app/api/v1/workers/sms-dispatch-chunk/route.ts:111` builds `dispatchBatchId: \`${payload.jobId}:chunk:${payload.chunkIndex}\`` — a string like `55555555-…:chunk:0`. `lib/services/sms.service.ts:523` uses this as `dispatchKey`, which the very first statement of the send path binds against `sms_usage_logs.correlation_id`, a `UUID` column (migration 123). The bind raises `22P02 invalid input syntax for type uuid`. The same value would also land in `correlation_id`/`reference_id` (also `UUID`) further down. The throw is caught by the worker route, returns 500, QStash retries 3× — all fail identically. **Zero `sms_usage_logs` rows, zero credits reserved, zero messages sent, and no user-visible error**, because `/api/v1/sms/bulk` already returned `{queued: true}` before the async chunk dispatch runs.
+**Current behavior.** `app/api/v1/workers/sms-dispatch-chunk/route.ts:111` builds `dispatchBatchId: \`${payload.jobId}:chunk:${payload.chunkIndex}\``— a string like`55555555-…:chunk:0`. `lib/services/sms.service.ts:523`uses this as`dispatchKey`, which the very first statement of the send path binds against `sms_usage_logs.correlation_id`, a `UUID`column (migration 123). The bind raises`22P02 invalid input syntax for type uuid`. The same value would also land in `correlation_id`/`reference_id`(also`UUID`) further down. The throw is caught by the worker route, returns 500, QStash retries 3× — all fail identically. **Zero `sms_usage_logs`rows, zero credits reserved, zero messages sent, and no user-visible error**, because`/api/v1/sms/bulk`already returned`{queued: true}` before the async chunk dispatch runs.
 
 Reachability turns on whether `campaignId` is set: `/sms/campaign` passes it (safe — the per-chunk key becomes dead code there); **`/sms/bulk` and every `sms_schedules` occurrence do not** (`lib/services/sms-scheduler.service.ts:124-142`) — broken above 100 recipients. QStash is provisioned in this environment (all 4 `QSTASH_*` vars present).
 
-**Why CI missed it.** *(Corrected 2026-08-31 during remediation — the original claim here was wrong in two ways and is retained below only as a caution about auditing test coverage by filename.)*
+**Why CI missed it.** _(Corrected 2026-08-31 during remediation — the original claim here was wrong in two ways and is retained below only as a caution about auditing test coverage by filename.)_
 
-Integration tests **do** run in CI, via `npm run test:integration` against a real `postgres:17-alpine` service container (`.github/workflows/ci.yml:388-390, 440`), using `jest.integration.config.ts`. The `testPathIgnorePatterns` entry in `jest.config.ts` only keeps them out of the *unit* run, which is correct and deliberate.
+Integration tests **do** run in CI, via `npm run test:integration` against a real `postgres:17-alpine` service container (`.github/workflows/ci.yml:388-390, 440`), using `jest.integration.config.ts`. The `testPathIgnorePatterns` entry in `jest.config.ts` only keeps them out of the _unit_ run, which is correct and deliberate.
 
-The real reason CI missed it: **no test covers the failing combination.** `sendBulkCampaign` resolves `dispatchKey = campaignId ?? dispatchBatchId`. `sms-bulk-chunk-completion.test.ts` passes the `${jobId}:chunk:N` string *and* a `campaignId`, so the campaign id always wins and the malformed string is never used as the key. `sms-bulk-retry-idempotency.test.ts:72` does exercise the no-campaign path, but with a valid uuid `jobId`. The production shape — chunk key **and** no campaign, which is what `/api/v1/sms/bulk` and every `sms_schedules` occurrence produce — was simply never written as a test.
+The real reason CI missed it: **no test covers the failing combination.** `sendBulkCampaign` resolves `dispatchKey = campaignId ?? dispatchBatchId`. `sms-bulk-chunk-completion.test.ts` passes the `${jobId}:chunk:N` string _and_ a `campaignId`, so the campaign id always wins and the malformed string is never used as the key. `sms-bulk-retry-idempotency.test.ts:72` does exercise the no-campaign path, but with a valid uuid `jobId`. The production shape — chunk key **and** no campaign, which is what `/api/v1/sms/bulk` and every `sms_schedules` occurrence produce — was simply never written as a test.
 
 Closed by `__tests__/integration/sms-chunked-dispatch-key.test.ts` (added with the fix), which pins all four behaviours: the no-campaign chunk dispatch, retry dedup on a re-derived key, sibling-chunk independence, and rejection of a non-uuid key at the boundary.
 
@@ -173,7 +173,7 @@ The query filters to a 7-day window (`sent_at >= NOW() - INTERVAL '7 days'`). On
 
 **Current behavior.** `lib/services/textsms.service.ts:419-437` accumulates responses across chunks in a local array and **rethrows on any chunk's failure**, discarding every prior chunk's already-accepted, already-provider-billed responses. The caller (`sendBulkCampaign`, `sms.service.ts:686-728`, and `dispatchBatch`, `:1328-1351`) then marks **the entire batch** `status='failed'`, writes `sms_failures` retry rows for every recipient, and **releases every reservation** — including for recipients who already received the message. `retryFailures` (`sms.service.ts:1110`) then sends those recipients the message a **second time**, this time charging for it. Exposure: any &gt;100-recipient send taking the direct (non-QStash-chunked) path, or any multi-phone `dispatchBatch` call.
 
-**Expected behavior.** A failure in chunk *k* should mark chunk *k*'s items failed and preserve chunks 0…k-1 as correctly recorded/billed.
+**Expected behavior.** A failure in chunk _k_ should mark chunk _k_'s items failed and preserve chunks 0…k-1 as correctly recorded/billed.
 
 **Root cause.** `sendBulkSmsChunked`'s all-or-nothing error contract doesn't match its caller's recovery logic, which assumes a failure means "the provider never answered at all" — true for one chunk, false for a multi-chunk send.
 
@@ -195,11 +195,11 @@ The query filters to a 7-day window (`sent_at >= NOW() - INTERVAL '7 days'`). On
 
 **Current behavior.** Found independently by two research passes reading different files — the strongest-corroborated finding in this audit. `const CREDITS_PER_MESSAGE = 1` (`lib/services/sms.service.ts:176`) is applied unconditionally at every insert and retry site, and the reservation quantity passed to `reserveCredits` is the **recipient count**, never a segment count (`:434, 583`; `notifications.service.ts:228` passes a literal `1`). A repo-wide search for segment/GSM/UCS-2/153/67 arithmetic in `lib/`/`app/` finds nothing except two prose comments (`lib/sms/templates.ts:66-68`) acknowledging the concept without enforcing it.
 
-Meanwhile the validators *permit* multi-segment bodies: `SendSmsSchema`/`BulkSmsSchema`/`CampaignCreateSchema.message` cap at **320 chars** (3 GSM-7 concatenated parts, or **5** if any character forces UCS-2 — a single emoji or curly apostrophe does this); `TemplateCreateSchema.body` caps at **640 chars** (up to 5 GSM-7 / 10 UCS-2 parts). Personalization (`{{first_name}}`, etc.) renders **after** validation, so even a body inside the cap can render longer.
+Meanwhile the validators _permit_ multi-segment bodies: `SendSmsSchema`/`BulkSmsSchema`/`CampaignCreateSchema.message` cap at **320 chars** (3 GSM-7 concatenated parts, or **5** if any character forces UCS-2 — a single emoji or curly apostrophe does this); `TemplateCreateSchema.body` caps at **640 chars** (up to 5 GSM-7 / 10 UCS-2 parts). Personalization (`{{first_name}}`, etc.) renders **after** validation, so even a body inside the cap can render longer.
 
 **Expected behavior.** Credits reserved/consumed should equal the segments TextSMS actually bills, computed from the rendered body per recipient.
 
-**Root cause.** Migration 144 (2026-08-13) correctly fixed "credits were debited in *money*, credited in *message count*" — but equated "one message" with "one API call," not "one billable segment." The named constant is honest about what it does; what it does is simply the wrong unit.
+**Root cause.** Migration 144 (2026-08-13) correctly fixed "credits were debited in _money_, credited in _message count_" — but equated "one message" with "one API call," not "one billable segment." The named constant is honest about what it does; what it does is simply the wrong unit.
 
 **Risk/impact.** Direct, uncapped margin erosion, fully within tenant control: any group with template-management permission can author a 640-char template and pay 1 credit for 5 provider segments. Worse, **the platform's own margin dashboard cannot see this** — `sms-margin.service.ts` computes margin from `credits_deducted`, which by definition reports the wrong-unit number as correct. This is compounded by G16/G17 below: neither the internal reconciliation view nor any provider-side check exists to catch it.
 
@@ -217,7 +217,7 @@ Meanwhile the validators *permit* multi-segment bodies: `SendSmsSchema`/`BulkSms
 
 #### G7 — Trigger-engine retry and the independent `sms_failures` cron retry can both retry the same failed message
 
-**Current behavior.** PR #124 added a full-rejection retry guard to `dispatchExecution` (`lib/sms/trigger-engine.ts:262-267, 298-310`) — correct on its own terms. But its retry re-invokes `smsService.send()`, which **has no correlation-id dedup guard** (unlike its sibling `sendBulkCampaign`, which does). Meanwhile the *first* attempt already wrote `sms_failures` retry rows for each rejected recipient, and the independent `sms_retry_failed` cron (every 5 min) re-reserves and re-sends the same message on its own schedule. Two retry owners, no coordination.
+**Current behavior.** PR #124 added a full-rejection retry guard to `dispatchExecution` (`lib/sms/trigger-engine.ts:262-267, 298-310`) — correct on its own terms. But its retry re-invokes `smsService.send()`, which **has no correlation-id dedup guard** (unlike its sibling `sendBulkCampaign`, which does). Meanwhile the _first_ attempt already wrote `sms_failures` retry rows for each rejected recipient, and the independent `sms_retry_failed` cron (every 5 min) re-reserves and re-sends the same message on its own schedule. Two retry owners, no coordination.
 
 **Expected behavior.** Exactly one retry owner per failed message.
 
@@ -245,7 +245,7 @@ The codebase already states the correct principle for a sibling feature shipped 
 
 **Expected behavior.** A billed automation should be opt-in per group, visible, and inspectable when it fails — matching the pattern this exact codebase already uses for birthday SMS.
 
-**Root cause.** PR #124's own migration comment frames this as *completing* pre-existing half-built plumbing ("the rule was never connected") rather than as shipping a new billed feature that needs the same consent/visibility scaffolding every other billed automation has.
+**Root cause.** PR #124's own migration comment frames this as _completing_ pre-existing half-built plumbing ("the rule was never connected") rather than as shipping a new billed feature that needs the same consent/visibility scaffolding every other billed automation has.
 
 **Risk/impact.** Every group is silently charged per member added, with no way to decline. The Ndengelwa 8-member 401 incident that prompted PR #124's own fix was found only by direct SQL — the same incident today would be equally invisible, since `sms_trigger_executions` is append-only with no admin surface to inspect or re-fire a stuck execution.
 
@@ -333,7 +333,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 #### G6 — Campaign counters can still show inverted sent/failed for a completed campaign; nothing detects or backfills it **[PROVEN-PROD]**
 
-**Current behavior.** The `syncCampaignCompletion()` fix (`lib/services/sms.service.ts:236-252`, shipped 2026-08-12) is real and does correctly recompute `sent_count`/`failed_count` from `sms_usage_logs` — confirmed both by source reading and by a live campaign that completed *after* the fix shipped showing correct counts (`f4b66cbb…`, completed 2026-08-27 15:05: `sent=8, failed=0`, matching real logs exactly).
+**Current behavior.** The `syncCampaignCompletion()` fix (`lib/services/sms.service.ts:236-252`, shipped 2026-08-12) is real and does correctly recompute `sent_count`/`failed_count` from `sms_usage_logs` — confirmed both by source reading and by a live campaign that completed _after_ the fix shipped showing correct counts (`f4b66cbb…`, completed 2026-08-27 15:05: `sent=8, failed=0`, matching real logs exactly).
 
 **But a different campaign from the same day still shows the inverted historical bug** — `9e1d1bf5…` (completed 2026-08-27 13:36) reads `sent_count=0, failed_count=8` in `sms_campaigns` today, while the real `sms_usage_logs` rows for that campaign show `real_sent=8, real_failed=0`. This is the "Mobilization campaign" already noted in this project's own memory as a live incident at the time — and it has **never been corrected**, three weeks later, in production.
 
@@ -359,7 +359,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 **Current behavior.** `emitMemberRegisteredEvent` (`lib/services/members.service.ts`) passes `eventId: memberId`. The claim is `ON CONFLICT (rule_id, event_id) DO NOTHING` — **confirmed live**: the actual unique index is `sms_trigger_exec_idempotent ON sms_trigger_executions (rule_id, event_id)`, and the `member_welcome` rule is confirmed a single global row (`group_id IS NULL AND organization_id IS NULL`). Because the rule is global, `rule_id` is constant across every group — so member M joining group A claims `(rule, M)`; M later joining group B hits the identical key and is silently dropped by `DO NOTHING`. Multi-group registration (shipped 2026-08-15, PR #76) makes a member belonging to two chamas a routine case, not an edge case.
 
-**Root cause.** The PR's own commit message states the event identity should be the *membership*, not the *member* — but the code passes `memberId`. `sms_trigger_executions` is append-only (DELETE refused, UPDATE refused on terminal rows), so a suppressed welcome cannot be recovered through the trigger at all.
+**Root cause.** The PR's own commit message states the event identity should be the _membership_, not the _member_ — but the code passes `memberId`. `sms_trigger_executions` is append-only (DELETE refused, UPDATE refused on terminal rows), so a suppressed welcome cannot be recovered through the trigger at all.
 
 **Risk/impact.** Silent under-delivery in the direction the platform's multi-group model makes routine, permanently unrecoverable without a manual backfill script (which already exists for the original incident and would need re-running).
 
@@ -381,7 +381,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 **Root cause.** The SMS-specific limiter is bolted onto three routes rather than onto the service that actually spends credits — a structural gap that will recur with every future trigger rule, not specific to welcome SMS.
 
-**Risk/impact.** A compromised token with member-create permission can drive credit spend at ~240/min — 48× the `/bulk` ceiling — without ever touching an SMS endpoint. Also interacts with PR #113: authenticated traffic's rate ceiling was correctly *raised* per-user to fix a legitimate CGNAT false-positive, which as a side effect widens exactly this blast radius, since the per-group SMS limiter never covered this entry point to begin with.
+**Risk/impact.** A compromised token with member-create permission can drive credit spend at ~240/min — 48× the `/bulk` ceiling — without ever touching an SMS endpoint. Also interacts with PR #113: authenticated traffic's rate ceiling was correctly _raised_ per-user to fix a legitimate CGNAT false-positive, which as a side effect widens exactly this blast radius, since the per-group SMS limiter never covered this entry point to begin with.
 
 **Recommended fix.** Move the SMS rate-limit check into `smsService.send`/`sendBulkCampaign` (or into the trigger engine's dispatch step) so it applies regardless of entry point, keyed on the spending group. Add a distinct `trigger` tier to the existing rate-limit config.
 
@@ -419,7 +419,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 #### G15 — No provider fallback or circuit breaker; retry cadence has no health gate
 
-**Current behavior.** Confirmed still true: `provider` is a hardcoded literal at every insert, no second adapter exists, and nothing routes on the column. New this pass: **credits are handled correctly under an outage** (every failure path correctly releases reservations, backstopped by the stale-reservation sweeper) — but the *failure bookkeeping* amplifies the outage's cost. Every failed send writes an `sms_failures` row with a flat 5-minute retry regardless of cause, and `retryFailures` pulls up to 100 due rows per tick with no notion of provider health. A one-hour outage over normal daily volume produces thousands of retry rows becoming due together, each burning a 20s timeout inside the now-tight 60s function ceiling (G2) — maximum work, maximum latency, for guaranteed-zero delivery, starving every other job type through the shared time budget exactly when recovery matters most.
+**Current behavior.** Confirmed still true: `provider` is a hardcoded literal at every insert, no second adapter exists, and nothing routes on the column. New this pass: **credits are handled correctly under an outage** (every failure path correctly releases reservations, backstopped by the stale-reservation sweeper) — but the _failure bookkeeping_ amplifies the outage's cost. Every failed send writes an `sms_failures` row with a flat 5-minute retry regardless of cause, and `retryFailures` pulls up to 100 due rows per tick with no notion of provider health. A one-hour outage over normal daily volume produces thousands of retry rows becoming due together, each burning a 20s timeout inside the now-tight 60s function ceiling (G2) — maximum work, maximum latency, for guaranteed-zero delivery, starving every other job type through the shared time budget exactly when recovery matters most.
 
 **Recommended fix.** A lightweight circuit breaker in `textsms.service.ts` (consecutive-failure counter, fail-fast while open, periodic half-open probe); gate `retryFailures` on it so an outage doesn't burn retry budget uselessly.
 
@@ -503,7 +503,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 **Current behavior.** The self-service opt-out (PR #39) is correctly wired and honoured on every send path, but requires an authenticated app session scoped to one active group — precisely what a phone-only member added by an officer (the population the welcome SMS now messages on day one) does not have. There is no inbound STOP webhook (confirmed still absent) and no officer-side UI to record a verbal opt-out request — `opt_out_phones` is not exposed in the settings route's read or write schema at all.
 
-**Risk/impact.** Kenya DPA 2019 requires a data subject be able to object to processing; a phone-only member currently has no mechanism whatsoever — not STOP, not login, not an officer they can ask. This is sharper than the general "no inbound webhook" finding because the platform now *initiates* contact with exactly this population via G8.
+**Risk/impact.** Kenya DPA 2019 requires a data subject be able to object to processing; a phone-only member currently has no mechanism whatsoever — not STOP, not login, not an officer they can ask. This is sharper than the general "no inbound webhook" finding because the platform now _initiates_ contact with exactly this population via G8.
 
 **Recommended fix.** Add an officer-managed opt-out list to group SMS settings (immediate, unblocks the human workflow); investigate whether TextSMS Kenya supports inbound STOP webhooks and wire one if so (the real, structural fix); add a "stop all my groups" control to the member-facing toggle for multi-group members.
 
@@ -519,7 +519,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 #### G21 — No read surface anywhere for `reminder_dispatch_log`: nobody can answer "did this reminder fire, and to whom?"
 
-**Current behavior.** `reminder_dispatch_log` is written by five call sites and read by zero user-facing surfaces — every `app/` reference is a write/claim path. The admin-visible SMS log (`LogsTab`) shows *messages*, not *reminders*: it cannot show a suppressed-for-opt-out outcome (which never produces a message row at all), which reminder stage a send belonged to, or whether a stuck `failed` dispatch-log row is waiting to retry.
+**Current behavior.** `reminder_dispatch_log` is written by five call sites and read by zero user-facing surfaces — every `app/` reference is a write/claim path. The admin-visible SMS log (`LogsTab`) shows _messages_, not _reminders_: it cannot show a suppressed-for-opt-out outcome (which never produces a message row at all), which reminder stage a send belonged to, or whether a stuck `failed` dispatch-log row is waiting to retry.
 
 **Risk/impact.** Support burden (this is currently unanswerable without SQL) and a DPA 2019 gap: a member's data-subject-access request about messages sent to them, or evidence that a suppression was honoured, cannot be served from the product today.
 
@@ -537,7 +537,7 @@ Independently: no send path anywhere (`/send`, `/bulk`, or campaign `custom_phon
 
 #### G22 — Same-day duplicate-reminder risk on the 1st of the month; no recipient/cost preview before a manual send
 
-**Current behavior.** The scheduled contribution-reminder job and the manual "Remind non-contributors" button use genuinely non-overlapping dedup keys (previous month vs. current month) — that reasoning still holds and prevents *key collision*. It does not prevent the member's phone buzzing twice: on day 1 of the month, the manual button's "current month" filter matches essentially the *entire* group (nobody has contributed yet for a month that just started), while the scheduled job fires the same morning for the *previous* month's non-contributors. A member in both sets receives two similar-sounding reminders on the same day, and an officer clicking Remind early in a month is functionally messaging everyone, with no recipient count or cost shown before the click.
+**Current behavior.** The scheduled contribution-reminder job and the manual "Remind non-contributors" button use genuinely non-overlapping dedup keys (previous month vs. current month) — that reasoning still holds and prevents _key collision_. It does not prevent the member's phone buzzing twice: on day 1 of the month, the manual button's "current month" filter matches essentially the _entire_ group (nobody has contributed yet for a month that just started), while the scheduled job fires the same morning for the _previous_ month's non-contributors. A member in both sets receives two similar-sounding reminders on the same day, and an officer clicking Remind early in a month is functionally messaging everyone, with no recipient count or cost shown before the click.
 
 **Recommended fix.** A member-level cooldown in the shared `sendOnce` primitive (suppress a second send to the same member within N hours regardless of stage — a general safeguard, not specific to this pair); exclude the first several days of a month from the manual nudge's eligibility, or gate it on the group's actual due-day having passed; show a resolved recipient count and estimated credit cost in a confirmation step before the Remind action fires.
 
@@ -593,7 +593,7 @@ A `failed`-status filter exists in the message log, but failed rows have no acti
 
 #### G29 — Two minor reliability items
 
-An O(n²) array scan in the stale-reservation sweeper (`.filter(...includes(...))` over up to 500 rows) — trivial today, worth a `Set` while touching that function anyway. And `getDlr`'s UPDATE statements aren't group-scoped in their own WHERE clause even though the preceding ownership *check* is — defense-in-depth gap only, since TextSMS message IDs are account-global and a real collision is unlikely, but worth closing alongside a partial unique index on `provider_msg_id`. **Files:** `lib/jobs/handlers.ts:930`; `lib/services/sms.service.ts:906-920`.
+An O(n²) array scan in the stale-reservation sweeper (`.filter(...includes(...))` over up to 500 rows) — trivial today, worth a `Set` while touching that function anyway. And `getDlr`'s UPDATE statements aren't group-scoped in their own WHERE clause even though the preceding ownership _check_ is — defense-in-depth gap only, since TextSMS message IDs are account-global and a real collision is unlikely, but worth closing alongside a partial unique index on `provider_msg_id`. **Files:** `lib/jobs/handlers.ts:930`; `lib/services/sms.service.ts:906-920`.
 
 #### G30 — Stale comment asserting `organization_sms_credits` has no writer
 
@@ -618,7 +618,7 @@ UI (compose / campaign / trigger settings)
                 → audit/reporting (per-message log: solid; per-reminder/per-trigger: does not exist — G21)
 ```
 
-**What is already right and should not be rebuilt:** reservation-over-debit billing with atomic locking; the trigger engine's `(rule, event)` idempotency claim mechanism (correct shape, wrong key for one new rule — G11); the job-sweep dedup-key fix; RLS tenant isolation on every SMS table (re-verified this pass, no regression); `clientSmsId`-based bulk response alignment; the `dispatchBatchId` job-retry dedup (correct pattern — G1 is a *type* bug in one new implementation of it, not a design flaw); rate limiting's existence, just not its reach (G9, G12); the low-balance alert as the template for the alerting this system otherwise lacks (G14).
+**What is already right and should not be rebuilt:** reservation-over-debit billing with atomic locking; the trigger engine's `(rule, event)` idempotency claim mechanism (correct shape, wrong key for one new rule — G11); the job-sweep dedup-key fix; RLS tenant isolation on every SMS table (re-verified this pass, no regression); `clientSmsId`-based bulk response alignment; the `dispatchBatchId` job-retry dedup (correct pattern — G1 is a _type_ bug in one new implementation of it, not a design flaw); rate limiting's existence, just not its reach (G9, G12); the low-balance alert as the template for the alerting this system otherwise lacks (G14).
 
 **What needs to be added, roughly in dependency order:** (1) fix the type bug that breaks the chunked path outright (G1); (2) restore the safety margin PR #126 removed (G2, G3); (3) close the two duplicate-send surfaces (G4, G7); (4) add the missing unit to billing (G5) and the reconciliation that would have caught it (G16, G17, G18); (5) give the new automation (G8) the same consent scaffolding its sibling already has, and fix its idempotency key (G11); (6) close the consent-reachability gap that automation exposes (G20); (7) add the observability layer that would make every future instance of this audit's findings self-reporting instead of SQL-discovered (G14, G21).
 
@@ -628,7 +628,7 @@ UI (compose / campaign / trigger settings)
 
 ### Phase 1 — Critical fixes (immediate production/financial/security risk)
 
-- **G1**: UUIDv5 dispatch key for chunked sends. *Highest priority — currently a total, silent outage for the product's highest-volume send path.*
+- **G1**: UUIDv5 dispatch key for chunked sends. _Highest priority — currently a total, silent outage for the product's highest-volume send path._
 - **G13**: Fix the nested-error logging call site; rotate `TEXTSMS_API_KEY`.
 - **G9, G10**: Cap `/send`'s recipient array; replace `rawRecipients`'s unvalidated blob with a real schema.
 - **G2**: Confirm the Vercel plan tier, then restore `maxDuration` headroom (or bound the three long-running SMS handlers individually if the plan caps at 60s).
@@ -678,20 +678,20 @@ Everything else — the reconciliation jobs, the read-only reminder/trigger surf
 
 ## 7. Testing Strategy
 
-| Category | What this pass found is missing or would have caught the findings above |
-|---|---|
-| **Unit** | `countSegments()` boundary table (G5); UUID-shape guard on `dispatchBatchId` (G1); `logger.error` secret-redaction test (G13); `maxDuration > budget + worst-case-job` invariant test (G2) |
-| **API/route** | `/sms/send` array cap (G9); `/sms/campaign` `rawRecipients` schema rejection cases (G10); `/sms/balance` role gating (G24) |
+| Category                                                                                                                       | What this pass found is missing or would have caught the findings above                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**                                                                                                                       | `countSegments()` boundary table (G5); UUID-shape guard on `dispatchBatchId` (G1); `logger.error` secret-redaction test (G13); `maxDuration > budget + worst-case-job` invariant test (G2)                                                                                                                           |
+| **API/route**                                                                                                                  | `/sms/send` array cap (G9); `/sms/campaign` `rawRecipients` schema rejection cases (G10); `/sms/balance` role gating (G24)                                                                                                                                                                                           |
 | **Integration (real Postgres — already runs in CI via `test:integration`; the gap was a missing case, not a disabled runner)** | Chunked bulk send with **no `campaignId`** (G1 — added as `sms-chunked-dispatch-key.test.ts`); mid-batch chunk failure preserving partial success (G4); trigger-retry + cron-retry collision (G7); stale-reservation compensation on a failed log insert (G19); reconciliation-view zero-drift after N top-ups (G18) |
-| **Provider-failure scenarios** | Circuit breaker open/half-open/close cycle (G15); outage does not exhaust `max_retries` while breaker is open (G15); sustained-failure alert fires once, not per-message (G14) |
-| **Webhook/DLR** | Fairness/backoff poll ordering resolves a mixed backlog within N ticks (G3) |
-| **Retry/idempotency** | Welcome-SMS second-group execution (G11); dedup on `smsService.send()` (G7); manual retry doesn't re-bill and still honours opt-out (G28) |
-| **Billing/credit** | Segment-aware reservation math end to end (G5); rounding-source fix produces exact-zero drift (G18); org top-up conflict guard (G27) |
-| **Bulk SMS** | 5,000-recipient reject/accept boundary on `/bulk` (G9 adjacent); chunk-partial-failure billing correctness (G4) |
-| **Scheduled notification** | Day-1-of-month collision between manual nudge and scheduled reminder (G22); cooldown suppresses a same-day duplicate without misreporting as failed |
-| **Multi-tenant isolation** | `reminder_dispatch_log` RLS policy exists and is group-scoped before exposing it via G21's new route; `getDlr` UPDATE scoping (G29) |
-| **Authorization/security** | Rate-limit enforcement reaches the trigger-engine spend path, not just the three routes (G12); campaign off-roster recipient rejected by membership check (G10) |
-| **Regression** | Re-run this report's own "confirmed still fixed" table (§8) as an actual automated suite where it isn't already — several of those items (the parameter-type-inference class especially) have regressed silently before |
+| **Provider-failure scenarios**                                                                                                 | Circuit breaker open/half-open/close cycle (G15); outage does not exhaust `max_retries` while breaker is open (G15); sustained-failure alert fires once, not per-message (G14)                                                                                                                                       |
+| **Webhook/DLR**                                                                                                                | Fairness/backoff poll ordering resolves a mixed backlog within N ticks (G3)                                                                                                                                                                                                                                          |
+| **Retry/idempotency**                                                                                                          | Welcome-SMS second-group execution (G11); dedup on `smsService.send()` (G7); manual retry doesn't re-bill and still honours opt-out (G28)                                                                                                                                                                            |
+| **Billing/credit**                                                                                                             | Segment-aware reservation math end to end (G5); rounding-source fix produces exact-zero drift (G18); org top-up conflict guard (G27)                                                                                                                                                                                 |
+| **Bulk SMS**                                                                                                                   | 5,000-recipient reject/accept boundary on `/bulk` (G9 adjacent); chunk-partial-failure billing correctness (G4)                                                                                                                                                                                                      |
+| **Scheduled notification**                                                                                                     | Day-1-of-month collision between manual nudge and scheduled reminder (G22); cooldown suppresses a same-day duplicate without misreporting as failed                                                                                                                                                                  |
+| **Multi-tenant isolation**                                                                                                     | `reminder_dispatch_log` RLS policy exists and is group-scoped before exposing it via G21's new route; `getDlr` UPDATE scoping (G29)                                                                                                                                                                                  |
+| **Authorization/security**                                                                                                     | Rate-limit enforcement reaches the trigger-engine spend path, not just the three routes (G12); campaign off-roster recipient rejected by membership check (G10)                                                                                                                                                      |
+| **Regression**                                                                                                                 | Re-run this report's own "confirmed still fixed" table (§8) as an actual automated suite where it isn't already — several of those items (the parameter-type-inference class especially) have regressed silently before                                                                                              |
 
 ---
 
@@ -726,4 +726,4 @@ Re-verified directly against current source this pass, not re-derived from memor
 
 ---
 
-*Produced 2026-08-31 via four parallel source-grounded research passes plus direct live-production verification (Postgres `qztcgryhoanennsizcll`). Findings labelled [PROVEN-PROD] were confirmed against live data, not inferred from source alone. One research-pass claim was corrected against live data (§Correction) before inclusion. Add this audit to the running log at [[project_kitabu_yetu_audits]] and update [[project_kitabu_yetu_sms_trigger_engine]] / [[project_kitabu_yetu_sms_audit_2026_08]] with the new open items once fixes begin shipping, per [[feedback_persist_completed_work_to_memory]].*
+_Produced 2026-08-31 via four parallel source-grounded research passes plus direct live-production verification (Postgres `qztcgryhoanennsizcll`). Findings labelled [PROVEN-PROD] were confirmed against live data, not inferred from source alone. One research-pass claim was corrected against live data (§Correction) before inclusion. Add this audit to the running log at [[project_kitabu_yetu_audits]] and update [[project_kitabu_yetu_sms_trigger_engine]] / [[project_kitabu_yetu_sms_audit_2026_08]] with the new open items once fixes begin shipping, per [[feedback_persist_completed_work_to_memory]]._

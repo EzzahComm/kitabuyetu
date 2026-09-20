@@ -13,12 +13,12 @@ import type { MemberRole, PlatformRole } from '@/types/enums';
 export type TokenAudience = 'tenant' | 'backoffice';
 
 export interface TenantAccessTokenPayload {
-  sub:         string;            // member id
-  aud?:        'tenant';          // optional for backward compat
-  groupId:     string;            // active group context
-  role:        MemberRole | PlatformRole;
-  personId?:   string;            // shared cross-group identity (since Phase A)
-  organizationId?:      string;
+  sub: string; // member id
+  aud?: 'tenant'; // optional for backward compat
+  groupId: string; // active group context
+  role: MemberRole | PlatformRole;
+  personId?: string; // shared cross-group identity (since Phase A)
+  organizationId?: string;
   // Phase D Part 2 — group lifecycle. The proxy gates non-verify routes when
   // this is 'pending_verification'. Optional for backward compatibility with
   // tokens issued before this field existed (they're treated as 'active').
@@ -26,10 +26,10 @@ export interface TenantAccessTokenPayload {
   // Active Membership Context (payment architecture §2.1/§2.5). Optional for
   // tokens issued before Phase 3.2; sensitive-op checks skip when absent
   // (drift bounded by the access-token TTL, as designed).
-  membershipId?:   string;   // group_members.id — anchoring claim
-  membershipNo?:   string;   // e.g. BG102534
-  authVersion?:    number;   // group_members.auth_version epoch
-  sessionVersion?: number;   // members.session_version epoch
+  membershipId?: string; // group_members.id — anchoring claim
+  membershipNo?: string; // e.g. BG102534
+  authVersion?: number; // group_members.auth_version epoch
+  sessionVersion?: number; // members.session_version epoch
   // RBAC permission activation — resolved from group_members.role_id ->
   // roles.permissions at issue time. Optional for backward compatibility
   // with tokens issued before this field existed.
@@ -37,19 +37,19 @@ export interface TenantAccessTokenPayload {
 }
 
 export interface BackofficeAccessTokenPayload {
-  sub:          string;          // member id
-  aud:          'backoffice';
-  platformRole: PlatformRole;    // super_admin | support | organization_coordinator
-  organizationId?:       string;          // scope for organization_coordinator
+  sub: string; // member id
+  aud: 'backoffice';
+  platformRole: PlatformRole; // super_admin | support | organization_coordinator
+  organizationId?: string; // scope for organization_coordinator
 }
 
 export type AccessTokenPayload = TenantAccessTokenPayload | BackofficeAccessTokenPayload;
 
 interface RefreshTokenPayload {
-  sub:  string;
+  sub: string;
   type: 'refresh';
-  jti:  string;
-  aud?: TokenAudience;           // mirror access-token audience so refreshes don't cross
+  jti: string;
+  aud?: TokenAudience; // mirror access-token audience so refreshes don't cross
   // Active-membership pinning (audit C-1): the group chosen at login travels
   // with the refresh token so refreshes REVALIDATE that membership instead of
   // re-deriving one. Absent on tokens issued before this field existed —
@@ -62,15 +62,15 @@ interface RefreshTokenPayload {
 }
 
 // Validated at module load by lib/env.ts — no need for a second null check here.
-const ACCESS_SECRET  = env.JWT_SECRET;
+const ACCESS_SECRET = env.JWT_SECRET;
 // Prefer a dedicated refresh secret so access tokens cannot be accepted where
 // a refresh token is expected (and vice versa) even if one key leaks.
 const REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? env.JWT_SECRET;
-const ACCESS_TTL     = env.JWT_ACCESS_EXPIRES_IN;
-const REFRESH_TTL    = env.JWT_REFRESH_EXPIRES_IN;
+const ACCESS_TTL = env.JWT_ACCESS_EXPIRES_IN;
+const REFRESH_TTL = env.JWT_REFRESH_EXPIRES_IN;
 // Backoffice tokens have a tighter TTL to bound stolen-token blast radius
 // for the highest-privilege accounts. Phase 1 default; revisit if it hurts UX.
-const BACKOFFICE_ACCESS_TTL  = env.BACKOFFICE_ACCESS_EXPIRES_IN  ?? '15m';
+const BACKOFFICE_ACCESS_TTL = env.BACKOFFICE_ACCESS_EXPIRES_IN ?? '15m';
 const BACKOFFICE_REFRESH_TTL = env.BACKOFFICE_REFRESH_EXPIRES_IN ?? '8h';
 
 // Algorithm is pinned explicitly to prevent algorithm-confusion attacks.
@@ -110,7 +110,10 @@ export function signRefreshToken(
   const ttl = audience === 'backoffice' ? BACKOFFICE_REFRESH_TTL : REFRESH_TTL;
   const token = jwt.sign(
     {
-      sub: userId, type: 'refresh', jti, aud: audience,
+      sub: userId,
+      type: 'refresh',
+      jti,
+      aud: audience,
       ...(groupId ? { groupId } : {}),
       ...(sessionVersion != null ? { sessionVersion } : {}),
     } satisfies RefreshTokenPayload,
@@ -164,18 +167,17 @@ const MFA_CHALLENGE_TTL_SECONDS = 5 * 60;
 export type MfaChallengeKind = 'enrollment' | 'verify';
 
 interface MfaChallengePayload {
-  sub:    string;
-  aud:    'backoffice_mfa';
-  kind:   MfaChallengeKind;
+  sub: string;
+  aud: 'backoffice_mfa';
+  kind: MfaChallengeKind;
   secret?: string; // only present when kind === 'enrollment'
 }
 
 export function signMfaChallenge(payload: Omit<MfaChallengePayload, 'aud'>): string {
-  return jwt.sign(
-    { ...payload, aud: 'backoffice_mfa' } satisfies MfaChallengePayload,
-    ACCESS_SECRET,
-    { algorithm: ALGORITHM, expiresIn: MFA_CHALLENGE_TTL_SECONDS } as jwt.SignOptions,
-  );
+  return jwt.sign({ ...payload, aud: 'backoffice_mfa' } satisfies MfaChallengePayload, ACCESS_SECRET, {
+    algorithm: ALGORITHM,
+    expiresIn: MFA_CHALLENGE_TTL_SECONDS,
+  } as jwt.SignOptions);
 }
 
 export function verifyMfaChallenge(token: string): MfaChallengePayload & { iat: number; exp: number } {

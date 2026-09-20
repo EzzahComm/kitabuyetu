@@ -20,10 +20,7 @@ export function parsePagination(
   const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
 
   const rawLimit = parseInt(searchParams.get('limit') ?? '', 10);
-  const limit = Math.min(
-    maxLimit,
-    Math.max(1, Number.isFinite(rawLimit) ? rawLimit : defaultLimit),
-  );
+  const limit = Math.min(maxLimit, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : defaultLimit));
 
   return { page, limit, offset: (page - 1) * limit };
 }

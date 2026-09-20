@@ -16,7 +16,9 @@ export function RecentActivityFeed() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !activities || activities.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing logged yet — calls, notes, and stage changes will show up here.</p>
+          <p className="text-sm text-muted-foreground">
+            Nothing logged yet — calls, notes, and stage changes will show up here.
+          </p>
         ) : (
           <div className="max-h-[32rem] space-y-3 overflow-y-auto">
             {activities.map((a) => (
@@ -28,8 +30,12 @@ export function RecentActivityFeed() {
                 {(a.contact_name || a.opportunity_title) && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {a.contact_id ? (
-                      <Link href={`/crm/${a.contact_id}`} className="hover:text-foreground hover:underline">{a.contact_name}</Link>
-                    ) : a.contact_name}
+                      <Link href={`/crm/${a.contact_id}`} className="hover:text-foreground hover:underline">
+                        {a.contact_name}
+                      </Link>
+                    ) : (
+                      a.contact_name
+                    )}
                     {a.opportunity_title && ` · ${a.opportunity_title}`}
                   </p>
                 )}

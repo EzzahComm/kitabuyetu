@@ -18,7 +18,8 @@ export async function generateMetadata({ params }: CampaignPageProps): Promise<M
   const title = `${campaign.title} — Changi$ha`;
   const description = campaign.story.slice(0, 160);
   return {
-    title, description,
+    title,
+    description,
     openGraph: { title, description, images: campaign.cover_image_url ? [campaign.cover_image_url] : undefined },
     twitter: { title, description },
   };
@@ -30,10 +31,16 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   if (!campaign) notFound();
 
   const donationCount = await campaignsService.getPublicDonationCount(campaign.id);
-  const pct = Math.min(100, Math.round((parseFloat(campaign.amount_raised) / parseFloat(campaign.target_amount)) * 100));
+  const pct = Math.min(
+    100,
+    Math.round((parseFloat(campaign.amount_raised) / parseFloat(campaign.target_amount)) * 100),
+  );
 
   return (
-    <PageShell title={campaign.title} description={campaign.beneficiary_name ? `Benefiting ${campaign.beneficiary_name}` : undefined}>
+    <PageShell
+      title={campaign.title}
+      description={campaign.beneficiary_name ? `Benefiting ${campaign.beneficiary_name}` : undefined}
+    >
       {campaign.cover_image_url && (
         <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-paper-deep">
           <Image src={campaign.cover_image_url} alt="" fill className="object-cover" sizes="100vw" priority />

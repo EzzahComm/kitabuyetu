@@ -13,8 +13,9 @@ import { cached, keys } from '@/lib/redis';
 
 /** Every county, including ones with zero groups — a coverage gap is itself signal. */
 export async function getCountyAggregation() {
-  return cached(keys.cache('geography-counties', 'platform'), 120, () => withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query(`
+  return cached(keys.cache('geography-counties', 'platform'), 120, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const { rows } = await db.query(`
       -- group_stats pre-aggregates each child table PER GROUP first: joining
       -- group_members/contributions/loans directly onto counties (one row per
       -- group, all sharing the same county) fans every contribution and loan
@@ -45,14 +46,16 @@ export async function getCountyAggregation() {
       GROUP BY c.id, c.name, c.region
       ORDER BY group_count DESC, c.name
     `);
-    return rows;
-  }));
+      return rows;
+    }),
+  );
 }
 
 /** Ward breakdown within one county, for the table's row drill-down. */
 export async function getWardAggregation(countyId: string) {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query(`
+    const { rows } = await db.query(
+      `
       -- LATERAL per child table — see getCountyAggregation's comment above
       -- for why a flat join of group_members alongside contributions fans
       -- the contributions SUM out across the member count.
@@ -73,7 +76,9 @@ export async function getWardAggregation(countyId: string) {
       WHERE g.county_id = $1
       GROUP BY 1
       ORDER BY group_count DESC, ward
-    `, [countyId]);
+    `,
+      [countyId],
+    );
     return rows;
   });
 }

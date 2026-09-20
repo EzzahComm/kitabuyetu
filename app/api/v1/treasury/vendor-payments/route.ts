@@ -40,7 +40,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       const input = CreateVendorPaymentSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return created(await vendorPaymentsService.initiate(ctx, { ...input, idempotencyKey }));
     } catch (err) {
       return handleError(err);

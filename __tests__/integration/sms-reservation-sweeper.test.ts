@@ -37,10 +37,7 @@ async function provision(groupId: string, credits: number): Promise<void> {
 }
 
 /** A reservation aged past the sweeper's 15-minute threshold. */
-async function staleLog(
-  groupId: string,
-  opts: { status: string; providerMsgId: string | null },
-): Promise<string> {
+async function staleLog(groupId: string, opts: { status: string; providerMsgId: string | null }): Promise<string> {
   const [row] = await rawQuery<{ id: string }>(
     `INSERT INTO sms_usage_logs
        (group_id, recipient_phone, message_text, credits_deducted, credits_reserved,
@@ -54,14 +51,16 @@ async function staleLog(
 
 async function stateOf(id: string) {
   const [row] = await rawQuery<{ billing_state: string; credits_deducted: string }>(
-    `SELECT billing_state, credits_deducted FROM sms_usage_logs WHERE id = $1`, [id],
+    `SELECT billing_state, credits_deducted FROM sms_usage_logs WHERE id = $1`,
+    [id],
   );
   return row;
 }
 
 async function creditsOf(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return parseFloat(row.sms_credits);
 }

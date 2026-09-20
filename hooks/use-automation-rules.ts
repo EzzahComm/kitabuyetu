@@ -3,15 +3,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import type {
-  AutomationRule, AutomationChannel, AutomationRuleInput, AutomationRuleUpdate,
-  AutomationRuleExecution, FrequencyCap, FrequencyCapCategory,
+  AutomationRule,
+  AutomationChannel,
+  AutomationRuleInput,
+  AutomationRuleUpdate,
+  AutomationRuleExecution,
+  FrequencyCap,
+  FrequencyCapCategory,
 } from '@/lib/services/automation-rules.service';
 
 const BASE = '/marketing/automation-rules';
 
 const keys = {
-  rules:       (channel?: AutomationChannel) => ['automation-rules', channel ?? 'all'] as const,
-  executions:  (channel: AutomationChannel, id: string) => ['automation-rules', channel, id, 'executions'] as const,
+  rules: (channel?: AutomationChannel) => ['automation-rules', channel ?? 'all'] as const,
+  executions: (channel: AutomationChannel, id: string) => ['automation-rules', channel, id, 'executions'] as const,
   frequencyCap: (id: string) => ['automation-rules', 'email', id, 'frequency-cap'] as const,
   smsTemplates: ['sms-templates'] as const,
 };
@@ -19,7 +24,7 @@ const keys = {
 export function useAutomationRules(channel?: AutomationChannel) {
   return useQuery({
     queryKey: keys.rules(channel),
-    queryFn:  () => api.get<AutomationRule[]>(channel ? `${BASE}?channel=${channel}` : BASE),
+    queryFn: () => api.get<AutomationRule[]>(channel ? `${BASE}?channel=${channel}` : BASE),
   });
 }
 
@@ -43,16 +48,16 @@ export function useUpdateAutomationRule() {
 export function useRuleExecutions(channel: AutomationChannel, id: string, enabled = false) {
   return useQuery({
     queryKey: keys.executions(channel, id),
-    queryFn:  () => api.get<AutomationRuleExecution[]>(`${BASE}/${channel}/${id}/executions`),
-    enabled:  enabled && !!id,
+    queryFn: () => api.get<AutomationRuleExecution[]>(`${BASE}/${channel}/${id}/executions`),
+    enabled: enabled && !!id,
   });
 }
 
 export function useFrequencyCaps(id: string, enabled = false) {
   return useQuery({
     queryKey: keys.frequencyCap(id),
-    queryFn:  () => api.get<FrequencyCap[]>(`${BASE}/email/${id}/frequency-cap`),
-    enabled:  enabled && !!id,
+    queryFn: () => api.get<FrequencyCap[]>(`${BASE}/email/${id}/frequency-cap`),
+    enabled: enabled && !!id,
   });
 }
 
@@ -79,6 +84,6 @@ export interface SmsTemplate {
 export function useSmsTemplates() {
   return useQuery({
     queryKey: keys.smsTemplates,
-    queryFn:  () => api.get<SmsTemplate[]>('/sms/templates'),
+    queryFn: () => api.get<SmsTemplate[]>('/sms/templates'),
   });
 }

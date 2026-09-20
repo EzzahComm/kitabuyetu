@@ -47,7 +47,7 @@ export function FailuresTab() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-failures', page],
-    queryFn:  () => smsApi.failures({ page, limit: 20 }),
+    queryFn: () => smsApi.failures({ page, limit: 20 }),
     staleTime: 30_000,
   });
 
@@ -72,10 +72,7 @@ export function FailuresTab() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader
-        title="Failed messages"
-        subtitle={data ? `${data.total} unresolved` : undefined}
-      />
+      <SectionHeader title="Failed messages" subtitle={data ? `${data.total} unresolved` : undefined} />
 
       <PaginatedTable
         data={data ?? singlePage<SmsFailure>([])}
@@ -87,19 +84,26 @@ export function FailuresTab() {
         emptyDescription="Messages that fail are retried automatically; anything still stuck appears here."
         columns={[
           {
-            key: 'phone', header: 'To',
+            key: 'phone',
+            header: 'To',
             render: (f) => <span className="font-mono text-xs">{f.phone}</span>,
           },
           {
-            key: 'message', header: 'Message', hideBelow: 'md', className: 'max-w-[220px]',
+            key: 'message',
+            header: 'Message',
+            hideBelow: 'md',
+            className: 'max-w-[220px]',
             render: (f) => <ExpandableText className="text-muted-foreground text-xs">{f.message}</ExpandableText>,
           },
           {
-            key: 'reason', header: 'Why it failed',
+            key: 'reason',
+            header: 'Why it failed',
             render: (f) => <span className="text-xs text-muted-foreground">{f.failure_reason ?? '—'}</span>,
           },
           {
-            key: 'attempts', header: 'Attempts', hideBelow: 'sm',
+            key: 'attempts',
+            header: 'Attempts',
+            hideBelow: 'sm',
             render: (f) => (
               <span className="text-xs text-muted-foreground">
                 {f.retry_count}/{f.max_retries}
@@ -108,7 +112,8 @@ export function FailuresTab() {
             ),
           },
           {
-            key: 'actions', header: '',
+            key: 'actions',
+            header: '',
             // Emphasised for exhausted rows specifically: those are the ones
             // nothing else will ever move.
             render: (f) => (
@@ -145,12 +150,12 @@ export function FailuresTab() {
  * answering a member who asks what you have been sending them.
  */
 export function ReminderHistoryTab() {
-  const [page, setPage]     = useState(1);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-reminder-history', page, status],
-    queryFn:  () => smsApi.reminderHistory({ page, limit: 20, ...(status ? { status } : {}) }),
+    queryFn: () => smsApi.reminderHistory({ page, limit: 20, ...(status ? { status } : {}) }),
     staleTime: 30_000,
   });
 
@@ -164,11 +169,16 @@ export function ReminderHistoryTab() {
             aria-label="Filter by outcome"
             className="text-xs border rounded-lg px-2.5 py-1.5"
             value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">All outcomes</option>
             {['sent', 'suppressed', 'failed', 'pending'].map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         }
@@ -184,11 +194,14 @@ export function ReminderHistoryTab() {
         emptyDescription="Loan and contribution reminders appear here once they run."
         columns={[
           {
-            key: 'member', header: 'Member',
+            key: 'member',
+            header: 'Member',
             render: (r) => <span className="text-xs">{r.member_name ?? '—'}</span>,
           },
           {
-            key: 'what', header: 'Reminder', hideBelow: 'sm',
+            key: 'what',
+            header: 'Reminder',
+            hideBelow: 'sm',
             render: (r) => (
               <span className="text-xs text-muted-foreground">
                 {r.reference_type.replace(/_/g, ' ')} · {r.reminder_stage.replace(/_/g, ' ')}
@@ -196,17 +209,22 @@ export function ReminderHistoryTab() {
             ),
           },
           {
-            key: 'status', header: 'Outcome',
+            key: 'status',
+            header: 'Outcome',
             render: (r) => <StatusPill status={r.status} size="sm" />,
           },
           {
-            key: 'why', header: 'Detail', hideBelow: 'md',
+            key: 'why',
+            header: 'Detail',
+            hideBelow: 'md',
             // For a suppressed row this carries the reason the member was NOT
             // contacted, which is the point of showing those rows at all.
             render: (r) => <span className="text-xs text-muted-foreground">{r.reason ?? r.channel ?? '—'}</span>,
           },
           {
-            key: 'when', header: 'When', hideBelow: 'sm',
+            key: 'when',
+            header: 'When',
+            hideBelow: 'sm',
             render: (r) => (
               <span className="text-xs text-muted-foreground">{formatDate(r.sent_at ?? r.created_at)}</span>
             ),

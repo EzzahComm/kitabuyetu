@@ -9,9 +9,7 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  FileBarChart, TrendingUp, TrendingDown, Plus, PauseCircle, PlayCircle, BookOpen,
-} from 'lucide-react';
+import { FileBarChart, TrendingUp, TrendingDown, Plus, PauseCircle, PlayCircle, BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
@@ -46,7 +44,7 @@ function BudgetReportTab() {
   const canManagePrograms = useHasOrganizationPermission();
   const { data, isLoading } = useQuery({
     queryKey: enterpriseKeys.reportsBudget(),
-    queryFn:  () => organizationApi.budgetReport(),
+    queryFn: () => organizationApi.budgetReport(),
   });
   const items = data?.items ?? [];
 
@@ -63,11 +61,18 @@ function BudgetReportTab() {
       qc.invalidateQueries({ queryKey: enterpriseKeys.programs() });
       toast({ title: 'Program updated' });
     },
-    onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: getErrorMessage(err) }),
+    onError: (err: unknown) =>
+      toast({ variant: 'destructive', title: 'Update failed', description: getErrorMessage(err) }),
   });
 
   if (isLoading) {
-    return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
   }
   if (items.length === 0) {
     return (
@@ -87,19 +92,27 @@ function BudgetReportTab() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-medium text-foreground">{p.name}</p>
-                <p className="text-xs capitalize text-muted-foreground">{p.programType.replace(/_/g, ' ')} · {p.status}</p>
+                <p className="text-xs capitalize text-muted-foreground">
+                  {p.programType.replace(/_/g, ' ')} · {p.status}
+                </p>
               </div>
               <div className="flex items-start gap-2">
                 <div className="text-right">
                   <MoneyDisplay amount={p.disbursed + p.reserved} size="sm" />
-                  <p className="text-xs text-muted-foreground">of <MoneyDisplay amount={p.budget} size="sm" className="inline" /> budget</p>
+                  <p className="text-xs text-muted-foreground">
+                    of <MoneyDisplay amount={p.budget} size="sm" className="inline" /> budget
+                  </p>
                 </div>
                 {canManagePrograms && (p.status === 'active' || p.status === 'paused') && (
                   <Button
-                    size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0 p-0"
                     title={p.status === 'active' ? 'Pause program' : 'Reactivate program'}
                     disabled={toggleStatus.isPending}
-                    onClick={() => toggleStatus.mutate({ id: p.id, status: p.status === 'active' ? 'paused' : 'active' })}
+                    onClick={() =>
+                      toggleStatus.mutate({ id: p.id, status: p.status === 'active' ? 'paused' : 'active' })
+                    }
                   >
                     {p.status === 'active' ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
                   </Button>
@@ -110,11 +123,20 @@ function BudgetReportTab() {
             <UtilizationBar pct={p.utilizationPct} />
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>{p.utilizationPct.toFixed(1)}% utilized · <MoneyDisplay amount={p.remaining} size="sm" className="inline" /> remaining</span>
+              <span>
+                {p.utilizationPct.toFixed(1)}% utilized ·{' '}
+                <MoneyDisplay amount={p.remaining} size="sm" className="inline" /> remaining
+              </span>
               {p.variancePct !== null && (
-                <span className={cn('flex items-center gap-1 font-medium', p.variancePct < 0 ? 'text-amber-600' : 'text-brand-600')}>
+                <span
+                  className={cn(
+                    'flex items-center gap-1 font-medium',
+                    p.variancePct < 0 ? 'text-amber-600' : 'text-brand-600',
+                  )}
+                >
                   {p.variancePct < 0 ? <TrendingDown size={13} /> : <TrendingUp size={13} />}
-                  {p.variancePct < 0 ? 'Behind schedule' : 'On/ahead of schedule'} ({p.variancePct > 0 ? '+' : ''}{p.variancePct.toFixed(1)}pp)
+                  {p.variancePct < 0 ? 'Behind schedule' : 'On/ahead of schedule'} ({p.variancePct > 0 ? '+' : ''}
+                  {p.variancePct.toFixed(1)}pp)
                 </span>
               )}
             </div>
@@ -128,12 +150,18 @@ function BudgetReportTab() {
 function DonorSpendTab() {
   const { data, isLoading } = useQuery({
     queryKey: enterpriseKeys.reportsDonor(),
-    queryFn:  () => organizationApi.donorSpendReport(),
+    queryFn: () => organizationApi.donorSpendReport(),
   });
   const items = data?.items ?? [];
 
   if (isLoading) {
-    return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 w-full" />
+        ))}
+      </div>
+    );
   }
   if (items.length === 0) {
     return (
@@ -152,7 +180,9 @@ function DonorSpendTab() {
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">{d.fundingSource}</CardTitle>
-              <span className="text-xs text-muted-foreground">{d.programCount} program{d.programCount === 1 ? '' : 's'}</span>
+              <span className="text-xs text-muted-foreground">
+                {d.programCount} program{d.programCount === 1 ? '' : 's'}
+              </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -201,12 +231,18 @@ function DonorSpendTab() {
 function TrialBalanceTab() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: enterpriseKeys.accounting(),
-    queryFn:  () => organizationApi.accounting(),
+    queryFn: () => organizationApi.accounting(),
   });
   const lines = data?.trialBalance ?? [];
 
   if (isLoading) {
-    return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -222,10 +258,25 @@ function TrialBalanceTab() {
           emptyMessage="No activity posted yet"
           emptyDescription="Your trial balance fills in once you record a deposit or disbursement."
           columns={[
-            { key: 'accountCode', header: 'Code', className: 'font-mono text-xs text-muted-foreground', render: (line) => line.accountCode },
+            {
+              key: 'accountCode',
+              header: 'Code',
+              className: 'font-mono text-xs text-muted-foreground',
+              render: (line) => line.accountCode,
+            },
             { key: 'accountName', header: 'Account', render: (line) => line.accountName },
-            { key: 'accountType', header: 'Type', className: 'text-xs capitalize text-muted-foreground', render: (line) => line.accountType },
-            { key: 'netBalance', header: 'Balance', className: 'text-right font-medium tabular-nums', render: (line) => formatKES(parseFloat(line.netBalance)) },
+            {
+              key: 'accountType',
+              header: 'Type',
+              className: 'text-xs capitalize text-muted-foreground',
+              render: (line) => line.accountType,
+            },
+            {
+              key: 'netBalance',
+              header: 'Balance',
+              className: 'text-right font-medium tabular-nums',
+              render: (line) => formatKES(parseFloat(line.netBalance)),
+            },
           ]}
         />
       </CardContent>
@@ -233,14 +284,18 @@ function TrialBalanceTab() {
   );
 }
 
-function NewProgramDialog({ open, onOpenChange, onCreated }: {
+function NewProgramDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => Promise<unknown>;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [programType, setProgramType] = useState<typeof PROGRAM_TYPES[number]>('grant');
+  const [programType, setProgramType] = useState<(typeof PROGRAM_TYPES)[number]>('grant');
   const [budget, setBudget] = useState('');
   const [fundingSource, setFundingSource] = useState('');
   const [description, setDescription] = useState('');
@@ -249,8 +304,13 @@ function NewProgramDialog({ open, onOpenChange, onCreated }: {
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setName(''); setProgramType('grant'); setBudget('');
-    setFundingSource(''); setDescription(''); setStartsOn(''); setEndsOn('');
+    setName('');
+    setProgramType('grant');
+    setBudget('');
+    setFundingSource('');
+    setDescription('');
+    setStartsOn('');
+    setEndsOn('');
   };
 
   const submit = async () => {
@@ -282,13 +342,25 @@ function NewProgramDialog({ open, onOpenChange, onCreated }: {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>New funding program</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>New funding program</DialogTitle>
+        </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1">
             <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 2026 Youth Enterprise Fund" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. 2026 Youth Enterprise Fund"
+            />
           </div>
           <div className="space-y-1">
             <Label>Type</Label>
@@ -298,17 +370,29 @@ function NewProgramDialog({ open, onOpenChange, onCreated }: {
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm capitalize"
             >
               {PROGRAM_TYPES.map((t) => (
-                <option key={t} value={t} className="capitalize">{t.replace(/_/g, ' ')}</option>
+                <option key={t} value={t} className="capitalize">
+                  {t.replace(/_/g, ' ')}
+                </option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
             <Label>Budget (KES)</Label>
-            <Input type="number" min="1" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0.00" />
+            <Input
+              type="number"
+              min="1"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="0.00"
+            />
           </div>
           <div className="space-y-1">
             <Label>Funding source (optional)</Label>
-            <Input value={fundingSource} onChange={(e) => setFundingSource(e.target.value)} placeholder="e.g. Ford Foundation" />
+            <Input
+              value={fundingSource}
+              onChange={(e) => setFundingSource(e.target.value)}
+              placeholder="e.g. Ford Foundation"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -322,11 +406,17 @@ function NewProgramDialog({ open, onOpenChange, onCreated }: {
           </div>
           <div className="space-y-1">
             <Label>Description (optional)</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this program funds" />
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What this program funds"
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={submit} loading={busy}>Create program</Button>
+          <Button onClick={submit} loading={busy}>
+            Create program
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -337,11 +427,12 @@ export default function ReportsPage() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
 
-  const refreshPrograms = () => Promise.all([
-    qc.invalidateQueries({ queryKey: enterpriseKeys.reportsBudget() }),
-    qc.invalidateQueries({ queryKey: enterpriseKeys.reportsDonor() }),
-    qc.invalidateQueries({ queryKey: enterpriseKeys.programs() }),
-  ]);
+  const refreshPrograms = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: enterpriseKeys.reportsBudget() }),
+      qc.invalidateQueries({ queryKey: enterpriseKeys.reportsDonor() }),
+      qc.invalidateQueries({ queryKey: enterpriseKeys.programs() }),
+    ]);
 
   return (
     <div className="space-y-6">

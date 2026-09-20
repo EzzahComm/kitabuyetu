@@ -2,10 +2,14 @@ import { parseRecipientSpec, isSmsEventType, SMS_EVENTS } from '@/lib/sms/events
 
 describe('parseRecipientSpec', () => {
   it('accepts event-sourced phone and member specs', () => {
-    expect(parseRecipientSpec({ type: 'event_phone', field: 'phone' }))
-      .toEqual({ type: 'event_phone', field: 'phone' });
-    expect(parseRecipientSpec({ type: 'event_member', field: 'member_id' }))
-      .toEqual({ type: 'event_member', field: 'member_id' });
+    expect(parseRecipientSpec({ type: 'event_phone', field: 'phone' })).toEqual({
+      type: 'event_phone',
+      field: 'phone',
+    });
+    expect(parseRecipientSpec({ type: 'event_member', field: 'member_id' })).toEqual({
+      type: 'event_member',
+      field: 'member_id',
+    });
   });
 
   it('rejects an event spec with a missing or empty field', () => {
@@ -14,8 +18,10 @@ describe('parseRecipientSpec', () => {
   });
 
   it('accepts roles that exist in the member_role enum', () => {
-    expect(parseRecipientSpec({ type: 'roles', roles: ['treasurer', 'chairperson'] }))
-      .toEqual({ type: 'roles', roles: ['treasurer', 'chairperson'] });
+    expect(parseRecipientSpec({ type: 'roles', roles: ['treasurer', 'chairperson'] })).toEqual({
+      type: 'roles',
+      roles: ['treasurer', 'chairperson'],
+    });
   });
 
   it('rejects "group_admin" — renamed to chairperson in migration 050', () => {

@@ -25,9 +25,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const input = ChangePasswordSchema.parse(await req.json());
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    await membersService.changePassword(
-      ctx, auth.userId, input.currentPassword, input.newPassword,
-    );
+    await membersService.changePassword(ctx, auth.userId, input.currentPassword, input.newPassword);
 
     // A password change should not leave older sessions alive. The caller's
     // current access token stays valid until it expires (it is not stored

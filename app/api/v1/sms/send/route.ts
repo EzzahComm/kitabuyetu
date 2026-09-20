@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';
@@ -11,16 +11,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     const limited = await enforceSmsRateLimit('send', auth.groupId);
     if (limited) return limited;
 
-    const body  = await req.json();
+    const body = await req.json();
     const input = SendSmsSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const logs  = await smsService.send(
-      ctx,
-      input.phone,
-      input.message,
-      input.referenceType,
-      input.referenceId,
-    );
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const logs = await smsService.send(ctx, input.phone, input.message, input.referenceType, input.referenceId);
     return ok({ sent: logs.length, logs });
   });
 }

@@ -60,7 +60,10 @@ function StructuredData({ job, url }: { job: NonNullable<Awaited<ReturnType<type
     ...(job.postedAt ? { datePosted: job.postedAt } : {}),
     employmentType: job.employmentType.toUpperCase().replace('-', '_'),
     hiringOrganization: { '@type': 'Organization', name: 'Kitabu Yetu', sameAs: SITE_URL },
-    jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, addressCountry: 'KE' } },
+    jobLocation: {
+      '@type': 'Place',
+      address: { '@type': 'PostalAddress', addressLocality: job.location, addressCountry: 'KE' },
+    },
   };
   return (
     <script
@@ -100,9 +103,7 @@ export default async function JobPage({ params }: JobPageProps) {
             <p className="mt-3 text-sm font-semibold text-gray-500 dark:text-gray-300">
               {job.location} · {EMPLOYMENT_LABEL[job.employmentType] ?? job.employmentType}
             </p>
-            <p className="mt-6 text-lg leading-relaxed text-gray-600 dark:text-gray-300">
-              {job.summary}
-            </p>
+            <p className="mt-6 text-lg leading-relaxed text-gray-600 dark:text-gray-300">{job.summary}</p>
           </div>
 
           <div className="mt-10 max-w-3xl space-y-5 text-base leading-7 text-gray-600 dark:text-gray-300 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-gray-800 [&_h2]:dark:text-white [&_strong]:font-semibold [&_strong]:text-gray-800 [&_strong]:dark:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2">

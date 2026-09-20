@@ -17,11 +17,11 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 jest.mock('@/lib/services/configuration.service', () => ({
-  resolvePolicy:         jest.fn(),
+  resolvePolicy: jest.fn(),
   resolvePolicyDetailed: jest.fn(),
-  setPolicy:             jest.fn(),
+  setPolicy: jest.fn(),
 }));
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -33,7 +33,7 @@ beforeEach(() => {
   (setPolicy as jest.Mock).mockReset().mockResolvedValue({ id: 'p-1', version: 2 });
 });
 
-const ctx    = { groupId: 'g1', userId: 'user-1', role: 'treasurer', organizationId: 'org-1' };
+const ctx = { groupId: 'g1', userId: 'user-1', role: 'treasurer', organizationId: 'org-1' };
 const orgCtx = { groupId: 'g1', userId: 'user-1', role: 'organization_coordinator', organizationId: 'org-1' };
 
 describe('getEffectiveThreshold', () => {
@@ -41,7 +41,13 @@ describe('getEffectiveThreshold', () => {
     (resolvePolicy as jest.Mock).mockResolvedValueOnce({ threshold: 12000 });
     const value = await getEffectiveThreshold(mockClient as never, 'group_disbursement_threshold', { groupId: 'g1' });
     expect(value).toBe(12000);
-    expect(resolvePolicy).toHaveBeenCalledWith(mockClient, 'approval', 'group_disbursement_threshold', { groupId: 'g1' }, { threshold: 20000 });
+    expect(resolvePolicy).toHaveBeenCalledWith(
+      mockClient,
+      'approval',
+      'group_disbursement_threshold',
+      { groupId: 'g1' },
+      { threshold: 20000 },
+    );
   });
 });
 
@@ -57,27 +63,43 @@ describe('approvalPolicyService.getGroupPolicies', () => {
       { key: 'journal_threshold', threshold: 0, source: 'platform' },
       { key: 'group_disbursement_threshold', threshold: 20000, source: 'platform' },
     ]);
-    expect(resolvePolicyDetailed).toHaveBeenNthCalledWith(1, mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 0 });
+    expect(resolvePolicyDetailed).toHaveBeenNthCalledWith(
+      1,
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1' },
+      { threshold: 0 },
+    );
   });
 });
 
 describe('approvalPolicyService.setGroupOverride', () => {
   it('rejects org_disbursement_threshold — it has no group-level scope', async () => {
-    await expect(approvalPolicyService.setGroupOverride(ctx, 'org_disbursement_threshold', 1000))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      approvalPolicyService.setGroupOverride(ctx, 'org_disbursement_threshold', 1000),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(setPolicy).not.toHaveBeenCalled();
   });
 
   it('rejects a negative threshold', async () => {
-    await expect(approvalPolicyService.setGroupOverride(ctx, 'journal_threshold', -5))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(approvalPolicyService.setGroupOverride(ctx, 'journal_threshold', -5)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(setPolicy).not.toHaveBeenCalled();
   });
 
   it('sets group_disbursement_threshold without touching the journal-threshold sync column', async () => {
     await approvalPolicyService.setGroupOverride(ctx, 'group_disbursement_threshold', 15000);
 
-    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'approval', 'group_disbursement_threshold', { groupId: 'g1' }, { threshold: 15000 }, 'user-1');
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient,
+      'approval',
+      'group_disbursement_threshold',
+      { groupId: 'g1' },
+      { threshold: 15000 },
+      'user-1',
+    );
     expect(mockQuery).not.toHaveBeenCalled(); // no groups.journal_approval_threshold UPDATE
   });
 
@@ -87,11 +109,18 @@ describe('approvalPolicyService.setGroupOverride', () => {
 
     await approvalPolicyService.setGroupOverride(ctx, 'journal_threshold', 8000);
 
-    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'approval', 'journal_threshold', { groupId: 'g1' }, { threshold: 8000 }, 'user-1');
-    expect(mockQuery).toHaveBeenCalledWith(
-      `UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`,
-      ['8000.00', 'g1'],
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { groupId: 'g1' },
+      { threshold: 8000 },
+      'user-1',
     );
+    expect(mockQuery).toHaveBeenCalledWith(`UPDATE groups SET journal_approval_threshold = $1 WHERE id = $2`, [
+      '8000.00',
+      'g1',
+    ]);
   });
 });
 
@@ -99,23 +128,37 @@ describe('approvalPolicyService.setOrganizationOverride', () => {
   it('sets org_disbursement_threshold scoped to the organization, no group sync needed', async () => {
     await approvalPolicyService.setOrganizationOverride(orgCtx, 'org_disbursement_threshold', 60000);
 
-    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'approval', 'org_disbursement_threshold', { organizationId: 'org-1' }, { threshold: 60000 }, 'user-1');
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient,
+      'approval',
+      'org_disbursement_threshold',
+      { organizationId: 'org-1' },
+      { threshold: 60000 },
+      'user-1',
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('sets journal_threshold at organization scope and syncs every linked group without its own override', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1' }, { id: 'g2' }] }); // groups linked to org without an override
     mockQuery.mockResolvedValueOnce({ rows: [{ journal_approval_threshold: '5000.00' }] }); // g1 prior value
-    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // g1 UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // g1 UPDATE
     mockQuery.mockResolvedValueOnce({ rows: [{ journal_approval_threshold: '5000.00' }] }); // g2 prior value
-    mockQuery.mockResolvedValueOnce({ rows: [] });                                          // g2 UPDATE
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // g2 UPDATE
     (resolvePolicy as jest.Mock)
       .mockResolvedValueOnce({ threshold: 5000 }) // g1
       .mockResolvedValueOnce({ threshold: 5000 }); // g2
 
     await approvalPolicyService.setOrganizationOverride(orgCtx, 'journal_threshold', 5000);
 
-    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'approval', 'journal_threshold', { organizationId: 'org-1' }, { threshold: 5000 }, 'user-1');
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient,
+      'approval',
+      'journal_threshold',
+      { organizationId: 'org-1' },
+      { threshold: 5000 },
+      'user-1',
+    );
     // one UPDATE per affected group
     const updateCalls = mockQuery.mock.calls.filter((c) => String(c[0]).includes('UPDATE groups'));
     expect(updateCalls).toHaveLength(2);

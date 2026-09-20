@@ -24,8 +24,14 @@ import { useMyOrganizations, useSwitchOrg } from '@/hooks/use-admin';
 import type { OrganizationProfile } from '@/types/api.types';
 
 const TYPE_LABEL: Record<OrganizationProfile['type'], string> = {
-  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
-  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Organization',
+  bank: 'Bank',
+  sacco: 'SACCO',
+  foundation: 'Foundation',
+  ngo: 'NGO',
+  government: 'Government',
+  cooperative: 'Cooperative',
+  faith_based: 'Faith-based',
+  other: 'Organization',
 };
 
 export function WorkspaceSwitcher() {
@@ -37,7 +43,7 @@ export function WorkspaceSwitcher() {
 
   const { data, isLoading } = useQuery<OrganizationProfile>({
     queryKey: ['enterprise', 'org-profile'],
-    queryFn:  organizationApi.profile,
+    queryFn: organizationApi.profile,
     staleTime: 5 * 60_000,
   });
   const { data: orgs } = useMyOrganizations();
@@ -85,10 +91,10 @@ export function WorkspaceSwitcher() {
         <Building2 size={16} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{data?.name ?? 'Your organization'}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">
-          {data ? TYPE_LABEL[data.type] : '—'}
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {data?.name ?? 'Your organization'}
         </span>
+        <span className="block truncate text-[11px] text-muted-foreground">{data ? TYPE_LABEL[data.type] : '—'}</span>
       </span>
       {canSwitch && <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />}
     </div>

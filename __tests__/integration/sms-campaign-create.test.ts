@@ -55,11 +55,13 @@ describe('POST /api/v1/sms/campaign', () => {
   // instantly — same shape as feedback_no_network_on_the_auth_hot_path,
   // just not worth widening that fix's scope for on this hotfix.
   it('creates an immediate campaign (no scheduledAt) as draft — was a 500 on every call', async () => {
-    const res = await smsCampaignPost(buildRequest('/api/v1/sms/campaign', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: { name: 'Immediate campaign', message: 'Meeting tomorrow.', recipientType: 'all_members' },
-    }));
+    const res = await smsCampaignPost(
+      buildRequest('/api/v1/sms/campaign', {
+        method: 'POST',
+        headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+        body: { name: 'Immediate campaign', message: 'Meeting tomorrow.', recipientType: 'all_members' },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -70,14 +72,18 @@ describe('POST /api/v1/sms/campaign', () => {
   it('creates a scheduled campaign as scheduled, not sent immediately', async () => {
     const scheduledAt = new Date(Date.now() + 86_400_000).toISOString();
 
-    const res = await smsCampaignPost(buildRequest('/api/v1/sms/campaign', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: {
-        name: 'Scheduled campaign', message: 'Happy new year!',
-        recipientType: 'all_members', scheduledAt,
-      },
-    }));
+    const res = await smsCampaignPost(
+      buildRequest('/api/v1/sms/campaign', {
+        method: 'POST',
+        headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+        body: {
+          name: 'Scheduled campaign',
+          message: 'Happy new year!',
+          recipientType: 'all_members',
+          scheduledAt,
+        },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();

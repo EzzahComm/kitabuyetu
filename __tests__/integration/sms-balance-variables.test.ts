@@ -16,21 +16,19 @@ import { rawQuery } from './helpers/db';
 jest.mock('@/lib/services/textsms.service', () => ({
   sendSingleSms: jest.fn(),
   sendBulkSms: jest.fn(),
-  sendBulkSmsChunked: jest.fn(
-    async (items: Array<{ mobile: string; clientSmsId?: number }>) => ({
-      responses: items.map((it) => ({
-        responseCode:        200,
-        responseDescription: 'Success',
-        mobile:              it.mobile,
-        messageId:           `mock-msg-${it.clientSmsId ?? 0}`,
-        networkId:           '1',
-        success:             true,
-        clientSmsId:         it.clientSmsId,
-      })),
-      sent:   items.length,
-      failed: 0,
-    }),
-  ),
+  sendBulkSmsChunked: jest.fn(async (items: Array<{ mobile: string; clientSmsId?: number }>) => ({
+    responses: items.map((it) => ({
+      responseCode: 200,
+      responseDescription: 'Success',
+      mobile: it.mobile,
+      messageId: `mock-msg-${it.clientSmsId ?? 0}`,
+      networkId: '1',
+      success: true,
+      clientSmsId: it.clientSmsId,
+    })),
+    sent: items.length,
+    failed: 0,
+  })),
   getDeliveryReport: jest.fn(),
   getProviderBalance: jest.fn(),
 }));
@@ -51,11 +49,12 @@ describe('balance variables in a composed message', () => {
       [groupId, officerId],
     );
     membershipId = gm.id;
-    phone        = gm.phone;
+    phone = gm.phone;
 
     await rawQuery(
       `INSERT INTO billing_accounts (group_id, sms_credits) VALUES ($1, 500)
-       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`, [groupId],
+       ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`,
+      [groupId],
     );
   });
 
@@ -88,7 +87,8 @@ describe('balance variables in a composed message', () => {
     await giveMemberMoney();
 
     const vars = await resolveRecipientVars(
-      groupId, [phone],
+      groupId,
+      [phone],
       'You have saved KES {{contribution_balance}} and owe KES {{loan_balance}}.',
     );
     const mine = vars.get(phone)!;
@@ -119,9 +119,7 @@ describe('balance variables in a composed message', () => {
     await giveMemberMoney();
 
     const stranger = '254700009999';
-    const vars = await resolveRecipientVars(
-      groupId, [phone, stranger], 'Balance: KES {{contribution_balance}}',
-    );
+    const vars = await resolveRecipientVars(groupId, [phone, stranger], 'Balance: KES {{contribution_balance}}');
 
     // Someone with no membership has no balance to state. Rendering "KES 0"
     // at them would be a factual claim about money that the group has no
@@ -143,13 +141,18 @@ describe('balance variables in a composed message', () => {
 
     const varsByPhone = await resolveRecipientVars(groupId, [phone], message);
     await smsService.sendBulkCampaign({
-      groupId, sentBy: officerId, phones: [phone], message,
-      referenceType: 'campaign', varsByPhone,
+      groupId,
+      sentBy: officerId,
+      phones: [phone],
+      message,
+      referenceType: 'campaign',
+      varsByPhone,
     });
 
     const [log] = await rawQuery<{ segments: number; message_text: string }>(
       `SELECT segments, message_text FROM sms_usage_logs
-        WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`, [groupId],
+        WHERE group_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [groupId],
     );
 
     expect(log.message_text).toContain('12,500.5');

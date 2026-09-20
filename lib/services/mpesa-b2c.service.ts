@@ -18,35 +18,35 @@ import { notifyDisbursementCallback } from '@/lib/queue/qstash';
 // ─── B2C ─────────────────────────────────────────────────────────────────────
 
 export interface B2CParams {
-  phone:       string;
-  amount:      number;
-  occasion:    string;
-  commandId:   'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
-  groupId:     string;
-  loanId?:     string;
+  phone: string;
+  amount: number;
+  occasion: string;
+  commandId: 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
+  groupId: string;
+  loanId?: string;
   disbursedBy?: string;
-  remarks?:    string;
+  remarks?: string;
   /** Links this Daraja call back to its disbursement_requests row (spine, B2C audit C1-C5). */
   disbursementRequestId?: string;
 }
 
 export interface B2CResult {
-  conversationId:           string;
+  conversationId: string;
   originatorConversationId: string;
-  responseDescription:      string;
+  responseDescription: string;
 }
 
 export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
-  const phone     = normalizePhone(params.phone);
+  const phone = normalizePhone(params.phone);
   const amountStr = toMpesaAmount(params.amount).toFixed(2);
-  const remarks   = params.remarks ?? params.occasion;
+  const remarks = params.remarks ?? params.occasion;
 
   const res = await _b2c({
     phone,
-    amount:    params.amount,
+    amount: params.amount,
     commandId: params.commandId,
     remarks,
-    occasion:  params.occasion,
+    occasion: params.occasion,
   });
 
   await withAdminDb(async (db) => {
@@ -63,10 +63,7 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
           status, description, conversation_id, originator_conversation_id, is_test)
        VALUES ($1,'b2c','outbound',$2,$3,'initiated',$4,$5,$6,$7)
        RETURNING id`,
-      [
-        params.groupId, phone, amountStr, remarks,
-        res.conversationId, res.originatorConversationId, IS_SANDBOX,
-      ],
+      [params.groupId, phone, amountStr, remarks, res.conversationId, res.originatorConversationId, IS_SANDBOX],
     );
 
     // Record audit log for B2C transaction initiation — system-triggered (user request routed through system)
@@ -93,12 +90,19 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'initiated',$10,$11,$12,$13)
        RETURNING id`,
       [
-        params.groupId, txRows[0]?.id ?? null,
-        res.conversationId, res.originatorConversationId,
-        phone, amountStr, params.commandId,
-        params.occasion, remarks,
-        params.loanId ?? null, params.disbursedBy ?? null,
-        sourceAccount, params.disbursementRequestId ?? null,
+        params.groupId,
+        txRows[0]?.id ?? null,
+        res.conversationId,
+        res.originatorConversationId,
+        phone,
+        amountStr,
+        params.commandId,
+        params.occasion,
+        remarks,
+        params.loanId ?? null,
+        params.disbursedBy ?? null,
+        sourceAccount,
+        params.disbursementRequestId ?? null,
       ],
     );
 
@@ -118,10 +122,10 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
     );
 
     if (params.disbursementRequestId) {
-      await db.query(
-        `UPDATE disbursement_requests SET b2c_transaction_id = $1 WHERE id = $2`,
-        [b2cRows[0].id, params.disbursementRequestId],
-      );
+      await db.query(`UPDATE disbursement_requests SET b2c_transaction_id = $1 WHERE id = $2`, [
+        b2cRows[0].id,
+        params.disbursementRequestId,
+      ]);
 
       // Record audit log for disbursement linkage — system-triggered
       await db.query(
@@ -141,9 +145,9 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
   });
 
   return {
-    conversationId:           res.conversationId,
+    conversationId: res.conversationId,
     originatorConversationId: res.originatorConversationId,
-    responseDescription:      res.responseDescription,
+    responseDescription: res.responseDescription,
   };
 }
 
@@ -151,12 +155,12 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
 
 export interface B2CResultBody {
   Result: {
-    ResultType:               number;
-    ResultCode:               number;
-    ResultDesc:               string;
+    ResultType: number;
+    ResultCode: number;
+    ResultDesc: string;
     OriginatorConversationID: string;
-    ConversationID:           string;
-    TransactionID:            string;
+    ConversationID: string;
+    TransactionID: string;
     ResultParameters?: {
       ResultParameter: { Key: string; Value: unknown }[];
     };
@@ -171,25 +175,25 @@ export interface B2CResultBody {
 // UPDATE lock, and a network call to QStash has no business extending how
 // long that lock is held.
 interface WatchdogNotifyInfo {
-  rowId:     string;
+  rowId: string;
   eventData: { status: 'failed' | 'completed'; failureReason?: string; mpesaReceiptNumber?: string | null };
 }
 
 export async function handleB2CResult(body: B2CResultBody, callerIp: string): Promise<void> {
   assertSafaricomIp(callerIp);
-  const r       = body.Result;
+  const r = body.Result;
   const rawBody = JSON.stringify(body);
 
   const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
-      id:                      string;
-      group_id:                string;
-      loan_id:                 string | null;
-      amount:                  string;
-      phone:                   string;
-      disbursed_by:            string | null;
-      mpesa_transaction_id:    string | null;
+      id: string;
+      group_id: string;
+      loan_id: string | null;
+      amount: string;
+      phone: string;
+      disbursed_by: string | null;
+      mpesa_transaction_id: string | null;
       disbursement_request_id: string | null;
     }>(
       `SELECT id, group_id, loan_id, amount, phone, disbursed_by, mpesa_transaction_id,
@@ -245,7 +249,8 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
       // money never left, so the group's available balance is restored.
       if (b2c?.disbursement_request_id) {
         await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
-          status: 'failed', failureReason: r.ResultDesc,
+          status: 'failed',
+          failureReason: r.ResultDesc,
         });
         return { rowId: b2c.disbursement_request_id, eventData: { status: 'failed', failureReason: r.ResultDesc } };
       }
@@ -253,7 +258,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
     }
 
     // ── Success ──────────────────────────────────────────────────────────
-    const get     = (k: string) => r.ResultParameters?.ResultParameter.find((p) => p.Key === k)?.Value;
+    const get = (k: string) => r.ResultParameters?.ResultParameter.find((p) => p.Key === k)?.Value;
     const receipt = (get('TransactionReceipt') as string | undefined) ?? null;
 
     await db.query(
@@ -292,17 +297,17 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
     // ── Charges + loan disbursement side-effect ──────────────────────────
     if (b2c) {
       const grossAmount = parseFloat(b2c.amount);
-      const charge      = await computeB2CCharge(db, grossAmount);
+      const charge = await computeB2CCharge(db, grossAmount);
 
       if (b2c.loan_id && receipt) {
         // Combined journal: DR loan receivable + DR charges expense / CR cash.
         await applyLoanDisbursement(db, {
-          groupId:            b2c.group_id,
-          loanId:             b2c.loan_id,
-          amount:             grossAmount,
+          groupId: b2c.group_id,
+          loanId: b2c.loan_id,
+          amount: grossAmount,
           charge,
           receipt,
-          disbursedBy:        b2c.disbursed_by,
+          disbursedBy: b2c.disbursed_by,
           mpesaTransactionId: b2c.mpesa_transaction_id,
         });
 
@@ -317,16 +322,16 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         );
         if (memberRows[0]) {
           const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-          const { SMS_EVENTS }        = await import('@/lib/sms/events');
+          const { SMS_EVENTS } = await import('@/lib/sms/events');
           await emitBusinessEvent({
             eventType: SMS_EVENTS.LOAN_DISBURSED,
-            eventId:   b2c.loan_id,
-            groupId:   b2c.group_id,
-            actorId:   memberRows[0].member_id,
+            eventId: b2c.loan_id,
+            groupId: b2c.group_id,
+            actorId: memberRows[0].member_id,
             payload: {
-              memberId:   memberRows[0].member_id,
+              memberId: memberRows[0].member_id,
               first_name: memberRows[0].first_name,
-              amount:     grossAmount,
+              amount: grossAmount,
               receipt,
             },
           });
@@ -336,11 +341,11 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         // is posted by its own module, but the Safaricom fee still needs to
         // hit the books. Post a standalone charge entry.
         await postStandaloneChargeJournal(db, {
-          groupId:            b2c.group_id,
-          amount:             charge,
-          reference:          receipt ?? r.OriginatorConversationID,
+          groupId: b2c.group_id,
+          amount: charge,
+          reference: receipt ?? r.OriginatorConversationID,
           mpesaTransactionId: b2c.mpesa_transaction_id,
-          chargeType:         'b2c',
+          chargeType: 'b2c',
         });
       }
 
@@ -349,7 +354,8 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
       // actual balance; the reservation's job is done) and mark completed.
       if (b2c.disbursement_request_id) {
         await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
-          status: 'completed', mpesaReceiptNumber: receipt,
+          status: 'completed',
+          mpesaReceiptNumber: receipt,
         });
         return { rowId: b2c.disbursement_request_id, eventData: { status: 'completed', mpesaReceiptNumber: receipt } };
       }
@@ -372,8 +378,8 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
  * callback is a safe no-op.
  */
 async function releaseDisbursementReservation(
-  db:   PoolClient,
-  id:   string,
+  db: PoolClient,
+  id: string,
   args: { status: 'completed' | 'failed'; mpesaReceiptNumber?: string | null; failureReason?: string },
 ): Promise<void> {
   const { rows } = await db.query<{ cash_account_id: string; amount: string }>(
@@ -387,21 +393,21 @@ async function releaseDisbursementReservation(
     [args.status, args.mpesaReceiptNumber ?? null, args.failureReason ?? null, id],
   );
   if (!rows[0]) return; // already settled — replayed callback
-  await db.query(
-    `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,
-    [rows[0].amount, rows[0].cash_account_id],
-  );
+  await db.query(`UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`, [
+    rows[0].amount,
+    rows[0].cash_account_id,
+  ]);
 }
 
 async function applyLoanDisbursement(
-  db:   PoolClient,
+  db: PoolClient,
   args: {
-    groupId:            string;
-    loanId:             string;
-    amount:             number;
-    charge:             number;
-    receipt:            string;
-    disbursedBy:        string | null;
+    groupId: string;
+    loanId: string;
+    amount: number;
+    charge: number;
+    receipt: string;
+    disbursedBy: string | null;
     mpesaTransactionId: string | null;
   },
 ): Promise<void> {
@@ -431,19 +437,24 @@ async function applyLoanDisbursement(
   // Posted by the B2C result callback (system), though initiated_by (disbursedBy)
   // is retained in created_by.
   const posted = await postLoanDisbursementJournal(db, {
-    groupId: args.groupId, loanId: args.loanId, principal: args.amount, charge: args.charge,
-    entryDate: new Date().toISOString().slice(0, 10), reference: args.receipt,
-    createdBy: args.disbursedBy, isTest: IS_SANDBOX,
+    groupId: args.groupId,
+    loanId: args.loanId,
+    principal: args.amount,
+    charge: args.charge,
+    entryDate: new Date().toISOString().slice(0, 10),
+    reference: args.receipt,
+    createdBy: args.disbursedBy,
+    isTest: IS_SANDBOX,
   });
 
   // Record the fee for reconciliation against the Charges Paid sub-account.
   if (args.charge > 0 && args.mpesaTransactionId) {
     await insertMpesaCharge(db, {
-      groupId:            args.groupId,
+      groupId: args.groupId,
       mpesaTransactionId: args.mpesaTransactionId,
-      chargeType:         'b2c',
-      amount:             args.charge,
-      journalEntryId:     posted?.chargePosted ? posted.journalEntryId : null,
+      chargeType: 'b2c',
+      amount: args.charge,
+      journalEntryId: posted?.chargePosted ? posted.journalEntryId : null,
     });
   }
 }

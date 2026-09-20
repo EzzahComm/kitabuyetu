@@ -3,8 +3,12 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, created } from '@/lib/utils/response';
 import { smsPricingAdminService } from '@/lib/services/sms-pricing-admin.service';
 import {
-  TierCreateSchema, TierUpdateSchema, PackageCreateSchema, PackageUpdateSchema,
-  ActivateTiersSchema, ProviderCostSchema,
+  TierCreateSchema,
+  TierUpdateSchema,
+  PackageCreateSchema,
+  PackageUpdateSchema,
+  ActivateTiersSchema,
+  ProviderCostSchema,
 } from '@/lib/validators/sms-pricing.schema';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +55,7 @@ export function POST(req: NextRequest) {
 export function PATCH(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     const body = await req.json();
-    const id   = new URL(req.url).searchParams.get('id');
+    const id = new URL(req.url).searchParams.get('id');
     if (!id) return ok({ error: 'id is required' }, 400);
 
     if (body?.kind === 'package') {

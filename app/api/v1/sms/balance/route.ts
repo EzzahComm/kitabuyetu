@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { withAdminDb } from '@/lib/db';

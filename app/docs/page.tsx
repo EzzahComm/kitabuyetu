@@ -8,7 +8,8 @@ import { ROUTES } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
 
 const TITLE = 'Documentation';
-const DESCRIPTION = 'Getting-started guides for Kitabu Yetu — set up your group, collect by M-Pesa, and manage your book.';
+const DESCRIPTION =
+  'Getting-started guides for Kitabu Yetu — set up your group, collect by M-Pesa, and manage your book.';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -78,8 +79,7 @@ export default function DocsPage() {
                 Getting started with <em className="italic font-normal text-brand-600">Kitabu Yetu</em>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
-                A written manual and API reference are on the way. In the meantime, here
-                is where to start.
+                A written manual and API reference are on the way. In the meantime, here is where to start.
               </p>
             </div>
           </Container>
@@ -94,20 +94,21 @@ export default function DocsPage() {
                 className="group flex flex-col rounded-lg border border-brand-blue-900/10 bg-white p-6 transition-colors hover:border-brand-500/40"
               >
                 <h2 className="font-display text-xl font-normal text-brand-blue-900">{guide.title}</h2>
-                <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                  {guide.body}
-                </p>
+                <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{guide.body}</p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
                   Read more
-                  <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
+                  />
                 </span>
               </Link>
             ))}
           </div>
 
           <p className="mt-14 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
-            Trying to do something specific — set up M-Pesa collections, understand a
-            report, or integrate with the API as an enterprise partner?{' '}
+            Trying to do something specific — set up M-Pesa collections, understand a report, or integrate with the API
+            as an enterprise partner?{' '}
             <Link href={ROUTES.support} className="font-medium text-brand-700 hover:underline">
               Contact support
             </Link>{' '}

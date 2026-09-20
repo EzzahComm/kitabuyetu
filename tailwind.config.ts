@@ -1,12 +1,5 @@
 import type { Config } from 'tailwindcss';
-import {
-  brandGreen,
-  brandNavy,
-  brandOrange,
-  brandAccent,
-  brandNeutral,
-  brandPaper,
-} from './lib/ui/brand-palette';
+import { brandGreen, brandNavy, brandOrange, brandAccent, brandNeutral, brandPaper } from './lib/ui/brand-palette';
 
 const config: Config = {
   darkMode: ['class'],
@@ -148,24 +141,9 @@ const config: Config = {
       },
 
       fontFamily: {
-        sans: [
-          'var(--font-inter)',
-          'Inter',
-          'system-ui',
-          'sans-serif',
-        ],
-        display: [
-          'var(--font-fraunces)',
-          'var(--font-display)',
-          'Georgia',
-          'serif',
-        ],
-        mono: [
-          'var(--font-dm-mono)',
-          'ui-monospace',
-          'SFMono-Regular',
-          'monospace',
-        ],
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'var(--font-display)', 'Georgia', 'serif'],
+        mono: ['var(--font-dm-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
       spacing: {
@@ -195,14 +173,10 @@ const config: Config = {
       boxShadow: {
         xs: '0 1px 2px rgba(0, 0, 0, 0.05)',
         sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
-        DEFAULT:
-          '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        md:
-          '0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
-        lg:
-          '0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
-        xl:
-          '0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04)',
+        DEFAULT: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
+        md: '0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
+        lg: '0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
+        xl: '0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04)',
       },
 
       keyframes: {
@@ -246,8 +220,7 @@ const config: Config = {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'slide-in': 'slide-in 0.2s ease-out',
-        'fade-up':
-          'fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'fade-up': 'fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
         marquee: 'marquee 40s linear infinite',
       },
     },
@@ -257,4 +230,3 @@ const config: Config = {
 };
 
 export default config;
-

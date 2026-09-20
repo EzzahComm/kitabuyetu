@@ -53,13 +53,13 @@ import {
 export type NotifyBillingMode = 'unbilled' | 'billed' | 'platform';
 
 export interface NotifyRecipient {
-  groupId:  string;
+  groupId: string;
   memberId: string;
-  phone:    string;
-  body:     string;
+  phone: string;
+  body: string;
   /** Free-form linkage so the audit rows can be traced back to the event. */
   referenceType?: string;
-  referenceId?:   string;
+  referenceId?: string;
   /** Shown in the (member) portal's in-app notifications list. Falls back to a
    *  referenceType-derived label when omitted, so existing call sites don't
    *  need to change. */
@@ -75,9 +75,9 @@ export interface NotifyRecipient {
 }
 
 const DEFAULT_TITLE_BY_REFERENCE: Record<string, string> = {
-  loan_repayment:        'Loan reminder',
+  loan_repayment: 'Loan reminder',
   contribution_reminder: 'Contribution reminder',
-  stk_fallback:          'Payment issue',
+  stk_fallback: 'Payment issue',
 };
 
 function deriveTitle(rcpt: NotifyRecipient): string {
@@ -108,7 +108,7 @@ async function writeInAppNotification(rcpt: NotifyRecipient): Promise<void> {
 
 export interface NotifyOutcome {
   channel: 'whatsapp' | 'sms' | 'none';
-  status:  'sent' | 'dry_run' | 'failed' | 'suppressed';
+  status: 'sent' | 'dry_run' | 'failed' | 'suppressed';
   detail?: string;
 }
 
@@ -120,9 +120,10 @@ export interface NotifyOutcome {
  */
 async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
   try {
-    const { rows } = await pool.query<{ n: number }>(
-      `SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [groupId, phone],
-    );
+    const { rows } = await pool.query<{ n: number }>(`SELECT 1 AS n FROM sms_opt_outs WHERE group_id=$1 AND phone=$2`, [
+      groupId,
+      phone,
+    ]);
     return rows.length > 0;
   } catch (err) {
     // Fail closed: if we can't confirm consent, don't send.
@@ -187,7 +188,7 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
         phone,
         'failed',
         undefined,
-        wa.status === 'failed' ? wa.errorCode    : undefined,
+        wa.status === 'failed' ? wa.errorCode : undefined,
         wa.status === 'failed' ? wa.errorMessage : undefined,
       );
       logger.warn('[notifications] WA failed, falling back to SMS', { memberId: rcpt.memberId, detail: wa });
@@ -195,7 +196,7 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
       // A throwing WA client must degrade to SMS, not abort the send.
       logger.warn('[notifications] WA threw, falling back to SMS', {
         memberId: rcpt.memberId,
-        detail:   err instanceof Error ? err.message : String(err),
+        detail: err instanceof Error ? err.message : String(err),
       });
     }
   } else {
@@ -221,14 +222,14 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
  *     reason sms_release_stale_reservations exists.
  */
 async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyOutcome> {
-  const mode   = rcpt.billingMode ?? 'unbilled';
+  const mode = rcpt.billingMode ?? 'unbilled';
   const target = billingTarget(rcpt, mode);
 
   let reservedCredits = 0;
-  let fromAllowance   = 0;
+  let fromAllowance = 0;
   // Kept separately from reservedCredits (their sum) so an earmark can be
   // handed back on the exact two axes reserve_sms_credits moved.
-  let reservedFromPaid   = 0;
+  let reservedFromPaid = 0;
   let reservedFromBundle = 0;
   if (mode === 'billed') {
     // Reserve SEGMENTS, not a flat 1 — a long reminder is billed by the
@@ -260,13 +261,13 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     // settle computes paid = credits_reserved - credits_from_allowance, so a
     // 0.90 reserved against a 1 allowance gave -0.10 and GREW the balance on
     // consume. The unit mismatch this migration closes had a second head.
-    reservedCredits    = reservation.fromPaid + reservation.fromAllowance;
-    reservedFromPaid   = reservation.fromPaid;
+    reservedCredits = reservation.fromPaid + reservation.fromAllowance;
+    reservedFromPaid = reservation.fromPaid;
     reservedFromBundle = reservation.fromAllowanceCount;
     // Phase 2b (migration 124): this is always a single-message reservation
     // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
     // full reservedCredits.
-    fromAllowance   = reservation.fromAllowance;
+    fromAllowance = reservation.fromAllowance;
   }
 
   const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance, segmentsOf(rcpt.body));
@@ -288,11 +289,16 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
 
   try {
     const sms = await sendSingleSms({ mobile: phone, message: rcpt.body });
-    const ok  = sms.success;
-    settleAs  = ok ? 'consume' : 'release';
+    const ok = sms.success;
+    settleAs = ok ? 'consume' : 'release';
 
-    await finaliseSmsLog(logId, ok ? 'sent' : 'failed', sms.messageId, sms.networkId,
-                         ok ? null : sms.responseDescription);
+    await finaliseSmsLog(
+      logId,
+      ok ? 'sent' : 'failed',
+      sms.messageId,
+      sms.networkId,
+      ok ? null : sms.responseDescription,
+    );
 
     return ok
       ? { channel: 'sms', status: 'sent' }
@@ -323,10 +329,10 @@ function billingTarget(rcpt: NotifyRecipient, mode: NotifyBillingMode): Reservat
  * cap concurrency with a small worker pool here.
  */
 export async function notifyMany(rcpts: NotifyRecipient[]): Promise<{
-  attempted:  number;
-  whatsapp:   number;
-  sms:        number;
-  failed:     number;
+  attempted: number;
+  whatsapp: number;
+  sms: number;
+  failed: number;
   suppressed: number;
 }> {
   const tally = { attempted: 0, whatsapp: 0, sms: 0, failed: 0, suppressed: 0 };
@@ -348,11 +354,11 @@ export async function notifyMany(rcpts: NotifyRecipient[]): Promise<{
 // ── Audit-log writers ─────────────────────────────────────────────────
 
 async function writeWhatsAppLog(
-  rcpt:      NotifyRecipient,
-  toPhone:   string,
-  status:    'sent' | 'failed' | 'dry_run',
+  rcpt: NotifyRecipient,
+  toPhone: string,
+  status: 'sent' | 'failed' | 'dry_run',
   waMessageId?: string,
-  errorCode?:   string,
+  errorCode?: string,
   errorMessage?: string,
 ): Promise<void> {
   try {
@@ -370,9 +376,14 @@ async function writeWhatsAppLog(
          CASE WHEN $5 = 'failed'              THEN NOW() ELSE NULL END
        )`,
       [
-        rcpt.groupId, rcpt.memberId, toPhone,
-        rcpt.body, status, waMessageId ?? null,
-        errorCode ?? null, errorMessage ?? null,
+        rcpt.groupId,
+        rcpt.memberId,
+        toPhone,
+        rcpt.body,
+        status,
+        waMessageId ?? null,
+        errorCode ?? null,
+        errorMessage ?? null,
       ],
     );
   } catch (err) {
@@ -394,16 +405,15 @@ async function writeWhatsAppLog(
  * The caller now compensates explicitly via releaseUnticketedReservation.
  */
 async function insertSmsLog(
-  rcpt:    NotifyRecipient,
+  rcpt: NotifyRecipient,
   toPhone: string,
-  mode:    NotifyBillingMode,
+  mode: NotifyBillingMode,
   reserved: number,
   fromAllowance: number = 0,
   segments: number = 1,
 ): Promise<string | null> {
   const isPlatform = mode === 'platform';
-  const payerType  = isPlatform ? 'platform'
-                   : rcpt.payerOrganizationId ? 'organization' : 'group';
+  const payerType = isPlatform ? 'platform' : rcpt.payerOrganizationId ? 'organization' : 'group';
   try {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO sms_usage_logs (
@@ -450,8 +460,8 @@ async function insertSmsLog(
 
 /** Stamp the provider's verdict onto a row written by insertSmsLog. */
 async function finaliseSmsLog(
-  logId:   string | null,
-  status:  'sent' | 'failed',
+  logId: string | null,
+  status: 'sent' | 'failed',
   providerMsgId?: string | null,
   networkId?: string | null,
   failedReason?: string | null,
@@ -497,10 +507,10 @@ async function finaliseSmsLog(
  * call was unreachable for unknown numbers.
  */
 export async function sendServiceSms(input: {
-  phone:   string;
-  body:    string;
+  phone: string;
+  body: string;
   notificationType: string;
-  groupId?:  string | null;
+  groupId?: string | null;
   memberId?: string | null;
   correlationId?: string | null;
 }): Promise<{ sent: boolean; detail?: string }> {
@@ -510,21 +520,26 @@ export async function sendServiceSms(input: {
   const phone = normalizePhone(input.phone);
 
   const rcpt: NotifyRecipient = {
-    groupId:  input.groupId ?? '',
+    groupId: input.groupId ?? '',
     memberId: input.memberId ?? '',
     phone,
-    body:     input.body,
+    body: input.body,
     notificationType: input.notificationType,
-    correlationId:    input.correlationId ?? null,
-    referenceType:    input.notificationType,
+    correlationId: input.correlationId ?? null,
+    referenceType: input.notificationType,
   };
 
   const logId = await insertSmsLog(rcpt, phone, 'platform', 0);
 
   try {
     const sms = await sendSingleSms({ mobile: phone, message: input.body });
-    await finaliseSmsLog(logId, sms.success ? 'sent' : 'failed', sms.messageId, sms.networkId,
-                         sms.success ? null : sms.responseDescription);
+    await finaliseSmsLog(
+      logId,
+      sms.success ? 'sent' : 'failed',
+      sms.messageId,
+      sms.networkId,
+      sms.success ? null : sms.responseDescription,
+    );
     return sms.success ? { sent: true } : { sent: false, detail: sms.responseDescription };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);

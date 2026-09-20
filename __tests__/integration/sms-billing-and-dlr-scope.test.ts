@@ -28,15 +28,22 @@ import { NotFoundError } from '@/lib/utils/errors';
 // must happen before it — dispatch itself is mocked so no real SMS is sent.
 jest.mock('@/lib/services/textsms.service', () => ({
   sendSingleSms: jest.fn().mockResolvedValue({
-    responseCode: 200, responseDescription: 'Success',
-    mobile: '254717548646', messageId: 'test-msg-1', networkId: '1', success: true,
+    responseCode: 200,
+    responseDescription: 'Success',
+    mobile: '254717548646',
+    messageId: 'test-msg-1',
+    networkId: '1',
+    success: true,
   }),
   sendBulkSms: jest.fn().mockResolvedValue({ responses: [], sent: 0, failed: 0 }),
   sendBulkSmsChunked: jest.fn().mockResolvedValue({ responses: [], sent: 0, failed: 0 }),
   getDeliveryReport: jest.fn().mockResolvedValue({
-    messageId: 'test-msg-1', phone: '254717548646',
-    status: 'DeliveredToTerminal', networkId: '1',
-    deliveredAt: '2026-08-06 12:00:00', raw: {},
+    messageId: 'test-msg-1',
+    phone: '254717548646',
+    status: 'DeliveredToTerminal',
+    networkId: '1',
+    deliveredAt: '2026-08-06 12:00:00',
+    raw: {},
   }),
   getProviderBalance: jest.fn().mockResolvedValue({ balance: 100, currency: 'KES', raw: {} }),
 }));
@@ -62,10 +69,10 @@ async function provisionBilling(groupId: string, credits: number, allowance = 0)
      ON CONFLICT DO NOTHING`,
     [groupId, allowance],
   );
-  await rawQuery(
-    `UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`,
-    [groupId, allowance],
-  );
+  await rawQuery(`UPDATE subscriptions SET sms_allowance_included = $2 WHERE group_id = $1 AND status = 'active'`, [
+    groupId,
+    allowance,
+  ]);
 }
 
 describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
@@ -74,7 +81,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
   beforeAll(async () => {
     await resetDatabase();
     const g = await createTestGroup('treasurer');
-    groupId   = g.groupId;
+    groupId = g.groupId;
     officerId = g.officerId;
     await provisionBilling(groupId, 100);
   });
@@ -90,7 +97,8 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       expect(logs[0].group_id).toBe(groupId);
 
       const [billing] = await rawQuery<{ sms_credits: string }>(
-        `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+        `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+        [groupId],
       );
       // 100 - 1 recipient. Was 99.1 (100 - 0.90 * 1) until migration 144:
       // the balance is a MESSAGE COUNT, so charging it the money rate let a
@@ -98,7 +106,8 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       expect(parseFloat(billing.sms_credits)).toBeCloseTo(99, 2);
 
       const [log] = await rawQuery<{ credits_deducted: string; payer_type: string }>(
-        `SELECT credits_deducted, payer_type FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+        `SELECT credits_deducted, payer_type FROM sms_usage_logs WHERE group_id=$1`,
+        [groupId],
       );
       // One message, one credit (migration 144). The money cost of this send
       // is still derivable as credits * the subscription's sms_rate; it is
@@ -112,15 +121,10 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       await provisionBilling(poorGroup, 0.1);
 
       await expect(
-        smsService.send(
-          { userId: poorOfficer, groupId: poorGroup, role: 'treasurer' },
-          '0717548646', 'hello',
-        ),
+        smsService.send({ userId: poorOfficer, groupId: poorGroup, role: 'treasurer' }, '0717548646', 'hello'),
       ).rejects.toThrow();
 
-      const rows = await rawQuery(
-        `SELECT 1 FROM sms_usage_logs WHERE group_id=$1`, [poorGroup],
-      );
+      const rows = await rawQuery(`SELECT 1 FROM sms_usage_logs WHERE group_id=$1`, [poorGroup]);
       expect(rows).toHaveLength(0);
     });
   });
@@ -131,7 +135,8 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       await provisionBilling(rgGroupId, 100, 50);
 
       const [before] = await rawQuery<{ sms_allowance_used: number }>(
-        `SELECT sms_allowance_used FROM billing_accounts WHERE group_id=$1`, [rgGroupId],
+        `SELECT sms_allowance_used FROM billing_accounts WHERE group_id=$1`,
+        [rgGroupId],
       );
 
       const [{ id: memberRoleId }] = await rawQuery<{ id: string }>(
@@ -139,14 +144,18 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       );
 
       await assignGroupMemberRole({
-        actorId: officerId, memberId: officerId, groupId: rgGroupId, roleId: memberRoleId,
+        actorId: officerId,
+        memberId: officerId,
+        groupId: rgGroupId,
+        roleId: memberRoleId,
       });
 
       // Proves the Decision B flip actually took effect: before this PR,
       // member-roles.service.ts's notifyMember call defaulted to
       // billingMode 'unbilled' and never moved this counter at all.
       const [after] = await rawQuery<{ sms_allowance_used: number; sms_allowance_reserved: number }>(
-        `SELECT sms_allowance_used, sms_allowance_reserved FROM billing_accounts WHERE group_id=$1`, [rgGroupId],
+        `SELECT sms_allowance_used, sms_allowance_reserved FROM billing_accounts WHERE group_id=$1`,
+        [rgGroupId],
       );
       expect(after.sms_allowance_used).toBe(before.sms_allowance_used + 1);
       // settleReservation runs synchronously inside sendSmsLeg's finally,
@@ -167,7 +176,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
   });
 
   describe('C3 — getDlr is scoped to the calling tenant', () => {
-    it("refuses a message id belonging to another group", async () => {
+    it('refuses a message id belonging to another group', async () => {
       const [log] = await rawQuery<{ id: string }>(
         `UPDATE sms_usage_logs SET provider_msg_id='foreign-msg-1', status='sent', sent_at=NOW()
          WHERE group_id=$1 RETURNING id`,
@@ -177,9 +186,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
 
       const { groupId: otherGroup } = await createTestGroup('treasurer');
 
-      await expect(
-        smsService.getDlr('foreign-msg-1', { groupId: otherGroup }),
-      ).rejects.toThrow(NotFoundError);
+      await expect(smsService.getDlr('foreign-msg-1', { groupId: otherGroup })).rejects.toThrow(NotFoundError);
 
       // and the foreign row must be untouched by the attempt
       const [after] = await rawQuery<{ status: string }>(

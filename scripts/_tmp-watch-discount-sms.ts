@@ -5,8 +5,11 @@ const DEADLINE = Date.now() + 20 * 60 * 1000;
 async function poll() {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      phone: string; st: string; provider_msg_id: string | null;
-      retries: string | null; fail: string | null;
+      phone: string;
+      st: string;
+      provider_msg_id: string | null;
+      retries: string | null;
+      fail: string | null;
     }>(
       `SELECT u.recipient_phone AS phone, u.status::text AS st,
               u.provider_msg_id,
@@ -43,4 +46,9 @@ async function main() {
   }
 }
 
-main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

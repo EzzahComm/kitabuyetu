@@ -43,7 +43,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       const input = CreateSettlementSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return created(await settlementsService.initiate(ctx, { ...input, idempotencyKey }));
     } catch (err) {
       return handleError(err);

@@ -14,7 +14,9 @@ import { createEmployeeWith } from './hr.service';
 import type { Employee } from './hr.service';
 import { uploadResume, createResumeSignedUrl } from '@/lib/supabase/resume-storage';
 import type {
-  SubmitApplicationInput, UpdateApplicationStageInput, HireApplicantInput,
+  SubmitApplicationInput,
+  UpdateApplicationStageInput,
+  HireApplicantInput,
 } from '@/lib/validators/careers.schema';
 
 export type ApplicationStage = 'applied' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected';
@@ -48,7 +50,13 @@ async function logCareersAudit(
   await db.query(
     `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
      VALUES ($1, $2, 'job_application', $3, $4, $5)`,
-    [actorId, action, applicationId, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null],
+    [
+      actorId,
+      action,
+      applicationId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ],
   );
 }
 
@@ -67,7 +75,14 @@ export async function submitApplication(
       `INSERT INTO job_applications (job_slug, job_title, applicant_name, applicant_email, applicant_phone, cover_note)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [data.jobSlug, data.jobTitle, data.applicantName, data.applicantEmail, data.applicantPhone ?? null, data.coverNote ?? null],
+      [
+        data.jobSlug,
+        data.jobTitle,
+        data.applicantName,
+        data.applicantEmail,
+        data.applicantPhone ?? null,
+        data.coverNote ?? null,
+      ],
     );
     let application = rows[0];
 
@@ -94,7 +109,10 @@ export async function submitApplication(
   });
 }
 
-export async function listApplications(filters?: { jobSlug?: string; stage?: ApplicationStage }): Promise<JobApplication[]> {
+export async function listApplications(filters?: {
+  jobSlug?: string;
+  stage?: ApplicationStage;
+}): Promise<JobApplication[]> {
   return withAdminDb(async (db) => {
     const conditions: string[] = [];
     const params: unknown[] = [];
@@ -140,7 +158,8 @@ export async function updateApplicationStage(
     const { rows: existingRows } = await db.query<JobApplication>(`SELECT * FROM job_applications WHERE id = $1`, [id]);
     if (!existingRows.length) throw new NotFoundError('Application', id);
     const before = existingRows[0];
-    if (before.stage === 'hired') throw new ConflictError('This application is already hired — its stage cannot be changed further');
+    if (before.stage === 'hired')
+      throw new ConflictError('This application is already hired — its stage cannot be changed further');
 
     const { rows } = await db.query<JobApplication>(
       `UPDATE job_applications
@@ -169,7 +188,8 @@ export async function hireApplicant(
     if (!existingRows.length) throw new NotFoundError('Application', id);
     const before = existingRows[0];
     if (before.stage === 'hired') throw new ConflictError('This application has already been hired');
-    if (before.stage === 'rejected') throw new ValidationError('Cannot hire a rejected application — move it back to a live stage first');
+    if (before.stage === 'rejected')
+      throw new ValidationError('Cannot hire a rejected application — move it back to a live stage first');
 
     const [firstName, ...rest] = before.applicant_name.trim().split(/\s+/);
     const lastName = rest.join(' ') || firstName;

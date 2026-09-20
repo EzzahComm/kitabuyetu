@@ -29,7 +29,9 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
   return (
     <Column style={{ width: '50%', padding: 4 }}>
       <Section style={{ backgroundColor: '#F6F8FB', borderRadius: 10, padding: '12px 14px' }}>
-        <Text style={{ margin: 0, fontSize: 11, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
+        <Text style={{ margin: 0, fontSize: 11, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {label}
+        </Text>
         <Text style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: c.blue }}>{KES(value)}</Text>
       </Section>
     </Column>
@@ -37,8 +39,15 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
 }
 
 export default function AccountStatement({
-  memberName, groupName, period, savings, shares, loanBalance,
-  contributedThisPeriod, transactions, statementUrl,
+  memberName,
+  groupName,
+  period,
+  savings,
+  shares,
+  loanBalance,
+  contributedThisPeriod,
+  transactions,
+  statementUrl,
 }: AccountStatementProps) {
   return (
     <EmailLayout
@@ -65,7 +74,9 @@ export default function AccountStatement({
 
       <Divider />
 
-      <Text style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: c.textMuted }}>
+      <Text
+        style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: c.textMuted }}
+      >
         Recent activity
       </Text>
       {transactions.slice(0, 8).map((t, i) => (
@@ -74,7 +85,8 @@ export default function AccountStatement({
           label={`${t.date} · ${t.label}`}
           value={
             <span style={{ color: t.direction === 'in' ? c.green : c.text }}>
-              {t.direction === 'in' ? '+' : '−'}{KES(t.amount)}
+              {t.direction === 'in' ? '+' : '−'}
+              {KES(t.amount)}
             </span>
           }
         />

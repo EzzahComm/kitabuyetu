@@ -17,16 +17,16 @@ import { ok, created } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'fines.manage', async (auth) => {
     const params = FineQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await finesService.list(ctx, params));
   });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'fines.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = IssueFineSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return created(await finesService.issue(ctx, input));
   });
 }

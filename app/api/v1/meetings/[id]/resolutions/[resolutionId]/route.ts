@@ -17,9 +17,9 @@ type Params = { params: Promise<{ id: string; resolutionId: string }> };
 export async function PATCH(req: NextRequest, { params }: Params): Promise<Response> {
   const { id, resolutionId } = await params;
   return withPermission(req, 'meetings.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = UpdateResolutionSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await meetingsService.updateResolution(ctx, id, resolutionId, input));
   });
 }

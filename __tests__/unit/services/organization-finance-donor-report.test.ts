@@ -11,9 +11,13 @@ import { organizationFinanceService } from '@/lib/services/organization-finance.
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
 }));
-jest.mock('./organization.service', () => ({
-  organizationService: { assertOrganizationCoordinator: jest.fn() },
-}), { virtual: true });
+jest.mock(
+  './organization.service',
+  () => ({
+    organizationService: { assertOrganizationCoordinator: jest.fn() },
+  }),
+  { virtual: true },
+);
 // Passthrough — this suite tests the query/aggregation logic, not the
 // read-through cache (OPTIMIZATION_CLEANUP_AUDIT.md High #8; that has its
 // own dedicated unit test at __tests__/unit/utils/redis-cache.test.ts).
@@ -22,7 +26,7 @@ jest.mock('@/lib/redis', () => ({
   keys: { cache: (name: string, scope: string) => `cache:${name}:${scope}` },
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -30,14 +34,27 @@ beforeEach(() => {
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
 });
 
-const ctx = { groupId: null, userId: 'coord-1', role: 'organization_coordinator', organizationId: 'org-1' } as unknown as TenantContext;
+const ctx = {
+  groupId: null,
+  userId: 'coord-1',
+  role: 'organization_coordinator',
+  organizationId: 'org-1',
+} as unknown as TenantContext;
 
 // Organization plans (migration 152) gate this report on advancedReports —
 // a query donorSpendReport now issues (via assertReportsAccess) BEFORE its
 // own two, so it must be the first mockResolvedValueOnce in every test here,
 // or the report's real queries consume this one's response instead.
 const advancedReportsPlanRow = {
-  rows: [{ advanced_reports: true, white_label_branding: false, max_linked_groups: null, max_staff: null, max_funding_programs: null }],
+  rows: [
+    {
+      advanced_reports: true,
+      white_label_branding: false,
+      max_linked_groups: null,
+      max_staff: null,
+      max_funding_programs: null,
+    },
+  ],
 };
 
 describe('organizationFinanceService.donorSpendReport', () => {
@@ -45,16 +62,37 @@ describe('organizationFinanceService.donorSpendReport', () => {
     mockQuery.mockResolvedValueOnce(advancedReportsPlanRow);
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { id: 'prog-1', name: 'Water Access', funding_source: 'World Bank', budget: '100000.00', disbursed_total: '40000.00', reserved: '10000.00' },
-        { id: 'prog-2', name: 'School Fees',  funding_source: 'World Bank', budget: '50000.00',  disbursed_total: '20000.00', reserved: '0' },
-        { id: 'prog-3', name: 'Emergency Fund', funding_source: null,       budget: '20000.00',  disbursed_total: '5000.00',  reserved: '0' },
+        {
+          id: 'prog-1',
+          name: 'Water Access',
+          funding_source: 'World Bank',
+          budget: '100000.00',
+          disbursed_total: '40000.00',
+          reserved: '10000.00',
+        },
+        {
+          id: 'prog-2',
+          name: 'School Fees',
+          funding_source: 'World Bank',
+          budget: '50000.00',
+          disbursed_total: '20000.00',
+          reserved: '0',
+        },
+        {
+          id: 'prog-3',
+          name: 'Emergency Fund',
+          funding_source: null,
+          budget: '20000.00',
+          disbursed_total: '5000.00',
+          reserved: '0',
+        },
       ],
     });
     mockQuery.mockResolvedValueOnce({
       rows: [
         { funding_source: 'World Bank', group_id: 'grp-1', group_name: 'Umoja VSLA', amount: '40000.00' },
         { funding_source: 'World Bank', group_id: 'grp-2', group_name: 'Amani Chama', amount: '20000.00' },
-        { funding_source: null,         group_id: 'grp-3', group_name: 'Tumaini SACCO', amount: '5000.00' },
+        { funding_source: null, group_id: 'grp-3', group_name: 'Tumaini SACCO', amount: '5000.00' },
       ],
     });
 

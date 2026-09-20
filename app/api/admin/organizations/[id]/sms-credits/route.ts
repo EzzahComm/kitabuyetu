@@ -19,10 +19,10 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
     const parsed = TopUpSmsCreditsSchema.safeParse(await req.json());
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
-    const result = await addOrganizationSmsCredits(
-      id, parsed.data.amountKes, auth.userId,
-      { reference: parsed.data.reference, notes: parsed.data.notes },
-    );
+    const result = await addOrganizationSmsCredits(id, parsed.data.amountKes, auth.userId, {
+      reference: parsed.data.reference,
+      notes: parsed.data.notes,
+    });
     // See the organization-scoped sibling route: null is a swallowed duplicate
     // payment, unreachable for a manual top-up but never reported as success.
     if (!result) return badRequest('This payment has already been credited');

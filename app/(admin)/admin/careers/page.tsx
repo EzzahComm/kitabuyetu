@@ -13,8 +13,12 @@ import { formatDate } from '@/lib/utils';
 import { JOB_APPLICATION_STAGES } from '@/lib/validators/careers.schema';
 
 const STAGE_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  applied: 'secondary', screening: 'default', interview: 'default',
-  offer: 'default', hired: 'default', rejected: 'destructive',
+  applied: 'secondary',
+  screening: 'default',
+  interview: 'default',
+  offer: 'default',
+  hired: 'default',
+  rejected: 'destructive',
 };
 
 export default function CareersApplicationsPage() {
@@ -35,7 +39,13 @@ export default function CareersApplicationsPage() {
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {JOB_APPLICATION_STAGES.map((s) => (
-          <StatCard key={s} title={s.replace('_', ' ')} value={counts[s]} icon={Users} accent={s === 'hired' ? 'green' : s === 'rejected' ? 'red' : 'blue'} />
+          <StatCard
+            key={s}
+            title={s.replace('_', ' ')}
+            value={counts[s]}
+            icon={Users}
+            accent={s === 'hired' ? 'green' : s === 'rejected' ? 'red' : 'blue'}
+          />
         ))}
       </div>
 
@@ -47,7 +57,11 @@ export default function CareersApplicationsPage() {
             className="h-8 rounded-md border border-input bg-background px-2 text-sm"
           >
             <option value="">All stages</option>
-            {JOB_APPLICATION_STAGES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            {JOB_APPLICATION_STAGES.map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
           </select>
         </CardContent>
       </Card>
@@ -79,7 +93,9 @@ export default function CareersApplicationsPage() {
                     </TableCell>
                     <TableCell>{a.job_title}</TableCell>
                     <TableCell>{formatDate(a.created_at)}</TableCell>
-                    <TableCell><Badge variant={STAGE_VARIANT[a.stage]}>{a.stage.replace('_', ' ')}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={STAGE_VARIANT[a.stage]}>{a.stage.replace('_', ' ')}</Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

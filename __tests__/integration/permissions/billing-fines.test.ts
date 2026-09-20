@@ -29,9 +29,9 @@ describe('Billing/Fines permission gates', () => {
   beforeAll(async () => {
     await resetDatabase();
     const { groupId: gId, officerId: founderId } = await createTestGroup('chairperson');
-    groupId  = gId;
+    groupId = gId;
     memberId = await addGroupOfficer(gId, founderId, 'treasurer');
-    treasurerPerms   = await permissionsFor('treasurer');
+    treasurerPerms = await permissionsFor('treasurer');
     chairpersonPerms = await permissionsFor('chairperson');
   });
 
@@ -40,46 +40,65 @@ describe('Billing/Fines permission gates', () => {
   });
 
   it('billing.manage: treasurer is denied on all 3 billing routes, chairperson is allowed', async () => {
-    const deniedInvoices = await invoicesGet(buildRequest('/api/v1/billing/invoices', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const deniedInvoices = await invoicesGet(
+      buildRequest('/api/v1/billing/invoices', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(deniedInvoices.status).toBe(403);
 
-    const allowedInvoices = await invoicesGet(buildRequest('/api/v1/billing/invoices', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowedInvoices = await invoicesGet(
+      buildRequest('/api/v1/billing/invoices', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowedInvoices.status).toBe(200);
 
-    const deniedTopup = await paymentsPost(buildRequest('/api/v1/billing/payments', {
-      method: 'POST', body: { type: 'sms_topup', amount: 500 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const deniedTopup = await paymentsPost(
+      buildRequest('/api/v1/billing/payments', {
+        method: 'POST',
+        body: { type: 'sms_topup', amount: 500 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(deniedTopup.status).toBe(403);
 
-    const allowedTopup = await paymentsPost(buildRequest('/api/v1/billing/payments', {
-      method: 'POST', body: { type: 'sms_topup', amount: 500 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowedTopup = await paymentsPost(
+      buildRequest('/api/v1/billing/payments', {
+        method: 'POST',
+        body: { type: 'sms_topup', amount: 500 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowedTopup.status).toBe(200);
 
-    const deniedPlan = await plansPost(buildRequest('/api/v1/billing/plans', {
-      method: 'POST', body: { planType: 'growth' },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const deniedPlan = await plansPost(
+      buildRequest('/api/v1/billing/plans', {
+        method: 'POST',
+        body: { planType: 'growth' },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(deniedPlan.status).toBe(403);
   });
 
   it('fines.manage: treasurer is denied setting the fine schedule, chairperson is allowed', async () => {
-    const denied = await finesPolicyPut(buildRequest('/api/v1/fines/policy', {
-      method: 'PUT', body: { schedule: { late_contribution: 100 } },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const denied = await finesPolicyPut(
+      buildRequest('/api/v1/fines/policy', {
+        method: 'PUT',
+        body: { schedule: { late_contribution: 100 } },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await finesPolicyPut(buildRequest('/api/v1/fines/policy', {
-      method: 'PUT', body: { schedule: { late_contribution: 100 } },
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowed = await finesPolicyPut(
+      buildRequest('/api/v1/fines/policy', {
+        method: 'PUT',
+        body: { schedule: { late_contribution: 100 } },
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 });

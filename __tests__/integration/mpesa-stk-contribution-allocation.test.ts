@@ -93,11 +93,9 @@ describe('STK contribution allocation pipeline', () => {
   });
 
   it('allocates a successful STK callback into a completed payment, a contribution, and a balanced journal entry', async () => {
-    const result = await handleSTKCallback(
-      stkSuccessBody(checkoutRequestId, receipt, amount, phone),
-      '0.0.0.0',
-      { skipIpCheck: true },
-    );
+    const result = await handleSTKCallback(stkSuccessBody(checkoutRequestId, receipt, amount, phone), '0.0.0.0', {
+      skipIpCheck: true,
+    });
     expect(result.success).toBe(true);
 
     const [payment] = await rawQuery<{ status: string; allocation_status: string }>(
@@ -124,30 +122,31 @@ describe('STK contribution allocation pipeline', () => {
     );
     expect(journalLines.length).toBeGreaterThan(0);
     for (const line of journalLines) expect(line.entry_date).toBeTruthy();
-    const totalDebit  = journalLines.reduce((s, l) => s + parseFloat(l.debit), 0);
+    const totalDebit = journalLines.reduce((s, l) => s + parseFloat(l.debit), 0);
     const totalCredit = journalLines.reduce((s, l) => s + parseFloat(l.credit), 0);
     expect(totalDebit).toBeCloseTo(totalCredit, 2);
   });
 
   it('is idempotent: replaying the same callback never creates a duplicate contribution or journal entry', async () => {
     const before = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
 
-    const replay = await handleSTKCallback(
-      stkSuccessBody(checkoutRequestId, receipt, amount, phone),
-      '0.0.0.0',
-      { skipIpCheck: true },
-    );
+    const replay = await handleSTKCallback(stkSuccessBody(checkoutRequestId, receipt, amount, phone), '0.0.0.0', {
+      skipIpCheck: true,
+    });
     expect(replay.success).toBe(true);
 
     const after = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT COUNT(*) FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
     expect(after[0].count).toBe(before[0].count);
 
     const journalEntries = await rawQuery<{ count: string }>(
-      `SELECT COUNT(*) FROM journal_entries WHERE reference=$1`, [receipt],
+      `SELECT COUNT(*) FROM journal_entries WHERE reference=$1`,
+      [receipt],
     );
     expect(journalEntries[0].count).toBe('1');
   });

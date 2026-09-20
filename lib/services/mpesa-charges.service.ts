@@ -16,10 +16,9 @@ export const CHARGE_EXPENSE_CODE = '5001';
 
 /** Deterministic Safaricom fee lookup via the seeded tier table (mig 047). */
 export async function computeB2CCharge(db: PoolClient, amount: number): Promise<number> {
-  const { rows } = await db.query<{ charge: string | null }>(
-    `SELECT mpesa_charge_for_amount($1, 'b2c') AS charge`,
-    [amount.toFixed(2)],
-  );
+  const { rows } = await db.query<{ charge: string | null }>(`SELECT mpesa_charge_for_amount($1, 'b2c') AS charge`, [
+    amount.toFixed(2),
+  ]);
   const raw = rows[0]?.charge;
   return raw != null ? parseFloat(raw) : 0;
 }
@@ -31,10 +30,9 @@ export async function computeB2CCharge(db: PoolClient, amount: number): Promise<
  * missing.
  */
 export async function computeB2BCharge(db: PoolClient, amount: number): Promise<number> {
-  const { rows } = await db.query<{ charge: string | null }>(
-    `SELECT mpesa_charge_for_amount($1, 'b2b') AS charge`,
-    [amount.toFixed(2)],
-  );
+  const { rows } = await db.query<{ charge: string | null }>(`SELECT mpesa_charge_for_amount($1, 'b2b') AS charge`, [
+    amount.toFixed(2),
+  ]);
   const raw = rows[0]?.charge;
   return raw != null ? parseFloat(raw) : 0;
 }
@@ -44,13 +42,13 @@ export async function computeB2BCharge(db: PoolClient, amount: number): Promise<
  * (mpesa_transaction_id) constraint makes a duplicate callback a no-op.
  */
 export async function insertMpesaCharge(
-  db:   PoolClient,
+  db: PoolClient,
   args: {
-    groupId:            string;
+    groupId: string;
     mpesaTransactionId: string;
-    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
-    amount:             number;
-    journalEntryId:     string | null;
+    chargeType: 'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
+    amount: number;
+    journalEntryId: string | null;
   },
 ): Promise<void> {
   const { rows } = await db.query<{ id: string }>(
@@ -85,16 +83,16 @@ export async function insertMpesaCharge(
  * flows whose principal disbursement journal lives in another module.
  */
 export async function postStandaloneChargeJournal(
-  db:   PoolClient,
+  db: PoolClient,
   args: {
-    groupId:            string;
-    amount:             number;
-    reference:          string;
+    groupId: string;
+    amount: number;
+    reference: string;
     mpesaTransactionId: string;
-    chargeType:         'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
+    chargeType: 'b2c' | 'b2b' | 'reversal' | 'stk_push' | 'other';
   },
 ): Promise<void> {
-  const cashCode   = '1001';
+  const cashCode = '1001';
   const expenseCode = CHARGE_EXPENSE_CODE;
 
   const { rows: accts } = await db.query<{ code: string; id: string }>(
@@ -102,7 +100,7 @@ export async function postStandaloneChargeJournal(
      WHERE group_id = $1 AND is_active = true AND account_code IN ($2, $3)`,
     [args.groupId, cashCode, expenseCode],
   );
-  const cashId    = accts.find((a) => a.code === cashCode)?.id;
+  const cashId = accts.find((a) => a.code === cashCode)?.id;
   const expenseId = accts.find((a) => a.code === expenseCode)?.id;
   if (!cashId || !expenseId) {
     logger.warn('[mpesa] skipped charge journal — chart missing 1001/5001', { groupId: args.groupId });

@@ -78,7 +78,7 @@
       "recommendation": "Same as the finder's: VACUUM (FULL) net._http_response — corroborated separately as needing an owner/superuser-equivalent role, since Supabase sets the table owner to supabase_admin rather than the connecting role.",
       "effort": "trivial",
       "note": "Bloat and lifetime-cost figures confirmed via two independent sibling re-verifications against the same production database the same week. The specific marginal-vs-historical-cost delta claim (12ms now vs 129ms lifetime mean) is plausible given the corroborating n_dead_tup=0 finding but was not itself independently re-run by me or found in either sibling file."
-      },
+    },
     {
       "title": "email_campaign_process and email_campaign_drain enqueue against tables that have never held a single row",
       "verdict": "CONFIRMED",

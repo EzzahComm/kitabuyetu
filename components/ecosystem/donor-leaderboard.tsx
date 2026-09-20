@@ -93,7 +93,9 @@ export function DonorLeaderboard({ organizationId, limit = 10 }: DonorLeaderboar
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500">{donor.donation_count} donation{donor.donation_count !== 1 ? 's' : ''}</p>
+                  <p className="text-sm text-gray-500">
+                    {donor.donation_count} donation{donor.donation_count !== 1 ? 's' : ''}
+                  </p>
                 </div>
               </div>
 

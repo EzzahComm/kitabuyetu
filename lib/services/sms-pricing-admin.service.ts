@@ -27,61 +27,61 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  * accident.
  */
 export interface SmsPricingTierRow {
-  id:            string;
-  name:          string;
-  min_credits:   number;
-  max_credits:   number | null;
-  unit_price:    string;
-  currency:      string;
-  is_active:     boolean;
+  id: string;
+  name: string;
+  min_credits: number;
+  max_credits: number | null;
+  unit_price: string;
+  currency: string;
+  is_active: boolean;
   display_order: number;
-  notes:         string | null;
-  created_at:    string;
-  updated_at:    string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SmsPackageRow {
-  id:             string;
-  name:           string;
-  description:    string | null;
-  credits:        number;
-  price:          string;
-  currency:       string;
-  is_active:      boolean;
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  price: string;
+  currency: string;
+  is_active: boolean;
   is_recommended: boolean;
-  display_order:  number;
-  created_at:     string;
-  updated_at:     string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /** What `setActiveTiers` reports back: the whole band list either side of the swap. */
 export type TierActivationRow = Pick<SmsPricingTierRow, 'id' | 'name' | 'is_active'>;
 
 export interface SmsProviderCostRow {
-  id:             string;
-  provider:       string;
-  unit_cost:      string;
-  currency:       string;
+  id: string;
+  provider: string;
+  unit_cost: string;
+  currency: string;
   effective_from: string;
-  effective_to:   string | null;
-  notes:          string | null;
-  created_at:     string;
+  effective_to: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface TierInput {
-  name:         string;
-  minCredits:   number;
-  maxCredits:   number | null;
-  unitPrice:    number;
+  name: string;
+  minCredits: number;
+  maxCredits: number | null;
+  unitPrice: number;
   displayOrder?: number;
-  notes?:       string | null;
+  notes?: string | null;
 }
 
 export interface PackageInput {
-  name:          string;
-  description?:  string | null;
-  credits:       number;
-  price:         number;
+  name: string;
+  description?: string | null;
+  credits: number;
+  price: number;
   isRecommended?: boolean;
   displayOrder?: number;
 }
@@ -101,9 +101,13 @@ async function audit(
   await client.query(
     `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
      VALUES (NULL, $1, $2, 'sms_pricing', $3, $4, $5)`,
-    [actorId, action, resourceId,
-     oldValues ? JSON.stringify(oldValues) : null,
-     newValues ? JSON.stringify(newValues) : null],
+    [
+      actorId,
+      action,
+      resourceId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ],
   );
 }
 
@@ -137,8 +141,14 @@ export async function createTier(actorId: string, input: TierInput) {
          (name, min_credits, max_credits, unit_price, display_order, notes, is_active)
        VALUES ($1,$2,$3,$4,$5,$6,false)
        RETURNING *`,
-      [input.name, input.minCredits, input.maxCredits, input.unitPrice.toFixed(4),
-       input.displayOrder ?? 0, input.notes ?? null],
+      [
+        input.name,
+        input.minCredits,
+        input.maxCredits,
+        input.unitPrice.toFixed(4),
+        input.displayOrder ?? 0,
+        input.notes ?? null,
+      ],
     );
     await audit(db, actorId, 'sms_pricing.tier_created', rows[0].id, null, rows[0]);
     return rows[0];
@@ -160,11 +170,18 @@ export async function updateTier(actorId: string, id: string, input: Partial<Tie
          notes        = COALESCE($8, notes),
          updated_at   = NOW()
        WHERE id = $1 RETURNING *`,
-      [id, input.name ?? null, input.minCredits ?? null,
-       // maxCredits is meaningfully nullable ("and above"), so COALESCE cannot
-       // distinguish "leave it" from "set it to unbounded". A flag can.
-       Object.prototype.hasOwnProperty.call(input, 'maxCredits'), input.maxCredits ?? null,
-       input.unitPrice?.toFixed(4) ?? null, input.displayOrder ?? null, input.notes ?? null],
+      [
+        id,
+        input.name ?? null,
+        input.minCredits ?? null,
+        // maxCredits is meaningfully nullable ("and above"), so COALESCE cannot
+        // distinguish "leave it" from "set it to unbounded". A flag can.
+        Object.prototype.hasOwnProperty.call(input, 'maxCredits'),
+        input.maxCredits ?? null,
+        input.unitPrice?.toFixed(4) ?? null,
+        input.displayOrder ?? null,
+        input.notes ?? null,
+      ],
     );
     await audit(db, actorId, 'sms_pricing.tier_updated', id, before[0], rows[0]);
     return rows[0];
@@ -199,10 +216,9 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
 
     await db.query(`UPDATE sms_pricing_tiers SET is_active = false, updated_at = NOW() WHERE is_active`);
     if (tierIds.length) {
-      await db.query(
-        `UPDATE sms_pricing_tiers SET is_active = true, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
-        [tierIds],
-      );
+      await db.query(`UPDATE sms_pricing_tiers SET is_active = true, updated_at = NOW() WHERE id = ANY($1::uuid[])`, [
+        tierIds,
+      ]);
     }
 
     const { rows: after } = await db.query<TierActivationRow>(
@@ -224,15 +240,25 @@ export async function createPackage(actorId: string, input: PackageInput) {
          (name, description, credits, price, is_recommended, display_order, is_active)
        VALUES ($1,$2,$3,$4,$5,$6,false)
        RETURNING *`,
-      [input.name, input.description ?? null, input.credits, input.price.toFixed(2),
-       input.isRecommended ?? false, input.displayOrder ?? 0],
+      [
+        input.name,
+        input.description ?? null,
+        input.credits,
+        input.price.toFixed(2),
+        input.isRecommended ?? false,
+        input.displayOrder ?? 0,
+      ],
     );
     await audit(db, actorId, 'sms_pricing.package_created', rows[0].id, null, rows[0]);
     return rows[0];
   });
 }
 
-export async function updatePackage(actorId: string, id: string, input: Partial<PackageInput> & { isActive?: boolean }) {
+export async function updatePackage(
+  actorId: string,
+  id: string,
+  input: Partial<PackageInput> & { isActive?: boolean },
+) {
   return withAdminDb(async (db) => {
     const { rows: before } = await db.query(`SELECT * FROM sms_packages WHERE id = $1`, [id]);
     if (!before[0]) throw new NotFoundError('SMS package', id);
@@ -243,7 +269,8 @@ export async function updatePackage(actorId: string, id: string, input: Partial<
     if (input.isRecommended) {
       await db.query(
         `UPDATE sms_packages SET is_recommended = false, updated_at = NOW()
-         WHERE is_recommended AND id <> $1`, [id],
+         WHERE is_recommended AND id <> $1`,
+        [id],
       );
     }
 
@@ -258,9 +285,16 @@ export async function updatePackage(actorId: string, id: string, input: Partial<
          display_order  = COALESCE($8, display_order),
          updated_at     = NOW()
        WHERE id = $1 RETURNING *`,
-      [id, input.name ?? null, input.description ?? null, input.credits ?? null,
-       input.price?.toFixed(2) ?? null, input.isRecommended ?? null,
-       input.isActive ?? null, input.displayOrder ?? null],
+      [
+        id,
+        input.name ?? null,
+        input.description ?? null,
+        input.credits ?? null,
+        input.price?.toFixed(2) ?? null,
+        input.isRecommended ?? null,
+        input.isActive ?? null,
+        input.displayOrder ?? null,
+      ],
     );
     await audit(db, actorId, 'sms_pricing.package_updated', id, before[0], rows[0]);
     return rows[0];

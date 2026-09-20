@@ -19,12 +19,7 @@
 
 import type { EventPayload } from './events';
 
-export type ConditionOp =
-  | 'eq' | 'neq'
-  | 'gt' | 'gte' | 'lt' | 'lte'
-  | 'in' | 'nin'
-  | 'contains'
-  | 'exists';
+export type ConditionOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'nin' | 'contains' | 'exists';
 
 export type Condition =
   | { all: Condition[] }
@@ -58,7 +53,7 @@ export function evaluateCondition(condition: unknown, payload: EventPayload): bo
 
     if (Array.isArray(n.all)) return n.all.every((c) => walk(c, depth + 1));
     if (Array.isArray(n.any)) return n.any.some((c) => walk(c, depth + 1));
-    if ('not' in n)           return !walk(n.not, depth + 1);
+    if ('not' in n) return !walk(n.not, depth + 1);
 
     if (typeof n.field === 'string' && typeof n.op === 'string') {
       return compare(payload[n.field], n.op as ConditionOp, n.value);
@@ -79,8 +74,10 @@ function compare(actual: unknown, op: ConditionOp, expected: unknown): boolean {
   if (actual === undefined || actual === null) return false;
 
   switch (op) {
-    case 'eq':  return looseEquals(actual, expected);
-    case 'neq': return !looseEquals(actual, expected);
+    case 'eq':
+      return looseEquals(actual, expected);
+    case 'neq':
+      return !looseEquals(actual, expected);
 
     case 'gt':
     case 'gte':
@@ -89,9 +86,9 @@ function compare(actual: unknown, op: ConditionOp, expected: unknown): boolean {
       const a = toNumber(actual);
       const b = toNumber(expected);
       if (a === null || b === null) return false;
-      if (op === 'gt')  return a >  b;
+      if (op === 'gt') return a > b;
       if (op === 'gte') return a >= b;
-      if (op === 'lt')  return a <  b;
+      if (op === 'lt') return a < b;
       return a <= b;
     }
 
@@ -101,8 +98,7 @@ function compare(actual: unknown, op: ConditionOp, expected: unknown): boolean {
       return Array.isArray(expected) && !expected.some((e) => looseEquals(actual, e));
 
     case 'contains':
-      return typeof expected === 'string'
-        && String(actual).toLowerCase().includes(expected.toLowerCase());
+      return typeof expected === 'string' && String(actual).toLowerCase().includes(expected.toLowerCase());
 
     default:
       return false;

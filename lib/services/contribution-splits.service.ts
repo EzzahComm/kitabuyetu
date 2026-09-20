@@ -9,16 +9,16 @@ import type {
 } from '@/lib/validators/contribution-splits.schema';
 
 export interface ContributionSplit {
-  id:           string;
-  group_id:     string;
+  id: string;
+  group_id: string;
   account_code: string;
-  percentage:   string | null;
+  percentage: string | null;
   fixed_amount: string | null;
-  priority:     number;
-  is_active:    boolean;
-  created_by:   string | null;
-  created_at:   string;
-  updated_at:   string;
+  priority: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const contributionSplitsService = {
@@ -41,14 +41,7 @@ export const contributionSplitsService = {
            (group_id, account_code, percentage, fixed_amount, priority, created_by)
          VALUES ($1,$2,$3,$4,$5,$6)
          RETURNING *`,
-        [
-          ctx.groupId,
-          data.accountCode,
-          data.percentage ?? null,
-          data.fixedAmount ?? null,
-          data.priority,
-          ctx.userId,
-        ],
+        [ctx.groupId, data.accountCode, data.percentage ?? null, data.fixedAmount ?? null, data.priority, ctx.userId],
       );
 
       // Record audit log for contribution split creation — user-triggered
@@ -75,21 +68,32 @@ export const contributionSplitsService = {
     });
   },
 
-  async update(
-    ctx: TenantContext,
-    id: string,
-    data: UpdateContributionSplitInput,
-  ): Promise<ContributionSplit> {
+  async update(ctx: TenantContext, id: string, data: UpdateContributionSplitInput): Promise<ContributionSplit> {
     return withTransaction(ctx, async (client) => {
       const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
 
-      if (data.accountCode !== undefined) { sets.push(`account_code = $${idx++}`); values.push(data.accountCode); }
-      if (data.percentage  !== undefined) { sets.push(`percentage = $${idx++}`);   values.push(data.percentage); }
-      if (data.fixedAmount !== undefined) { sets.push(`fixed_amount = $${idx++}`); values.push(data.fixedAmount); }
-      if (data.priority    !== undefined) { sets.push(`priority = $${idx++}`);     values.push(data.priority); }
-      if (data.isActive    !== undefined) { sets.push(`is_active = $${idx++}`);    values.push(data.isActive); }
+      if (data.accountCode !== undefined) {
+        sets.push(`account_code = $${idx++}`);
+        values.push(data.accountCode);
+      }
+      if (data.percentage !== undefined) {
+        sets.push(`percentage = $${idx++}`);
+        values.push(data.percentage);
+      }
+      if (data.fixedAmount !== undefined) {
+        sets.push(`fixed_amount = $${idx++}`);
+        values.push(data.fixedAmount);
+      }
+      if (data.priority !== undefined) {
+        sets.push(`priority = $${idx++}`);
+        values.push(data.priority);
+      }
+      if (data.isActive !== undefined) {
+        sets.push(`is_active = $${idx++}`);
+        values.push(data.isActive);
+      }
 
       if (!sets.length) {
         const { rows } = await client.query<ContributionSplit>(
@@ -159,10 +163,10 @@ export const contributionSplitsService = {
       if (!priorRows[0]) throw new NotFoundError('Contribution split', id);
       const prior = priorRows[0];
 
-      const { rowCount } = await client.query(
-        'DELETE FROM group_contribution_splits WHERE id = $1 AND group_id = $2',
-        [id, ctx.groupId],
-      );
+      const { rowCount } = await client.query('DELETE FROM group_contribution_splits WHERE id = $1 AND group_id = $2', [
+        id,
+        ctx.groupId,
+      ]);
       if (!rowCount) throw new NotFoundError('Contribution split', id);
 
       // Record audit log for contribution split removal — user-triggered
@@ -190,10 +194,7 @@ export const contributionSplitsService = {
    * Atomically replace the whole rule set for the group. Used by the
    * "Save all" UI. Deletes then re-inserts inside one transaction.
    */
-  async replaceAll(
-    ctx: TenantContext,
-    data: ReplaceContributionSplitsInput,
-  ): Promise<ContributionSplit[]> {
+  async replaceAll(ctx: TenantContext, data: ReplaceContributionSplitsInput): Promise<ContributionSplit[]> {
     return withTransaction(ctx, async (client) => {
       // Read prior state for audit log
       const { rows: priorRules } = await client.query<ContributionSplit>(
@@ -201,10 +202,7 @@ export const contributionSplitsService = {
         [ctx.groupId],
       );
 
-      await client.query(
-        'DELETE FROM group_contribution_splits WHERE group_id = $1',
-        [ctx.groupId],
-      );
+      await client.query('DELETE FROM group_contribution_splits WHERE group_id = $1', [ctx.groupId]);
 
       // Record audit log for all deleted splits
       if (priorRules.length > 0) {
@@ -217,12 +215,14 @@ export const contributionSplitsService = {
             'contributionSplits.replaceAll',
             'contribution_splits',
             `${ctx.groupId}:all`,
-            JSON.stringify(priorRules.map(r => ({
-              id: r.id,
-              account_code: r.account_code,
-              percentage: r.percentage,
-              fixed_amount: r.fixed_amount,
-            }))),
+            JSON.stringify(
+              priorRules.map((r) => ({
+                id: r.id,
+                account_code: r.account_code,
+                percentage: r.percentage,
+                fixed_amount: r.fixed_amount,
+              })),
+            ),
             JSON.stringify(data.rules),
           ],
         );
@@ -251,15 +251,12 @@ export const contributionSplitsService = {
  * Returns [] when the group hasn't configured any — the allocator then sends
  * 100% to the default account.
  */
-export async function loadActiveSplitRules(
-  db: PoolClient,
-  groupId: string,
-): Promise<SplitRule[]> {
+export async function loadActiveSplitRules(db: PoolClient, groupId: string): Promise<SplitRule[]> {
   const { rows } = await db.query<{
     account_code: string;
-    percentage:   string | null;
+    percentage: string | null;
     fixed_amount: string | null;
-    priority:     number;
+    priority: number;
   }>(
     `SELECT account_code, percentage, fixed_amount, priority
      FROM   group_contribution_splits
@@ -269,8 +266,8 @@ export async function loadActiveSplitRules(
   );
   return rows.map((r) => ({
     account_code: r.account_code,
-    percentage:   r.percentage   != null ? parseFloat(r.percentage)   : null,
+    percentage: r.percentage != null ? parseFloat(r.percentage) : null,
     fixed_amount: r.fixed_amount != null ? parseFloat(r.fixed_amount) : null,
-    priority:     r.priority,
+    priority: r.priority,
   }));
 }

@@ -27,7 +27,8 @@ describe('GSM-7 boundaries', () => {
   });
 
   it('counts the real welcome template as one segment', () => {
-    const body = 'Dear Florence, you have joined Ndengelwa Community Water Project on Kitabu Yetu. Your member number is NC000086. Karibu.';
+    const body =
+      'Dear Florence, you have joined Ndengelwa Community Water Project on Kitabu Yetu. Your member number is NC000086. Karibu.';
     expect(segmentsOf(body)).toBe(1);
   });
 });

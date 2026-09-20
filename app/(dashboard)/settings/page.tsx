@@ -20,17 +20,19 @@ const PAYBILL = process.env.NEXT_PUBLIC_MPESA_PAYBILL ?? '';
 
 const profileSchema = z.object({
   firstName: z.string().min(2),
-  lastName:  z.string().min(2),
-  email:     z.string().email().optional().or(z.literal('')),
+  lastName: z.string().min(2),
+  email: z.string().email().optional().or(z.literal('')),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword:     z.string().min(8),
-  confirm:         z.string(),
-}).refine((d) => d.newPassword === d.confirm, { message: 'Passwords do not match', path: ['confirm'] });
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8),
+    confirm: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirm, { message: 'Passwords do not match', path: ['confirm'] });
 
 type PasswordForm = z.infer<typeof passwordSchema>;
 
@@ -38,14 +40,21 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { register: regProfile, handleSubmit: handleProfile, formState: { errors: profileErrors, isSubmitting: profileSubmitting } } =
-    useForm<ProfileForm>({
-      resolver: zodResolver(profileSchema),
-      defaultValues: { firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '' },
-    });
+  const {
+    register: regProfile,
+    handleSubmit: handleProfile,
+    formState: { errors: profileErrors, isSubmitting: profileSubmitting },
+  } = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '' },
+  });
 
-  const { register: regPwd, handleSubmit: handlePwd, reset: resetPwd, formState: { errors: pwdErrors, isSubmitting: pwdSubmitting } } =
-    useForm<PasswordForm>({ resolver: zodResolver(passwordSchema) });
+  const {
+    register: regPwd,
+    handleSubmit: handlePwd,
+    reset: resetPwd,
+    formState: { errors: pwdErrors, isSubmitting: pwdSubmitting },
+  } = useForm<PasswordForm>({ resolver: zodResolver(passwordSchema) });
 
   const onProfileSave = async (values: ProfileForm) => {
     if (!user) return;
@@ -65,7 +74,7 @@ export default function SettingsPage() {
       // reported success without changing anything.
       await authApi.changePassword({
         currentPassword: values.currentPassword,
-        newPassword:     values.newPassword,
+        newPassword: values.newPassword,
       });
       toast({
         title: 'Password changed',
@@ -96,9 +105,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xl font-mono font-semibold tracking-wider">
-              {formatMembershipNo(membershipNo)}
-            </p>
+            <p className="text-xl font-mono font-semibold tracking-wider">{formatMembershipNo(membershipNo)}</p>
             <Button
               type="button"
               variant="outline"
@@ -124,7 +131,9 @@ export default function SettingsPage() {
               <div className="space-y-1">
                 <Label>First name</Label>
                 <Input {...regProfile('firstName')} />
-                {profileErrors.firstName && <p className="text-xs text-destructive">{profileErrors.firstName.message as string}</p>}
+                {profileErrors.firstName && (
+                  <p className="text-xs text-destructive">{profileErrors.firstName.message as string}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Last name</Label>
@@ -135,7 +144,9 @@ export default function SettingsPage() {
                 <Input type="email" {...regProfile('email')} />
               </div>
             </div>
-            <Button type="submit" loading={profileSubmitting}>Save changes</Button>
+            <Button type="submit" loading={profileSubmitting}>
+              Save changes
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -153,14 +164,18 @@ export default function SettingsPage() {
             <div className="space-y-1">
               <Label>New password</Label>
               <Input type="password" {...regPwd('newPassword')} />
-              {pwdErrors.newPassword && <p className="text-xs text-destructive">{pwdErrors.newPassword.message as string}</p>}
+              {pwdErrors.newPassword && (
+                <p className="text-xs text-destructive">{pwdErrors.newPassword.message as string}</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label>Confirm new password</Label>
               <Input type="password" {...regPwd('confirm')} />
               {pwdErrors.confirm && <p className="text-xs text-destructive">{pwdErrors.confirm.message as string}</p>}
             </div>
-            <Button type="submit" loading={pwdSubmitting}>Change password</Button>
+            <Button type="submit" loading={pwdSubmitting}>
+              Change password
+            </Button>
           </form>
         </CardContent>
       </Card>

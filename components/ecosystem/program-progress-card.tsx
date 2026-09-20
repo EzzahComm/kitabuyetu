@@ -21,11 +21,7 @@ interface ProgramProgressCardProps {
   onDonate?: () => void;
 }
 
-export function ProgramProgressCard({
-  program,
-  showCta = true,
-  onDonate,
-}: ProgramProgressCardProps) {
+export function ProgramProgressCard({ program, showCta = true, onDonate }: ProgramProgressCardProps) {
   const fundingProgress = program.target_amount
     ? Math.min(100, Math.round((program.current_amount / program.target_amount) * 100))
     : 0;
@@ -49,9 +45,7 @@ export function ProgramProgressCard({
           <div className="flex-1">
             <CardTitle className="text-lg">{program.name}</CardTitle>
           </div>
-          <Badge variant={statusColors[program.status as keyof typeof statusColors]}>
-            {program.status}
-          </Badge>
+          <Badge variant={statusColors[program.status as keyof typeof statusColors]}>{program.status}</Badge>
         </div>
       </CardHeader>
 
@@ -61,9 +55,7 @@ export function ProgramProgressCard({
           <div>
             <div className="flex items-baseline justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Funding</span>
-              <span className="text-lg font-bold text-green-600">
-                KES {program.current_amount.toLocaleString()}
-              </span>
+              <span className="text-lg font-bold text-green-600">KES {program.current_amount.toLocaleString()}</span>
             </div>
             <Progress value={fundingProgress} className="h-2 mb-1" />
             <div className="flex justify-between text-xs text-gray-500">

@@ -6,14 +6,26 @@ import { z } from 'zod';
 // (this file used to have three independent copies of DISBURSEMENT_TYPES
 // and two of PROGRAM_TYPES, one of them missing 'insurance'/'investment').
 export const PROGRAM_TYPES = [
-  'grant', 'revolving_fund', 'loan_capital', 'matching_contribution',
-  'seed_capital', 'emergency_support', 'operational_support',
-  'scholarship', 'insurance', 'investment',
+  'grant',
+  'revolving_fund',
+  'loan_capital',
+  'matching_contribution',
+  'seed_capital',
+  'emergency_support',
+  'operational_support',
+  'scholarship',
+  'insurance',
+  'investment',
 ] as const;
 
 export const DISBURSEMENT_TYPES = [
-  'grant', 'revolving_fund', 'loan_capital', 'matching_contribution',
-  'seed_capital', 'emergency_support', 'operational_support',
+  'grant',
+  'revolving_fund',
+  'loan_capital',
+  'matching_contribution',
+  'seed_capital',
+  'emergency_support',
+  'operational_support',
 ] as const;
 
 // ─── Financial product terms (capital layer Phase 1, migration 116) ──────────
@@ -22,11 +34,11 @@ export const DISBURSEMENT_TYPES = [
 // payload returns a clean 400 instead of a raw 23514 from Postgres.
 
 /** Matches loans_interest_method_check EXACTLY — not the source spec's 'declining_balance'. */
-export const INTEREST_METHODS    = ['flat', 'reducing_balance'] as const;
+export const INTEREST_METHODS = ['flat', 'reducing_balance'] as const;
 export const REPAYMENT_FREQUENCIES = ['none', 'weekly', 'monthly', 'quarterly', 'bullet'] as const;
-export const CAPITAL_MODELS      = ['liability', 'pass_through'] as const;
-export const LOSS_BEARERS        = ['group', 'organization', 'shared'] as const;
-export const REVENUE_OWNERS      = ['organization', 'group', 'shared'] as const;
+export const CAPITAL_MODELS = ['liability', 'pass_through'] as const;
+export const LOSS_BEARERS = ['group', 'organization', 'shared'] as const;
+export const REVENUE_OWNERS = ['organization', 'group', 'shared'] as const;
 export const MEMBER_VISIBILITIES = ['pseudonymous', 'aggregate', 'identified'] as const;
 
 /** Waterfall components, in the order a repayment is applied. */
@@ -36,122 +48,185 @@ export const WATERFALL_COMPONENTS = ['penalty', 'interest', 'principal'] as cons
 // source spec's snake_case document shape rather than the camelCase used for
 // columns — it is a config document, not a row.
 export const RepaymentWaterfallSchema = z.object({
-  order: z.array(z.enum(WATERFALL_COMPONENTS)).min(1)
+  order: z
+    .array(z.enum(WATERFALL_COMPONENTS))
+    .min(1)
     .refine((o) => new Set(o).size === o.length, 'waterfall order cannot repeat a component'),
-  revenue_split: z.record(
-    z.object({ organization: z.number().min(0).max(1), group: z.number().min(0).max(1) })
-      .refine((s) => Math.abs(s.organization + s.group - 1) < 1e-9, 'each revenue_split must sum to exactly 1.0'),
-  ).optional(),
+  revenue_split: z
+    .record(
+      z
+        .object({ organization: z.number().min(0).max(1), group: z.number().min(0).max(1) })
+        .refine((s) => Math.abs(s.organization + s.group - 1) < 1e-9, 'each revenue_split must sum to exactly 1.0'),
+    )
+    .optional(),
   rounding: z.enum(['banker', 'half_up']).optional(),
   residual: z.enum(['group_retained', 'organization_retained']).optional(),
 });
 
 const productTerms = {
-  productCode:         z.string().min(2).max(40).optional(),
-  isRepayable:         z.boolean().optional(),
-  capitalModel:        z.enum(CAPITAL_MODELS).optional(),
-  lossBearer:          z.enum(LOSS_BEARERS).optional(),
-  sharedLossRatio:     z.number().min(0).max(1).optional(),
-  interestMethod:      z.enum(INTEREST_METHODS).optional(),
+  productCode: z.string().min(2).max(40).optional(),
+  isRepayable: z.boolean().optional(),
+  capitalModel: z.enum(CAPITAL_MODELS).optional(),
+  lossBearer: z.enum(LOSS_BEARERS).optional(),
+  sharedLossRatio: z.number().min(0).max(1).optional(),
+  interestMethod: z.enum(INTEREST_METHODS).optional(),
   /** PERCENTAGE (12.5 = 12.5%), matching loans.interest_rate — never a 0-1 ratio. */
-  interestRateAnnual:  z.number().min(0).max(999.99).optional(),
-  repaymentFrequency:  z.enum(REPAYMENT_FREQUENCIES).optional(),
-  gracePeriodDays:     z.number().int().min(0).max(3650).optional(),
-  tenorMonths:         z.number().int().positive().max(600).optional(),
-  revenueOwner:        z.enum(REVENUE_OWNERS).optional(),
-  revenueShareRatio:   z.number().min(0).max(1).optional(),
-  repaymentWaterfall:  RepaymentWaterfallSchema.optional(),
-  memberVisibility:    z.enum(MEMBER_VISIBILITIES).optional(),
+  interestRateAnnual: z.number().min(0).max(999.99).optional(),
+  repaymentFrequency: z.enum(REPAYMENT_FREQUENCIES).optional(),
+  gracePeriodDays: z.number().int().min(0).max(3650).optional(),
+  tenorMonths: z.number().int().positive().max(600).optional(),
+  revenueOwner: z.enum(REVENUE_OWNERS).optional(),
+  revenueShareRatio: z.number().min(0).max(1).optional(),
+  repaymentWaterfall: RepaymentWaterfallSchema.optional(),
+  memberVisibility: z.enum(MEMBER_VISIBILITIES).optional(),
   /**
    * PERCENTAGE of the allocated amount, retained by the organization and
    * deducted from what's disbursed (migration 125). Independent of
    * isRepayable — a fee can apply to a grant too, so no superRefine
    * cross-field rule ties it to the repayable branch below.
    */
-  processingFeePct:    z.number().min(0).max(100).optional(),
+  processingFeePct: z.number().min(0).max(100).optional(),
 };
 
-export const CreateProgramSchema = z.object({
-  name:                  z.string().min(3).max(160),
-  programType:           z.enum(PROGRAM_TYPES),
-  budget:                z.number().positive().max(100_000_000_000),
-  fundingSource:         z.string().max(160).optional(),
-  description:           z.string().max(2000).optional(),
-  eligibilityCriteria:   z.record(z.unknown()).optional(),
-  geographicCoverage:    z.array(z.string().max(80)).max(100).optional(),
-  reportingRequirements: z.string().max(2000).optional(),
-  startsOn:              z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endsOn:                z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  ...productTerms,
-}).superRefine((v, ctx) => {
-  // Mirrors funding_programs_repayable_shape / _non_repayable_shape exactly.
-  if (v.isRepayable) {
-    if (!v.repaymentFrequency || v.repaymentFrequency === 'none') {
-      ctx.addIssue({ code: 'custom', path: ['repaymentFrequency'], message: 'A repayable product needs a repayment frequency' });
+export const CreateProgramSchema = z
+  .object({
+    name: z.string().min(3).max(160),
+    programType: z.enum(PROGRAM_TYPES),
+    budget: z.number().positive().max(100_000_000_000),
+    fundingSource: z.string().max(160).optional(),
+    description: z.string().max(2000).optional(),
+    eligibilityCriteria: z.record(z.unknown()).optional(),
+    geographicCoverage: z.array(z.string().max(80)).max(100).optional(),
+    reportingRequirements: z.string().max(2000).optional(),
+    startsOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    endsOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    ...productTerms,
+  })
+  .superRefine((v, ctx) => {
+    // Mirrors funding_programs_repayable_shape / _non_repayable_shape exactly.
+    if (v.isRepayable) {
+      if (!v.repaymentFrequency || v.repaymentFrequency === 'none') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['repaymentFrequency'],
+          message: 'A repayable product needs a repayment frequency',
+        });
+      }
+      if (v.tenorMonths === undefined) {
+        ctx.addIssue({ code: 'custom', path: ['tenorMonths'], message: 'A repayable product needs a tenor' });
+      }
+      if (!v.interestMethod) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['interestMethod'],
+          message: 'A repayable product needs an interest method',
+        });
+      }
+      if (!v.repaymentWaterfall) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['repaymentWaterfall'],
+          message: 'A repayable product needs a repayment waterfall',
+        });
+      }
+    } else {
+      if (v.interestRateAnnual !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['interestRateAnnual'],
+          message: 'A non-repayable product cannot carry interest',
+        });
+      }
+      if (v.interestMethod) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['interestMethod'],
+          message: 'A non-repayable product cannot have an interest method',
+        });
+      }
+      if (v.tenorMonths !== undefined) {
+        ctx.addIssue({ code: 'custom', path: ['tenorMonths'], message: 'A non-repayable product cannot have a tenor' });
+      }
+      if (v.repaymentFrequency && v.repaymentFrequency !== 'none') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['repaymentFrequency'],
+          message: 'A non-repayable product cannot have a repayment frequency',
+        });
+      }
     }
-    if (v.tenorMonths === undefined) {
-      ctx.addIssue({ code: 'custom', path: ['tenorMonths'], message: 'A repayable product needs a tenor' });
-    }
-    if (!v.interestMethod) {
-      ctx.addIssue({ code: 'custom', path: ['interestMethod'], message: 'A repayable product needs an interest method' });
-    }
-    if (!v.repaymentWaterfall) {
-      ctx.addIssue({ code: 'custom', path: ['repaymentWaterfall'], message: 'A repayable product needs a repayment waterfall' });
-    }
-  } else {
-    if (v.interestRateAnnual !== undefined) {
-      ctx.addIssue({ code: 'custom', path: ['interestRateAnnual'], message: 'A non-repayable product cannot carry interest' });
-    }
-    if (v.interestMethod) {
-      ctx.addIssue({ code: 'custom', path: ['interestMethod'], message: 'A non-repayable product cannot have an interest method' });
-    }
-    if (v.tenorMonths !== undefined) {
-      ctx.addIssue({ code: 'custom', path: ['tenorMonths'], message: 'A non-repayable product cannot have a tenor' });
-    }
-    if (v.repaymentFrequency && v.repaymentFrequency !== 'none') {
-      ctx.addIssue({ code: 'custom', path: ['repaymentFrequency'], message: 'A non-repayable product cannot have a repayment frequency' });
-    }
-  }
 
-  // Mirrors funding_programs_revenue_share_shape / _shared_loss_shape.
-  if (v.revenueOwner === 'shared' && v.revenueShareRatio === undefined) {
-    ctx.addIssue({ code: 'custom', path: ['revenueShareRatio'], message: "revenueShareRatio is required when revenueOwner is 'shared'" });
-  }
-  if (v.revenueOwner !== 'shared' && v.revenueShareRatio !== undefined) {
-    ctx.addIssue({ code: 'custom', path: ['revenueShareRatio'], message: "revenueShareRatio is only valid when revenueOwner is 'shared'" });
-  }
-  if (v.lossBearer === 'shared' && v.sharedLossRatio === undefined) {
-    ctx.addIssue({ code: 'custom', path: ['sharedLossRatio'], message: "sharedLossRatio is required when lossBearer is 'shared'" });
-  }
-  if (v.lossBearer !== 'shared' && v.sharedLossRatio !== undefined) {
-    ctx.addIssue({ code: 'custom', path: ['sharedLossRatio'], message: "sharedLossRatio is only valid when lossBearer is 'shared'" });
-  }
+    // Mirrors funding_programs_revenue_share_shape / _shared_loss_shape.
+    if (v.revenueOwner === 'shared' && v.revenueShareRatio === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['revenueShareRatio'],
+        message: "revenueShareRatio is required when revenueOwner is 'shared'",
+      });
+    }
+    if (v.revenueOwner !== 'shared' && v.revenueShareRatio !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['revenueShareRatio'],
+        message: "revenueShareRatio is only valid when revenueOwner is 'shared'",
+      });
+    }
+    if (v.lossBearer === 'shared' && v.sharedLossRatio === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['sharedLossRatio'],
+        message: "sharedLossRatio is required when lossBearer is 'shared'",
+      });
+    }
+    if (v.lossBearer !== 'shared' && v.sharedLossRatio !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['sharedLossRatio'],
+        message: "sharedLossRatio is only valid when lossBearer is 'shared'",
+      });
+    }
 
-  // Reserved-but-unimplemented paths (impact-report.md §7). Rejected at the
-  // edge so a caller gets a clear message rather than a half-working feature.
-  if (v.capitalModel === 'pass_through') {
-    ctx.addIssue({ code: 'custom', path: ['capitalModel'], message: "capitalModel 'pass_through' is reserved and not implemented" });
-  }
-  if (v.lossBearer && v.lossBearer !== 'group') {
-    ctx.addIssue({ code: 'custom', path: ['lossBearer'], message: `lossBearer '${v.lossBearer}' is reserved and not implemented` });
-  }
-  if (v.memberVisibility && v.memberVisibility !== 'pseudonymous') {
-    ctx.addIssue({
-      code: 'custom', path: ['memberVisibility'],
-      message: "memberVisibility beyond 'pseudonymous' is a product and legal decision under the Kenya DPA, not a config change",
-    });
-  }
-});
+    // Reserved-but-unimplemented paths (impact-report.md §7). Rejected at the
+    // edge so a caller gets a clear message rather than a half-working feature.
+    if (v.capitalModel === 'pass_through') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['capitalModel'],
+        message: "capitalModel 'pass_through' is reserved and not implemented",
+      });
+    }
+    if (v.lossBearer && v.lossBearer !== 'group') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['lossBearer'],
+        message: `lossBearer '${v.lossBearer}' is reserved and not implemented`,
+      });
+    }
+    if (v.memberVisibility && v.memberVisibility !== 'pseudonymous') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['memberVisibility'],
+        message:
+          "memberVisibility beyond 'pseudonymous' is a product and legal decision under the Kenya DPA, not a config change",
+      });
+    }
+  });
 
 /** Capitalize / decapitalize a product — adjusts its spending authority (budget). */
 export const CapitalAdjustmentSchema = z.object({
-  amount:    z.number().positive('Amount must be positive').max(100_000_000_000),
+  amount: z.number().positive('Amount must be positive').max(100_000_000_000),
   reference: z.string().max(64).optional(),
-  notes:     z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
 });
 
 export const ProgramActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('capitalize'),   ...CapitalAdjustmentSchema.shape }),
+  z.object({ action: z.literal('capitalize'), ...CapitalAdjustmentSchema.shape }),
   z.object({ action: z.literal('decapitalize'), ...CapitalAdjustmentSchema.shape }),
 ]);
 
@@ -165,38 +240,41 @@ export const UpdateProgramStatusSchema = z.object({
 });
 
 export const DepositSchema = z.object({
-  amount:    z.number().positive('Amount must be positive').max(1_000_000_000),
-  source:    z.string().max(160).optional(),
+  amount: z.number().positive('Amount must be positive').max(1_000_000_000),
+  source: z.string().max(160).optional(),
   reference: z.string().max(64).optional(),
-  notes:     z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
 });
 
 /** How money physically moves. Mirrors the `payment_method` enum, which
  *  `loans.payment_method` already uses — deliberately not a second vocabulary. */
 export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
 
-export const DisburseSchema = z.object({
-  groupId:          z.string().uuid(),
-  amount:           z.number().positive().max(1_000_000_000),
-  disbursementType: z.enum(DISBURSEMENT_TYPES),
-  fundingProgramId: z.string().uuid().optional(),
-  notes:            z.string().max(500).optional(),
-  /** What the allocation is for, e.g. "On-lending to members" (migration 117). */
-  purpose:          z.string().max(500).optional(),
-  /** How it was paid (migration 150). Optional so existing callers keep working;
-   *  omitted means "not recorded" rather than any assumed default. */
-  paymentMethod:    z.enum(PAYMENT_METHODS).optional(),
-  /** Cheque number / bank slip. Requires paymentMethod — a reference with no
-   *  method is a data-entry error, and the DB enforces the same rule. */
-  paymentReference: z.string().max(120).optional(),
-}).superRefine((v, ctx) => {
-  if (v.paymentReference && !v.paymentMethod) {
-    ctx.addIssue({
-      code: 'custom', path: ['paymentMethod'],
-      message: 'Select how it was paid before adding a payment reference',
-    });
-  }
-});
+export const DisburseSchema = z
+  .object({
+    groupId: z.string().uuid(),
+    amount: z.number().positive().max(1_000_000_000),
+    disbursementType: z.enum(DISBURSEMENT_TYPES),
+    fundingProgramId: z.string().uuid().optional(),
+    notes: z.string().max(500).optional(),
+    /** What the allocation is for, e.g. "On-lending to members" (migration 117). */
+    purpose: z.string().max(500).optional(),
+    /** How it was paid (migration 150). Optional so existing callers keep working;
+     *  omitted means "not recorded" rather than any assumed default. */
+    paymentMethod: z.enum(PAYMENT_METHODS).optional(),
+    /** Cheque number / bank slip. Requires paymentMethod — a reference with no
+     *  method is a data-entry error, and the DB enforces the same rule. */
+    paymentReference: z.string().max(120).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.paymentReference && !v.paymentMethod) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['paymentMethod'],
+        message: 'Select how it was paid before adding a payment reference',
+      });
+    }
+  });
 
 export const DisbursementActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('approve') }),
@@ -204,8 +282,12 @@ export const DisbursementActionSchema = z.discriminatedUnion('action', [
 ]);
 
 export const BrandingSchema = z.object({
-  logoUrl:      z.string().url().max(2048).optional().nullable(),
-  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color like #16a34a').optional().nullable(),
+  logoUrl: z.string().url().max(2048).optional().nullable(),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color like #16a34a')
+    .optional()
+    .nullable(),
 });
 
 /**
@@ -219,7 +301,7 @@ export const BrandingSchema = z.object({
 export const TopUpSmsCreditsSchema = z.object({
   amountKes: z.number().positive('Amount must be positive').max(1_000_000_000),
   reference: z.string().max(64).optional(),
-  notes:     z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
 });
 
 /** Super_admin only (enforced at the route) — the organization's negotiated per-SMS rate. */
@@ -237,45 +319,48 @@ export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
 
 export const CreateReportExportSchema = z.object({
   reportType: z.enum(REPORT_TYPES),
-  format:     z.enum(REPORT_FORMATS),
+  format: z.enum(REPORT_FORMATS),
 });
 
-export const CreateReportScheduleSchema = z.object({
-  reportType: z.enum(REPORT_TYPES),
-  format:     z.enum(REPORT_FORMATS),
-  cadence:    z.enum(REPORT_CADENCES),
-  /** Explicit recipient addresses. Either this or notifyCoordinator (or both) must be set. */
-  recipientEmails: z.array(z.string().email()).max(20).optional(),
-  /** When true, also emails every active coordinator/lead of this organization. */
-  notifyCoordinator: z.boolean().optional(),
-}).superRefine((v, ctx) => {
-  if (!v.notifyCoordinator && (!v.recipientEmails || v.recipientEmails.length === 0)) {
-    ctx.addIssue({
-      code: 'custom', path: ['recipientEmails'],
-      message: 'Set at least one recipient email or enable notifyCoordinator',
-    });
-  }
-});
+export const CreateReportScheduleSchema = z
+  .object({
+    reportType: z.enum(REPORT_TYPES),
+    format: z.enum(REPORT_FORMATS),
+    cadence: z.enum(REPORT_CADENCES),
+    /** Explicit recipient addresses. Either this or notifyCoordinator (or both) must be set. */
+    recipientEmails: z.array(z.string().email()).max(20).optional(),
+    /** When true, also emails every active coordinator/lead of this organization. */
+    notifyCoordinator: z.boolean().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.notifyCoordinator && (!v.recipientEmails || v.recipientEmails.length === 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['recipientEmails'],
+        message: 'Set at least one recipient email or enable notifyCoordinator',
+      });
+    }
+  });
 
 export const UpdateReportScheduleSchema = z.object({
-  cadence:           z.enum(REPORT_CADENCES).optional(),
-  recipientEmails:   z.array(z.string().email()).max(20).optional(),
+  cadence: z.enum(REPORT_CADENCES).optional(),
+  recipientEmails: z.array(z.string().email()).max(20).optional(),
   notifyCoordinator: z.boolean().optional(),
-  isActive:          z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
-export type DepositInput            = z.infer<typeof DepositSchema>;
-export type CreateProgramInput      = z.infer<typeof CreateProgramSchema>;
-export type CapitalAdjustmentInput  = z.infer<typeof CapitalAdjustmentSchema>;
-export type ProgramActionInput      = z.infer<typeof ProgramActionSchema>;
+export type DepositInput = z.infer<typeof DepositSchema>;
+export type CreateProgramInput = z.infer<typeof CreateProgramSchema>;
+export type CapitalAdjustmentInput = z.infer<typeof CapitalAdjustmentSchema>;
+export type ProgramActionInput = z.infer<typeof ProgramActionSchema>;
 export type UpdateProgramStatusInput = z.infer<typeof UpdateProgramStatusSchema>;
-export type RepaymentWaterfall      = z.infer<typeof RepaymentWaterfallSchema>;
-export type DisburseInput           = z.infer<typeof DisburseSchema>;
+export type RepaymentWaterfall = z.infer<typeof RepaymentWaterfallSchema>;
+export type DisburseInput = z.infer<typeof DisburseSchema>;
 export type DisbursementActionInput = z.infer<typeof DisbursementActionSchema>;
-export type BrandingInput           = z.infer<typeof BrandingSchema>;
-export type TopUpSmsCreditsInput    = z.infer<typeof TopUpSmsCreditsSchema>;
-export type SetSmsRateInput         = z.infer<typeof SetSmsRateSchema>;
-export type CreateReportExportInput   = z.infer<typeof CreateReportExportSchema>;
+export type BrandingInput = z.infer<typeof BrandingSchema>;
+export type TopUpSmsCreditsInput = z.infer<typeof TopUpSmsCreditsSchema>;
+export type SetSmsRateInput = z.infer<typeof SetSmsRateSchema>;
+export type CreateReportExportInput = z.infer<typeof CreateReportExportSchema>;
 export type CreateReportScheduleInput = z.infer<typeof CreateReportScheduleSchema>;
 export type UpdateReportScheduleInput = z.infer<typeof UpdateReportScheduleSchema>;
 
@@ -284,11 +369,11 @@ export type UpdateReportScheduleInput = z.infer<typeof UpdateReportScheduleSchem
 // fields above carry a `.default()`, so these are currently identical to
 // the *Input aliases, but kept distinct so a future default doesn't
 // silently mistype every call site.
-export type DepositPayload       = z.input<typeof DepositSchema>;
+export type DepositPayload = z.input<typeof DepositSchema>;
 export type CreateProgramPayload = z.input<typeof CreateProgramSchema>;
 export type CapitalAdjustmentPayload = z.input<typeof CapitalAdjustmentSchema>;
-export type ProgramActionPayload     = z.input<typeof ProgramActionSchema>;
-export type DisbursePayload      = z.input<typeof DisburseSchema>;
-export type BrandingPayload      = z.input<typeof BrandingSchema>;
+export type ProgramActionPayload = z.input<typeof ProgramActionSchema>;
+export type DisbursePayload = z.input<typeof DisburseSchema>;
+export type BrandingPayload = z.input<typeof BrandingSchema>;
 export type TopUpSmsCreditsPayload = z.input<typeof TopUpSmsCreditsSchema>;
-export type SetSmsRatePayload      = z.input<typeof SetSmsRateSchema>;
+export type SetSmsRatePayload = z.input<typeof SetSmsRateSchema>;

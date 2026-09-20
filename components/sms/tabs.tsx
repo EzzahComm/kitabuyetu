@@ -15,11 +15,26 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Send, MessageSquare, LayoutTemplate, Clock, BarChart2,
-  Plus, Trash2, PauseCircle, PlayCircle, BellOff, AlertTriangle, History,
+  Send,
+  MessageSquare,
+  LayoutTemplate,
+  Clock,
+  BarChart2,
+  Plus,
+  Trash2,
+  PauseCircle,
+  PlayCircle,
+  BellOff,
+  AlertTriangle,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { BulkSmsPayload, CampaignCreatePayload, TemplateCreatePayload, ScheduleCreatePayload } from '@/lib/validators/sms.schema';
+import type {
+  BulkSmsPayload,
+  CampaignCreatePayload,
+  TemplateCreatePayload,
+  ScheduleCreatePayload,
+} from '@/lib/validators/sms.schema';
 import { smsApi } from '@/lib/api/endpoints';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ExpandableText } from '@/components/shared/expandable-text';
@@ -40,31 +55,33 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function CategoryBadge({ category }: { category: string }) {
   const cls: Record<string, string> = {
-    transaction:  'bg-blue-50 text-blue-700',
-    loan:         'bg-amber-50 text-amber-700',
-    reminder:     'bg-orange-50 text-orange-700',
-    birthday:     'bg-pink-50 text-pink-700',
-    onboarding:   'bg-teal-50 text-teal-700',
-    auth:         'bg-violet-50 text-violet-700',
+    transaction: 'bg-blue-50 text-blue-700',
+    loan: 'bg-amber-50 text-amber-700',
+    reminder: 'bg-orange-50 text-orange-700',
+    birthday: 'bg-pink-50 text-pink-700',
+    onboarding: 'bg-teal-50 text-teal-700',
+    auth: 'bg-violet-50 text-violet-700',
     announcement: 'bg-indigo-50 text-indigo-700',
-    custom:       'bg-muted/50 text-muted-foreground',
+    custom: 'bg-muted/50 text-muted-foreground',
   };
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${cls[category] ?? 'bg-muted/50 text-muted-foreground'}`}>
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${cls[category] ?? 'bg-muted/50 text-muted-foreground'}`}
+    >
       {category}
     </span>
   );
 }
 
 export const TABS = [
-  { key: 'compose',   label: 'Compose',   icon: Send },
+  { key: 'compose', label: 'Compose', icon: Send },
   { key: 'campaigns', label: 'Campaigns', icon: BarChart2 },
   { key: 'templates', label: 'Templates', icon: LayoutTemplate },
   { key: 'schedules', label: 'Schedules', icon: Clock },
-  { key: 'logs',      label: 'SMS Logs',  icon: MessageSquare },
-  { key: 'failures',  label: 'Failed',      icon: AlertTriangle },
-  { key: 'history',   label: 'Automations', icon: History },
-  { key: 'optouts',   label: 'Opt-outs',    icon: BellOff },
+  { key: 'logs', label: 'SMS Logs', icon: MessageSquare },
+  { key: 'failures', label: 'Failed', icon: AlertTriangle },
+  { key: 'history', label: 'Automations', icon: History },
+  { key: 'optouts', label: 'Opt-outs', icon: BellOff },
 ] as const;
 
 export type TabKey = (typeof TABS)[number]['key'];
@@ -73,9 +90,9 @@ export type TabKey = (typeof TABS)[number]['key'];
 
 export function ComposeTab() {
   const { toast } = useToast();
-  const [message, setMessage]   = useState('');
-  const [target, setTarget]     = useState<'all' | 'active' | 'custom'>('all');
-  const [phones, setPhones]     = useState('');
+  const [message, setMessage] = useState('');
+  const [target, setTarget] = useState<'all' | 'active' | 'custom'>('all');
+  const [phones, setPhones] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [preview, setPreview] = useState<SmsBulkPreview | null>(null);
 
@@ -85,20 +102,25 @@ export function ComposeTab() {
     mutationFn: (body: BulkSmsPayload) => smsApi.bulk(body),
     onSuccess: (res) => {
       toast({ title: `Queued ${res.queued} messages for delivery` });
-      setMessage(''); setPhones('');
+      setMessage('');
+      setPhones('');
     },
     onError: (err) => toast({ variant: 'destructive', title: 'Send failed', description: getErrorMessage(err) }),
   });
 
   const previewMutation = useMutation({
-    mutationFn: (body: BulkSmsPayload) => smsApi.previewBulk({
-      message: body.message,
-      ...(body.phones ? { phones: body.phones } : { recipientType: body.recipientType }),
-    }),
+    mutationFn: (body: BulkSmsPayload) =>
+      smsApi.previewBulk({
+        message: body.message,
+        ...(body.phones ? { phones: body.phones } : { recipientType: body.recipientType }),
+      }),
     onSuccess: (p) => setPreview(p),
-    onError: (err) => toast({
-      variant: 'destructive', title: 'Could not price this send', description: getErrorMessage(err),
-    }),
+    onError: (err) =>
+      toast({
+        variant: 'destructive',
+        title: 'Could not price this send',
+        description: getErrorMessage(err),
+      }),
   });
 
   /**
@@ -115,7 +137,10 @@ export function ComposeTab() {
    */
   const buildPayload = (): BulkSmsPayload | null => {
     if (target === 'custom') {
-      const recipientPhones = phones.split(/[\n,;]+/).map((p) => p.trim()).filter(Boolean);
+      const recipientPhones = phones
+        .split(/[\n,;]+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
       if (!recipientPhones.length) {
         toast({ variant: 'destructive', title: 'Add at least one phone number' });
         return null;
@@ -190,7 +215,9 @@ export function ComposeTab() {
             >
               <option value="">— Select a template —</option>
               {tplList.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
@@ -222,9 +249,8 @@ export function ComposeTab() {
                  doubles or triples the cost of a send. Worth saying out loud
                  rather than leaving to be discovered on an invoice. */
               <p className="text-xs text-amber-700 mt-1">
-                This message uses a special character (curly quote, dash or emoji), which
-                more than halves how much fits in each SMS part. Replacing it with a plain
-                one usually costs less to send.
+                This message uses a special character (curly quote, dash or emoji), which more than halves how much fits
+                in each SMS part. Replacing it with a plain one usually costs less to send.
               </p>
             )}
           </div>
@@ -238,7 +264,9 @@ export function ComposeTab() {
                   type="button"
                   onClick={() => setTarget(t)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    target === t ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground border-input hover:border-ring'
+                    target === t
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'text-muted-foreground border-input hover:border-ring'
                   }`}
                 >
                   {t === 'all' ? 'All Members' : t === 'active' ? 'Active Only' : 'Custom Phones'}
@@ -262,28 +290,31 @@ export function ComposeTab() {
               number, the provider's number and the charge came to disagree
               (SMS-AUDIT-v3 V3-01). */}
           {preview && (
-            <div className={`rounded-lg border px-4 py-3 space-y-2 ${
-              preview.affordable ? 'border-border bg-muted/40' : 'border-rose-200 bg-rose-50'
-            }`}>
+            <div
+              className={`rounded-lg border px-4 py-3 space-y-2 ${
+                preview.affordable ? 'border-border bg-muted/40' : 'border-rose-200 bg-rose-50'
+              }`}
+            >
               <p className="text-sm font-medium">
-                {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'} ·{' '}
-                {preview.creditsRequired} credit{preview.creditsRequired === 1 ? '' : 's'}
+                {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'} · {preview.creditsRequired} credit
+                {preview.creditsRequired === 1 ? '' : 's'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {preview.segmentsPerMessage} SMS part{preview.segmentsPerMessage === 1 ? '' : 's'} each.
-                {preview.optedOut > 0 && ` ${preview.optedOut} opted-out number${preview.optedOut === 1 ? '' : 's'} excluded.`}
-                {' '}Balance after: {Math.max(preview.balance.available - preview.creditsRequired, 0)} of {preview.balance.available}.
+                {preview.optedOut > 0 &&
+                  ` ${preview.optedOut} opted-out number${preview.optedOut === 1 ? '' : 's'} excluded.`}{' '}
+                Balance after: {Math.max(preview.balance.available - preview.creditsRequired, 0)} of{' '}
+                {preview.balance.available}.
               </p>
 
               {!preview.affordable && (
                 <p className="text-xs font-medium text-rose-700">
-                  Not enough credits — this needs {preview.creditsRequired} and {preview.balance.available} are available.
+                  Not enough credits — this needs {preview.creditsRequired} and {preview.balance.available} are
+                  available.
                 </p>
               )}
               {preview.recipients === 0 && (
-                <p className="text-xs font-medium text-rose-700">
-                  This would reach nobody.
-                </p>
+                <p className="text-xs font-medium text-rose-700">This would reach nobody.</p>
               )}
               {preview.requiresConfirmation && preview.affordable && preview.recipients > 0 && (
                 <p className="text-xs font-medium text-amber-700">
@@ -301,10 +332,9 @@ export function ComposeTab() {
               {preview.unresolvableVariables.length > 0 && (
                 <p className="text-xs font-medium text-amber-700">
                   {preview.unresolvableVariables.map((v) => `{{${v}}}`).join(', ')}{' '}
-                  {preview.unresolvableVariables.length === 1 ? 'has' : 'have'} no value for these
-                  recipients and will be removed, leaving a gap in the message. Delete{' '}
-                  {preview.unresolvableVariables.length === 1 ? 'it' : 'them'} or pick a different
-                  template.
+                  {preview.unresolvableVariables.length === 1 ? 'has' : 'have'} no value for these recipients and will
+                  be removed, leaving a gap in the message. Delete{' '}
+                  {preview.unresolvableVariables.length === 1 ? 'it' : 'them'} or pick a different template.
                 </p>
               )}
 
@@ -317,9 +347,7 @@ export function ComposeTab() {
                   loading={sendMutation.isPending}
                 >
                   <Send size={14} />
-                  {preview.requiresConfirmation
-                    ? `Yes, send to ${preview.recipients}`
-                    : 'Confirm and send'}
+                  {preview.requiresConfirmation ? `Yes, send to ${preview.recipients}` : 'Confirm and send'}
                 </Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>
                   Cancel
@@ -329,19 +357,13 @@ export function ComposeTab() {
           )}
 
           {!preview && (
-            <Button
-              type="button"
-              onClick={handleSend}
-              disabled={!message.trim()}
-              loading={previewMutation.isPending}
-            >
+            <Button type="button" onClick={handleSend} disabled={!message.trim()} loading={previewMutation.isPending}>
               <Send size={15} />
               {previewMutation.isPending ? 'Checking…' : 'Review and send'}
             </Button>
           )}
         </div>
       </div>
-
     </div>
   );
 }
@@ -352,8 +374,8 @@ export function CampaignsTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [name, setName]         = useState('');
-  const [message, setMessage]   = useState('');
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
   const [recipType, setRecipType] = useState<CampaignCreatePayload['recipientType']>('all_members');
   const [scheduledAt, setScheduledAt] = useState('');
 
@@ -368,14 +390,20 @@ export function CampaignsTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-campaigns'] });
       toast({ title: 'Campaign created' });
-      setShowForm(false); setName(''); setMessage(''); setScheduledAt('');
+      setShowForm(false);
+      setName('');
+      setMessage('');
+      setScheduledAt('');
     },
     onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const cancel = useMutation({
     mutationFn: (id: string) => smsApi.cancelCampaign(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-campaigns'] }); toast({ title: 'Campaign cancelled' }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sms-campaigns'] });
+      toast({ title: 'Campaign cancelled' });
+    },
   });
 
   const campaigns: SmsCampaign[] = data?.items ?? [];
@@ -397,11 +425,21 @@ export function CampaignsTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Name</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name" />
+              <input
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Campaign name"
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
-              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}>
+              <select
+                aria-label="Select recipients"
+                className="w-full text-sm border rounded-lg px-3 py-2"
+                value={recipType}
+                onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}
+              >
                 <option value="all_members">All Members</option>
                 <option value="active_members">Active Members</option>
               </select>
@@ -409,11 +447,23 @@ export function CampaignsTab() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Message</label>
-            <textarea className="w-full text-sm border rounded-lg px-3 py-2 resize-none" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message text…" />
+            <textarea
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none"
+              rows={3}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Message text…"
+            />
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Schedule (optional)</label>
-            <input type="datetime-local" aria-label="Schedule date and time" className="text-sm border rounded-lg px-3 py-2" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+            <input
+              type="datetime-local"
+              aria-label="Schedule date and time"
+              className="text-sm border rounded-lg px-3 py-2"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+            />
           </div>
           <div className="flex gap-2">
             <Button
@@ -422,18 +472,26 @@ export function CampaignsTab() {
               // offset — but CampaignCreateSchema requires datetime({offset:true}),
               // so every Schedule click 400'd (SMS_MESSAGING_AUDIT_2026-08.md H4).
               // The Schedules tab below already converts correctly; match it.
-              onClick={() => create.mutate({
-                name,
-                message,
-                recipientType: recipType,
-                scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
-              })}
+              onClick={() =>
+                create.mutate({
+                  name,
+                  message,
+                  recipientType: recipType,
+                  scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+                })
+              }
               disabled={!name || !message}
               loading={create.isPending}
             >
               {create.isPending ? 'Creating…' : scheduledAt ? 'Schedule' : 'Send Now'}
             </Button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm border rounded-lg hover:bg-muted"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -448,9 +506,14 @@ export function CampaignsTab() {
         columns={[
           { key: 'name', header: 'Name', render: (c) => <span className="font-medium text-foreground">{c.name}</span> },
           { key: 'status', header: 'Status', render: (c) => <StatusBadge status={c.status} /> },
-          { key: 'recipients', header: 'Recipients', render: (c) => <span className="text-muted-foreground">{c.recipient_count.toLocaleString()}</span> },
           {
-            key: 'sentFailed', header: 'Sent / Failed',
+            key: 'recipients',
+            header: 'Recipients',
+            render: (c) => <span className="text-muted-foreground">{c.recipient_count.toLocaleString()}</span>,
+          },
+          {
+            key: 'sentFailed',
+            header: 'Sent / Failed',
             render: (c) => (
               <span className="text-muted-foreground">
                 <span className="text-green-600">{c.sent_count}</span>
@@ -460,21 +523,28 @@ export function CampaignsTab() {
             ),
           },
           {
-            key: 'scheduled', header: 'Scheduled',
-            render: (c) => <span className="text-muted-foreground text-xs">{c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}</span>,
+            key: 'scheduled',
+            header: 'Scheduled',
+            render: (c) => (
+              <span className="text-muted-foreground text-xs">
+                {c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}
+              </span>
+            ),
           },
           {
-            key: 'actions', header: 'Actions',
-            render: (c) => (c.status === 'draft' || c.status === 'scheduled') ? (
-              <button
-                type="button"
-                onClick={() => cancel.mutate(c.id)}
-                className="text-red-400 hover:text-red-600 transition-colors"
-                title="Cancel"
-              >
-                <Trash2 size={14} />
-              </button>
-            ) : null,
+            key: 'actions',
+            header: 'Actions',
+            render: (c) =>
+              c.status === 'draft' || c.status === 'scheduled' ? (
+                <button
+                  type="button"
+                  onClick={() => cancel.mutate(c.id)}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                  title="Cancel"
+                >
+                  <Trash2 size={14} />
+                </button>
+              ) : null,
           },
         ]}
       />
@@ -488,9 +558,9 @@ export function TemplatesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [key, setKey]       = useState('');
-  const [name, setName]     = useState('');
-  const [body, setBody]     = useState('');
+  const [key, setKey] = useState('');
+  const [name, setName] = useState('');
+  const [body, setBody] = useState('');
   const [category, setCategory] = useState<TemplateCreatePayload['category']>('custom');
 
   const { data, isLoading, isError, error } = useQuery({
@@ -504,14 +574,20 @@ export function TemplatesTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-templates'] });
       toast({ title: 'Template created' });
-      setShowForm(false); setKey(''); setName(''); setBody('');
+      setShowForm(false);
+      setKey('');
+      setName('');
+      setBody('');
     },
     onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => smsApi.deleteTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-templates'] }); toast({ title: 'Template deleted' }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sms-templates'] });
+      toast({ title: 'Template deleted' });
+    },
   });
 
   const templates: SmsTemplate[] = data ?? [];
@@ -534,19 +610,38 @@ export function TemplatesTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Key (snake_case)</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={key} onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))} placeholder="my_template" />
+              <input
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                value={key}
+                onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))}
+                placeholder="my_template"
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Display Name</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Template" />
+              <input
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="My Template"
+              />
             </div>
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Category</label>
-            <select aria-label="Template category" className="w-full text-sm border rounded-lg px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value as TemplateCreatePayload['category'])}>
-              {['transaction', 'loan', 'reminder', 'birthday', 'onboarding', 'auth', 'announcement', 'custom'].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+            <select
+              aria-label="Template category"
+              className="w-full text-sm border rounded-lg px-3 py-2"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as TemplateCreatePayload['category'])}
+            >
+              {['transaction', 'loan', 'reminder', 'birthday', 'onboarding', 'auth', 'announcement', 'custom'].map(
+                (c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ),
+              )}
             </select>
           </div>
           <div>
@@ -574,7 +669,13 @@ export function TemplatesTab() {
             >
               {create.isPending ? 'Saving…' : 'Save Template'}
             </Button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm border rounded-lg hover:bg-muted"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -588,12 +689,28 @@ export function TemplatesTab() {
         emptyMessage="No templates yet"
         columns={[
           { key: 'name', header: 'Name', render: (t) => <span className="font-medium text-foreground">{t.name}</span> },
-          { key: 'key', header: 'Key', render: (t) => <span className="font-mono text-xs text-muted-foreground">{t.template_key}</span> },
-          { key: 'category', header: 'Category', render: (t) => <CategoryBadge category={t.category} /> },
-          { key: 'variables', header: 'Variables', render: (t) => <span className="text-xs text-muted-foreground">{(t.variables ?? []).join(', ') || '—'}</span> },
-          { key: 'body', header: 'Body', className: 'max-w-[280px]', render: (t) => <ExpandableText className="text-muted-foreground text-xs">{t.body}</ExpandableText> },
           {
-            key: 'type', header: 'Type',
+            key: 'key',
+            header: 'Key',
+            render: (t) => <span className="font-mono text-xs text-muted-foreground">{t.template_key}</span>,
+          },
+          { key: 'category', header: 'Category', render: (t) => <CategoryBadge category={t.category} /> },
+          {
+            key: 'variables',
+            header: 'Variables',
+            render: (t) => (
+              <span className="text-xs text-muted-foreground">{(t.variables ?? []).join(', ') || '—'}</span>
+            ),
+          },
+          {
+            key: 'body',
+            header: 'Body',
+            className: 'max-w-[280px]',
+            render: (t) => <ExpandableText className="text-muted-foreground text-xs">{t.body}</ExpandableText>,
+          },
+          {
+            key: 'type',
+            header: 'Type',
             render: (t) => (
               <span className={`text-xs ${t.is_system ? 'text-blue-500' : 'text-muted-foreground'}`}>
                 {t.is_system ? 'System' : 'Custom'}
@@ -601,17 +718,19 @@ export function TemplatesTab() {
             ),
           },
           {
-            key: 'actions', header: '',
-            render: (t) => !t.is_system ? (
-              <button
-                type="button"
-                onClick={() => del.mutate(t.id)}
-                aria-label="Delete template"
-                className="text-red-400 hover:text-red-600 transition-colors"
-              >
-                <Trash2 size={14} />
-              </button>
-            ) : null,
+            key: 'actions',
+            header: '',
+            render: (t) =>
+              !t.is_system ? (
+                <button
+                  type="button"
+                  onClick={() => del.mutate(t.id)}
+                  aria-label="Delete template"
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              ) : null,
           },
         ]}
       />
@@ -625,12 +744,12 @@ export function SchedulesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [sName, setSName]           = useState('');
-  const [sType, setSType]           = useState<ScheduleCreatePayload['scheduleType']>('one_time');
-  const [sCron, setSCron]           = useState('');
-  const [sNextRun, setSNextRun]     = useState('');
-  const [sMessage, setSMessage]     = useState('');
-  const [recipType, setRecipType]   = useState<ScheduleCreatePayload['recipientType']>('all_members');
+  const [sName, setSName] = useState('');
+  const [sType, setSType] = useState<ScheduleCreatePayload['scheduleType']>('one_time');
+  const [sCron, setSCron] = useState('');
+  const [sNextRun, setSNextRun] = useState('');
+  const [sMessage, setSMessage] = useState('');
+  const [recipType, setRecipType] = useState<ScheduleCreatePayload['recipientType']>('all_members');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-schedules'],
@@ -643,20 +762,28 @@ export function SchedulesTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-schedules'] });
       toast({ title: 'Schedule created' });
-      setShowForm(false); setSName(''); setSMessage(''); setSCron(''); setSNextRun('');
+      setShowForm(false);
+      setSName('');
+      setSMessage('');
+      setSCron('');
+      setSNextRun('');
     },
     onError: (e) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) }),
   });
 
   const toggle = useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      smsApi.updateSchedule(id, { isActive }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-schedules'] }); },
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => smsApi.updateSchedule(id, { isActive }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sms-schedules'] });
+    },
   });
 
   const del = useMutation({
     mutationFn: (id: string) => smsApi.deleteSchedule(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-schedules'] }); toast({ title: 'Schedule deleted' }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sms-schedules'] });
+      toast({ title: 'Schedule deleted' });
+    },
   });
 
   const schedules: SmsSchedule[] = data ?? [];
@@ -683,17 +810,36 @@ export function SchedulesTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Name</label>
-              <input className="w-full text-sm border rounded-lg px-3 py-2" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Schedule name" />
+              <input
+                className="w-full text-sm border rounded-lg px-3 py-2"
+                value={sName}
+                onChange={(e) => setSName(e.target.value)}
+                placeholder="Schedule name"
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Type</label>
-              <select aria-label="Schedule type" className="w-full text-sm border rounded-lg px-3 py-2" value={sType} onChange={(e) => setSType(e.target.value as ScheduleCreatePayload['scheduleType'])}>
-                {SCHEDULE_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+              <select
+                aria-label="Schedule type"
+                className="w-full text-sm border rounded-lg px-3 py-2"
+                value={sType}
+                onChange={(e) => setSType(e.target.value as ScheduleCreatePayload['scheduleType'])}
+              >
+                {SCHEDULE_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t.replace(/_/g, ' ')}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
-              <select aria-label="Select recipients" className="w-full text-sm border rounded-lg px-3 py-2" value={recipType} onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}>
+              <select
+                aria-label="Select recipients"
+                className="w-full text-sm border rounded-lg px-3 py-2"
+                value={recipType}
+                onChange={(e) => setRecipType(e.target.value as CampaignCreatePayload['recipientType'])}
+              >
                 <option value="all_members">All Members</option>
                 <option value="active_members">Active Members</option>
               </select>
@@ -701,25 +847,44 @@ export function SchedulesTab() {
             {sType === 'one_time' ? (
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Run At</label>
-                <input type="datetime-local" aria-label="Schedule run date and time" className="w-full text-sm border rounded-lg px-3 py-2" value={sNextRun} onChange={(e) => setSNextRun(e.target.value)} />
+                <input
+                  type="datetime-local"
+                  aria-label="Schedule run date and time"
+                  className="w-full text-sm border rounded-lg px-3 py-2"
+                  value={sNextRun}
+                  onChange={(e) => setSNextRun(e.target.value)}
+                />
               </div>
             ) : (
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Cron Expression</label>
-                <input className="w-full text-sm border rounded-lg px-3 py-2 font-mono" value={sCron} onChange={(e) => setSCron(e.target.value)} placeholder="0 8 * * *" />
+                <input
+                  className="w-full text-sm border rounded-lg px-3 py-2 font-mono"
+                  value={sCron}
+                  onChange={(e) => setSCron(e.target.value)}
+                  placeholder="0 8 * * *"
+                />
               </div>
             )}
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Message</label>
-            <textarea className="w-full text-sm border rounded-lg px-3 py-2 resize-none" rows={3} value={sMessage} onChange={(e) => setSMessage(e.target.value)} placeholder="Message text…" />
+            <textarea
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none"
+              rows={3}
+              value={sMessage}
+              onChange={(e) => setSMessage(e.target.value)}
+              placeholder="Message text…"
+            />
           </div>
           <div className="flex gap-2">
             <Button
               type="button"
               onClick={() =>
                 create.mutate({
-                  name: sName, scheduleType: sType, message: sMessage,
+                  name: sName,
+                  scheduleType: sType,
+                  message: sMessage,
                   recipientType: recipType,
                   cronExpression: sCron || undefined,
                   nextRunAt: sNextRun ? new Date(sNextRun).toISOString() : undefined,
@@ -730,7 +895,13 @@ export function SchedulesTab() {
             >
               {create.isPending ? 'Saving…' : 'Save Schedule'}
             </Button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted">Cancel</button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm border rounded-lg hover:bg-muted"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -744,15 +915,37 @@ export function SchedulesTab() {
         emptyMessage="No schedules yet"
         columns={[
           { key: 'name', header: 'Name', render: (s) => <span className="font-medium text-foreground">{s.name}</span> },
-          { key: 'type', header: 'Type', render: (s) => <span className="capitalize text-muted-foreground text-xs">{s.schedule_type.replace(/_/g, ' ')}</span> },
           {
-            key: 'cron', header: 'Cron / Next Run',
-            render: (s) => <span className="text-xs text-muted-foreground font-mono">{s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}</span>,
+            key: 'type',
+            header: 'Type',
+            render: (s) => (
+              <span className="capitalize text-muted-foreground text-xs">{s.schedule_type.replace(/_/g, ' ')}</span>
+            ),
           },
-          { key: 'lastRun', header: 'Last Run', render: (s) => <span className="text-xs text-muted-foreground">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span> },
-          { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.is_active ? 'sent' : 'cancelled'} /> },
           {
-            key: 'actions', header: '',
+            key: 'cron',
+            header: 'Cron / Next Run',
+            render: (s) => (
+              <span className="text-xs text-muted-foreground font-mono">
+                {s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}
+              </span>
+            ),
+          },
+          {
+            key: 'lastRun',
+            header: 'Last Run',
+            render: (s) => (
+              <span className="text-xs text-muted-foreground">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (s) => <StatusBadge status={s.is_active ? 'sent' : 'cancelled'} />,
+          },
+          {
+            key: 'actions',
+            header: '',
             render: (s) => (
               <div className="flex items-center gap-2">
                 <button
@@ -783,9 +976,9 @@ export function SchedulesTab() {
 // ─── Logs Tab ─────────────────────────────────────────────────────────────────
 
 export function LogsTab() {
-  const [page, setPage]     = useState(1);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
-  const { toast }           = useToast();
+  const { toast } = useToast();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-logs', page, status],
@@ -794,12 +987,15 @@ export function LogsTab() {
   });
 
   const summary = data?.summary;
-  const usageStats = useMemo(() => [
-    { label: 'Delivered', value: summary?.delivered ?? 0, tone: 'text-emerald-600' },
-    { label: 'Sent', value: summary?.sent ?? 0, tone: 'text-blue-600' },
-    { label: 'Failed', value: summary?.failed ?? 0, tone: 'text-rose-600' },
-    { label: 'Queued', value: summary?.queued ?? 0, tone: 'text-amber-600' },
-  ], [summary]);
+  const usageStats = useMemo(
+    () => [
+      { label: 'Delivered', value: summary?.delivered ?? 0, tone: 'text-emerald-600' },
+      { label: 'Sent', value: summary?.sent ?? 0, tone: 'text-blue-600' },
+      { label: 'Failed', value: summary?.failed ?? 0, tone: 'text-rose-600' },
+      { label: 'Queued', value: summary?.queued ?? 0, tone: 'text-amber-600' },
+    ],
+    [summary],
+  );
 
   const checkDlr = async (msgId: string) => {
     try {
@@ -820,12 +1016,17 @@ export function LogsTab() {
             aria-label="Filter by status"
             className="text-xs border rounded-lg px-2.5 py-1.5"
             value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
           >
-          <option value="">All statuses</option>
-          {['queued', 'sent', 'delivered', 'failed', 'rejected'].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+            <option value="">All statuses</option>
+            {['queued', 'sent', 'delivered', 'failed', 'rejected'].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         }
       />
@@ -840,29 +1041,51 @@ export function LogsTab() {
         onPageChange={setPage}
         emptyMessage="No SMS logs found"
         columns={[
-          { key: 'recipient', header: 'Recipient', render: (l) => <span className="font-mono text-xs text-foreground">{l.recipient_phone}</span> },
-          { key: 'message', header: 'Message', className: 'max-w-[220px]', render: (l) => <ExpandableText className="text-muted-foreground text-xs">{l.message_text}</ExpandableText> },
-          { key: 'status', header: 'Status', render: (l) => <StatusBadge status={l.status} /> },
-          { key: 'credits', header: 'Credits', render: (l) => <span className="text-xs text-muted-foreground">{parseFloat(l.credits_deducted).toFixed(2)}</span> },
-          { key: 'sentAt', header: 'Sent At', render: (l) => <span className="text-xs text-muted-foreground">{l.sent_at ? formatDate(l.sent_at) : '—'}</span> },
           {
-            key: 'dlr', header: 'DLR',
-            render: (l) => (l.provider_msg_id && l.status === 'sent') ? (
-              <button
-                type="button"
-                onClick={() => checkDlr(l.provider_msg_id!)}
-                className="text-xs text-blue-500 hover:underline"
-              >
-                Check
-              </button>
-            ) : null,
+            key: 'recipient',
+            header: 'Recipient',
+            render: (l) => <span className="font-mono text-xs text-foreground">{l.recipient_phone}</span>,
+          },
+          {
+            key: 'message',
+            header: 'Message',
+            className: 'max-w-[220px]',
+            render: (l) => <ExpandableText className="text-muted-foreground text-xs">{l.message_text}</ExpandableText>,
+          },
+          { key: 'status', header: 'Status', render: (l) => <StatusBadge status={l.status} /> },
+          {
+            key: 'credits',
+            header: 'Credits',
+            render: (l) => (
+              <span className="text-xs text-muted-foreground">{parseFloat(l.credits_deducted).toFixed(2)}</span>
+            ),
+          },
+          {
+            key: 'sentAt',
+            header: 'Sent At',
+            render: (l) => (
+              <span className="text-xs text-muted-foreground">{l.sent_at ? formatDate(l.sent_at) : '—'}</span>
+            ),
+          },
+          {
+            key: 'dlr',
+            header: 'DLR',
+            render: (l) =>
+              l.provider_msg_id && l.status === 'sent' ? (
+                <button
+                  type="button"
+                  onClick={() => checkDlr(l.provider_msg_id!)}
+                  className="text-xs text-blue-500 hover:underline"
+                >
+                  Check
+                </button>
+              ) : null,
           },
         ]}
       />
     </div>
   );
 }
-
 
 // ─── Opt-outs Tab ────────────────────────────────────────────────────────────
 
@@ -884,11 +1107,11 @@ export function OptOutsTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [phone, setPhone] = useState('');
-  const [note, setNote]   = useState('');
+  const [note, setNote] = useState('');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sms-opt-outs'],
-    queryFn:  () => smsApi.optOuts(),
+    queryFn: () => smsApi.optOuts(),
     staleTime: 30_000,
   });
 
@@ -897,9 +1120,11 @@ export function OptOutsTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sms-opt-outs'] });
       toast({ title: 'Opt-out recorded', description: 'This number will not be messaged by this group.' });
-      setPhone(''); setNote('');
+      setPhone('');
+      setNote('');
     },
-    onError: (e) => toast({ variant: 'destructive', title: 'Could not record opt-out', description: getErrorMessage(e) }),
+    onError: (e) =>
+      toast({ variant: 'destructive', title: 'Could not record opt-out', description: getErrorMessage(e) }),
   });
 
   const remove = useMutation({
@@ -918,26 +1143,24 @@ export function OptOutsTab() {
   // The `?? []` lives INSIDE the memo deliberately: outside it, the fallback
   // allocates a fresh array on every render, the dependency changes every
   // time, and the memo does nothing at all.
-  const rows = useMemo(
-    () => (data?.optOuts ?? []).map((o: SmsOptOut) => ({ ...o, id: o.phone })),
-    [data?.optOuts],
-  );
+  const rows = useMemo(() => (data?.optOuts ?? []).map((o: SmsOptOut) => ({ ...o, id: o.phone })), [data?.optOuts]);
 
   return (
     <div className="space-y-4">
       <SectionHeader title="Opt-outs" />
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        A member can ask any officer to stop messaging them. Record it here and this
-        group will not send to that number again — automated reminders included.
-        Opting out is per group, because each group messages separately.
+        A member can ask any officer to stop messaging them. Record it here and this group will not send to that number
+        again — automated reminders included. Opting out is per group, because each group messages separately.
       </div>
 
       <div className="bg-card rounded-xl border p-5 space-y-3">
         <h3 className="text-sm font-medium">Record an opt-out</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label htmlFor="optout-phone" className="text-xs text-muted-foreground block mb-1">Phone number</label>
+            <label htmlFor="optout-phone" className="text-xs text-muted-foreground block mb-1">
+              Phone number
+            </label>
             <input
               id="optout-phone"
               className="w-full text-sm border rounded-lg px-3 py-2"
@@ -975,7 +1198,9 @@ export function OptOutsTab() {
         isLoading={isLoading}
         isError={isError}
         error={error}
-        onPageChange={() => { /* single page — the list is short by nature */ }}
+        onPageChange={() => {
+          /* single page — the list is short by nature */
+        }}
         emptyMessage="Nobody has opted out of this group's messages."
         emptyIcon={BellOff}
         emptyDescription="When a member asks an officer to stop messaging them, record it above."

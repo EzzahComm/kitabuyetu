@@ -10,7 +10,7 @@ jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -21,12 +21,23 @@ beforeEach(() => {
 const ctx = { groupId: 'grp-1', userId: 'user-1', role: 'chairperson' };
 
 /** Queues the 7 Promise.all queries in the exact source order the service issues them. */
-function queueAll(overrides: Partial<{
-  sms: object; email: object; automation: object[]; volume: object[];
-  contacts: object; opportunities: object[]; activities: object;
-}> = {}) {
-  mockQuery.mockResolvedValueOnce({ rows: [overrides.sms ?? { campaigns: '0', recipients: '0', sent: '0', failed: '0' }] });
-  mockQuery.mockResolvedValueOnce({ rows: [overrides.email ?? { campaigns: '0', recipients: '0', sent: '0', failed: '0', opened: '0' }] });
+function queueAll(
+  overrides: Partial<{
+    sms: object;
+    email: object;
+    automation: object[];
+    volume: object[];
+    contacts: object;
+    opportunities: object[];
+    activities: object;
+  }> = {},
+) {
+  mockQuery.mockResolvedValueOnce({
+    rows: [overrides.sms ?? { campaigns: '0', recipients: '0', sent: '0', failed: '0' }],
+  });
+  mockQuery.mockResolvedValueOnce({
+    rows: [overrides.email ?? { campaigns: '0', recipients: '0', sent: '0', failed: '0', opened: '0' }],
+  });
   mockQuery.mockResolvedValueOnce({ rows: overrides.automation ?? [] });
   mockQuery.mockResolvedValueOnce({ rows: overrides.volume ?? [] });
   mockQuery.mockResolvedValueOnce({ rows: [overrides.contacts ?? { total: '0', opted_in: '0' }] });
@@ -61,15 +72,15 @@ describe('getMarketingAnalytics — days clamping', () => {
 describe('getMarketingAnalytics — rate math', () => {
   it('computes delivery/open rates and guards against division by zero', async () => {
     queueAll({
-      sms:   { campaigns: '2', recipients: '100', sent: '90', failed: '10' },
-      email: { campaigns: '1', recipients: '0',   sent: '0',  failed: '0', opened: '0' },
+      sms: { campaigns: '2', recipients: '100', sent: '90', failed: '10' },
+      email: { campaigns: '1', recipients: '0', sent: '0', failed: '0', opened: '0' },
     });
 
     const result = await getMarketingAnalytics(ctx, 30);
 
     expect(result.sms.deliveryRate).toBeCloseTo(0.9);
     expect(result.email.deliveryRate).toBe(0); // 0 recipients — must not divide by zero
-    expect(result.email.openRate).toBe(0);      // 0 sent — must not divide by zero
+    expect(result.email.openRate).toBe(0); // 0 sent — must not divide by zero
   });
 
   it('computes email open rate against sent, not recipients', async () => {
@@ -87,11 +98,11 @@ describe('getMarketingAnalytics — automation status rollup', () => {
   it('sums sent/failed/suppressed/pending across both channels', async () => {
     queueAll({
       automation: [
-        { channel: 'sms',   status: 'sent',       executions: '5' },
-        { channel: 'sms',   status: 'failed',     executions: '1' },
-        { channel: 'email', status: 'sent',       executions: '3' },
+        { channel: 'sms', status: 'sent', executions: '5' },
+        { channel: 'sms', status: 'failed', executions: '1' },
+        { channel: 'email', status: 'sent', executions: '3' },
         { channel: 'email', status: 'suppressed', executions: '2' },
-        { channel: 'email', status: 'pending',    executions: '1' },
+        { channel: 'email', status: 'pending', executions: '1' },
       ],
     });
 
