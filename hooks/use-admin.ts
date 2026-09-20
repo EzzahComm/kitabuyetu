@@ -37,6 +37,9 @@ import type {
 } from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
+import type {
+  createEmployee, listEmployees, getEmployeeById, updateEmployee, terminateEmployee,
+} from '@/lib/services/hr.service';
 import type { C2BUrls, C2BRegistrationResult } from '@/lib/services/mpesa.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -130,6 +133,14 @@ type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>
 type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
 type NewsletterSubscriberList = Awaited<ReturnType<typeof listNewsletterSubscribers>>;
 type NewsletterStatsResult    = Awaited<ReturnType<typeof getNewsletterStats>>;
+type EmployeeList             = Awaited<ReturnType<typeof listEmployees>>;
+type EmployeeDetail           = Awaited<ReturnType<typeof getEmployeeById>>;
+type CreateEmployeeResult     = Awaited<ReturnType<typeof createEmployee>>;
+type UpdateEmployeeResult     = Awaited<ReturnType<typeof updateEmployee>>;
+type TerminateEmployeeResult  = Awaited<ReturnType<typeof terminateEmployee>>;
+type CreateEmployeeInput      = Parameters<typeof createEmployee>[1];
+type UpdateEmployeeInput      = Parameters<typeof updateEmployee>[2];
+type TerminateEmployeeInput   = Parameters<typeof terminateEmployee>[2];
 
 export async function adminFetch<T>(
   path: string,
@@ -913,5 +924,56 @@ export function useNewsletterSubscribers() {
   return useQuery({
     queryKey: ['admin', 'newsletter'],
     queryFn:  () => adminFetch<{ subscribers: NewsletterSubscriberList; stats: NewsletterStatsResult }>('/api/admin/newsletter'),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HR (Phase 11 — employee records)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useEmployees(filters?: { status?: string; department?: string; search?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.department) params.set('department', filters.department);
+  if (filters?.search) params.set('search', filters.search);
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: ['admin', 'hr', 'employees', filters],
+    queryFn:  () => adminFetch<EmployeeList>(`/api/admin/hr/employees${qs ? `?${qs}` : ''}`),
+  });
+}
+
+export function useEmployee(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'hr', 'employees', id],
+    queryFn:  () => adminFetch<EmployeeDetail>(`/api/admin/hr/employees/${id}`),
+    enabled:  !!id,
+  });
+}
+
+export function useCreateEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateEmployeeInput) =>
+      adminFetch<CreateEmployeeResult>('/api/admin/hr/employees', { method: 'POST', json: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
+  });
+}
+
+export function useUpdateEmployee(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateEmployeeInput) =>
+      adminFetch<UpdateEmployeeResult>(`/api/admin/hr/employees/${id}`, { method: 'PATCH', json: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
+  });
+}
+
+export function useTerminateEmployee(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TerminateEmployeeInput) =>
+      adminFetch<TerminateEmployeeResult>(`/api/admin/hr/employees/${id}/terminate`, { method: 'POST', json: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
   });
 }
