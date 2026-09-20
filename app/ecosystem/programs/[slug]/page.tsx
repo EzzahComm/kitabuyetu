@@ -3,82 +3,53 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
-import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
-import { ProgramDonateForm } from '@/components/ecosystem/program-donate-form';
-import { createClient } from '@/lib/supabase/server';
+import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
+import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 
 interface ProgramDetailPageProps {
   params: Promise<{ slug: string }>;
 }
 
+/**
+ * Reads the live Changi$ha campaign behind this slug — see the listing page
+ * for why the `programs` table this used to query is not the source.
+ *
+ * Donations go through the same CampaignDonateForm /fundraise/[slug] uses, so
+ * there is one donation path rather than a second one to keep in step.
+ */
 export async function generateMetadata({ params }: ProgramDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createClient();
-  const { data: program } = await supabase.from('programs').select('*').eq('slug', slug).single();
+  const campaign = await campaignsService.getPublicCampaignBySlug(slug);
 
-  if (!program) {
-    return { title: 'Program not found' };
-  }
+  if (!campaign) return { title: 'Program not found' };
 
   return {
-    title: `${program.name} — Support`,
-    description: program.description || 'Support this program and make an impact.',
+    title: `${campaign.title} — Support`,
+    description: campaign.story?.slice(0, 160) || 'Support this program and make an impact.',
   };
 }
 
-async function ProgramDetailPage({ params }: ProgramDetailPageProps) {
+export default async function ProgramDetailPage({ params }: ProgramDetailPageProps) {
   const { slug } = await params;
-  const supabase = await createClient();
+  const campaign = await campaignsService.getPublicCampaignBySlug(slug);
 
-  const { data: program, error } = await supabase
-    .from('programs')
-    .select('*')
-    .eq('slug', slug)
-    .eq('status', 'active')
-    .single();
-
-  if (error || !program) {
-    notFound();
-  }
+  if (!campaign) notFound();
 
   return (
-    <PageShell title={program.data.name} description={program.data.description || ''}>
+    <PageShell title={campaign.title} description={campaign.beneficiary_name ?? ''}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          {program.data.description && (
+          {campaign.story && (
             <div className="prose prose-sm max-w-none mb-8">
-              <p>{program.data.description}</p>
+              <p className="whitespace-pre-line">{campaign.story}</p>
             </div>
           )}
-
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Impact</h2>
-            {program.data.impact_metric_name ? (
-              <div className="bg-blue-50 rounded-lg p-6">
-                <p className="text-sm text-gray-600 mb-2">{program.data.impact_metric_name}</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {program.data.impact_metric_current || 0} / {program.data.impact_metric_target}
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{
-                      width: `${Math.min(100, ((program.data.impact_metric_current || 0) / (program.data.impact_metric_target || 1)) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-600">Impact metrics coming soon.</p>
-            )}
-          </div>
         </div>
 
         <div className="lg:col-span-1">
           <div className="sticky top-4 space-y-6">
-            <ProgramProgressCard program={program.data} showCta={false} />
-            <ProgramDonateForm programId={program.data.id} programName={program.data.name} />
-            <DonorLeaderboard organizationId={program.data.organization_id} limit={5} />
+            <ProgramProgressCard program={toProgramProgress(campaign)} showCta={false} />
+            <CampaignDonateForm slug={campaign.slug} />
           </div>
         </div>
       </div>
@@ -86,4 +57,13 @@ async function ProgramDetailPage({ params }: ProgramDetailPageProps) {
   );
 }
 
-export default ProgramDetailPage;
+/** Campaign money columns are numeric-as-string over the wire; the card wants numbers. */
+function toProgramProgress(campaign: Campaign) {
+  return {
+    id: campaign.id,
+    name: campaign.title,
+    status: campaign.status,
+    target_amount: Number(campaign.target_amount),
+    current_amount: Number(campaign.amount_raised),
+  };
+}
