@@ -171,7 +171,7 @@ const multigroup = {
 
 const marketplace = {
   title: 'Marketplace',
-  desc: "Groups already buy things together — inputs, stock, services, insurance. The marketplace is where those offers meet the groups, and it is the part of the ecosystem still being built.",
+  desc: "Groups already buy things together — inputs, stock, services, insurance. The marketplace is where those offers meet the groups, matched against a group's own record.",
   image: marketplaceImg,
   bullets: [
     {
@@ -185,8 +185,8 @@ const marketplace = {
       icon: <IconCash size={24} />,
     },
     {
-      title: 'In progress',
-      desc: 'This is the newest part of the ecosystem. Talk to us if you want your offer in front of groups as it opens.',
+      title: 'Matched to what a group can show',
+      desc: "Each offer can set its own criteria — how long a group has run, its type, its county, its balance — so a group sees where it stands before it applies.",
       icon: <IconChecklist size={24} />,
     },
   ],

@@ -162,6 +162,7 @@ export async function getPartnerById(partnerId: string): Promise<Partner | null>
   });
 }
 
+
 export async function listPartners(filters?: { is_active?: boolean }): Promise<Partner[]> {
   return withAdminDb(async (db) => {
     let query = `SELECT * FROM ecosystem_partners`;
@@ -230,6 +231,41 @@ export async function createOpportunity(
       title: data.title,
       type: data.opportunity_type,
     });
+
+    return result.rows[0];
+  });
+}
+
+/**
+ * Generic partial update — didn't exist before this pass; only the
+ * status-transition-specific publishOpportunity/closeOpportunity did, which
+ * meant there was no way to fix a typo, adjust terms, or (the reason this
+ * was actually needed) attach eligibility rules to an opportunity after
+ * creation. Mirrors updatePartner's shape.
+ */
+export async function updateOpportunity(
+  ctx: AdminActionContext,
+  opportunityId: string,
+  updates: Partial<Pick<Opportunity,
+    'title' | 'description' | 'category' | 'amount_min' | 'amount_max' | 'terms_summary'
+    | 'eligibility_rules' | 'application_url' | 'featured'
+  >>,
+) {
+  return withAdminDb(async (db) => {
+    const keys = Object.keys(updates) as (keyof typeof updates)[];
+    if (!keys.length) return null;
+
+    const setClause = keys.map((k, i) => `${k} = $${i + 2}${k === 'eligibility_rules' ? '::jsonb' : ''}`).join(', ');
+    const values = keys.map((k) => (k === 'eligibility_rules' ? JSON.stringify(updates[k]) : updates[k]));
+
+    const result = await db.query<Opportunity>(
+      `UPDATE ecosystem_opportunities SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [opportunityId, ...values],
+    );
+
+    if (!result.rows.length) throw new NotFoundError('Opportunity not found');
+
+    await logAudit(db, ctx, 'opportunity_updated', 'ecosystem_opportunity', opportunityId, updates);
 
     return result.rows[0];
   });
@@ -318,6 +354,52 @@ export async function listPublishedOpportunities(
 // ELIGIBILITY MATCHING
 // ============================================================================
 
+export interface GroupEligibilityData {
+  type: string;
+  created_at: Date;
+  cash_balance: number;
+  county?: string;
+}
+
+/**
+ * Resolves the group-attribute shape evaluateEligibility() needs, from the
+ * group's actual record. cash_balance mirrors analytics.service.ts's
+ * `financialHealth.netPosition` (completed contributions + share capital -
+ * outstanding loan balance) — the same "one-number gut-check" proxy, not a
+ * full balance sheet (welfare pool and investments excluded there too).
+ * Deliberately a fresh, lean query rather than importing the executive
+ * summary: that function computes a dozen unrelated aggregates and caches
+ * per-period, neither of which this needs.
+ */
+export async function getGroupEligibilityData(db: PoolClient, groupId: string): Promise<GroupEligibilityData | null> {
+  const { rows: groupRows } = await db.query<{ type: string; created_at: Date; county: string | null }>(
+    `SELECT type, created_at, county FROM groups WHERE id = $1`,
+    [groupId],
+  );
+  if (!groupRows.length) return null;
+  const group = groupRows[0];
+
+  const { rows: financeRows } = await db.query<{ contributions: string; shares: string; loans: string }>(
+    `SELECT
+       (SELECT COALESCE(SUM(amount), 0) FROM contributions WHERE group_id = $1 AND status = 'completed') AS contributions,
+       (SELECT COALESCE(SUM(h.quantity * COALESCE(c.current_value, c.par_value)), 0)
+          FROM share_holdings h JOIN share_classes c ON c.id = h.share_class_id
+          WHERE h.group_id = $1 AND h.quantity > 0) AS shares,
+       (SELECT COALESCE(SUM(outstanding_balance), 0) FROM loans
+          WHERE group_id = $1 AND status IN ('active', 'disbursed')) AS loans`,
+    [groupId],
+  );
+  const f = financeRows[0];
+  const cashBalance = Number(f.contributions) + Number(f.shares) - Number(f.loans);
+
+  return {
+    type: group.type,
+    created_at: group.created_at,
+    cash_balance: cashBalance,
+    county: group.county ?? undefined,
+  };
+}
+
 export async function evaluateEligibility(
   opportunity: Opportunity,
   groupData: { type: string; created_at: Date; cash_balance?: number; county?: string },
@@ -336,6 +418,17 @@ export async function evaluateEligibility(
   }
 
   return { matches: failedRules.length === 0, failed_rules: failedRules };
+}
+
+/** Same as evaluateEligibility, but returns full rule objects (name/error_message) for a UI to render, not just ids. */
+export async function evaluateEligibilityDetailed(
+  opportunity: Opportunity,
+  groupData: { type: string; created_at: Date; cash_balance?: number; county?: string },
+): Promise<{ matches: boolean; failedRules: EligibilityRule[] }> {
+  const result = await evaluateEligibility(opportunity, groupData);
+  const rules = (opportunity.eligibility_rules as EligibilityRules)?.rules || [];
+  const failedRules = rules.filter((r) => result.failed_rules.includes(r.id));
+  return { matches: result.matches, failedRules };
 }
 
 function evaluateRule(

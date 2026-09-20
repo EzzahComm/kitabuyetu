@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminFetch } from '@/hooks/use-admin';
-import type { Partner, Opportunity, Application } from '@/lib/services/ecosystem.service';
+import type { Partner, Opportunity, Application, EligibilityRules } from '@/lib/services/ecosystem.service';
 
 const PARTNERS_KEY = ['admin', 'ecosystem', 'partners'] as const;
 const OPPORTUNITIES_KEY = ['admin', 'ecosystem', 'opportunities'] as const;
@@ -33,6 +33,27 @@ export function useCreatePartner() {
   });
 }
 
+export function usePartner(id: string) {
+  return useQuery({
+    queryKey: [...PARTNERS_KEY, id],
+    queryFn:  () => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`),
+    enabled:  !!id,
+  });
+}
+
+export function useUpdatePartner(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<Pick<Partner,
+      'name' | 'type' | 'description' | 'logo_url' | 'website_url' | 'contact_email' | 'contact_phone' | 'is_active'
+    >>) => adminFetch<Partner>(`/api/admin/ecosystem/partners/${id}`, { method: 'PATCH', json: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PARTNERS_KEY });
+      qc.invalidateQueries({ queryKey: [...PARTNERS_KEY, id] });
+    },
+  });
+}
+
 // ── Opportunities ────────────────────────────────────────────────────────
 
 export function useOpportunities() {
@@ -55,11 +76,33 @@ export function useCreateOpportunity() {
       amount_max?: number;
       currency?: string;
       terms_summary?: string;
-      eligibility_rules: { rules: [] };
+      eligibility_rules: EligibilityRules;
       application_url?: string;
       featured?: boolean;
     }) => adminFetch<Opportunity>('/api/admin/ecosystem/opportunities', { method: 'POST', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: OPPORTUNITIES_KEY }),
+  });
+}
+
+export function useOpportunity(id: string) {
+  return useQuery({
+    queryKey: [...OPPORTUNITIES_KEY, id],
+    queryFn:  () => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`),
+    enabled:  !!id,
+  });
+}
+
+export function useUpdateOpportunity(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<Pick<Opportunity,
+      'title' | 'description' | 'category' | 'amount_min' | 'amount_max' | 'terms_summary'
+      | 'eligibility_rules' | 'application_url' | 'featured'
+    >>) => adminFetch<Opportunity>(`/api/admin/ecosystem/opportunities/${id}`, { method: 'PATCH', json: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: OPPORTUNITIES_KEY });
+      qc.invalidateQueries({ queryKey: [...OPPORTUNITIES_KEY, id] });
+    },
   });
 }
 

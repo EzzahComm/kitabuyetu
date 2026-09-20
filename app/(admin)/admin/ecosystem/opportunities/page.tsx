@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,13 +15,14 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
+import { EligibilityRulesEditor } from '@/components/ecosystem/eligibility-rules-editor';
 import {
   useOpportunities, useCreateOpportunity, usePublishOpportunity, useCloseOpportunity,
 } from '@/hooks/use-admin-ecosystem';
 import { usePartners } from '@/hooks/use-admin-ecosystem';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
-import type { Opportunity } from '@/lib/services/ecosystem.service';
+import type { Opportunity, EligibilityRule } from '@/lib/services/ecosystem.service';
 
 const OPPORTUNITY_TYPES: Opportunity['opportunity_type'][] = ['grant', 'loan', 'insurance', 'training', 'service'];
 
@@ -46,6 +48,7 @@ export default function AdminEcosystemOpportunitiesPage() {
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [rules, setRules] = useState<EligibilityRule[]>([]);
 
   const onCreate = async () => {
     try {
@@ -59,12 +62,13 @@ export default function AdminEcosystemOpportunitiesPage() {
         amount_max: form.amount_max ? Number(form.amount_max) : undefined,
         currency: form.currency,
         terms_summary: form.terms_summary || undefined,
-        eligibility_rules: { rules: [] },
+        eligibility_rules: { rules },
         application_url: form.application_url || undefined,
         featured: form.featured,
       });
       toast({ title: 'Opportunity created', description: 'It is saved as a draft — publish it to make it visible.' });
       setForm(EMPTY_FORM);
+      setRules([]);
       setOpen(false);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
@@ -99,7 +103,7 @@ export default function AdminEcosystemOpportunitiesPage() {
             <DialogTrigger asChild>
               <Button disabled={!partners || partners.length === 0}>Create opportunity</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Create opportunity</DialogTitle>
             </DialogHeader>
@@ -158,6 +162,7 @@ export default function AdminEcosystemOpportunitiesPage() {
                 <Label htmlFor="application_url">External application URL (optional)</Label>
                 <Input id="application_url" value={form.application_url} onChange={(e) => setForm((f) => ({ ...f, application_url: e.target.value }))} placeholder="Leave blank to use the in-app application form" />
               </div>
+              <EligibilityRulesEditor value={rules} onChange={setRules} />
             </div>
               <DialogFooter>
                 <Button
@@ -187,7 +192,7 @@ export default function AdminEcosystemOpportunitiesPage() {
               <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold">{o.title}</p>
+                    <Link href={`/admin/ecosystem/opportunities/${o.id}`} className="font-semibold hover:underline">{o.title}</Link>
                     <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
                     <Badge variant="outline">{o.opportunity_type}</Badge>
                   </div>

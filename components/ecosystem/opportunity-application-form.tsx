@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { api, ApiError, getStoredAccessToken } from '@/lib/api/client';
 
 interface OpportunityApplicationFormProps {
   opportunityId: string;
   groupName?: string;
   groupMemberCount?: number;
   onSuccess?: () => void;
+}
+
+interface EligibilityCheck {
+  matches: boolean;
+  failedRules: { id: string; name: string; error_message: string }[];
 }
 
 export function OpportunityApplicationForm({
@@ -21,6 +27,7 @@ export function OpportunityApplicationForm({
 }: OpportunityApplicationFormProps) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [eligibility, setEligibility] = useState<EligibilityCheck | null>(null);
   const [formData, setFormData] = useState({
     group_name: groupName || '',
     group_member_count: groupMemberCount ? String(groupMemberCount) : '',
@@ -33,6 +40,18 @@ export function OpportunityApplicationForm({
 
   const { toast } = useToast();
 
+  // Advisory only, and only worth checking for a visitor who's actually
+  // logged in as a group official — an anonymous visitor gets the plain
+  // form with no eligibility fetch (and no 401 noise) at all.
+  useEffect(() => {
+    if (!getStoredAccessToken()) return;
+    let cancelled = false;
+    api.get<EligibilityCheck>(`/ecosystem/opportunities/${opportunityId}/eligibility`)
+      .then((result) => { if (!cancelled) setEligibility(result); })
+      .catch(() => { /* silent — this is advisory, not required for the form to work */ });
+    return () => { cancelled = true; };
+  }, [opportunityId]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -43,25 +62,17 @@ export function OpportunityApplicationForm({
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/v1/ecosystem/opportunities/${opportunityId}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          group_member_count: formData.group_member_count ? Number(formData.group_member_count) : undefined,
-        }),
+      // The `api` client (not a raw fetch) is what actually attaches the
+      // group's Bearer token from localStorage — a raw fetch() here used to
+      // send no Authorization header at all, so proxy.ts's JWT check
+      // rejected every submission with 401 before the route handler ever
+      // ran, regardless of whether the visitor was logged in. Confirmed via
+      // code reading, not a report: this form has never successfully
+      // submitted an application.
+      await api.post(`/ecosystem/opportunities/${opportunityId}/apply`, {
+        ...formData,
+        group_member_count: formData.group_member_count ? Number(formData.group_member_count) : undefined,
       });
-
-      if (response.status === 401) {
-        toast({
-          title: 'Log in required',
-          description: 'Log in as a group official to submit this application.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (!response.ok) throw new Error('Failed to submit application');
 
       toast({
         title: 'Application submitted',
@@ -71,9 +82,17 @@ export function OpportunityApplicationForm({
       setSubmitted(true);
       onSuccess?.();
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        toast({
+          title: 'Log in required',
+          description: 'Log in as a group official to submit this application.',
+          variant: 'destructive',
+        });
+        return;
+      }
       toast({
         title: 'Error',
-        description: 'Failed to submit application. Please try again.',
+        description: error instanceof ApiError ? error.message : 'Failed to submit application. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -91,6 +110,23 @@ export function OpportunityApplicationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {eligibility && (
+        eligibility.matches ? (
+          <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            Your group appears eligible for this opportunity, based on its record.
+          </div>
+        ) : (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="font-medium">Your group may not meet all of this partner&rsquo;s criteria:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
+              {eligibility.failedRules.map((r) => (
+                <li key={r.id}>{r.error_message || r.name}</li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs">You can still apply — the partner makes the final call.</p>
+          </div>
+        )
+      )}
       <div>
         <label className="block text-sm font-medium text-gray-900">Group Name *</label>
         <Input
