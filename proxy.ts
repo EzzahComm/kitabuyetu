@@ -221,6 +221,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // Phase 1) — same reasoning, email-link-is-the-proof instead of SMS OTP.
     '/api/v1/auth/admin/forgot-password/start',
     '/api/v1/auth/admin/forgot-password/reset',
+    // Phase 10 — public marketing-site newsletter signup. A blog visitor has
+    // no session at all, tenant or otherwise.
+    '/api/v1/newsletter/subscribe',
   ]);
 
   const isAnonymousApiPath =

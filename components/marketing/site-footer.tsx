@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
+import { NewsletterSignupForm } from './newsletter-signup-form';
 import { Container } from './primitives';
 import { CONTACT, FOOTER_COLUMNS, ROUTES } from './routes';
 
@@ -34,6 +35,13 @@ export function SiteFooter() {
               Digital tools for vibrant groups and organizations managing people, money
               and community programs across East Africa.
             </p>
+
+            <div className="mt-7 max-w-xs">
+              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-blue-900/70">
+                Stay in the loop
+              </h2>
+              <NewsletterSignupForm source="footer" className="mt-3" />
+            </div>
 
             <ul className="mt-7 space-y-3 text-sm text-brand-blue-900/65">
               <li className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import {
   periodToInterval,
   type AnalyticsPeriod,
 } from '@/lib/validators/analytics.schema';
+import { rowsToCsv, csvFilename } from '@/lib/utils/csv';
 
 export const EXPORT_KINDS = [
   'members', 'contributions', 'loans', 'share_holdings', 'credit_scores',
@@ -784,27 +785,3 @@ async function exportCreditScores(client: PoolClient, groupId: string): Promise<
   return { csv: rowsToCsv(headers, rows), filename: csvFilename('credit-scores') };
 }
 
-// ─── CSV helpers ───────────────────────────────────────────────────────
-
-function rowsToCsv(headers: string[], rows: Record<string, string | null>[]): string {
-  const headerLine = headers.join(',');
-  if (rows.length === 0) return headerLine + '\n';
-  const dataLines = rows.map((r) =>
-    headers.map((h) => csvEscape(r[h])).join(','),
-  );
-  return [headerLine, ...dataLines].join('\n') + '\n';
-}
-
-function csvEscape(value: string | null | undefined): string {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
-function csvFilename(kind: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  return `kitabuyetu-${kind}-${today}.csv`;
-}

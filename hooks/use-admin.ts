@@ -36,6 +36,7 @@ import type {
   getOrganizationPlan, assignOrganizationPlan, CustomPlanTerms,
 } from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
+import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
 import type { C2BUrls, C2BRegistrationResult } from '@/lib/services/mpesa.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -127,6 +128,8 @@ export interface SmsMarginResponse {
 }
 type CountyAggregationList    = Awaited<ReturnType<typeof getCountyAggregation>>;
 type WardAggregationList      = Awaited<ReturnType<typeof getWardAggregation>>;
+type NewsletterSubscriberList = Awaited<ReturnType<typeof listNewsletterSubscribers>>;
+type NewsletterStatsResult    = Awaited<ReturnType<typeof getNewsletterStats>>;
 
 export async function adminFetch<T>(
   path: string,
@@ -900,5 +903,15 @@ export function useAdminSearch(query: string) {
     queryFn:  () => adminFetch<PlatformSearchResults>(`/api/admin/search?q=${encodeURIComponent(q)}`),
     enabled: q.length >= 2,
     staleTime: 15_000,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Newsletter (Phase 10 — public marketing-site subscribers)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useNewsletterSubscribers() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter'],
+    queryFn:  () => adminFetch<{ subscribers: NewsletterSubscriberList; stats: NewsletterStatsResult }>('/api/admin/newsletter'),
   });
 }

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { getPosts, getOpenJobs } from '@/lib/cms/sanity';
 
 /**
  * The public surface, and only the public surface.
@@ -28,20 +29,46 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
   { path: '/support',                 priority: 0.4, changeFrequency: 'monthly' },
   { path: '/docs',                    priority: 0.3, changeFrequency: 'monthly' },
   { path: '/status',                  priority: 0.3, changeFrequency: 'weekly'  },
+  { path: '/resources',               priority: 0.7, changeFrequency: 'weekly'  },
+  { path: '/careers',                 priority: 0.5, changeFrequency: 'weekly'  },
   // Legal pages hold placeholder content, not published policy — deliberately
   // excluded so search engines don't index a page that isn't a real policy
   // yet. Each also sets `robots: { index: false }` in its own metadata.
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/**
+ * Blog posts and job postings are content, not code — a new one shouldn't
+ * need a code change to become crawlable. Fetched at request time via the
+ * same Sanity client + 300s ISR the pages themselves use (lib/cms/sanity.ts),
+ * so this list is never more than 5 minutes stale.
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
   const lastModified = new Date();
 
-  return ROUTES.map((route) => ({
+  const staticEntries = ROUTES.map((route) => ({
     url: `${base}${route.path}`,
     lastModified,
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
+
+  const [posts, jobs] = await Promise.all([getPosts(), getOpenJobs()]);
+
+  const postEntries = posts.map((post) => ({
+    url: `${base}/resources/${post.slug}`,
+    lastModified: post.publishedAt ? new Date(post.publishedAt) : lastModified,
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }));
+
+  const jobEntries = jobs.map((job) => ({
+    url: `${base}/careers/${job.slug}`,
+    lastModified: job.postedAt ? new Date(job.postedAt) : lastModified,
+    changeFrequency: 'weekly' as const,
+    priority: 0.4,
+  }));
+
+  return [...staticEntries, ...postEntries, ...jobEntries];
 }
 

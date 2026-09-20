@@ -26,6 +26,8 @@ interface JobPageProps {
   params: Promise<{ slug: string }>;
 }
 
+const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
+
 export async function generateStaticParams() {
   const jobs = await getOpenJobs();
   return jobs.map((job) => ({ slug: job.slug }));
@@ -36,21 +38,46 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const job = await getJobBySlug(slug);
   if (!job) return { title: 'Careers' };
   const title = `${job.title} — Careers`;
+  const url = `${SITE_URL}/careers/${job.slug}`;
   return {
     title,
     description: job.summary,
-    openGraph: { title, description: job.summary },
+    alternates: { canonical: url },
+    openGraph: { title, description: job.summary, url, type: 'article' },
     twitter: { title, description: job.summary },
   };
+}
+
+/** JobPosting structured data — see the resources/[slug] page for the escaping rationale. */
+function StructuredData({ job, url }: { job: NonNullable<Awaited<ReturnType<typeof getJobBySlug>>>; url: string }) {
+  const json = {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: job.summary,
+    url,
+    ...(job.postedAt ? { datePosted: job.postedAt } : {}),
+    employmentType: job.employmentType.toUpperCase().replace('-', '_'),
+    hiringOrganization: { '@type': 'Organization', name: 'Kitabu Yetu', sameAs: SITE_URL },
+    jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location, addressCountry: 'KE' } },
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(json).replace(/</g, '\\u003c') }}
+    />
+  );
 }
 
 export default async function JobPage({ params }: JobPageProps) {
   const { slug } = await params;
   const job = await getJobBySlug(slug);
   if (!job) notFound();
+  const url = `${SITE_URL}/careers/${job.slug}`;
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
+      <StructuredData job={job} url={url} />
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <Container className="py-12 md:py-16">

@@ -7,7 +7,7 @@ import {
   Headphones, ScrollText,
   BarChart3, Flag, ShieldAlert, Activity, MapPin,
   Settings, Coins, Wallet,
-  Store, Handshake, ClipboardList, HeartHandshake,
+  Store, Handshake, ClipboardList, HeartHandshake, Mail,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -50,6 +50,7 @@ const NAV: PortalNavSection[] = [
       { href: '/admin/mpesa-unrouted', label: 'Unrouted Payments', icon: Wallet },
       { href: '/admin/audit-logs',  label: 'Audit Logs',     icon: ScrollText },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: Flag },
+      { href: '/admin/newsletter',  label: 'Newsletter',     icon: Mail },
     ],
   },
   {
