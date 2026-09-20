@@ -156,8 +156,13 @@ CREATE TABLE frequency_cap_executions (
 );
 
 CREATE INDEX idx_frequency_cap_exec_group ON frequency_cap_executions (group_id, sent_date DESC);
-CREATE INDEX idx_frequency_cap_exec_date ON frequency_cap_executions (sent_date)
-  WHERE sent_date >= CURRENT_DATE - INTERVAL '7 days';
+-- No partial predicate here: CURRENT_DATE is STABLE, not IMMUTABLE, and
+-- Postgres rejects a volatile/stable expression in an index predicate
+-- ("functions in index predicate must be marked IMMUTABLE") — this
+-- previously made the whole migration fail to apply anywhere, everywhere,
+-- always. A plain index on sent_date is correct and sufficient; the table is
+-- one row per (cap, recipient, day), bounded by daily send volume.
+CREATE INDEX idx_frequency_cap_exec_date ON frequency_cap_executions (sent_date);
 
 -- ── RLS ──────────────────────────────────────────────────────────────────────
 
