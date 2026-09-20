@@ -11,14 +11,11 @@
  * the shape createAdminClient() uses (service-role key, bypasses RLS) minus
  * the cookie plumbing neither the job handler nor this route need.
  *
- * There is no other Supabase Storage usage anywhere in this codebase to
- * mirror beyond the bucket-creation idiom itself (migration 074's
- * `group-documents` bucket, which has no application code wired to it at
- * all, and no storage.objects RLS policies). This module is therefore the
- * first real Storage integration, not a refactor of an existing one.
+ * The client singleton itself now lives in admin-client.ts, shared with
+ * resume-storage.ts (Phase 12) — same env vars, same bucket either module
+ * might use, no reason for two singletons.
  */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { logger } from '@/lib/logger';
+import { getSupabaseAdminClient } from './admin-client';
 
 /** Private bucket for generated organization report artifacts (migration 176). */
 export const REPORTS_BUCKET = 'reports';
@@ -36,33 +33,6 @@ export const REPORT_SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
  */
 export const REPORT_EMAIL_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
-let client: SupabaseClient | null | undefined;
-
-/**
- * Lazily built singleton. Returns null (rather than throwing) when Storage
- * isn't configured for this environment — NEXT_PUBLIC_SUPABASE_URL and
- * SUPABASE_SERVICE_ROLE_KEY are both optional in lib/env.ts (core auth/DB
- * uses raw pg, not Supabase Auth), so a dev box without them can still run
- * everything except report export. Callers surface that as a clear error
- * rather than a null-pointer crash.
- */
-function getClient(): SupabaseClient | null {
-  if (client !== undefined) return client;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    logger.warn('[supabase/storage] NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — report export storage is unavailable');
-    client = null;
-    return client;
-  }
-
-  client = createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  return client;
-}
-
 export class ReportStorageUnavailableError extends Error {
   constructor() {
     super('Report export storage is not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)');
@@ -76,7 +46,7 @@ export async function uploadReportArtifact(
   body: Buffer,
   contentType: string,
 ): Promise<void> {
-  const sb = getClient();
+  const sb = getSupabaseAdminClient();
   if (!sb) throw new ReportStorageUnavailableError();
 
   const { error } = await sb.storage.from(REPORTS_BUCKET).upload(path, body, {
@@ -95,7 +65,7 @@ export async function createReportSignedUrl(
   path: string,
   ttlSeconds: number = REPORT_SIGNED_URL_TTL_SECONDS,
 ): Promise<string> {
-  const sb = getClient();
+  const sb = getSupabaseAdminClient();
   if (!sb) throw new ReportStorageUnavailableError();
 
   const { data, error } = await sb.storage.from(REPORTS_BUCKET).createSignedUrl(path, ttlSeconds);

@@ -66,28 +66,42 @@ async function assertManagerExists(db: PoolClient, managerId: string, excludeId?
   if (!rows.length) throw new ValidationError('manager not found');
 }
 
-export async function createEmployee(actorId: string, data: CreateEmployeeInput): Promise<Employee> {
-  return withAdminDb(async (db) => {
-    if (data.managerId) await assertManagerExists(db, data.managerId);
+/**
+ * Transaction-agnostic core, taking an already-open client rather than
+ * opening its own — so a caller that needs employee creation atomic with
+ * something else (careers.service.ts's hireApplicant, which must not leave
+ * an hr_employees row committed if linking it back to the application then
+ * fails) can run both in one transaction. createEmployee() below is the
+ * normal entry point, wrapping this in its own transaction for every other
+ * caller.
+ */
+async function createEmployeeWith(db: PoolClient, actorId: string, data: CreateEmployeeInput): Promise<Employee> {
+  if (data.managerId) await assertManagerExists(db, data.managerId);
 
-    const employeeNumber = await nextEmployeeNumber(db);
-    const { rows } = await db.query<Employee>(
-      `INSERT INTO hr_employees
-         (member_id, employee_number, first_name, last_name, email, phone, department,
-          job_title, employment_type, hire_date, manager_id, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-       RETURNING *`,
-      [
-        data.memberId ?? null, employeeNumber, data.firstName, data.lastName, data.email,
-        data.phone ?? null, data.department ?? null, data.jobTitle ?? null,
-        data.employmentType, data.hireDate, data.managerId ?? null, data.notes ?? null, actorId,
-      ],
-    );
-    const employee = rows[0];
-    await logHrAudit(db, actorId, 'hr_employee.create', employee.id, null, employee);
-    return employee;
-  });
+  const employeeNumber = await nextEmployeeNumber(db);
+  const { rows } = await db.query<Employee>(
+    `INSERT INTO hr_employees
+       (member_id, employee_number, first_name, last_name, email, phone, department,
+        job_title, employment_type, hire_date, manager_id, notes, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     RETURNING *`,
+    [
+      data.memberId ?? null, employeeNumber, data.firstName, data.lastName, data.email,
+      data.phone ?? null, data.department ?? null, data.jobTitle ?? null,
+      data.employmentType, data.hireDate, data.managerId ?? null, data.notes ?? null, actorId,
+    ],
+  );
+  const employee = rows[0];
+  await logHrAudit(db, actorId, 'hr_employee.create', employee.id, null, employee);
+  return employee;
 }
+
+export async function createEmployee(actorId: string, data: CreateEmployeeInput): Promise<Employee> {
+  return withAdminDb((db) => createEmployeeWith(db, actorId, data));
+}
+
+/** Exported for careers.service.ts's hireApplicant — see createEmployeeWith's doc comment. */
+export { createEmployeeWith };
 
 export async function listEmployees(filters?: {
   status?: EmploymentStatus;

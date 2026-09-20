@@ -224,6 +224,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // Phase 10 — public marketing-site newsletter signup. A blog visitor has
     // no session at all, tenant or otherwise.
     '/api/v1/newsletter/subscribe',
+    // Phase 12 — public job application submission. Same reasoning: a
+    // careers-page visitor applying for a role has no session.
+    '/api/v1/careers/apply',
   ]);
 
   const isAnonymousApiPath =

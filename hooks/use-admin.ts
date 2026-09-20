@@ -40,6 +40,9 @@ import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/servic
 import type {
   createEmployee, listEmployees, getEmployeeById, updateEmployee, terminateEmployee,
 } from '@/lib/services/hr.service';
+import type {
+  listApplications, getApplicationById, updateApplicationStage, hireApplicant,
+} from '@/lib/services/careers.service';
 import type { C2BUrls, C2BRegistrationResult } from '@/lib/services/mpesa.service';
 
 // Response/request shapes derived directly from the service functions that
@@ -141,6 +144,12 @@ type TerminateEmployeeResult  = Awaited<ReturnType<typeof terminateEmployee>>;
 type CreateEmployeeInput      = Parameters<typeof createEmployee>[1];
 type UpdateEmployeeInput      = Parameters<typeof updateEmployee>[2];
 type TerminateEmployeeInput   = Parameters<typeof terminateEmployee>[2];
+type ApplicationList          = Awaited<ReturnType<typeof listApplications>>;
+type ApplicationDetail        = Awaited<ReturnType<typeof getApplicationById>>;
+type UpdateApplicationStageResult = Awaited<ReturnType<typeof updateApplicationStage>>;
+type HireApplicantResult      = Awaited<ReturnType<typeof hireApplicant>>;
+type UpdateApplicationStageInput = Parameters<typeof updateApplicationStage>[2];
+type HireApplicantInput       = Parameters<typeof hireApplicant>[2];
 
 export async function adminFetch<T>(
   path: string,
@@ -975,5 +984,58 @@ export function useTerminateEmployee(id: string) {
     mutationFn: (data: TerminateEmployeeInput) =>
       adminFetch<TerminateEmployeeResult>(`/api/admin/hr/employees/${id}/terminate`, { method: 'POST', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Careers (Phase 12 groundwork — job applications)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useApplications(filters?: { jobSlug?: string; stage?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.jobSlug) params.set('jobSlug', filters.jobSlug);
+  if (filters?.stage) params.set('stage', filters.stage);
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: ['admin', 'careers', 'applications', filters],
+    queryFn:  () => adminFetch<ApplicationList>(`/api/admin/careers/applications${qs ? `?${qs}` : ''}`),
+  });
+}
+
+export function useApplication(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'careers', 'applications', id],
+    queryFn:  () => adminFetch<ApplicationDetail>(`/api/admin/careers/applications/${id}`),
+    enabled:  !!id,
+  });
+}
+
+export function useResumeUrl(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'careers', 'applications', id, 'resume'],
+    queryFn:  () => adminFetch<{ url: string }>(`/api/admin/careers/applications/${id}/resume`),
+    enabled:  false, // fetched on demand (a signed URL should not be minted just because the page rendered)
+    staleTime: 0,
+  });
+}
+
+export function useUpdateApplicationStage(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateApplicationStageInput) =>
+      adminFetch<UpdateApplicationStageResult>(`/api/admin/careers/applications/${id}`, { method: 'PATCH', json: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'careers', 'applications'] }),
+  });
+}
+
+export function useHireApplicant(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: HireApplicantInput) =>
+      adminFetch<HireApplicantResult>(`/api/admin/careers/applications/${id}/hire`, { method: 'POST', json: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'careers', 'applications'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] });
+    },
   });
 }

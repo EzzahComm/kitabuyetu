@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
-import { IconArrowUpRight, IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { Container } from '@/components/Container';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { ApplicationForm } from '@/components/marketing/application-form';
 import { getJobBySlug, getOpenJobs } from '@/lib/cms/sanity';
 
 const DEPARTMENT_LABEL: Record<string, string> = {
@@ -108,19 +109,8 @@ export default async function JobPage({ params }: JobPageProps) {
             <PortableText value={job.description} />
           </div>
 
-          <div className="mt-12 flex max-w-3xl flex-col items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-trueGray-700 dark:bg-trueGray-800/40 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-bold text-gray-800 dark:text-white">Ready to apply?</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
-                Send your CV and a short note to our team.
-              </p>
-            </div>
-            <a
-              href={`mailto:careers@kitabuyetu.co.ke?subject=${encodeURIComponent(`Application: ${job.title}`)}`}
-              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
-            >
-              Apply for this role <IconArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </a>
+          <div className="mt-12 max-w-3xl">
+            <ApplicationForm jobSlug={job.slug} jobTitle={job.title} />
           </div>
         </Container>
       </main>
