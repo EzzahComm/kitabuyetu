@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProgramFormProps {
   organizationId: string;
-  onSuccess?: (program: any) => void;
+  onSuccess?: (program: unknown) => void;
 }
 
 export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { ProgramForm } from '@/components/ecosystem/program-form';
-import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
+import { ProgramProgressCard, type ProgramProgress } from '@/components/ecosystem/program-progress-card';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
@@ -54,7 +54,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
             {/* Programs Grid */}
             {programsList.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {programsList.map((program: any) => (
+                {programsList.map((program: ProgramProgress) => (
                   <div key={program.id}>
                     <ProgramProgressCard
                       program={program}

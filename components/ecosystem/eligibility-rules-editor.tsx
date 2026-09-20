@@ -99,7 +99,7 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
                       size="sm"
                       variant={active ? 'default' : 'outline'}
                       onClick={() => updateRule(rule.id, {
-                        values: active ? (rule.values ?? []).filter((v: string) => v !== gt) : [...(rule.values ?? []), gt],
+                        values: active ? (rule.values ?? []).filter((v) => v !== gt) : [...(rule.values ?? []), gt],
                       })}
                     >
                       {GROUP_TYPE_LABELS[gt]}

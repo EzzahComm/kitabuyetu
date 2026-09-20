@@ -63,14 +63,17 @@ export interface Application {
   updated_at: Date;
 }
 
+/** A rule threshold or whitelist entry: a date/county string, or a money/count number. */
+export type EligibilityValue = string | number;
+
 export interface EligibilityRule {
   id: string;
   name: string;
   type: 'range' | 'enum_whitelist' | 'geo' | 'financial' | 'external_check';
   field?: string;
   operator?: string;
-  value?: any;
-  values?: any[];
+  value?: EligibilityValue;
+  values?: EligibilityValue[];
   function?: string;
   error_message: string;
 }
@@ -166,7 +169,7 @@ export async function getPartnerById(partnerId: string): Promise<Partner | null>
 export async function listPartners(filters?: { is_active?: boolean }): Promise<Partner[]> {
   return withAdminDb(async (db) => {
     let query = `SELECT * FROM ecosystem_partners`;
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     if (filters?.is_active !== undefined) {
       query += ` WHERE is_active = $1`;
@@ -327,7 +330,7 @@ export async function listPublishedOpportunities(
   filters?: { type?: string; category?: string; featured_only?: boolean },
 ): Promise<Opportunity[]> {
   let query = `SELECT * FROM ecosystem_opportunities WHERE status = $1`;
-  const params: any[] = ['published'];
+  const params: unknown[] = ['published'];
 
   if (filters?.type) {
     query += ` AND opportunity_type = $${params.length + 1}`;
@@ -441,7 +444,7 @@ function evaluateRule(
       const fieldValue = getNestedValue(groupData, rule.field);
       if (!fieldValue) return false;
 
-      const timestamp = new Date(fieldValue).getTime();
+      const timestamp = new Date(fieldValue as string | number | Date).getTime();
       const threshold = new Date(rule.value).getTime();
 
       return rule.operator === 'before_or_equal' ? timestamp <= threshold : timestamp > threshold;
@@ -450,19 +453,20 @@ function evaluateRule(
     case 'enum_whitelist': {
       if (!rule.field || !rule.values) return false;
       const fieldValue = getNestedValue(groupData, rule.field);
-      return rule.values.includes(fieldValue);
+      return rule.values.some((v) => v === fieldValue);
     }
 
     case 'geo': {
       if (!rule.field || !rule.values) return false;
       const fieldValue = getNestedValue(groupData, rule.field);
-      return rule.values.includes(fieldValue);
+      return rule.values.some((v) => v === fieldValue);
     }
 
     case 'financial': {
       if (!rule.field || !rule.operator || rule.value === undefined) return false;
       const fieldValue = getNestedValue(groupData, rule.field);
-      if (typeof fieldValue !== 'number') return false;
+      // A non-numeric threshold is a malformed rule, not a pass — fail closed.
+      if (typeof fieldValue !== 'number' || typeof rule.value !== 'number') return false;
 
       switch (rule.operator) {
         case '>=':
@@ -487,8 +491,10 @@ function evaluateRule(
   }
 }
 
-function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => current?.[key], obj);
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>((current, key) => (current as Record<string, unknown> | undefined)?.[key], obj);
 }
 
 // ============================================================================
@@ -569,7 +575,7 @@ export async function listAllApplications(filters?: {
 }): Promise<Application[]> {
   return withAdminDb(async (db) => {
     let query = `SELECT * FROM ecosystem_opportunity_applications`;
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     if (filters?.status) {
       query += ` WHERE application_status = $1`;
@@ -617,7 +623,7 @@ async function logAudit(
   action: string,
   resourceType: string,
   resourceId: string,
-  newValues: any,
+  newValues: unknown,
 ) {
   await db.query(
     `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)

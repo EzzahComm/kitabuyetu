@@ -4,17 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
+export interface ProgramProgress {
+  id: string;
+  name: string;
+  status: string;
+  target_amount?: number;
+  current_amount: number;
+  impact_metric_name?: string;
+  impact_metric_target?: number;
+  impact_metric_current?: number;
+}
+
 interface ProgramProgressCardProps {
-  program: {
-    id: string;
-    name: string;
-    status: string;
-    target_amount?: number;
-    current_amount: number;
-    impact_metric_name?: string;
-    impact_metric_target?: number;
-    impact_metric_current?: number;
-  };
+  program: ProgramProgress;
   showCta?: boolean;
   onDonate?: () => void;
 }

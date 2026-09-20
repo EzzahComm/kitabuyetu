@@ -6,7 +6,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withPlatformRole(req, ['super_admin'], async (ctx: any) => {
+  return withPlatformRole(req, ['super_admin'], async (ctx) => {
     try {
       const { id } = await params;
       const body = await req.json();
@@ -36,7 +36,7 @@ export async function POST(
         .update({
           status: 'rejected',
           rejection_reason: reason,
-          reviewed_by: ctx.user.id,
+          reviewed_by: ctx.userId,
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -50,7 +50,7 @@ export async function POST(
       await supabase.from('audit_logs').insert({
         organization_id: program.organization_id,
         action: 'program_rejected',
-        actor_id: ctx.user.id,
+        actor_id: ctx.userId,
         entity_type: 'program',
         entity_id: id,
         changes: { status: { from: 'pending_review', to: 'rejected' }, reason },

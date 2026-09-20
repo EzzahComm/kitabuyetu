@@ -3,6 +3,7 @@
  * audit trail, and the email-suppression check Phase 9.3's send path will
  * rely on.
  */
+import type { PoolClient } from 'pg';
 import { withDb } from '@/lib/db';
 import {
   createContact, recordOptIn, recordOptOut, createOpportunity, updateOpportunity,
@@ -216,13 +217,13 @@ describe('logActivityForContact', () => {
 describe('isEmailSuppressed', () => {
   it('returns true when a matching suppression row exists for the scope', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{}] });
-    const suppressed = await isEmailSuppressed(mockClient as any, 'bounced@example.com', { groupId: 'grp-1' });
+    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'bounced@example.com', { groupId: 'grp-1' });
     expect(suppressed).toBe(true);
   });
 
   it('returns false when no suppression row exists', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-    const suppressed = await isEmailSuppressed(mockClient as any, 'ok@example.com', { groupId: 'grp-1' });
+    const suppressed = await isEmailSuppressed(mockClient as unknown as PoolClient, 'ok@example.com', { groupId: 'grp-1' });
     expect(suppressed).toBe(false);
   });
 });

@@ -17,9 +17,8 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { EligibilityRulesEditor } from '@/components/ecosystem/eligibility-rules-editor';
 import {
-  useOpportunities, useCreateOpportunity, usePublishOpportunity, useCloseOpportunity,
+  useOpportunities, useCreateOpportunity, usePublishOpportunity, useCloseOpportunity, usePartners,
 } from '@/hooks/use-admin-ecosystem';
-import { usePartners } from '@/hooks/use-admin-ecosystem';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
 import type { Opportunity, EligibilityRule } from '@/lib/services/ecosystem.service';

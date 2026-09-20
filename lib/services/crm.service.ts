@@ -124,7 +124,7 @@ export async function listContacts(
 ): Promise<Contact[]> {
   return withDb(ctx, async (db) => {
     let query = `SELECT * FROM crm_contacts WHERE 1=1`;
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     if (filters?.contact_type) {
       params.push(filters.contact_type);
@@ -159,7 +159,7 @@ export async function updateContact(
 
   return withDb(ctx, async (db) => {
     const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
-    const values = keys.map((k) => (updates as any)[k]);
+    const values = keys.map((k) => updates[k as keyof typeof updates]);
 
     const result = await db.query<Contact>(
       `UPDATE crm_contacts SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,

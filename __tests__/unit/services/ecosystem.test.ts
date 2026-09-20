@@ -6,6 +6,7 @@
  * updateOpportunity() this pass added (there was previously no way to edit
  * an opportunity's eligibility_rules after creation).
  */
+import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import {
   evaluateEligibility, evaluateEligibilityDetailed, getGroupEligibilityData, updateOpportunity,
@@ -116,7 +117,7 @@ describe('evaluateEligibilityDetailed', () => {
 describe('getGroupEligibilityData', () => {
   it('returns null for an unknown group', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    expect(await getGroupEligibilityData(mockClient as any, 'ghost')).toBeNull();
+    expect(await getGroupEligibilityData(mockClient as unknown as PoolClient, 'ghost')).toBeNull();
     expect(mockQuery).toHaveBeenCalledTimes(1); // never reaches the finance query
   });
 
@@ -124,7 +125,7 @@ describe('getGroupEligibilityData', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ type: 'chama', created_at: new Date('2026-01-01'), county: 'Nairobi' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ contributions: '10000', shares: '5000', loans: '3000' }] });
 
-    const result = await getGroupEligibilityData(mockClient as any, 'grp-1');
+    const result = await getGroupEligibilityData(mockClient as unknown as PoolClient, 'grp-1');
 
     expect(result).toEqual({ type: 'chama', created_at: new Date('2026-01-01'), cash_balance: 12000, county: 'Nairobi' });
   });
