@@ -74,6 +74,25 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (type === 'balance_result' || type === 'balance_timeout') {
+    // Same authenticity gate as the result/timeout branch above. Phase 4
+    // extended the shared-secret mechanism to Account Balance (see the
+    // callback-authenticity note in daraja.service.ts) but this branch never
+    // got the check, so an anonymous POST here reached handleBalanceResult's
+    // UPDATE on mpesa_transactions — which matches on conversation id alone,
+    // with no transaction_type restriction, and flips status to 'completed'.
+    // assertSafaricomIp downstream is advisory-only by design and logs rather
+    // than throws, so it was not a boundary.
+    //
+    // Live balance queries have pointed at /api/v1/mpesa/balance (which does
+    // validate the token) since Phase 4 — queryAccountBalance builds both its
+    // ResultURL and QueueTimeOutURL there via withCallbackToken — so this
+    // branch is the superseded path and nothing legitimate reaches it
+    // untokenised.
+    if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
+      logger.warn('[b2c balance callback] invalid or missing token — dropped', { type, callerIp });
+      return ack();
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();

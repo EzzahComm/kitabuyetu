@@ -52,7 +52,11 @@ export default defineConfig([
     // tried first for template-aliases.test.ts but proved fragile under
     // automated reformatting (the disable can desync from the require()
     // line it guards); a file-level override is immune to that.
-    files: ['__tests__/unit/services/daraja-callback-token.test.ts', '__tests__/unit/sms/template-aliases.test.ts'],
+    files: [
+      '__tests__/unit/services/daraja-callback-token.test.ts',
+      '__tests__/unit/services/b2c-balance-callback-auth.test.ts',
+      '__tests__/unit/sms/template-aliases.test.ts',
+    ],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },

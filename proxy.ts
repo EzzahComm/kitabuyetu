@@ -227,10 +227,23 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     '/api/v1/careers/apply',
   ]);
 
+  // Public donation (Changi$ha, migration 182). The route's own header calls it
+  // "the ONE public, unauthenticated endpoint on this platform that can trigger a
+  // real M-Pesa STK push" and it carries its own per-phone and per-IP rate limits
+  // for exactly that reason — but it was never listed here, so every anonymous
+  // donation was answered 401 by this file before the handler ever ran.
+  //
+  // It cannot be an exact entry in the Set above because the slug is dynamic, and
+  // it must NOT become a prefix rule: sibling paths /api/v1/campaigns/<id> and
+  // /api/v1/campaigns/<id>/donations are committee-only and have to keep requiring
+  // a session. Hence an anchored pattern matching the single /donate leaf.
+  const isPublicDonate = /^\/api\/v1\/campaigns\/[^/]+\/donate$/.test(pathname);
+
   const isAnonymousApiPath =
     isWebhook ||
     !(isTenantApi || isBackofficeApi) || // e.g. /api/health — no session concept at all
-    (isTenantApi && (PUBLIC_AUTH_PATHS.has(pathname) || pathname.startsWith('/api/v1/jurisdictions/'))); // public reference data (counties etc.)
+    (isTenantApi &&
+      (PUBLIC_AUTH_PATHS.has(pathname) || isPublicDonate || pathname.startsWith('/api/v1/jurisdictions/'))); // public reference data (counties etc.)
 
   // Rate-limit every API route except M-Pesa callbacks (Safaricom retries on
   // non-200). Anonymous surfaces are keyed by IP — same protection this file
@@ -268,6 +281,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (
     isTenantApi &&
     (PUBLIC_AUTH_PATHS.has(pathname) ||
+      isPublicDonate || // must be repeated here: this branch does not reuse isAnonymousApiPath
       pathname.startsWith('/api/v1/jurisdictions/') || // public reference data (counties etc.)
       isMpesaCallback ||
       isWebhook)
