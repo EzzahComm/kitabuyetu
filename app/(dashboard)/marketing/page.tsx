@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -141,7 +142,11 @@ export default function MarketingCampaignsPage() {
         title="Marketing campaigns"
         description="SMS and email campaigns to your members or opted-in contacts. Every campaign needs chairperson approval before it sends."
         actions={
-          canManage ? (
+          <div className="flex gap-2">
+            <Link href="/marketing/analytics">
+              <Button variant="outline">Analytics</Button>
+            </Link>
+            {canManage && (
             <div className="flex gap-2">
               <Dialog open={audienceOpen} onOpenChange={setAudienceOpen}>
                 <DialogTrigger asChild>
@@ -229,7 +234,8 @@ export default function MarketingCampaignsPage() {
                 </DialogContent>
               </Dialog>
             </div>
-          ) : undefined
+            )}
+          </div>
         }
       />
 
