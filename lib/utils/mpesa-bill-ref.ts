@@ -155,8 +155,15 @@ function normalise(s: string): string {
     .replace(/[\s_/.]+/g, '-')
     // Collapse runs of dashes
     .replace(/-{2,}/g, '-')
-    // Strip leading/trailing dashes left by the collapse
-    .replace(/^-+|-+$/g, '');
+    // Strip the single leading/trailing dash left by the collapse above.
+    // Not `/^-+|-+$/` (CodeQL js/polynomial-redos, GHSA alert #6): that
+    // unanchored-at-the-end `-+$` is the textbook quadratic-backtracking
+    // shape on attacker-reachable input (this parses the Daraja C2B
+    // BillRefNumber). The collapse already guarantees at most one dash
+    // survives at each end, so a plain non-quantified anchor is both
+    // correct and has no ambiguity for the regex engine to backtrack on.
+    .replace(/^-/, '')
+    .replace(/-$/, '');
 }
 
 function decision(
