@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Search, MoreHorizontal, ShieldCheck, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,7 @@ export default function UsersPage() {
   const router = useRouter();
   const [page,       setPage]       = useState(1);
   const [search,     setSearch]     = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [roleFilter, setRoleFilter] = useState('');
   const [editUser,   setEditUser]   = useState<{ id: string; name: string; role: string } | null>(null);
   const [newRole,    setNewRole]    = useState('');
@@ -68,7 +70,7 @@ export default function UsersPage() {
   const [roleUser,   setRoleUser]   = useState<AdminUserRow | null>(null);
   const [selRoleId,  setSelRoleId]  = useState('');
 
-  const { data, isLoading, isError, error }  = useAdminUsers({ page, limit: 25, search, role: roleFilter });
+  const { data, isLoading, isError, error }  = useAdminUsers({ page, limit: 25, search: debouncedSearch, role: roleFilter });
   const updateRole           = useUpdateUserRole();
   const assignRole           = useAssignGroupRole();
   const { data: rolesData, isLoading: rolesLoading } = useAssignableRoles(roleUser?.group_id);

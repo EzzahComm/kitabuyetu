@@ -4,6 +4,7 @@ import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { DepositSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
+import { parsePagination } from '@/lib/utils/pagination';
 
 /**
  * GET  /api/v1/organization/wallet             — wallet position + recent ledger
@@ -15,8 +16,7 @@ import { ok } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.wallet.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    const page  = parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10);
-    const limit = parseInt(req.nextUrl.searchParams.get('limit') ?? '25', 10);
+    const { page, limit } = parsePagination(req.nextUrl.searchParams, { defaultLimit: 25 });
     const [wallet, ledger] = await Promise.all([
       organizationFinanceService.getWallet(ctx),
       organizationFinanceService.listLedger(ctx, { page, limit }),

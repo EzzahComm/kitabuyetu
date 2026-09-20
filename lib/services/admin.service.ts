@@ -196,7 +196,11 @@ export function buildMonitoringDashboardPayload(input: {
 // Platform dashboard stats
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPlatformStats() {
-  return cached(keys.cache('platform-stats', 'platform'), 90, () => withAdminDb(async (db: PoolClient) => {
+  // TTL raised 90s->150s: the client poll interval is 120s (hooks/use-admin.ts
+  // useAdminDashboard), so a 90s TTL had already expired before every
+  // scheduled refetch fired — guaranteeing a cache miss on the one request
+  // this cache exists to absorb (docs/audits/optimization-2026-09).
+  return cached(keys.cache('platform-stats', 'platform'), 150, () => withAdminDb(async (db: PoolClient) => {
     const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
       db.query(`
         SELECT
@@ -291,7 +295,10 @@ export async function getRevenueTrend() {
 }
 
 export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
-  return cached(keys.cache('risk-dashboard', 'platform'), 60, () => withAdminDb(async (db: PoolClient) => {
+  // TTL raised 60s->150s — same guaranteed-miss shape as getPlatformStats
+  // above: the client's 120s poll interval outlived the 60s TTL every time
+  // (docs/audits/optimization-2026-09).
+  return cached(keys.cache('risk-dashboard', 'platform'), 150, () => withAdminDb(async (db: PoolClient) => {
     const [groups, transactions, trend, heatmap] = await Promise.all([
       db.query(`
         SELECT g.id, g.name, g.type AS group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
@@ -530,6 +537,22 @@ export interface GroupListParams {
 // Lists GROUPS (the platform tenants / chamas) for the admin portal. Named
 // after its subject — the separate `organizations` federating bodies (banks,
 // SACCOs, foundations) are managed in admin-organizations.service.ts.
+/**
+ * id + name only, for filter dropdowns/pickers — NOT listGroups(limit: 200).
+ * That call carries listGroups' full 5-LATERAL aggregate (member counts,
+ * contributions, loans, health score, subscription) per row purely to
+ * populate a `<select>`, which only ever reads `.id`/`.name`
+ * (docs/audits/optimization-2026-09).
+ */
+export async function listGroupOptions() {
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows } = await db.query<{ id: string; name: string }>(`
+      SELECT id, name FROM public.groups ORDER BY name ASC
+    `);
+    return rows;
+  });
+}
+
 export async function listGroups(params: GroupListParams) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, search, status, plan } = params;
@@ -613,7 +636,11 @@ export async function listGroups(params: GroupListParams) {
           WHERE h.group_id = g.id ORDER BY h.as_of DESC LIMIT 1
         ) hs ON true
         ${where}
-        GROUP BY g.id, s.plan_type, s.status, mem.member_count, con.total_contributions, ln.active_loans, hs.score, hs.category
+        -- No GROUP BY: every SELECT value already comes from a LATERAL
+        -- (one row per outer g row via LIMIT 1 or its own aggregate), so
+        -- there was nothing left to aggregate — the GROUP BY only forced an
+        -- extra Group+Sort plan node ahead of the real ORDER BY
+        -- (docs/audits/optimization-2026-09).
         ORDER BY g.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...values, limit, offset]),
@@ -988,7 +1015,16 @@ export async function listPlatformUsers(params: {
         ORDER BY m.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...vals, limit, offset]),
-      db.query(`SELECT COUNT(DISTINCT m.id) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`, vals),
+      // COUNT(*), not COUNT(DISTINCT m.id): the data query above lists one
+      // ROW PER ACTIVE MEMBERSHIP (a member in 2 active groups renders twice,
+      // with that membership's own group_name/role/status/joined_at — the
+      // multi-group registration feature, 2026-08-15, makes this a real and
+      // growing population). COUNT(DISTINCT m.id) counts people instead of
+      // rows, so it silently undercounted the true row total, which desyncs
+      // totalPages and can push real membership rows past the last page
+      // (docs/audits/optimization-2026-09) — both queries must count the
+      // same thing the same way.
+      db.query(`SELECT COUNT(*) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`, vals),
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
@@ -1031,8 +1067,20 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
   });
 }
 
-/** Cross-tenant member detail: profile, active group/org context, financial snapshot, recent activity, credit score. */
-export async function getAdminMemberDetail(memberId: string) {
+/**
+ * Cross-tenant member detail: profile, active group/org context, financial
+ * snapshot, recent activity, credit score.
+ *
+ * `groupId` disambiguates which membership to show for a member in more than
+ * one active group (multi-group registration, 2026-08-15) — without it the
+ * query picked an arbitrary one via LIMIT 1, which could 404 or show the
+ * wrong group's role/code/org for a member reached from a *different*
+ * group's roster (docs/audits/optimization-2026-09). The one live caller
+ * (GET .../groups/[id]/members/[memberId]) always has the group id from its
+ * own URL, so it should always be passed; the parameter stays optional only
+ * as a fallback for a caller with no group context.
+ */
+export async function getAdminMemberDetail(memberId: string, groupId?: string) {
   return withAdminDb(async (db: PoolClient) => {
     const { rows: profileRows } = await db.query(`
       SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.national_id,
@@ -1042,6 +1090,7 @@ export async function getAdminMemberDetail(memberId: string) {
              org.name AS organization_name
       FROM public.members m
       LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active'
+        ${groupId ? 'AND gm.group_id = $2' : ''}
       LEFT JOIN public.groups g ON g.id = gm.group_id
       LEFT JOIN LATERAL (
         SELECT o.name
@@ -1052,7 +1101,7 @@ export async function getAdminMemberDetail(memberId: string) {
       ) org ON true
       WHERE m.id = $1
       LIMIT 1
-    `, [memberId]);
+    `, groupId ? [memberId, groupId] : [memberId]);
 
     const profile = profileRows[0];
     if (!profile) return null;
@@ -1170,7 +1219,7 @@ export async function listSupportTickets(params: {
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
-    const [data, count] = await Promise.all([
+    const [data, count, summary] = await Promise.all([
       db.query(`
         SELECT t.*, g.name AS group_name,
                m.first_name || ' ' || m.last_name AS member_name,
@@ -1187,9 +1236,33 @@ export async function listSupportTickets(params: {
         LIMIT $${idx} OFFSET $${idx + 1}
       `, [...vals, limit, offset]),
       db.query(`SELECT COUNT(*) AS total FROM public.support_tickets t ${where}`, vals),
+      // Queue-wide, not page-wide: the KPI tiles were computed in JS over
+      // just the current 20-row page (items.filter(...)), which silently
+      // diverges from these numbers the moment any filter is applied or the
+      // queue exceeds one page (docs/audits/optimization-2026-09). Same
+      // FILTER shape getPlatformStats already computes for the platform
+      // dashboard, scoped here to this call's own WHERE so it agrees with
+      // whatever status/priority/search the operator is currently viewing.
+      db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE t.status = 'open')        AS open,
+          COUNT(*) FILTER (WHERE t.status = 'in_progress') AS in_progress,
+          COUNT(*) FILTER (WHERE t.sla_breach_at < NOW() AND t.status NOT IN ('resolved','closed')) AS sla_breached
+        FROM public.support_tickets t ${where}
+      `, vals),
     ]);
 
-    return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+    return {
+      items: data.rows,
+      total: parseInt(count.rows[0].total, 10),
+      summary: {
+        open:        Number(summary.rows[0].open),
+        inProgress:  Number(summary.rows[0].in_progress),
+        slaBreached: Number(summary.rows[0].sla_breached),
+      },
+      page,
+      limit,
+    };
   });
 }
 
@@ -1261,8 +1334,15 @@ export async function listAuditLogs(params: {
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const [data, count] = await Promise.all([
+      // 7 rendered columns, not `al.*`: old_values/new_values/user_agent are
+      // never read by the UI (AuditLogRow declares only the 8 fields below)
+      // but made up 81% of every row's bytes — measured live at 811,464
+      // bytes / 570 rows, 656,902 of it old_values+new_values
+      // (docs/audits/optimization-2026-09).
       db.query(`
-        SELECT al.*, al.resource_type AS table_name, g.name AS group_name,
+        SELECT al.id, al.action, al.resource_type AS table_name, al.resource_id AS record_id,
+               al.ip_address, al.created_at,
+               g.name AS group_name,
                m.first_name || ' ' || m.last_name AS actor_name
         FROM public.audit_logs al
         LEFT JOIN public.groups g ON g.id = al.group_id
@@ -1423,10 +1503,22 @@ export async function listUnroutedPayments(params: {
         ORDER  BY u.created_at ASC
         LIMIT  $${idx} OFFSET $${idx + 1}
       `, [...vals, limit, offset]),
-      db.query(`SELECT COUNT(*) AS total FROM public.mpesa_unrouted u ${where}`, vals),
+      // SUM alongside COUNT in the same scan: the UI's "Total value" tile
+      // was reducing only the current 20-row page while the adjacent
+      // "Unresolved" tile counted the whole queue — once the backlog exceeds
+      // one page, "Total value" silently understates the true unreconciled
+      // amount, the worst failure direction for a reconciliation queue
+      // (docs/audits/optimization-2026-09).
+      db.query(`SELECT COUNT(*) AS total, COALESCE(SUM(u.amount), 0) AS total_value FROM public.mpesa_unrouted u ${where}`, vals),
     ]);
 
-    return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+    return {
+      items: data.rows,
+      total: parseInt(count.rows[0].total, 10),
+      totalValue: Number(count.rows[0].total_value),
+      page,
+      limit,
+    };
   });
 }
 
